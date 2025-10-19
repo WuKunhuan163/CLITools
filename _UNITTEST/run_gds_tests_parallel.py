@@ -13,49 +13,12 @@ import argparse
 from pathlib import Path
 
 # 完整的GDS测试列表（从0开始编号）
-ALL_GDS_TESTS = [
-    "test_gds.GDSTest.test_01_echo_basic",                           # 0
-    "test_gds.GDSTest.test_02_echo_advanced",                        # 1
-    "test_gds.GDSTest.test_03_ls_basic",                            # 2
-    "test_gds.GDSTest.test_04_ls_advanced",                         # 3
-    "test_gds.GDSTest.test_05_file_ops_mixed",                      # 4
-    "test_gds.GDSTest.test_06_navigation",                          # 5
-    "test_gds.GDSTest.test_07_upload",                              # 6
-    "test_gds.GDSTest.test_08_grep",                                # 7
-    "test_gds.GDSTest.test_09_edit",                                # 8
-    "test_gds.GDSTest.test_10_read",                                # 9
-    "test_gds.GDSTest.test_11_project_development",                 # 10
-    "test_gds.GDSTest.test_12_project_deployment",                  # 11
-    "test_gds.GDSTest.test_13_code_execution",                      # 12
-    "test_gds.GDSTest.test_14_venv_basic",                          # 13
-    "test_gds.GDSTest.test_15_venv_package",                        # 14
-    "test_gds.GDSTest.test_16_linter",                              # 15
-    "test_gds.GDSTest.test_17_edit_linter",                         # 16
-    "test_gds.GDSTest.test_18_pipe",                                # 17
-    "test_gds.GDSTest.test_19_pip_deps_analysis",                   # 18
-    "test_gds.GDSTest.test_20_shell_mode_continuous_operations",    # 19
-    "test_gds.GDSTest.test_21_shell_mode_vs_direct_consistency",    # 20
-    "test_gds.GDSTest.test_22_shell_switching_and_state",           # 21
-    "test_gds.GDSTest.test_23_shell_mode_error_handling",           # 22
-    "test_gds.GDSTest.test_24_shell_mode_performance",              # 23
-    "test_gds.GDSTest.test_25_shell_prompt_improvements",           # 24
-    "test_gds.GDSTest.test_26_shell_command_routing",               # 25
-    "test_gds.GDSTest.test_27_shell_state_persistence",             # 26
-    "test_gds.GDSTest.test_28_pyenv_basic",                         # 27
-    "test_gds.GDSTest.test_29_pyenv_version_management",            # 28
-    "test_gds.GDSTest.test_30_pyenv_integration_with_python_execution", # 29
-    "test_gds.GDSTest.test_31_pyenv_error_handling",                # 30
-    "test_gds.GDSTest.test_32_pyenv_concurrent_operations",         # 31
-    "test_gds.GDSTest.test_33_pyenv_state_persistence",             # 32
-    "test_gds.GDSTest.test_34_pyenv_integration_with_existing_python", # 33
-    "test_gds.GDSTest.test_35_pyenv_edge_cases_and_stress_test",    # 34
-    "test_gds.GDSTest.test_36_pyenv_real_world_scenarios",          # 35
-    "test_gds.GDSTest.test_37_pyenv_performance_and_reliability",   # 36
-    "test_gds.GDSTest.test_38_pyenv_functional_verification",       # 37
-    "test_gds.GDSTest.test_39_redirection_commands_reinforcement",  # 38
-    "test_gds.GDSTest.test_40_regex_validation",                    # 39
-    "test_gds.GDSTest.test_41_edge_cases_comprehensive"             # 40
-]
+#从test_gds.py当中自动寻找所有GDSTest下方，test_开头的测试用例函数，并添加到ALL_GDS_TESTS列表中
+ALL_GDS_TESTS = []
+import test_gds
+for name in dir(test_gds.GDSTest):
+    if name.startswith('test_'):
+        ALL_GDS_TESTS.append(str(getattr(test_gds.GDSTest, name)).split(' ')[1])
 
 def get_running_background_processes():
     """获取当前运行中的后台进程数量"""

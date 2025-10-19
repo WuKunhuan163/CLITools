@@ -544,7 +544,7 @@ Shell commands: ls -la && echo "done"
 
     # ==================== 基础功能测试 ====================
     
-    def test_01_echo_basic(self):
+    def test_00_echo_basic(self):
         """测试基础echo命令"""
         
         # 简单echo
@@ -613,7 +613,7 @@ Shell commands: ls -la && echo "done"
         self.assertTrue(line1_found and line2_found and line3_found, 
                        f"Expected separate lines for 'line1', 'line2', 'line3', got: {content_lines}")
     
-    def test_02_echo_advanced(self):
+    def test_01_echo_advanced(self):
         """测试echo的正确JSON语法（修复后的功能）"""
         
         # 使用正确的语法创建JSON文件（单引号包围重定向范围）
@@ -742,7 +742,7 @@ print(f"Current files: {len(os.listdir())}")'''
             result = self._run_gds_command(f'rm {filename}')
             self.assertEqual(result.returncode, 0)
     
-    def test_03_ls_basic(self):
+    def test_02_ls_basic(self):
         """测试ls命令的全路径支持（修复后的功能）"""
         
         # 创建测试文件和目录结构
@@ -769,7 +769,7 @@ print(f"Current files: {len(os.listdir())}")'''
         result = self._run_gds_command('ls nonexistent_dir/file.txt', expect_success=False)
         self.assertNotEqual(result.returncode, 0)  # 应该失败
 
-    def test_04_ls_advanced(self):
+    def test_03_ls_advanced(self):
         # 1. 切换到测试子目录
         print(f"切换到测试子目录")
         result = self._run_gds_command('"mkdir -p ls_test_subdir && cd ls_test_subdir"')
@@ -965,7 +965,7 @@ print(f"Current files: {len(os.listdir())}")'''
         result = self._run_gds_command('rm -rf edge_test')
         self.assertEqual(result.returncode, 0)
 
-    def test_05_file_ops_mixed(self):
+    def test_04_file_ops_mixed(self):
         # 1. 创建复杂目录结构
         result = self._run_gds_command('mkdir -p advanced_project/src/utils')
         self.assertEqual(result.returncode, 0)
@@ -1012,7 +1012,7 @@ print(f"Current files: {len(os.listdir())}")'''
         result = self._run_gds_command('ls advanced_project', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0)
 
-    def test_06_navigation(self):
+    def test_05_navigation(self):
         # pwd命令
         result = self._run_gds_command('pwd')
         self.assertEqual(result.returncode, 0)
@@ -1108,7 +1108,7 @@ print(f"Current files: {len(os.listdir())}")'''
     
     # ==================== 文件上传测试 ====================
     
-    def test_07_upload(self):
+    def test_06_upload(self):
         # 单文件上传（使用--force确保可重复性）
         # 创建唯一的测试文件避免并发冲突
         unique_file = self.TEST_TEMP_DIR / "test_upload_simple_hello.py"
@@ -1221,7 +1221,7 @@ print(f"Current files: {len(os.listdir())}")'''
         )
         self.assertTrue(success, f"空目录上传失败: {result.stderr if result else 'Unknown error'}")
     
-    def test_08_grep(self):
+    def test_07_grep(self):
         # 创建测试文件
         test_content = '''Line 1: Hello world
 Line 2: This is a test
@@ -1268,7 +1268,7 @@ Line 5: No match here'''
         self.assertNotIn("3: Line 3: Hello again", output)
         
         # 测试4: 测试不存在模式的grep（应该返回1，没有匹配项）
-        result = self._run_gds_command('grep "NotFound" grep_test.txt')
+        result = self._run_gds_command('grep "NotFound" grep_test.txt', expect_success=False)
         self.assertEqual(result.returncode, 1)  # grep没有匹配项时返回1
         output = result.stdout
         self.assertNotIn("1:", output)
@@ -1279,7 +1279,7 @@ Line 5: No match here'''
     
     # ==================== 文件编辑测试 ====================
     
-    def test_09_edit(self):
+    def test_08_edit(self):
         # 重新上传测试文件确保存在（使用--force保证覆盖）
         # 创建唯一的测试文件避免并发冲突
         test_edit_file = self.TEST_TEMP_DIR / "test_edit_simple_hello.py"
@@ -1333,7 +1333,7 @@ Line 5: No match here'''
         self.assertTrue(success, f"备份模式编辑失败: {result.stderr if result else 'Unknown error'}")
     
     
-    def test_10_read(self):
+    def test_09_read(self):
         # 创建独特的测试文件
         test_read_file = self.TEST_TEMP_DIR / "test_read_simple_hello.py"
         original_file = self.TEST_DATA_DIR / "simple_hello.py"
@@ -1401,7 +1401,7 @@ Line 5: No match here'''
         result = self._run_gds_command('cat special_chars.txt')
         self.assertEqual(result.returncode, 0, "特殊字符文件应该能正常读取")
     
-    def test_11_project_development(self):
+    def test_10_project_development(self):
         
         # === 阶段1: 项目初始化 ===
         print(f"阶段1: 项目初始化")
@@ -1581,7 +1581,7 @@ if __name__ == "__main__":
 
     # ==================== 项目开发场景测试 ====================
     
-    def test_12_project_deployment(self):
+    def test_11_project_deployment(self):
         
         # 1. 上传项目文件夹（修复：--force参数应该在路径之前）
         project_dir = self.TEST_DATA_DIR / "test_project"
@@ -1614,7 +1614,7 @@ if __name__ == "__main__":
         result = self._run_gds_command('cd ..')
         self.assertEqual(result.returncode, 0)
     
-    def test_13_code_execution(self):
+    def test_12_code_execution(self):
         
         # === 阶段1: 创建独立的测试项目结构 ===
         print(f"阶段1: 创建测试项目")
@@ -1686,7 +1686,7 @@ if __name__ == "__main__":
     
     # ==================== 虚拟环境管理测试 ====================
     
-    def test_14_venv_basic(self):
+    def test_13_venv_basic(self):
         # 使用时间哈希命名虚拟环境（确保测试独立性）
         import time
         venv_name = f"test_env_{int(time.time())}"
@@ -1764,7 +1764,7 @@ if __name__ == "__main__":
         result = self._run_gds_command(f'venv --activate {empty_venv_name}', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0)  # 应该失败
     
-    def test_15_venv_package(self):
+    def test_14_venv_package(self):
         # 使用时间哈希命名虚拟环境（确保测试独立性）
         import time
         venv_name = f"current_test_env_{int(time.time())}"
@@ -1865,7 +1865,7 @@ if __name__ == "__main__":
         result = self._run_gds_command(f'venv --delete {venv_name}')
         self.assertEqual(result.returncode, 0)
         
-    def test_16_linter(self):
+    def test_15_linter(self):
         # 强制上传测试文件（确保文件存在）
         print(f"上传测试文件...")
         valid_script = self.TEST_DATA_DIR / "valid_script.py"
@@ -1925,7 +1925,7 @@ if __name__ == "__main__":
         result = self._run_gds_command('linter nonexistent_file.py', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0, "不存在的文件应该返回错误")
         
-    def test_17_edit_linter(self):
+    def test_16_edit_linter(self):
         # 创建一个有语法错误的Python文件
         error_content = '''def hello_world(
 print(f"Missing closing parenthesis")
@@ -2009,7 +2009,7 @@ print(f"Sum: {result}")
         
         print(f"Edit与Linter集成测试完成")
     
-    def test_18_pipe(self):
+    def test_17_pipe(self):
         
         # 测试简单的pipe命令
         result = self._run_gds_command('echo "hello world" | grep hello')
@@ -2047,7 +2047,7 @@ print(f"Sum: {result}")
 
     # ==================== 新功能测试：依赖树分析 ====================
     
-    def test_19_pip_deps_analysis(self):
+    def test_18_pip_deps_analysis(self):
         
         # 测试简单包的依赖分析（depth=1）
         print(f"测试简单包依赖分析（depth=1）")
@@ -2146,7 +2146,7 @@ print(f"Sum: {result}")
         
         print(f"依赖分析功能测试完成")
 
-    def test_20_shell_mode_continuous_operations(self):
+    def test_19_shell_mode_continuous_operations(self):
         """测试Shell模式下的连续操作"""
         print(f"🐚 测试Shell模式连续操作")
         
@@ -2191,7 +2191,7 @@ print(f"Sum: {result}")
         
         print(f"Shell模式连续操作测试完成")
 
-    def test_21_shell_mode_vs_direct_consistency(self):
+    def test_20_shell_mode_vs_direct_consistency(self):
         """测试Shell模式与直接命令执行的输出一致性"""
         print(f"测试Shell模式与直接命令一致性")
         
@@ -2240,7 +2240,7 @@ print(f"Sum: {result}")
         
         print(f"Shell模式与直接命令一致性测试完成")
 
-    def test_22_shell_switching_and_state(self):
+    def test_21_shell_switching_and_state(self):
         """测试Shell切换和状态管理"""
         print(f"测试Shell切换和状态管理")
         
@@ -2303,7 +2303,7 @@ print(f"Sum: {result}")
             print(f"无法从输出中提取Shell ID，跳过后续测试")
             self.skipTest("无法提取新创建的Shell ID")
 
-    def test_23_shell_mode_error_handling(self):
+    def test_22_shell_mode_error_handling(self):
         """测试Shell模式的错误处理"""
         print(f"Error:  测试Shell模式错误处理")
         
@@ -2334,7 +2334,7 @@ print(f"Sum: {result}")
         
         print(f"Shell模式错误处理测试完成")
 
-    def test_24_shell_mode_performance(self):
+    def test_23_shell_mode_performance(self):
         """测试Shell模式的性能表现"""
         print(f"测试Shell模式性能")
         
@@ -2364,7 +2364,7 @@ print(f"Sum: {result}")
         
         print(f"Shell模式性能测试完成")
 
-    def test_25_shell_prompt_improvements(self):
+    def test_24_shell_prompt_improvements(self):
         """测试Shell提示符改进"""
         print(f"测试Shell提示符改进")
         
@@ -2422,7 +2422,7 @@ print(f"Sum: {result}")
         
         print(f"Shell提示符改进测试完成")
 
-    def test_26_shell_command_routing(self):
+    def test_25_shell_command_routing(self):
         """测试Shell命令路由改进"""
         print(f"测试Shell命令路由改进")
         
@@ -2457,7 +2457,7 @@ print(f"Sum: {result}")
         
         print(f"Shell命令路由改进测试完成")
 
-    def test_27_shell_state_persistence(self):
+    def test_26_shell_state_persistence(self):
         """测试Shell状态持久性"""
         print(f"测试Shell状态持久性")
         
@@ -2501,7 +2501,7 @@ print(f"Sum: {result}")
         
         print(f"Shell状态持久性测试完成")
 
-    def test_28_pyenv_basic(self):
+    def test_27_pyenv_basic(self):
         """测试Python版本管理基础功能"""
         print(f"测试Python版本管理基础功能")
         
@@ -2534,7 +2534,7 @@ print(f"Sum: {result}")
         
         print(f"Python版本管理基础功能测试完成")
 
-    def test_29_pyenv_version_management(self):
+    def test_28_pyenv_version_management(self):
         """测试Python版本安装和管理"""
         print(f"测试Python版本安装和管理")
         
@@ -2576,7 +2576,7 @@ print(f"Sum: {result}")
         
         print(f"Python版本安装和管理测试完成")
 
-    def test_30_pyenv_integration_with_python_execution(self):
+    def test_29_pyenv_integration_with_python_execution(self):
         """测试pyenv与Python代码执行的集成"""
         print(f"测试pyenv与Python代码执行的集成")
         
@@ -2620,7 +2620,7 @@ print("Python script execution test successful!")
         
         print(f"pyenv与Python代码执行集成测试完成")
 
-    def test_31_pyenv_error_handling(self):
+    def test_30_pyenv_error_handling(self):
         """测试pyenv错误处理"""
         print(f"测试pyenv错误处理")
         
@@ -2653,7 +2653,7 @@ print("Python script execution test successful!")
         
         print(f"pyenv错误处理测试完成")
 
-    def test_32_pyenv_concurrent_operations(self):
+    def test_31_pyenv_concurrent_operations(self):
         """测试pyenv并发操作和竞态条件"""
         print(f"测试pyenv并发操作和竞态条件")
         
@@ -2714,7 +2714,7 @@ print("Python script execution test successful!")
         
         print(f"并发操作测试完成，执行时间: {execution_time:.2f}秒")
 
-    def test_33_pyenv_state_persistence(self):
+    def test_32_pyenv_state_persistence(self):
         """测试pyenv状态持久性和一致性"""
         print(f"测试pyenv状态持久性和一致性")
         
@@ -2747,7 +2747,7 @@ print("Python script execution test successful!")
         
         print(f"状态持久性测试完成")
 
-    def test_34_pyenv_integration_with_existing_python(self):
+    def test_33_pyenv_integration_with_existing_python(self):
         """测试pyenv与现有Python执行的集成和兼容性"""
         print(f"测试pyenv与现有Python执行的集成和兼容性")
         
@@ -2805,7 +2805,7 @@ print("=== Test completed successfully ===")'''
         
         print(f"Python执行集成测试完成")
 
-    def test_35_pyenv_edge_cases_and_stress_test(self):
+    def test_34_pyenv_edge_cases_and_stress_test(self):
         """测试pyenv边缘情况和压力测试"""
         print(f"测试pyenv边缘情况和压力测试")
         
@@ -2861,7 +2861,7 @@ print("=== Test completed successfully ===")'''
         
         print(f"边缘情况和压力测试完成，快速操作时间: {execution_time:.2f}秒")
 
-    def test_36_pyenv_real_world_scenarios(self):
+    def test_35_pyenv_real_world_scenarios(self):
         """测试pyenv在真实世界场景中的应用"""
         print(f"测试pyenv在真实世界场景中的应用")
         
@@ -2961,7 +2961,7 @@ if __name__ == "__main__":
         
         print(f"真实世界场景测试完成")
 
-    def test_37_pyenv_performance_and_reliability(self):
+    def test_36_pyenv_performance_and_reliability(self):
         """测试pyenv性能和可靠性"""
         print(f"测试pyenv性能和可靠性")
         
@@ -3035,7 +3035,7 @@ if __name__ == "__main__":
         
         print(f"性能和可靠性测试完成")
 
-    def test_38_pyenv_functional_verification(self):
+    def test_37_pyenv_functional_verification(self):
         """测试pyenv功能性验证 - 确保版本切换真正生效"""
         print(f"测试pyenv功能性验证 - Python版本切换")
         
@@ -3156,7 +3156,7 @@ print("=== Verification completed ===")
         
         print(f"pyenv功能性验证完成")
 
-    def test_39_redirection_commands_reinforcement(self):
+    def test_38_redirection_commands_reinforcement(self):
         """强化补丁：测试printf和echo -n重定向功能"""
         print(f"测试printf和echo -n重定向功能（强化补丁）")
         
@@ -3243,7 +3243,7 @@ print("=== Verification completed ===")
         
         print(f"printf和echo -n重定向功能测试完成（强化补丁）")
     
-    def test_40_regex_validation(self):
+    def test_39_regex_validation(self):
         """测试正则表达式验证功能"""
         print(f"测试正则表达式验证功能")
         
@@ -3268,7 +3268,7 @@ print("=== Verification completed ===")
         
         print(f"正则表达式验证测试完成")
     
-    def test_41_edge_cases_comprehensive(self):
+    def test_40_edge_cases_comprehensive(self):
         """综合边缘情况测试"""
         print(f"综合边缘情况测试")
         

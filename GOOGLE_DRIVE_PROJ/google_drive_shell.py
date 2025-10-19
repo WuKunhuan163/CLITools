@@ -45,6 +45,7 @@ try:
     from .modules.commands.read_command import ReadCommand
     from .modules.commands.pwd_command import PwdCommand
     from .modules.commands.upload_command import UploadCommand
+    from .modules.commands.upload_folder_command import UploadFolderCommand
 except ImportError:
     # 当作为独立模块导入时使用绝对导入
     from GOOGLE_DRIVE_PROJ.google_drive_api import GoogleDriveService
@@ -72,6 +73,7 @@ except ImportError:
     from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
 
 class GoogleDriveShell:
     """Google Drive Shell管理类 (重构版本)"""
@@ -229,6 +231,7 @@ class GoogleDriveShell:
         self.command_registry.register(ReadCommand(self))
         self.command_registry.register(PwdCommand(self))
         self.command_registry.register(UploadCommand(self))
+        self.command_registry.register(UploadFolderCommand(self))
     
     def calculate_timeout_from_file_sizes(self, *args, **kwargs):
         """委托到sync_manager管理器"""
