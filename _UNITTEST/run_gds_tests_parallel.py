@@ -18,7 +18,7 @@ ALL_GDS_TESTS = []
 import test_gds
 for name in dir(test_gds.GDSTest):
     if name.startswith('test_'):
-        ALL_GDS_TESTS.append(str(getattr(test_gds.GDSTest, name)).split(' ')[1])
+        ALL_GDS_TESTS.append(f"test_gds.GDSTest.{name}")
 
 def get_running_background_processes():
     """获取当前运行中的后台进程数量"""

@@ -831,10 +831,6 @@ class TextOperations:
                         return {"success": False, "error": f"Invalid line specification: [{start_line}, {end_line}]. Use [start, end] for replacement or [line, null] for insertion."}
                     
                 elif isinstance(source, str):
-                    # 文本搜索替换模式: ["old_text", "new_text"]
-                    if source not in "".join(original_lines):
-                        return {"success": False, "error": f"Text not found to replace: {source[:50]}..."}
-                    
                     parsed_replacements.append({
                         "type": "text_search",
                         "old_text": source,
