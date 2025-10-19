@@ -110,5 +110,11 @@ class EditCommand(BaseCommand):
             
             return 0
         else:
-            print(result.get("error", "Failed to edit file"))
+            error_msg = result.get("error", "Failed to edit file")
+            # Improve error message for file not found cases
+            if "Download failed: file not found" in error_msg:
+                error_msg = f"File not found: {filename}"
+            elif "file not found" in error_msg.lower():
+                error_msg = f"File not found: {filename}"
+            print(error_msg)
             return 1

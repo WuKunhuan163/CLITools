@@ -57,6 +57,7 @@ class CommandRegistry:
     def _fix_unquoted_json_strings(self, json_str: str) -> str:
         """
         Fix unquoted strings in JSON by adding quotes around them.
+        This handles cases where shell parsing split quoted strings into words.
         
         Args:
             json_str: JSON string with potentially unquoted strings
@@ -66,18 +67,36 @@ class CommandRegistry:
         """
         import re
         
-        # Pattern to match unquoted strings (words that are not numbers, true, false, null)
-        # This pattern looks for words that are not already quoted and are not JSON literals
-        pattern = r'\b(?!true\b|false\b|null\b|\d+\b)([a-zA-Z_][a-zA-Z0-9_]*)\b'
+        # Strategy: Find word sequences between array delimiters and quote them as single strings
+        # Pattern matches: [word1 word2 word3, word4 word5]
+        # Should become: ["word1 word2 word3", "word4 word5"]
         
-        def quote_match(match):
-            word = match.group(1)
-            return f'"{word}"'
+        def fix_array_elements(text):
+            # Find content between [ and ] or between , and , or between , and ]
+            # This pattern captures sequences of words that should be quoted strings
+            
+            # Split by array/object delimiters while preserving them
+            parts = re.split(r'([\[\],])', text)
+            result_parts = []
+            
+            for part in parts:
+                if part in ['[', ']', ',']:
+                    result_parts.append(part)
+                else:
+                    # This is content between delimiters - check if it needs quoting
+                    stripped = part.strip()
+                    if stripped and not stripped.startswith('"') and not stripped.endswith('"'):
+                        # Check if it's a sequence of words that should be quoted
+                        if re.match(r'^[a-zA-Z_][a-zA-Z0-9_\s]*$', stripped):
+                            result_parts.append(f' "{stripped}" ')
+                        else:
+                            result_parts.append(part)
+                    else:
+                        result_parts.append(part)
+            
+            return ''.join(result_parts)
         
-        # Apply the pattern to add quotes around unquoted strings
-        fixed_json = re.sub(pattern, quote_match, json_str)
-        
-        return fixed_json
+        return fix_array_elements(json_str)
     
     def _process_json_arguments(self, name: str, args: List[str]) -> List[str]:
         """
