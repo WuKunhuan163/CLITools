@@ -2016,7 +2016,7 @@ print(f"Sum: {result}")
         self.assertEqual(result.returncode, 0)
         
         # 创建测试文件
-        result = self._run_gds_command('\'echo "test content" > pipe_test.txt\'')
+        result = self._run_gds_command('echo "test content" > pipe_test.txt')
         self.assertEqual(result.returncode, 0)
         
         # 验证文件是否被创建（调试）
