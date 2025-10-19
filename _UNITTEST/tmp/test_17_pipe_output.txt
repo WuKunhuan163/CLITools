@@ -1,3 +1,0 @@
-wukunhuan@wukunhuandeMacBook-Air bin % ./GOOGLE_DRIVE --shell 'edit test_edit.txt [["Hello from remote project", "Hello from MODIFIED remote project"]]'
-🔍 DEBUG: CommandRegistry.execute_command called with name='edit', args=['test_edit.txt', '[[Hello from remote project,', 'Hello from MODIFIED remote project]]'], processed_args=['test_edit.txt', '[[ "Hello from remote project" , "Hello from MODIFIED remote project" ]]']
-Download failed: file not found: test_edit.txt
