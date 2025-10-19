@@ -568,6 +568,12 @@ def enter_shell_mode(command_identifier=None):
                     if not user_input:
                         continue
                     
+                    # 检测是否从管道读取输入，如果是则回显命令
+                    import sys
+                    if not sys.stdin.isatty():
+                        # 从管道读取时，手动显示命令（不包含换行符，因为prompt已经有了）
+                        print(f"{user_input}")
+                    
                     # 解析命令
                     parts = user_input.split()
                     cmd = parts[0].lower()
