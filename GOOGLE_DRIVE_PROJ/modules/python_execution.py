@@ -124,8 +124,12 @@ except:
                 # 如果找到了版本设置，检查对应的Python是否存在
                 if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" != "system" ]; then
                     PYENV_PYTHON="$PYTHON_BASE_PATH/$CURRENT_VERSION/bin/python3"
-                    if [ -f "$PYENV_PYTHON" ] && [ -x "$PYENV_PYTHON" ]; then
-                        PYTHON_EXEC="$PYENV_PYTHON"
+                    if [ -f "$PYENV_PYTHON" ]; then
+                        # 尝试修复权限问题
+                        chmod +x "$PYENV_PYTHON" 2>/dev/null || true
+                        if [ -x "$PYENV_PYTHON" ]; then
+                            PYTHON_EXEC="$PYENV_PYTHON"
+                        fi
                     fi
                 fi
             fi
