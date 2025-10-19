@@ -13,7 +13,7 @@ class VenvCommand(BaseCommand):
     def command_name(self) -> str:
         return "venv"
     
-    def execute(self, args: List[str], **kwargs) -> int:
+    def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute venv command."""
         # self.print_debug(f"✅ MATCHED VENV BRANCH! Inside venv command handler, calling cmd_venv with args: {args}")
         

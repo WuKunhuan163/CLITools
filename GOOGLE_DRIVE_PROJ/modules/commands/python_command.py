@@ -13,7 +13,7 @@ class PythonCommand(BaseCommand):
     def command_name(self) -> str:
         return "python"
     
-    def execute(self, args: List[str], **kwargs) -> int:
+    def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute python command."""
         # print(f"🔍 PYTHON_COMMAND DEBUG: ✅ MATCHED PYTHON BRANCH! Processing python with args: {args}")
         
