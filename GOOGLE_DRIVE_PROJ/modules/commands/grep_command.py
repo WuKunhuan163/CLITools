@@ -20,24 +20,28 @@ class GrepCommand(BaseCommand):
             return False
         return True
     
-    def execute(self, args: List[str], **kwargs) -> int:
+    def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute grep command."""
-        self.print_debug(f"✅ MATCHED GREP BRANCH! Processing grep with args: {args}")
+        # self.print_debug(f"✅ MATCHED GREP BRANCH! Processing grep with args: {args}")
+        # print(f"🔍 DEBUG: cmd='{cmd}', args={args}")
         
         # 处理参数解析
         if len(args) == 1:
             # 只有一个参数，视为文件名，模式为空（等效于read）
             pattern = ""
             filenames = args
+            # print(f"🔍 DEBUG: Single arg case - pattern='{pattern}', filenames={filenames}")
         elif '.' in args[-1] and not args[-1].startswith('.'):
             # 最后一个参数很可能是文件名，前面的是模式
             filenames = [args[-1]]
             pattern_parts = args[:-1]
             pattern = ' '.join(pattern_parts)
+            # print(f"🔍 DEBUG: Dot in last arg case - pattern='{pattern}', filenames={filenames}")
         else:
             # 传统处理：第一个参数是模式，其余是文件名
             pattern = args[0]
             filenames = args[1:]
+            # print(f"🔍 DEBUG: Traditional case - pattern='{pattern}', filenames={filenames}")
         
         # 移除pattern的外层引号（如果存在）
         original_pattern = pattern
@@ -49,8 +53,13 @@ class GrepCommand(BaseCommand):
         # 检查是否为无模式的grep（等效于read）
         if not pattern or pattern.strip() == "":
             # 无模式grep，等效于read命令
+            # print(f"🔍 DEBUG: No pattern grep, filenames: {filenames}")
             for filename in filenames:
+                # print(f"🔍 DEBUG: Calling cmd_cat for filename: {filename}")
+                # print(f"🔍 DEBUG: self.shell type: {type(self.shell)}")
+                # print(f"🔍 DEBUG: self.shell: {self.shell}")
                 cat_result = self.shell.cmd_cat(filename)
+                # print(f"🔍 DEBUG: cmd_cat result: {cat_result}")
                 if cat_result.get("success"):
                     content = cat_result["output"]
                     # 修复换行显示问题，并添加行号

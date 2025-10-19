@@ -7,16 +7,18 @@ class CatCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行cat命令"""
-        # print(f"🔍 CAT_COMMAND DEBUG: Processing cat with args: {args}")
+        # print(f"🔍 CAT_COMMAND DEBUG: Processing cat with cmd='{cmd}', args={args}")
         
         if not args:
             print("Error: cat command needs a file name")
             return 1
         
         filename = args[0]
+        # print(f"🔍 CAT_COMMAND DEBUG: Calling cmd_cat for filename: {filename}")
         
         # 调用shell的cat方法
         result = self.shell.cmd_cat(filename)
+        # print(f"🔍 CAT_COMMAND DEBUG: cmd_cat result: {result}")
         
         if result.get("success", False):
             if not result.get("direct_feedback", False):
