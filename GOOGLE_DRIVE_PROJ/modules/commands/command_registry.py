@@ -54,6 +54,81 @@ class CommandRegistry:
         """
         return list(self._commands.keys())
     
+    def _fix_unquoted_json_strings(self, json_str: str) -> str:
+        """
+        Fix unquoted strings in JSON by adding quotes around them.
+        
+        Args:
+            json_str: JSON string with potentially unquoted strings
+            
+        Returns:
+            str: JSON string with properly quoted strings
+        """
+        import re
+        
+        # Pattern to match unquoted strings (words that are not numbers, true, false, null)
+        # This pattern looks for words that are not already quoted and are not JSON literals
+        pattern = r'\b(?!true\b|false\b|null\b|\d+\b)([a-zA-Z_][a-zA-Z0-9_]*)\b'
+        
+        def quote_match(match):
+            word = match.group(1)
+            return f'"{word}"'
+        
+        # Apply the pattern to add quotes around unquoted strings
+        fixed_json = re.sub(pattern, quote_match, json_str)
+        
+        return fixed_json
+    
+    def _process_json_arguments(self, name: str, args: List[str]) -> List[str]:
+        """
+        Process JSON arguments for commands that need them.
+        
+        Args:
+            name: Command name
+            args: Original arguments
+            
+        Returns:
+            List[str]: Processed arguments
+        """
+        # Commands that expect JSON arguments
+        json_argument_commands = ['edit']
+        
+        if name not in json_argument_commands:
+            return args
+        
+        if name == 'edit' and len(args) >= 2:
+            # Look for JSON pattern split across multiple arguments
+            json_parts = []
+            json_start_idx = -1
+            
+            for i, arg in enumerate(args):
+                if arg.startswith('[') and json_start_idx == -1:
+                    # Start of JSON
+                    json_start_idx = i
+                    json_parts = [arg]
+                elif json_start_idx >= 0:
+                    # Continuation of JSON
+                    json_parts.append(arg)
+                    if arg.endswith(']'):
+                        # End of JSON found, reconstruct it
+                        json_str = ' '.join(json_parts)
+                        
+                        # Fix unquoted strings in the JSON
+                        fixed_json = self._fix_unquoted_json_strings(json_str)
+                        
+                        # Return args with JSON parts replaced by single reconstructed JSON
+                        new_args = args[:json_start_idx] + [fixed_json]
+                        # print(f"🔍 DEBUG: Reconstructed JSON: {json_parts} -> '{json_str}' -> '{fixed_json}'")
+                        return new_args
+            
+            # If no split JSON found, check if it's already a single JSON argument
+            for i, arg in enumerate(args):
+                if arg.startswith('[') and arg.endswith(']'):
+                    # Already a complete JSON argument
+                    return args
+        
+        return args
+
     def execute_command(self, name: str, args: List[str], **kwargs) -> int:
         """
         Execute a command by name.
@@ -71,7 +146,11 @@ class CommandRegistry:
             print(f"Error: Unknown command '{name}'")
             return 1
         
-        if not command.validate_args(args):
+        # Process JSON arguments if needed
+        processed_args = self._process_json_arguments(name, args)
+        # print(f"🔍 DEBUG: CommandRegistry.execute_command called with name='{name}', args={args}, processed_args={processed_args}")
+        
+        if not command.validate_args(processed_args):
             return 1
         
-        return command.execute(name, args, **kwargs)
+        return command.execute(name, processed_args, **kwargs)

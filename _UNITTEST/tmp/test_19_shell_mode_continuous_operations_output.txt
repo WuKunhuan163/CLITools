@@ -1,0 +1,23 @@
+test_19_shell_mode_continuous_operations (test_gds.GDSTest)
+测试Shell模式下的连续操作 ... FAIL
+
+======================================================================
+FAIL: test_19_shell_mode_continuous_operations (test_gds.GDSTest)
+测试Shell模式下的连续操作
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2182, in test_19_shell_mode_continuous_operations
+    self.assertEqual(result.returncode, 0, "Shell模式连续操作应该成功")
+AssertionError: 1 != 0 : Shell模式连续操作应该成功
+
+----------------------------------------------------------------------
+Ran 1 test in 252.980s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251019_173853_807041_0b553c81
+已切换到远端测试目录: ~/tmp/gds_test_20251019_173853_807041_0b553c81
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_8k21cudg
+测试环境设置完成
+🐚 测试Shell模式连续操作
+Command execution timeout (180s)
