@@ -69,16 +69,14 @@ class EditCommand(BaseCommand):
                 print(f"\nEdit comparison: {filename}")
                 print(f"=" * 50)
                 
-                # 过滤diff输出，移除文件头和行号信息
+                # 过滤diff输出，只移除文件头，保留行号信息和上下文
                 diff_lines = diff_output.splitlines()
                 filtered_lines = []
                 for line in diff_lines:
                     # 跳过文件头行（--- 和 +++）
                     if line.startswith('---') or line.startswith('+++'):
                         continue
-                    # 跳过行号信息行（@@）
-                    if line.startswith('@@'):
-                        continue
+                    # 保留行号信息行（@@）和所有其他内容
                     filtered_lines.append(line)
                 
                 # 显示过滤后的diff内容
