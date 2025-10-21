@@ -703,10 +703,17 @@ class FileUtils:
                     else:
                         target_remote_path = f"~/{target_path.strip('/')}/{filename}"
                 
-                # 检查目标文件是否存在
-                check_result = self._check_single_target_file_conflict(filename, target_path)
-                if not check_result["success"] and "File exists" in check_result.get("error", ""):
-                    overridden_files.append(target_remote_path)
+                # 检查目标文件是否存在 - 使用cmd_ls来检查
+                ls_result = self.main_instance.cmd_ls(target_path, detailed=False, recursive=False)
+                if ls_result.get("success") and ls_result.get("files"):
+                    # 获取远程文件名列表
+                    remote_files = set()
+                    for file_info in ls_result["files"]:
+                        remote_files.add(file_info["name"])
+                    
+                    # 如果文件存在于远程，则会被覆盖
+                    if filename in remote_files:
+                        overridden_files.append(target_remote_path)
             
             return {
                 "success": True,

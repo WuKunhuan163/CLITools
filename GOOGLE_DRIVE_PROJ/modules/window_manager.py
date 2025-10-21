@@ -863,8 +863,8 @@ try:
             
         activate_buttons("10秒自动激活", play_sound=False)
     
-    # 设置10秒定时器
-    root.after(10000, auto_activate_buttons)
+    # 设置3600秒定时器
+    root.after(3600000, auto_activate_buttons)
     
     # 绑定窗口按键事件（需要焦点）
     root.bind('<KeyPress>', on_key_press)
