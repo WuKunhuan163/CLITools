@@ -26,3 +26,4 @@ class DepsCommand(BaseCommand):
             error_msg = result.get("error", "Dependency analysis failed")
             print(error_msg)
             return 1
+

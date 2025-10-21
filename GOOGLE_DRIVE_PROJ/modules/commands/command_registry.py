@@ -54,49 +54,53 @@ class CommandRegistry:
         """
         return list(self._commands.keys())
     
-    def _fix_unquoted_json_strings(self, json_str: str) -> str:
+    def _smart_fix_json(self, json_str: str) -> str:
         """
-        Fix unquoted strings in JSON by adding quotes around them.
-        This handles cases where shell parsing split quoted strings into words.
+        Intelligently fix JSON by adding missing quotes and using eval.
         
         Args:
-            json_str: JSON string with potentially unquoted strings
+            json_str: JSON string that may have missing quotes
             
         Returns:
-            str: JSON string with properly quoted strings
+            str: Fixed JSON string
         """
         import re
+        import ast
+        import json
         
-        # Strategy: Find word sequences between array delimiters and quote them as single strings
-        # Pattern matches: [word1 word2 word3, word4 word5]
-        # Should become: ["word1 word2 word3", "word4 word5"]
+        # Strategy: Use regex to identify and fix different JSON patterns
+        fixed_str = json_str
         
-        def fix_array_elements(text):
-            # Find content between [ and ] or between , and , or between , and ]
-            # This pattern captures sequences of words that should be quoted strings
-            
-            # Split by array/object delimiters while preserving them
-            parts = re.split(r'([\[\],])', text)
-            result_parts = []
-            
-            for part in parts:
-                if part in ['[', ']', ',']:
-                    result_parts.append(part)
-                else:
-                    # This is content between delimiters - check if it needs quoting
-                    stripped = part.strip()
-                    if stripped and not stripped.startswith('"') and not stripped.endswith('"'):
-                        # Check if it's a sequence of words that should be quoted
-                        if re.match(r'^[a-zA-Z_][a-zA-Z0-9_\s]*$', stripped):
-                            result_parts.append(f' "{stripped}" ')
-                        else:
-                            result_parts.append(part)
-                    else:
-                        result_parts.append(part)
-            
-            return ''.join(result_parts)
+        # Pattern 1: Fix string replacement [[text1, text2]] -> [["text1", "text2"]]
+        string_pattern = r'\[\[([^"]+?),\s*([^"]+?)\]\]'
+        def fix_string_replacement(match):
+            text1 = match.group(1).strip()
+            text2 = match.group(2).strip()
+            return f'[["{text1}", "{text2}"]]'
         
-        return fix_array_elements(json_str)
+        if re.search(string_pattern, fixed_str):
+            fixed_str = re.sub(string_pattern, fix_string_replacement, fixed_str)
+        
+        # Pattern 2: Fix line replacement [[[numbers], text]] -> [[[numbers], "text"]]
+        line_pattern = r'(\[\[\[[0-9, ]+\],\s*)([^"]+?)(\]\])'
+        def fix_line_replacement(match):
+            prefix = match.group(1)
+            text = match.group(2).strip()
+            suffix = match.group(3)
+            return f'{prefix}"{text}"{suffix}'
+        
+        if re.search(line_pattern, fixed_str):
+            fixed_str = re.sub(line_pattern, fix_line_replacement, fixed_str)
+        
+        # Now try to parse with ast.literal_eval
+        try:
+            parsed = ast.literal_eval(fixed_str)
+            # Convert back to JSON string
+            result = json.dumps(parsed)
+            return result
+        except Exception as e:
+            # Fallback to original method
+            return self._fix_unquoted_json_strings(json_str)
     
     def _process_json_arguments(self, name: str, args: List[str]) -> List[str]:
         """
@@ -132,12 +136,11 @@ class CommandRegistry:
                         # End of JSON found, reconstruct it
                         json_str = ' '.join(json_parts)
                         
-                        # Fix unquoted strings in the JSON
-                        fixed_json = self._fix_unquoted_json_strings(json_str)
+                        # Try to intelligently fix the JSON by adding missing quotes
+                        fixed_json = self._smart_fix_json(json_str)
                         
                         # Return args with JSON parts replaced by single reconstructed JSON
                         new_args = args[:json_start_idx] + [fixed_json]
-                        # print(f"🔍 DEBUG: Reconstructed JSON: {json_parts} -> '{json_str}' -> '{fixed_json}'")
                         return new_args
             
             # If no split JSON found, check if it's already a single JSON argument
