@@ -35,7 +35,13 @@ class ReadCommand(BaseCommand):
         
         if result.get("success", False):
             if not result.get("direct_feedback", False):
-                print(result.get("output", ""))
+                # 添加行号显示，根据总行数动态调整宽度
+                content = result.get("output", "")
+                lines = content.split('\n')
+                total_lines = len(lines)
+                width = len(str(total_lines))  # 计算总行数的位数
+                for i, line in enumerate(lines, 1):
+                    print(f"{i:{width}}: {line}")
             return 0
         else:
             print(result.get("error", "Failed to read file"))

@@ -62,10 +62,12 @@ class GrepCommand(BaseCommand):
                 # print(f"🔍 DEBUG: cmd_cat result: {cat_result}")
                 if cat_result.get("success"):
                     content = cat_result["output"]
-                    # 修复换行显示问题，并添加行号
+                    # 修复换行显示问题，并添加行号（根据总行数动态调整宽度）
                     lines = content.split('\n')
+                    total_lines = len(lines)
+                    width = len(str(total_lines))  # 计算总行数的位数
                     for i, line in enumerate(lines, 1):
-                        print(f"{i:3}: {line}")
+                        print(f"{i:{width}}: {line}")
                 else:
                     self.print_error(f"无法读取文件: {filename}")
             return 0
