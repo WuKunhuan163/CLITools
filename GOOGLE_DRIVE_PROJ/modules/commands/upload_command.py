@@ -46,6 +46,7 @@ class UploadCommand(BaseCommand):
             return 1
         
         # 调用upload命令
+        print(f"🔍 DEBUG: Calling cmd_upload with force={force}, source_files={source_files}")
         result = self.shell.cmd_upload(source_files, target_path=target_path, force=force, remove_local=remove_local)
         
         if result.get("success"):

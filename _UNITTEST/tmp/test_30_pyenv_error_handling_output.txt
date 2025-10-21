@@ -1,0 +1,32 @@
+test_30_pyenv_error_handling (test_gds.GDSTest)
+测试pyenv错误处理 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+FAIL
+
+======================================================================
+FAIL: test_30_pyenv_error_handling (test_gds.GDSTest)
+测试pyenv错误处理
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3075, in test_30_pyenv_error_handling
+    self.assertNotEqual(result.returncode, 0, "无效选项应该失败")
+AssertionError: 0 == 0 : 无效选项应该失败
+
+----------------------------------------------------------------------
+Ran 1 test in 162.406s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251021_130644_763621_d59f1568
+已切换到远端测试目录: ~/tmp/gds_test_20251021_130644_763621_d59f1568
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_j9bov60o
+测试环境设置完成
+测试pyenv错误处理
+命令转译成功: ['pyenv', '--invalid-option'] -> pyenv --invalid-option
+返回码: 0
+输出: 
+[K⏳ Waiting for result ......
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...

@@ -1,0 +1,42 @@
+test_29_pyenv_integration_with_python_execution (test_gds.GDSTest)
+测试pyenv与Python代码执行的集成 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+FAIL
+
+======================================================================
+FAIL: test_29_pyenv_integration_with_python_execution (test_gds.GDSTest)
+测试pyenv与Python代码执行的集成
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 357, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 2 != 0 : 命令执行失败: ['python', "import sys; print(f'Python version: {sys.version}'); print('Hello from Python!')"]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3032, in test_29_pyenv_integration_with_python_execution
+    result = self._run_gds_command(["python", test_code])
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 363, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: ['python', "import sys; print(f'Python version: {sys.version}'); print('Hello from Python!')"] - 2 != 0 : 命令执行失败: ['python', "import sys; print(f'Python version: {sys.version}'); print('Hello from Python!')"]
+
+----------------------------------------------------------------------
+Ran 1 test in 101.452s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251021_125925_151727_40fcbb2f
+已切换到远端测试目录: ~/tmp/gds_test_20251021_125925_151727_40fcbb2f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_sbzknza1
+测试环境设置完成
+测试pyenv与Python代码执行的集成
+命令转译成功: ['python', "import sys; print(f'Python version: {sys.version}'); print('Hello from Python!')"] -> python "import sys; print(f'Python version: {sys.version}'); print('Hello from Python!')"
+返回码: 2
+输出: Warning: Command contains exclamation marks which may cause shell history expansion issues.
+Original command: bash -c "source /content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh 2>/dev/null || t...
+Warning: 错误: bash: -c: line 1: syntax error near unexpected token `f'Python version: {sys.version}''
+bash: -c: line 1: `source /content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh 2>/dev/null || true && pytho...
+命令执行异常: 2 != 0 : 命令执行失败: ['python', "import sys; print(f'Python version: {sys.version}'); print('Hello from Python!')"]

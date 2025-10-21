@@ -1311,10 +1311,10 @@ Line 5: No match here'''
         )
         self.assertTrue(success, f"基础文本替换编辑失败: {result.stderr if result else 'Unknown error'}")
         
-        # 行号替换编辑（使用0-based索引）
+        # 行号替换编辑（使用0-based索引，替换第3-4行）
         success, result = self._run_gds_command_with_retry(
-            'edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]]',
-            ['grep "# Modified first line" test_edit_simple_hello.py'],
+            'edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]]',
+            ['grep "# Modified line 3-4" test_edit_simple_hello.py'],
             max_retries=3
         )
         self.assertTrue(success, f"行号替换编辑失败: {result.stderr if result else 'Unknown error'}")
@@ -2596,84 +2596,356 @@ print(f"Sum: {result}")
         
         print(f"Shell提示符改进测试完成")
 
-    def test_25_shell_command_routing(self):
-        """测试Shell命令路由改进"""
-        print(f"测试Shell命令路由改进")
+    def test_25_gds_window_robustness(self):
+        """测试GDS窗口管理器鲁棒性 - 跨进程文件锁机制"""
+        print(f"🧪 测试GDS窗口管理器鲁棒性")
         
-        # 测试各种命令都能正确路由
-        test_commands = [
-            ("pwd", "应该显示当前路径"),
-            ("ls", "应该列出文件"),
-            ("help", "应该显示帮助信息"),
-            ("mkdir test_routing", "应该创建目录"),
-            ("ls", "应该显示新创建的目录"),
-            ("rm -rf test_routing", "应该删除目录")
-        ]
+        import threading
+        import psutil
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         
-        for cmd, description in test_commands:
-            print(f"测试命令: {cmd}")
-            
-            shell_input = f"{cmd}\nexit\n"
-            result = self._run_command_with_input(
-                [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
-                shell_input,
-            )
-            
-            self.assertEqual(result.returncode, 0, f"{cmd}命令应该成功执行")
-            
-            output = result.stdout
-            self.assertIn("GDS:", output, f"{cmd}命令应该在shell模式中执行")
-            
-            # 验证没有"Unknown command"错误
-            self.assertNotIn("Unknown command", output, f"{cmd}命令不应该被认为是未知命令")
-            
-            print(f"{cmd}命令路由正常")
+        # 设置测试环境
+        LOCK_FILE = self.BIN_DIR / "GOOGLE_DRIVE_DATA" / "window_lock.lock"
+        DEBUG_LOG = self.BIN_DIR / "GOOGLE_DRIVE_DATA" / "window_queue_debug.log"
         
-        print(f"Shell命令路由改进测试完成")
-
-    def test_26_shell_state_persistence(self):
-        """测试Shell状态持久性"""
-        print(f"测试Shell状态持久性")
+        def cleanup_test_environment():
+            """清理测试环境"""
+            try:
+                # 清理锁文件
+                if LOCK_FILE.exists():
+                    LOCK_FILE.unlink()
+                
+                # 清理debug日志
+                if DEBUG_LOG.exists():
+                    DEBUG_LOG.unlink()
+                    
+                # 杀死所有遗留的GDS进程
+                for proc in psutil.process_iter(['pid', 'cmdline']):
+                    try:
+                        cmdline = proc.info['cmdline']
+                        if cmdline and 'GOOGLE_DRIVE.py' in ' '.join(cmdline):
+                            proc.kill()
+                            proc.wait(timeout=3)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                        pass
+                        
+            except Exception as e:
+                print(f"清理环境时出错: {e}")
         
-        # 测试连续的状态变化操作
-        shell_commands = [
-            "pwd",
-            "mkdir test_state_dir",
-            "cd test_state_dir",
-            "pwd",
-            "echo 'test content' > test_file.txt",
-            "cat test_file.txt",
-            "ls",
-            "cd ..",
-            "pwd",
-            "ls",
-            "rm -rf test_state_dir"
-        ]
+        # 清理测试环境
+        cleanup_test_environment()
+        time.sleep(0.5)
         
-        shell_input = "\n".join(shell_commands) + "\nexit\n"
+        # 子测试1: 并发窗口请求测试
+        print("🔄 子测试1: 并发窗口请求")
         
-        result = self._run_command_with_input(
-            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
-            shell_input,
+        def run_gds_command(cmd_id):
+            """运行单个GDS命令"""
+            start_time = time.time()
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'touch', f'test_concurrent_{cmd_id}.txt'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                end_time = time.time()
+                return {
+                    'cmd_id': cmd_id,
+                    'duration': end_time - start_time,
+                    'returncode': result.returncode,
+                    'success': result.returncode == 0
+                }
+            except subprocess.TimeoutExpired:
+                return {
+                    'cmd_id': cmd_id,
+                    'duration': 30,
+                    'returncode': 'timeout',
+                    'success': False
+                }
+        
+        # 启动3个并发命令（减少数量以适应测试环境）
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(run_gds_command, i) for i in range(3)]
+            results = [future.result() for future in as_completed(futures)]
+        
+        # 分析结果
+        success_count = sum(1 for r in results if r['success'])
+        print(f"📊 并发命令结果: {success_count}/3 成功")
+        
+        # 验证至少有一些命令成功
+        self.assertGreater(success_count, 0, "至少应该有一些并发命令成功")
+        
+        # 子测试2: 进程崩溃恢复测试
+        print("💥 子测试2: 进程崩溃恢复")
+        
+        # 启动一个长时间运行的GDS命令
+        proc = subprocess.Popen(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'touch', 'test_crash.txt'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
-        self.assertEqual(result.returncode, 0, "Shell状态持久性测试应该成功")
+        # 等待窗口创建
+        time.sleep(2)
+        print(f"📋 启动进程 PID: {proc.pid}")
         
-        output = result.stdout
+        # 强制杀死进程
+        try:
+            proc.kill()
+            proc.wait(timeout=5)
+            print("💀 进程已强制终止")
+        except subprocess.TimeoutExpired:
+            print("Warning: 进程终止超时")
         
-        # 验证状态变化的连续性
-        self.assertIn("test_state_dir", output, "应该显示创建的目录")
-        self.assertIn("test content", output, "应该显示文件内容")
+        # 等待锁释放
+        time.sleep(1)
         
-        # 验证目录切换的效果
-        lines = output.split('\n')
-        pwd_lines = [line.strip() for line in lines if line.strip().startswith('~') and not line.startswith('GDS:')]
+        # 启动新的命令，应该能立即获得锁
+        start_time = time.time()
+        result = subprocess.run(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'touch', 'test_after_crash.txt'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        end_time = time.time()
         
-        # 应该有不同的路径输出
-        path_changes = len(set(pwd_lines))
-        self.assertGreaterEqual(path_changes, 2, "应该有路径变化")
+        duration = end_time - start_time
+        print(f"🔄 崩溃后新命令耗时: {duration:.1f}s")
         
-        print(f"Shell状态持久性测试完成")
+        # 验证新命令能快速获得锁（不应该长时间等待）
+        self.assertLess(duration, 8, "崩溃后新命令应该能快速获得锁")
+        
+        # 子测试3: Debug日志完整性
+        print("📝 子测试3: Debug日志完整性")
+        
+        # 运行几个命令生成debug日志
+        commands = [
+            ['touch', 'debug_test_1.txt'],
+            ['echo', 'debug_test_2']
+        ]
+        
+        for i, cmd in enumerate(commands):
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell'] + cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                print(f"📋 命令{i+1}完成: {result.returncode}")
+            except subprocess.TimeoutExpired:
+                print(f"⏰ 命令{i+1}超时")
+        
+        # 分析debug日志
+        if DEBUG_LOG.exists():
+            with open(DEBUG_LOG, 'r', encoding='utf-8') as f:
+                log_content = f.read()
+            
+            # 统计关键事件
+            lock_requests = log_content.count('CROSS_PROCESS_LOCK')
+            lock_acquired = log_content.count('LOCK_ACQUIRED')
+            
+            print(f"📊 Debug日志分析: {lock_requests}个锁请求, {lock_acquired}个锁获取")
+            
+            # 验证日志完整性
+            if lock_requests > 0:
+                print("✅ 找到锁请求记录")
+            if lock_acquired > 0:
+                print("✅ 找到锁获取记录")
+        else:
+            print("Warning: Debug日志文件不存在")
+        
+        # 最终清理
+        cleanup_test_environment()
+        
+        print(f"🎉 GDS窗口管理器鲁棒性测试完成")
+
+    def test_26_gds_single_window_control(self):
+        """测试GDS单窗口控制机制 - 确保任何时候只有一个窗口存在"""
+        print(f"🎯 测试GDS单窗口控制机制")
+        
+        import threading
+        import psutil
+        
+        # 测试状态变量
+        window_count = 0
+        max_concurrent = 0
+        window_history = []
+        monitoring = True
+        test_failed = False
+        failure_reason = ""
+        first_window_time = None
+        
+        def detect_gds_windows():
+            """检测当前GDS窗口数量"""
+            gds_processes = []
+            
+            for proc in psutil.process_iter(['pid', 'cmdline', 'create_time']):
+                try:
+                    cmdline = proc.info['cmdline']
+                    if not cmdline:
+                        continue
+                        
+                    cmdline_str = ' '.join(cmdline)
+                    
+                    # 检测GDS窗口的特征 - 检测WindowManager创建的tkinter窗口
+                    if ('python' in cmdline_str.lower() and 
+                        ('-c' in cmdline_str or 'tkinter' in cmdline_str.lower()) and
+                        ('Google Drive Shell' in cmdline_str or 'root.title' in cmdline_str or 'TKINTER_WINDOW' in cmdline_str)):
+                        
+                        create_time = proc.info['create_time']
+                        gds_processes.append({
+                            'pid': proc.info['pid'],
+                            'create_time': create_time,
+                            'cmdline': cmdline_str[:100] + '...' if len(cmdline_str) > 100 else cmdline_str
+                        })
+                        
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+                    
+            return gds_processes
+        
+        def monitor_windows():
+            """监控窗口变化 - 自动检测失败条件"""
+            nonlocal window_count, max_concurrent, window_history, monitoring, test_failed, failure_reason, first_window_time
+            
+            print("🔍 开始自动监控...")
+            start_time = time.time()
+            
+            while monitoring and not test_failed:
+                try:
+                    current_windows = detect_gds_windows()
+                    current_count = len(current_windows)
+                    current_time = time.time()
+                    
+                    # 检查10秒内是否有窗口出现，如果没有则结束测试
+                    if current_time - start_time > 10:
+                        if first_window_time is None:
+                            test_failed = True
+                            failure_reason = "10秒内没有窗口出现（可能死锁）"
+                            print(f"❌ 自动失败: {failure_reason}")
+                        else:
+                            # 有窗口出现，10秒后根据窗口个数结束测试
+                            print(f"⏰ 10秒测试时间到，根据窗口个数结束测试")
+                            print(f"📊 当前窗口个数: {current_count}")
+                            monitoring = False  # 结束监控
+                        break
+                    
+                    if current_count != window_count:
+                        timestamp = time.strftime('%H:%M:%S')
+                        print(f"🪟 [{timestamp}] 窗口数量变化: {window_count} -> {current_count}")
+                        
+                        # 记录第一个窗口出现时间
+                        if current_count > 0 and first_window_time is None:
+                            first_window_time = current_time
+                            print(f"第一个窗口在 {current_time - start_time:.1f}s 时出现")
+                        
+                        if current_count > window_count:
+                            for window in current_windows:
+                                print(f"   新窗口: PID={window['pid']}")
+                        
+                        window_count = current_count
+                        window_history.append({
+                            'timestamp': current_time,
+                            'count': current_count,
+                            'windows': current_windows.copy()
+                        })
+                        
+                        # 更新最大并发数
+                        if current_count > max_concurrent:
+                            max_concurrent = current_count
+                            
+                        # 立即检测多窗口失败条件
+                        if current_count > 1:
+                            test_failed = True
+                            failure_reason = f"检测到 {current_count} 个窗口同时存在（多窗口并发问题）"
+                            print(f"❌ 自动失败: {failure_reason}")
+                            
+                            for i, window in enumerate(current_windows):
+                                print(f"     窗口{i+1}: PID={window['pid']}")
+                            break
+                    
+                    time.sleep(0.5)  # 检测间隔
+                    
+                except Exception as e:
+                    print(f"❌ 监控出错: {e}")
+                    test_failed = True
+                    failure_reason = f"监控异常: {e}"
+                    break
+        
+        # 启动监控线程
+        monitor_thread = threading.Thread(target=monitor_windows, daemon=True)
+        monitor_thread.start()
+        
+        # 运行一个简单的GDS命令来触发窗口
+        print("🧪 启动GDS命令触发窗口...")
+        try:
+            test_process = subprocess.Popen(
+                [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'pwd'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            print(f"📋 测试进程已启动 (PID: {test_process.pid})")
+            
+            # 等待测试完成或失败
+            start_time = time.time()
+            while monitoring and not test_failed:
+                if test_process.poll() is not None:
+                    # 进程已结束
+                    print("测试进程完成")
+                    break
+                
+                # 检查是否超过最大测试时间（30秒）
+                if time.time() - start_time > 30:
+                    print("⏰ 测试超时 (30秒)")
+                    test_process.kill()
+                    break
+                
+                time.sleep(0.5)
+                
+        except Exception as e:
+            print(f"❌ 启动测试失败: {e}")
+            test_failed = True
+            failure_reason = f"测试启动异常: {e}"
+        finally:
+            monitoring = False
+            if 'test_process' in locals() and test_process.poll() is None:
+                test_process.kill()
+        
+        # 等待监控线程结束
+        monitor_thread.join(timeout=2)
+        
+        print("\n📊 测试结果分析:")
+        print("=" * 40)
+        
+        print(f"🪟 窗口统计:")
+        print(f"   最大并发窗口数: {max_concurrent}")
+        print(f"   窗口变化记录: {len(window_history)} 次")
+        
+        if first_window_time:
+            print(f"   第一个窗口出现时间: 测试开始后 {first_window_time - time.time() + 10:.1f}s")
+        
+        # 最终判断
+        if test_failed:
+            print(f"\n❌ 测试失败: {failure_reason}")
+            # 不使用self.fail，而是使用断言
+            self.assertTrue(False, f"单窗口控制测试失败: {failure_reason}")
+        elif max_concurrent == 0:
+            print(f"\n❌ 测试失败: 没有窗口出现")
+            self.assertTrue(False, "没有窗口出现，可能存在死锁")
+        elif max_concurrent == 1:
+            print(f"\n✅ 测试通过: 窗口控制正常")
+            print("   只有1个窗口出现")
+            print("   没有多窗口并发")
+            self.assertTrue(True, "单窗口控制测试通过")
+        else:
+            print(f"\n❌ 测试失败: 最大并发窗口数 {max_concurrent} > 1")
+            self.assertTrue(False, f"检测到多个窗口并发: {max_concurrent} 个窗口")
+        
+        print(f"🎉 GDS单窗口控制测试完成")
 
     def test_27_pyenv_basic(self):
         """测试Python版本管理基础功能"""

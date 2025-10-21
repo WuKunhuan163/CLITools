@@ -1,0 +1,84 @@
+test_31_pyenv_concurrent_operations (test_gds.GDSTest)
+测试pyenv并发操作和竞态条件 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+FAIL
+
+======================================================================
+FAIL: test_31_pyenv_concurrent_operations (test_gds.GDSTest)
+测试pyenv并发操作和竞态条件
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3154, in test_31_pyenv_concurrent_operations
+    self.assertEqual(len(errors), 0, f"并发操作不应该产生错误: {errors}")
+AssertionError: 4 != 0 : 并发操作不应该产生错误: [('list-available', "命令执行异常: ['pyenv', '--list-available'] - 1 != 0 : 命令执行失败: ['pyenv', '--list-available']"), ('list-available', "命令执行异常: ['pyenv', '--list-available'] - 1 != 0 : 命令执行失败: ['pyenv', '--list-available']"), ('version', "命令执行异常: ['pyenv', '--version'] - 1 != 0 : 命令执行失败: ['pyenv', '--version']"), ('list-available', "命令执行异常: ['pyenv', '--list-available'] - 1 != 0 : 命令执行失败: ['pyenv', '--list-available']")]
+
+----------------------------------------------------------------------
+Ran 1 test in 109.764s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251021_131135_867258_8da676b0
+已切换到远端测试目录: ~/tmp/gds_test_20251021_131135_867258_8da676b0
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_qbduzddx
+测试环境设置完成
+测试pyenv并发操作和竞态条件
+命令转译成功: ['pyenv', '--version'] -> pyenv --version
+命令转译成功: ['pyenv', '--version'] -> pyenv --version
+命令转译成功: ['pyenv', '--list'] -> pyenv --list
+命令转译成功: ['pyenv', '--list'] -> pyenv --list
+命令转译成功: ['pyenv', '--version'] -> pyenv --version
+命令转译成功: ['pyenv', '--list'] -> pyenv --list
+命令转译成功: ['pyenv', '--list-available'] -> pyenv --list-available
+命令转译成功: ['pyenv', '--list-available'] -> pyenv --list-available
+命令转译成功: ['pyenv', '--list-available'] -> pyenv --list-available
+返回码: 0
+输出: 
+[K⏳ Waiting for result ....
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...
+返回码: 0
+输出: 
+[K⏳ Waiting for result .......
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...
+返回码: 0
+输出: 
+[K⏳ Waiting for result ...
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...
+返回码: 1
+输出: Command 'pyenv --list-available' failed
+...
+命令执行异常: 1 != 0 : 命令执行失败: ['pyenv', '--list-available']
+返回码: 1
+输出: Command 'pyenv --list-available' failed
+...
+命令执行异常: 1 != 0 : 命令执行失败: ['pyenv', '--list-available']
+返回码: 1
+输出: Command 'pyenv --version' failed
+...
+命令执行异常: 1 != 0 : 命令执行失败: ['pyenv', '--version']
+返回码: 1
+输出: Command 'pyenv --list-available' failed
+...
+命令执行异常: 1 != 0 : 命令执行失败: ['pyenv', '--list-available']
+返回码: 0
+输出: 
+[K⏳ Waiting for result .....
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...
+返回码: 0
+输出: 
+[K⏳ Waiting for result ........
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...

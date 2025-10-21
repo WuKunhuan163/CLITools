@@ -1,0 +1,24 @@
+test_25_gds_window_robustness (test_gds.GDSTest)
+测试GDS窗口管理器鲁棒性 - 跨进程文件锁机制 ... FAIL
+
+======================================================================
+FAIL: test_25_gds_window_robustness (test_gds.GDSTest)
+测试GDS窗口管理器鲁棒性 - 跨进程文件锁机制
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2677, in test_25_gds_window_robustness
+    self.assertGreater(success_count, 0, "至少应该有一些并发命令成功")
+AssertionError: 0 not greater than 0 : 至少应该有一些并发命令成功
+
+----------------------------------------------------------------------
+Ran 1 test in 88.629s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251021_124427_836597_b8f2d3e4
+已切换到远端测试目录: ~/tmp/gds_test_20251021_124427_836597_b8f2d3e4
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ht8ygdef
+测试环境设置完成
+🧪 测试GDS窗口管理器鲁棒性
+🔄 子测试1: 并发窗口请求
+📊 并发命令结果: 0/3 成功
