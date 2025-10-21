@@ -68,25 +68,40 @@ class CommandRegistry:
         import ast
         import json
         
-        # Strategy: Use regex to identify and fix different JSON patterns
+        # Strategy: First try to parse as-is, then fix if needed
         fixed_str = json_str
         
+        # First, try to parse the JSON as-is
+        try:
+            parsed = ast.literal_eval(fixed_str)
+            # If successful, convert back to JSON string and return
+            result = json.dumps(parsed)
+            # print(f"🔍 JSON_DEBUG: JSON was already valid, returning: {repr(result)}")
+            return result
+        except Exception:
+            # print(f"🔍 JSON_DEBUG: JSON needs fixing, proceeding with regex patterns")
+            pass
+        
         # Pattern 1: Fix string replacement [[text1, text2]] -> [["text1", "text2"]]
-        string_pattern = r'\[\[([^"]+?),\s*([^"]+?)\]\]'
+        # Avoid matching triple nested arrays like [[[2, 2], text]]
+        string_pattern = r'(?<!\[)\[\[([^"\[\]]+?),\s*([^"\[\]]+?)\]\](?!\])'
         def fix_string_replacement(match):
             text1 = match.group(1).strip()
             text2 = match.group(2).strip()
+            # print(f"🔍 JSON_DEBUG: String pattern matched - text1: {repr(text1)}, text2: {repr(text2)}")
             return f'[["{text1}", "{text2}"]]'
         
         if re.search(string_pattern, fixed_str):
             fixed_str = re.sub(string_pattern, fix_string_replacement, fixed_str)
         
         # Pattern 2: Fix line replacement [[[numbers], text]] -> [[[numbers], "text"]]
-        line_pattern = r'(\[\[\[[0-9, ]+\],\s*)([^"]+?)(\]\])'
+        # Match unquoted text after the number array
+        line_pattern = r'(\[\[\[[0-9, ]+\],\s*)([A-Za-z_][A-Za-z0-9_\s]*?)(\]\])'
         def fix_line_replacement(match):
             prefix = match.group(1)
             text = match.group(2).strip()
             suffix = match.group(3)
+            # print(f"🔍 JSON_DEBUG: Line pattern matched - prefix: {repr(prefix)}, text: {repr(text)}, suffix: {repr(suffix)}")
             return f'{prefix}"{text}"{suffix}'
         
         if re.search(line_pattern, fixed_str):
@@ -119,29 +134,38 @@ class CommandRegistry:
         if name not in json_argument_commands:
             return args
         
+        # print(f"🔍 JSON_DEBUG: Processing {name} command with args: {args}")
+        
         if name == 'edit' and len(args) >= 2:
-            # Look for JSON pattern split across multiple arguments
-            json_parts = []
-            json_start_idx = -1
+            # New approach: Use raw string and index positioning
+            # Reconstruct the original command string
+            raw_command = f"{name} {' '.join(args)}"
             
-            for i, arg in enumerate(args):
-                if arg.startswith('[') and json_start_idx == -1:
-                    # Start of JSON
-                    json_start_idx = i
-                    json_parts = [arg]
-                elif json_start_idx >= 0:
-                    # Continuation of JSON
-                    json_parts.append(arg)
-                    if arg.endswith(']'):
-                        # End of JSON found, reconstruct it
-                        json_str = ' '.join(json_parts)
-                        
-                        # Try to intelligently fix the JSON by adding missing quotes
-                        fixed_json = self._smart_fix_json(json_str)
-                        
-                        # Return args with JSON parts replaced by single reconstructed JSON
-                        new_args = args[:json_start_idx] + [fixed_json]
-                        return new_args
+            # Find the first '[' and last ']' to extract JSON
+            first_bracket = raw_command.find('[')
+            last_bracket = raw_command.rfind(']')
+            
+            if first_bracket != -1 and last_bracket != -1 and first_bracket < last_bracket:
+                # Extract the JSON substring
+                json_substring = raw_command[first_bracket:last_bracket + 1]
+                
+                # Try to evaluate it directly as Python literal
+                try:
+                    import ast
+                    import json
+                    parsed = ast.literal_eval(json_substring)
+                    # Convert back to JSON string
+                    fixed_json = json.dumps(parsed)
+                    
+                    # Reconstruct args: filename + fixed_json
+                    filename = args[0]  # First arg should be filename
+                    return [filename, fixed_json]
+                    
+                except Exception as e:
+                    # If direct parsing fails, fall back to smart fix
+                    fixed_json = self._smart_fix_json(json_substring)
+                    filename = args[0]
+                    return [filename, fixed_json]
             
             # If no split JSON found, check if it's already a single JSON argument
             for i, arg in enumerate(args):

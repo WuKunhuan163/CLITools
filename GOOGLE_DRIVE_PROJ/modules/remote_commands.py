@@ -1871,6 +1871,9 @@ fi
             timestamp = str(int(time.time()))
             cmd_hash = hashlib.md5(user_command.encode()).hexdigest()[:8]
             
+            # 保存当前命令的hash供窗口管理器使用
+            self._current_cmd_hash = cmd_hash
+            
             # 根据是否为background模式生成不同的远程命令脚本
             # 检查是否为背景任务
             if is_background:
@@ -2099,6 +2102,7 @@ echo "Task creation is proceeding in background..."
 
 # 统一的执行完成提示
 clear && echo "✅执行完成"
+echo "Command hash: {cmd_hash.upper()}"
 
 # 立即生成主程序的JSON结果文件（用于本地wait and read）
 cd "{self.main_instance.REMOTE_ROOT}"
@@ -2162,6 +2166,7 @@ USER_COMMAND_EOF
         
         # 统一的执行完成提示
         clear && echo "✅执行完成"
+        echo "Command hash: {cmd_hash.upper()}"
         
         # 生成JSON结果文件
         export EXIT_CODE=$EXIT_CODE
@@ -3126,7 +3131,11 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         
         # 获取窗口管理器并请求窗口
         window_manager = get_window_manager()
-        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds)
+        
+        # 获取当前命令的hash（如果存在）
+        current_hash = getattr(self, '_current_cmd_hash', None)
+        
+        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, current_hash)
         return result
     
     def copy_to_clipboard(self, text):

@@ -332,7 +332,8 @@ class FileCore:
                 if override_check_result["success"] and override_check_result.get("overridden_files"):
                     overridden_files = override_check_result["overridden_files"]
                     for file_path in overridden_files:
-                        print(f"Warning: Overriding remote file {file_path}")
+                        # print(f"Warning: Overriding remote file {file_path}")
+                        pass
             
             # 4. 检查是否有文件夹，提示正确语法
             for source_file in source_files:
