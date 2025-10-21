@@ -51,3 +51,4 @@ class LinterCommand(BaseCommand):
             error_msg = result.get("error", "Linter failed")
             print(error_msg)
             return 1
+

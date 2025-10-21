@@ -26,3 +26,4 @@ class PipCommand(BaseCommand):
             error_msg = result.get("error", "Pip operation failed")
             print(error_msg)
             return 1
+

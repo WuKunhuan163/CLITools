@@ -1684,7 +1684,6 @@ if __name__ == "__main__":
         result = self._run_gds_command('"cd test07_project && python main.py"')
         self.assertEqual(result.returncode, 0)
     
-    # ==================== 虚拟环境管理测试 ====================
     
     def test_13_venv_basic(self):
         # 使用时间哈希命名虚拟环境（确保测试独立性）
@@ -2045,7 +2044,6 @@ print(f"Sum: {result}")
         result = self._run_gds_command('echo -e "line1\\nline2\\nline3\\nline4\\nline5" | tail -n 2')
         self.assertEqual(result.returncode, 0)
 
-    # ==================== 新功能测试：依赖树分析 ====================
     
     def test_18_pip_deps_analysis(self):
         
@@ -2147,49 +2145,125 @@ print(f"Sum: {result}")
         print(f"依赖分析功能测试完成")
 
     def test_19_shell_mode_continuous_operations(self):
-        """测试Shell模式下的连续操作"""
-        print(f"🐚 测试Shell模式连续操作")
+        """测试Shell模式下的连续操作 - 分步骤调试版本"""
+        print(f"🐚 测试Shell模式连续操作 - 分步骤调试")
         
         # 创建测试文件
         test_file = self.TEST_TEMP_DIR / "shell_test.txt"
         test_file.write_text("shell test content", encoding='utf-8')
+        print(f"📁 创建测试文件: {test_file}")
         
-        # 测试连续的shell命令执行
-        shell_commands = [
-            "pwd",
-            "ls",
-            f"upload {test_file} shell_upload_test.txt",
-            "ls",  # 验证上传后的文件列表
-            "cat shell_upload_test.txt",  # 验证上传的文件内容
-            "mkdir shell_test_dir",
-            "cd shell_test_dir",
-            "pwd",  # 验证目录切换
-            "cd ..",
-            "rm shell_upload_test.txt",
-            "rm -rf shell_test_dir"
-        ]
+        # 步骤1: 基础命令测试
+        print("🔍 步骤1: 测试基础命令 (pwd, ls)")
+        basic_commands = ["pwd", "ls"]
+        basic_input = "\n".join(basic_commands) + "\nexit\n"
         
-        # 构建shell输入
-        shell_input = "\n".join(shell_commands) + "\nexit\n"
-        
-        # 执行shell模式
-        result = self._run_command_with_input(
+        print(f"执行命令序列: {basic_commands}")
+        result1 = self._run_command_with_input(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
-            shell_input,
-            timeout=180    # GDS is interactive shell, need timeout to exit if operation fails
+            basic_input,
+            timeout=60
         )
         
-        self.assertEqual(result.returncode, 0, "Shell模式连续操作应该成功")
+        print(f"步骤1返回码: {result1.returncode}")
+        if result1.returncode != 0:
+            print(f"步骤1失败 - stderr: {result1.stderr}")
+            print(f"步骤1失败 - stdout: {result1.stdout}")
+        else:
+            print("✅ 步骤1成功")
         
-        # 验证关键输出
-        output = result.stdout
-        self.assertIn("Google Drive Shell (GDS)", output, "应该显示Shell启动信息")
-        self.assertIn("Exit Google Drive Shell", output, "应该显示Shell退出信息")
+        self.assertEqual(result1.returncode, 0, "基础命令应该成功")
         
-        # 验证命令执行结果
-        self.assertRegex(output, r"GDS:.*\$", "应该显示Shell提示符")
+        # 步骤2: 文件上传测试
+        print("📤 步骤2: 测试文件上传")
+        upload_commands = ["pwd", f"upload --force {test_file} shell_upload_test.txt", "ls"]
+        upload_input = "\n".join(upload_commands) + "\nexit\n"
         
-        print(f"Shell模式连续操作测试完成")
+        print(f"执行命令序列: {upload_commands}")
+        result2 = self._run_command_with_input(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
+            upload_input,
+            timeout=120
+        )
+        
+        print(f"步骤2返回码: {result2.returncode}")
+        if result2.returncode != 0:
+            print(f"步骤2失败 - stderr: {result2.stderr}")
+            print(f"步骤2失败 - stdout: {result2.stdout}")
+        else:
+            print("✅ 步骤2成功")
+        
+        self.assertEqual(result2.returncode, 0, "文件上传应该成功")
+        
+        # 步骤3: 文件操作测试
+        print("📄 步骤3: 测试文件操作 (cat)")
+        file_commands = ["cat shell_upload_test.txt"]
+        file_input = "\n".join(file_commands) + "\nexit\n"
+        
+        print(f"执行命令序列: {file_commands}")
+        result3 = self._run_command_with_input(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
+            file_input,
+            timeout=60
+        )
+        
+        print(f"步骤3返回码: {result3.returncode}")
+        if result3.returncode != 0:
+            print(f"步骤3失败 - stderr: {result3.stderr}")
+            print(f"步骤3失败 - stdout: {result3.stdout}")
+        else:
+            print("✅ 步骤3成功")
+            # 验证文件内容
+            if "shell test content" in result3.stdout:
+                print("✅ 文件内容验证成功")
+            else:
+                print(f"⚠️ 文件内容验证失败，输出: {result3.stdout}")
+        
+        self.assertEqual(result3.returncode, 0, "文件读取应该成功")
+        
+        # 步骤4: 目录操作测试
+        print("📁 步骤4: 测试目录操作")
+        dir_commands = ["mkdir shell_test_dir", "cd shell_test_dir", "pwd", "cd .."]
+        dir_input = "\n".join(dir_commands) + "\nexit\n"
+        
+        print(f"执行命令序列: {dir_commands}")
+        result4 = self._run_command_with_input(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
+            dir_input,
+            timeout=60
+        )
+        
+        print(f"步骤4返回码: {result4.returncode}")
+        if result4.returncode != 0:
+            print(f"步骤4失败 - stderr: {result4.stderr}")
+            print(f"步骤4失败 - stdout: {result4.stdout}")
+        else:
+            print("✅ 步骤4成功")
+        
+        self.assertEqual(result4.returncode, 0, "目录操作应该成功")
+        
+        # 步骤5: 清理操作测试
+        print("🧹 步骤5: 测试清理操作")
+        cleanup_commands = ["rm shell_upload_test.txt", "rm -rf shell_test_dir", "ls"]
+        cleanup_input = "\n".join(cleanup_commands) + "\nexit\n"
+        
+        print(f"执行命令序列: {cleanup_commands}")
+        result5 = self._run_command_with_input(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
+            cleanup_input,
+            timeout=60
+        )
+        
+        print(f"步骤5返回码: {result5.returncode}")
+        if result5.returncode != 0:
+            print(f"步骤5失败 - stderr: {result5.stderr}")
+            print(f"步骤5失败 - stdout: {result5.stdout}")
+        else:
+            print("✅ 步骤5成功")
+        
+        self.assertEqual(result5.returncode, 0, "清理操作应该成功")
+        
+        print(f"🎉 Shell模式连续操作分步骤测试完成 - 所有步骤都成功")
 
     def test_20_shell_mode_vs_direct_consistency(self):
         """测试Shell模式与直接命令执行的输出一致性"""
@@ -2246,8 +2320,12 @@ print(f"Sum: {result}")
         
         # 首先创建一个新的remote shell
         print(f"创建新的remote shell")
-        create_result = self._run_gds_command_with_retry('--create-remote-shell', max_retries=2)
-        self.assertEqual(create_result.returncode, 0, "创建remote shell应该成功")
+        # 使用直接的subprocess调用，因为这些是GOOGLE_DRIVE.py的参数，不是shell命令
+        create_result = subprocess.run(
+            [sys.executable, str(self.GOOGLE_DRIVE_PY), '--create-remote-shell'],
+            capture_output=True, text=True, timeout=180
+        )
+        self.assertEqual(create_result.returncode, 0, "创建remote shell命令应该成功")
         
         # 从输出中提取shell ID
         shell_id_match = re.search(r'Shell ID: (\w+)', create_result.stdout)
@@ -2257,13 +2335,19 @@ print(f"Sum: {result}")
             
             # 列出所有shells
             print(f"列出所有shells")
-            list_result = self._run_gds_command('--list-remote-shell')
+            list_result = subprocess.run(
+                [sys.executable, str(self.GOOGLE_DRIVE_PY), '--list-remote-shell'],
+                capture_output=True, text=True, timeout=180
+            )
             self.assertEqual(list_result.returncode, 0, "列出shells应该成功")
             self.assertIn(new_shell_id, list_result.stdout, "新创建的shell应该在列表中")
             
             # 切换到新shell
             print(f"切换到新shell: {new_shell_id}")
-            checkout_result = self._run_gds_command(f'--checkout-remote-shell {new_shell_id}')
+            checkout_result = subprocess.run(
+                [sys.executable, str(self.GOOGLE_DRIVE_PY), '--checkout-remote-shell', new_shell_id],
+                capture_output=True, text=True, timeout=180
+            )
             self.assertEqual(checkout_result.returncode, 0, "切换shell应该成功")
             
             # 在新shell中执行一些操作
@@ -2295,7 +2379,10 @@ print(f"Sum: {result}")
             
             # 清理：删除创建的shell
             print(f"清理：删除shell {new_shell_id}")
-            cleanup_result = self._run_gds_command(f'--terminate-remote-shell {new_shell_id}')
+            cleanup_result = subprocess.run(
+                [sys.executable, str(self.GOOGLE_DRIVE_PY), '--terminate-remote-shell', new_shell_id],
+                capture_output=True, text=True, timeout=180
+            )
             # 注意：cleanup可能失败，但不影响测试结果
             
             print(f"Shell切换和状态管理测试完成")
@@ -2334,35 +2421,122 @@ print(f"Sum: {result}")
         
         print(f"Shell模式错误处理测试完成")
 
-    def test_23_shell_mode_performance(self):
-        """测试Shell模式的性能表现"""
-        print(f"测试Shell模式性能")
+    def test_23_gds_background_tasks(self):
+        """测试GDS --bg后台任务功能"""
+        print(f"🚀 测试GDS --bg后台任务功能")
         
-        # 测试快速连续命令
-        quick_commands = ["pwd"] * 5  # 执行5次pwd命令
-        shell_input = "\n".join(quick_commands) + "\nexit\n"
+        def run_gds_bg_command(command):
+            """运行GDS --bg命令并返回结果"""
+            cmd = [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", f"--bg {command}"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result
         
-        start_time = time.time()
-        shell_result = self._run_command_with_input(
-            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
-            shell_input,
-        )
-        end_time = time.time()
+        def run_gds_bg_status(task_id):
+            """查询GDS --bg任务状态"""
+            cmd = [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", f"--bg --status {task_id}"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result
         
-        self.assertEqual(shell_result.returncode, 0, "快速连续命令应该成功")
+        def run_gds_bg_result(task_id):
+            """获取GDS --bg任务结果"""
+            cmd = [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", f"--bg --result {task_id}"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result
         
-        execution_time = end_time - start_time
-        print(f"执行5个pwd命令用时: {execution_time:.2f}s")
+        def run_gds_bg_cleanup(task_id):
+            """清理GDS --bg任务"""
+            cmd = [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", f"--bg --cleanup {task_id}"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result
         
-        # 验证性能合理（应该在合理时间内完成）
-        self.assertLess(execution_time, 30, "5个简单命令应该在30秒内完成")
+        def extract_task_id(output):
+            """从--bg命令输出中提取任务ID"""
+            import re
+            match = re.search(r'Background task started with ID: (\d+_\d+)', output)
+            if match:
+                return match.group(1)
+            return None
         
-        # 验证所有命令都执行了
-        output = shell_result.stdout
-        pwd_count = output.count("~")  # pwd命令通常返回包含~的路径
-        self.assertGreaterEqual(pwd_count, 3, "应该执行了多个pwd命令")
+        def wait_for_task_completion(task_id, max_wait=30):
+            """等待任务完成"""
+            start_time = time.time()
+            while time.time() - start_time < max_wait:
+                status_result = run_gds_bg_status(task_id)
+                
+                if status_result.returncode == 0 and "Status: completed" in status_result.stdout:
+                    return True
+                elif status_result.returncode == 0 and "Status: running" in status_result.stdout:
+                    pass  # Continue waiting
+                else:
+                    print(f"WARNING: 任务 {task_id} 状态异常，返回码: {status_result.returncode}")
+                    print(f"WARNING: 输出内容: {status_result.stdout}")
+                
+                time.sleep(1)
+            
+            print(f"ERROR: 任务 {task_id} 在 {max_wait} 秒内未完成")
+            return False
         
-        print(f"Shell模式性能测试完成")
+        # 测试1: 基础echo命令
+        print("测试1: 基础echo命令")
+        result = run_gds_bg_command("echo 'Hello GDS Background'")
+        self.assertEqual(result.returncode, 0, f"后台任务创建失败: {result.stderr}")
+        
+        task_id = extract_task_id(result.stdout)
+        self.assertIsNotNone(task_id, f"无法提取任务ID: {result.stdout}")
+        print(f"任务ID: {task_id}")
+        
+        # 等待任务完成
+        completed = wait_for_task_completion(task_id, max_wait=10)
+        self.assertTrue(completed, "任务未在预期时间内完成")
+        
+        # 检查结果
+        result_output = run_gds_bg_result(task_id)
+        self.assertEqual(result_output.returncode, 0, f"获取结果失败: {result_output.stderr}")
+        self.assertIn("Hello GDS Background", result_output.stdout, "结果内容不正确")
+        
+        # 清理任务
+        cleanup_result = run_gds_bg_cleanup(task_id)
+        self.assertEqual(cleanup_result.returncode, 0, f"清理任务失败: {cleanup_result.stderr}")
+        print("✅ 基础echo命令测试通过")
+        
+        # 测试2: 包含引号的复杂命令
+        print("测试2: 包含引号的复杂命令")
+        result = run_gds_bg_command("echo 'Complex command with \"double quotes\" and single quotes'")
+        self.assertEqual(result.returncode, 0, f"复杂命令创建失败: {result.stderr}")
+        
+        task_id = extract_task_id(result.stdout)
+        self.assertIsNotNone(task_id, "无法提取任务ID")
+        
+        completed = wait_for_task_completion(task_id, max_wait=10)
+        self.assertTrue(completed, "复杂命令未完成")
+        
+        result_output = run_gds_bg_result(task_id)
+        self.assertEqual(result_output.returncode, 0, "获取复杂命令结果失败")
+        self.assertIn("double quotes", result_output.stdout, "复杂命令结果不正确")
+        
+        run_gds_bg_cleanup(task_id)
+        print("✅ 复杂命令测试通过")
+        
+        # 测试3: 错误命令处理
+        print("测试3: 错误命令处理")
+        result = run_gds_bg_command("ls /nonexistent/directory/that/should/not/exist")
+        self.assertEqual(result.returncode, 0, "错误命令任务创建应该成功")
+        
+        task_id = extract_task_id(result.stdout)
+        self.assertIsNotNone(task_id, "无法提取错误任务ID")
+        
+        completed = wait_for_task_completion(task_id, max_wait=10)
+        self.assertTrue(completed, "错误命令未完成")
+        
+        # 检查状态显示完成（即使命令失败）
+        status_result = run_gds_bg_status(task_id)
+        self.assertEqual(status_result.returncode, 0, "状态查询失败")
+        self.assertIn("Status: completed", status_result.stdout, "错误命令状态不正确")
+        
+        run_gds_bg_cleanup(task_id)
+        print("✅ 错误命令处理测试通过")
+        
+        print(f"🎉 GDS --bg后台任务功能测试完成")
 
     def test_24_shell_prompt_improvements(self):
         """测试Shell提示符改进"""

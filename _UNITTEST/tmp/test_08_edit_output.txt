@@ -6,18 +6,18 @@ FAIL
 FAIL: test_08_edit (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1312, in test_08_edit
-    self.assertTrue(success, f"基础文本替换编辑失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : 基础文本替换编辑失败: 
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1320, in test_08_edit
+    self.assertTrue(success, f"行号替换编辑失败: {result.stderr if result else 'Unknown error'}")
+AssertionError: False is not true : 行号替换编辑失败: 
 
 ----------------------------------------------------------------------
-Ran 1 test in 150.200s
+Ran 1 test in 611.869s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251019_181300_082875_529b8040
-已切换到远端测试目录: ~/tmp/gds_test_20251019_181300_082875_529b8040
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_1mwyjtc6
+远端测试目录: ~/tmp/gds_test_20251021_122918_493812_69dde89b
+已切换到远端测试目录: ~/tmp/gds_test_20251021_122918_493812_69dde89b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_chpat__7
 测试环境设置完成
 
 执行带重试的upload命令: upload --force /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_edit_simple_hello.py
@@ -30,7 +30,7 @@ FAILED (failures=1)
 输出: 
 [K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync .............
+[K⏳ Waiting for file sync ........
 [K
 [K⏳ Waiting for result .....
 [K
@@ -41,9 +41,41 @@ FAILED (failures=1)
 输出: 
 [K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync .............
+[K⏳ Waiting for file sync ........
 [K
 [K⏳ Waiting for result .....
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[K
+验证命令 1: ls test_edit_simple_hello.py
+命令转译成功: ls test_edit_simple_hello.py -> ls test_edit_simple_hello.py
+返回码: 1
+输出: Path not found: test_edit_simple_hello.py
+...
+验证失败: ls test_edit_simple_hello.py (返回码: 1)
+验证失败，等待1秒后重试...
+
+尝试 2/3
+命令转译成功: upload --force /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_edit_simple_hello.py -> upload --force /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_edit_simple_hello.py
+返回码: 0
+输出: 
+[K⏳ Waiting for upload ...
+[K
+[K⏳ Waiting for file sync ............
+[K
+[K⏳ Waiting for result ...
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[K...
+返回码: 0
+输出: 
+[K⏳ Waiting for upload ...
+[K
+[K⏳ Waiting for file sync ............
+[K
+[K⏳ Waiting for result ...
 [K
 [K
 [K⏳ Validating test_edit_simple_hello.py ...
@@ -66,9 +98,9 @@ FAILED (failures=1)
 输出: 
 [K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync ...........
+[K⏳ Waiting for file sync ............
 [K
-[K⏳ Waiting for result .....
+[K⏳ Waiting for result .........
 [K
 [K
 [K⏳ Validating test_edit_simple_hello.py ...
@@ -77,9 +109,9 @@ FAILED (failures=1)
 输出: 
 [K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync ...........
+[K⏳ Waiting for file sync ............
 [K
-[K⏳ Waiting for result .....
+[K⏳ Waiting for result .........
 [K
 [K
 [K⏳ Validating test_edit_simple_hello.py ...
@@ -98,35 +130,88 @@ FAILED (failures=1)
 
 尝试 1/3
 命令转译成功: edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]] -> edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]]
-返回码: 1
-输出: JSON parsing failed: Expecting ',' delimiter: line 1 column 11 (char 10)
+返回码: 0
+输出: 
+[K⏳ Waiting for upload ...
+[K
+[K⏳ Waiting for file sync ..........
+[K
+[K⏳ Waiting for result ...
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[K
+Edit comparison: test_edit_simple_hello...
+Verify 1/1: grep "MODIFIED" test_edit_simple_hello.py
+命令转译成功: grep "MODIFIED" test_edit_simple_hello.py -> grep "MODIFIED" test_edit_simple_hello.py
+返回码: 0
+输出:   4: print(f"Hello from MODIFIED remote project")
+...
+Verify successful
+All verifications passed, command executed successfully
 
-Common issues:
-1. Missing quotes around strings
-2. Unescaped quotes inside strings (use \" instead of ")
-3. Missing commas bet...
-Error: Main command failed, return code: 1
-Waiting 1 second before retrying...
+执行带重试的命令: edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]]
+验证命令: ['grep "# Modified first line" test_edit_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]] -> edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]]
+返回码: 0
+输出: 
+[K⏳ Waiting for upload ...
+[K
+[K⏳ Waiting for file sync ...........
+[K
+[K⏳ Waiting for result .......
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[KNo changes detected
+File test_edit_...
+Verify 1/1: grep "# Modified first line" test_edit_simple_hello.py
+命令转译成功: grep "# Modified first line" test_edit_simple_hello.py -> grep "# Modified first line" test_edit_simple_hello.py
+返回码: 1
+Error: Verify failed, return code: 1
+Verify failed, waiting 2 seconds before retrying...
 
 尝试 2/3
-命令转译成功: edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]] -> edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]]
+命令转译成功: edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]] -> edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]]
+返回码: 0
+输出: 
+[K⏳ Waiting for upload ...
+[K
+[K⏳ Waiting for file sync ...........
+[K
+[K⏳ Waiting for result ......
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[KNo changes detected
+File test_edit_s...
+Verify 1/1: grep "# Modified first line" test_edit_simple_hello.py
+命令转译成功: grep "# Modified first line" test_edit_simple_hello.py -> grep "# Modified first line" test_edit_simple_hello.py
 返回码: 1
-输出: JSON parsing failed: Expecting ',' delimiter: line 1 column 11 (char 10)
-
-Common issues:
-1. Missing quotes around strings
-2. Unescaped quotes inside strings (use \" instead of ")
-3. Missing commas bet...
-Error: Main command failed, return code: 1
-Waiting 1 second before retrying...
+Error: Verify failed, return code: 1
+Verify failed, waiting 2 seconds before retrying...
 
 尝试 3/3
-命令转译成功: edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]] -> edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]]
-返回码: 1
-输出: JSON parsing failed: Expecting ',' delimiter: line 1 column 11 (char 10)
-
-Common issues:
-1. Missing quotes around strings
-2. Unescaped quotes inside strings (use \" instead of ")
-3. Missing commas bet...
-Error: Main command failed, return code: 1
+命令转译成功: edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]] -> edit test_edit_simple_hello.py [[[1, 2], "# Modified first line"]]
+返回码: 0
+输出: 
+[K⏳ Waiting for upload ...
+[K
+[K⏳ Waiting for file sync .......
+[K
+[K⏳ Waiting for result .............
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[KNo changes detected
+File test_edi...
+Verify 1/1: grep "# Modified first line" test_edit_simple_hello.py
+命令转译成功: grep "# Modified first line" test_edit_simple_hello.py -> grep "# Modified first line" test_edit_simple_hello.py
+返回码: 2
+输出: Error: test_edit_simple_hello.py: File or directory does not exist: test_edit_simple_hello.py
+...
+Error: Verify failed, return code: 2
+All retries failed
