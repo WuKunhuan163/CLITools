@@ -331,7 +331,7 @@ class WindowManager:
         """跨进程窗口管理器，无需启动线程"""
         self._debug_log("🏗️ DEBUG: [CROSS_PROCESS_WINDOW_MANAGER] 跨进程窗口管理器启动成功")
     
-    def request_window(self, title, command_text, timeout_seconds=3600):
+    def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None):
         """
         请求显示窗口 - 改进的跨进程锁管理
         
@@ -360,7 +360,8 @@ class WindowManager:
                 'command_text': command_text,
                 'timeout_seconds': timeout_seconds,
                 'process_id': os.getpid(),
-                'thread_id': threading.get_ident()
+                'thread_id': threading.get_ident(),
+                'command_hash': command_hash
             }
             
             # 创建和显示窗口
@@ -382,9 +383,19 @@ class WindowManager:
         import subprocess
         import json
         import base64
+        import hashlib
+        import time
         
         self.window_counter += 1
         window_id = f"win_{self.window_counter}_{request['request_id']}"
+        
+        # 生成或使用提供的8位hash用于命令标识
+        if request.get('command_hash'):
+            command_hash = request['command_hash'].upper()
+        else:
+            hash_input = f"{window_id}_{time.time()}_{request.get('command_text', '')}"
+            command_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8].upper()
+        request['command_hash'] = command_hash
         
         self._debug_log(f"🪟 DEBUG: [TKINTER_WINDOW_CREATE] 创建窗口: {window_id}")
         
@@ -427,7 +438,7 @@ try:
     print(f"[DEBUG] 窗口进程启动: PID={os.getpid()}, 父进程PID={parent_pid}, 窗口ID=WINDOW_ID_PLACEHOLDER", file=sys.stderr)
     
     root = tk.Tk()
-    root.title("Google Drive Shell")
+    root.title("Google Drive Shell · Command hash: COMMAND_HASH_PLACEHOLDER")
     root.geometry("500x60")
     root.resizable(False, False)
     
@@ -621,6 +632,7 @@ try:
         button_clicked = True
         result_queue.put({"action": "success", "message": "用户确认执行完成"})
         result["action"] = "success"
+        
         # 记录窗口销毁
         try:
             with open(debug_file, "a", encoding="utf-8") as f:
@@ -966,6 +978,7 @@ except Exception as e:
         subprocess_script = subprocess_script_template.replace("COMMAND_B64_PLACEHOLDER", command_b64)
         subprocess_script = subprocess_script.replace("TITLE_PLACEHOLDER", title_escaped)
         subprocess_script = subprocess_script.replace("WINDOW_ID_PLACEHOLDER", window_id)
+        subprocess_script = subprocess_script.replace("COMMAND_HASH_PLACEHOLDER", command_hash)
         subprocess_script = subprocess_script.replace("TIMEOUT_MS_PLACEHOLDER", str(timeout_ms))
         subprocess_script = subprocess_script.replace("AUDIO_FILE_PATH_PLACEHOLDER", audio_file_path)
         subprocess_script = subprocess_script.replace("PARENT_PID_PLACEHOLDER", str(os.getpid()))

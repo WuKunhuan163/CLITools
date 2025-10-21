@@ -1,0 +1,108 @@
+test_37_pyenv_functional_verification (test_gds.GDSTest)
+测试pyenv功能性验证 - 确保版本切换真正生效 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 278.178s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251021_133338_769823_36e266ff
+已切换到远端测试目录: ~/tmp/gds_test_20251021_133338_769823_36e266ff
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0vg_ts_j
+测试环境设置完成
+测试pyenv功能性验证 - Python版本切换
+命令转译成功: ['echo', '#!/usr/bin/env python3\nimport sys\nimport os\n\nprint("=== Python Version Verification ===")\nprint(f"Python executable path: {sys.executable}")\nprint(f"Python version: {sys.version}")\nprint(f"Python version info: {sys.version_info}")\nprint(f"Major version: {sys.version_info.major}")\nprint(f"Minor version: {sys.version_info.minor}")\nprint(f"Micro version: {sys.version_info.micro}")\n\n# 检查是否在pyenv管理的路径中\nif "REMOTE_ENV/python" in sys.executable:\n    print("Using pyenv-managed Python")\n    # 从路径中提取版本信息\n    path_parts = sys.executable.split(\'/\')\n    for i, part in enumerate(path_parts):\n        if part == "python" and i + 1 < len(path_parts):\n            expected_version = path_parts[i + 1]\n            print(f"Expected version from path: {expected_version}")\n            \n            # 验证版本是否匹配\n            actual_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"\n            if actual_version == expected_version:\n                print("Version verification PASSED")\n            else:\n                print(f"Error: Version mismatch: expected {expected_version}, got {actual_version}")\n            break\nelse:\n    print("ℹ️ Using system Python (no pyenv version set)")\n\nprint("=== Verification completed ===")\n', '>', 'python_version_check.py'] -> echo '#!/usr/bin/env python3
+import sys
+import os
+
+print("=== Python Version Verification ===")
+print(f"Python executable path: {sys.executable}")
+print(f"Python version: {sys.version}")
+print(f"Python version info: {sys.version_info}")
+print(f"Major version: {sys.version_info.major}")
+print(f"Minor version: {sys.version_info.minor}")
+print(f"Micro version: {sys.version_info.micro}")
+
+# 检查是否在pyenv管理的路径中
+if "REMOTE_ENV/python" in sys.executable:
+    print("Using pyenv-managed Python")
+    # 从路径中提取版本信息
+    path_parts = sys.executable.split('"'"'/'"'"')
+    for i, part in enumerate(path_parts):
+        if part == "python" and i + 1 < len(path_parts):
+            expected_version = path_parts[i + 1]
+            print(f"Expected version from path: {expected_version}")
+            
+            # 验证版本是否匹配
+            actual_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            if actual_version == expected_version:
+                print("Version verification PASSED")
+            else:
+                print(f"Error: Version mismatch: expected {expected_version}, got {actual_version}")
+            break
+else:
+    print("ℹ️ Using system Python (no pyenv version set)")
+
+print("=== Verification completed ===")
+' > python_version_check.py
+返回码: 0
+输出: 
+[K⏳ Waiting for result ......
+[K
+[K...
+测试场景1: 系统默认Python
+命令转译成功: ['python', 'python_version_check.py'] -> python python_version_check.py
+返回码: 0
+输出: 
+[K⏳ Waiting for result .....
+[K
+[K=== Python Version Verification ===
+Python executable path: /usr/bin/python3
+Python version: 3.12.12 (main, Oct 10 2025, 08:52:57) [GCC 11.4.0]
+Python version inf...
+正确使用系统Python
+测试场景2: 简单版本检查
+命令转译成功: ['python', '-c', "import sys; print(f'Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"] -> python -c "import sys; print(f'Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+返回码: 0
+输出: 
+[K⏳ Waiting for result ...
+[K
+[KPython 3.9.18
+...
+当前Python版本: [K⏳ Waiting for result ...
+[K
+[KPython 3.9.18
+测试场景3: Python路径验证
+命令转译成功: ['python', '-c', 'import sys; print(sys.executable)'] -> python -c "import sys; print(sys.executable)"
+返回码: 0
+输出: 
+[K⏳ Waiting for result .....
+[K
+[K/content/drive/MyDrive/REMOTE_ENV/python/3.9.18/bin/python3
+...
+Python可执行文件路径: [K⏳ Waiting for result .....
+[K
+[K/content/drive/MyDrive/REMOTE_ENV/python/3.9.18/bin/python3
+使用pyenv管理的Python版本
+Pyenv管理的版本: 3.9.18
+测试场景4: pyenv状态一致性验证
+命令转译成功: ['pyenv', '--version'] -> pyenv --version
+返回码: 0
+输出: 
+[K⏳ Waiting for result .....
+[K
+[K...
+Warning: 错误: bash: line 1: pyenv: command not found
+...
+Pyenv状态: [K⏳ Waiting for result .....
+[K
+[K
+命令转译成功: ['rm', '-f', 'python_version_check.py'] -> rm -f python_version_check.py
+返回码: 0
+输出: 
+[K⏳ Waiting for result ....
+[K
+[K...
+pyenv功能性验证完成
