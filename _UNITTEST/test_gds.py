@@ -2613,12 +2613,12 @@ print(f"Sum: {result}")
         
         # 子测试2: 占位符冲突防护
         print("子测试2: 占位符冲突防护")
-        result = self._run_gds_command('echo "Text with __TILDE_SLASH__ marker" > test_placeholder.txt')
+        result = self._run_gds_command('echo "Text with CUSTOM_PLACEHOLDER marker" > test_placeholder.txt')
         self.assertEqual(result.returncode, 0, "占位符命令应该成功")
         
         result = self._run_gds_command('cat test_placeholder.txt')
         self.assertEqual(result.returncode, 0, "读取占位符文件应该成功")
-        self.assertIn("__TILDE_SLASH__", result.stdout, "应该保留原始占位符")
+        self.assertIn("CUSTOM_PLACEHOLDER", result.stdout, "应该保留原始占位符")
         self.assertNotIn("/content/drive", result.stdout, "不应该被替换为路径")
         
         # 子测试3: 复杂引号嵌套
