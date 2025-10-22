@@ -8,18 +8,29 @@ FAIL: test_25_edge_cases_comprehensive (test_gds.GDSTest)
 综合边缘情况测试
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2612, in test_25_edge_cases_comprehensive
-    self.assertTrue("`whoami`" in result.stdout or "\\`whoami\\`" in result.stdout, "应该包含反引号（原始或转义形式）")
-AssertionError: False is not true : 应该包含反引号（原始或转义形式）
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 357, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: cat test_placeholder.txt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2623, in test_25_edge_cases_comprehensive
+    self.assertNotIn("/content/drive", result.stdout, "不应该被替换为路径")
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 363, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: cat test_placeholder.txt - 1 != 0 : 命令执行失败: cat test_placeholder.txt
 
 ----------------------------------------------------------------------
-Ran 1 test in 78.951s
+Ran 1 test in 150.882s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251022_165225_060624_2e2553c0
-已切换到远端测试目录: ~/tmp/gds_test_20251022_165225_060624_2e2553c0
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_48uty6zz
+远端测试目录: ~/tmp/gds_test_20251022_170035_869954_62fa1116
+已切换到远端测试目录: ~/tmp/gds_test_20251022_170035_869954_62fa1116
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_a2xy_yss
 测试环境设置完成
 综合边缘情况测试
 子测试1: 反引号注入防护
@@ -33,3 +44,15 @@ FAILED (failures=1)
 返回码: 0
 输出: Command: root
 ...
+子测试2: 占位符冲突防护
+命令转译成功: 'printf "Text with CUSTOM_PLACEHOLDER marker\n" > test_placeholder.txt' -> __QUOTED_COMMAND__printf "Text with CUSTOM_PLACEHOLDER marker\n" > test_placeholder.txt
+返回码: 0
+输出: 
+[K⏳ Waiting for result .......
+[K
+[K...
+命令转译成功: cat test_placeholder.txt -> cat test_placeholder.txt
+返回码: 1
+输出: File or directory does not exist: test_placeholder.txt
+...
+命令执行异常: 1 != 0 : 命令执行失败: cat test_placeholder.txt
