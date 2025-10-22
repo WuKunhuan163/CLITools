@@ -2919,28 +2919,28 @@ print(f"Sum: {result}")
         print(f"如需完整测试，请手动执行: GDS pyenv --install {test_version}")
         
         # 测试安装命令格式验证
-        result = self._run_gds_command_raw(["pyenv", "--install"])
+        result = self._run_gds_command(["pyenv", "--install"], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "不提供版本号的安装命令应该失败")
         
         output = result.stdout + result.stderr
         self.assertIn("Please specify a Python version", output, "应该提示需要指定版本号")
         
         # 测试卸载命令格式验证
-        result = self._run_gds_command_raw(["pyenv", "--uninstall"])
+        result = self._run_gds_command(["pyenv", "--uninstall"], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "不提供版本号的卸载命令应该失败")
         
         output = result.stdout + result.stderr
         self.assertIn("Please specify a Python version", output, "应该提示需要指定版本号")
         
         # 测试设置全局版本（未安装版本）
-        result = self._run_gds_command_raw(["pyenv", "--global", test_version])
+        result = self._run_gds_command(["pyenv", "--global", test_version], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "设置未安装版本为全局版本应该失败")
         
         output = result.stdout + result.stderr
         self.assertIn("is not installed", output, "应该提示版本未安装")
         
         # 测试设置本地版本（未安装版本）
-        result = self._run_gds_command_raw(["pyenv", "--local", test_version])
+        result = self._run_gds_command(["pyenv", "--local", test_version], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "设置未安装版本为本地版本应该失败")
         
         output = result.stdout + result.stderr
@@ -2997,7 +2997,7 @@ print("Python script execution test successful!")
         print(f"测试pyenv错误处理")
         
         # 测试无效的命令选项
-        result = self._run_gds_command_raw(["pyenv", "--invalid-option"])
+        result = self._run_gds_command(["pyenv", "--invalid-option"], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "无效选项应该失败")
         
         output = result.stdout + result.stderr
@@ -3007,7 +3007,7 @@ print("Python script execution test successful!")
         invalid_versions = ["3.9", "python3.9", "3.9.x", "invalid"]
         
         for invalid_version in invalid_versions:
-            result = self._run_gds_command_raw(["pyenv", "--global", invalid_version])
+            result = self._run_gds_command(["pyenv", "--global", invalid_version], expect_success=False)
             self.assertNotEqual(result.returncode, 0, f"无效版本格式 {invalid_version} 应该失败")
             
             output = result.stdout + result.stderr
@@ -3017,7 +3017,7 @@ print("Python script execution test successful!")
             )
         
         # 测试尝试卸载不存在的版本
-        result = self._run_gds_command_raw(["pyenv", "--uninstall", "3.99.99"])
+        result = self._run_gds_command(["pyenv", "--uninstall", "3.99.99"], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "卸载不存在的版本应该失败")
         
         output = result.stdout + result.stderr
@@ -3190,7 +3190,7 @@ print("=== Test completed successfully ===")'''
         
         for version in extreme_versions:
             # 测试全局设置
-            result = self._run_gds_command_raw(["pyenv", "--global", version])
+            result = self._run_gds_command(["pyenv", "--global", version], expect_success=False)
             self.assertNotEqual(result.returncode, 0, f"设置不存在版本 {version} 应该失败")
             
             output = result.stdout + result.stderr
@@ -3203,7 +3203,7 @@ print("=== Test completed successfully ===")'''
         
         # 测试长字符串参数
         long_version = "3." + "9" * 100 + ".1"
-        result = self._run_gds_command_raw(["pyenv", "--global", long_version])
+        result = self._run_gds_command(["pyenv", "--global", long_version], expect_success=False)
         self.assertNotEqual(result.returncode, 0, "超长版本号应该失败")
         
         # 测试特殊字符版本号
@@ -3218,7 +3218,7 @@ print("=== Test completed successfully ===")'''
         ]
         
         for version in special_versions:
-            result = self._run_gds_command_raw(["pyenv", "--global", version])
+            result = self._run_gds_command(["pyenv", "--global", version], expect_success=False)
             self.assertNotEqual(result.returncode, 0, f"特殊字符版本 {version} 应该失败")
         
         # 测试快速连续操作
