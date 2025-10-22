@@ -1631,7 +1631,7 @@ from datetime import datetime
 def main():
     print(f"Test project started")
     print(f"Current time: {datetime.now()}")
-    print(f"Python version: {sys.version}")
+    print("Python version:", sys.version)
     
     # Simple data processing
     data = [1, 2, 3, 4, 5]
@@ -2968,7 +2968,7 @@ print(f"Sum: {result}")
 import sys
 import os
 print(f"Python executable: {sys.executable}")
-print(f"Python version: {sys.version}")
+print("Python version:", sys.version)
 print(f"Current working directory: {os.getcwd()}")
 print("Python script execution test successful!")
 '''
@@ -3152,7 +3152,7 @@ import os
 import json
 print("=== Python Environment Test ===")
 print(f"Python executable: {sys.executable}")
-print(f"Python version: {sys.version}")
+print("Python version:", sys.version)
 print(f"Platform: {sys.platform}")
 print(f"Current directory: {os.getcwd()}")
 print("=== Test completed successfully ===")'''
@@ -3417,12 +3417,12 @@ import sys
 import os
 
 print("=== Python Version Verification ===")
-print(f"Python executable path: {sys.executable}")
-print(f"Python version: {sys.version}")
-print(f"Python version info: {sys.version_info}")
-print(f"Major version: {sys.version_info.major}")
-print(f"Minor version: {sys.version_info.minor}")
-print(f"Micro version: {sys.version_info.micro}")
+print("Python executable path:", sys.executable)
+print("Python version:", sys.version)
+print("Python version info:", sys.version_info)
+print("Major version:", sys.version_info.major)
+print("Minor version:", sys.version_info.minor)
+print("Micro version:", sys.version_info.micro)
 
 # 检查是否在pyenv管理的路径中
 if "REMOTE_ENV/python" in sys.executable:
