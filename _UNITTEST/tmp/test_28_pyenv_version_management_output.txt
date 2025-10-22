@@ -8,27 +8,35 @@ FAIL: test_28_pyenv_version_management (test_gds.GDSTest)
 测试Python版本安装和管理
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2997, in test_28_pyenv_version_management
-    self.assertNotEqual(result.returncode, 0, "不提供版本号的安装命令应该失败")
-AssertionError: 0 == 0 : 不提供版本号的安装命令应该失败
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 357, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: ['pyenv', '--install']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2996, in test_28_pyenv_version_management
+    result = self._run_gds_command(["pyenv", "--install"])
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 363, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: ['pyenv', '--install'] - 1 != 0 : 命令执行失败: ['pyenv', '--install']
 
 ----------------------------------------------------------------------
-Ran 1 test in 82.816s
+Ran 1 test in 52.166s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251021_125336_814125_d4b71dd7
-已切换到远端测试目录: ~/tmp/gds_test_20251021_125336_814125_d4b71dd7
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_n_bbho4h
+远端测试目录: ~/tmp/gds_test_20251022_154955_431984_2aeb5dd0
+已切换到远端测试目录: ~/tmp/gds_test_20251022_154955_431984_2aeb5dd0
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_8b8s3i6h
 测试环境设置完成
 测试Python版本安装和管理
 注意：Python版本安装测试仅验证命令接口，不进行实际安装
 如需完整测试，请手动执行: GDS pyenv --install 3.9.18
 命令转译成功: ['pyenv', '--install'] -> pyenv --install
-返回码: 0
-输出: 
-[K⏳ Waiting for result ......
-[K
-[K...
-Warning: 错误: bash: line 1: pyenv: command not found
+返回码: 1
+输出: Please specify a Python version to install
 ...
+命令执行异常: 1 != 0 : 命令执行失败: ['pyenv', '--install']

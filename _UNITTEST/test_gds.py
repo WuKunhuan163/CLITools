@@ -1326,8 +1326,8 @@ Line 5: No match here'''
         
         # 备份模式编辑
         success, result = self._run_gds_command_with_retry(
-            'edit --backup test_edit_simple_hello.py [["MODIFIED", "Updated"]]',
-            ['grep "Updated" test_edit_simple_hello.py'],
+            'edit --backup test_edit_simple_hello.py [["Modified line", "Updated line"]]',
+            ['grep "Updated line" test_edit_simple_hello.py'],
             max_retries=3
         )
         self.assertTrue(success, f"备份模式编辑失败: {result.stderr if result else 'Unknown error'}")
