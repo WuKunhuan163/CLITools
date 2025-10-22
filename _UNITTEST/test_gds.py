@@ -333,7 +333,12 @@ Shell commands: ls -la && echo "done"
         
         # 正确转义command_str以避免shell的二次解释
         import shlex
-        escaped_command_str = shlex.quote(command_str)
+        # 检查命令是否包含重定向操作，如果包含则不使用shlex.quote
+        if any(op in command_str for op in ['>', '<', '>>', '|']):
+            # 对于包含重定向的命令，使用单引号包围以避免本地shell处理
+            escaped_command_str = f"'{command_str}'"
+        else:
+            escaped_command_str = shlex.quote(command_str)
         full_command = f"python3 {self.GOOGLE_DRIVE_PY} --shell {escaped_command_str}"
         try:
             # 注意：远端窗口操作没有timeout限制，允许用户手动执行
