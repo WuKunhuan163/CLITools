@@ -188,7 +188,7 @@ class WindowManager:
                     old_process = psutil.Process(old_pid)
                     # 检查是否是GDS相关进程
                     cmdline = ' '.join(old_process.cmdline())
-                    if 'GOOGLE_DRIVE.py' not in cmdline and 'python' not in cmdline.lower():
+                    if 'GOOGLE_DRIVE.py' not in cmdline:
                         # 不是GDS进程，清理锁
                         self._force_cleanup_lock()
                         self._debug_log(f"🧹 DEBUG: [STALE_LOCK_CLEANUP] 清理了非GDS进程的锁: PID={old_pid}")
@@ -265,7 +265,7 @@ class WindowManager:
                             lock_process = psutil.Process(lock_holder_pid)
                             # 进程存在，检查是否是GDS进程
                             cmdline = ' '.join(lock_process.cmdline())
-                            if 'GOOGLE_DRIVE.py' in cmdline or 'python' in cmdline.lower():
+                            if 'GOOGLE_DRIVE.py' in cmdline:
                                 # 是有效的GDS进程，等待
                                 self._debug_log(f"⏳ DEBUG: [LOCK_WAITING] 进程 {current_pid} 等待锁释放，当前持有者: PID={lock_holder_pid}")
                                 time.sleep(0.5)
