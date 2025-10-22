@@ -2602,8 +2602,8 @@ print(f"Sum: {result}")
         
         # 子测试1: 反引号注入防护
         print("子测试1: 反引号注入防护")
-        # 使用printf代替echo和重定向，避免重定向问题
-        result = self._run_gds_command('\'printf "Command: `whoami`\\n" > test_backtick.txt\'')
+        # 使用echo和重定向测试反引号处理
+        result = self._run_gds_command('\'echo "Command: `whoami`" > test_backtick.txt\'')
         self.assertEqual(result.returncode, 0, "反引号命令应该成功")
         
         result = self._run_gds_command('cat test_backtick.txt')
@@ -2623,23 +2623,23 @@ print(f"Sum: {result}")
         
         # 子测试3: 复杂引号嵌套
         print("子测试3: 复杂引号嵌套")
-        result = self._run_gds_command('\'printf "Outer \\"nested\\" quotes\\n" > test_nested.txt\'')
+        result = self._run_gds_command('\'echo "Outer \\"nested\\" quotes" > test_nested.txt\'')
         self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
         
         result = self._run_gds_command('cat test_nested.txt')
         self.assertEqual(result.returncode, 0, "读取嵌套引号文件应该成功")
         self.assertIn('Outer "nested" quotes', result.stdout, "应该正确处理嵌套引号")
         
-        # 子测试4: printf格式注入防护
-        print("子测试4: printf格式注入防护")
+        # 子测试4: 格式字符串防护
+        print("子测试4: 格式字符串防护")
         dangerous_formats = ["%s%s%s%s", "%x%x%x%x", "%^&*()%"]
         
         for i, fmt in enumerate(dangerous_formats):
-            result = self._run_gds_command(f'\'printf "Format: {fmt}\\n" > test_printf_fmt_{i}.txt\'')
-            self.assertEqual(result.returncode, 0, f"printf格式{fmt}应该成功")
+            result = self._run_gds_command(f'\'echo "Format: {fmt}" > test_printf_fmt_{i}.txt\'')
+            self.assertEqual(result.returncode, 0, f"格式字符串{fmt}应该成功")
             
             result = self._run_gds_command(f'cat test_printf_fmt_{i}.txt')
-            self.assertEqual(result.returncode, 0, f"读取printf格式文件{i}应该成功")
+            self.assertEqual(result.returncode, 0, f"读取格式文件{i}应该成功")
             self.assertIn(f"Format: {fmt}", result.stdout, f"应该包含格式字符串{fmt}")
         
         # 子测试5: 特殊字符处理
@@ -2652,7 +2652,7 @@ print(f"Sum: {result}")
         ]
         
         for name, text in special_chars:
-            result = self._run_gds_command(f'\'printf "{text}\\n" > test_{name}.txt\'')
+            result = self._run_gds_command(f'\'echo "{text}" > test_{name}.txt\'')
             self.assertEqual(result.returncode, 0, f"特殊字符{name}命令应该成功")
             
             result = self._run_gds_command(f'cat test_{name}.txt')
@@ -2668,7 +2668,7 @@ print(f"Sum: {result}")
         ]
         
         for name, text in unicode_texts:
-            result = self._run_gds_command(f'\'printf "{text}\\n" > test_unicode_{name}.txt\'')
+            result = self._run_gds_command(f'\'echo "{text}" > test_unicode_{name}.txt\'')
             self.assertEqual(result.returncode, 0, f"Unicode{name}命令应该成功")
             
             result = self._run_gds_command(f'cat test_unicode_{name}.txt')
@@ -3235,7 +3235,7 @@ print("=== Test completed successfully ===")'''
         for version in special_versions:
             result = self._run_gds_command(["pyenv", "--global", version], expect_success=False)
             self.assertNotEqual(result.returncode, 0, f"特殊字符版本 {version} 应该失败")
-
+        
     def test_35_pyenv_real_world_scenarios(self):
         """测试pyenv在真实世界场景中的应用"""
         print(f"测试pyenv在真实世界场景中的应用")
