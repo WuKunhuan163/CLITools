@@ -333,12 +333,7 @@ Shell commands: ls -la && echo "done"
         
         # 正确转义command_str以避免shell的二次解释
         import shlex
-        # 检查命令是否包含重定向操作，如果包含则不使用shlex.quote
-        if any(op in command_str for op in ['>', '<', '>>', '|']):
-            # 对于包含重定向的命令，使用单引号包围以避免本地shell处理
-            escaped_command_str = f"'{command_str}'"
-        else:
-            escaped_command_str = shlex.quote(command_str)
+        escaped_command_str = shlex.quote(command_str)
         full_command = f"python3 {self.GOOGLE_DRIVE_PY} --shell {escaped_command_str}"
         try:
             # 注意：远端窗口操作没有timeout限制，允许用户手动执行
@@ -2608,7 +2603,7 @@ print(f"Sum: {result}")
         # 子测试1: 反引号注入防护
         print("子测试1: 反引号注入防护")
         # 使用printf代替echo和重定向，避免重定向问题
-        result = self._run_gds_command('printf "Command: `whoami`\\n" > test_backtick.txt')
+        result = self._run_gds_command('\'printf "Command: `whoami`\\n" > test_backtick.txt\'')
         self.assertEqual(result.returncode, 0, "反引号命令应该成功")
         
         result = self._run_gds_command('cat test_backtick.txt')
@@ -2619,7 +2614,7 @@ print(f"Sum: {result}")
         
         # 子测试2: 占位符冲突防护
         print("子测试2: 占位符冲突防护")
-        result = self._run_gds_command('printf "Text with CUSTOM_PLACEHOLDER marker\\n" > test_placeholder.txt')
+        result = self._run_gds_command('\'printf "Text with CUSTOM_PLACEHOLDER marker\\n" > test_placeholder.txt\'')
         self.assertEqual(result.returncode, 0, "占位符命令应该成功")
         
         result = self._run_gds_command('cat test_placeholder.txt')
@@ -2629,7 +2624,7 @@ print(f"Sum: {result}")
         
         # 子测试3: 复杂引号嵌套
         print("子测试3: 复杂引号嵌套")
-        result = self._run_gds_command('printf "Outer \\"nested\\" quotes\\n" > test_nested.txt')
+        result = self._run_gds_command('\'printf "Outer \\"nested\\" quotes\\n" > test_nested.txt\'')
         self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
         
         result = self._run_gds_command('cat test_nested.txt')
@@ -2641,7 +2636,7 @@ print(f"Sum: {result}")
         dangerous_formats = ["%s%s%s%s", "%x%x%x%x", "%^&*()%"]
         
         for i, fmt in enumerate(dangerous_formats):
-            result = self._run_gds_command(f'printf "Format: {fmt}\\n" > test_printf_fmt_{i}.txt')
+            result = self._run_gds_command(f'\'printf "Format: {fmt}\\n" > test_printf_fmt_{i}.txt\'')
             self.assertEqual(result.returncode, 0, f"printf格式{fmt}应该成功")
             
             result = self._run_gds_command(f'cat test_printf_fmt_{i}.txt')
@@ -2658,7 +2653,7 @@ print(f"Sum: {result}")
         ]
         
         for name, text in special_chars:
-            result = self._run_gds_command(f'printf "{text}\\n" > test_{name}.txt')
+            result = self._run_gds_command(f'\'printf "{text}\\n" > test_{name}.txt\'')
             self.assertEqual(result.returncode, 0, f"特殊字符{name}命令应该成功")
             
             result = self._run_gds_command(f'cat test_{name}.txt')
@@ -2674,7 +2669,7 @@ print(f"Sum: {result}")
         ]
         
         for name, text in unicode_texts:
-            result = self._run_gds_command(f'printf "{text}\\n" > test_unicode_{name}.txt')
+            result = self._run_gds_command(f'\'printf "{text}\\n" > test_unicode_{name}.txt\'')
             self.assertEqual(result.returncode, 0, f"Unicode{name}命令应该成功")
             
             result = self._run_gds_command(f'cat test_unicode_{name}.txt')
@@ -3051,10 +3046,10 @@ print("Python script execution test successful!")
         
         def concurrent_list_installed():
             try:
-                result = self._run_gds_command(["pyenv", "--list"])
-                results.append(("list", result.returncode))
+                result = self._run_gds_command(["pyenv", "--versions"])
+                results.append(("versions", result.returncode))
             except Exception as e:
-                errors.append(("list", str(e)))
+                errors.append(("versions", str(e)))
         
         def concurrent_version_check():
             try:
@@ -3255,7 +3250,7 @@ print("=== Test completed successfully ===")'''
         self.assertEqual(result.returncode, 0, "列出可用版本应该成功")
         
         # 检查已安装版本
-        result = self._run_gds_command(["pyenv", "--list"])
+        result = self._run_gds_command(["pyenv", "--versions"])
         self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
         
         # 场景2: Python代码开发和测试工作流
@@ -3348,7 +3343,7 @@ if __name__ == "__main__":
         # 性能测试：测量各种操作的执行时间
         operations = [
             (["pyenv", "--version"], "version check"),
-            (["pyenv", "--list"], "list installed"),
+            (["pyenv", "--versions"], "list installed"),
             (["pyenv", "--list-available"], "list available"),
             (["pyenv", "--global"], "global check"),
             (["pyenv", "--local"], "local check"),
