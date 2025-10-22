@@ -981,7 +981,7 @@ def main():
                 f.writelines(modified_lines)
         
         # 6. 返回结果
-        result = {{"success": True, "replacements_made": len(parsed_replacements), "diff_lines": diff_lines, "backup_file": backup_file, "preview": preview}}
+        result = {{"success": True, "replacements_made": len(parsed_replacements), "diff_lines": diff_lines, "backup_file": backup_file, "preview": preview, "mode": "preview" if preview else "edit"}}
         
         print(json.dumps(result))
         return 0

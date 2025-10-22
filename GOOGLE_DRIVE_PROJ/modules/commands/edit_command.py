@@ -79,8 +79,10 @@ class EditCommand(BaseCommand):
             elif diff_output == "No changes detected":
                 print(f"No changes detected")
             
-            # 对于正常模式，显示成功信息
-            if result.get("mode") != "preview":
+            # 显示成功信息
+            if result.get("mode") == "preview":
+                print("\nEdit preview completed")
+            else:
                 print(result.get("message", "\nFile edited successfully"))
             
             # 显示linter结果（如果有）
