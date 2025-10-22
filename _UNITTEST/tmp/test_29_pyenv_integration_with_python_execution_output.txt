@@ -24,13 +24,13 @@ Traceback (most recent call last):
 AssertionError: 命令执行异常: ['python', 'import sys; print("Python version:", sys.version); print("Hello from Python!")'] - 2 != 0 : 命令执行失败: ['python', 'import sys; print("Python version:", sys.version); print("Hello from Python!")']
 
 ----------------------------------------------------------------------
-Ran 1 test in 111.019s
+Ran 1 test in 89.364s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251022_160839_683031_51eee1ce
-已切换到远端测试目录: ~/tmp/gds_test_20251022_160839_683031_51eee1ce
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2bizwm9l
+远端测试目录: ~/tmp/gds_test_20251022_161303_142489_6bbca998
+已切换到远端测试目录: ~/tmp/gds_test_20251022_161303_142489_6bbca998
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_plneyyhc
 测试环境设置完成
 测试pyenv与Python代码执行的集成
 命令转译成功: ['python', 'import sys; print("Python version:", sys.version); print("Hello from Python!")'] -> python 'import sys; print("Python version:", sys.version); print("Hello from Python!")'

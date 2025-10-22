@@ -2955,7 +2955,7 @@ print(f"Sum: {result}")
         # 测试Python代码执行仍然正常工作
         test_code = 'import sys; print("Python version:", sys.version); print("Hello from Python!")'
         
-        result = self._run_gds_command(["python", test_code])
+        result = self._run_gds_command(["python", "-c", test_code])
         self.assertEqual(result.returncode, 0, "Python代码执行应该成功")
         
         output = result.stdout
