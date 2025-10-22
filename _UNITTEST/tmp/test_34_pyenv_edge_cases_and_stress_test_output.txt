@@ -12,10 +12,10 @@ RuntimeError: 创建远端测试目录失败: 返回码=1, stderr=, stdout=mkdir
 
 
 ----------------------------------------------------------------------
-Ran 0 tests in 56.395s
+Ran 0 tests in 43.716s
 
 FAILED (errors=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251022_164734_509438_30645417
+远端测试目录: ~/tmp/gds_test_20251022_165654_397532_ea72c6bc
 Warning: 创建远端测试目录失败: 返回码=1, stderr=, stdout=mkdir command execution failed: Unknown error
 
