@@ -149,6 +149,19 @@ class CommandRegistry:
                 # Extract the JSON substring
                 json_substring = raw_command[first_bracket:last_bracket + 1]
                 
+                # Extract filename from the part before JSON
+                before_json = raw_command[:first_bracket].strip()
+                # Remove the command name and any flags to get the filename
+                parts = before_json.split()
+                filename = None
+                for part in parts[1:]:  # Skip command name
+                    if not part.startswith('--'):
+                        filename = part
+                        break
+                
+                if not filename:
+                    return args  # Can't find filename, return original args
+                
                 # Try to evaluate it directly as Python literal
                 try:
                     import ast
@@ -157,15 +170,25 @@ class CommandRegistry:
                     # Convert back to JSON string
                     fixed_json = json.dumps(parsed)
                     
-                    # Reconstruct args: filename + fixed_json
-                    filename = args[0]  # First arg should be filename
-                    return [filename, fixed_json]
+                    # Reconstruct args: preserve flags + filename + fixed_json
+                    result_args = []
+                    for arg in args:
+                        if arg.startswith('--'):
+                            result_args.append(arg)
+                    result_args.extend([filename, fixed_json])
+                    return result_args
                     
                 except Exception as e:
                     # If direct parsing fails, fall back to smart fix
                     fixed_json = self._smart_fix_json(json_substring)
-                    filename = args[0]
-                    return [filename, fixed_json]
+                    
+                    # Reconstruct args: preserve flags + filename + fixed_json
+                    result_args = []
+                    for arg in args:
+                        if arg.startswith('--'):
+                            result_args.append(arg)
+                    result_args.extend([filename, fixed_json])
+                    return result_args
             
             # If no split JSON found, check if it's already a single JSON argument
             for i, arg in enumerate(args):
