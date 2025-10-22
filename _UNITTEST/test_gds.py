@@ -2963,7 +2963,7 @@ print(f"Sum: {result}")
         self.assertIn("3.11", output, "应该包含Python 3.11版本")
         
         # 测试列出已安装版本（初始应该为空）
-        result = self._run_gds_command(["pyenv", "--list"])
+        result = self._run_gds_command(["pyenv", "--versions"])
         self.assertEqual(result.returncode, 0, "列出已安装Python版本应该成功")
         
         # 测试显示当前版本

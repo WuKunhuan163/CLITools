@@ -95,8 +95,8 @@ class CommandRegistry:
             fixed_str = re.sub(string_pattern, fix_string_replacement, fixed_str)
         
         # Pattern 2: Fix line replacement [[[numbers], text]] -> [[[numbers], "text"]]
-        # Match unquoted text after the number array
-        line_pattern = r'(\[\[\[[0-9, ]+\],\s*)([A-Za-z_][A-Za-z0-9_\s]*?)(\]\])'
+        # Match unquoted text after the number array (including special characters and spaces)
+        line_pattern = r'(\[\[\[[0-9, ]+\],\s*)([^"\[\]]+?)(\]\])'
         def fix_line_replacement(match):
             prefix = match.group(1)
             text = match.group(2).strip()
@@ -114,8 +114,8 @@ class CommandRegistry:
             result = json.dumps(parsed)
             return result
         except Exception as e:
-            # Fallback to original method
-            return self._fix_unquoted_json_strings(json_str)
+            # If all fixes fail, return the original string
+            return json_str
     
     def _process_json_arguments(self, name: str, args: List[str]) -> List[str]:
         """

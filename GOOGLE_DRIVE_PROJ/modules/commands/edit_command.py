@@ -8,12 +8,6 @@ class EditCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行edit命令"""
-        # print(f"🔍 EDIT_COMMAND DEBUG: Processing edit with args: {args}")
-        
-        if len(args) < 2:
-            print("Error: edit command needs a file name and edit specification")
-            return 1
-        
         # 解析选项参数
         preview = False
         backup = False
@@ -26,7 +20,6 @@ class EditCommand(BaseCommand):
                 backup = True
             else:
                 remaining_args.append(arg)
-        
         if len(remaining_args) < 2:
             print("Error: edit command needs a file name and edit specification")
             return 1

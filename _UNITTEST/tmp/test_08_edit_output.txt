@@ -6,18 +6,29 @@ FAIL
 FAIL: test_08_edit (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1320, in test_08_edit
-    self.assertTrue(success, f"行号替换编辑失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : 行号替换编辑失败: 
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 357, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: edit --preview test_edit_simple_hello.py [["print", "# print"]]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1324, in test_08_edit
+    result = self._run_gds_command('edit --preview test_edit_simple_hello.py [["print", "# print"]]')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 363, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: edit --preview test_edit_simple_hello.py [["print", "# print"]] - 1 != 0 : 命令执行失败: edit --preview test_edit_simple_hello.py [["print", "# print"]]
 
 ----------------------------------------------------------------------
-Ran 1 test in 567.807s
+Ran 1 test in 214.461s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251021_133730_581372_01d55624
-已切换到远端测试目录: ~/tmp/gds_test_20251021_133730_581372_01d55624
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_xjy1xwhb
+远端测试目录: ~/tmp/gds_test_20251022_152247_468493_7364e251
+已切换到远端测试目录: ~/tmp/gds_test_20251022_152247_468493_7364e251
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_kv2osp2m
 测试环境设置完成
 
 执行带重试的upload命令: upload --force /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_edit_simple_hello.py
@@ -30,7 +41,7 @@ FAILED (failures=1)
 输出: 
 [K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync ........
+[K⏳ Waiting for file sync ..........
 [K
 [K⏳ Waiting for result .....
 [K
@@ -41,7 +52,7 @@ FAILED (failures=1)
 输出: 
 [K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync ........
+[K⏳ Waiting for file sync ..........
 [K
 [K⏳ Waiting for result .....
 [K
@@ -64,20 +75,22 @@ FAILED (failures=1)
 命令转译成功: upload --force /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_edit_simple_hello.py -> upload --force /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_edit_simple_hello.py
 返回码: 0
 输出: 
-[K⏳ Waiting for upload ...Warning: Overriding remote file ~/tmp/gds_test_20251021_133730_581372_01d55624/test_edit_simple_hello.py
-
+[K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync ..........
+[K⏳ Waiting for file sync ........
 [K
-[K⏳ Waiting for res...
+[K⏳ Waiting for result .......
+[K
+[K
+[K⏳ Validating test_edit_simple_hello.py ...
+[K...
 返回码: 0
 输出: 
-[K⏳ Waiting for upload ...Warning: Overriding remote file ~/tmp/gds_test_20251021_133730_581372_01d55624/test_edit_simple_hello.py
-
+[K⏳ Waiting for upload ...
 [K
-[K⏳ Waiting for file sync ..........
+[K⏳ Waiting for file sync ........
 [K
-[K⏳ Waiting for result ......
+[K⏳ Waiting for result .......
 [K
 [K
 [K⏳ Validating test_edit_simple_hello.py ...
@@ -98,12 +111,16 @@ FAILED (failures=1)
 命令转译成功: edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]] -> edit test_edit_simple_hello.py [["Hello from remote project", "Hello from MODIFIED remote project"]]
 返回码: 0
 输出: 
-[K⏳ Waiting for upload ...Warning: Overriding remote file ~/tmp/gds_test_20251021_133730_581372_01d55624/test_edit_simple_hello.py
-
+[K⏳ Waiting for result ......
 [K
-[K⏳ Waiting for file sync ........
 [K
-[K⏳ Waiting for resul...
+Edit comparison: test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -print(...
 Verify 1/1: grep "MODIFIED" test_edit_simple_hello.py
 命令转译成功: grep "MODIFIED" test_edit_simple_hello.py -> grep "MODIFIED" test_edit_simple_hello.py
 返回码: 0
@@ -120,40 +137,26 @@ All verifications passed, command executed successfully
 命令转译成功: edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]] -> edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]]
 返回码: 0
 输出: 
-[K⏳ Waiting for upload ...Warning: Overriding remote file ~/tmp/gds_test_20251021_133730_581372_01d55624/test_edit_simple_hello.py
-
+[K⏳ Waiting for result ......
 [K
-[K⏳ Waiting for file sync ...........
 [K
-[K⏳ Waiting for re...
+Edit comparison: test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -print(...
 Verify 1/1: grep "# Modified line 3-4" test_edit_simple_hello.py
 命令转译成功: grep "# Modified line 3-4" test_edit_simple_hello.py -> grep "# Modified line 3-4" test_edit_simple_hello.py
-返回码: 1
-Error: Verify failed, return code: 1
-Verify failed, waiting 2 seconds before retrying...
-
-尝试 2/3
-命令转译成功: edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]] -> edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]]
 返回码: 0
-输出: 
-[K⏳ Waiting for upload ...Warning: Overriding remote file ~/tmp/gds_test_20251021_133730_581372_01d55624/test_edit_simple_hello.py
-
-[K
-[K⏳ Waiting for file sync ..........
-[K
-[K⏳ Waiting for res...
-Verify 1/1: grep "# Modified line 3-4" test_edit_simple_hello.py
-命令转译成功: grep "# Modified line 3-4" test_edit_simple_hello.py -> grep "# Modified line 3-4" test_edit_simple_hello.py
+输出:   4: # Modified line 3-4
+  5: # Modified line 3-4
+...
+Verify successful
+All verifications passed, command executed successfully
+命令转译成功: edit --preview test_edit_simple_hello.py [["print", "# print"]] -> edit --preview test_edit_simple_hello.py [["print", "# print"]]
 返回码: 1
-Error: Verify failed, return code: 1
-Verify failed, waiting 2 seconds before retrying...
-
-尝试 3/3
-命令转译成功: edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]] -> edit test_edit_simple_hello.py [[[3, 4], "# Modified line 3-4"]]
-返回码: -9
-输出: 
-[K⏳ Waiting for upload ...Warning: Overriding remote file ~/tmp/gds_test_20251021_133730_581372_01d55624/test_edit_simple_hello.py
-
-[K
-[K⏳ Waiting for file sync ...........
-Error: Main command failed, return code: -9
+输出: Error: edit command needs a file name and edit specification
+...
+命令执行异常: 1 != 0 : 命令执行失败: edit --preview test_edit_simple_hello.py [["print", "# print"]]
