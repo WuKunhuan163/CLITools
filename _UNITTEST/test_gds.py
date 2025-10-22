@@ -2614,15 +2614,20 @@ print(f"Sum: {result}")
         
         # 子测试2: 占位符冲突防护
         print("子测试2: 占位符冲突防护")
-        result = self._run_gds_command('echo "Text with CUSTOM_PLACEHOLDER marker"')
+        result = self._run_gds_command('\'echo "Text with CUSTOM_PLACEHOLDER marker" > test_placeholder.txt\'')
         self.assertEqual(result.returncode, 0, "占位符命令应该成功")
-        self.assertIn("CUSTOM_PLACEHOLDER", result.stdout, "应该保留原始占位符")
-        self.assertNotIn("/content/drive", result.stdout, "不应该被替换为路径")
+
+        result = self._run_gds_command('cat test_placeholder.txt')
+        self.assertEqual(result.returncode, 0, "读取占位符文件应该成功")
+        self.assertIn("Text with CUSTOM_PLACEHOLDER marker", result.stdout, "应该包含占位符标记")
         
         # 子测试3: 复杂引号嵌套
         print("子测试3: 复杂引号嵌套")
-        result = self._run_gds_command('echo "Outer \\"nested\\" quotes"')
+        result = self._run_gds_command('\'printf "Outer \\"nested\\" quotes\\n" > test_nested.txt\'')
         self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
+        
+        result = self._run_gds_command('cat test_nested.txt')
+        self.assertEqual(result.returncode, 0, "读取嵌套引号文件应该成功")
         self.assertIn('Outer "nested" quotes', result.stdout, "应该正确处理嵌套引号")
         
         # 子测试4: printf格式注入防护
@@ -3152,7 +3157,7 @@ print("Python script execution test successful!")
         ]
         
         for code, expected_output in test_cases:
-            result = self._run_gds_command(["python", code])
+            result = self._run_gds_command(["python", "-c", code])
             self.assertEqual(result.returncode, 0, f"Python代码执行应该成功: {code}")
             self.assertIn(expected_output, result.stdout, f"应该包含预期输出: {expected_output}")
         
@@ -3333,7 +3338,7 @@ if __name__ == "__main__":
         self.assertEqual(result.returncode, 0, "检查本地设置应该成功")
         
         # 验证Python执行仍然正常
-        result = self._run_gds_command(["python", "print('Multi-project environment test')"])
+        result = self._run_gds_command(["python", "-c", "print('Multi-project environment test')"])
         self.assertEqual(result.returncode, 0, "多项目环境下Python执行应该正常")
         self.assertIn("Multi-project environment test", result.stdout, "应该正常输出")
         
