@@ -17,20 +17,20 @@ AssertionError: 2 != 0 : 命令执行失败: ['python', "print('Hello World')"]
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3219, in test_33_pyenv_integration_with_existing_python
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3146, in test_33_pyenv_integration_with_existing_python
     result = self._run_gds_command(["python", code])
   File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 363, in _run_gds_command
     self.fail(f"命令执行异常: {command} - {e}")
 AssertionError: 命令执行异常: ['python', "print('Hello World')"] - 2 != 0 : 命令执行失败: ['python', "print('Hello World')"]
 
 ----------------------------------------------------------------------
-Ran 1 test in 105.020s
+Ran 1 test in 86.978s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251021_131504_142423_9de217d6
-已切换到远端测试目录: ~/tmp/gds_test_20251021_131504_142423_9de217d6
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_x5xn50do
+远端测试目录: ~/tmp/gds_test_20251022_164725_577017_289d8054
+已切换到远端测试目录: ~/tmp/gds_test_20251022_164725_577017_289d8054
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local__0v04bbj
 测试环境设置完成
 测试pyenv与现有Python执行的集成和兼容性
 命令转译成功: ['python', "print('Hello World')"] -> python "print('Hello World')"

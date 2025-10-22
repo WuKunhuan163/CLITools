@@ -1,0 +1,35 @@
+test_25_edge_cases_comprehensive (test_gds.GDSTest)
+综合边缘情况测试 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+FAIL
+
+======================================================================
+FAIL: test_25_edge_cases_comprehensive (test_gds.GDSTest)
+综合边缘情况测试
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2612, in test_25_edge_cases_comprehensive
+    self.assertTrue("`whoami`" in result.stdout or "\\`whoami\\`" in result.stdout, "应该包含反引号（原始或转义形式）")
+AssertionError: False is not true : 应该包含反引号（原始或转义形式）
+
+----------------------------------------------------------------------
+Ran 1 test in 87.869s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251022_164613_817293_76dc2c6d
+已切换到远端测试目录: ~/tmp/gds_test_20251022_164613_817293_76dc2c6d
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_eoavehp1
+测试环境设置完成
+综合边缘情况测试
+子测试1: 反引号注入防护
+命令转译成功: 'printf "Command: `whoami`\n" > test_backtick.txt' -> __QUOTED_COMMAND__printf "Command: `whoami`\n" > test_backtick.txt
+返回码: 0
+输出: 
+[K⏳ Waiting for result ......
+[K
+[K...
+命令转译成功: cat test_backtick.txt -> cat test_backtick.txt
+返回码: 0
+输出: Command: root
+...

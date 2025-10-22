@@ -1,32 +1,21 @@
-test_34_pyenv_edge_cases_and_stress_test (test_gds.GDSTest)
-测试pyenv边缘情况和压力测试 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
-  warnings.warn(
-FAIL
+ERROR
 
 ======================================================================
-FAIL: test_34_pyenv_edge_cases_and_stress_test (test_gds.GDSTest)
-测试pyenv边缘情况和压力测试
+ERROR: setUpClass (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3268, in test_34_pyenv_edge_cases_and_stress_test
-    self.assertNotEqual(result.returncode, 0, f"设置不存在版本 {version} 应该失败")
-AssertionError: 0 == 0 : 设置不存在版本 0.0.1 应该失败
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 71, in setUpClass
+    cls._setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 104, in _setup_remote_test_directory
+    raise RuntimeError(error_msg)
+RuntimeError: 创建远端测试目录失败: 返回码=1, stderr=, stdout=mkdir command execution failed: Unknown error
+
 
 ----------------------------------------------------------------------
-Ran 1 test in 102.763s
+Ran 0 tests in 56.395s
 
-FAILED (failures=1)
+FAILED (errors=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251021_131515_019385_0809b92f
-已切换到远端测试目录: ~/tmp/gds_test_20251021_131515_019385_0809b92f
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_k7qn0h4g
-测试环境设置完成
-测试pyenv边缘情况和压力测试
-命令转译成功: ['pyenv', '--global', '0.0.1'] -> pyenv --global 0.0.1
-返回码: 0
-输出: 
-[K⏳ Waiting for result .....
-[K
-[K...
-Warning: 错误: bash: line 1: pyenv: command not found
-...
+远端测试目录: ~/tmp/gds_test_20251022_164734_509438_30645417
+Warning: 创建远端测试目录失败: 返回码=1, stderr=, stdout=mkdir command execution failed: Unknown error
+

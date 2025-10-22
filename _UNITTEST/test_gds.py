@@ -3096,7 +3096,14 @@ print("Python script execution test successful!")
         for i in range(5):
             result = self._run_gds_command(["pyenv", "--version"])
             self.assertEqual(result.returncode, 0, f"第{i+1}次版本查询应该成功")
-            results.append(result.stdout.strip())
+            # 提取实际结果，忽略等待信息和ANSI转义序列
+            clean_output = result.stdout.strip()
+            # 移除ANSI转义序列和等待信息
+            import re
+            clean_output = re.sub(r'\x1b\[[K0-9;]*[mK]', '', clean_output)  # 移除ANSI转义序列
+            clean_output = re.sub(r'⏳ Waiting for result[.\s]*', '', clean_output)  # 移除等待信息
+            clean_output = clean_output.strip()
+            results.append(clean_output)
         
         # 所有结果应该一致
         unique_results = set(results)
@@ -3112,11 +3119,19 @@ print("Python script execution test successful!")
         # 再次查询，结果应该一致
         global_result2 = self._run_gds_command(["pyenv", "--global"])
         self.assertEqual(global_result2.returncode, 0, "第二次global查询应该成功")
-        self.assertEqual(global_result1.stdout, global_result2.stdout, "global状态应该保持一致")
+        
+        # 清理输出进行比较
+        def clean_output(output):
+            import re
+            clean = re.sub(r'\x1b\[[K0-9;]*[mK]', '', output)  # 移除ANSI转义序列
+            clean = re.sub(r'⏳ Waiting for result[.\s]*', '', clean)  # 移除等待信息
+            return clean.strip()
+        
+        self.assertEqual(clean_output(global_result1.stdout), clean_output(global_result2.stdout), "global状态应该保持一致")
         
         local_result2 = self._run_gds_command(["pyenv", "--local"])
         self.assertEqual(local_result2.returncode, 0, "第二次local查询应该成功")
-        self.assertEqual(local_result1.stdout, local_result2.stdout, "local状态应该保持一致")
+        self.assertEqual(clean_output(local_result1.stdout), clean_output(local_result2.stdout), "local状态应该保持一致")
         
         print(f"状态持久性测试完成")
 
