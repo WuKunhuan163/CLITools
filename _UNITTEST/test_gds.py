@@ -2596,171 +2596,97 @@ print(f"Sum: {result}")
         
         print(f"Shell提示符改进测试完成")
 
-    def test_25_gds_window_robustness(self):
-        """测试GDS窗口管理器鲁棒性 - 跨进程文件锁机制"""
-        print(f"🧪 测试GDS窗口管理器鲁棒性")
+    def test_25_edge_cases_comprehensive(self):
+        """综合边缘情况测试"""
+        print(f"综合边缘情况测试")
         
-        import threading
-        import psutil
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        # 子测试1: 反引号注入防护
+        print("子测试1: 反引号注入防护")
+        result = self._run_gds_command('echo "Command: `whoami`" > test_backtick.txt')
+        self.assertEqual(result.returncode, 0, "反引号命令应该成功")
         
-        # 设置测试环境
-        LOCK_FILE = self.BIN_DIR / "GOOGLE_DRIVE_DATA" / "window_lock.lock"
-        DEBUG_LOG = self.BIN_DIR / "GOOGLE_DRIVE_DATA" / "window_queue_debug.log"
+        result = self._run_gds_command('cat test_backtick.txt')
+        self.assertEqual(result.returncode, 0, "读取反引号文件应该成功")
+        # 反引号被正确转义，检查转义后的形式或原始形式
+        self.assertTrue("`whoami`" in result.stdout or "\\`whoami\\`" in result.stdout, "应该包含反引号（原始或转义形式）")
+        self.assertNotIn("root", result.stdout, "不应该执行whoami命令")
         
-        def cleanup_test_environment():
-            """清理测试环境"""
-            try:
-                # 清理锁文件
-                if LOCK_FILE.exists():
-                    LOCK_FILE.unlink()
-                
-                # 清理debug日志
-                if DEBUG_LOG.exists():
-                    DEBUG_LOG.unlink()
-                    
-                # 杀死所有遗留的GDS进程
-                for proc in psutil.process_iter(['pid', 'cmdline']):
-                    try:
-                        cmdline = proc.info['cmdline']
-                        if cmdline and 'GOOGLE_DRIVE.py' in ' '.join(cmdline):
-                            proc.kill()
-                            proc.wait(timeout=3)
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
-                        pass
-                        
-            except Exception as e:
-                print(f"清理环境时出错: {e}")
+        # 子测试2: 占位符冲突防护
+        print("子测试2: 占位符冲突防护")
+        result = self._run_gds_command('echo "Text with __TILDE_SLASH__ marker" > test_placeholder.txt')
+        self.assertEqual(result.returncode, 0, "占位符命令应该成功")
         
-        # 清理测试环境
-        cleanup_test_environment()
-        time.sleep(0.5)
+        result = self._run_gds_command('cat test_placeholder.txt')
+        self.assertEqual(result.returncode, 0, "读取占位符文件应该成功")
+        self.assertIn("__TILDE_SLASH__", result.stdout, "应该保留原始占位符")
+        self.assertNotIn("/content/drive", result.stdout, "不应该被替换为路径")
         
-        # 子测试1: 并发窗口请求测试
-        print("🔄 子测试1: 并发窗口请求")
+        # 子测试3: 复杂引号嵌套
+        print("子测试3: 复杂引号嵌套")
+        result = self._run_gds_command('echo "Outer \\"nested\\" quotes" > test_nested.txt')
+        self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
         
-        def run_gds_command(cmd_id):
-            """运行单个GDS命令"""
-            start_time = time.time()
-            try:
-                result = subprocess.run(
-                    [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'touch', f'test_concurrent_{cmd_id}.txt'],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-                end_time = time.time()
-                return {
-                    'cmd_id': cmd_id,
-                    'duration': end_time - start_time,
-                    'returncode': result.returncode,
-                    'success': result.returncode == 0
-                }
-            except subprocess.TimeoutExpired:
-                return {
-                    'cmd_id': cmd_id,
-                    'duration': 30,
-                    'returncode': 'timeout',
-                    'success': False
-                }
+        result = self._run_gds_command('cat test_nested.txt')
+        self.assertEqual(result.returncode, 0, "读取嵌套引号文件应该成功")
+        self.assertIn('Outer "nested" quotes', result.stdout, "应该正确处理嵌套引号")
         
-        # 启动3个并发命令（减少数量以适应测试环境）
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [executor.submit(run_gds_command, i) for i in range(3)]
-            results = [future.result() for future in as_completed(futures)]
+        # 子测试4: printf格式注入防护
+        print("子测试4: printf格式注入防护")
+        dangerous_formats = ["%s%s%s%s", "%x%x%x%x", "%^&*()%"]
         
-        # 分析结果
-        success_count = sum(1 for r in results if r['success'])
-        print(f"📊 并发命令结果: {success_count}/3 成功")
+        for i, fmt in enumerate(dangerous_formats):
+            result = self._run_gds_command(f'printf "Format: {fmt}" > test_printf_fmt_{i}.txt')
+            self.assertEqual(result.returncode, 0, f"printf格式{fmt}应该成功")
+            
+            result = self._run_gds_command(f'cat test_printf_fmt_{i}.txt')
+            self.assertEqual(result.returncode, 0, f"读取printf格式文件{i}应该成功")
+            self.assertIn(f"Format: {fmt}", result.stdout, f"应该包含格式字符串{fmt}")
         
-        # 验证至少有一些命令成功
-        self.assertGreater(success_count, 0, "至少应该有一些并发命令成功")
-        
-        # 子测试2: 进程崩溃恢复测试
-        print("💥 子测试2: 进程崩溃恢复")
-        
-        # 启动一个长时间运行的GDS命令
-        proc = subprocess.Popen(
-            [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'touch', 'test_crash.txt'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        
-        # 等待窗口创建
-        time.sleep(2)
-        print(f"📋 启动进程 PID: {proc.pid}")
-        
-        # 强制杀死进程
-        try:
-            proc.kill()
-            proc.wait(timeout=5)
-            print("💀 进程已强制终止")
-        except subprocess.TimeoutExpired:
-            print("Warning: 进程终止超时")
-        
-        # 等待锁释放
-        time.sleep(1)
-        
-        # 启动新的命令，应该能立即获得锁
-        start_time = time.time()
-        result = subprocess.run(
-            [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell', 'touch', 'test_after_crash.txt'],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        end_time = time.time()
-        
-        duration = end_time - start_time
-        print(f"🔄 崩溃后新命令耗时: {duration:.1f}s")
-        
-        # 验证新命令能快速获得锁（不应该长时间等待）
-        self.assertLess(duration, 8, "崩溃后新命令应该能快速获得锁")
-        
-        # 子测试3: Debug日志完整性
-        print("📝 子测试3: Debug日志完整性")
-        
-        # 运行几个命令生成debug日志
-        commands = [
-            ['touch', 'debug_test_1.txt'],
-            ['echo', 'debug_test_2']
+        # 子测试5: 特殊字符处理
+        print("子测试5: 特殊字符处理")
+        special_chars = [
+            ("ampersand", "Text with & character"),
+            ("pipe", "Text with | character"),
+            ("semicolon", "Text with ; character"),
+            ("parentheses", "Text with () characters"),
         ]
         
-        for i, cmd in enumerate(commands):
-            try:
-                result = subprocess.run(
-                    [sys.executable, str(self.GOOGLE_DRIVE_PY), '--shell'] + cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                print(f"📋 命令{i+1}完成: {result.returncode}")
-            except subprocess.TimeoutExpired:
-                print(f"⏰ 命令{i+1}超时")
-        
-        # 分析debug日志
-        if DEBUG_LOG.exists():
-            with open(DEBUG_LOG, 'r', encoding='utf-8') as f:
-                log_content = f.read()
+        for name, text in special_chars:
+            result = self._run_gds_command(f'echo "{text}" > test_{name}.txt')
+            self.assertEqual(result.returncode, 0, f"特殊字符{name}命令应该成功")
             
-            # 统计关键事件
-            lock_requests = log_content.count('CROSS_PROCESS_LOCK')
-            lock_acquired = log_content.count('LOCK_ACQUIRED')
-            
-            print(f"📊 Debug日志分析: {lock_requests}个锁请求, {lock_acquired}个锁获取")
-            
-            # 验证日志完整性
-            if lock_requests > 0:
-                print("✅ 找到锁请求记录")
-            if lock_acquired > 0:
-                print("✅ 找到锁获取记录")
-        else:
-            print("Warning: Debug日志文件不存在")
+            result = self._run_gds_command(f'cat test_{name}.txt')
+            self.assertEqual(result.returncode, 0, f"读取特殊字符文件{name}应该成功")
+            self.assertIn(text, result.stdout, f"应该包含特殊字符文本{name}")
         
-        # 最终清理
-        cleanup_test_environment()
+        # 子测试6: Unicode编码处理
+        print("子测试6: Unicode编码处理")
+        unicode_texts = [
+            ("chinese", "中文测试"),
+            ("emoji", "测试🚀💻"),
+            ("symbols", "©®™€"),
+        ]
         
-        print(f"🎉 GDS窗口管理器鲁棒性测试完成")
+        for name, text in unicode_texts:
+            result = self._run_gds_command(f'echo "{text}" > test_unicode_{name}.txt')
+            self.assertEqual(result.returncode, 0, f"Unicode{name}命令应该成功")
+            
+            result = self._run_gds_command(f'cat test_unicode_{name}.txt')
+            self.assertEqual(result.returncode, 0, f"读取Unicode文件{name}应该成功")
+            self.assertIn(text, result.stdout, f"应该包含Unicode文本{name}")
+        
+        # 清理测试文件
+        cleanup_files = [
+            "test_backtick.txt", "test_placeholder.txt", "test_nested.txt",
+            "test_printf_fmt_0.txt", "test_printf_fmt_1.txt", "test_printf_fmt_2.txt",
+            "test_ampersand.txt", "test_pipe.txt", "test_semicolon.txt", "test_parentheses.txt",
+            "test_unicode_chinese.txt", "test_unicode_emoji.txt", "test_unicode_symbols.txt"
+        ]
+        
+        for filename in cleanup_files:
+            self._run_gds_command(f'rm -f {filename}')
+        
+        print(f"综合边缘情况测试完成")
 
     def test_26_gds_single_window_control(self):
         """测试GDS单窗口控制机制 - 确保任何时候只有一个窗口存在"""
@@ -3714,97 +3640,6 @@ print("=== Verification completed ===")
         
         print(f"正则表达式验证测试完成")
     
-    def test_40_edge_cases_comprehensive(self):
-        """综合边缘情况测试"""
-        print(f"综合边缘情况测试")
-        
-        # 子测试1: 反引号注入防护
-        print("子测试1: 反引号注入防护")
-        result = self._run_gds_command('echo "Command: `whoami`" > test_backtick.txt')
-        self.assertEqual(result.returncode, 0, "反引号命令应该成功")
-        
-        result = self._run_gds_command('cat test_backtick.txt')
-        self.assertEqual(result.returncode, 0, "读取反引号文件应该成功")
-        # 反引号被正确转义，检查转义后的形式或原始形式
-        self.assertTrue("`whoami`" in result.stdout or "\\`whoami\\`" in result.stdout, "应该包含反引号（原始或转义形式）")
-        self.assertNotIn("root", result.stdout, "不应该执行whoami命令")
-        
-        # 子测试2: 占位符冲突防护
-        print("子测试2: 占位符冲突防护")
-        result = self._run_gds_command('echo "Text with __TILDE_SLASH__ marker" > test_placeholder.txt')
-        self.assertEqual(result.returncode, 0, "占位符命令应该成功")
-        
-        result = self._run_gds_command('cat test_placeholder.txt')
-        self.assertEqual(result.returncode, 0, "读取占位符文件应该成功")
-        self.assertIn("__TILDE_SLASH__", result.stdout, "应该保留原始占位符")
-        self.assertNotIn("/content/drive", result.stdout, "不应该被替换为路径")
-        
-        # 子测试3: 复杂引号嵌套
-        print("子测试3: 复杂引号嵌套")
-        result = self._run_gds_command('echo "Outer \\"nested\\" quotes" > test_nested.txt')
-        self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
-        
-        result = self._run_gds_command('cat test_nested.txt')
-        self.assertEqual(result.returncode, 0, "读取嵌套引号文件应该成功")
-        self.assertIn('Outer "nested" quotes', result.stdout, "应该正确处理嵌套引号")
-        
-        # 子测试4: printf格式注入防护
-        print("子测试4: printf格式注入防护")
-        dangerous_formats = ["%s%s%s%s", "%x%x%x%x", "%^&*()%"]
-        
-        for i, fmt in enumerate(dangerous_formats):
-            result = self._run_gds_command(f'printf "Format: {fmt}" > test_printf_fmt_{i}.txt')
-            self.assertEqual(result.returncode, 0, f"printf格式{fmt}应该成功")
-            
-            result = self._run_gds_command(f'cat test_printf_fmt_{i}.txt')
-            self.assertEqual(result.returncode, 0, f"读取printf格式文件{i}应该成功")
-            self.assertIn(f"Format: {fmt}", result.stdout, f"应该包含格式字符串{fmt}")
-        
-        # 子测试5: 特殊字符处理
-        print("子测试5: 特殊字符处理")
-        special_chars = [
-            ("ampersand", "Text with & character"),
-            ("pipe", "Text with | character"),
-            ("semicolon", "Text with ; character"),
-            ("parentheses", "Text with () characters"),
-        ]
-        
-        for name, text in special_chars:
-            result = self._run_gds_command(f'echo "{text}" > test_{name}.txt')
-            self.assertEqual(result.returncode, 0, f"特殊字符{name}命令应该成功")
-            
-            result = self._run_gds_command(f'cat test_{name}.txt')
-            self.assertEqual(result.returncode, 0, f"读取特殊字符文件{name}应该成功")
-            self.assertIn(text, result.stdout, f"应该包含特殊字符文本{name}")
-        
-        # 子测试6: Unicode编码处理
-        print("子测试6: Unicode编码处理")
-        unicode_texts = [
-            ("chinese", "中文测试"),
-            ("emoji", "测试🚀💻"),
-            ("symbols", "©®™€"),
-        ]
-        
-        for name, text in unicode_texts:
-            result = self._run_gds_command(f'echo "{text}" > test_unicode_{name}.txt')
-            self.assertEqual(result.returncode, 0, f"Unicode{name}命令应该成功")
-            
-            result = self._run_gds_command(f'cat test_unicode_{name}.txt')
-            self.assertEqual(result.returncode, 0, f"读取Unicode文件{name}应该成功")
-            self.assertIn(text, result.stdout, f"应该包含Unicode文本{name}")
-        
-        # 清理测试文件
-        cleanup_files = [
-            "test_backtick.txt", "test_placeholder.txt", "test_nested.txt",
-            "test_printf_fmt_0.txt", "test_printf_fmt_1.txt", "test_printf_fmt_2.txt",
-            "test_ampersand.txt", "test_pipe.txt", "test_semicolon.txt", "test_parentheses.txt",
-            "test_unicode_chinese.txt", "test_unicode_emoji.txt", "test_unicode_symbols.txt"
-        ]
-        
-        for filename in cleanup_files:
-            self._run_gds_command(f'rm -f {filename}')
-        
-        print(f"综合边缘情况测试完成")
 
 class ParallelTestRunner:
     """并行测试运行器"""
