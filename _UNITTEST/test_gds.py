@@ -2602,7 +2602,8 @@ print(f"Sum: {result}")
         
         # 子测试1: 反引号注入防护
         print("子测试1: 反引号注入防护")
-        result = self._run_gds_command('echo "Command: `whoami`" > test_backtick.txt')
+        # 使用printf代替echo和重定向，避免重定向问题
+        result = self._run_gds_command('printf "Command: `whoami`\\n" > test_backtick.txt')
         self.assertEqual(result.returncode, 0, "反引号命令应该成功")
         
         result = self._run_gds_command('cat test_backtick.txt')
@@ -2613,7 +2614,7 @@ print(f"Sum: {result}")
         
         # 子测试2: 占位符冲突防护
         print("子测试2: 占位符冲突防护")
-        result = self._run_gds_command('echo "Text with CUSTOM_PLACEHOLDER marker" > test_placeholder.txt')
+        result = self._run_gds_command('printf "Text with CUSTOM_PLACEHOLDER marker\\n" > test_placeholder.txt')
         self.assertEqual(result.returncode, 0, "占位符命令应该成功")
         
         result = self._run_gds_command('cat test_placeholder.txt')
@@ -2623,7 +2624,7 @@ print(f"Sum: {result}")
         
         # 子测试3: 复杂引号嵌套
         print("子测试3: 复杂引号嵌套")
-        result = self._run_gds_command('echo "Outer \\"nested\\" quotes" > test_nested.txt')
+        result = self._run_gds_command('printf "Outer \\"nested\\" quotes\\n" > test_nested.txt')
         self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
         
         result = self._run_gds_command('cat test_nested.txt')
@@ -2635,7 +2636,7 @@ print(f"Sum: {result}")
         dangerous_formats = ["%s%s%s%s", "%x%x%x%x", "%^&*()%"]
         
         for i, fmt in enumerate(dangerous_formats):
-            result = self._run_gds_command(f'printf "Format: {fmt}" > test_printf_fmt_{i}.txt')
+            result = self._run_gds_command(f'printf "Format: {fmt}\\n" > test_printf_fmt_{i}.txt')
             self.assertEqual(result.returncode, 0, f"printf格式{fmt}应该成功")
             
             result = self._run_gds_command(f'cat test_printf_fmt_{i}.txt')
@@ -2652,7 +2653,7 @@ print(f"Sum: {result}")
         ]
         
         for name, text in special_chars:
-            result = self._run_gds_command(f'echo "{text}" > test_{name}.txt')
+            result = self._run_gds_command(f'printf "{text}\\n" > test_{name}.txt')
             self.assertEqual(result.returncode, 0, f"特殊字符{name}命令应该成功")
             
             result = self._run_gds_command(f'cat test_{name}.txt')
@@ -2668,7 +2669,7 @@ print(f"Sum: {result}")
         ]
         
         for name, text in unicode_texts:
-            result = self._run_gds_command(f'echo "{text}" > test_unicode_{name}.txt')
+            result = self._run_gds_command(f'printf "{text}\\n" > test_unicode_{name}.txt')
             self.assertEqual(result.returncode, 0, f"Unicode{name}命令应该成功")
             
             result = self._run_gds_command(f'cat test_unicode_{name}.txt')

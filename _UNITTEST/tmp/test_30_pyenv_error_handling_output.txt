@@ -4,13 +4,13 @@ test_30_pyenv_error_handling (test_gds.GDSTest)
 ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 125.853s
+Ran 1 test in 176.570s
 
 OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251022_160611_319139_859a4e00
-已切换到远端测试目录: ~/tmp/gds_test_20251022_160611_319139_859a4e00
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_61_xmj6h
+远端测试目录: ~/tmp/gds_test_20251022_161910_664435_7478bea3
+已切换到远端测试目录: ~/tmp/gds_test_20251022_161910_664435_7478bea3
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_kkhvkjns
 测试环境设置完成
 测试pyenv错误处理
 命令转译成功: ['pyenv', '--invalid-option'] -> pyenv --invalid-option
@@ -20,7 +20,7 @@ OK
 命令转译成功: ['pyenv', '--global', '3.9'] -> pyenv --global 3.9
 返回码: 1
 输出: 
-[K⏳ Waiting for result .....
+[K⏳ Waiting for result ......
 [K
 [KPython 3.9 is not installed. Use 'pyenv --install 3.9' first.
 ...
@@ -39,7 +39,7 @@ OK
 命令转译成功: ['pyenv', '--uninstall', '3.99.99'] -> pyenv --uninstall 3.99.99
 返回码: 1
 输出: 
-[K⏳ Waiting for result ......
+[K⏳ Waiting for result ....
 [K
 [KPython 3.99.99 is not installed
 ...
