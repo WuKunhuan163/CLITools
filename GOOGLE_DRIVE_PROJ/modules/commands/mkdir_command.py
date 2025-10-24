@@ -7,7 +7,7 @@ class MkdirCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行mkdir命令"""
-        # print(f"🔍 MKDIR_COMMAND DEBUG: Processing mkdir with args: {args}")
+        # print(f"DEBUG in MkdirCommand: Processing mkdir with args: {args}")
         
         if not args:
             print("Error: mkdir command needs a directory name")

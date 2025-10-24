@@ -7,7 +7,7 @@ class ReadCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行read命令"""
-        # print(f"🔍 READ_COMMAND DEBUG: Processing read with args: {args}")
+        # print(f"DEBUG in ReadCommand: Processing read with args: {args}")
         
         if not args:
             print("Error: read command needs a file name")

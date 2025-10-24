@@ -76,10 +76,10 @@ class CommandRegistry:
             parsed = ast.literal_eval(fixed_str)
             # If successful, convert back to JSON string and return
             result = json.dumps(parsed)
-            # print(f"🔍 JSON_DEBUG: JSON was already valid, returning: {repr(result)}")
+            # print(f"DEBUG in CommandRegistry: JSON was already valid, returning: {repr(result)}")
             return result
         except Exception:
-            # print(f"🔍 JSON_DEBUG: JSON needs fixing, proceeding with regex patterns")
+            # print(f"DEBUG in CommandRegistry: JSON needs fixing, proceeding with regex patterns")
             pass
         
         # Pattern 1: Fix string replacement [[text1, text2]] -> [["text1", "text2"]]
@@ -88,7 +88,7 @@ class CommandRegistry:
         def fix_string_replacement(match):
             text1 = match.group(1).strip()
             text2 = match.group(2).strip()
-            # print(f"🔍 JSON_DEBUG: String pattern matched - text1: {repr(text1)}, text2: {repr(text2)}")
+            # print(f"DEBUG in CommandRegistry: String pattern matched - text1: {repr(text1)}, text2: {repr(text2)}")
             return f'[["{text1}", "{text2}"]]'
         
         if re.search(string_pattern, fixed_str):
@@ -101,7 +101,7 @@ class CommandRegistry:
             prefix = match.group(1)
             text = match.group(2).strip()
             suffix = match.group(3)
-            # print(f"🔍 JSON_DEBUG: Line pattern matched - prefix: {repr(prefix)}, text: {repr(text)}, suffix: {repr(suffix)}")
+            # print(f"DEBUG in CommandRegistry: Line pattern matched - prefix: {repr(prefix)}, text: {repr(text)}, suffix: {repr(suffix)}")
             return f'{prefix}"{text}"{suffix}'
         
         if re.search(line_pattern, fixed_str):
@@ -130,11 +130,10 @@ class CommandRegistry:
         """
         # Commands that expect JSON arguments
         json_argument_commands = ['edit']
-        
         if name not in json_argument_commands:
             return args
         
-        # print(f"🔍 JSON_DEBUG: Processing {name} command with args: {args}")
+        # print(f"DEBUG in CommandRegistry: Processing {name} command with args: {args}")
         
         if name == 'edit' and len(args) >= 2:
             # New approach: Use raw string and index positioning
@@ -151,6 +150,7 @@ class CommandRegistry:
                 
                 # Extract filename from the part before JSON
                 before_json = raw_command[:first_bracket].strip()
+
                 # Remove the command name and any flags to get the filename
                 parts = before_json.split()
                 filename = None
@@ -167,6 +167,7 @@ class CommandRegistry:
                     import ast
                     import json
                     parsed = ast.literal_eval(json_substring)
+
                     # Convert back to JSON string
                     fixed_json = json.dumps(parsed)
                     
@@ -193,7 +194,6 @@ class CommandRegistry:
             # If no split JSON found, check if it's already a single JSON argument
             for i, arg in enumerate(args):
                 if arg.startswith('[') and arg.endswith(']'):
-                    # Already a complete JSON argument
                     return args
         
         return args
@@ -217,7 +217,7 @@ class CommandRegistry:
         
         # Process JSON arguments if needed
         processed_args = self._process_json_arguments(name, args)
-        # print(f"🔍 DEBUG: CommandRegistry.execute_command called with name='{name}', args={args}, processed_args={processed_args}")
+        # print(f"DEBUG in CommandRegistry: CommandRegistry.execute_command called with name='{name}', args={args}, processed_args={processed_args}")
         
         if not command.validate_args(processed_args):
             return 1

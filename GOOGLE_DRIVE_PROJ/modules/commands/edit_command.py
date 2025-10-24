@@ -8,7 +8,6 @@ class EditCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行edit命令"""
-        # 解析选项参数
         preview = False
         backup = False
         remaining_args = []
@@ -25,8 +24,6 @@ class EditCommand(BaseCommand):
             return 1
         
         filename = remaining_args[0]
-        # 对于edit命令，JSON参数不能用空格连接，需要从原始命令中提取
-        # 使用正则表达式从原始shell_cmd中提取JSON部分
         shell_cmd_clean = f"{cmd} {' '.join(args)}"
         
         # 构建选项字符串用于匹配
@@ -104,7 +101,6 @@ class EditCommand(BaseCommand):
             return 0
         else:
             error_msg = result.get("error", "Failed to edit file")
-            # Improve error message for file not found cases
             if "Download failed: file not found" in error_msg:
                 error_msg = f"File not found: {filename}"
             elif "file not found" in error_msg.lower():

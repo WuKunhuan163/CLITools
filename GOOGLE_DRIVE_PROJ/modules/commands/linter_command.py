@@ -7,7 +7,7 @@ class LinterCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行linter命令"""
-        # print(f"🔍 LINTER_COMMAND DEBUG: Processing linter with args: {args}")
+        # print(f"DEBUG in LinterCommand: Processing linter with args: {args}")
         
         if not args:
             print("Error: linter command needs a file name")

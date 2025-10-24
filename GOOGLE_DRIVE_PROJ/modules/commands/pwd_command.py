@@ -7,7 +7,7 @@ class PwdCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行pwd命令"""
-        # print(f"🔍 PWD_COMMAND DEBUG: Processing pwd with args: {args}")
+        # print(f"DEBUG in PwdCommand: Processing pwd with args: {args}")
         
         # pwd命令不需要参数
         if args:
