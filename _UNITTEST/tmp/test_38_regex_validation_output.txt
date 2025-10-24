@@ -1,0 +1,17 @@
+test_38_regex_validation (test_gds.GDSTest)
+测试正则表达式验证功能 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 64.408s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251022_174036_368548_796b634b
+已切换到远端测试目录: ~/tmp/gds_test_20251022_174036_368548_796b634b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_9x_tj6xt
+测试环境设置完成
+测试正则表达式验证功能
+测试命令: echo -n 'Echo without newline' > redirection_test/echo_test.txt
+正则模式: ^echo\s+(?:-n\s+)?(["\'])(.*?)\1\s*>\s*(.+)$
+匹配组: ("'", 'Echo without newline', 'redirection_test/echo_test.txt')
+正则表达式验证测试完成
