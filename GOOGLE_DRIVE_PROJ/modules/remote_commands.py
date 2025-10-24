@@ -3079,12 +3079,9 @@ JSON_SCRIPT_EOF
         return unzip_command
     
     def show_command_window_subprocess(self, title, command_text, timeout_seconds=3600, test_mode=False):
-        # 检查环境变量是否启用测试模式
-        import os
-        env_test_mode = os.getenv('GDS_TEST_MODE', '')
-        if env_test_mode.lower() in ('true', '1', 'yes'):
+        # 检查实例变量是否启用no-direct-feedback模式
+        if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
-            print(f"DEBUG: Test mode enabled via environment variable: {env_test_mode}", flush=True)
         """
         使用WindowManager显示命令窗口
         
@@ -3141,7 +3138,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 获取当前命令的hash（如果存在）
         current_hash = getattr(self, '_current_cmd_hash', None)
         
-        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, current_hash, test_mode)
+        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, current_hash, no_direct_feedback)
         return result
     
     def copy_to_clipboard(self, text):
@@ -3252,6 +3249,7 @@ def main():
     else:
         args = sys.argv[1:]
     
+    
     if not args:
         # 没有参数，打开默认Google Drive
         return open_google_drive(None, command_identifier) if open_google_drive else 1
@@ -3287,8 +3285,20 @@ def main():
             return enter_shell_mode(command_identifier) if enter_shell_mode else 1
         else:
             # 执行指定的shell命令 - 使用GoogleDriveShell
-            # 检测引号包围的完整命令（用于远端重定向等）
+            # 首先检查是否有--no-direct-feedback参数
             shell_cmd_parts = args[1:]
+            no_direct_feedback = False
+            filtered_shell_parts = []
+            
+            for part in shell_cmd_parts:
+                if part == '--no-direct-feedback':
+                    no_direct_feedback = True
+                else:
+                    filtered_shell_parts.append(part)
+            
+            shell_cmd_parts = filtered_shell_parts
+            
+            # 检测引号包围的完整命令（用于远端重定向等）
             
             # 如果只有一个参数且包含空格，可能是引号包围的完整命令
             if len(shell_cmd_parts) == 1 and (' > ' in shell_cmd_parts[0] or ' && ' in shell_cmd_parts[0] or ' || ' in shell_cmd_parts[0] or ' | ' in shell_cmd_parts[0]):
@@ -3328,6 +3338,10 @@ def main():
                 
                 shell = GoogleDriveShell()
                 # print(f"🔍 REMOTE_COMMANDS DEBUG: GoogleDriveShell instance created")
+                
+                # 如果启用no-direct-feedback模式，设置到shell实例中
+                if no_direct_feedback and hasattr(shell, 'remote_commands'):
+                    shell.remote_commands._no_direct_feedback = True
                 
                 # 这里需要GoogleDriveShell提供一个处理shell命令的方法
                 if hasattr(shell, 'execute_shell_command'):

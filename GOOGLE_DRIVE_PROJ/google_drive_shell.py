@@ -1003,9 +1003,35 @@ class GoogleDriveShell:
         if not args:
             return 0
         
+        # 检查是否有--no-direct-feedback参数
+        no_direct_feedback = False
+        filtered_args = []
+        for arg in args:
+            if arg == '--no-direct-feedback':
+                no_direct_feedback = True
+            else:
+                filtered_args.append(arg)
+        
+        # 如果启用no-direct-feedback模式，设置到remote_commands实例中
+        if no_direct_feedback and hasattr(self, 'remote_commands'):
+            self.remote_commands._no_direct_feedback = True
+        
+        args = filtered_args
+        if not args:
+            return 0
+        
+        # 如果第一个参数是引号包围的完整命令，需要重新解析
+        if len(args) == 1 and (' ' in args[0] or args[0].startswith('"') or args[0].startswith("'")):
+            # 这是一个完整的命令字符串，需要分解
+            import shlex
+            try:
+                args = shlex.split(args[0])
+            except ValueError:
+                # 如果shlex解析失败，按空格分割
+                args = args[0].split()
+        
         cmd = args[0]
         cmd_args = args[1:]
-        # print(f"🔍 DEBUG: execute_shell_command_with_args - cmd='{cmd}', cmd_args={cmd_args}")
         
         # 直接处理命令，跳过字符串解析
         if cmd == 'ls':
