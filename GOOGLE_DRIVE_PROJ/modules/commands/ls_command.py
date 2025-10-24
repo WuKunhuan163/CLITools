@@ -22,6 +22,10 @@ class LsCommand(BaseCommand):
             elif not arg.startswith('-'):
                 path = arg
         
+        # 检查是否包含通配符
+        if path and ('*' in path or '?' in path or '[' in path):
+            return self.shell._handle_wildcard_ls(path)
+        
         # 调用shell的ls方法
         result = self.shell.cmd_ls(path, detailed=detailed, recursive=recursive)
         
