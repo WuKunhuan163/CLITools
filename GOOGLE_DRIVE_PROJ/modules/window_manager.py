@@ -50,13 +50,127 @@ class WindowManager:
         self.pid_file_path = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid")
         self.current_lock_fd = None  # 当前持有的锁文件描述符
         
+        # 优先队列系统
+        self.priority_queue_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json")
+        self.normal_queue_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json")
+        self.queue_lock_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock")
+        
         # 设置进程清理处理器
         self._setup_cleanup_handlers()
         
         # 清理可能存在的无效锁
         self._cleanup_stale_locks()
         
+        # 初始化队列文件
+        self._initialize_queue_files()
+        
         # 跨进程窗口管理，不需要线程队列
+    
+    def _initialize_queue_files(self):
+        """初始化队列文件"""
+        try:
+            # 确保目录存在
+            self.priority_queue_file.parent.mkdir(exist_ok=True)
+            
+            # 初始化优先队列文件
+            if not self.priority_queue_file.exists():
+                with open(self.priority_queue_file, 'w') as f:
+                    json.dump([], f)
+            
+            # 初始化普通队列文件
+            if not self.normal_queue_file.exists():
+                with open(self.normal_queue_file, 'w') as f:
+                    json.dump([], f)
+                    
+        except Exception as e:
+            self._debug_log(f"Error: 初始化队列文件失败: {e}")
+    
+    def _add_to_queue(self, request, is_priority=False):
+        """
+        添加请求到队列
+        
+        Args:
+            request (dict): 窗口请求
+            is_priority (bool): 是否为优先队列
+        """
+        queue_file = self.priority_queue_file if is_priority else self.normal_queue_file
+        queue_type = "优先" if is_priority else "普通"
+        
+        try:
+            # 获取队列锁
+            with open(self.queue_lock_file, 'w') as lock_f:
+                fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
+                
+                # 读取当前队列
+                if queue_file.exists():
+                    with open(queue_file, 'r') as f:
+                        queue = json.load(f)
+                else:
+                    queue = []
+                
+                # 添加请求到队列
+                queue.append(request)
+                
+                # 写回队列
+                with open(queue_file, 'w') as f:
+                    json.dump(queue, f)
+                
+                self._debug_log(f"📝 DEBUG: [QUEUE_ADD] 请求已添加到{queue_type}队列: {request.get('request_id')}")
+                
+        except Exception as e:
+            self._debug_log(f"Error: 添加到{queue_type}队列失败: {e}")
+            raise
+    
+    def _get_next_request(self):
+        """
+        从队列中获取下一个请求（优先队列优先）
+        
+        Returns:
+            dict or None: 下一个请求，如果队列为空则返回None
+        """
+        try:
+            # 获取队列锁
+            with open(self.queue_lock_file, 'w') as lock_f:
+                fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
+                
+                # 先检查优先队列
+                if self.priority_queue_file.exists():
+                    with open(self.priority_queue_file, 'r') as f:
+                        priority_queue = json.load(f)
+                    
+                    if priority_queue:
+                        # 从优先队列取出第一个请求
+                        request = priority_queue.pop(0)
+                        
+                        # 写回优先队列
+                        with open(self.priority_queue_file, 'w') as f:
+                            json.dump(priority_queue, f)
+                        
+                        self._debug_log(f"🚀 DEBUG: [QUEUE_GET] 从优先队列获取请求: {request.get('request_id')}")
+                        return request
+                
+                # 优先队列为空，检查普通队列
+                if self.normal_queue_file.exists():
+                    with open(self.normal_queue_file, 'r') as f:
+                        normal_queue = json.load(f)
+                    
+                    if normal_queue:
+                        # 从普通队列取出第一个请求
+                        request = normal_queue.pop(0)
+                        
+                        # 写回普通队列
+                        with open(self.normal_queue_file, 'w') as f:
+                            json.dump(normal_queue, f)
+                        
+                        self._debug_log(f"📋 DEBUG: [QUEUE_GET] 从普通队列获取请求: {request.get('request_id')}")
+                        return request
+                
+                # 两个队列都为空
+                return None
+                
+        except Exception as e:
+            self._debug_log(f"Error: 获取队列请求失败: {e}")
+            return None
     
     def _setup_cleanup_handlers(self):
         """设置进程清理处理器"""
@@ -331,49 +445,99 @@ class WindowManager:
         """跨进程窗口管理器，无需启动线程"""
         self._debug_log("🏗️ DEBUG: [CROSS_PROCESS_WINDOW_MANAGER] 跨进程窗口管理器启动成功")
     
-    def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None, no_direct_feedback=False):
+    def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None, no_direct_feedback=False, is_priority=False):
         """
-        请求显示窗口 - 改进的跨进程锁管理
+        请求显示窗口 - 支持优先队列的跨进程管理
         
         Args:
             title (str): 窗口标题
             command_text (str): 命令文本
             timeout_seconds (int): 超时时间
+            command_hash (str): 命令哈希
+            no_direct_feedback (bool): 是否隐藏直接反馈按钮
+            is_priority (bool): 是否为优先队列请求
             
         Returns:
             dict: 用户操作结果
         """
         request_id = f"req_{int(time.time() * 1000)}_{os.getpid()}_{threading.get_ident()}"
+        queue_type = "优先" if is_priority else "普通"
         
-        # 尝试获取改进的跨进程锁
+        self._debug_log(f"🎯 DEBUG: [QUEUE_REQUEST] 请求添加到{queue_type}队列: {request_id}")
+        
+        # 创建窗口请求
+        window_request = {
+            'request_id': request_id,
+            'title': title,
+            'command_text': command_text,
+            'timeout_seconds': timeout_seconds,
+            'process_id': os.getpid(),
+            'thread_id': threading.get_ident(),
+            'command_hash': command_hash,
+            'no_direct_feedback': no_direct_feedback,
+            'is_priority': is_priority,
+            'timestamp': time.time()
+        }
+        
+        # 添加到相应的队列
+        self._add_to_queue(window_request, is_priority)
+        
+        # 尝试处理队列（如果当前没有窗口在显示）
+        return self._process_queue()
+    
+    def _process_queue(self):
+        """
+        处理队列中的请求（优先队列优先）
+        
+        Returns:
+            dict: 处理结果
+        """
+        # 尝试获取窗口锁
+        request_id = f"process_{int(time.time() * 1000)}_{os.getpid()}"
+        
         if not self._acquire_lock(request_id):
+            # 无法获取锁，说明有其他窗口在显示，当前请求需要等待
             return {
-                "action": "error", 
-                "message": "无法获取窗口锁，可能有其他窗口正在显示"
+                "action": "queued", 
+                "message": "请求已加入队列，等待处理"
             }
         
         try:
-            # 创建窗口请求
-            window_request = {
-                'request_id': request_id,
-                'title': title,
-                'command_text': command_text,
-                'timeout_seconds': timeout_seconds,
-                'process_id': os.getpid(),
-                'thread_id': threading.get_ident(),
-                'command_hash': command_hash,
-                'no_direct_feedback': no_direct_feedback
-            }
+            # 获取下一个请求
+            next_request = self._get_next_request()
+            
+            if not next_request:
+                # 队列为空
+                return {
+                    "action": "error",
+                    "message": "队列为空，没有请求需要处理"
+                }
+            
+            # 检查请求是否属于当前进程
+            current_pid = os.getpid()
+            request_pid = next_request.get('process_id')
+            
+            if request_pid != current_pid:
+                # 请求属于其他进程，重新放回队列
+                self._add_to_queue(next_request, next_request.get('is_priority', False))
+                return {
+                    "action": "queued",
+                    "message": "请求属于其他进程，已重新排队"
+                }
+            
+            # 处理当前进程的请求
+            self._debug_log(f"🚀 DEBUG: [QUEUE_PROCESS] 开始处理请求: {next_request.get('request_id')}")
             
             # 创建和显示窗口
-            result = self._create_and_show_window(window_request)
-            self._debug_log(f"DEBUG: [WINDOW_COMPLETED] 进程 {os.getpid()} 窗口完成: {request_id}, action: {result.get('action')}")
+            result = self._create_and_show_window(next_request)
+            
+            self._debug_log(f"✅ DEBUG: [QUEUE_COMPLETE] 请求处理完成: {next_request.get('request_id')}, action: {result.get('action')}")
             
             return result
             
         except Exception as e:
-            error_msg = f"窗口创建失败: {str(e)}"
-            self._debug_log(f"Error: DEBUG: [WINDOW_ERROR] 进程 {os.getpid()} 窗口错误: {request_id}, error: {str(e)}")
+            error_msg = f"队列处理失败: {str(e)}"
+            self._debug_log(f"Error: DEBUG: [QUEUE_ERROR] 队列处理错误: {str(e)}")
             return {"action": "error", "message": error_msg}
         finally:
             # 确保释放锁
