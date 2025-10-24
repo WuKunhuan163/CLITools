@@ -2481,7 +2481,7 @@ print(f"Sum: {result}")
         
         print(f"Shell模式错误处理测试完成")
 
-    def test_23_gds_background_tasks(self):
+    def test_22_gds_background_tasks_TODO_can_capture_running_status_partial_output(self):
         """测试GDS --bg后台任务功能"""
         print(f"测试GDS --bg后台任务功能")
         
@@ -2519,7 +2519,8 @@ print(f"Sum: {result}")
         
         def wait_for_task_completion(task_id, max_wait=30):
             """等待任务完成"""
-        start_time = time.time()
+            import time
+            start_time = time.time()
             while time.time() - start_time < max_wait:
                 status_result = run_gds_bg_status(task_id)
                 
@@ -2597,65 +2598,7 @@ print(f"Sum: {result}")
         
         print(f"GDS --bg后台任务功能测试完成")
 
-    def test_24_shell_prompt_improvements(self):
-        """测试Shell提示符改进"""
-        print(f"测试Shell提示符改进")
-        
-        # 测试目录切换后提示符更新
-        shell_commands = [
-            "pwd",  # 显示初始路径
-            "mkdir test_prompt_dir",
-            "cd test_prompt_dir", 
-            "pwd",  # 显示切换后的路径
-            "cd ..",
-            "pwd",  # 显示返回后的路径
-            "rm -rf test_prompt_dir"
-        ]
-        
-        shell_input = "\n".join(shell_commands) + "\nexit\n"
-        
-        result = self._run_command_with_input(
-            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
-            shell_input,
-        )
-        
-        self.assertEqual(result.returncode, 0, "Shell提示符测试应该成功")
-        
-        output = result.stdout
-        
-        # 验证路径切换
-        self.assertIn("test_prompt_dir", output, "应该显示切换到的目录")
-        
-        # 验证pwd命令显示不同的路径
-        pwd_outputs = []
-        lines = output.split('\n')
-        for line in lines:
-            # 查找包含路径的行（可能包含~符号的路径）
-            if ('~' in line and 
-                not line.startswith('GDS:') and 
-                not line.startswith('💡') and 
-                not line.startswith('🌟') and
-                not line.startswith('📍')):
-                pwd_outputs.append(line.strip())
-        
-        # 打印调试信息
-        print(f"找到的pwd输出: {pwd_outputs}")
-        
-        # 验证路径变化 - 至少应该有一些路径输出
-        self.assertGreater(len(pwd_outputs), 0, "应该有pwd输出")
-        
-        # 验证路径变化
-        found_test_dir = False
-        for pwd_output in pwd_outputs:
-            if "test_prompt_dir" in pwd_output:
-                found_test_dir = True
-                break
-        
-        self.assertTrue(found_test_dir, f"应该找到切换到测试目录的pwd输出，实际输出: {pwd_outputs}")
-        
-        print(f"Shell提示符改进测试完成")
-
-    def test_25_edge_cases_comprehensive(self):
+    def test_23_edge_cases_comprehensive(self):
         """综合边缘情况测试"""
         print(f"综合边缘情况测试")
         

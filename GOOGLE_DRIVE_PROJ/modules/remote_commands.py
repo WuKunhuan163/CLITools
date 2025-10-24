@@ -2947,7 +2947,7 @@ JSON_SCRIPT_EOF
         
         return unzip_command
     
-    def show_remote_command_window(self, title, command_text, timeout_seconds=3600, test_mode=False):
+    def show_remote_command_window(self, title, command_text, timeout_seconds=3600, test_mode=False, is_priority=False):
         # 检查实例变量是否启用no-direct-feedback模式
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
@@ -3007,7 +3007,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 获取当前命令的hash（如果存在）
         current_hash = getattr(self, '_current_cmd_hash', None)
         
-        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, command_hash=current_hash, no_direct_feedback=test_mode)
+        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, command_hash=current_hash, no_direct_feedback=test_mode, is_priority=is_priority)
         return result
     
     def copy_to_clipboard(self, text):
