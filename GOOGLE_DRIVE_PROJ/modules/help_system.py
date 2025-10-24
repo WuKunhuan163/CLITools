@@ -24,7 +24,8 @@ def get_unified_help_data():
         "main_options": {
             "-my": "Open My Drive (https://drive.google.com/drive/u/0/my-drive)",
             "--console-setup": "Start Google Drive API setup wizard with GUI assistance",
-            "--shell [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
+            "--shell [--no-direct-feedback] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
+            "--no-direct-feedback": "Hide direct feedback button in command windows (for automated testing)",
             "--upload FILE [PATH]": "Upload a file to Google Drive via local sync (PATH defaults to REMOTE_ROOT)",
             "--create-remote-shell": "Create a new remote shell session",
             "--list-remote-shell": "List all remote shell sessions",
@@ -57,7 +58,7 @@ def get_unified_help_data():
             "upload_download": {
                 "upload [--target-dir TARGET] <files...>": "upload files to Google Drive (default: current directory)",
                 "upload [--remove-local] <files...>": "upload files and optionally remove local copies",
-                "upload-folder [--keep-zip] <folder> [target]": "upload folder (zip->upload->unzip->cleanup)",
+                "upload-folder [--target-dir TARGET] [--keep-zip] [--force] <folder>": "upload folder (zip->upload->unzip->cleanup)",
                 "download [--force] <file> [path]": "download file with caching"
             },
             "text_operations": {
