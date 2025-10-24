@@ -331,7 +331,7 @@ class WindowManager:
         """跨进程窗口管理器，无需启动线程"""
         self._debug_log("🏗️ DEBUG: [CROSS_PROCESS_WINDOW_MANAGER] 跨进程窗口管理器启动成功")
     
-    def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None, test_mode=False):
+    def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None, no_direct_feedback=False):
         """
         请求显示窗口 - 改进的跨进程锁管理
         
@@ -362,7 +362,7 @@ class WindowManager:
                 'process_id': os.getpid(),
                 'thread_id': threading.get_ident(),
                 'command_hash': command_hash,
-                'test_mode': test_mode
+                'no_direct_feedback': no_direct_feedback
             }
             
             # 创建和显示窗口
@@ -437,7 +437,7 @@ try:
     parent_pid = PARENT_PID_PLACEHOLDER
     
     # 测试模式标志
-    test_mode = TEST_MODE_PLACEHOLDER
+    no_direct_feedback = TEST_MODE_PLACEHOLDER
     
     print(f"[DEBUG] 窗口进程启动: PID={os.getpid()}, 父进程PID={parent_pid}, 窗口ID=WINDOW_ID_PLACEHOLDER", file=sys.stderr)
     
@@ -681,7 +681,7 @@ try:
     copy_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
     
     # 直接反馈按钮（第二个位置）- 初始禁用状态，测试模式时不显示
-    if not test_mode:
+    if not no_direct_feedback:
         feedback_btn = tk.Button(
             button_frame, 
             text="⏳按Cmd激活", 
@@ -730,7 +730,7 @@ try:
         buttons_activated = True
 
         # 启用直接反馈按钮（测试模式时跳过）
-        if not test_mode and feedback_btn is not None:
+        if not no_direct_feedback and feedback_btn is not None:
             feedback_btn.config(
                 text="💬直接反馈",
                 bg="#FF9800",
@@ -990,7 +990,7 @@ except Exception as e:
         subprocess_script = subprocess_script.replace("TIMEOUT_MS_PLACEHOLDER", str(timeout_ms))
         subprocess_script = subprocess_script.replace("AUDIO_FILE_PATH_PLACEHOLDER", audio_file_path)
         subprocess_script = subprocess_script.replace("PARENT_PID_PLACEHOLDER", str(os.getpid()))
-        subprocess_script = subprocess_script.replace("TEST_MODE_PLACEHOLDER", str(request.get('test_mode', False)))
+        subprocess_script = subprocess_script.replace("TEST_MODE_PLACEHOLDER", str(request.get('no_direct_feedback', False)))
         
         # 使用Popen来获得更好的进程控制
         try:
