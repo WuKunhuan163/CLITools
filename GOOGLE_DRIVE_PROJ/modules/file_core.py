@@ -1030,10 +1030,27 @@ class FileCore:
                         "remote_command": remote_command
                     }
             else:
-                # 执行失败
+                # 执行失败 - 添加详细的错误信息和traceback
+                import traceback
+                
+                error_msg = execution_result.get('error', 'Unknown error')
+                
+                print(f"mkdir command execution failed: {error_msg}")
+                if error_msg == 'Unknown error':
+                    print("Suggestion: Please try again. This may be a temporary issue.")
+                
+                print("\nCall stack (most recent call last):")
+                stack_lines = traceback.format_stack()[-10:]
+                for i, line in enumerate(stack_lines, 1):
+                    # 清理和格式化每一行
+                    clean_line = line.strip().replace('\n', ' ')
+                    print(f"{i:2d}. {clean_line}")
+                    if i < len(stack_lines):  # 不是最后一行时添加空行
+                        print()
+                
                 return {
                     "success": False,
-                    "error": f"mkdir command execution failed: {execution_result.get('error', 'Unknown error')}",
+                    "error": f"mkdir command execution failed: {error_msg}",
                     "remote_command": remote_command
                 }
                 

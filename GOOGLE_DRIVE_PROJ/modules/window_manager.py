@@ -483,7 +483,90 @@ class WindowManager:
         self._add_to_queue(window_request, is_priority)
         
         # 尝试处理队列（如果当前没有窗口在显示）
-        return self._process_queue()
+        result = self._process_queue()
+        
+        # 如果请求被加入队列，需要等待处理完成
+        if result.get("action") == "queued":
+            self._debug_log(f"⏳ DEBUG: [QUEUE_WAIT] 请求被排队，等待锁释放: {request_id}")
+            return self._wait_for_lock_and_process(request_id, timeout_seconds)
+        
+        return result
+    
+    def _wait_for_lock_and_process(self, request_id, timeout_seconds):
+        """
+        等待锁释放并处理请求
+        
+        Args:
+            request_id (str): 请求ID
+            timeout_seconds (int): 超时时间
+            
+        Returns:
+            dict: 处理结果
+        """
+        import time
+        
+        start_time = time.time()
+        check_interval = 0.5  # 每0.5秒检查一次
+        
+        self._debug_log(f"⏳ DEBUG: [LOCK_WAIT_START] 开始等待锁释放: {request_id}")
+        
+        while time.time() - start_time < timeout_seconds:
+            # 尝试处理队列
+            result = self._process_queue()
+            
+            # 如果成功获取到锁并处理了请求
+            if result.get("action") != "queued":
+                self._debug_log(f"✅ DEBUG: [LOCK_WAIT_SUCCESS] 锁释放，请求处理完成: {request_id}")
+                return result
+            
+            # 等待一段时间后重试
+            time.sleep(check_interval)
+        
+        # 超时
+        self._debug_log(f"⏰ DEBUG: [LOCK_WAIT_TIMEOUT] 等待锁释放超时: {request_id}")
+        return {
+            "action": "timeout",
+            "message": f"等待锁释放超时: {request_id}"
+        }
+    
+    def _is_request_in_queue(self, request_id):
+        """
+        检查请求是否还在队列中
+        
+        Args:
+            request_id (str): 请求ID
+            
+        Returns:
+            bool: 是否在队列中
+        """
+        try:
+            # 获取队列锁
+            with open(self.queue_lock_file, 'w') as lock_f:
+                fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
+                
+                # 检查优先队列
+                if self.priority_queue_file.exists():
+                    with open(self.priority_queue_file, 'r') as f:
+                        priority_queue = json.load(f)
+                    
+                    for request in priority_queue:
+                        if request.get('request_id') == request_id:
+                            return True
+                
+                # 检查普通队列
+                if self.normal_queue_file.exists():
+                    with open(self.normal_queue_file, 'r') as f:
+                        normal_queue = json.load(f)
+                    
+                    for request in normal_queue:
+                        if request.get('request_id') == request_id:
+                            return True
+                
+                return False
+                
+        except Exception as e:
+            self._debug_log(f"Error: 检查队列请求失败: {e}")
+            return False
     
     def _process_queue(self):
         """
