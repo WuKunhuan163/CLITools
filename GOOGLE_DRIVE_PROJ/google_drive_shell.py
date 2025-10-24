@@ -990,8 +990,23 @@ class GoogleDriveShell:
                 
                 return 0
             else:
+                # 添加详细的错误信息和traceback
+                import traceback
+                
                 error_msg = result.get("error", "Unknown error")
-                print(f"Error: Failed to create background task: {error_msg}")
+                print(f"Failed to create background task: {error_msg}")
+                if error_msg == 'Unknown error':
+                    print("Suggestion: Please try again. This may be a temporary issue.")
+                
+                print("\nCall stack (most recent call last):")
+                stack_lines = traceback.format_stack()[-10:]
+                for i, line in enumerate(stack_lines, 1):
+                    # 清理和格式化每一行
+                    clean_line = line.strip().replace('\n', ' ')
+                    print(f"{i:2d}. {clean_line}")
+                    if i < len(stack_lines):  # 不是最后一行时添加空行
+                        print()
+                
                 return 1
                 
         except Exception as e:
@@ -1003,7 +1018,21 @@ class GoogleDriveShell:
         if not args:
             return 0
         
-        # 参数处理已简化
+        # 检查是否有--priority参数（用于测试优先队列）
+        priority_mode = False
+        filtered_args = []
+        for arg in args:
+            if arg == '--priority':
+                priority_mode = True
+            else:
+                filtered_args.append(arg)
+        
+        args = filtered_args
+        
+        # 如果启用优先模式，设置到remote_commands实例中
+        if priority_mode and hasattr(self, 'remote_commands'):
+            self.remote_commands._is_priority = True
+        
         if not args:
             return 0
         
@@ -1084,6 +1113,11 @@ class GoogleDriveShell:
         else:
             # 其他命令，回退到字符串命令
             shell_cmd = cmd + ' ' + ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in cmd_args)
+            
+            # 如果启用了优先模式，确保在执行前设置标志
+            if priority_mode and hasattr(self, 'remote_commands'):
+                self.remote_commands._is_priority = True
+                
             return self.execute_shell_command(shell_cmd, command_identifier)
 
     def execute_shell_command(self, shell_cmd, command_identifier=None):

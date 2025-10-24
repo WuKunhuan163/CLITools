@@ -2445,12 +2445,23 @@ JSON_SCRIPT_EOF
                 }
                 
             else:  # timeout, cancel, failure, error
+                import traceback
+                
+                # 获取详细的错误信息和traceback
+                error_details = {
+                    "original_error": window_result.get("error", "Operation cancelled or failed"),
+                    "window_result_action": window_result.get("action", "unknown"),
+                    "full_window_result": str(window_result),
+                    "traceback": traceback.format_stack()[-10:]  # 最近10层调用栈
+                }
+                
                 return {
                     "success": False,
                     "action": window_result["action"],
                     "data": {
-                        "error": window_result.get("error", "Operation cancelled or failed"),
-                        "source": "unified_command"
+                        "error": f"Operation cancelled or failed. Details: {error_details}",
+                        "source": "unified_command",
+                        "debug_info": error_details
                     }
                 }
             
@@ -2951,6 +2962,12 @@ JSON_SCRIPT_EOF
         # 检查实例变量是否启用no-direct-feedback模式
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
+        
+        # 检查实例变量是否启用priority模式
+        if hasattr(self, '_is_priority') and self._is_priority:
+            is_priority = True
+            # 重置标志，避免影响后续命令
+            self._is_priority = False
         """
         使用WindowManager显示命令窗口
         
@@ -3154,14 +3171,18 @@ def main():
             return enter_shell_mode(command_identifier) if enter_shell_mode else 1
         else:
             # 执行指定的shell命令 - 使用GoogleDriveShell
-            # 处理shell命令参数，检查--no-direct-feedback参数
+            # 处理shell命令参数，检查--no-direct-feedback和--priority参数
             shell_cmd_parts = args[1:]
+            
             no_direct_feedback = False
+            is_priority = False
             filtered_shell_parts = []
             
             for part in shell_cmd_parts:
                 if part == '--no-direct-feedback':
                     no_direct_feedback = True
+                elif part == '--priority':
+                    is_priority = True
                 else:
                     filtered_shell_parts.append(part)
             
@@ -3211,6 +3232,10 @@ def main():
                 # 如果启用no-direct-feedback模式，设置到shell实例中
                 if no_direct_feedback and hasattr(shell, 'remote_commands'):
                     shell.remote_commands._no_direct_feedback = True
+                
+                # 如果启用priority模式，设置到shell实例中
+                if is_priority and hasattr(shell, 'remote_commands'):
+                    shell.remote_commands._is_priority = True
                 
                 # 这里需要GoogleDriveShell提供一个处理shell命令的方法
                 if hasattr(shell, 'execute_shell_command'):
