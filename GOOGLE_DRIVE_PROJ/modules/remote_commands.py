@@ -3079,6 +3079,12 @@ JSON_SCRIPT_EOF
         return unzip_command
     
     def show_command_window_subprocess(self, title, command_text, timeout_seconds=3600, test_mode=False):
+        # 检查环境变量是否启用测试模式
+        import os
+        env_test_mode = os.getenv('GDS_TEST_MODE', '')
+        if env_test_mode.lower() in ('true', '1', 'yes'):
+            test_mode = True
+            print(f"DEBUG: Test mode enabled via environment variable: {env_test_mode}", flush=True)
         """
         使用WindowManager显示命令窗口
         
