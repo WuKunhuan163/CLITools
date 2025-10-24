@@ -15,7 +15,7 @@ class PythonCommand(BaseCommand):
     
     def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute python command."""
-        # print(f"🔍 PYTHON_COMMAND DEBUG: ✅ MATCHED PYTHON BRANCH! Processing python with args: {args}")
+        # print(f"DEBUG in PythonCommand: MATCHED PYTHON BRANCH! Processing python with args: {args}")
         
         if not args:
             self.print_error("python command needs a file name or code")
@@ -35,7 +35,7 @@ class PythonCommand(BaseCommand):
             # 统一处理已经在execute_shell_command中完成
             code = ' '.join(code_args)
             
-            # print(f"🔍 PYTHON_COMMAND DEBUG: Executing Python code: '{code}'")
+            # print(f"DEBUG in PythonCommand: Executing Python code: '{code}'")
             
             # 不要移除Python代码的引号，因为shlex.split已经正确处理了shell引号
             # Python代码中的引号是语法的一部分，不应该被移除
@@ -45,12 +45,9 @@ class PythonCommand(BaseCommand):
             filename = args[0]
             # 传递额外的命令行参数
             python_args = args[1:] if len(args) > 1 else []
-            
-            # print(f"🔍 PYTHON_COMMAND DEBUG: Executing Python file: '{filename}' with args: {python_args}")
-            
+            # print(f"DEBUG in PythonCommand: Executing Python file: '{filename}' with args: {python_args}")
             result = self.shell.cmd_python(filename=filename, python_args=python_args)
-        
-        # print(f"🔍 PYTHON_COMMAND DEBUG: Python execution result: {result}")
+        # print(f"DEBUG in PythonCommand: Python execution result: {result}")
         
         if result.get("success", False):
             # 显示输出

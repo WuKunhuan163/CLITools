@@ -7,6 +7,7 @@ class PyenvCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行pyenv命令"""
+        # print(f"DEBUG in PyenvCommand: Processing pyenv with args: {args}")
         # 调用pyenv操作
         result = self.shell.cmd_pyenv(*args)
         

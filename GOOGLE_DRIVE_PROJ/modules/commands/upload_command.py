@@ -7,7 +7,7 @@ class UploadCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行upload命令"""
-        # print(f"🔍 UPLOAD_COMMAND DEBUG: Processing upload with args: {args}")
+        # print(f"DEBUG in UploadCommand: Processing upload with args: {args}")
         
         if not args:
             print("Error: upload command needs a file name")

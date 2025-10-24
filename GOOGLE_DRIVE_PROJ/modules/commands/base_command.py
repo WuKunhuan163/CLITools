@@ -53,8 +53,8 @@ class BaseCommand(ABC):
     
     def print_error(self, message: str) -> None:
         """Print error message."""
-        print(f"Error: {message}")
+        print(f"Error in BaseCommand: {message}")
     
     def print_debug(self, message: str) -> None:
         """Print debug message."""
-        # print(f"🔍 DEBUG: {message}")
+        # print(f"DEBUG in BaseCommand: {message}")

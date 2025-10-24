@@ -7,7 +7,7 @@ class UploadFolderCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行upload-folder命令"""
-        # print(f"🔍 UPLOAD_FOLDER_COMMAND DEBUG: Processing upload-folder with args: {args}")
+        # print(f"DEBUG in UploadFolderCommand: Processing upload-folder with args: {args}")
         
         if not args:
             print("Error: upload-folder command needs a folder path")

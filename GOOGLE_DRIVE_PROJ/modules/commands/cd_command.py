@@ -7,7 +7,7 @@ class CdCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行cd命令"""
-        # print(f"🔍 CD_COMMAND DEBUG: Processing cd with args: {args}")
+        # print(f"DEBUG in CdCommand: Processing cd with args: {args}")
         
         if not args:
             print("Error: cd command needs a directory path")

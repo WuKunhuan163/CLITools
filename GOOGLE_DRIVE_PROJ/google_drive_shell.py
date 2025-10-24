@@ -1003,20 +1003,7 @@ class GoogleDriveShell:
         if not args:
             return 0
         
-        # 检查是否有--no-direct-feedback参数
-        no_direct_feedback = False
-        filtered_args = []
-        for arg in args:
-            if arg == '--no-direct-feedback':
-                no_direct_feedback = True
-            else:
-                filtered_args.append(arg)
-        
-        # 如果启用no-direct-feedback模式，设置到remote_commands实例中
-        if no_direct_feedback and hasattr(self, 'remote_commands'):
-            self.remote_commands._no_direct_feedback = True
-        
-        args = filtered_args
+        # 参数处理已简化
         if not args:
             return 0
         
@@ -1057,6 +1044,11 @@ class GoogleDriveShell:
             # 单个路径或无路径的情况，直接使用cmd_ls
             if len(paths) <= 1 and not recursive and not force_mode and not directory_mode:
                 path = paths[0] if paths else None
+                
+                # 检查是否包含通配符
+                if path and ('*' in path or '?' in path or '[' in path):
+                    return self._handle_wildcard_ls(path)
+                
                 result = self.cmd_ls(path=path, detailed=detailed, recursive=recursive, show_hidden=False)
                 
                 if result.get("success"):
@@ -1296,11 +1288,11 @@ For more information, visit: https://github.com/your-repo/gds"""
             
             # # 特殊命令处理 - 在pipe检查之后
             # # 使用新的命令注册系统
-            # print(f"🔍 DEBUG: About to check special commands")
-            # print(f"🔍 DEBUG: first_word='{first_word}'")
-            # print(f"🔍 DEBUG: is_quoted_command={is_quoted_command}")
-            # print(f"🔍 DEBUG: shell_cmd_clean='{shell_cmd_clean}'")
-            # print(f"🔍 DEBUG: is_special={self.command_registry.is_special_command(first_word)}")
+            # print(f"DEBUG: About to check special commands")
+            # print(f"DEBUG: first_word='{first_word}'")
+            # print(f"DEBUG: is_quoted_command={is_quoted_command}")
+            # print(f"DEBUG: shell_cmd_clean='{shell_cmd_clean}'")
+            # print(f"DEBUG: is_special={self.command_registry.is_special_command(first_word)}")
             
             # 首先检查新的命令注册系统
             if self.command_registry.is_special_command(first_word):
@@ -1327,7 +1319,7 @@ For more information, visit: https://github.com/your-repo/gds"""
             special_commands = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'echo', 'help', 'pyenv', 
                               'cleanup-windows', 'linter', 'pip', 'deps', 'edit', 'read', 
                               'upload', 'upload-folder', 'download', 'mv', 'find', 'rm']
-            # print(f"🔍 DEBUG: Checking legacy special commands - first_word='{first_word}', in_special={first_word in special_commands}")
+            # print(f"DEBUG: Checking legacy special commands - first_word='{first_word}', in_special={first_word in special_commands}")
             if first_word in special_commands:
                     # print(f"DEBUG: Processing special command '{first_word}' with local API")
                     
@@ -1346,7 +1338,7 @@ For more information, visit: https://github.com/your-repo/gds"""
                         return 1
                     
                     # 旧的特殊命令实现已被移除，现在使用新的command registry系统
-                    # print(f"🔍 DEBUG: Command '{cmd}' not found in new command registry, falling back to remote execution")
+                    # print(f"DEBUG: Command '{cmd}' not found in new command registry, falling back to remote execution")
              
             # 如果不是特殊命令，使用统一的命令解析和转译接口
             if is_quoted_command:
@@ -2031,10 +2023,10 @@ done
         import json
         
         try:
-            # print(f"🔍 DEBUG: _handle_edit_command called with: '{shell_cmd}'")
+            # print(f"DEBUG: _handle_edit_command called with: '{shell_cmd}'")
             # 使用统一的命令解析接口
             parse_result = self.parse_and_translate_command(shell_cmd)
-            # print(f"🔍 DEBUG: parse_result = {parse_result}")
+            # print(f"DEBUG: parse_result = {parse_result}")
             if not parse_result["success"]:
                 print(f"Error: {parse_result['error']}")
                 return 1
@@ -2046,13 +2038,13 @@ done
                 # 如果parse_result没有cmd和args，从translated_command中解析
                 import shlex
                 parts = shlex.split(parse_result["translated_command"])
-            # print(f"🔍 DEBUG: parts = {parts}")
+            # print(f"DEBUG: parts = {parts}")
             if len(parts) < 2:
                 print("Error: edit command requires a filename")
                 return 1
                 
             cmd = parts[0]  # 'edit'
-            # print(f"🔍 DEBUG: cmd = '{cmd}'")
+            # print(f"DEBUG: cmd = '{cmd}'")
             filename = None
             preview = False
             backup = False

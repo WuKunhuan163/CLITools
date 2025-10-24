@@ -462,6 +462,7 @@ else:
                     # 检查文件是否存在
                     check_result = self._check_remote_file_exists(remote_file_path)
                     
+                    
                     if check_result.get("exists"):
                         # 文件存在，读取内容
                         file_result = self._read_result_file_via_gds(result_filename)
@@ -3138,7 +3139,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 获取当前命令的hash（如果存在）
         current_hash = getattr(self, '_current_cmd_hash', None)
         
-        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, current_hash, no_direct_feedback)
+        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, command_hash=current_hash, no_direct_feedback=test_mode)
         return result
     
     def copy_to_clipboard(self, text):
@@ -3285,7 +3286,7 @@ def main():
             return enter_shell_mode(command_identifier) if enter_shell_mode else 1
         else:
             # 执行指定的shell命令 - 使用GoogleDriveShell
-            # 首先检查是否有--no-direct-feedback参数
+            # 处理shell命令参数，检查--no-direct-feedback参数
             shell_cmd_parts = args[1:]
             no_direct_feedback = False
             filtered_shell_parts = []

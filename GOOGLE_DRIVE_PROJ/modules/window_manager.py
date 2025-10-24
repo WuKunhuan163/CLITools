@@ -969,6 +969,7 @@ try:
     
     root.protocol("WM_DELETE_WINDOW", on_window_closing)
     
+
     # 运行窗口
     try:
         root.mainloop()
@@ -979,7 +980,12 @@ try:
     print(json.dumps(result))
 
 except Exception as e:
-    print(json.dumps({"action": "error", "message": str(e)}))
+    import traceback
+    error_msg = str(e)
+    traceback_msg = traceback.format_exc()
+    print(f"DEBUG: Window script exception: {error_msg}", file=sys.stderr)
+    print(f"DEBUG: Window script traceback: {traceback_msg}", file=sys.stderr)
+    print(json.dumps({"action": "error", "message": error_msg, "traceback": traceback_msg}))
 '''
         
         # 替换模板占位符
