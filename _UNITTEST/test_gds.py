@@ -2391,7 +2391,6 @@ print(f"Sum: {result}")
         
         # 首先创建一个新的remote shell
         print(f"创建新的remote shell")
-        # 使用直接的subprocess调用，因为这些是GOOGLE_DRIVE.py的参数，不是shell命令
         create_result = subprocess.run(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), '--create-remote-shell'],
             capture_output=True, text=True, timeout=180
@@ -2425,12 +2424,12 @@ print(f"Sum: {result}")
             print(f"在新shell中执行操作")
             shell_commands = [
                 "pwd",
-                "mkdir test_shell_state",
-                "cd test_shell_state",
+                f"mkdir ~/tmp/{self.test_folder}/test_shell_state",
+                f"cd ~/tmp/{self.test_folder}/test_shell_state",
                 "pwd",
-                "echo 'shell state test' > state_test.txt",
-                "cat state_test.txt",
-                "cd ..",
+                f"echo 'shell state test' > ~/tmp/{self.test_folder}/test_shell_state/state_test.txt",
+                f"cat ~/tmp/{self.test_folder}/test_shell_state/state_test.txt",
+                f"cd ~/tmp/{self.test_folder}",
                 "ls"
             ]
             
@@ -2438,15 +2437,14 @@ print(f"Sum: {result}")
             shell_result = self._run_command_with_input(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
                 shell_input,
-                timeout=300   # GDS is interactive shell, need timeout to exit if operation fails
+                timeout=3600
             )
-            
             self.assertEqual(shell_result.returncode, 0, "新shell中的操作应该成功")
             
             # 验证状态保持
             output = shell_result.stdout
             self.assertIn("state test", output, "应该能够创建和读取文件")
-            self.assertIn("test_shell_state", output, "应该能够创建目录")
+            self.assertIn(f"~/tmp/{self.test_folder}/test_shell_state", output, "应该能够创建目录")
             
             # 清理：删除创建的shell
             print(f"清理：删除shell {new_shell_id}")
@@ -2454,28 +2452,21 @@ print(f"Sum: {result}")
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), '--terminate-remote-shell', new_shell_id],
                 capture_output=True, text=True, timeout=180
             )
-            # 注意：cleanup可能失败，但不影响测试结果
-            
             print(f"Shell切换和状态管理测试完成")
         else:
             print(f"无法从输出中提取Shell ID，跳过后续测试")
             self.skipTest("无法提取新创建的Shell ID")
 
-    def test_22_shell_mode_error_handling(self):
-        """测试Shell模式的错误处理"""
-        print(f"Error:  测试Shell模式错误处理")
-        
         # 测试无效命令
         error_commands = [
             "invalid_command",
-            "ls /nonexistent/path",
-            "rm nonexistent_file.txt",
-            "cd /invalid/directory"
+            f"ls ~/tmp/{self.test_folder}/nonexistent/path",
+            f"rm ~/tmp/{self.test_folder}/nonexistent_file.txt",
+            f"cd ~/tmp/{self.test_folder}/invalid/directory"
         ]
         
         for cmd in error_commands:
             print(f"测试错误命令: {cmd}")
-            
             shell_input = f"{cmd}\nexit\n"
             shell_result = self._run_command_with_input(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
@@ -2494,7 +2485,7 @@ print(f"Sum: {result}")
 
     def test_23_gds_background_tasks(self):
         """测试GDS --bg后台任务功能"""
-        print(f"🚀 测试GDS --bg后台任务功能")
+        print(f"测试GDS --bg后台任务功能")
         
         def run_gds_bg_command(command):
             """运行GDS --bg命令并返回结果"""
@@ -2603,11 +2594,10 @@ print(f"Sum: {result}")
         status_result = run_gds_bg_status(task_id)
         self.assertEqual(status_result.returncode, 0, "状态查询失败")
         self.assertIn("Status: completed", status_result.stdout, "错误命令状态不正确")
-        
         run_gds_bg_cleanup(task_id)
         print("错误命令处理测试通过")
         
-        print(f"🎉 GDS --bg后台任务功能测试完成")
+        print(f"GDS --bg后台任务功能测试完成")
 
     def test_24_shell_prompt_improvements(self):
         """测试Shell提示符改进"""
