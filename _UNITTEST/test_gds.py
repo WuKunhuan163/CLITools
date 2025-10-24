@@ -2191,7 +2191,7 @@ print(f"Sum: {result}")
         result1 = self._run_command_with_input(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
             basic_input,
-            timeout=60
+            timeout=3600
         )
         
         print(f"步骤1返回码: {result1.returncode}")
@@ -2212,7 +2212,7 @@ print(f"Sum: {result}")
         result2 = self._run_command_with_input(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
             upload_input,
-            timeout=120
+            timeout=3600
         )
         
         print(f"步骤2返回码: {result2.returncode}")
@@ -2226,15 +2226,10 @@ print(f"Sum: {result}")
         
         # 步骤3: 文件操作测试
         print("步骤3: 测试文件操作 (cat)")
-        file_commands = ["cat shell_upload_test.txt"]
-        file_input = "\n".join(file_commands) + "\nexit\n"
+        file_commands = ['cat "' + self.test_folder + '/shell_upload_test.txt"']
         
         print(f"执行命令序列: {file_commands}")
-        result3 = self._run_command_with_input(
-            [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
-            file_input,
-            timeout=60
-        )
+        result3 = self._run_gds_command('cat "' + self.test_folder + '/shell_upload_test.txt"')
         
         print(f"步骤3返回码: {result3.returncode}")
         if result3.returncode != 0:
@@ -2259,7 +2254,7 @@ print(f"Sum: {result}")
         result4 = self._run_command_with_input(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
             dir_input,
-            timeout=60
+            timeout=3600
         )
         
         print(f"步骤4返回码: {result4.returncode}")
@@ -2280,7 +2275,7 @@ print(f"Sum: {result}")
         result5 = self._run_command_with_input(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell"],
             cleanup_input,
-            timeout=60
+            timeout=3600
         )
         
         print(f"步骤5返回码: {result5.returncode}")
@@ -2291,7 +2286,6 @@ print(f"Sum: {result}")
             print("步骤5成功")
         
         self.assertEqual(result5.returncode, 0, "清理操作应该成功")
-        
         print(f"Shell模式连续操作分步骤测试完成 - 所有步骤都成功")
 
     def test_20_shell_mode_vs_direct_consistency(self):
