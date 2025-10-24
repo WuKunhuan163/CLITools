@@ -644,7 +644,7 @@ Shell commands: ls -la && echo "done"
         
         print("所有重试都失败了")
         return False, result
-    
+
     def test_00_ls_basic(self):
         """测试ls命令的全路径支持（修复后的功能）"""
         
@@ -1187,7 +1187,7 @@ print(f"Current files: {len(os.listdir())}")'''
         print(f"导航命令和路径测试完成")
     
     def test_06_upload(self):
-
+    
         # 单文件上传（使用--force确保可重复性）
         # 创建唯一的测试文件避免并发冲突
         unique_file = self.TEST_TEMP_DIR / "test_upload_simple_hello.py"
@@ -1215,7 +1215,7 @@ print(f"Current files: {len(os.listdir())}")'''
             max_retries=3
         )
         self.assertTrue(success, f"多文件上传失败: {result.stderr if result else 'Unknown error'}")
-
+        
         # 验证文件上传成功
         self.assertTrue(self._verify_file_exists ('~/tmp/' + self.test_folder + '/' + expected_filename))
         
@@ -1653,9 +1653,9 @@ if __name__ == "__main__":
         self.assertEqual(result.returncode, 0)
         
         print(f"真实项目开发工作流程测试完成！")
-    
+
     def test_11_project_deployment(self):
-        
+    
         # 1. 上传项目文件夹
         project_dir = self.TEST_DATA_DIR / "test_project"
         success, result = self._run_upload_command_with_retry(
@@ -1688,7 +1688,7 @@ if __name__ == "__main__":
         self.assertEqual(result.returncode, 0)
     
     def test_12_code_execution(self):
-    
+        
         # === 阶段1: 创建独立的测试项目结构 ===
         print(f"阶段1: 创建测试项目")
         
@@ -2108,10 +2108,8 @@ print(f"Sum: {result}")
             if has_line_numbers:
                 print(f"✓ 错误信息包含行号信息")
                 
-        else:
-            print(f"未检测到linter错误输出")
-            # 对于语法错误文件，这可能表示linter没有正常运行
-            print(f"注意：语法错误文件应该触发linter检查")
+            else:
+                print(f"未检测到linter错误输出")
         
         print(f"Edit与Linter集成测试完成")
     
@@ -2456,7 +2454,7 @@ print(f"Sum: {result}")
         else:
             print(f"无法从输出中提取Shell ID，跳过后续测试")
             self.skipTest("无法提取新创建的Shell ID")
-
+        
         # 测试无效命令
         error_commands = [
             "invalid_command",
@@ -2521,7 +2519,7 @@ print(f"Sum: {result}")
         
         def wait_for_task_completion(task_id, max_wait=30):
             """等待任务完成"""
-            start_time = time.time()
+        start_time = time.time()
             while time.time() - start_time < max_wait:
                 status_result = run_gds_bg_status(task_id)
                 
@@ -3848,7 +3846,10 @@ print("=== Verification completed ===")
             basic_commands = [
                 'echo "Hello World"',
                 'echo "Line1\\nLine2"',
-                'pwd'
+                'pwd',
+                'mkdir test_basic_dir',
+                'ls test_basic_dir',
+                'rmdir test_basic_dir'
             ]
             
             for cmd in basic_commands:
@@ -3910,7 +3911,10 @@ print("=== Verification completed ===")
             print("测试3: 错误情况对比")
             error_commands = [
                 "ls nonexistent_file.txt",
-                "cat nonexistent_file.txt"
+                "cat nonexistent_file.txt",
+                "cd nonexistent_directory",
+                "mkdir /invalid/path/test",
+                "rm nonexistent_file.txt"
             ]
             
             for error_cmd in error_commands:
@@ -3971,10 +3975,44 @@ print("=== Verification completed ===")
             self.assertEqual(gds_files, expected_files, "GDS ls应该列出所有测试文件")
             self.assertEqual(bash_files, expected_files, "bash ls应该列出所有测试文件")
             
+            # 测试用例5: GDS特有功能测试（与bash行为对比）
+            print("测试5: GDS特有功能测试")
+            
+            # 测试touch命令
+            touch_cmd = "touch test_touch.txt"
+            gds_touch_result = self._run_gds_command(touch_cmd)
+            bash_touch_result = self._run_bash_command(touch_cmd, bash_test_dir)
+            
+            self.assertEqual(gds_touch_result.returncode, bash_touch_result.returncode, "touch返回码应该一致")
+            
+            # 验证文件是否创建成功
+            gds_verify = self._run_gds_command("ls test_touch.txt")
+            bash_verify = self._run_bash_command("ls test_touch.txt", bash_test_dir)
+            
+            self.assertEqual(gds_verify.returncode, bash_verify.returncode, "touch后ls验证返回码应该一致")
+            
+            # 测试echo重定向
+            redirect_cmd = 'echo "redirect test" > test_redirect.txt'
+            gds_redirect_result = self._run_gds_command(redirect_cmd)
+            bash_redirect_result = self._run_bash_command(redirect_cmd, bash_test_dir)
+            
+            self.assertEqual(gds_redirect_result.returncode, bash_redirect_result.returncode, "echo重定向返回码应该一致")
+            
+            # 验证重定向内容
+            gds_redirect_content = self._run_gds_command("cat test_redirect.txt")
+            bash_redirect_content = self._run_bash_command("cat test_redirect.txt", bash_test_dir)
+            
+            gds_stdout, gds_stderr, gds_returncode = self._clean_gds_output(
+                gds_redirect_content.stdout, gds_redirect_content.stderr, gds_redirect_content.returncode
+            )
+            
+            self.assertEqual(gds_returncode, bash_redirect_content.returncode, "重定向内容读取返回码应该一致")
+            self.assertEqual(gds_stdout.strip(), bash_redirect_content.stdout.strip(), "重定向内容应该一致")
+            
             # 清理测试文件
-            cleanup_files = ["test_alignment.txt"] + [f"test_file_{i}.txt" for i in range(3)]
-            for filename in cleanup_files:
-                self._run_gds_command(f'rm -f {filename}')
+            cleanup_files = ["test_alignment.txt", "test_touch.txt", "test_redirect.txt"] + [f"test_file_{i}.txt" for i in range(3)]
+        for filename in cleanup_files:
+            self._run_gds_command(f'rm -f {filename}')
         
         print(f"GDS与bash输出对齐性测试完成")
 
