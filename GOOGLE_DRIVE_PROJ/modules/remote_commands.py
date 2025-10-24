@@ -3078,7 +3078,7 @@ JSON_SCRIPT_EOF
         
         return unzip_command
     
-    def show_command_window_subprocess(self, title, command_text, timeout_seconds=3600):
+    def show_command_window_subprocess(self, title, command_text, timeout_seconds=3600, test_mode=False):
         """
         使用WindowManager显示命令窗口
         
@@ -3135,7 +3135,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 获取当前命令的hash（如果存在）
         current_hash = getattr(self, '_current_cmd_hash', None)
         
-        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, current_hash)
+        result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, current_hash, test_mode)
         return result
     
     def copy_to_clipboard(self, text):
