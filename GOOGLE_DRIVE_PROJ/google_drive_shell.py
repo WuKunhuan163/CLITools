@@ -1619,7 +1619,7 @@ done
             remote_command_info = self.remote_commands._generate_command_interface("bash", ["-c", wait_cmd], current_shell)
             remote_command, result_filename = remote_command_info
             
-            result = self.remote_commands.show_command_window_subprocess(
+            result = self.remote_commands.show_remote_command_window(
                 title=f"GDS Wait Task: {bg_pid}",
                 command_text=remote_command,
                 timeout_seconds=3600  # 1小时超时

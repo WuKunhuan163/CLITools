@@ -2393,7 +2393,7 @@ JSON_SCRIPT_EOF
             
             # 显示远程窗口
             title = f"GDS Unified Command: {user_command[:50]}..."
-            window_result = self.show_command_window_subprocess(
+            window_result = self.show_remote_command_window(
                 title=title,
                 command_text=remote_command
             )
@@ -2555,11 +2555,11 @@ JSON_SCRIPT_EOF
             
             # 显示命令窗口
             title = f"GDS Remote Command: {cmd}"
-            window_result = self.show_command_window_subprocess(
+            window_result = self.show_remote_command_window(
                 title=title,
                 command_text=final_remote_command
             )
-            debug_print(f"show_command_window_subprocess返回结果: {window_result}")
+            debug_print(f"show_remote_command_window返回结果: {window_result}")
             
             if window_result.get("action") == "direct_feedback":
                 # 用户选择直接反馈，使用direct_feedback_interface（照搬--bg指令的逻辑）
@@ -2645,138 +2645,6 @@ JSON_SCRIPT_EOF
             
             # print(f"DEBUG: [{get_timestamp_func()}] [CAPTURE_EXIT] _execute_with_result_capture 结束 - window_id: {window_id}")
         # 注意：窗口槽位的释放由execute_generic_command的finally块统一处理
-
-    def show_command_window(self, cmd, args, remote_command, result_filename=None, debug_info=None):
-        """
-        显示远端命令的窗口（使用subprocess方法，完全抑制IMK信息）
-        
-        Args:
-            cmd (str): 命令名称
-            args (list): 命令参数
-            remote_command (str): 远端命令内容
-            result_filename (str, optional): 结果文件名，用于direct_feedback_interface
-            debug_info (str): debug信息，仅在直接反馈时输出
-        
-        Returns:
-            dict: 用户操作结果
-        """
-        try:
-            # 保存远端命令到文件以便调试
-            try:
-                import os
-                import time
-                from pathlib import Path
-                data_dir = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA"
-                cmd_file_path = os.path.join(data_dir, 'remote_window_cmd.sh')
-                
-                # 创建命令文件内容
-                cmd_content = f"#!/bin/bash\n# Generated at {time.strftime('%Y-%m-%d %H:%M:%S')}\n# Command: {cmd} {' '.join(args)}\n\n{remote_command}\n"
-                
-                with open(cmd_file_path, 'w', encoding='utf-8') as f:
-                    f.write(cmd_content)
-                
-                # 设置执行权限
-                os.chmod(cmd_file_path, 0o755)
-            except Exception as e:
-                print(f"Warning: Failed to save remote command: {e}")
-            
-            # show_command_window_subprocess现在是类方法
-            title = f"GDS Remote Command: {cmd}"
-            instruction = f"Command: {cmd} {' '.join(args)}\n\nPlease execute the following command in your remote environment:"
-            
-            # 使用新的WindowManager显示窗口
-            result = self.show_command_window_subprocess(
-                title=title,
-                command_text=remote_command
-            )
-            # 转换结果格式以保持兼容性
-            if result["action"] == "success":
-                return {
-                    "success": True,
-                    "action": "success",
-                    "data": {
-                        "cmd": cmd,
-                        "args": args,
-                        "exit_code": 0,
-                        "stdout": "Command executed successfully",
-                        "stderr": "",
-                        "source": "subprocess_window"
-                    }
-                }
-            elif result["action"] == "direct_feedback":
-                # 处理直接反馈 - 调用原来的直接反馈逻辑
-                print () # shift a newline since ctrl+D
-                debug_print(f"检测到direct_feedback action，即将调用direct_feedback方法")
-                debug_print(f"remote_command存在: {remote_command is not None}")
-                debug_print(f"debug_info存在: {debug_info is not None}")
-                try:
-                    feedback_result = self.direct_feedback_interface(remote_command, result_filename, debug_info)
-                    return {
-                        "success": feedback_result.get("success", False),
-                        "action": feedback_result.get("action", "direct_feedback"),
-                        "data": feedback_result.get("data", {}),
-                        "user_feedback": feedback_result.get("user_feedback", {}),
-                        "source": feedback_result.get("source", "direct_feedback_interface")
-                    }
-                except Exception as e:
-                    debug_print(f"direct_feedback调用异常: {e}")
-                    import traceback
-                    debug_print(f"异常traceback: {traceback.format_exc()}")
-                    return {
-                        "success": False,
-                        "action": "direct_feedback_error",
-                        "data": {
-                            "error": f"Direct feedback failed: {str(e)}",
-                            "source": "direct_feedback"
-                        }
-                    }
-            elif result["action"] == "failure":
-                return {
-                    "success": False,
-                    "action": "failure", 
-                    "data": {
-                        "cmd": cmd,
-                        "args": args,
-                        "exit_code": 1,
-                        "stdout": "",
-                        "stderr": "Command execution failed",
-                        "source": "subprocess_window"
-                    }
-                }
-            elif result["action"] == "copy":
-                return {
-                    "success": True,
-                    "action": "copy",
-                    "data": {
-                        "cmd": cmd,
-                        "args": args,
-                        "message": "Command copied to clipboard",
-                        "source": "subprocess_window"
-                    }
-                }
-            else:  # timeout, cancel, error
-                return {
-                    "success": False,
-                    "action": result["action"],
-                    "data": {
-                        "cmd": cmd,
-                        "args": args,
-                        "error": result.get("error", "Operation cancelled or timed out"),
-                        "source": "subprocess_window"
-                    }
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "action": "error",
-                "data": {
-                    "cmd": cmd,
-                    "args": args,
-                    "error": f"Failed to show command window: {str(e)}",
-                    "source": "subprocess_window"
-                }
-            }
 
     def _cleanup_remote_result_file(self, result_filename):
         """
@@ -3079,7 +2947,7 @@ JSON_SCRIPT_EOF
         
         return unzip_command
     
-    def show_command_window_subprocess(self, title, command_text, timeout_seconds=3600, test_mode=False):
+    def show_remote_command_window(self, title, command_text, timeout_seconds=3600, test_mode=False):
         # 检查实例变量是否启用no-direct-feedback模式
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
@@ -3089,7 +2957,7 @@ JSON_SCRIPT_EOF
         DEBUG: 这里是tkinter窗口弹出的地方！
         """
         # Debug print - 找到tkinter窗口弹出的地方 (disabled)
-        # print(f"DEBUG: *** TKINTER WINDOW POPUP *** show_command_window_subprocess called!")
+        # print(f"DEBUG: *** TKINTER WINDOW POPUP *** show_remote_command_window called!")
         # print(f"DEBUG: title='{title}'")
         # print(f"DEBUG: command_text preview: '{command_text[:100]}...'")
         

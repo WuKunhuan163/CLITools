@@ -222,7 +222,7 @@ class FileUtils:
             
             # 使用subprocess方法显示命令窗口
             try:
-                # show_command_window_subprocess现在在remote_commands中，需要通过main_instance访问
+                # show_remote_command_window现在在remote_commands中，需要通过main_instance访问
                 
                 title = f"远程文件夹上传: {zip_filename}"
                 instruction = f"""请在远程环境中执行以下命令来完成文件夹上传和解压：
@@ -235,7 +235,7 @@ class FileUtils:
 """
                 
                 # 使用subprocess方法显示窗口
-                result = self.main_instance.remote_commands.show_command_window_subprocess(  # WARNING: BYPASSING QUEUE SYSTEM
+                result = self.main_instance.remote_commands.show_remote_command_window(  # WARNING: BYPASSING QUEUE SYSTEM
                     title=title,
                     command_text=remote_command,
                     timeout_seconds=300
