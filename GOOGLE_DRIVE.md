@@ -678,7 +678,7 @@ echo -e "Line1\nLine2\nLine3"        # 显示多行文本（处理\n）
 echo -e "Tab\tSeparated\tText"       # 处理制表符（\t）
 
 # JSON文件创建（推荐语法）
-echo '{"name": "test", "value": 123}' > config.json    # 单引号包围，无需转义
+echo "{'name': 'test', 'value': 123}" > config.json    # 单引号包围，无需转义
 echo '{"debug": true, "items": [1,2,3]}' > settings.json
 
 # Python脚本创建

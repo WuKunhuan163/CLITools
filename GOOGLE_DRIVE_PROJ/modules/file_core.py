@@ -1120,7 +1120,10 @@ class FileCore:
             # 解析绝对路径
             current_path = current_shell.get("current_path", "~")
             if filename.startswith("/"):
-                # 绝对路径
+                # 绝对路径（以/开头）
+                absolute_path = filename
+            elif filename.startswith("~"):
+                # 以~开头的路径，直接替换~
                 absolute_path = filename.replace("~", "/content/drive/MyDrive/REMOTE_ROOT", 1)
             else:
                 # 相对路径

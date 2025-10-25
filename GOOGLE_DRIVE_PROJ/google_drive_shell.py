@@ -495,10 +495,19 @@ class GoogleDriveShell:
         
         if result.get("success", False):
             # 统一在命令处理结束后打印输出
-            stdout = result.get("stdout", "").strip()
+            # 处理嵌套的数据结构
+            if "data" in result:
+                # 新的嵌套结构
+                data = result["data"]
+                stdout = data.get("stdout", "").strip()
+                stderr = data.get("stderr", "").strip()
+            else:
+                # 旧的平坦结构
+                stdout = result.get("stdout", "").strip()
+                stderr = result.get("stderr", "").strip()
+            
             if stdout:
                 print(stdout)
-            stderr = result.get("stderr", "").strip()
             if stderr:
                 print(stderr, file=sys.stderr)
             return 0
@@ -1294,16 +1303,7 @@ For more information, visit: https://github.com/your-repo/gds"""
                     break
             
             # 解析命令
-            # 注释掉edit命令的特殊处理，让它通过正常的特殊命令路由
-            # if shell_cmd_clean.strip().startswith('edit '):
-            #     # 使用新的用户友好的edit命令解析器
-            #     return self._handle_edit_command(shell_cmd_clean.strip())
-            # else:
-            # 移除特殊的python -c处理，让它通过新的command registry
-            # print(f"🔍 COMMAND_PARSE DEBUG: About to parse command normally")
-            # 首先检查是否包含多命令组合（&&、||或|），在特殊命令检查之前
             has_multiple_ops = False
-            # 检查带空格和不带空格的操作符，使用清理后的命令
             for op in [' && ', ' || ', ' | ', '&&', '||', '|']:
                 if op in shell_cmd_clean:
                     # 检查操作符是否在引号外
@@ -1312,7 +1312,6 @@ For more information, visit: https://github.com/your-repo/gds"""
                         break
             
             if has_multiple_ops:
-                # 导入shell_commands模块中的具体函数
                 import os
                 import sys
                 current_dir = os.path.dirname(__file__)
@@ -1385,7 +1384,7 @@ For more information, visit: https://github.com/your-repo/gds"""
                 if cmd == 'echo':
                     return self._handle_unified_echo_command(args)
                 
-                # 其他特殊命令使用命令注册系统
+                # 其他特殊命令使用命令注册系统（包括mkdir、touch等需要验证的命令）
                 return self.command_registry.execute_command(cmd, args, command_identifier=command_identifier)
              
             # 如果不是特殊命令，使用统一的命令解析和转译接口
