@@ -423,9 +423,15 @@ class PathResolver:
             # 首先转换可能被bash扩展的本地路径
             input_path = self._convert_local_path_to_remote(input_path)
             
-            # 如果输入路径已经是绝对路径（以~开头），直接返回
+            # 如果输入路径已经是绝对路径（以~开头），仍需要规范化处理
             if input_path.startswith("~"):
-                return input_path
+                # 检查是否包含需要规范化的路径组件（如 .. 或 .）
+                if '../' in input_path or '/./' in input_path or input_path.endswith('/..') or input_path.endswith('/.'):
+                    # 需要规范化处理
+                    return self._normalize_path_components("~", input_path[2:] if input_path.startswith("~/") else input_path[1:])
+                else:
+                    # 简单的绝对路径，直接返回
+                    return input_path
             
             # 处理特殊情况
             if input_path == "." or input_path == "":

@@ -1,1 +1,1 @@
-Command 'echo "{\"name\": \"test\", \"value\": 123}"' failed
+[K⏳ Waiting for result ........[K[K{name: test, value: 123}

@@ -1524,7 +1524,7 @@ fi
                 redirect_file = self._extract_redirect_target(args)
                 if redirect_file and redirect_file.strip():
                     verification_result = self.main_instance.verify_creation_with_ls(
-                        redirect_file, current_shell, creation_type="file", max_attempts=30
+                        redirect_file, current_shell, creation_type="file"
                     )
                     if not verification_result.get("success", False):
                         # 验证失败，但不影响原始命令的成功状态（因为远程命令已经成功了）

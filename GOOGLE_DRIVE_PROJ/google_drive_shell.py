@@ -81,6 +81,7 @@ except ImportError:
     from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.linter_command import LinterCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.download_command import DownloadCommand
 
 class GoogleDriveShell:
     """Google Drive Shell管理类 (重构版本)"""
@@ -243,6 +244,7 @@ class GoogleDriveShell:
         self.command_registry.register(DepsCommand(self))
         self.command_registry.register(PyenvCommand(self))
         self.command_registry.register(LinterCommand(self))
+        self.command_registry.register(DownloadCommand(self))
     
     def calculate_timeout_from_file_sizes(self, *args, **kwargs):
         """委托到sync_manager管理器"""

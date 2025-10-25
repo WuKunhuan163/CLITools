@@ -917,26 +917,22 @@ class FileCore:
             current_shell_path = current_shell.get("current_path", "~")
             absolute_path = self.main_instance.path_resolver.compute_absolute_path(current_shell_path, path)
             
-            # 使用cmd_ls验证路径是否存在（与mkdir验证保持一致）
-            try:
-                # 使用统一的cmd_ls接口检测目录是否存在
-                ls_result = self.main_instance.cmd_ls(absolute_path)
-                
-                if not ls_result.get('success'):
-                    return {"success": False, "error": f"Directory does not exist: {path}"}
-                
-                # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
-                target_id, target_path = self.main_instance.resolve_path(path, current_shell)
-                
-                if not target_id:
-                    return {"success": False, "error": f"Directory does not exist: {path}"}
-                
-            except Exception as e:
-                # 如果cmd_ls失败，回退到旧方法
-                target_id, target_path = self.main_instance.resolve_path(path, current_shell)
-                
-                if not target_id:
-                    return {"success": False, "error": f"Directory does not exist: {path}"}
+            # 使用统一的cmd_ls接口检测目录是否存在
+            ls_result = self.main_instance.cmd_ls(absolute_path)
+            
+            if not ls_result.get('success'):
+                # 添加调试信息，显示路径计算过程
+                debug_info = f"Path resolution: '{path}' -> '{absolute_path}'"
+                print(f"DEBUG: cd command failed - {debug_info}")
+                return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
+            
+            # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
+            # 使用规范化后的绝对路径进行解析
+            target_id, target_path = self.main_instance.resolve_path(absolute_path, current_shell)
+            
+            if not target_id:
+                print(f"DEBUG: resolve_path failed for absolute_path: {absolute_path}")
+                return {"success": False, "error": f"Directory does not exist: {path} (resolved path failed)"}
             
             # 更新shell状态
             shells_data = self.main_instance.load_shells()
@@ -1001,7 +997,7 @@ class FileCore:
                 
                 if exit_code == 0:
                     # 执行成功后，进行验证以确保目录真正创建（最多60次重试）
-                    verification_result = self.main_instance.verify_creation_with_ls(target_path, current_shell, creation_type="dir", max_attempts=60)
+                    verification_result = self.main_instance.verify_creation_with_ls(target_path, current_shell, creation_type="dir")
                     
                     if verification_result["success"]:
                         # 验证成功，简洁返回，像bash shell一样成功时不显示任何信息
@@ -1340,9 +1336,9 @@ class FileCore:
             if not file_info:
                 return {"success": False, "error": f"Download failed: file not found: {actual_filename}"}
             
-            # 检查是否为文件（不是文件夹）
+            # 检查是否为目录，如果是则使用目录下载功能
             if file_info['mimeType'] == 'application/vnd.google-apps.folder':
-                return {"success": False, "error": f"download: {actual_filename}: is a directory, cannot download"}
+                return self._download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
             
             # 使用Google Drive API直接下载文件
             import tempfile
@@ -1449,9 +1445,7 @@ class FileCore:
             if result.get("success"):
                 # 验证文件是否真的被移动了
                 # 使用绝对路径进行验证以确保正确性
-                verification_result = self.main_instance.verify_creation_with_ls(
-                    destination_absolute_path, current_shell, creation_type="file", max_attempts=30
-                )
+                verification_result = self.main_instance.verify_creation_with_ls(destination_absolute_path, current_shell, creation_type="file")
                 
                 if verification_result.get("success", False):
                     return {
@@ -1529,4 +1523,107 @@ class FileCore:
             
         except Exception as e:
             return None
+
+    def _download_directory(self, dir_info, dir_name, remote_absolute_path, local_path, force):
+        """
+        下载目录：先在远程压缩为zip，然后下载zip包
+        
+        Args:
+            dir_info: 目录信息
+            dir_name: 目录名称
+            remote_absolute_path: 远程绝对路径
+            local_path: 本地目标路径
+            force: 是否强制下载
+        """
+        try:
+            import hashlib
+            import time
+            import os
+            
+            # 生成时间哈希的zip文件名
+            timestamp = str(int(time.time()))
+            hash_suffix = hashlib.md5(f"{remote_absolute_path}_{timestamp}".encode()).hexdigest()[:8]
+            zip_filename = f"gds_download_{dir_name}_{timestamp}_{hash_suffix}.zip"
+            # 使用绝对路径而不是~路径，避免shell展开问题
+            remote_zip_path = f"/content/drive/MyDrive/REMOTE_ROOT/tmp/{zip_filename}"
+            
+            print(f"正在压缩目录 {dir_name} 到 {remote_zip_path}...")
+            
+            # 步骤1：远程压缩目录为zip包
+            # 使用远程命令窗口执行压缩
+            # 确保/content/drive/MyDrive/REMOTE_ROOT/tmp目录存在
+            parent_dir = os.path.dirname(remote_absolute_path)
+            compress_command = f"mkdir -p /content/drive/MyDrive/REMOTE_ROOT/tmp && cd '{parent_dir}' && zip -r '{remote_zip_path}' '{dir_name}'"
+            
+            compress_result = self.main_instance.remote_commands.show_remote_command_window(
+                title=f"压缩目录: {dir_name}",
+                command_text=compress_command,
+                timeout_seconds=3600,
+                is_priority=False
+            )
+            
+            if not compress_result.get("success", False):
+                return {"success": False, "error": f"Failed to compress directory: {compress_result.get('error', 'Unknown error')}"}
+            
+            # 步骤2：验证zip文件是否创建成功
+            print(f"验证zip文件创建: {remote_zip_path}")
+            verification_result = self.main_instance.verify_creation_with_ls(
+                remote_zip_path, 
+                self.main_instance.get_current_shell(), 
+                creation_type="file"
+            )
+            
+            if not verification_result.get("success", False):
+                return {"success": False, "error": f"Zip file verification failed: {remote_zip_path} not found"}
+            
+            # 步骤3：下载zip文件到本地
+            print(f"下载zip文件到本地...")
+            
+            # 确定本地目标路径
+            if local_path:
+                expanded_local_path = os.path.expanduser(local_path)
+                if os.path.isdir(expanded_local_path):
+                    # 如果是目录，使用原目录名
+                    final_target = os.path.join(expanded_local_path, f"{dir_name}.zip")
+                else:
+                    # 如果是文件路径，直接使用
+                    final_target = expanded_local_path
+                    if not final_target.endswith('.zip'):
+                        final_target += '.zip'
+            else:
+                # 默认下载到当前目录
+                final_target = f"{dir_name}.zip"
+            
+            # 使用现有的文件下载逻辑下载zip文件
+            # 将绝对路径转换为GDS路径格式
+            gds_zip_path = f"~/tmp/{zip_filename}"
+            download_result = self.cmd_download(gds_zip_path, final_target, force)
+            
+            if download_result.get("success", False):
+                # 步骤4：清理远程临时zip文件
+                try:
+                    cleanup_result = self.main_instance.remote_commands.show_remote_command_window(
+                        title="清理临时文件",
+                        command_text=f"rm -f {remote_zip_path}",
+                        timeout_seconds=300,
+                        is_priority=False
+                    )
+                    if not cleanup_result.get("success", False):
+                        print(f"Warning: Failed to cleanup remote zip file: {remote_zip_path}")
+                except Exception as e:
+                    print(f"Warning: Error during cleanup: {e}")
+                
+                return {
+                    "success": True,
+                    "message": f"Directory downloaded successfully as: {final_target}",
+                    "source": "directory_download",
+                    "remote_path": remote_absolute_path,
+                    "local_path": final_target,
+                    "zip_filename": zip_filename
+                }
+            else:
+                return {"success": False, "error": f"Failed to download zip file: {download_result.get('error', 'Unknown error')}"}
+                
+        except Exception as e:
+            return {"success": False, "error": f"Directory download failed: {e}"}
 
