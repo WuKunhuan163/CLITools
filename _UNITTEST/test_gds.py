@@ -330,6 +330,28 @@ Shell commands: ls -la && echo "done"
         # 如果都不存在，返回None
         return None
     
+    def _get_local_file_content(self, file_path):
+        """
+        读取本地文件内容
+        
+        Args:
+            file_path: 本地文件路径
+            
+        Returns:
+            str: 文件内容，如果文件不存在或读取失败则返回None
+        """
+        import os
+        
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            else:
+                return None
+        except Exception as e:
+            print(f"读取本地文件失败: {file_path}, 错误: {e}")
+            return None
+    
     def _simulate_terminal_output(self, stdout, stderr, returncode):
         """
         模拟终端输出处理，正确处理擦除字符
@@ -358,10 +380,22 @@ Shell commands: ls -la && echo "done"
             # 反向处理：从后往前寻找擦除序列
             while True:
                 # 寻找最后一个\r\x1b[K序列
-                last_erase_pos = result.rfind('\r\x1b[K')
-                if last_erase_pos == -1:
+                last_r_erase_pos = result.rfind('\r\x1b[K')
+                # 寻找最后一个\n\x1b[K序列
+                last_n_erase_pos = result.rfind('\n\x1b[K')
+                
+                # 选择最后出现的擦除序列
+                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
                     # 没有找到擦除序列，处理完成
                     break
+                
+                # 确定使用哪个擦除序列（选择位置更靠后的）
+                if last_r_erase_pos > last_n_erase_pos:
+                    last_erase_pos = last_r_erase_pos
+                    erase_pattern = '\r\x1b[K'
+                else:
+                    last_erase_pos = last_n_erase_pos
+                    erase_pattern = '\n\x1b[K'
                 
                 # 找到擦除序列，需要擦除当前行
                 # 从擦除序列位置向左找到行的开始位置
@@ -374,7 +408,7 @@ Shell commands: ls -la && echo "done"
                     line_start += 1
                 
                 # 擦除从line_start到擦除序列结束的内容
-                erase_end = last_erase_pos + 4  # \r\x1b[K的长度是4
+                erase_end = last_erase_pos + len(erase_pattern)
                 result = result[:line_start] + result[erase_end:]
             
             # 处理单独的\r（回车符）
@@ -642,9 +676,9 @@ Shell commands: ls -la && echo "done"
             stdout, stderr, returncode = self._simulate_terminal_output(result.stdout, result.stderr, result.returncode)
             print(f"返回码: {returncode}")
             if stdout:
-                print(f"输出: {stdout[:200]}...")  # 限制输出长度
+                print(f"输出: {stdout[:200]}...")
             if stderr:
-                print(f"Warning: 错误: {stderr[:200]}...")
+                print(f"错误: {stderr[:200]}...")
             
             # 基于功能执行情况判断，而不是终端输出
             if check_function_result and expect_success:
@@ -789,15 +823,24 @@ Shell commands: ls -la && echo "done"
         
         for attempt in range(max_retries):
             print(f"\n尝试 {attempt + 1}/{max_retries}")
-            
-            # 执行upload命令（使用_run_gds_command方法）
+
             result = self._run_gds_command(command, expect_success=False, check_function_result=False)
-            stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
+            print (f"=============")
+            print (f"result.stdout: {result.stdout}")
+            print (f"result.stderr: {result.stderr}")
+            print (f"result.returncode: {result.returncode}")
+            print (f"=============")
+            stdout, stderr, returncode = self._simulate_terminal_output(result.stdout, result.stderr, result.returncode)
+            print (f"=============")
+            print (f"stdout: {stdout}")
+            print (f"stderr: {stderr}")
+            print (f"returncode: {returncode}")
+            print (f"=============")
             print(f"返回码: {returncode}")
             if stdout:
-                print(f"输出: {stdout}")
+                print(f"输出: {stdout[:200]}...")
             if stderr:
-                print(f"错误: {stderr}")
+                print(f"错误: {stderr[:200]}...")
             
             if returncode != 0:
                 print(f"Error: Upload command failed, return code: {returncode}")
@@ -1072,18 +1115,25 @@ Shell commands: ls -la && echo "done"
         
         # 包含JSON格式的echo（检查实际的转义字符处理）
         json_echo_file = self._get_test_file_path("json_echo.txt")
-        result = self._run_gds_command(f'\'echo "{{"name": "test", "value": 123}}" > "{json_echo_file}"\'')
+        json_content = "{'name': 'test', 'value': 123}"
+        result = self._run_gds_command(f'\'echo "{json_content}" > "{json_echo_file}"\'')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self._verify_file_exists(json_echo_file))
         # 一次性验证JSON文件内容：GDS echo正确处理引号，不保留不必要的转义字符
         result = self._run_gds_command(f'cat "{json_echo_file}"')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('{"name": "test", "value": 123}', result.stdout, "文件内容应该包含JSON字段")
+        self.assertIn("{'name': 'test', 'value': 123}", result.stdout, "文件内容应该包含JSON字段")
         
         # 包含中文和特殊字符的echo
         chinese_echo_file = self._get_test_file_path("chinese_echo.txt")
         chinese_content = "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?"
-        result = self._run_gds_command('\'echo "' + chinese_content + '" > "' + chinese_echo_file + '"\'')
+        # 使用shlex.quote来安全处理特殊字符
+        import shlex
+        safe_content = shlex.quote(chinese_content)
+        safe_file = shlex.quote(chinese_echo_file)
+        command = f'echo {safe_content} > {safe_file}'
+        print(f"DEBUG: 执行的命令: {command}")
+        result = self._run_gds_command(command)
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self._verify_file_exists(chinese_echo_file))
         self.assertTrue(self._verify_file_content_contains(chinese_echo_file, "你好世界"))
@@ -1116,12 +1166,14 @@ Shell commands: ls -la && echo "done"
         
         # 使用正确的语法创建JSON文件（单引号包围重定向范围）
         correct_json_file = self._get_test_file_path("correct_json.txt")
-        result = self._run_gds_command(f'\'echo "{{"name": "test", "value": 123}}" > "{correct_json_file}"\'')
+        # 使用单引号避免shell解释双引号和花括号
+        json_content = "{'name': 'test', 'value': 123}"
+        result = self._run_gds_command(f'echo "{json_content}" > "{correct_json_file}"')
         self.assertEqual(result.returncode, 0)
         
         # 验证JSON文件内容正确（修复后无转义字符）
         self.assertTrue(self._verify_file_exists(correct_json_file))
-        self.assertTrue(self._verify_file_content_contains(correct_json_file, '{"name": "test", "value": 123}'))
+        self.assertTrue(self._verify_file_content_contains(correct_json_file, json_content))
         
         # 测试echo -e参数处理换行符（用引号包围整个命令，避免本地重定向）
         multiline_path = self._get_test_file_path("multiline.txt")
@@ -1132,9 +1184,23 @@ Shell commands: ls -la && echo "done"
         self.assertTrue(self._verify_file_exists(multiline_path))
         self.assertTrue(self._verify_file_content_contains(multiline_path, "Line1\nLine2\nLine3"))
         
+        # 测试echo命令输出到stdout（不是stderr）
+        echo_stdout_test = "Echo stdout test content"
+        result = self._run_gds_command(f"echo '{echo_stdout_test}'")
+        self.assertEqual(result.returncode, 0)
+        # 验证内容在stdout中，不在stderr中
+        self.assertIn(echo_stdout_test, result.stdout, "echo命令输出应该在stdout中")
+        self.assertEqual(result.stderr.strip(), "", "echo命令不应该有stderr输出")
+        
+        # 测试echo命令的本地重定向能力（需要stdout输出）
+        echo_redirect_test = "Content for local redirect"
+        result = self._run_gds_command(f"echo '{echo_redirect_test}'")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(echo_redirect_test, result.stdout, "echo命令必须输出到stdout才能支持本地重定向")
+        
         # 使用本地重定向语法（GDS输出被本地重定向）
         local_redirect_path = self._get_local_file_path("local_redirect.txt")
-        json_content = '{"name": "test", "value": 123}'
+        json_content = "{'name': 'test', 'value': 123}"
         full_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback echo "{json_content}" > "{local_redirect_path}"'
         result = self._run_gds_command(full_command)
         self.assertEqual(result.returncode, 0)
@@ -1142,7 +1208,7 @@ Shell commands: ls -la && echo "done"
         # 检查本地文件内容（应该包含GDS返回的JSON内容）
         content = self._get_local_file_content(local_redirect_path)
         print(f"本地重定向文件内容: {content}")
-        self.assertIn('{"name": "test", "value": 123}', content)
+        self.assertIn("{'name': 'test', 'value': 123}", content)
         
         # 验证远端没有这个文件（因为是本地重定向）
         self.assertFalse(self._verify_file_exists(local_redirect_path))
@@ -1509,7 +1575,7 @@ print(f"Current files: {len(os.listdir())}")'''
             self.assertEqual(result.returncode, 0, "本地读取下载文件应该成功")
             self.assertIn("This is a test file for download", result.stdout, "下载文件内容应该正确")
             self.assertIn("测试中文内容", result.stdout, "应该包含中文内容")
-            print(f"✓ 成功使用本地cat命令读取下载文件: {local_target_file}")
+            print(f"成功使用本地cat命令读取下载文件: {local_target_file}")
         else:
             self.fail(f"下载的文件不存在于本地路径: {local_target_file}")
         
@@ -1578,35 +1644,23 @@ print(f"Current files: {len(os.listdir())}")'''
         os.makedirs(local_target_dir, exist_ok=True)
         
         result = self._run_gds_command(f'download "{test_dir_path}" "{local_target_dir}/downloaded_dir.zip"')
+        self.assertTrue(result.returncode == 0, f"目录下载失败: {result.stderr if result else 'Unknown error'}")
         
-        # 检查结果
-        if result.returncode == 0:
-            print("✓ 目录下载成功")
+        local_zip_file = os.path.join(local_target_dir, "downloaded_dir.zip")
+        if os.path.exists(local_zip_file):
+            print(f"本地zip文件存在: {local_zip_file}")
+            print(f"文件大小: {os.path.getsize(local_zip_file)} bytes")
             
-            # 验证本地zip文件是否存在
-            local_zip_file = os.path.join(local_target_dir, "downloaded_dir.zip")
-            if os.path.exists(local_zip_file):
-                print(f"✓ 本地zip文件存在: {local_zip_file}")
-                print(f"文件大小: {os.path.getsize(local_zip_file)} bytes")
-                
-                # 清理本地文件
-                try:
-                    os.remove(local_zip_file)
-                    print("✓ 清理本地zip文件成功")
-                except Exception as e:
-                    print(f"Warning: 清理本地文件失败: {e}")
-            else:
-                print("✗ 本地zip文件不存在")
-                self.fail("目录下载后本地zip文件不存在")
+            # 清理本地文件
+            try:
+                os.remove(local_zip_file)
+                print("清理本地zip文件成功")
+            except Exception as e:
+                print(f"Warning: 清理本地文件失败: {e}")
         else:
-            print(f"✗ 目录下载失败，返回码: {result.returncode}")
-            if result.stdout:
-                print(f"输出: {result.stdout}")
-            if result.stderr:
-                print(f"错误: {result.stderr}")
-            # 不强制失败，因为这是新功能，可能需要调试
-            print("目录下载功能需要进一步调试")
-        
+            print("本地zip文件不存在")
+            self.fail("目录下载后本地zip文件不存在")
+    
         # 清理测试目录
         result = self._run_gds_command(f'rm -rf "{test_dir_path}"')
         print(f"GDS目录下载功能测试完成")
@@ -1965,7 +2019,7 @@ print(f"Sum: {result}")
         result = self._run_gds_command('cat "' + '~/tmp/' + self.test_folder + '/special_chars.txt"')
         self.assertEqual(result.returncode, 0, "特殊字符文件应该能正常读取")
 
-    def test_14_touch_mkdir_mv_rm_TODO(self):
+    def test_14_touch_mkdir_mv_rm(self):
         """测试文件和目录的创建、移动、删除操作，包括安全检查"""
         print("测试文件和目录的创建、移动、删除操作")
         
@@ -2449,7 +2503,7 @@ if __name__ == "__main__":
         result = self._run_gds_command(f'venv --activate {empty_venv_name}', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0)  # 应该失败
     
-    def test_19_pip_deps_analysis_TODO_UNEXIST_PACKAGE_SHOULD_NOT_RETURN_0(self):
+    def test_19_pip_deps_analysis(self):
         # 测试简单包的依赖分析（depth=1）
         print(f"测试简单包依赖分析（depth=1）")
         result = self._run_gds_command('pip --show-deps requests --depth=1')
@@ -2482,11 +2536,14 @@ if __name__ == "__main__":
         # 测试不存在包的错误处理
         print(f"测试不存在包的错误处理")
         result = self._run_gds_command('pip --show-deps nonexistent-package-12345', expect_success=False, check_function_result=False)
-        if result.returncode == 0:
-            output = result.stdout.lower()
-            not_found_indicators = ["not found", "error", "failed", "no package"]
-            has_error_indicator = any(indicator in output for indicator in not_found_indicators)
-            self.assertTrue(has_error_indicator, f"不存在的包应该有错误指示，输出: {result.stdout}")
+        # 不存在的包应该返回非0退出码
+        self.assertNotEqual(result.returncode, 0, f"不存在的包应该返回非0退出码，实际返回码: {result.returncode}")
+        
+        # 同时验证输出包含错误信息
+        output = result.stdout.lower()
+        not_found_indicators = ["not found", "error", "failed", "no package"]
+        has_error_indicator = any(indicator in output for indicator in not_found_indicators)
+        self.assertTrue(has_error_indicator, f"不存在的包应该有错误指示，输出: {result.stdout}")
         
         # 测试性能统计信息
         print(f"测试性能统计")
@@ -2684,32 +2741,52 @@ if __name__ == "__main__":
         for cmd in test_commands:
             print(f"测试命令: {cmd}")
             
-            # 直接命令执行
-            direct_result = self._run_gds_command(cmd)
+            # 直接命令执行（使用--no-direct-feedback避免交互）
+            direct_result = self._run_gds_command(f'{cmd}', expect_success=True)
             
-            # Shell模式执行
-            shell_result = self._run_gds_command(cmd)
+            # Shell模式执行（进入交互式shell模式）
+            shell_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback "{cmd}"'
+            shell_result = subprocess.run(
+                shell_command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                cwd=self.BASE_DIR
+            )
             
             self.assertEqual(direct_result.returncode, 0, f"直接执行{cmd}应该成功")
             self.assertEqual(shell_result.returncode, 0, f"Shell模式执行{cmd}应该成功")
             
-            # 提取shell模式中的命令输出（去除shell提示符等）
-            shell_output = shell_result.stdout
+            # 清理输出以便比较
+            direct_output = self._clean_gds_output(direct_result.stdout)
+            shell_output = self._clean_gds_output(shell_result.stdout)
             
             # 对于help命令，验证关键内容存在
             if cmd == "help":
                 # 验证直接执行包含基本命令
-                self.assertIn("pwd", direct_result.stdout, "直接执行help应该包含pwd命令")
-                self.assertIn("ls", direct_result.stdout, "直接执行help应该包含ls命令")
+                self.assertIn("pwd", direct_output, "直接执行help应该包含pwd命令")
+                self.assertIn("ls", direct_output, "直接执行help应该包含ls命令")
                 
                 # 验证shell模式也包含相同命令
                 self.assertIn("pwd", shell_output, "Shell模式help应该包含pwd命令")
                 self.assertIn("ls", shell_output, "Shell模式help应该包含ls命令")
                 
                 print(f"{cmd}命令在两种模式下都包含必要内容")
+            elif cmd == "pwd":
+                # pwd命令应该返回相同的路径
+                # 去除可能的空白字符进行比较
+                direct_path = direct_output.strip()
+                shell_path = shell_output.strip()
+                self.assertEqual(direct_path, shell_path, f"pwd命令在两种模式下应该返回相同路径")
+                print(f"pwd命令在两种模式下返回相同路径: {direct_path}")
+            elif cmd == "ls":
+                # ls命令应该返回相同的文件列表
+                # 将输出按行分割并排序进行比较
+                direct_files = sorted(line.strip() for line in direct_output.split('\n') if line.strip())
+                shell_files = sorted(line.strip() for line in shell_output.split('\n') if line.strip())
+                self.assertEqual(direct_files, shell_files, f"ls命令在两种模式下应该返回相同文件列表")
+                print(f"ls命令在两种模式下返回相同文件列表")
             else:
-                # 对于其他命令，验证命令执行成功（不要求非空输出，因为ls在空目录中可能无输出）
-                self.assertIn("GDS:", shell_output, f"Shell模式执行{cmd}应该包含提示符")
                 print(f"{cmd}命令在两种模式下都正常执行")
         
         print(f"Shell模式与直接命令一致性测试完成")

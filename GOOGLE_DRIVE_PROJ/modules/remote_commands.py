@@ -473,6 +473,7 @@ else:
                         
                         # 恢复原来的信号处理器
                         signal.signal(signal.SIGINT, old_handler)
+                        
                         return file_result
                     
                     # 文件不存在，等待1秒并输出进度点
@@ -1581,23 +1582,24 @@ fi
         else:
             command_str = f"{cmd} {args}" if args else cmd
         
-        # 1. 明确的文件创建命令
-        file_creation_patterns = [
+        # 1. 明确的文件创建命令（不涉及重定向）
+        simple_creation_patterns = [
             r'\btouch\s+\S+',           # touch filename
             r'\bmkdir\s+\S+',           # mkdir dirname  
             r'\bcp\s+\S+\s+\S+',        # cp source dest
             r'\bmv\s+\S+\s+\S+',        # mv source dest
-            r'\becho\s+.*>\s*\S+',      # echo content > file
-            r'\bcat\s+.*>\s*\S+',       # cat content > file
-            r'>\s*[^/\s][^\s]*',        # general redirect to non-absolute path
         ]
         
         import re
-        for pattern in file_creation_patterns:
+        for pattern in simple_creation_patterns:
             if re.search(pattern, command_str):
                 return True
         
-        # 2. 排除不会创建用户文件的命令
+        # 2. 检测真正的重定向操作（不在引号内的>）
+        if self._has_real_redirection(command_str):
+            return True
+        
+        # 3. 排除不会创建用户文件的命令
         non_file_creation_commands = [
             'ls', 'pwd', 'cd', 'find', 'grep', 'cat', 'head', 'tail',
             'ps', 'top', 'df', 'du', 'whoami', 'date', 'uptime',
@@ -1617,6 +1619,58 @@ fi
             return self._should_verify_file_creation('bash', inner_command)
         
         # 4. 默认情况：如果不确定，不进行验证（避免误报）
+        return False
+    
+    def _has_real_redirection(self, command_str):
+        """
+        检测命令中是否有真正的重定向操作（不在引号内的>）
+        
+        Args:
+            command_str: 完整的命令字符串
+            
+        Returns:
+            bool: True如果有真正的重定向，False否则
+        """
+        # 简单的状态机来跟踪引号状态
+        in_single_quote = False
+        in_double_quote = False
+        i = 0
+        
+        while i < len(command_str):
+            char = command_str[i]
+            
+            # 处理转义字符
+            if char == '\\' and i + 1 < len(command_str):
+                i += 2  # 跳过转义字符和下一个字符
+                continue
+            
+            # 处理引号
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+            
+            # 检测重定向符号（只有在引号外才算）
+            elif char == '>' and not in_single_quote and not in_double_quote:
+                # 确保这不是比较操作符（如 >= 或 >>）
+                if i + 1 < len(command_str):
+                    next_char = command_str[i + 1]
+                    if next_char in '>=':
+                        i += 1
+                        continue
+                
+                # 检查重定向目标是否是文件（不是绝对路径）
+                # 跳过空白字符
+                j = i + 1
+                while j < len(command_str) and command_str[j].isspace():
+                    j += 1
+                
+                # 如果有重定向目标且不是绝对路径，则认为是文件创建
+                if j < len(command_str) and not command_str[j:].startswith('/'):
+                    return True
+            
+            i += 1
+        
         return False
     
     def _is_pyenv_related_command(self, cmd, args):
@@ -2398,14 +2452,79 @@ JSON_SCRIPT_EOF
                 command_text=remote_command
             )
             
+            # Debug: 保存原始输出到文件（用于调试）
+            try:
+                import os
+                debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
+                os.makedirs(debug_dir, exist_ok=True)
+                debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
+                
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write("=" * 50 + "\n")
+                    f.write("COMMAND:\n")
+                    f.write(f"{user_command}\n\n")
+                    
+                    f.write("=" * 50 + "\n")
+                    f.write("RESULT:\n")
+                    f.write(f"{window_result}\n\n")
+                    
+                    # 这里先写占位符，后续会在结果处理时更新
+                    f.write("=" * 50 + "\n")
+                    f.write("RAW_OUTPUT:\n")
+                    f.write("(Will be updated after command execution)\n\n")
+                    
+                    f.write("=" * 50 + "\n")
+                    f.write("OUTPUT:\n")
+                    f.write("(Will be updated after command execution)\n\n")
+                    
+                    f.write("=" * 50 + "\n")
+                    f.write("RAW_ERROR:\n")
+                    f.write("(Will be updated after command execution)\n\n")
+                    
+                    f.write("=" * 50 + "\n")
+                    f.write("ERROR:\n")
+                    f.write("(Will be updated after command execution)\n\n")
+                    
+                    f.write("=" * 50 + "\n")
+                    f.write("REMOTE_COMMAND:\n")
+                    f.write(f"{remote_command}\n")
+            except Exception as debug_e:
+                pass  # 忽略debug输出错误
+            
             # 处理窗口结果
             if window_result["action"] == "success":
                 # 用户点击了执行完成，现在开始显示进度指示器，等待并读取结果
                 from .progress_manager import start_progress_buffering, stop_progress_buffering
-                start_progress_buffering("⏳ Waiting for result ...")
                 
-                result_file_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{actual_result_filename}"
-                result = self._wait_and_read_result_file(actual_result_filename)
+                # 捕获真正的原始输出（在进度指示器启动之前）
+                import sys
+                import io
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
+                captured_stdout = io.StringIO()
+                captured_stderr = io.StringIO()
+                
+                try:
+                    # 重定向标准输出以捕获进度指示器
+                    sys.stdout = captured_stdout
+                    sys.stderr = captured_stderr
+                    
+                    start_progress_buffering("⏳ Waiting for result ...")
+                    
+                    result_file_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{actual_result_filename}"
+                    result = self._wait_and_read_result_file(actual_result_filename)
+                    
+                    # 获取捕获的输出
+                    raw_progress_output = captured_stdout.getvalue()
+                    raw_progress_error = captured_stderr.getvalue()
+                    
+                    # 更新debug文件，包含真正的原始输出
+                    self._update_debug_output_with_progress(result, raw_progress_output, raw_progress_error)
+                    
+                finally:
+                    # 恢复标准输出
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
                 
                 # 停止进度指示器
                 stop_progress_buffering()
@@ -2957,6 +3076,212 @@ JSON_SCRIPT_EOF
                 unzip_command = f'''cd "{remote_target_path}" && echo "Start decompressing {zip_filename}" && unzip -o "{zip_filename}" && echo "Verifying decompression result ..." && ls -la'''
         
         return unzip_command
+    
+    def _update_debug_output(self, file_result):
+        """更新debug文件的输出部分"""
+        try:
+            import os
+            debug_file = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
+            
+            if not os.path.exists(debug_file):
+                return
+                
+            # 读取现有内容
+            with open(debug_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 获取结果数据
+            if file_result.get("success") and "data" in file_result:
+                data = file_result["data"]
+                raw_stdout = data.get("stdout", "")
+                raw_stderr = data.get("stderr", "")
+                
+                # 处理输出（模拟_simulate_terminal_output的逻辑）
+                processed_stdout = self._process_terminal_escape_sequences(raw_stdout) if raw_stdout else ""
+                processed_stderr = self._process_terminal_escape_sequences(raw_stderr) if raw_stderr else ""
+                
+                # 替换占位符
+                content = content.replace(
+                    "=" * 50 + "\nRAW_OUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_OUTPUT:\n{repr(raw_stdout)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nOUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nOUTPUT:\n{processed_stdout}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nRAW_ERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_ERROR:\n{repr(raw_stderr)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nERROR:\n{processed_stderr}\n\n"
+                )
+            else:
+                # 命令失败的情况
+                error_msg = file_result.get("error", "Unknown error")
+                content = content.replace(
+                    "=" * 50 + "\nRAW_OUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_OUTPUT:\n(Command failed)\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nOUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nOUTPUT:\n(Command failed)\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nRAW_ERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_ERROR:\n{repr(error_msg)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nERROR:\n{error_msg}\n\n"
+                )
+            
+            # 写回文件
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+        except Exception as e:
+            pass  # 忽略debug更新错误
+    
+    def _update_debug_output_with_progress(self, file_result, raw_progress_output, raw_progress_error):
+        """更新debug文件的输出部分，包含真正的原始输出"""
+        try:
+            import os
+            debug_file = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
+            
+            if not os.path.exists(debug_file):
+                return
+                
+            # 读取现有内容
+            with open(debug_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 获取结果数据
+            if file_result.get("success") and "data" in file_result:
+                data = file_result["data"]
+                remote_stdout = data.get("stdout", "")
+                remote_stderr = data.get("stderr", "")
+                
+                # 合并进度输出和远程输出作为真正的原始输出
+                combined_raw_output = raw_progress_output + remote_stdout
+                combined_raw_error = raw_progress_error + remote_stderr
+                
+                # 处理输出（模拟_simulate_terminal_output的逻辑）
+                processed_output = self._process_terminal_escape_sequences(combined_raw_output) if combined_raw_output else ""
+                processed_error = self._process_terminal_escape_sequences(combined_raw_error) if combined_raw_error else ""
+                
+                # 替换占位符
+                content = content.replace(
+                    "=" * 50 + "\nRAW_OUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_OUTPUT:\n{repr(combined_raw_output)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nOUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nOUTPUT:\n{processed_output}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nRAW_ERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_ERROR:\n{repr(combined_raw_error)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nERROR:\n{processed_error}\n\n"
+                )
+            else:
+                # 命令失败的情况
+                error_msg = file_result.get("error", "Unknown error")
+                content = content.replace(
+                    "=" * 50 + "\nRAW_OUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_OUTPUT:\n{repr(raw_progress_output)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nOUTPUT:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nOUTPUT:\n{self._process_terminal_escape_sequences(raw_progress_output)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nRAW_ERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nRAW_ERROR:\n{repr(raw_progress_error + error_msg)}\n\n"
+                )
+                content = content.replace(
+                    "=" * 50 + "\nERROR:\n(Will be updated after command execution)\n\n",
+                    "=" * 50 + f"\nERROR:\n{self._process_terminal_escape_sequences(raw_progress_error) + error_msg}\n\n"
+                )
+            
+            # 写回文件
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+        except Exception as e:
+            pass  # 忽略debug更新错误
+    
+    def _process_terminal_escape_sequences(self, text):
+        """处理终端转义序列，模拟用户看到的输出"""
+        if not text:
+            return ""
+            
+        result = text
+        
+        # 反向处理算法：从后往前寻找擦除符号
+        while True:
+            # 寻找最后一个 \r\x1b[K 组合
+            last_erase_pos = result.rfind('\r\x1b[K')
+            if last_erase_pos == -1:
+                break
+                
+            # 找到这个擦除符号所在行的开始
+            line_start = result.rfind('\n', 0, last_erase_pos)
+            if line_start == -1:
+                line_start = 0
+            else:
+                line_start += 1  # 跳过\n字符
+                
+            # 擦除从行开始到擦除符号结束的内容
+            erase_end = last_erase_pos + 4  # \r\x1b[K 长度为4
+            result = result[:line_start] + result[erase_end:]
+        
+        # 处理单独的\r（回车符）
+        while True:
+            last_r_pos = result.rfind('\r')
+            if last_r_pos == -1:
+                break
+                
+            # 检查是否是\r\x1b[K的一部分（已经处理过）
+            if last_r_pos + 1 < len(result) and result[last_r_pos + 1:last_r_pos + 4] == '\x1b[K':
+                break  # 这个\r是\r\x1b[K的一部分，已经处理过
+                
+            # 找到这个\r所在行的开始
+            line_start = result.rfind('\n', 0, last_r_pos)
+            if line_start == -1:
+                line_start = 0
+            else:
+                line_start += 1
+                
+            # 擦除从行开始到\r的内容
+            result = result[:line_start] + result[last_r_pos + 1:]
+        
+        # 处理单独的\x1b[K
+        while True:
+            last_k_pos = result.rfind('\x1b[K')
+            if last_k_pos == -1:
+                break
+                
+            # 检查是否是\r\x1b[K的一部分（已经处理过）
+            if last_k_pos >= 1 and result[last_k_pos - 1] == '\r':
+                break  # 这个\x1b[K是\r\x1b[K的一部分，已经处理过
+                
+            # 找到这个\x1b[K所在行的开始
+            line_start = result.rfind('\n', 0, last_k_pos)
+            if line_start == -1:
+                line_start = 0
+            else:
+                line_start += 1
+                
+            # 擦除从行开始到\x1b[K结束的内容
+            erase_end = last_k_pos + 3  # \x1b[K 长度为3
+            result = result[:line_start] + result[erase_end:]
+        
+        return result
     
     def show_remote_command_window(self, title, command_text, timeout_seconds=3600, test_mode=False, is_priority=False):
         # 检查实例变量是否启用no-direct-feedback模式

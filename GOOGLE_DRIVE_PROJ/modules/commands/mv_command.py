@@ -21,3 +21,4 @@ class MvCommand(BaseCommand):
             return 1
         
         return 0
+

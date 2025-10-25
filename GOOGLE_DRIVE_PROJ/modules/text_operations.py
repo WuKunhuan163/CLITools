@@ -78,7 +78,7 @@ class TextOperations:
                 else:
                     return {
                         "success": False,
-                        "error": f"File create command succeeded but verification failed: {verification_result.get('error', 'Unknown verification error')}"
+                        "error": f"File create verification failed: {verification_result.get('error', 'Unknown verification error')}"
                     }
             else:
                 # 优先使用用户提供的错误信息

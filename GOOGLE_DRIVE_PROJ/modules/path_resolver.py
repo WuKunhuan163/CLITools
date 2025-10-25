@@ -268,6 +268,19 @@ class PathResolver:
                 if not part:
                     continue
                 
+                # 处理特殊路径组件
+                if part == ".":
+                    # 当前目录，跳过
+                    continue
+                elif part == "..":
+                    # 父目录
+                    parent_id, parent_path = self._resolve_parent_directory(current_id, current_logical_path)
+                    if parent_id is None:
+                        return None, None  # 没有父目录
+                    current_id = parent_id
+                    current_logical_path = parent_path
+                    continue
+                
                 files_result = self.drive_service.list_files(folder_id=current_id, max_results=100)
                 if not files_result['success']:
                     return None, None
