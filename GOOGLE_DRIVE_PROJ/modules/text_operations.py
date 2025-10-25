@@ -1108,14 +1108,13 @@ if __name__ == "__main__":
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
                 temp_script.write(edit_script)
                 temp_script_path = temp_script.name
-            
-            print(f"Debug: Created temp script at - {temp_script_path}")
+            # print(f"Debug: Created temp script at - {temp_script_path}")
             
             try:
                 # 2. 上传脚本到远端
-                print(f"Debug: Uploading script to remote...")
+                # print(f"Debug: Uploading script to remote...")
                 upload_result = self.cmd_upload([temp_script_path], force=True)
-                print(f"Debug: Upload result - {upload_result}")
+                # print(f"Debug: Upload result - {upload_result}")
                 if not upload_result.get("success"):
                     return {"success": False, "error": f"Failed to upload edit script: {upload_result.get('error')}"}
                 

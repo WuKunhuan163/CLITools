@@ -1474,7 +1474,7 @@ print(f"Current files: {len(os.listdir())}")'''
         )
         self.assertTrue(success, f"空目录上传失败: {result.stderr if result else 'Unknown error'}")
     
-    def test_07_gds_download_TODO_AFTER_DOWNLOAD_CAT_SHOULD_BE_LOCAL_INSTEAD_OF_REMOTE(self):
+    def test_07_gds_download(self):
         """测试GDS download功能"""
         print(f"测试GDS download功能")
         
@@ -1553,7 +1553,7 @@ print(f"Current files: {len(os.listdir())}")'''
         self._run_gds_command(f'rm -rf "{test_dir}"')
         print(f"GDS download功能测试完成")
     
-    def test_07b_gds_directory_download(self):
+    def test_08_gds_download_dir(self):
         """测试GDS目录下载功能"""
         print(f"测试GDS目录下载功能")
         
@@ -1612,7 +1612,7 @@ print(f"Current files: {len(os.listdir())}")'''
         result = self._run_gds_command(f'rm -rf "{test_dir_path}"')
         print(f"GDS目录下载功能测试完成")
     
-    def test_08_grep(self):
+    def test_09_grep(self):
         # 创建测试文件
         test_content = '''Line 1: Hello world
 Line 2: This is a test
@@ -1669,7 +1669,7 @@ Line 5: No match here'''
         self.assertNotIn("4:", output)
         self.assertNotIn("5:", output)
     
-    def test_09_edit(self):
+    def test_10_edit(self):
         # 重新上传测试文件确保存在（使用--force保证覆盖）
         # 创建唯一的测试文件避免并发冲突
         test_edit_file = self.TEST_TEMP_DIR / "test_edit_simple_hello.py"
@@ -1722,7 +1722,183 @@ Line 5: No match here'''
         )
         self.assertTrue(success, f"备份模式编辑失败: {result.stderr if result else 'Unknown error'}")
     
-    def test_10_read(self):
+    def test_11_linter(self):
+        # 强制上传测试文件（确保文件存在）
+        print(f"上传测试文件...")
+        valid_script_local = self.TEST_DATA_DIR / "valid_script.py"
+        valid_script_path = self._get_test_file_path("valid_script.py")
+        success, result = self._run_upload(
+            f'upload --target-dir "{self.test_folder}" --force "{valid_script_local}"',
+            [f'ls "{valid_script_path}"'],
+            max_retries=3
+        )
+        self.assertTrue(success, f"valid_script.py上传失败: {result.stderr if result else 'Unknown error'}")
+        
+        invalid_script_local = self.TEST_DATA_DIR / "invalid_script.py"
+        invalid_script_path = self._get_test_file_path("invalid_script.py")
+        success, result = self._run_upload(
+            f'upload --target-dir "{self.test_folder}" --force "{invalid_script_local}"',
+            [f'ls "{invalid_script_path}"'],
+            max_retries=3
+        )
+        self.assertTrue(success, f"invalid_script.py上传失败: {result.stderr if result else 'Unknown error'}")
+        
+        json_file_local = self.TEST_DATA_DIR / "valid_config.json"
+        json_file_path = self._get_test_file_path("valid_config.json")
+        success, result = self._run_upload(
+            f'upload --target-dir "{self.test_folder}" --force "{json_file_local}"',
+            [f'ls "{json_file_path}"'],
+            max_retries=3
+        )
+        self.assertTrue(success, f"valid_config.json上传失败: {result.stderr if result else 'Unknown error'}")
+        
+        # 1. 测试语法正确的文件
+        print(f"测试语法正确的Python文件")
+        result = self._run_gds_command(f'linter "{valid_script_path}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 2. 测试有样式错误的文件
+        print(f"测试有样式错误的Python文件")
+        result = self._run_gds_command(f'linter "{invalid_script_path}"', expect_success=False, check_function_result=False)
+        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
+        output = stdout.lower()
+        
+        # 定义期望的Python linting错误类型
+        expected_python_issues = [
+            'syntaxerror', 'invalid syntax', 'unexpected eof', 'unexpected indent',
+            'indentationerror', 'expected an indented block', 'unindent does not match',
+            'f401',  # unused import
+            'e225',  # missing whitespace around operator
+            'e302',  # expected 2 blank lines
+            'w292',  # no newline at end of file
+            'e501',  # line too long
+            'undefined name', 'imported but unused', 'redefined'
+        ]
+        
+        detected_issues = [issue for issue in expected_python_issues if issue in stdout]
+        
+        if detected_issues:
+            print(f"检测到具体的linting问题: {detected_issues}")
+            self.assertGreater(len(detected_issues), 0, f"应该检测到具体的Python linting问题")
+        else:
+            # 如果没有检测到具体问题，检查是否有通用错误指示
+            generic_indicators = ['error', 'warning', 'fail', 'problem']
+            has_generic_error = any(indicator in output for indicator in generic_indicators)
+            if has_generic_error:
+                print(f"检测到通用错误指示，但缺少具体问题描述")                
+                print(f"输出内容: {stdout[:200]}...")
+            else:
+                self.fail(f"样式错误文件应该报告具体问题，但输出为: {stdout[:200]}...")
+        
+        # 3. 测试指定语言的linter
+        print(f"测试指定Python语言的linter")
+        valid_script_path = self._get_test_file_path("valid_script.py")
+        result = self._run_gds_command(f'linter --language python "{valid_script_path}"')
+        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
+        self.assertEqual(returncode, 0)
+        
+        # 4. 测试JSON文件linter
+        print(f"测试JSON文件linter")
+        valid_config_path = self._get_test_file_path("valid_config.json")
+        result = self._run_gds_command(f'linter "{valid_config_path}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 5. 测试不存在文件的错误处理
+        print(f"测试不存在文件的错误处理")
+        nonexistent_file_path = self._get_test_file_path("nonexistent_file.py")
+        result = self._run_gds_command(f'linter "{nonexistent_file_path}"', expect_success=False, check_function_result=False)
+        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
+        self.assertNotEqual(returncode, 0, "不存在的文件应该返回错误")
+        
+    def test_12_edit_linter(self):
+        # 创建一个有语法错误的Python文件
+        error_content = '''def hello_world(
+print(f"Missing closing parenthesis")
+return True
+
+def calculate_sum(a, b:
+return a + b
+
+if __name__ == "__main__":
+hello_world()
+result = calculate_sum(5, 3)
+print(f"Sum: {result}")
+'''
+        
+        # 使用echo创建有错误的文件
+        syntax_error_test_path = self._get_test_file_path("syntax_error_test.py")   
+        escaped_content = error_content.replace('"', '\\"').replace('\n', '\\n')
+        success, result = self._run_gds_command_with_retry(
+            f'echo -e "{escaped_content}" > "{syntax_error_test_path}"',
+            [f'ls "{syntax_error_test_path}"'],
+            max_retries=3
+        )
+        self.assertTrue(success, f"创建语法错误文件失败: {result.stderr if result else 'Unknown error'}")
+        
+        # 尝试编辑文件，这应该触发linter并显示错误
+        print(f"执行edit命令，应该触发linter检查...")
+        result = self._run_gds_command(f'edit "{syntax_error_test_path}" \'[["Missing closing parenthesis", "Fixed syntax error"]]\'')
+        
+        # 检查edit命令的输出格式
+        print(f"检查edit命令输出格式...")
+        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
+        output = stdout
+        
+        # 改进的linter错误检测：关注错误内容而不是UI格式
+        print(f"检查linter错误内容...")
+        
+        # 定义各种错误类型的检测模式
+        error_patterns = {
+            'syntax_error': ['SyntaxError', 'invalid syntax', 'unexpected EOF', 'unexpected indent'],
+            'indentation_error': ['IndentationError', 'expected an indented block', 'unindent does not match'],
+            'name_error': ['NameError', 'name .* is not defined'],
+            'import_error': ['ImportError', 'ModuleNotFoundError', 'No module named'],
+            'type_error': ['TypeError', 'unsupported operand type', 'takes .* positional arguments'],
+            'attribute_error': ['AttributeError', 'has no attribute'],
+            'value_error': ['ValueError', 'invalid literal'],
+            'linter_style': ['F401', 'E225', 'E302', 'W292', 'E501']  # flake8/pycodestyle codes
+        }
+        
+        # 检测是否有任何linter输出
+        has_linter_output = False
+        detected_errors = {}
+        
+        for error_type, patterns in error_patterns.items():
+            for pattern in patterns:
+                if pattern in output:
+                    has_linter_output = True
+                    if error_type not in detected_errors:
+                        detected_errors[error_type] = []
+                    detected_errors[error_type].append(pattern)
+        
+        if has_linter_output:
+            print(f"检测到linter错误输出，发现的错误类型:")
+            for error_type, patterns in detected_errors.items():
+                print(f"  - {error_type}: {patterns}")
+            
+            # 验证语法错误文件应该检测到语法相关问题
+            syntax_related = any(error_type in ['syntax_error', 'indentation_error'] 
+                               for error_type in detected_errors.keys())
+            self.assertTrue(syntax_related, f"语法错误文件应该检测到语法相关问题，但只发现: {list(detected_errors.keys())}")
+            
+            # 检查错误信息的完整性：应该包含文件名和行号信息
+            has_file_info = any(syntax_error_test_path in line for line in output.split('\n'))
+            if has_file_info:
+                print(f"错误信息包含文件路径信息")
+            
+            # 检查是否有行号信息
+            import re
+            line_number_pattern = r'line \d+|:\d+:'
+            has_line_numbers = bool(re.search(line_number_pattern, output))
+            if has_line_numbers:
+                print(f"错误信息包含行号信息")
+                
+            else:
+                print(f"未检测到linter错误输出")
+        
+        print(f"Edit与Linter集成测试完成")
+    
+    def test_13_read(self):
         # 创建独特的测试文件
         test_read_file = self.TEST_TEMP_DIR / "test_read_simple_hello.py"
         original_file = self.TEST_DATA_DIR / "simple_hello.py"
@@ -1789,8 +1965,11 @@ Line 5: No match here'''
         
         result = self._run_gds_command('cat "' + '~/tmp/' + self.test_folder + '/special_chars.txt"')
         self.assertEqual(result.returncode, 0, "特殊字符文件应该能正常读取")
+
+    def test_14_touch_mkdir_mv_rm_TODO(self):
+        pass
     
-    def test_11_project_development(self):
+    def test_15_project_development(self):
         print(f"阶段1: 项目初始化")
         
         # 创建项目目录
@@ -1958,7 +2137,7 @@ if __name__ == "__main__":
         
         print(f"真实项目开发工作流程测试完成！")
     
-    def test_12_project_deployment(self):
+    def test_16_project_deployment(self):
         
         # 1. 上传项目文件夹
         project_dir = self.TEST_DATA_DIR / "test_project"
@@ -1991,7 +2170,7 @@ if __name__ == "__main__":
         result = self._run_gds_command('cd "~/tmp/' + self.test_folder + '"')
         self.assertEqual(result.returncode, 0)
     
-    def test_13_python(self):
+    def test_17_python(self):
         print(f"阶段1: 创建测试项目")
         
         # 创建项目目录
@@ -2059,8 +2238,7 @@ if __name__ == "__main__":
         result = self._run_gds_command('"cd "' + test_project_path + '" && python "' + test_project_path + '/main.py"')
         self.assertEqual(result.returncode, 0)
     
-    
-    def test_14_venv(self):
+    def test_18_pip_venv(self):
         import time
         venv_name = f"test_env_{int(time.time())}"
         print(f"虚拟环境名称: {venv_name}")
@@ -2167,220 +2345,7 @@ if __name__ == "__main__":
         result = self._run_gds_command(f'venv --activate {empty_venv_name}', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0)  # 应该失败
     
-    def test_15_linter_TODO_STRICTLY_RETURN_EACH_ERROR_TYPE(self):
-        # 强制上传测试文件（确保文件存在）
-        print(f"上传测试文件...")
-        valid_script_local = self.TEST_DATA_DIR / "valid_script.py"
-        valid_script_path = self._get_test_file_path("valid_script.py")
-        success, result = self._run_upload(
-            f'upload --target-dir "{self.test_folder}" --force "{valid_script_local}"',
-            [f'ls "{valid_script_path}"'],
-            max_retries=3
-        )
-        self.assertTrue(success, f"valid_script.py上传失败: {result.stderr if result else 'Unknown error'}")
-        
-        invalid_script_local = self.TEST_DATA_DIR / "invalid_script.py"
-        invalid_script_path = self._get_test_file_path("invalid_script.py")
-        success, result = self._run_upload(
-            f'upload --target-dir "{self.test_folder}" --force "{invalid_script_local}"',
-            [f'ls "{invalid_script_path}"'],
-            max_retries=3
-        )
-        self.assertTrue(success, f"invalid_script.py上传失败: {result.stderr if result else 'Unknown error'}")
-        
-        json_file_local = self.TEST_DATA_DIR / "valid_config.json"
-        json_file_path = self._get_test_file_path("valid_config.json")
-        success, result = self._run_upload(
-            f'upload --target-dir "{self.test_folder}" --force "{json_file_local}"',
-            [f'ls "{json_file_path}"'],
-            max_retries=3
-        )
-        self.assertTrue(success, f"valid_config.json上传失败: {result.stderr if result else 'Unknown error'}")
-        
-        # 1. 测试语法正确的文件
-        print(f"测试语法正确的Python文件")
-        result = self._run_gds_command(f'linter "{valid_script_path}"')
-        self.assertEqual(result.returncode, 0)
-        
-        # 2. 测试有样式错误的文件
-        print(f"测试有样式错误的Python文件")
-        result = self._run_gds_command(f'linter "{invalid_script_path}"', expect_success=False, check_function_result=False)
-        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
-        output = stdout.lower()
-        
-        # 定义期望的Python linting错误类型
-        expected_python_issues = [
-            'syntaxerror', 'invalid syntax', 'unexpected eof', 'unexpected indent',
-            'indentationerror', 'expected an indented block', 'unindent does not match',
-            'f401',  # unused import
-            'e225',  # missing whitespace around operator
-            'e302',  # expected 2 blank lines
-            'w292',  # no newline at end of file
-            'e501',  # line too long
-            'undefined name', 'imported but unused', 'redefined'
-        ]
-        
-        detected_issues = [issue for issue in expected_python_issues if issue in stdout]
-        
-        if detected_issues:
-            print(f"检测到具体的linting问题: {detected_issues}")
-            self.assertGreater(len(detected_issues), 0, f"应该检测到具体的Python linting问题")
-        else:
-            # 如果没有检测到具体问题，检查是否有通用错误指示
-            generic_indicators = ['error', 'warning', 'fail', 'problem']
-            has_generic_error = any(indicator in output for indicator in generic_indicators)
-            if has_generic_error:
-                print(f"检测到通用错误指示，但缺少具体问题描述")                
-                print(f"输出内容: {stdout[:200]}...")
-            else:
-                self.fail(f"样式错误文件应该报告具体问题，但输出为: {stdout[:200]}...")
-        
-        # 3. 测试指定语言的linter
-        print(f"测试指定Python语言的linter")
-        valid_script_path = self._get_test_file_path("valid_script.py")
-        result = self._run_gds_command(f'linter --language python "{valid_script_path}"')
-        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
-        self.assertEqual(returncode, 0)
-        
-        # 4. 测试JSON文件linter
-        print(f"测试JSON文件linter")
-        valid_config_path = self._get_test_file_path("valid_config.json")
-        result = self._run_gds_command(f'linter "{valid_config_path}"')
-        self.assertEqual(result.returncode, 0)
-        
-        # 5. 测试不存在文件的错误处理
-        print(f"测试不存在文件的错误处理")
-        nonexistent_file_path = self._get_test_file_path("nonexistent_file.py")
-        result = self._run_gds_command(f'linter "{nonexistent_file_path}"', expect_success=False, check_function_result=False)
-        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
-        self.assertNotEqual(returncode, 0, "不存在的文件应该返回错误")
-        
-    def test_16_edit_linter_TODO_REMOVE_LINTER_STRUCTURE_CHECK_AND_STRICTLY_RETURN_EACH_ERROR_TYPE(self):
-        # 创建一个有语法错误的Python文件
-        error_content = '''def hello_world(
-print(f"Missing closing parenthesis")
-return True
-
-def calculate_sum(a, b:
-return a + b
-
-if __name__ == "__main__":
-hello_world()
-result = calculate_sum(5, 3)
-print(f"Sum: {result}")
-'''
-        
-        # 使用echo创建有错误的文件
-        syntax_error_test_path = self._get_test_file_path("syntax_error_test.py")   
-        escaped_content = error_content.replace('"', '\\"').replace('\n', '\\n')
-        success, result = self._run_gds_command_with_retry(
-            f'echo -e "{escaped_content}" > "{syntax_error_test_path}"',
-            [f'ls "{syntax_error_test_path}"'],
-            max_retries=3
-        )
-        self.assertTrue(success, f"创建语法错误文件失败: {result.stderr if result else 'Unknown error'}")
-        
-        # 尝试编辑文件，这应该触发linter并显示错误
-        print(f"执行edit命令，应该触发linter检查...")
-        result = self._run_gds_command(f'edit "{syntax_error_test_path}" \'[["Missing closing parenthesis", "Fixed syntax error"]]\'')
-        
-        # 检查edit命令的输出格式
-        print(f"检查edit命令输出格式...")
-        stdout, stderr, returncode = result.stdout, result.stderr, result.returncode
-        output = stdout
-        
-        # 改进的linter错误检测：关注错误内容而不是UI格式
-        print(f"检查linter错误内容...")
-        
-        # 定义各种错误类型的检测模式
-        error_patterns = {
-            'syntax_error': ['SyntaxError', 'invalid syntax', 'unexpected EOF', 'unexpected indent'],
-            'indentation_error': ['IndentationError', 'expected an indented block', 'unindent does not match'],
-            'name_error': ['NameError', 'name .* is not defined'],
-            'import_error': ['ImportError', 'ModuleNotFoundError', 'No module named'],
-            'type_error': ['TypeError', 'unsupported operand type', 'takes .* positional arguments'],
-            'attribute_error': ['AttributeError', 'has no attribute'],
-            'value_error': ['ValueError', 'invalid literal'],
-            'linter_style': ['F401', 'E225', 'E302', 'W292', 'E501']  # flake8/pycodestyle codes
-        }
-        
-        # 检测是否有任何linter输出
-        has_linter_output = False
-        detected_errors = {}
-        
-        for error_type, patterns in error_patterns.items():
-            for pattern in patterns:
-                if pattern in output:
-                    has_linter_output = True
-                    if error_type not in detected_errors:
-                        detected_errors[error_type] = []
-                    detected_errors[error_type].append(pattern)
-        
-        if has_linter_output:
-            print(f"检测到linter错误输出，发现的错误类型:")
-            for error_type, patterns in detected_errors.items():
-                print(f"  - {error_type}: {patterns}")
-            
-            # 验证语法错误文件应该检测到语法相关问题
-            syntax_related = any(error_type in ['syntax_error', 'indentation_error'] 
-                               for error_type in detected_errors.keys())
-            self.assertTrue(syntax_related, f"语法错误文件应该检测到语法相关问题，但只发现: {list(detected_errors.keys())}")
-            
-            # 检查错误信息的完整性：应该包含文件名和行号信息
-            has_file_info = any(syntax_error_test_path in line for line in output.split('\n'))
-            if has_file_info:
-                print(f"错误信息包含文件路径信息")
-            
-            # 检查是否有行号信息
-            import re
-            line_number_pattern = r'line \d+|:\d+:'
-            has_line_numbers = bool(re.search(line_number_pattern, output))
-            if has_line_numbers:
-                print(f"错误信息包含行号信息")
-                
-            else:
-                print(f"未检测到linter错误输出")
-        
-        print(f"Edit与Linter集成测试完成")
-    
-    def test_17_pipe(self):
-        # 测试简单的pipe命令
-        result = self._run_gds_command('echo "hello world" | grep hello')
-        self.assertEqual(result.returncode, 0)
-        
-        # 创建测试文件
-        pipe_test_path = self._get_test_file_path("pipe_test.txt")
-        result = self._run_gds_command(f'echo "test content" > "{pipe_test_path}"')
-        self.assertEqual(result.returncode, 0)
-        
-        # 验证文件是否被创建（调试）
-        result = self._run_gds_command(f'ls -la "{pipe_test_path}"')
-        print(f"创建文件后目录内容: {result.stdout[:300]}")
-        
-        # 直接验证文件存在
-        self.assertTrue(self._verify_file_exists(pipe_test_path), "pipe_test.txt should exist after creation")
-        
-        # 测试 ls | grep 组合
-        result = self._run_gds_command(f'ls | grep "{pipe_test_path}"')
-        self.assertEqual(result.returncode, 0)
-        
-        # 清理测试文件
-        self._run_gds_command(f'rm "{pipe_test_path}"')
-        
-        # 测试多个pipe操作符的组合
-        result = self._run_gds_command('echo -e "apple\\nbanana\\napple\\ncherry" | sort | uniq')
-        self.assertEqual(result.returncode, 0)
-        
-        # 测试head命令
-        result = self._run_gds_command('echo -e "line1\\nline2\\nline3\\nline4\\nline5" | head -n 3')
-        self.assertEqual(result.returncode, 0)
-        
-        # 测试tail命令
-        result = self._run_gds_command('echo -e "line1\\nline2\\nline3\\nline4\\nline5" | tail -n 2')
-        self.assertEqual(result.returncode, 0)
-
-    
-    def test_18_pip_deps_analysis_TODO_UNEXIST_PACKAGE_SHOULD_NOT_RETURN_0(self):
+    def test_19_pip_deps_analysis_TODO_UNEXIST_PACKAGE_SHOULD_NOT_RETURN_0(self):
         # 测试简单包的依赖分析（depth=1）
         print(f"测试简单包依赖分析（depth=1）")
         result = self._run_gds_command('pip --show-deps requests --depth=1')
@@ -2466,7 +2431,43 @@ print(f"Sum: {result}")
         self.assertRegex(output, r'Level \d+:', "应该包含层级汇总")
         print(f"依赖分析功能测试完成")
 
-    def test_19_shell_mode(self):
+    def test_20_pipe(self):
+        # 测试简单的pipe命令
+        result = self._run_gds_command('echo "hello world" | grep hello')
+        self.assertEqual(result.returncode, 0)
+        
+        # 创建测试文件
+        pipe_test_path = self._get_test_file_path("pipe_test.txt")
+        result = self._run_gds_command(f'echo "test content" > "{pipe_test_path}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证文件是否被创建（调试）
+        result = self._run_gds_command(f'ls -la "{pipe_test_path}"')
+        print(f"创建文件后目录内容: {result.stdout[:300]}")
+        
+        # 直接验证文件存在
+        self.assertTrue(self._verify_file_exists(pipe_test_path), "pipe_test.txt should exist after creation")
+        
+        # 测试 ls | grep 组合
+        result = self._run_gds_command(f'ls | grep "{pipe_test_path}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 清理测试文件
+        self._run_gds_command(f'rm "{pipe_test_path}"')
+        
+        # 测试多个pipe操作符的组合
+        result = self._run_gds_command('echo -e "apple\\nbanana\\napple\\ncherry" | sort | uniq')
+        self.assertEqual(result.returncode, 0)
+        
+        # 测试head命令
+        result = self._run_gds_command('echo -e "line1\\nline2\\nline3\\nline4\\nline5" | head -n 3')
+        self.assertEqual(result.returncode, 0)
+        
+        # 测试tail命令
+        result = self._run_gds_command('echo -e "line1\\nline2\\nline3\\nline4\\nline5" | tail -n 2')
+        self.assertEqual(result.returncode, 0)
+
+    def test_21_shell_mode(self):
         """测试Shell模式下的连续操作 - 分步骤调试版本"""
         print(f"测试Shell模式连续操作 - 分步骤调试")
         
@@ -2565,7 +2566,7 @@ print(f"Sum: {result}")
         self.assertEqual(returncode, 0, "清理操作应该成功")
         print(f"Shell模式连续操作分步骤测试完成 - 所有步骤都成功")
 
-    def test_20_shell_mode_consistency_TODO_CHECK_CONTENT_SAME_WITH_INDICATOR_MOVE_IN_AND_OUT_OF_SHELL(self):
+    def test_22_shell_mode_consistency_TODO_CHECK_CONTENT_SAME_IN_AND_OUT_OF_SHELL(self):
         """测试Shell模式与直接命令执行的输出一致性"""
         print(f"测试Shell模式与直接命令一致性")
         
@@ -2609,7 +2610,7 @@ print(f"Sum: {result}")
         
         print(f"Shell模式与直接命令一致性测试完成")
 
-    def test_21_shell_switching_and_state(self):
+    def test_23_shell_switching_and_state_TODO_merge_with_test_21(self):
         """测试Shell切换和状态管理"""
         print(f"测试Shell切换和状态管理")
         
@@ -2707,6 +2708,25 @@ print(f"Sum: {result}")
             self.assertIn("Exit Google Drive Shell", output, "Shell应该正常退出")
         
         print(f"Shell模式错误处理测试完成")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def test_22_gds_background_TODO_can_capture_running_status_partial_output(self):
         """测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询"""

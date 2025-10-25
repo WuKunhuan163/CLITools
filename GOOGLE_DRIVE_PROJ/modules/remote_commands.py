@@ -1394,7 +1394,7 @@ fi
         
         # 检查是否为特殊命令，如果是则不应该到这里
         if cmd in self.SPECIAL_COMMANDS:
-            print(f"DEBUG: WARNING - Special command '{cmd}' reached execute_command_interface!")
+            # print(f"DEBUG: WARNING - Special command '{cmd}' reached execute_command_interface!")
             return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
         # 移除emoji字符避免远程shell编码问题（暂时禁用，测试base64方案）
         # cleaned_args = self._remove_emoji_from_args(args)
@@ -1435,8 +1435,8 @@ fi
             try:
                 # 写入到GOOGLE_DRIVE_DATA文件夹中的调试文件
                 from pathlib import Path
-                current_dir = Path(__file__).parent.parent.parent
-                debug_file = current_dir / "GOOGLE_DRIVE_DATA" / "remote_commands_debug.log"
+                bin_dir = Path(__file__).parent.parent.parent
+                debug_file = bin_dir / "GOOGLE_DRIVE_DATA" / "remote_commands_debug.log"
                 debug_file.parent.mkdir(exist_ok=True)
                 
                 with open(debug_file, 'a', encoding='utf-8') as f:

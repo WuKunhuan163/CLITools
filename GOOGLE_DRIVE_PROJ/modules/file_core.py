@@ -923,7 +923,7 @@ class FileCore:
             if not ls_result.get('success'):
                 # 添加调试信息，显示路径计算过程
                 debug_info = f"Path resolution: '{path}' -> '{absolute_path}'"
-                print(f"DEBUG: cd command failed - {debug_info}")
+                # print(f"DEBUG: cd command failed - {debug_info}")
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
             
             # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
@@ -931,7 +931,7 @@ class FileCore:
             target_id, target_path = self.main_instance.resolve_path(absolute_path, current_shell)
             
             if not target_id:
-                print(f"DEBUG: resolve_path failed for absolute_path: {absolute_path}")
+                # print(f"DEBUG: resolve_path failed for absolute_path: {absolute_path}")
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved path failed)"}
             
             # 更新shell状态
@@ -1179,6 +1179,22 @@ class FileCore:
             absolute_path = self.main_instance.resolve_remote_absolute_path(path, current_shell)
             if not absolute_path:
                 return {"success": False, "error": f"Cannot resolve path: {path}"}
+            
+            # 安全检查：如果是rm -rf，检查是否要删除当前目录或其上级目录
+            if recursive and force:
+                current_working_dir = current_shell.get("current_path", "")
+                if current_working_dir:
+                    current_absolute = self.main_instance.resolve_remote_absolute_path(".", current_shell)
+                    target_absolute = absolute_path
+                    
+                    # 规范化目标路径，解析 ../
+                    import os
+                    target_absolute_normalized = os.path.normpath(target_absolute)
+                    
+                    if current_absolute and target_absolute_normalized:
+                        # 检测X是否包含Y作为开头的子串
+                        if current_absolute.startswith(target_absolute_normalized):
+                            return {"success": False, "error": f"Cannot delete directory containing current working directory: {path}"}
             
             # 构建rm命令
             rm_flags = ""

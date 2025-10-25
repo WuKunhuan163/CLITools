@@ -41,6 +41,7 @@ try:
     from .modules.commands.cd_command import CdCommand
     from .modules.commands.cat_command import CatCommand
     from .modules.commands.mkdir_command import MkdirCommand
+    from .modules.commands.rm_command import RmCommand
     from .modules.commands.edit_command import EditCommand
     from .modules.commands.read_command import ReadCommand
     from .modules.commands.pwd_command import PwdCommand
@@ -72,6 +73,7 @@ except ImportError:
     from GOOGLE_DRIVE_PROJ.modules.commands.cd_command import CdCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
@@ -235,6 +237,7 @@ class GoogleDriveShell:
         self.command_registry.register(CdCommand(self))
         self.command_registry.register(CatCommand(self))
         self.command_registry.register(MkdirCommand(self))
+        self.command_registry.register(RmCommand(self))
         self.command_registry.register(EditCommand(self))
         self.command_registry.register(ReadCommand(self))
         self.command_registry.register(PwdCommand(self))
@@ -1127,8 +1130,6 @@ class GoogleDriveShell:
     def execute_shell_command(self, shell_cmd, command_identifier=None):
         """执行shell命令 - 使用WindowManager的新架构入口点"""
         
-        # print(f"🔍 EXECUTE_SHELL DEBUG: execute_shell_command called with: '{shell_cmd}'")
-        # print(f"🔍 EXECUTE_SHELL DEBUG: command_identifier: {command_identifier}")
         
         # 保存原始用户命令，用于后续的文件验证分析
         self._original_user_command = shell_cmd.strip()
@@ -1359,7 +1360,6 @@ For more information, visit: https://github.com/your-repo/gds"""
                               'upload', 'upload-folder', 'download', 'mv', 'find', 'rm']
             # print(f"DEBUG: Checking legacy special commands - first_word='{first_word}', in_special={first_word in special_commands}")
             if first_word in special_commands:
-                # print(f"DEBUG: Processing special command '{first_word}' with local API")
                 
                 # 解析命令和参数
                 import shlex
@@ -1374,6 +1374,9 @@ For more information, visit: https://github.com/your-repo/gds"""
                 except Exception as e:
                     print(f"Error: Command parsing failed: {e}")
                     return 1
+                
+                # 使用命令注册系统执行特殊命令
+                return self.command_registry.execute_command(cmd, args, command_identifier=command_identifier)
              
             # 如果不是特殊命令，使用统一的命令解析和转译接口
             if is_quoted_command:
