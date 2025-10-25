@@ -622,12 +622,10 @@ Shell commands: ls -la && echo "done"
             )
             
             # Debug: 保存原始输出到文件
-            import datetime
             import os
-            debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/gds_raw_output"
+            debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
             os.makedirs(debug_dir, exist_ok=True)
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            debug_file = os.path.join(debug_dir, f"gds_raw_output_{timestamp}.txt")
+            debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
             
             try:
                 with open(debug_file, 'w', encoding='utf-8') as f:
@@ -1003,7 +1001,8 @@ Shell commands: ls -la && echo "done"
 
         # 16. 清理测试目录
         print(f"清理测试目录")
-        result = self._run_gds_command(f'rm -rf "{test_path}"')
+        # 先切换到安全目录，避免删除包含当前工作目录的目录
+        result = self._run_gds_command(f'cd ~ && rm -rf "{test_path}"')
         self.assertEqual(result.returncode, 0)
         
         # 17. 测试不存在的路径
@@ -1967,7 +1966,112 @@ print(f"Sum: {result}")
         self.assertEqual(result.returncode, 0, "特殊字符文件应该能正常读取")
 
     def test_14_touch_mkdir_mv_rm_TODO(self):
-        pass
+        """测试文件和目录的创建、移动、删除操作，包括安全检查"""
+        print("测试文件和目录的创建、移动、删除操作")
+        
+        # 1. 创建测试目录结构
+        print("1. 创建测试目录结构")
+        test_base = self._get_test_file_path("file_ops_test")
+        
+        # 创建基础目录
+        result = self._run_gds_command(f'mkdir -p "{test_base}/parent/child"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 2. 测试touch创建文件
+        print("2. 测试touch创建文件")
+        test_file1 = f"{test_base}/test_file1.txt"
+        test_file2 = f"{test_base}/parent/test_file2.txt"
+        
+        result = self._run_gds_command(f'touch "{test_file1}"')
+        self.assertEqual(result.returncode, 0)
+        
+        result = self._run_gds_command(f'touch "{test_file2}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证文件创建成功
+        result = self._run_gds_command(f'ls "{test_base}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("test_file1.txt", result.stdout)
+        
+        result = self._run_gds_command(f'ls "{test_base}/parent"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("test_file2.txt", result.stdout)
+        
+        # 3. 测试mkdir创建更多目录
+        print("3. 测试mkdir创建更多目录")
+        result = self._run_gds_command(f'mkdir "{test_base}/new_dir1" "{test_base}/new_dir2"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证目录创建
+        result = self._run_gds_command(f'ls "{test_base}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("new_dir1", result.stdout)
+        self.assertIn("new_dir2", result.stdout)
+        
+        # 4. 测试mv移动文件
+        print("4. 测试mv移动文件")
+        # 移动文件到新目录
+        result = self._run_gds_command(f'mv "{test_file1}" "{test_base}/new_dir1/"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证文件移动
+        result = self._run_gds_command(f'ls "{test_base}/new_dir1"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("test_file1.txt", result.stdout)
+        
+        # 原位置应该没有文件
+        result = self._run_gds_command(f'ls "{test_base}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("test_file1.txt", result.stdout)
+        
+        # 5. 测试rm删除文件
+        print("5. 测试rm删除文件")
+        result = self._run_gds_command(f'rm "{test_file2}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证文件删除
+        result = self._run_gds_command(f'ls "{test_base}/parent"')
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("test_file2.txt", result.stdout)
+        
+        # 6. 测试rm -rf删除目录
+        print("6. 测试rm -rf删除目录")
+        result = self._run_gds_command(f'rm -rf "{test_base}/new_dir2"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证目录删除
+        result = self._run_gds_command(f'ls "{test_base}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("new_dir2", result.stdout)
+        
+        # 7. 测试安全检查：尝试删除包含当前目录的父目录
+        print("7. 测试安全检查：尝试删除包含当前目录的父目录")
+        
+        # 先进入子目录
+        result = self._run_gds_command(f'cd "{test_base}/parent/child"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 尝试删除父目录，应该被安全检查阻止
+        result = self._run_gds_command(f'rm -rf "{test_base}"', expect_success=False, check_function_result=False)
+        self.assertNotEqual(result.returncode, 0, "删除包含当前目录的父目录应该被阻止")
+        self.assertIn("Cannot delete directory containing current working directory", result.stdout)
+        
+        # 8. 测试安全检查：尝试删除当前目录的直接父目录
+        print("8. 测试安全检查：尝试删除当前目录的直接父目录")
+        result = self._run_gds_command(f'rm -rf ..', expect_success=False, check_function_result=False)
+        self.assertNotEqual(result.returncode, 0, "删除当前目录的父目录应该被阻止")
+        self.assertIn("Cannot delete directory containing current working directory", result.stdout)
+        
+        # 9. 清理测试：先切换到安全目录再删除
+        print("9. 清理测试：先切换到安全目录再删除")
+        result = self._run_gds_command(f'cd ~ && rm -rf "{test_base}"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证清理成功
+        result = self._run_gds_command(f'ls "{test_base}"', expect_success=False, check_function_result=False)
+        self.assertNotEqual(result.returncode, 0, "测试目录应该已被删除")
+        
+        print("文件和目录操作测试完成，包括安全检查验证")
     
     def test_15_project_development(self):
         print(f"阶段1: 项目初始化")
