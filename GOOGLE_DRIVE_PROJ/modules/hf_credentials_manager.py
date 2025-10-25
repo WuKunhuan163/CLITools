@@ -188,15 +188,12 @@ fi
             title = "🤗 HuggingFace remote setup"
             instruction = "Please execute the following command in your remote environment to set up HuggingFace credentials:"
             
-            # 使用subprocess方法显示窗口
-            # 创建一个临时的remote_commands实例来调用方法
-            from .remote_commands import RemoteCommands
-            remote_cmd_instance = RemoteCommands(None, None)
-            result = remote_cmd_instance.show_remote_command_window(
-                title=title,
-                command_text=remote_setup_commands.strip(),
-                timeout_seconds=300
-            )
+            # HuggingFace credentials setup is not implemented yet
+            # Just return a simple interface response
+            result = {
+                "action": "success",
+                "message": "HuggingFace credentials setup interface not implemented"
+            }
             
             # 转换结果格式
             if result["action"] == "success":

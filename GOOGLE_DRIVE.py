@@ -213,7 +213,7 @@ class GoogleDriveMain:
         """委托到shell_commands管理器"""
         return self.shell_commands.handle_shell_command(*args, **kwargs)
     
-    # 委托方法 - HF Credentials Manager
+    # 委托方法HF Credentials Manager
     def setup_remote_hf_credentials(self, *args, **kwargs):
         """委托到hf_credentials_manager管理器"""
         return self.hf_credentials_manager.setup_remote_hf_credentials(*args, **kwargs)

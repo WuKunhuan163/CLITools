@@ -1314,7 +1314,7 @@ For more information, visit: https://github.com/your-repo/gds"""
                     sys.path.append(modules_dir)
                 
                 from shell_commands import handle_multiple_commands
-                return handle_multiple_commands(shell_cmd_clean, command_identifier)
+                return handle_multiple_commands(shell_cmd_clean, command_identifier, shell_instance=self)
             
             # 然后检查是否为特殊命令（导航命令等）
             first_word = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""

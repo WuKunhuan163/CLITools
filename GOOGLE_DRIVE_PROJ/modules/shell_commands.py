@@ -969,7 +969,7 @@ def handle_single_command(shell_cmd, command_identifier=None):
             print(f"{error_msg}")
         return 1
 
-def handle_multiple_commands(shell_cmd, command_identifier=None):
+def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=None):
     """处理多个用&&、||或|连接的shell命令"""
     try:
         # 首先检查是否包含pipe操作符（带空格或不带空格）
@@ -1007,20 +1007,23 @@ def handle_multiple_commands(shell_cmd, command_identifier=None):
             commands_with_operators.append((shell_cmd.strip(), None))
         
         # 获取GoogleDriveShell实例来执行命令
-        try:
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-            from google_drive_shell import GoogleDriveShell
-            
-            shell = GoogleDriveShell()
-        except Exception as e:
-            error_msg = f"Failed to get GoogleDriveShell instance: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
-            return 1
+        if shell_instance:
+            shell = shell_instance
+        else:
+            try:
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+                from google_drive_shell import GoogleDriveShell
+                
+                shell = GoogleDriveShell()
+            except Exception as e:
+                error_msg = f"Failed to get GoogleDriveShell instance: {e}"
+                if is_run_environment(command_identifier):
+                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
+                else:
+                    print(error_msg)
+                return 1
         
         # 执行命令
         results = []
