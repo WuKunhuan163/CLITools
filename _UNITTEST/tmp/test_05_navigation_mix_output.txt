@@ -6,68 +6,90 @@ FAIL
 FAIL: test_05_navigation_mix (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 593, in _run_gds_command
-    self.assertEqual(returncode, 0, f"命令执行失败: {command}")
-  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
-    assertion_func(first, second, msg=msg)
-AssertionError: 1 != 0 : 命令执行失败: cd ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../..
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1273, in test_05_navigation_mix
-    result = self._run_gds_command(f'cd {test_path}/level1/level2/../..')
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 599, in _run_gds_command
-    self.fail(f"命令执行异常: {command} - {e}")
-AssertionError: 命令执行异常: cd ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../.. - 1 != 0 : 命令执行失败: cd ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../..
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1304, in test_05_navigation_mix
+    result = self._run_gds_command(f'cd "{test_path}/level1/level2"')
+AssertionError: 0 == 0
 
 ----------------------------------------------------------------------
-Ran 1 test in 428.202s
+Ran 1 test in 800.020s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251025_131133_784194_16982a7e
-正在创建远端测试目录: ~/tmp/gds_test_20251025_131133_784194_16982a7e
+远端测试目录: ~/tmp/gds_test_20251025_141212_158370_0669afad
+正在创建远端测试目录: ~/tmp/gds_test_20251025_141212_158370_0669afad
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251025_131133_784194_16982a7e
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local__e18po75
+已切换到远端测试目录: ~/tmp/gds_test_20251025_141212_158370_0669afad
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_un8ppdvn
 测试环境设置完成
 命令转译成功: pwd -> pwd
 返回码: 0
-输出: ~/tmp/gds_test_20251025_131133_784194_16982a7e
+输出: ~/tmp/gds_test_20251025_141212_158370_0669afad
 ...
 命令转译成功: ls -> ls
 返回码: 0
-命令转译成功: mkdir "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir" -> mkdir "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir"
+命令转译成功: mkdir "~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir" -> mkdir "~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir"
 返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir" -> ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir"
+输出: ⏳ Waiting for result .....
+⏳ Validating directory creation ...
+...
+命令转译成功: ls "~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir" -> ls "~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir"
 返回码: 0
 测试多目录创建
-命令转译成功: mkdir -p "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir1" "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir2" "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir3" -> mkdir -p "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir1" "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir2" "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir3"
+命令转译成功: mkdir -p "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir1" "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir2" "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir3" -> mkdir -p "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir1" "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir2" "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir3"
 返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir1" -> ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir1"
+输出: ⏳ Waiting for result ........
+⏳ Validating directory creation ...
+⏳ Waiting for result .......
+⏳ Validating directory creation ...
+⏳ Waiting for result .......
+⏳ Validating directory creation ...
+...
+命令转译成功: ls "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir1" -> ls "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir1"
 返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir2" -> ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir2"
+命令转译成功: ls "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir2" -> ls "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir2"
 返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir3" -> ls "~/tmp/gds_test_20251025_131133_784194_16982a7e/multi_test/dir3"
+命令转译成功: ls "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir3" -> ls "~/tmp/gds_test_20251025_141212_158370_0669afad/multi_test/dir3"
 返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir" -> cd "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir"
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir"
 返回码: 0
 命令转译成功: pwd -> pwd
 返回码: 0
-输出: ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_dir
+输出: ~/tmp/gds_test_20251025_141212_158370_0669afad/test_dir
 ...
 命令转译成功: cd .. -> cd ..
 返回码: 0
 不同远端路径类型测试
-命令转译成功: mkdir -p "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2" -> mkdir -p "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2"
+命令转译成功: mkdir -p "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2" -> mkdir -p "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2"
 返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1" -> cd "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2" -> cd "~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2"
-返回码: 0
-命令转译成功: cd ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../.. -> cd ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../..
-返回码: 1
-Warning: 错误: cd: ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../..: No such file or directory
+输出: ⏳ Waiting for result .......
+⏳ Validating directory creation ...
 ...
-命令执行异常: 1 != 0 : 命令执行失败: cd ~/tmp/gds_test_20251025_131133_784194_16982a7e/test_path/level1/level2/../..
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1"
+返回码: 0
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2"
+返回码: 0
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2/../.." -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2/../.."
+返回码: 0
+命令转译成功: cd ~ -> cd ~
+返回码: 0
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad"
+返回码: 0
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2"
+返回码: 0
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2/../../.." -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_path/level1/level2/../../.."
+返回码: 0
+Error:  错误路径类型测试
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/nonexistent_directory" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/nonexistent_directory"
+返回码: 1
+Warning: 错误: DEBUG: cd command failed - Path resolution: '~/tmp/gds_test_20251025_141212_158370_0669afad/nonexistent_directory' -> '~/tmp/gds_test_20251025_141212_158370_0669afad/nonexistent_directory'
+cd: ~/tmp/g...
+命令转译成功: echo "test content" > "~/tmp/gds_test_20251025_141212_158370_0669afad/test_file.txt" -> echo "test content" > "~/tmp/gds_test_20251025_141212_158370_0669afad/test_file.txt"
+返回码: 0
+输出: ⏳ Waiting for result .......
+...
+命令转译成功: cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_file.txt" -> cd "~/tmp/gds_test_20251025_141212_158370_0669afad/test_file.txt"
+返回码: 1
+Warning: 错误: DEBUG: resolve_path failed for absolute_path: ~/tmp/gds_test_20251025_141212_158370_0669afad/test_file.txt
+cd: ~/tmp/gds_test_20251025_141212_158370_0669afad/test_file.txt (resolved path failed): No s...
+命令转译成功: cd "" -> cd ""
+返回码: 0

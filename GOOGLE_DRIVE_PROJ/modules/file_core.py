@@ -1201,8 +1201,12 @@ class FileCore:
                 else:
                     remote_command = f'rm "{absolute_path}"'
             
+            # 为了避免删除当前工作目录导致的问题，先切换到安全目录
+            # 构建安全的复合命令：先cd到根目录，然后执行rm
+            safe_command = f'cd "/content/drive/MyDrive/REMOTE_ROOT" && {remote_command}'
+            
             # 执行远程命令
-            result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+            result = self.main_instance.execute_command_interface("bash", ["-c", safe_command])
             
             if result["success"]:
                 # 简化验证逻辑：如果远程命令执行完成，就认为删除成功

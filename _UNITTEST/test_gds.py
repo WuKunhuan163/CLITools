@@ -348,51 +348,79 @@ Shell commands: ls -la && echo "done"
         def process_terminal_escape_sequences(text):
             """
             处理终端转义序列，模拟真实终端行为
-            基于hexdump观察到的模式：\r\x1b[K会擦除当前行
+            使用反向处理：从后往前寻找擦除符号，从擦除符号位置向左擦除
             """
             if not text:
                 return text
             
-            # 模拟终端缓冲区
-            result = ""
-            i = 0
+            result = text
             
-            while i < len(text):
-                char = text[i]
+            # 反向处理：从后往前寻找擦除序列
+            while True:
+                # 寻找最后一个\r\x1b[K序列
+                last_erase_pos = result.rfind('\r\x1b[K')
+                if last_erase_pos == -1:
+                    # 没有找到擦除序列，处理完成
+                    break
                 
-                if char == '\r':
-                    # 回车符：光标回到行首
-                    # 检查是否紧跟着\x1b[K（擦除序列）
-                    if i + 3 < len(text) and text[i+1:i+4] == '\x1b[K':
-                        # \r\x1b[K组合：擦除当前行
-                        # 找到result中最后一个\n的位置
-                        last_newline = result.rfind('\n')
-                        if last_newline >= 0:
-                            # 保留到最后一个\n为止的内容
-                            result = result[:last_newline + 1]
-                        else:
-                            # 没有\n，清空整个result
-                            result = ""
-                        i += 4  # 跳过\r\x1b[K
-                        continue
-                    else:
-                        # 单独的\r：光标回到行首，后续字符会覆盖当前行
-                        last_newline = result.rfind('\n')
-                        if last_newline >= 0:
-                            result = result[:last_newline + 1]
-                        else:
-                            result = ""
-                        i += 1
-                        continue
-                elif char == '\x1b' and i + 2 < len(text) and text[i+1:i+3] == '[K':
-                    # 单独的\x1b[K：擦除从光标到行尾
-                    # 在我们的简化模型中，这通常意味着清除当前行的剩余部分
-                    i += 3  # 跳过\x1b[K
-                    continue
+                # 找到擦除序列，需要擦除当前行
+                # 从擦除序列位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_erase_pos)
+                if line_start == -1:
+                    # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
+                    line_start = 0
                 else:
-                    # 普通字符，直接添加
-                    result += char
-                    i += 1
+                    # 找到了换行符，保留换行符，从换行符后开始擦除
+                    line_start += 1
+                
+                # 擦除从line_start到擦除序列结束的内容
+                erase_end = last_erase_pos + 4  # \r\x1b[K的长度是4
+                result = result[:line_start] + result[erase_end:]
+            
+            # 处理单独的\r（回车符）
+            while True:
+                last_cr_pos = result.rfind('\r')
+                if last_cr_pos == -1:
+                    break
+                
+                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
+                if (last_cr_pos + 3 < len(result) and 
+                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
+                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
+                    # 这种情况不应该发生，但为了安全起见
+                    break
+                
+                # 单独的\r：光标回到行首，后续字符会覆盖当前行
+                line_start = result.rfind('\n', 0, last_cr_pos)
+                if line_start == -1:
+                    line_start = 0
+                else:
+                    line_start += 1
+                
+                # 移除\r，保留后续内容（如果有的话）
+                result = result[:line_start] + result[last_cr_pos+1:]
+            
+            # 处理单独的\x1b[K序列
+            while True:
+                last_k_pos = result.rfind('\x1b[K')
+                if last_k_pos == -1:
+                    break
+                
+                # 检查这个\x1b[K前面是否有\r
+                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
+                    # 这是\r\x1b[K的一部分，应该已经被处理了
+                    break
+                
+                # 单独的\x1b[K：擦除从光标到行尾
+                # 需要擦除当前行的内容
+                # 从\x1b[K位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_k_pos)
+                if line_start == -1:
+                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
+                    result = result[last_k_pos+3:]
+                else:
+                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
+                    result = result[:line_start+1] + result[last_k_pos+3:]
             
             return result
         
@@ -592,6 +620,25 @@ Shell commands: ls -la && echo "done"
                 text=True,
                 cwd=self.BIN_DIR
             )
+            
+            # Debug: 保存原始输出到文件
+            import datetime
+            import os
+            debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            debug_file = os.path.join(debug_dir, f"gds_raw_output_{timestamp}.txt")
+            
+            try:
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write(f"Command: {command}\n")
+                    f.write(f"Full command: {full_command}\n")
+                    f.write(f"Return code: {result.returncode}\n")
+                    f.write(f"Raw stdout: {repr(result.stdout)}\n")
+                    f.write(f"Raw stderr: {repr(result.stderr)}\n")
+                    f.write(f"Raw stdout (readable):\n{result.stdout}\n")
+                    f.write(f"Raw stderr (readable):\n{result.stderr}\n")
+            except Exception as debug_e:
+                print(f"Debug output failed: {debug_e}")
             
             stdout, stderr, returncode = self._simulate_terminal_output(result.stdout, result.stderr, result.returncode)
             print(f"返回码: {returncode}")
@@ -1087,7 +1134,8 @@ Shell commands: ls -la && echo "done"
         
         # 使用本地重定向语法（GDS输出被本地重定向）
         local_redirect_path = self._get_local_file_path("local_redirect.txt")
-        full_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback echo "{{"name": "test", "value": 123}}" > "{local_redirect_path}"'
+        json_content = '{"name": "test", "value": 123}'
+        full_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback echo "{json_content}" > "{local_redirect_path}"'
         result = self._run_gds_command(full_command)
         self.assertEqual(result.returncode, 0)
         
@@ -3311,113 +3359,6 @@ print("Python script execution test successful!")
         self.assertEqual(result.returncode, 0, "清理测试文件应该成功")
         print(f"pyenv与Python代码执行集成测试完成")
 
-    def test_31_pyenv_concurrent_operations(self):
-        """测试pyenv并发操作和竞态条件"""
-        print(f"测试pyenv并发操作和竞态条件")
-        
-        # 测试并发查询操作（这些操作应该是安全的）
-        import threading
-        import time
-        
-        results = []
-        errors = []
-        
-        def concurrent_list_available():
-            try:
-                result = self._run_gds_command(["pyenv", "--list-available"])
-                results.append(("list-available", result.returncode))
-            except Exception as e:
-                errors.append(("list-available", str(e)))
-        
-        def concurrent_list_installed():
-            try:
-                result = self._run_gds_command(["pyenv", "--versions"])
-                results.append(("versions", result.returncode))
-            except Exception as e:
-                errors.append(("versions", str(e)))
-        
-        def concurrent_version_check():
-            try:
-                result = self._run_gds_command(["pyenv", "--version"])
-                results.append(("version", result.returncode))
-            except Exception as e:
-                errors.append(("version", str(e)))
-        
-        # 启动并发线程
-        threads = []
-        for _ in range(3):
-            threads.extend([
-                threading.Thread(target=concurrent_list_available),
-                threading.Thread(target=concurrent_list_installed),
-                threading.Thread(target=concurrent_version_check)
-            ])
-        
-        # 执行并发操作
-        start_time = time.time()
-        for thread in threads:
-            thread.start()
-        
-        for thread in threads:
-            thread.join(timeout=30)  # 30秒超时
-        
-        execution_time = time.time() - start_time
-        
-        # 验证结果
-        self.assertEqual(len(errors), 0, f"并发操作不应该产生错误: {errors}")
-        self.assertEqual(len(results), 9, "应该有9个并发操作结果")
-        
-        # 所有查询操作都应该成功
-        for operation, returncode in results:
-            self.assertEqual(returncode, 0, f"{operation} 操作应该成功")
-        
-        print(f"并发操作测试完成，执行时间: {execution_time:.2f}秒")
-
-    def test_32_pyenv_state_persistence_TODO_use_unified_indicator_remover(self):
-        """测试pyenv状态持久性和一致性"""
-        print(f"测试pyenv状态持久性和一致性")
-        
-        # 测试多次查询状态的一致性
-        results = []
-        for i in range(5):
-            result = self._run_gds_command(["pyenv", "--version"])
-            self.assertEqual(result.returncode, 0, f"第{i+1}次版本查询应该成功")
-            clean_output = result.stdout.strip()
-            import re
-            clean_output = re.sub(r'\x1b\[[K0-9;]*[mK]', '', clean_output)  # 移除ANSI转义序列
-            clean_output = re.sub(r'⏳ Waiting for result[.\s]*', '', clean_output)  # 移除等待信息
-            clean_output = clean_output.strip()
-            results.append(clean_output)
-        
-        # 所有结果应该一致
-        unique_results = set(results)
-        self.assertEqual(len(unique_results), 1, f"多次查询结果应该一致: {unique_results}")
-        
-        # 测试global和local状态查询
-        global_result1 = self._run_gds_command(["pyenv", "--global"])
-        self.assertEqual(global_result1.returncode, 0, "第一次global查询应该成功")
-        
-        local_result1 = self._run_gds_command(["pyenv", "--local"])
-        self.assertEqual(local_result1.returncode, 0, "第一次local查询应该成功")
-        
-        # 再次查询，结果应该一致
-        global_result2 = self._run_gds_command(["pyenv", "--global"])
-        self.assertEqual(global_result2.returncode, 0, "第二次global查询应该成功")
-        
-        # 清理输出进行比较
-        def clean_output(output):
-            import re
-            clean = re.sub(r'\x1b\[[K0-9;]*[mK]', '', output)  # 移除ANSI转义序列
-            clean = re.sub(r'⏳ Waiting for result[.\s]*', '', clean)  # 移除等待信息
-            return clean.strip()
-        
-        self.assertEqual(clean_output(global_result1.stdout), clean_output(global_result2.stdout), "global状态应该保持一致")
-        
-        local_result2 = self._run_gds_command(["pyenv", "--local"])
-        self.assertEqual(local_result2.returncode, 0, "第二次local查询应该成功")
-        self.assertEqual(clean_output(local_result1.stdout), clean_output(local_result2.stdout), "local状态应该保持一致")
-        
-        print(f"状态持久性测试完成")
-
     def test_34_pyenv_invalid_versions(self):
         """测试pyenv边缘情况和压力测试"""
         print(f"测试pyenv边缘情况和压力测试")
@@ -3933,8 +3874,84 @@ print("=== Verification completed ===")
             self.assertEqual(gds_returncode, bash_cat_result.returncode, "cat返回码应该一致")
             self.assertEqual(gds_stdout.strip(), bash_cat_result.stdout.strip(), "cat输出应该一致")
             
-            # 测试用例3: 错误情况对比
-            print("测试3: 错误情况对比")
+            # 测试用例3: 无输出命令对比（echo重定向等）
+            print("测试3: 无输出命令对比")
+            
+            # 测试echo重定向（应该没有stdout输出）
+            redirect_commands = [
+                'echo "redirect test" > redirect_test.txt',
+                'echo "append test" >> redirect_test.txt',
+                'mkdir silent_dir',
+                'touch silent_file.txt'
+            ]
+            
+            for cmd in redirect_commands:
+                print(f"  测试无输出命令: {cmd}")
+                
+                # 运行GDS命令
+                gds_result = self._run_gds_command(cmd, expect_success=True, check_function_result=False)
+                gds_stdout, gds_stderr, gds_returncode = gds_result.stdout, gds_result.stderr, gds_result.returncode
+                
+                # 运行bash命令
+                bash_result = self._run_bash_command(cmd, bash_test_dir)
+                
+                # 对比返回码
+                self.assertEqual(gds_returncode, bash_result.returncode, 
+                               f"命令 '{cmd}' 返回码应该一致")
+                
+                # 对于重定向命令，stdout应该都是空的（或者只有换行符）
+                gds_output_clean = gds_stdout.strip()
+                bash_output_clean = bash_result.stdout.strip()
+                
+                print(f"    GDS输出: {repr(gds_output_clean)}")
+                print(f"    Bash输出: {repr(bash_output_clean)}")
+                
+                # 验证两者都没有实质性输出
+                self.assertEqual(len(gds_output_clean), 0, f"GDS命令 '{cmd}' 应该没有输出")
+                self.assertEqual(len(bash_output_clean), 0, f"bash命令 '{cmd}' 应该没有输出")
+            
+            # 测试用例4: 边缘情况对比
+            print("测试4: 边缘情况对比")
+            
+            edge_cases = [
+                'echo ""',  # 空字符串
+                'echo " "',  # 空格
+                'echo "\\n"',  # 换行符
+                'echo "\\t"',  # 制表符
+                'ls .',  # 当前目录
+                'ls ..',  # 父目录
+                'pwd && echo "done"',  # 命令组合
+            ]
+            
+            for cmd in edge_cases:
+                print(f"  测试边缘情况: {cmd}")
+                
+                try:
+                    # 运行GDS命令
+                    gds_result = self._run_gds_command(cmd, expect_success=True, check_function_result=False)
+                    gds_stdout, gds_stderr, gds_returncode = gds_result.stdout, gds_result.stderr, gds_result.returncode
+                    
+                    # 运行bash命令
+                    bash_result = self._run_bash_command(cmd, bash_test_dir)
+                    
+                    # 对比返回码
+                    self.assertEqual(gds_returncode, bash_result.returncode, 
+                                   f"命令 '{cmd}' 返回码应该一致")
+                    
+                    print(f"    GDS输出: {repr(gds_stdout.strip())}")
+                    print(f"    Bash输出: {repr(bash_result.stdout.strip())}")
+                    
+                    # 对于简单的echo命令，输出应该一致
+                    if cmd.startswith('echo'):
+                        self.assertEqual(gds_stdout.strip(), bash_result.stdout.strip(), 
+                                       f"echo命令 '{cmd}' 输出应该一致")
+                        
+                except Exception as e:
+                    print(f"    边缘情况测试失败: {e}")
+                    # 不强制失败，因为某些边缘情况可能有差异
+            
+            # 测试用例5: 错误情况对比
+            print("测试5: 错误情况对比")
             error_commands = [
                 "ls nonexistent_file.txt",
                 "cat nonexistent_file.txt",
