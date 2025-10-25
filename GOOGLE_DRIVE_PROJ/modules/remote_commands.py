@@ -1435,7 +1435,7 @@ fi
             try:
                 # 写入到GOOGLE_DRIVE_DATA文件夹中的调试文件
                 from pathlib import Path
-                current_dir = Path(__file__).parent.parent
+                current_dir = Path(__file__).parent.parent.parent
                 debug_file = current_dir / "GOOGLE_DRIVE_DATA" / "remote_commands_debug.log"
                 debug_file.parent.mkdir(exist_ok=True)
                 

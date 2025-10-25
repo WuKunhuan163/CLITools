@@ -624,7 +624,8 @@ Shell commands: ls -la && echo "done"
             # Debug: 保存原始输出到文件
             import datetime
             import os
-            debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
+            debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/gds_raw_output"
+            os.makedirs(debug_dir, exist_ok=True)
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             debug_file = os.path.join(debug_dir, f"gds_raw_output_{timestamp}.txt")
             
