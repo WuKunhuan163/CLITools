@@ -14,7 +14,7 @@ class Verification:
 
 
 
-    def verify_creation_with_ls(self, path, current_shell, creation_type="dir", max_attempts=60):
+    def verify_creation_with_ls(self, path, current_shell, creation_type="dir", max_attempts=20):
         """
         通用的创建验证接口，支持目录和文件验证
         
@@ -37,7 +37,7 @@ class Verification:
                 "error": f"Unsupported creation type: {creation_type}"
             }
     
-    def _verify_creation_with_ls(self, path, current_shell, max_attempts=60, creation_type="file"):
+    def _verify_creation_with_ls(self, path, current_shell, max_attempts=20, creation_type="file"):
         """使用GDS ls统一验证文件或目录创建"""
         
         try:
@@ -80,7 +80,7 @@ class Verification:
                 "error": f"Verification process error: {e}"
             }
 
-    def _verify_mkdir_with_ls(self, path, current_shell, max_attempts=60):
+    def _verify_mkdir_with_ls(self, path, current_shell, max_attempts=20):
         """使用统一验证函数验证目录创建"""
         return self._verify_creation_with_ls(path, current_shell, max_attempts, creation_type="dir")
     

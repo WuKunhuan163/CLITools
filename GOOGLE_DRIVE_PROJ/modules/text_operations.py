@@ -67,8 +67,7 @@ class TextOperations:
             if result.get("success"):
                 # 验证文件是否真的被创建了
                 verification_result = self.main_instance.verify_creation_with_ls(
-                    filename, current_shell, creation_type="file", max_attempts=60
-                )
+                    filename, current_shell, creation_type="file")
                 
                 if verification_result.get("success", False):
                     return {
