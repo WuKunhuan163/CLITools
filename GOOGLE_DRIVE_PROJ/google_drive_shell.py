@@ -1381,7 +1381,11 @@ For more information, visit: https://github.com/your-repo/gds"""
                     print(f"Error: Command parsing failed: {e}")
                     return 1
                 
-                # 使用命令注册系统执行特殊命令
+                # 特殊处理：echo命令通过远程接口处理
+                if cmd == 'echo':
+                    return self._handle_unified_echo_command(args)
+                
+                # 其他特殊命令使用命令注册系统
                 return self.command_registry.execute_command(cmd, args, command_identifier=command_identifier)
              
             # 如果不是特殊命令，使用统一的命令解析和转译接口

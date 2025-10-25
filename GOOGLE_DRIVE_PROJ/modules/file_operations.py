@@ -96,7 +96,6 @@ class FileOperations:
     
     def cmd_rm(self, *args, **kwargs):
         """Delegate to file_operations"""
-        print(f"DEBUG: FileOperations.cmd_rm called with args={args}, kwargs={kwargs}")
         return self.file_core.cmd_rm(*args, **kwargs)
     
     def cmd_cp(self, *args, **kwargs):
