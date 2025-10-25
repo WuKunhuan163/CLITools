@@ -226,7 +226,7 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
             print(f"  - {test_short}")
             if test in test_results:
                 output_file = test_results[test]["output_file"]
-                print(f"    📄 Output: {output_file}")
+                print(f"    📄 {output_file}")
     
     # 显示通过的测试
     if passed_tests:

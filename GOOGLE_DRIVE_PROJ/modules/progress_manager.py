@@ -217,7 +217,7 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
     }
 
 
-def validate_creation(validation_func, item_name, max_attempts=60, validation_type="file"):
+def validate_creation(validation_func, item_name, max_attempts=20, validation_type="file"):
     """
     统一的文件/目录验证接口，集成进度显示
     使用统一的可中断进度循环接口
