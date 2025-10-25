@@ -42,6 +42,8 @@ try:
     from .modules.commands.cat_command import CatCommand
     from .modules.commands.mkdir_command import MkdirCommand
     from .modules.commands.rm_command import RmCommand
+    from .modules.commands.touch_command import TouchCommand
+    from .modules.commands.mv_command import MvCommand
     from .modules.commands.edit_command import EditCommand
     from .modules.commands.read_command import ReadCommand
     from .modules.commands.pwd_command import PwdCommand
@@ -74,6 +76,8 @@ except ImportError:
     from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.touch_command import TouchCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.mv_command import MvCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
     from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
@@ -238,6 +242,8 @@ class GoogleDriveShell:
         self.command_registry.register(CatCommand(self))
         self.command_registry.register(MkdirCommand(self))
         self.command_registry.register(RmCommand(self))
+        self.command_registry.register(TouchCommand(self))
+        self.command_registry.register(MvCommand(self))
         self.command_registry.register(EditCommand(self))
         self.command_registry.register(ReadCommand(self))
         self.command_registry.register(PwdCommand(self))
