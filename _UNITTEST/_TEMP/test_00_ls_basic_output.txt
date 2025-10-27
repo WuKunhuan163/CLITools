@@ -1,38 +1,44 @@
 test_00_ls_basic (test_gds.GDSTest)
-测试ls命令的全路径支持（修复后的功能） ... ok
+测试ls命令的全路径支持（修复后的功能） ... FAIL
+
+======================================================================
+FAIL: test_00_ls_basic (test_gds.GDSTest)
+测试ls命令的全路径支持（修复后的功能）
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 631, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: mkdir -p "~/tmp/gds_test_20251028_004626_335301_9d2b378f/testdir"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 846, in test_00_ls_basic
+    result = self._run_gds_command(f'mkdir -p "{testdir}"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 637, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: mkdir -p "~/tmp/gds_test_20251028_004626_335301_9d2b378f/testdir" - 1 != 0 : 命令执行失败: mkdir -p "~/tmp/gds_test_20251028_004626_335301_9d2b378f/testdir"
 
 ----------------------------------------------------------------------
-Ran 1 test in 141.343s
+Ran 1 test in 5696.631s
 
-OK
+FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251027_221621_291281_8370a22d
-正在创建远端测试目录: ~/tmp/gds_test_20251027_221621_291281_8370a22d
+远端测试目录: ~/tmp/gds_test_20251028_004626_335301_9d2b378f
+正在创建远端测试目录: ~/tmp/gds_test_20251028_004626_335301_9d2b378f
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251027_221621_291281_8370a22d
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0umohyzw
+已切换到远端测试目录: ~/tmp/gds_test_20251028_004626_335301_9d2b378f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ees6fd22
 测试环境设置完成
-命令转译成功: mkdir -p "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir" -> mkdir -p "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir"
-返回码: 0
-输出: ⏳ Waiting for result .......
-...
-命令转译成功: 'echo "test content" > "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/testfile.txt"' -> __QUOTED_COMMAND__echo 'test content' > "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/testfile.txt"
-返回码: 0
-输出: ⏳ Waiting for result .......
-...
-命令转译成功: ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir" -> ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir"
-返回码: 0
-输出: testfile.txt
-...
-命令转译成功: ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/testfile.txt" -> ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/testfile.txt"
-返回码: 0
-输出: testfile.txt
-...
-命令转译成功: ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/nonexistent.txt" -> ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/nonexistent.txt"
+命令转译成功: mkdir -p "~/tmp/gds_test_20251028_004626_335301_9d2b378f/testdir" -> mkdir -p "~/tmp/gds_test_20251028_004626_335301_9d2b378f/testdir"
 返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251027_221621_291281_8370a22d/testdir/nonexistent.txt
+输出: mkdir command execution failed: Operation cancelled or failed
+Call stack (most recent call last):
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/file_operations.py", line 82, in cmd_mkdir     return self.file_core.cmd_mkdir(*args, **kwargs)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/file_core.py", line 986, in cmd_mkdir     return self.cmd_mkdir_remote(path, recursive)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/file_core.py", line 937, in cmd_mkdir_remote     stack_lines = traceback.format_stack()
+mkdir command execution failed: Operation cancelled or failed
 ...
-命令转译成功: ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/nonexistent_dir/file.txt" -> ls "~/tmp/gds_test_20251027_221621_291281_8370a22d/nonexistent_dir/file.txt"
-返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251027_221621_291281_8370a22d/nonexistent_dir/file.txt
-...
+命令执行异常: 1 != 0 : 命令执行失败: mkdir -p "~/tmp/gds_test_20251028_004626_335301_9d2b378f/testdir"

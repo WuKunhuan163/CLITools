@@ -211,11 +211,8 @@ fi
                     "message": "Command copied to clipboard, please manually execute"
                 }
             else:
-                return {
-                    "success": False,
-                    "error": f"Operation cancelled or failed: {result.get('error', 'Unknown error')}",
-                    "remote_command": remote_setup_commands.strip()
-                }
+                # 让上层处理错误并显示完整traceback
+                raise Exception(f"HuggingFace setup failed with result: {result}")
             
     except Exception as e:
         return {"success": False, "error": f"Failed to setup remote HF credentials: {str(e)}"}

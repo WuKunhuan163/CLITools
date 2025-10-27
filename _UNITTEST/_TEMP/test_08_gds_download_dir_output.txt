@@ -1,0 +1,58 @@
+test_08_gds_download_dir (test_gds.GDSTest)
+测试GDS目录下载功能 ... FAIL
+
+======================================================================
+FAIL: test_08_gds_download_dir (test_gds.GDSTest)
+测试GDS目录下载功能
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 631, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: download "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" "/Users/wukunhuan/tmp/downloaded_dir.zip"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1633, in test_08_gds_download_dir
+    os.remove(local_target_file)
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 637, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: download "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" "/Users/wukunhuan/tmp/downloaded_dir.zip" - 1 != 0 : 命令执行失败: download "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" "/Users/wukunhuan/tmp/downloaded_dir.zip"
+
+----------------------------------------------------------------------
+Ran 1 test in 1290.290s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251028_002312_748783_170abc16
+正在创建远端测试目录: ~/tmp/gds_test_20251028_002312_748783_170abc16
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251028_002312_748783_170abc16
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_nvyn8x50
+测试环境设置完成
+测试GDS目录下载功能
+命令转译成功: mkdir -p "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" -> mkdir -p "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir"
+返回码: 0
+输出: ⏳ Waiting for result ........
+...
+命令转译成功: 'echo "Directory download test content" > "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir/test_file.txt"' -> __QUOTED_COMMAND__echo 'Directory download test content' > "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir/test_file.txt"
+返回码: 0
+输出: ⏳ Waiting for result ......
+...
+命令转译成功: ls "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" -> ls "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir"
+返回码: 0
+输出: test_file.txt
+...
+命令转译成功: ls "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir/test_file.txt" -> ls "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir/test_file.txt"
+返回码: 0
+输出: test_file.txt
+...
+测试目录下载功能
+命令转译成功: download "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" "/Users/wukunhuan/tmp/downloaded_dir.zip" -> download "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" "/Users/wukunhuan/tmp/downloaded_dir.zip"
+返回码: 1
+输出: 正在压缩目录 test_download_dir 到 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1761583482_c0890792.zip...
+Directory download failed: 'RemoteCommandsWrapper' object has no attribute 'show_remote_command_window'
+...
+命令执行异常: 1 != 0 : 命令执行失败: download "~/tmp/gds_test_20251028_002312_748783_170abc16/test_download_dir" "/Users/wukunhuan/tmp/downloaded_dir.zip"

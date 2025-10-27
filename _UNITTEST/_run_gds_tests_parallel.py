@@ -4,8 +4,6 @@ GDS测试并行运行脚本
 使用BACKGROUND_CMD批量运行GDS单元测试，支持指定ID范围，控制并发数
 """
 
-import os
-import sys
 import time
 import subprocess
 import json

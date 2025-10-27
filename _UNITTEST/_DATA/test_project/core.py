@@ -5,7 +5,7 @@
 def process_data(config):
     """处理数据的核心函数"""
     if config.get("debug", False):
-        print(f"调试模式已启用")
+        print(f'调试模式已启用')
     
     # 模拟数据处理
     data = [1, 2, 3, 4, 5]

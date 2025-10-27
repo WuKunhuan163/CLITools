@@ -6,30 +6,39 @@ FAIL: test_02_echo_basic (test_gds.GDSTest)
 测试基础echo命令
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 512, in _run_gds_command
-    print(f"输出: {self.main_instance.command_executor.process_terminal_erase(result.stdout)}...")
-AttributeError: 'GDSTest' object has no attribute 'main_instance'
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 631, in _run_gds_command
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: echo "Complex: @#$%^&*() \"quotes\" 中文字符"
 
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 903, in test_02_echo_basic
-    result = self._run_gds_command(f'echo "Hello World"')
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 524, in _run_gds_command
-    self.fail(f"命令执行异常: {command} - {e}")
-AssertionError: 命令执行异常: echo "Hello World" - 'GDSTest' object has no attribute 'main_instance'
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1056, in test_02_echo_basic
+    result = self._run_gds_command(f'echo "Complex: @#$%^&*() \\"quotes\\" 中文字符"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 637, in _run_gds_command
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: echo "Complex: @#$%^&*() \"quotes\" 中文字符" - 1 != 0 : 命令执行失败: echo "Complex: @#$%^&*() \"quotes\" 中文字符"
 
 ----------------------------------------------------------------------
-Ran 1 test in 136.988s
+Ran 1 test in 136.720s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251027_234237_125775_55a79a58
-正在创建远端测试目录: ~/tmp/gds_test_20251027_234237_125775_55a79a58
+远端测试目录: ~/tmp/gds_test_20251028_061951_901247_71ae49ad
+正在创建远端测试目录: ~/tmp/gds_test_20251028_061951_901247_71ae49ad
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251027_234237_125775_55a79a58
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_pd2xese6
+已切换到远端测试目录: ~/tmp/gds_test_20251028_061951_901247_71ae49ad
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0myra9op
 测试环境设置完成
 命令转译成功: echo "Hello World" -> echo "Hello World"
 返回码: 0
-命令执行异常: 'GDSTest' object has no attribute 'main_instance'
+输出: ⏳ Waiting for result ...
+Hello World
+...
+命令转译成功: echo "Complex: @#$%^&*() \"quotes\" 中文字符" -> echo "Complex: @#$%^&*() \"quotes\" 中文字符"
+返回码: 1
+输出: Operation cancelled or failed
+...
+命令执行异常: 1 != 0 : 命令执行失败: echo "Complex: @#$%^&*() \"quotes\" 中文字符"
