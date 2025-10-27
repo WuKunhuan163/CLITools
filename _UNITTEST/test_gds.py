@@ -570,90 +570,53 @@ Shell commands: ls -la && echo "done"
             else:
                 command_str = command
         
-        # 检测并处理组合命令（&&, ||, ;）
+        # 检测并处理组合命令（&&, ||, ;）- 使用统一接口
         def add_params_to_gds_commands(cmd_str):
-            """为组合命令中的每个GDS命令添加参数"""
-            import re
+            """为组合命令中的每个GDS命令添加参数 - 使用统一的命令解析接口"""
+            # 导入统一的命令解析器
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(self.BIN_DIR, 'GOOGLE_DRIVE_PROJ', 'modules'))
+            from command_parser import parse_command
             
-            # 检测组合操作符（但要排除引号内的）
-            def has_real_combinators(text):
-                """检测是否有真正的命令组合符（不在引号内的）"""
-                combinators = ['&&', '||', ';']
-                in_single_quote = False
-                in_double_quote = False
-                i = 0
-                
-                while i < len(text):
-                    char = text[i]
-                    
-                    # 处理转义字符
-                    if char == '\\' and i + 1 < len(text):
-                        i += 2
-                        continue
-                    
-                    # 处理引号
-                    if char == "'" and not in_double_quote:
-                        in_single_quote = not in_single_quote
-                    elif char == '"' and not in_single_quote:
-                        in_double_quote = not in_double_quote
-                    
-                    # 检测组合符（只有在引号外才算）
-                    elif not in_single_quote and not in_double_quote:
-                        for combinator in combinators:
-                            if text[i:i+len(combinator)] == combinator:
-                                # 确保这不是更长操作符的一部分
-                                if combinator == ';':
-                                    return True
-                                elif combinator == '&&' and i + 2 < len(text) and text[i+2] != '&':
-                                    return True
-                                elif combinator == '||' and i + 2 < len(text) and text[i+2] != '|':
-                                    return True
-                    
-                    i += 1
-                
-                return False
+            # 解析命令
+            parse_result = parse_command(cmd_str)
             
-            if not has_real_combinators(cmd_str):
+            if not parse_result['is_compound']:
                 # 单个命令，直接处理
                 return cmd_str
             
-            # 分割组合命令，保留操作符
-            # 使用正则表达式分割，同时保留分隔符
-            pattern = r'(\s*(?:&&|\|\||;)\s*)'
-            parts = re.split(pattern, cmd_str)
-            
+            # 处理复合命令
             processed_parts = []
-            for part in parts:
-                part = part.strip()
-                if not part:
-                    continue
+            for cmd_info in parse_result['commands']:
+                command = cmd_info['command']
+                operator = cmd_info['operator']
+                
+                # 如果有操作符，先添加操作符
+                if operator:
+                    processed_parts.append(f' {operator} ')
+                
+                # 处理命令
+                if not command.strip().startswith('python3') and not command.strip().startswith('/'):
+                    # 这是一个GDS命令，需要包装
+                    gds_cmd_parts = [f"python3 {self.GOOGLE_DRIVE_PY}", "--shell"]
                     
-                # 如果是操作符，直接添加
-                if part in ['&&', '||', ';'] or re.match(r'^\s*(?:&&|\|\||;)\s*$', part):
-                    processed_parts.append(part)
+                    if no_direct_feedback:
+                        gds_cmd_parts.append("--no-direct-feedback")
+                    
+                    if is_priority:
+                        gds_cmd_parts.append("--priority")
+                    
+                    # 转义命令字符串
+                    import shlex
+                    escaped_command = shlex.quote(command)
+                    gds_cmd_parts.append(escaped_command)
+                    processed_parts.append(" ".join(gds_cmd_parts))
                 else:
-                    # 这是一个命令，检查是否需要添加参数
-                    # 简单检测：如果不是以python3 GOOGLE_DRIVE.py开头，认为是GDS命令
-                    if not part.strip().startswith('python3') and not part.strip().startswith('/'):
-                        # 这是一个GDS命令，需要包装
-                        gds_cmd_parts = [f"python3 {self.GOOGLE_DRIVE_PY}", "--shell"]
-                        
-                        if no_direct_feedback:
-                            gds_cmd_parts.append("--no-direct-feedback")
-                        
-                        if is_priority:
-                            gds_cmd_parts.append("--priority")
-                        
-                        # 转义命令字符串
-                        import shlex
-                        escaped_part = shlex.quote(part)
-                        gds_cmd_parts.append(escaped_part)
-                        processed_parts.append(" ".join(gds_cmd_parts))
-                    else:
-                        # 不是GDS命令，直接添加
-                        processed_parts.append(part)
+                    # 不是GDS命令，直接添加
+                    processed_parts.append(command)
             
-            return " ".join(processed_parts)
+            return "".join(processed_parts)
         
         # 处理命令字符串
         processed_command_str = add_params_to_gds_commands(command_str)
@@ -2852,8 +2815,8 @@ if __name__ == "__main__":
             self.assertEqual(shell_result.returncode, 0, f"Shell模式执行{cmd}应该成功")
             
             # 清理输出以便比较
-            direct_output = self._clean_gds_output(direct_result.stdout)
-            shell_output = self._clean_gds_output(shell_result.stdout)
+            direct_output = self._simulate_terminal_output(direct_result.stdout)
+            shell_output = self._simulate_terminal_output(shell_result.stdout)
             
             # 对于help命令，验证关键内容存在
             if cmd == "help":

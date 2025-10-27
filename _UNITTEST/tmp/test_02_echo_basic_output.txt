@@ -1,3 +1,65 @@
 test_02_echo_basic (test_gds.GDSTest)
 测试基础echo命令 ... /Users/wukunhuan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
   warnings.warn(
+FAIL
+
+======================================================================
+FAIL: test_02_echo_basic (test_gds.GDSTest)
+测试基础echo命令
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1159, in test_02_echo_basic
+    self.assertIn("{'name': 'test', 'value': 123}", result.stdout, "文件内容应该包含JSON字段")
+AssertionError: "{'name': 'test', 'value': 123}" not found in '{name: test, value: 123}' : 文件内容应该包含JSON字段
+
+----------------------------------------------------------------------
+Ran 1 test in 425.330s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251027_101614_011915_1a71b83e
+正在创建远端测试目录: ~/tmp/gds_test_20251027_101614_011915_1a71b83e
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251027_101614_011915_1a71b83e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_4b9p2co4
+测试环境设置完成
+命令转译成功: echo "Hello World" -> echo "Hello World"
+返回码: 0
+输出: Hello World
+...
+命令转译成功: echo "Complex: @#$%^&*() \"quotes\" 中文字符" -> echo "Complex: @#$%^&*() \"quotes\" 中文字符"
+返回码: 0
+输出: Complex: @#$%^&*() "quotes" 中文字符
+...
+命令转译成功: 'echo "Test content" > "~/tmp/gds_test_20251027_101614_011915_1a71b83e/test_echo.txt"' -> __QUOTED_COMMAND__echo 'Test content' > "~/tmp/gds_test_20251027_101614_011915_1a71b83e/test_echo.txt"
+返回码: 0
+命令转译成功: ls "~/tmp/gds_test_20251027_101614_011915_1a71b83e/test_echo.txt" -> ls "~/tmp/gds_test_20251027_101614_011915_1a71b83e/test_echo.txt"
+返回码: 0
+输出: test_echo.txt
+...
+命令转译成功: cat "~/tmp/gds_test_20251027_101614_011915_1a71b83e/test_echo.txt" -> cat "~/tmp/gds_test_20251027_101614_011915_1a71b83e/test_echo.txt"
+返回码: 0
+输出: Test content
+...
+命令转译成功: 'echo "Line 1\nLine 2\tTabbed\\Backslash" > "~/tmp/gds_test_20251027_101614_011915_1a71b83e/complex_echo.txt"' -> __QUOTED_COMMAND__echo 'Line 1
+Line 2	Tabbed\Backslash' > "~/tmp/gds_test_20251027_101614_011915_1a71b83e/complex_echo.txt"
+返回码: 0
+命令转译成功: ls "~/tmp/gds_test_20251027_101614_011915_1a71b83e/complex_echo.txt" -> ls "~/tmp/gds_test_20251027_101614_011915_1a71b83e/complex_echo.txt"
+返回码: 0
+输出: complex_echo.txt
+...
+命令转译成功: cat "~/tmp/gds_test_20251027_101614_011915_1a71b83e/complex_echo.txt" -> cat "~/tmp/gds_test_20251027_101614_011915_1a71b83e/complex_echo.txt"
+返回码: 0
+输出: Line 1
+Line 2	Tabbed\Backslash
+...
+命令转译成功: 'echo "{'name': 'test', 'value': 123}" > "~/tmp/gds_test_20251027_101614_011915_1a71b83e/json_echo.txt"' -> __QUOTED_COMMAND__echo '{'name': 'test', 'value': 123}' > "~/tmp/gds_test_20251027_101614_011915_1a71b83e/json_echo.txt"
+返回码: 0
+命令转译成功: ls "~/tmp/gds_test_20251027_101614_011915_1a71b83e/json_echo.txt" -> ls "~/tmp/gds_test_20251027_101614_011915_1a71b83e/json_echo.txt"
+返回码: 0
+输出: json_echo.txt
+...
+命令转译成功: cat "~/tmp/gds_test_20251027_101614_011915_1a71b83e/json_echo.txt" -> cat "~/tmp/gds_test_20251027_101614_011915_1a71b83e/json_echo.txt"
+返回码: 0
+输出: {name: test, value: 123}
+...
