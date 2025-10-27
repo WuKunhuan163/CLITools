@@ -27,7 +27,119 @@ from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
-from GOOGLE_DRIVE_PROJ.modules.command_executor import process_terminal_erase
+
+def process_terminal_erase(stdout):
+        """
+        模拟终端输出处理，正确处理擦除字符
+        基于实际观察到的模式：\r\x1b[K会擦除当前行
+        
+        Args:
+            stdout: GDS命令的标准输出
+            
+        Returns:
+            tuple: (cleaned_stdout)
+        """
+        import re
+        def process(text):
+            """
+            处理终端转义序列，模拟真实终端行为
+            使用反向处理：从后往前寻找擦除符号，从擦除符号位置向左擦除
+            """
+            if not text:
+                return text
+            
+            result = text
+            
+            # 反向处理：从后往前寻找擦除序列
+            while True:
+                # 寻找最后一个\r\x1b[K序列
+                last_r_erase_pos = result.rfind('\r\x1b[K')
+                # 寻找最后一个\n\x1b[K序列
+                last_n_erase_pos = result.rfind('\n\x1b[K')
+                
+                # 选择最后出现的擦除序列
+                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
+                    # 没有找到擦除序列，处理完成
+                    break
+                
+                # 确定使用哪个擦除序列（选择位置更靠后的）
+                if last_r_erase_pos > last_n_erase_pos:
+                    last_erase_pos = last_r_erase_pos
+                    erase_pattern = '\r\x1b[K'
+                else:
+                    last_erase_pos = last_n_erase_pos
+                    erase_pattern = '\n\x1b[K'
+                
+                # 找到擦除序列，需要擦除当前行
+                # 从擦除序列位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_erase_pos)
+                if line_start == -1:
+                    # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
+                    line_start = 0
+                else:
+                    # 找到了换行符，保留换行符，从换行符后开始擦除
+                    line_start += 1
+                
+                # 擦除从line_start到擦除序列结束的内容
+                erase_end = last_erase_pos + len(erase_pattern)
+                result = result[:line_start] + result[erase_end:]
+            
+            # 处理单独的\r（回车符）
+            while True:
+                last_cr_pos = result.rfind('\r')
+                if last_cr_pos == -1:
+                    break
+                
+                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
+                if (last_cr_pos + 3 < len(result) and 
+                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
+                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
+                    # 这种情况不应该发生，但为了安全起见
+                    break
+                
+                # 单独的\r：光标回到行首，后续字符会覆盖当前行
+                line_start = result.rfind('\n', 0, last_cr_pos)
+                if line_start == -1:
+                    line_start = 0
+                else:
+                    line_start += 1
+                
+                # 移除\r，保留后续内容（如果有的话）
+                result = result[:line_start] + result[last_cr_pos+1:]
+            
+            # 处理单独的\x1b[K序列
+            while True:
+                last_k_pos = result.rfind('\x1b[K')
+                if last_k_pos == -1:
+                    break
+                
+                # 检查这个\x1b[K前面是否有\r
+                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
+                    # 这是\r\x1b[K的一部分，应该已经被处理了
+                    break
+                
+                # 单独的\x1b[K：擦除从光标到行尾
+                # 需要擦除当前行的内容
+                # 从\x1b[K位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_k_pos)
+                if line_start == -1:
+                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
+                    result = result[last_k_pos+3:]
+                else:
+                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
+                    result = result[:line_start+1] + result[last_k_pos+3:]
+            
+            return result
+        
+        cleaned_stdout = stdout
+        if cleaned_stdout:
+            cleaned_stdout = process(cleaned_stdout)
+            cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
+            cleaned_stdout = cleaned_stdout.strip()
+            if cleaned_stdout:
+                cleaned_stdout += '\n'
+        
+        return cleaned_stdout
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -2736,8 +2848,8 @@ if __name__ == "__main__":
             self.assertEqual(shell_result.returncode, 0, f"Shell模式执行{cmd}应该成功")
             
             # 清理输出以便比较
-            direct_output = self.process_terminal_erase(direct_result.stdout)
-            shell_output = self.process_terminal_erase(shell_result.stdout)
+            direct_output = process_terminal_erase(direct_result.stdout)
+            shell_output = process_terminal_erase(shell_result.stdout)
             
             # 对于help命令，验证关键内容存在
             if cmd_type == "help":
@@ -3368,48 +3480,139 @@ print(f"Current directory: {os.getcwd()}")'''
         result = self._run_gds_command(["pyenv", "--versions"])
         self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
 
+    def _wait_for_pyenv_install(self, version, timeout=1800, check_interval=10):
+        """
+        等待pyenv后台安装完成
+        
+        Args:
+            version: Python版本号
+            timeout: 超时时间（秒），默认30分钟
+            check_interval: 检查间隔（秒），默认10秒
+            
+        Returns:
+            bool: 安装是否成功
+        """
+        import time
+        start_time = time.time()
+        
+        print(f"等待Python {version}安装完成（超时{timeout}秒）...")
+        
+        while time.time() - start_time < timeout:
+            # 检查版本是否已安装
+            result = self._run_gds_command(["pyenv", "--versions"], expect_success=False)
+            if result.returncode == 0 and version in result.stdout:
+                print(f"Python {version}安装成功！")
+                return True
+            
+            # 等待一段时间后重试
+            time.sleep(check_interval)
+            elapsed = int(time.time() - start_time)
+            print(f"等待中... 已等待{elapsed}秒")
+        
+        print(f"等待超时！Python {version}未能在{timeout}秒内安装完成")
+        return False
+    
     def test_28_pyenv_version_change_TODO_upgrade_testcase_reflect_multiple_versions(self):
-        """测试pyenv版本切换"""
-        print(f"测试pyenv版本切换")
+        """测试pyenv版本切换 - 实际下载并切换多个Python版本"""
+        print(f"测试pyenv版本切换（实际下载和切换）")
         
-        # 测试Python代码执行仍然正常工作
-        test_code = 'import sys; print("Python version:", sys.version); print("Hello from Python!")'
+        # 定义要测试的两个Python版本（选择较小的版本以加快下载）
+        version1 = "3.9.18"
+        version2 = "3.10.13"
+        
+        print(f"将测试安装和切换Python {version1}和{version2}")
+        
+        # 步骤1：检查当前已安装的版本
+        print("步骤1：检查当前已安装的Python版本")
+        result = self._run_gds_command(["pyenv", "--versions"])
+        self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
+        initial_versions = result.stdout
+        print(f"当前已安装版本:\n{initial_versions}")
+        
+        # 步骤2：后台安装第一个版本（如果尚未安装）
+        if version1 not in initial_versions:
+            print(f"\n步骤2：后台安装Python {version1}")
+            result = self._run_gds_command(["pyenv", "--install", version1, "--bg"])
+            self.assertEqual(result.returncode, 0, f"启动{version1}后台安装应该成功")
+            print(f"后台安装任务已启动")
+            
+            # 等待安装完成
+            install_success = self._wait_for_pyenv_install(version1)
+            self.assertTrue(install_success, f"Python {version1}应该成功安装")
+        else:
+            print(f"\n步骤2：Python {version1}已安装，跳过安装步骤")
+        
+        # 步骤3：后台安装第二个版本（如果尚未安装）
+        if version2 not in initial_versions:
+            print(f"\n步骤3：后台安装Python {version2}")
+            result = self._run_gds_command(["pyenv", "--install", version2, "--bg"])
+            self.assertEqual(result.returncode, 0, f"启动{version2}后台安装应该成功")
+            print(f"后台安装任务已启动")
+            
+            # 等待安装完成
+            install_success = self._wait_for_pyenv_install(version2)
+            self.assertTrue(install_success, f"Python {version2}应该成功安装")
+        else:
+            print(f"\n步骤3：Python {version2}已安装，跳过安装步骤")
+        
+        # 步骤4：切换到第一个版本并验证
+        print(f"\n步骤4：切换到Python {version1}并验证")
+        result = self._run_gds_command(["pyenv", "--local", version1])
+        self.assertEqual(result.returncode, 0, f"切换到{version1}应该成功")
+        
+        # 验证当前Python版本
+        test_code = 'import sys; print(sys.version)'
         result = self._run_gds_command(["python", "-c", test_code])
-        self.assertEqual(result.returncode, 0, "Python代码执行应该成功")
+        self.assertEqual(result.returncode, 0, "执行Python代码应该成功")
+        python_version_output = result.stdout
+        print(f"当前Python版本输出: {python_version_output}")
+        self.assertIn(version1, python_version_output, f"应该使用Python {version1}")
         
-        output = result.stdout
-        self.assertIn("Python version:", output, "应该显示Python版本信息")
-        self.assertIn("Hello from Python!", output, "应该显示Python输出")
+        # 步骤5：切换到第二个版本并验证
+        print(f"\n步骤5：切换到Python {version2}并验证")
+        result = self._run_gds_command(["pyenv", "--local", version2])
+        self.assertEqual(result.returncode, 0, f"切换到{version2}应该成功")
         
-        # 测试Python文件执行
-        # 创建一个简单的Python测试文件
-        test_script_content = '''#!/usr/bin/env python3
-import sys
-import os
-print(f"Python executable: {sys.executable}")
-print("Python version:", sys.version)
-print(f"Current working directory: {os.getcwd()}")
-print("Python script execution test successful!")
+        # 验证当前Python版本
+        result = self._run_gds_command(["python", "-c", test_code])
+        self.assertEqual(result.returncode, 0, "执行Python代码应该成功")
+        python_version_output = result.stdout
+        print(f"当前Python版本输出: {python_version_output}")
+        self.assertIn(version2, python_version_output, f"应该使用Python {version2}")
+        
+        # 步骤6：再次切换回第一个版本验证
+        print(f"\n步骤6：再次切换回Python {version1}并验证")
+        result = self._run_gds_command(["pyenv", "--local", version1])
+        self.assertEqual(result.returncode, 0, f"切换回{version1}应该成功")
+        
+        result = self._run_gds_command(["python", "-c", test_code])
+        self.assertEqual(result.returncode, 0, "执行Python代码应该成功")
+        python_version_output = result.stdout
+        print(f"当前Python版本输出: {python_version_output}")
+        self.assertIn(version1, python_version_output, f"应该使用Python {version1}")
+        
+        # 步骤7：测试Python脚本执行
+        print(f"\n步骤7：测试Python脚本执行")
+        test_script_content = '''import sys
+print(f"Python version: {sys.version}")
+print(f"Version info: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+print("Script execution successful!")
 '''
         
-        # 写入测试脚本
-        test_pyenv_script_path = f"{self.test_folder}/test_pyenv_script.py"
-        result = self._run_gds_command(f'cat > "{test_pyenv_script_path}" << \"EOF\"\n{test_script_content}\nEOF')
-        self.assertEqual(result.returncode, 0, "创建Python测试脚本应该成功")
+        test_script_path = f"{self.test_folder}/test_version_script.py"
+        result = self._run_gds_command(f'cat > "{test_script_path}" << \"EOF\"\n{test_script_content}\nEOF')
+        self.assertEqual(result.returncode, 0, "创建测试脚本应该成功")
         
-        # 执行Python脚本
-        result = self._run_gds_command(["python", test_pyenv_script_path])
+        result = self._run_gds_command(["python", test_script_path])
         self.assertEqual(result.returncode, 0, "执行Python脚本应该成功")
+        self.assertIn("Script execution successful!", result.stdout, "应该显示脚本执行成功")
+        self.assertIn(version1, result.stdout, f"脚本应该使用Python {version1}")
         
-        output = result.stdout
-        self.assertIn("Python executable:", output, "应该显示Python可执行文件路径")
-        self.assertIn("Python version:", output, "应该显示Python版本")
-        self.assertIn("Python script execution test successful!", output, "应该显示脚本执行成功信息")
-        
-        # 清理测试文件
-        result = self._run_gds_command(["rm", "-f", test_pyenv_script_path])
+        # 清理
+        result = self._run_gds_command(["rm", "-f", test_script_path])
         self.assertEqual(result.returncode, 0, "清理测试文件应该成功")
-        print(f"pyenv与Python代码执行集成测试完成")
+        
+        print(f"\npyenv版本切换测试完成！成功测试了{version1}和{version2}的安装和切换")
 
     def test_34_pyenv_invalid_versions(self):
         """测试pyenv边缘情况和压力测试"""
@@ -4093,7 +4296,7 @@ print("=== Verification completed ===")
             gds_redirect_content = self._run_gds_command("cat test_redirect.txt")
             bash_redirect_content = self._run_bash_command("cat test_redirect.txt", bash_test_dir)
             
-            gds_stdout = self.process_terminal_erase(gds_redirect_content.stdout)
+            gds_stdout = process_terminal_erase(gds_redirect_content.stdout)
             self.assertEqual(gds_returncode, bash_redirect_content.returncode, "重定向内容读取返回码应该一致")
             self.assertEqual(gds_stdout.strip(), bash_redirect_content.stdout.strip(), "重定向内容应该一致")
         
