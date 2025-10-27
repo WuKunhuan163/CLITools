@@ -167,65 +167,6 @@ class GDSCacheManager:
                 return str(cache_file_path)
         return None
     
-    def move_cached_file(self, old_remote_path: str, new_remote_path: str) -> Dict:
-        """
-        移动缓存文件（更新路径映射）
-        处理缓存key冲突：如果新key已存在，删除冲突的缓存条目
-        
-        Args:
-            old_remote_path: 旧的远端路径
-            new_remote_path: 新的远端路径
-            
-        Returns:
-            Dict: 移动结果
-        """
-        try:
-            # 检查旧路径是否存在缓存
-            if old_remote_path not in self.cache_config["files"]:
-                return {
-                    "success": False,
-                    "error": f"File not found in cache: {old_remote_path}"
-                }
-            
-            # 获取旧缓存信息
-            old_cache_info = self.cache_config["files"][old_remote_path]
-            
-            # 检查新路径是否已有缓存（冲突处理）
-            if new_remote_path in self.cache_config["files"]:
-                # 删除冲突的缓存条目和文件
-                conflicting_info = self.cache_config["files"][new_remote_path]
-                conflicting_cache_file = self.remote_files_dir / conflicting_info["cache_file"]
-                
-                # 删除冲突的缓存文件
-                if conflicting_cache_file.exists():
-                    conflicting_cache_file.unlink()
-                
-                # 删除冲突的缓存条目
-                del self.cache_config["files"][new_remote_path]
-            
-            # 移动缓存条目到新路径
-            self.cache_config["files"][new_remote_path] = old_cache_info.copy()
-            self.cache_config["files"][new_remote_path]["moved_time"] = datetime.now().isoformat()
-            
-            # 删除旧路径条目
-            del self.cache_config["files"][old_remote_path]
-            
-            # 保存配置
-            self._save_cache_config()
-            
-            return {
-                "success": True,
-                "old_path": old_remote_path,
-                "new_path": new_remote_path,
-                "cache_file": old_cache_info["cache_file"]
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to move cached file: {e}"
-            }
-    
     def cleanup_cache(self, remote_path: str = None) -> Dict:
         """
         清理缓存
@@ -286,47 +227,6 @@ class GDSCacheManager:
                 "success": False,
                 "error": f"Failed to clean cache: {e}"
             }
-    
-    def _update_cached_file_modified_time(self, remote_path: str, remote_modified_time: str):
-        """
-        更新已缓存文件的远端修改时间
-        
-        Args:
-            remote_path: 远端文件路径
-            remote_modified_time: 远端文件修改时间（ISO格式字符串）
-        """
-        try:
-            if remote_path in self.cache_config["files"]:
-                self.cache_config["files"][remote_path]["remote_modified_time"] = remote_modified_time
-                self._save_cache_config()
-                return True
-            return False
-        except Exception as e:
-            print(f"Failed to update cached file modified time: {e}")
-            return False
-
-
-    def store_pending_modified_time(self, remote_path: str, remote_modified_time: str):
-        """
-        存储待处理的文件修改时间，用于上传后但尚未缓存的文件
-        
-        Args:
-            remote_path: 远端文件路径
-            remote_modified_time: 远端文件修改时间（ISO格式字符串）
-        """
-        try:
-            if "pending_modified_times" not in self.cache_config:
-                self.cache_config["pending_modified_times"] = {}
-            
-            self.cache_config["pending_modified_times"][remote_path] = {
-                "modified_time": remote_modified_time,
-                "stored_at": datetime.now().isoformat()
-            }
-            self._save_cache_config()
-            return True
-        except Exception as e:
-            print(f"Failed to store pending modified time: {e}")
-            return False
     
     def get_pending_modified_time(self, remote_path: str):
         """

@@ -93,22 +93,6 @@ def get_config() -> ConfigLoader:
         _config_loader = ConfigLoader()
     return _config_loader
 
-
-# 便捷函数
-def get_constant(name: str, default=None):
-    """获取常量值"""
-    return get_config().get(f'constants.{name}', default)
-
-
-def get_queue_setting(name: str, default=None):
-    """获取队列设置值"""
-    return get_config().get(f'queue_settings.{name}', default)
-
-
-def get_file_path(name: str, default=None):
-    """获取文件路径配置"""
-    return get_config().get(f'file_paths.{name}', default)
-
 # Background任务文件名模板
 BG_STATUS_FILE_TEMPLATE = "cmd_bg_{bg_pid}.status"
 BG_SCRIPT_FILE_TEMPLATE = "cmd_bg_{bg_pid}.sh"
