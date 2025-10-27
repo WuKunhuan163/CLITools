@@ -1441,12 +1441,9 @@ fi
                 pass  # 调试错误也不输出
         
         # 使用WindowManager替代旧的队列系统
-        debug_log(f"🏗️ DEBUG: [{get_relative_timestamp()}] [WINDOW_MANAGER] 使用WindowManager统一管理窗口")
-        
+        debug_log(f"[{get_relative_timestamp()}] [WINDOW_MANAGER] 使用WindowManager统一管理窗口")
         window_id = f"{cmd}_{threading.get_ident()}_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
-        
-        # WindowManager自动处理队列，无需手动槽位管理
-        debug_log(f"🪟 DEBUG: [{get_relative_timestamp()}] [WINDOW_SHOW] 准备通过WindowManager显示窗口 - window_id: {window_id}, cmd: {cmd}, thread: {threading.get_ident()}")
+        debug_log(f"[{get_relative_timestamp()}] [WINDOW_SHOW] 准备通过WindowManager显示窗口 - window_id: {window_id}, cmd: {cmd}, thread: {threading.get_ident()}")
         
         try:
             # 检查是否为特殊命令
@@ -1478,8 +1475,8 @@ fi
                     raise e
             
             # 使用统一的命令执行接口替代过时的_execute_with_result_capture
-            debug_log(f"🖥️ DEBUG: [{get_relative_timestamp()}] [EXEC] 开始执行远端命令 - window_id: {window_id}, cmd: {cmd}")
-            debug_log(f"🔧 DEBUG: [{get_relative_timestamp()}] [EXEC_CALL] 调用execute_command - window_id: {window_id}")
+            debug_log(f"[{get_relative_timestamp()}] [EXEC] 开始执行远端命令 - window_id: {window_id}, cmd: {cmd}")
+            debug_log(f"[{get_relative_timestamp()}] [EXEC_CALL] 调用execute_command - window_id: {window_id}")
             
             # 构建用户命令字符串
             if cleaned_args:
@@ -1499,7 +1496,7 @@ fi
                 user_command=user_command,
                 current_shell=current_shell
             )
-            debug_log(f"DEBUG: [{get_relative_timestamp()}] [RESULT] 远端命令执行完成 - window_id: {window_id}, success: {result.get('success', False)}")
+            debug_log(f"[{get_relative_timestamp()}] [RESULT] 远端命令执行完成 - window_id: {window_id}, success: {result.get('success', False)}")
             
             # WindowManager自动管理窗口生命周期，无需手动释放
             # 基于原始用户命令判断是否需要文件验证
@@ -1523,7 +1520,7 @@ fi
                 "error": f"执行远端命令时出错: {str(e)}"
             }
         finally:
-            debug_log(f"DEBUG: [{get_relative_timestamp()}] [COMMAND_END] 命令执行流程结束，WindowManager自动管理 - window_id: {window_id}, cmd: {cmd}")
+            debug_log(f"[{get_relative_timestamp()}] [COMMAND_END] 命令执行流程结束，WindowManager自动管理 - window_id: {window_id}, cmd: {cmd}")
     
     def _is_redirect_command(self, cmd, args):
         """检测命令是否包含文件输出重定向操作"""
@@ -1780,21 +1777,13 @@ fi
             import hashlib
             import json
             
-            # 挂载检查现在在_show_command_window中处理，这里不再需要
-            
             # 生成统一JSON命令
             import shlex
             from datetime import datetime
-            
-            # DEBUG: 打印用户命令 (已禁用)
-            # print(f"DEBUG: Original user_command: {repr(user_command)}")
-            
             # 检测和处理感叹号问题（只对简单用户命令进行检测）
-            # 如果用户命令很短且包含感叹号，可能是shell历史扩展问题
             if '!' in user_command and len(user_command) < 200 and not user_command.strip().startswith('#'):
                 print(f"Warning: Command contains exclamation marks which may cause shell history expansion issues.")
                 print(f"Original command: {user_command}")
-                # 自动移除感叹号
                 cleaned_command = user_command.replace('!', '')
                 print(f"Cleaned command: {cleaned_command}")
                 print(f"Suggestion: Avoid using '!' in commands to prevent shell history expansion errors.")
@@ -1814,13 +1803,10 @@ fi
                     
                     # 检查内容是否包含%字符（可能导致格式指令问题）
                     if '%' in content:
-                        # print(f"Debug: Detected printf with % characters, converting to safe format")
-                        # print(f"  Original: {user_command}")
                         # 转换为安全的printf "%s" "content"格式
                         safe_command = f'printf "%s" {quote_char}{content}{quote_char}'
                         if rest_args:
                             safe_command += f' {rest_args}'
-                        # print(f"  Converted: {safe_command}")
                         user_command = safe_command
             
             # 检测和处理echo命令中的转义序列问题
@@ -1837,39 +1823,24 @@ fi
                     
                     # 检查内容是否包含转义序列
                     if '\\n' in content or '\\t' in content:
-                        # print(f"Debug: Detected echo with escape sequences, adding -e flag")
-                        # print(f"  Original: {user_command}")
                         # 添加-e标志以启用转义序列解释
                         safe_command = f'echo -e {quote_char}{content}{quote_char}'
                         if rest_args:
                             safe_command += f' {rest_args}'
-                        # print(f"  Converted: {safe_command}")
                         user_command = safe_command
             
             
             # 路径替换：将用户命令中的~替换为REMOTE_ROOT
             if '~' in user_command:
-                # 替换~为实际的REMOTE_ROOT路径
-                original_command = user_command
                 user_command = user_command.replace('~', self.main_instance.REMOTE_ROOT)
-                
-                # 路径替换后，移除不必要的引号
-                # 如果替换后的路径被引号包围且不包含空格，则移除引号
                 import re
-                # 匹配被引号包围的REMOTE_ROOT路径
                 pattern = f"'({re.escape(self.main_instance.REMOTE_ROOT)}[^']*?)'"
                 def remove_quotes_if_safe(match):
                     path = match.group(1)
-                    # 如果路径不包含空格或特殊字符，移除引号
                     if ' ' not in path and not any(c in path for c in ['&', '|', ';', '(', ')', '<', '>', '$', '`']):
                         return path
                     return match.group(0)  # 保持原样
-                
                 user_command = re.sub(pattern, remove_quotes_if_safe, user_command)
-                
-                # print(f"DEBUG: Path replacement applied")
-                # print(f"  Original: {original_command}")
-                # print(f"  Replaced: {user_command}")
             
             # 获取当前路径
             if current_shell:
@@ -2420,12 +2391,6 @@ JSON_SCRIPT_EOF
                     # 其他错误继续抛出
                     raise
             
-            # DEBUG: 显示生成的远端指令 (暂时禁用)
-            # print(f"DEBUG: Generated remote command for '{user_command}':")
-            # print(f"=" * 60)
-            # print(remote_command)
-            # print(f"=" * 60)
-            
             # 显示远程窗口
             title = f"GDS Unified Command: {user_command[:50]}..."
             window_result = self.show_remote_command_window(
@@ -2623,13 +2588,13 @@ JSON_SCRIPT_EOF
         Returns:
             dict: 执行结果
         """
-        debug_log_func(f"🎯 DEBUG: [{get_timestamp_func()}] [CAPTURE_START] _execute_with_result_capture 开始 - window_id: {window_id}, cmd: {cmd}")
+        debug_log_func(f"[{get_timestamp_func()}] [CAPTURE_START] _execute_with_result_capture 开始 - window_id: {window_id}, cmd: {cmd}")
         
         # 进度缓冲将在用户完成窗口操作后开始
         from .progress_manager import start_progress_buffering, stop_progress_buffering
         
         # WindowManager自动处理窗口生命周期
-        debug_log_func(f"🏗️ DEBUG: [{get_timestamp_func()}] [WINDOW_MANAGER] WindowManager自动处理窗口 - window_id: {window_id}")
+        debug_log_func(f"[{get_timestamp_func()}] [WINDOW_MANAGER] WindowManager自动处理窗口 - window_id: {window_id}")
         try:
             remote_command, result_filename = remote_command_info
             
@@ -2637,8 +2602,12 @@ JSON_SCRIPT_EOF
             try:
                 import os
                 import tempfile
-                # 创建临时文件在GOOGLE_DRIVE_DATA目录中
-                google_drive_data = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
+                # 创建临时文件在GOOGLE_DRIVE_DATA目录中 - 使用统一路径常量
+                try:
+                    from .path_constants import get_data_dir
+                    google_drive_data = str(get_data_dir())
+                except ImportError:
+                    google_drive_data = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
                 os.makedirs(google_drive_data, exist_ok=True)
                 
                 # 使用临时文件，执行完成后自动删除
@@ -2653,47 +2622,34 @@ JSON_SCRIPT_EOF
                     f.write(remote_command)
                     command_file_path = f.name
                 
-                debug_log_func(f"📝 DEBUG: [{get_timestamp_func()}] [COMMAND_FILE] 已输出命令到临时文件 {command_file_path}")
+                debug_log_func(f"[{get_timestamp_func()}] [COMMAND_FILE] 已输出命令到临时文件 {command_file_path}")
                 
                 # 在函数结束时删除临时文件
                 def cleanup_command_file():
                     try:
                         if os.path.exists(command_file_path):
                             os.remove(command_file_path)
-                            debug_log_func(f"🗑️ DEBUG: [{get_timestamp_func()}] [COMMAND_FILE_CLEANUP] 已删除临时文件 {command_file_path}")
+                            debug_log_func(f"[{get_timestamp_func()}] [COMMAND_FILE_CLEANUP] 已删除临时文件 {command_file_path}")
                     except Exception as cleanup_error:
-                        debug_log_func(f"⚠️ DEBUG: [{get_timestamp_func()}] [COMMAND_FILE_CLEANUP_ERROR] 删除临时文件失败: {cleanup_error}")
+                        debug_log_func(f"[{get_timestamp_func()}] [COMMAND_FILE_CLEANUP_ERROR] 删除临时文件失败: {cleanup_error}")
                 
             except Exception as e:
-                debug_log_func(f"⚠️ DEBUG: [{get_timestamp_func()}] [COMMAND_FILE_ERROR] 创建临时文件失败: {e}")
+                debug_log_func(f"[{get_timestamp_func()}] [COMMAND_FILE_ERROR] 创建临时文件失败: {e}")
                 command_file_path = None
                 cleanup_command_file = None
             
             # 不进行本地测试，直接显示窗口让用户在远端检测
-            
             # 通过tkinter显示命令并获取用户反馈
-            debug_log_func(f"🖥️ DEBUG: [{get_timestamp_func()}] [WINDOW_PREP] 准备显示窗口 - window_id: {window_id}, cmd: {cmd}")
-            
-            # DEBUG: 显示即将调用的窗口信息
-            # print(f"\nDEBUG: 即将调用show_command_window")
-            # print(f"DEBUG: cmd = {cmd}, args = {args}")
-            # print(f"DEBUG: remote_command 长度 = {len(remote_command)} 字符")
-            # print(f"DEBUG: window_id = {window_id}")
-            
-            # 记录窗口打开时间到专用的测试文件
+            debug_log_func(f"[{get_timestamp_func()}] [WINDOW_PREP] 准备显示窗口 - window_id: {window_id}, cmd: {cmd}")
             try:
-                debug_log_func(f"📝 DEBUG: [{get_timestamp_func()}] [LOG_TIME] 窗口时间记录成功 - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [LOG_TIME] 窗口时间记录成功 - window_id: {window_id}")
             except Exception as e:
-                debug_log_func(f"Warning: DEBUG: [{get_timestamp_func()}] [LOG_TIME_ERROR] 窗口时间记录失败: {e} - window_id: {window_id}")
-            
-            debug_info = debug_capture.get_debug_info()
-            debug_capture.start_capture()  # 启动debug捕获，避免窗口期间的debug输出
-            debug_log_func(f"🪟 DEBUG: [{get_timestamp_func()}] [WINDOW_CALL] 即将调用_show_command_window - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [LOG_TIME_ERROR] 窗口时间记录失败: {e} - window_id: {window_id}")
+            debug_capture.start_capture()
+            debug_log_func(f"[{get_timestamp_func()}] [WINDOW_CALL] 即将调用_show_command_window - window_id: {window_id}")
             
             # 获取当前shell状态
             current_shell = self.main_instance.get_current_shell()
-            
-            # 生成最终的远端命令（使用原有的_generate_command_interface方法）
             remote_command_info = self._generate_command_interface(cmd, args, current_shell)
             final_remote_command, result_filename = remote_command_info
             
@@ -2709,11 +2665,11 @@ JSON_SCRIPT_EOF
                 # 用户选择直接反馈，使用direct_feedback_interface（照搬--bg指令的逻辑）
                 debug_print(f"_execute_with_result_capture: 检测到direct_feedback，使用direct_feedback_interface")
                 debug_print(f"window_result: {window_result}")
-                debug_log_func(f"👤 DEBUG: [{get_timestamp_func()}] [USER_COMPLETED] 设置user_completed_window=True (direct_feedback) - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [USER_COMPLETED] 设置user_completed_window=True (direct_feedback) - window_id: {window_id}")
                 debug_capture.stop_capture()  # 在返回前停止debug捕获
                 
                 # WindowManager自动处理窗口生命周期
-                debug_log_func(f"🏗️ DEBUG: [{get_timestamp_func()}] [USER_FEEDBACK] 用户完成直接反馈 - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [USER_FEEDBACK] 用户完成直接反馈 - window_id: {window_id}")
                 
                 # 照搬execute_command的逻辑：使用direct_feedback_interface
                 print()  # 换行
@@ -2721,7 +2677,7 @@ JSON_SCRIPT_EOF
                 return feedback_result
             elif window_result.get("action") == "success":
                 # 用户确认执行完成，现在开始显示进度指示器
-                debug_log_func(f"👤 DEBUG: [{get_timestamp_func()}] [USER_COMPLETED] 设置user_completed_window=True (success) - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [USER_COMPLETED] 设置user_completed_window=True (success) - window_id: {window_id}")
                 debug_print(f"_execute_with_result_capture: 用户确认执行完成")
                 
                 # 现在开始进度指示器，等待远程结果
@@ -2730,11 +2686,11 @@ JSON_SCRIPT_EOF
                 debug_print(f"_execute_with_result_capture: window_result.action != 'success'")
                 debug_print(f"实际的window_result.action: {window_result.get('action')}")
                 debug_print(f"完整window_result: {window_result}")
-                debug_log_func(f"👤 DEBUG: [{get_timestamp_func()}] [USER_COMPLETED] 设置user_completed_window=True (non-success: {window_result.get('action')}) - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [USER_COMPLETED] 设置user_completed_window=True (non-success: {window_result.get('action')}) - window_id: {window_id}")
                 debug_capture.stop_capture()  # 在返回前停止debug捕获
                 
                 # WindowManager自动处理窗口生命周期
-                debug_log_func(f"🏗️ DEBUG: [{get_timestamp_func()}] [USER_CANCEL] 用户取消/超时 - window_id: {window_id}")
+                debug_log_func(f"[{get_timestamp_func()}] [USER_CANCEL] 用户取消/超时 - window_id: {window_id}")
                 
                 return {
                     "success": False,
@@ -2771,7 +2727,7 @@ JSON_SCRIPT_EOF
             }
             
         except Exception as e:
-            debug_log_func(f"Error: DEBUG: [{get_timestamp_func()}] [CAPTURE_ERROR] _execute_with_result_capture 异常 - window_id: {window_id}, error: {str(e)}")
+            debug_log_func(f"[{get_timestamp_func()}] [CAPTURE_ERROR] _execute_with_result_capture 异常 - window_id: {window_id}, error: {str(e)}")
             return {
                 "success": False,
                 "error": f"执行结果捕获失败: {str(e)}"
@@ -2785,11 +2741,8 @@ JSON_SCRIPT_EOF
                 cleanup_command_file()
             
             # 单窗口锁机制下不需要心跳线程
-            debug_log_func(f"🏁 DEBUG: [{get_timestamp_func()}] [CLEANUP] 清理完成 - window_id: {window_id}")
+            debug_log_func(f"[{get_timestamp_func()}] [CLEANUP] 清理完成 - window_id: {window_id}")
             
-            # print(f"DEBUG: [{get_timestamp_func()}] [CAPTURE_EXIT] _execute_with_result_capture 结束 - window_id: {window_id}")
-        # 注意：窗口槽位的释放由execute_generic_command的finally块统一处理
-
     def _cleanup_remote_result_file(self, result_filename):
         """
         清理远端结果文件
@@ -2798,11 +2751,9 @@ JSON_SCRIPT_EOF
             result_filename (str): 要清理的远端文件名（在tmp目录中）
         """
         try:
-            # 使用rm命令删除远端文件（静默执行）
             remote_file_path = f"tmp/{result_filename}"
             self.cmd_rm(remote_file_path, force=True)
         except:
-            # 清理失败不影响主要功能
             pass
 
     def direct_feedback(self, remote_command, debug_info=None):
@@ -3095,7 +3046,12 @@ JSON_SCRIPT_EOF
         """更新debug文件的输出部分"""
         try:
             import os
-            debug_file = "~/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
+            # 使用统一路径常量
+            try:
+                from .path_constants import get_data_dir
+                debug_file = str(get_data_dir() / "raw_gds_output.txt")
+            except ImportError:
+                debug_file = "~/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
             
             if not os.path.exists(debug_file):
                 return
@@ -3162,7 +3118,12 @@ JSON_SCRIPT_EOF
         """更新debug文件的输出部分，包含真正的原始输出"""
         try:
             import os
-            debug_file = "~/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
+            # 使用统一路径常量
+            try:
+                from .path_constants import get_data_dir
+                debug_file = str(get_data_dir() / "raw_gds_output.txt")
+            except ImportError:
+                debug_file = "~/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
             
             if not os.path.exists(debug_file):
                 return
@@ -3305,24 +3266,8 @@ JSON_SCRIPT_EOF
         # 检查实例变量是否启用priority模式
         if hasattr(self, '_is_priority') and self._is_priority:
             is_priority = True
-            # 重置标志，避免影响后续命令
             self._is_priority = False
-        """
-        使用WindowManager显示命令窗口
-        
-        DEBUG: 这里是tkinter窗口弹出的地方！
-        """
-        # Debug print - 找到tkinter窗口弹出的地方 (disabled)
-        # print(f"DEBUG: *** TKINTER WINDOW POPUP *** show_remote_command_window called!")
-        # print(f"DEBUG: title='{title}'")
-        # print(f"DEBUG: command_text preview: '{command_text[:100]}...'")
-        
-        # 打印调用堆栈 (disabled)
-        # import traceback
-        # print("DEBUG: Call stack:")
-        # for line in traceback.format_stack()[-5:]:
-        #     print(f"DEBUG: {line.strip()}")
-        
+
         """
         新架构：统一窗口管理，避免多线程竞态问题
         """
@@ -3556,17 +3501,9 @@ def main():
                 # 动态导入GoogleDriveShell避免循环导入
                 import sys
                 import os
-                # print(f"🔍 REMOTE_COMMANDS DEBUG: About to import GoogleDriveShell")
-                # print(f"🔍 REMOTE_COMMANDS DEBUG: shell_cmd='{shell_cmd}'")
-                # print(f"🔍 REMOTE_COMMANDS DEBUG: command_identifier={command_identifier}")
-                
                 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
                 from google_drive_shell import GoogleDriveShell
-                
-                # print(f"🔍 REMOTE_COMMANDS DEBUG: GoogleDriveShell imported successfully")
-                
                 shell = GoogleDriveShell()
-                # print(f"🔍 REMOTE_COMMANDS DEBUG: GoogleDriveShell instance created")
                 
                 # 如果启用no-direct-feedback模式，设置到shell实例中
                 if no_direct_feedback and hasattr(shell, 'remote_commands'):
@@ -3578,7 +3515,6 @@ def main():
                 
                 # 这里需要GoogleDriveShell提供一个处理shell命令的方法
                 if hasattr(shell, 'execute_shell_command'):
-                    # print(f"🔍 REMOTE_COMMANDS DEBUG: Calling shell.execute_shell_command")
                     return shell.execute_shell_command(shell_cmd, command_identifier)
                 else:
                     print(f"Error:  GoogleDriveShell missing execute_shell_command method")
@@ -3587,7 +3523,6 @@ def main():
                 import traceback
                 error_msg = f"Error: Execute shell command failed: {e}"
                 print(error_msg)
-                # print(f"🔍 REMOTE_COMMANDS DEBUG: Full traceback:")
                 print(traceback.format_exc())
                 return 1
     elif args[0] == '--desktop':

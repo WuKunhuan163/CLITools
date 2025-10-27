@@ -122,10 +122,6 @@ class CoreUtils:
             print(f"Error: {e}")
             return 1
     
-    def _verify_mkdir_with_ls(self, *args, **kwargs):
-        from .verification import VerificationMixin
-        return VerificationMixin._verify_mkdir_with_ls(self, *args, **kwargs)
-
 class DriveProcessManager:
     """驱动进程管理器"""
     def __init__(self, drive_service, main_instance=None):

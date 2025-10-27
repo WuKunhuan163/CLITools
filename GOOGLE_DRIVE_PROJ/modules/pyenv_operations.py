@@ -842,9 +842,17 @@ print('State updated successfully')
     def _get_available_versions_cache_file(self):
         """获取可用版本缓存文件路径"""
         import os
-        cache_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
+        # 使用统一路径常量
+        try:
+            from .path_constants import get_data_dir
+            cache_dir = str(get_data_dir())
+            cache_file = str(get_data_dir() / "python_available_versions.json")
+        except ImportError:
+            cache_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
+            cache_file = os.path.join(cache_dir, "python_available_versions.json")
+        
         os.makedirs(cache_dir, exist_ok=True)
-        return os.path.join(cache_dir, "python_available_versions.json")
+        return cache_file
     
     def _generate_available_versions_cache(self):
         """生成可用Python版本缓存（并发验证）"""

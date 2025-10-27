@@ -69,9 +69,6 @@ class CacheManager:
                     if file_path.exists():
                         file_path.unlink()
                         cleaned_files.append(filename)
-                        # print(f"Clear LOCAL_EQUIVALENT file: {filename}")
-                        
-                        # 记录删除到缓存（使用原始文件名）
                         original_filename = file_info.get("original_filename", filename)
                         self.add_deletion_record(original_filename)
                     else:

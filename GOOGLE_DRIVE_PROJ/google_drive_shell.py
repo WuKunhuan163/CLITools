@@ -7,20 +7,8 @@ Google Drive远程Shell管理系统 - 重构版本
 import os
 import sys
 import json
-import time
-import hashlib
-import warnings
-import subprocess
-import shutil
-import zipfile
-import tempfile
 from pathlib import Path
-import platform
-import psutil
-from typing import Dict
 try:
-    from .google_drive_api import GoogleDriveService
-    # 导入重构后的模块
     from .modules import (
         ShellManagement,
         FileOperations,
@@ -32,7 +20,6 @@ try:
         Validation,
         Verification,
     )
-    # 导入命令系统
     from .modules.commands import CommandRegistry
     from .modules.commands.venv_command import VenvCommand
     from .modules.commands.grep_command import GrepCommand
@@ -53,8 +40,6 @@ try:
     from .modules.commands.deps_command import DepsCommand
     from .modules.commands.pyenv_command import PyenvCommand
 except ImportError:
-    # 当作为独立模块导入时使用绝对导入
-    from GOOGLE_DRIVE_PROJ.google_drive_api import GoogleDriveService
     from GOOGLE_DRIVE_PROJ.modules import (
         ShellManagement,
         FileOperations,
@@ -94,11 +79,10 @@ class GoogleDriveShell:
     
     def __init__(self):
         """初始化Google Drive Shell"""
-        # 更新数据文件路径到GOOGLE_DRIVE_DATA
         data_dir = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA"
         self.shells_file = data_dir / "shells.json"
         self.config_file = data_dir / "cache_config.json"
-        self.deletion_cache_file = data_dir / "deletion_cache.json"  # 新增删除时间缓存文件
+        self.deletion_cache_file = data_dir / "deletion_cache.json"
         
         # 确保数据目录存在
         data_dir.mkdir(exist_ok=True)
@@ -203,8 +187,6 @@ class GoogleDriveShell:
         try:
             import sys
             from pathlib import Path
-            
-            # 添加GOOGLE_DRIVE_PROJ到Python路径
             api_service_path = Path(__file__).parent / "google_drive_api.py"
             if api_service_path.exists():
                 sys.path.insert(0, str(api_service_path.parent))
@@ -280,8 +262,6 @@ class GoogleDriveShell:
     def cmd_download(self, *args, **kwargs):
         """委托到file_operations管理器"""
         return self.file_operations.cmd_download(*args, **kwargs)
-    
-    # cmd_echo 已删除 - 统一使用内置echo处理逻辑
     
     def cmd_edit(self, *args, **kwargs):
         """委托到file_operations管理器"""
@@ -373,7 +353,6 @@ class GoogleDriveShell:
     
     def execute_command_interface(self, *args, **kwargs):
         """委托到remote_commands管理器"""
-        # 检查是否已经在execute_shell_command的队列管理中
         kwargs['_skip_queue_management'] = kwargs.get('_skip_queue_management', False)
         return self.remote_commands.execute_command_interface(*args, **kwargs)
     
@@ -385,57 +364,6 @@ class GoogleDriveShell:
         """委托到verification管理器"""
         return self.verification.verify_creation_with_ls(*args, **kwargs)
     
-    def _display_recursive_ls_result(self, result):
-        """显示递归ls命令的结果"""
-        try:
-            if result.get("mode") == "recursive_bash":
-                # 简单模式：类似bash ls -R的输出
-                all_items = result.get("all_items", [])
-                if not all_items:
-                    return
-                
-                # 按路径分组
-                path_groups = {}
-                for item in all_items:
-                    path = item['path']
-                    if path not in path_groups:
-                        path_groups[path] = []
-                    path_groups[path].append(item)
-                
-                # Display paths in order
-                sorted_paths = sorted(path_groups.keys())
-                for i, path in enumerate(sorted_paths):
-                    if i > 0:
-                        print()  # Empty line to separate different directories
-                    
-                    print(f"{path}:")
-                    items = path_groups[path]
-                    
-                    # 按名称排序，文件夹优先
-                    folders = sorted([f for f in items if f['mimeType'] == 'application/vnd.google-apps.folder'], 
-                                   key=lambda x: x['name'].lower())
-                    other_files = sorted([f for f in items if f['mimeType'] != 'application/vnd.google-apps.folder'], 
-                                       key=lambda x: x['name'].lower())
-                    
-                    all_dir_items = folders + other_files
-                    
-                    for item in all_dir_items:
-                        name = item['name']
-                        if item['mimeType'] == 'application/vnd.google-apps.folder':
-                            print(f"{name}/")
-                        else:
-                            print(name)
-            else:
-                # 其他模式的显示逻辑可以在这里添加
-                print(f"Recursive ls results (detailed mode):")
-                print(f"Path: {result.get('path', 'unknown')}")
-                print(f"Total: {result.get('count', 0)} items")
-                
-        except Exception as e:
-            print(f"Error: Error displaying recursive ls results: {e}")
-    
-
-    
     def _handle_unified_echo_command(self, args):
         """统一的echo命令处理逻辑 - 支持长内容的base64编码"""
         
@@ -445,8 +373,7 @@ class GoogleDriveShell:
             return 0
         
         # 检测是否为重定向命令，如果是则统一使用base64编码
-        if '>' in args:
-            # 计算内容总长度
+        if '>' in args: 
             content_parts = []
             redirect_found = False
             target_file = None
@@ -460,7 +387,6 @@ class GoogleDriveShell:
                 content_parts.append(arg)
             
             if redirect_found and content_parts and target_file:
-                # 检查是否有-e选项并处理转义序列
                 enable_escapes = False
                 filtered_content_parts = []
                 
@@ -1009,10 +935,14 @@ class GoogleDriveShell:
                 # 添加详细的错误信息和traceback
                 import traceback
                 
-                error_msg = result.get("error", "Unknown error")
+                error_msg = result.get("error", "Background task creation failed")
                 print(f"Failed to create background task: {error_msg}")
-                if error_msg == 'Unknown error':
-                    print("Suggestion: Please try again. This may be a temporary issue.")
+                
+                # 显示详细错误信息（如果有的话）
+                if 'debug_info' in result:
+                    print("Detailed error information available in result debug_info")
+                else:
+                    print("Check the error details above for more information.")
                 
                 print("\nCall stack (most recent call last):")
                 stack_lines = traceback.format_stack()[-10:]
@@ -2350,16 +2280,9 @@ fi
         try:
             # 首先确保我们有Google Drive API服务
             if not self.drive_service:
-                if not silent:
-                    # print(f"🔍 Google Drive API服务未初始化，无法验证指纹")
-                    pass
                 return False
             
-            # 获取REMOTE_ROOT文件夹ID
             if not hasattr(self, 'REMOTE_ROOT_FOLDER_ID'):
-                if not silent:
-                    # print(f"🔍 REMOTE_ROOT_FOLDER_ID未设置，无法验证指纹")
-                    pass
                 return False
             
             # 首先获取tmp文件夹ID
@@ -2370,30 +2293,22 @@ fi
             )
             
             if not tmp_folder_result.get('success') or not tmp_folder_result.get('files'):
-                if not silent:
-                    # print(f"🔍 tmp文件夹不存在，无法验证指纹")
-                    pass
                 return False
             
             tmp_folder_id = tmp_folder_result['files'][0]['id']
             
             # 列出tmp文件夹中的所有文件
             result = self.drive_service.list_files(folder_id=tmp_folder_id, max_results=100)
-            
             if not result.get('success'):
                 if not silent:
                     print(f"Error: 无法访问tmp文件夹: {result.get('error', '未知错误')}")
                 return False
-            
             files = result.get('files', [])
             
             # 查找指纹文件
             fingerprint_files = [f for f in files if f['name'].startswith('.gds_mount_fingerprint_')]
             
             if not fingerprint_files:
-                if not silent:
-                    # print(f"🔍 在REMOTE_ROOT中未找到指纹文件")
-                    pass
                 return False
             
             # 使用最新的指纹文件（按名称排序，最新的在最后）
@@ -3230,9 +3145,14 @@ except Exception as e:
             import json
             import os
             
-            # GOOGLE_DRIVE_DATA路径
-            config_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
-            config_file = os.path.join(config_dir, "config.json")
+            # GOOGLE_DRIVE_DATA路径 - 使用统一路径常量
+            try:
+                from .modules.path_constants import get_data_dir
+                config_dir = str(get_data_dir())
+                config_file = str(get_data_dir() / "config.json")
+            except ImportError:
+                config_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
+                config_file = os.path.join(config_dir, "config.json")
             
             if os.path.exists(config_file):
                 with open(config_file, 'r', encoding='utf-8') as f:

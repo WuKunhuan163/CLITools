@@ -623,8 +623,6 @@ class DependencyAnalysis:
             
             # 主分析循环
             while R and len(Q) < 1000 and current_depth <= max_depth:
-                # print(f"Analyzing depth {current_depth}: {len(R)} packages to analyze...")
-                
                 # 准备这一轮要分析的包（最多40个）
                 batch_size = min(40, len(R))
                 current_batch = R[:batch_size]

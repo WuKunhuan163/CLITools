@@ -168,7 +168,6 @@ def extract_and_analyze_pdf(path_str: str, layout_mode: str, mode: str, call_api
             markdown_content.append(f"[{block_type}]\n{content}")
 
     doc.close()
-    # Cache is automatically saved by the centralized cache system
     print(f"Cache updated.", file=sys.stderr)
 
     final_markdown_string = "\n".join(markdown_content)
@@ -176,10 +175,8 @@ def extract_and_analyze_pdf(path_str: str, layout_mode: str, mode: str, call_api
     with open(output_path, 'w', encoding='utf-8') as f: f.write(final_markdown_string)
     
     print(f"Report saved to: {output_path}", file=sys.stderr)
-    # print(final_markdown_string)
     return output_path
 
-# --- Main Entry Point ---
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extracts and semantically structures PDF content.")
     parser.add_argument("path", nargs='?', default=None, help="Optional: Path to PDF.")

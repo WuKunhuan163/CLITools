@@ -102,9 +102,6 @@ def get_project_name():
 
 def show_project_info(current_dir, project_dir):
     """显示项目信息"""
-    # print(f"current_dir: {current_dir}")
-    # print(f"project_dir: {project_dir}")
-    # print(f"project_dir.name: {project_dir.name}")
     if is_run_environment():
         run_identifier = os.environ.get('RUN_IDENTIFIER')
         output_file = os.environ.get('RUN_DATA_FILE')
@@ -116,8 +113,6 @@ def show_project_info(current_dir, project_dir):
 def show_prompt_header(project_name, hint_text=None):
     """显示提示头部信息"""
     # 移除主进程中的音效播放逻辑，只在Tkinter subprocess中播放音效
-    # 这样可以避免双重音效播放和按钮点击时的音效问题
-    
     if project_name: 
         project_name = project_name + " - "
     if is_run_environment():
