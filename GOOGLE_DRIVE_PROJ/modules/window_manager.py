@@ -46,14 +46,12 @@ class WindowManager:
         self._initialized = True
         self.window_counter = 0  # 窗口计数器
         self.active_processes = {}  # 活跃的子进程 {window_id: process}
-        self.lock_file_path = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock")
-        self.pid_file_path = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid")
+        self.lock_file_path = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock")
+        self.pid_file_path = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid")
         self.current_lock_fd = None  # 当前持有的锁文件描述符
-        
-        # 优先队列系统
-        self.priority_queue_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json")
-        self.normal_queue_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json")
-        self.queue_lock_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock")
+        self.priority_queue_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json")
+        self.normal_queue_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json")
+        self.queue_lock_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock")
         
         # 设置进程清理处理器
         self._setup_cleanup_handlers()
@@ -659,7 +657,7 @@ class WindowManager:
         # 准备模板变量
         timeout_ms = request['timeout_seconds'] * 1000
         
-        subprocess_script_template = '''
+        subprocess_script_template = f'''
 import sys
 import os
 import json
@@ -674,7 +672,7 @@ try:
     import tkinter as tk
     import queue
     
-    result = {"action": "timeout"}
+    result = {{"action": "timeout"}}
     result_queue = queue.Queue()
     
     # 解码base64命令
@@ -686,7 +684,7 @@ try:
     # 测试模式标志
     no_direct_feedback = TEST_MODE_PLACEHOLDER
     
-    print(f"[DEBUG] 窗口进程启动: PID={os.getpid()}, 父进程PID={parent_pid}, 窗口ID=WINDOW_ID_PLACEHOLDER", file=sys.stderr)
+    print(f"[DEBUG] 窗口进程启动: PID={{os.getpid()}}, 父进程PID={{parent_pid}}, 窗口ID=WINDOW_ID_PLACEHOLDER", file=sys.stderr)
     
     root = tk.Tk()
     root.title("Google Drive Shell · Command hash: COMMAND_HASH_PLACEHOLDER")
@@ -695,12 +693,12 @@ try:
     
     # 窗口计数器 - 记录到debug日志
     import os
-    debug_file = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/window_queue_debug.log"
+    debug_file = "{os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_queue_debug.log")}"
     try:
         with open(debug_file, "a", encoding="utf-8") as f:
             import time
             timestamp = time.time() - 1757413752.714440  # 相对时间戳
-            f.write("🪟 DEBUG: [{:.3f}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={}, 父进程PID={})\\n".format(timestamp, os.getpid(), parent_pid))
+            f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={{}}, 父进程PID={})\\n".format(timestamp, os.getpid(), parent_pid))
             f.flush()
     except:
         pass
@@ -711,21 +709,21 @@ try:
             import psutil
             # 检查父进程是否还存活
             if not psutil.pid_exists(parent_pid):
-                print(f"[DEBUG] 父进程{parent_pid}已退出，关闭窗口", file=sys.stderr)
+                print(f"[DEBUG] 父进程{{parent_pid}}已退出，关闭窗口", file=sys.stderr)
                 try:
                     with open(debug_file, "a", encoding="utf-8") as f:
                         timestamp = time.time() - 1757413752.714440
-                        f.write("🪟 DEBUG: [{:.3f}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 父进程被kill - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
+                        f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 父进程被kill - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
                         f.flush()
                 except:
                     pass
-                result.update({"action": "parent_killed"})
+                result.update({{"action": "parent_killed"}})
                 root.destroy()
                 return
             # 每1秒检查一次
             root.after(1000, check_parent_alive)
         except Exception as e:
-            print(f"[DEBUG] 父进程监控错误: {e}", file=sys.stderr)
+            print(f"[DEBUG] 父进程监控错误: {{e}}", file=sys.stderr)
             # 出错时继续监控
             root.after(1000, check_parent_alive)
     
@@ -881,7 +879,7 @@ try:
     def execution_completed():
         global button_clicked
         button_clicked = True
-        result_queue.put({"action": "success", "message": "用户确认执行完成"})
+        result_queue.put({{"action": "success", "message": "用户确认执行完成"}})
         result["action"] = "success"
         
         # 记录窗口销毁
@@ -889,7 +887,7 @@ try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("🪟 DEBUG: [{:.3f}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 用户点击成功 - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
+                f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 用户点击成功 - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
                 f.flush()
         except:
             pass
@@ -899,14 +897,14 @@ try:
         """直接反馈功能"""
         global button_clicked
         button_clicked = True
-        result_queue.put({"action": "direct_feedback", "message": "启动直接反馈模式"})
+        result_queue.put({{"action": "direct_feedback", "message": "启动直接反馈模式"}})
         result["action"] = "direct_feedback"
         # 记录窗口销毁
         try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("🪟 DEBUG: [{:.3f}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 用户点击反馈 - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
+                f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 用户点击反馈 - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
                 f.flush()
         except:
             pass

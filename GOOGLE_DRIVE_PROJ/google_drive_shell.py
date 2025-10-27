@@ -120,12 +120,10 @@ class GoogleDriveShell:
         if self.cache_config_loaded:
             try:
                 config = self.cache_config
-                self.LOCAL_EQUIVALENT = config.get("local_equivalent", "/Users/wukunhuan/Applications/Google Drive")
+                self.LOCAL_EQUIVALENT = config.get("local_equivalent", os.path.expanduser("~/Applications/Google Drive"))
                 self.DRIVE_EQUIVALENT = config.get("drive_equivalent", "/content/drive/Othercomputers/我的 MacBook Air/Google Drive")
                 self.DRIVE_EQUIVALENT_FOLDER_ID = config.get("drive_equivalent_folder_id", "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY")
                 os.makedirs(self.LOCAL_EQUIVALENT, exist_ok=True)
-                
-                # 静默加载同步配置，不显示详细信息
                 pass
             except Exception:
                 raise Exception("配置加载失败")
@@ -2888,7 +2886,7 @@ try:
     root.eval('tk::PlaceWindow . center')
     
     # 音频文件路径
-    audio_file_path = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/tkinter_bell.mp3"
+    audio_file_path = "~/.local/bin/GOOGLE_DRIVE_PROJ/tkinter_bell.mp3"
     
     # 定义统一的聚焦函数
     def force_focus():
@@ -3155,7 +3153,7 @@ except Exception as e:
             import os
             
             # GOOGLE_DRIVE_DATA路径
-            config_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
+            config_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
             config_file = os.path.join(config_dir, "config.json")
             
             # 读取现有配置
@@ -3290,7 +3288,7 @@ except Exception as e:
             import os
             
             # GOOGLE_DRIVE_DATA路径
-            config_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
+            config_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
             config_file = os.path.join(config_dir, "config.json")
             
             if os.path.exists(config_file):
