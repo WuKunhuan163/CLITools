@@ -137,65 +137,6 @@ def test_drive_service():
         print(f"Error: Error during test: {e}")
         return False
 
-def get_folder_path_from_api(folder_id):
-    """使用API获取文件夹的完整路径"""
-    try:
-        # 动态导入API服务
-        import sys
-        api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
-        if not api_service_path.exists():
-            return None
-        
-        sys.path.insert(0, str(api_service_path.parent))
-        from google_drive_api import GoogleDriveService #type: ignore
-        
-        # 创建服务实例
-        drive_service = GoogleDriveService()
-        
-        # 构建路径
-        path_parts = []
-        current_id = folder_id
-        
-        while current_id and current_id != HOME_FOLDER_ID:
-            try:
-                # 获取文件夹信息
-                folder_info = drive_service.service.files().get(
-                    fileId=current_id,
-                    fields="name, parents"
-                ).execute()
-                
-                folder_name = folder_info.get('name')
-                parents = folder_info.get('parents', [])
-                
-                if folder_name:
-                    path_parts.insert(0, folder_name)
-                
-                # 移动到父文件夹
-                if parents:
-                    current_id = parents[0]
-                else:
-                    break
-                    
-            except Exception as e:
-                print(f"Warning: Get folder info failed: {e}")
-                break
-        
-        if path_parts:
-            # 移除"My Drive"如果它是第一个部分
-            if path_parts and path_parts[0] == "My Drive":
-                path_parts = path_parts[1:]
-            
-            if path_parts:
-                return "~/" + "/".join(path_parts)
-            else:
-                return "~"
-        else:
-            return "~"
-            
-    except Exception as e:
-        print(f"Error: Error getting folder path: {e}")
-        return None
-
 def test_api_connection(command_identifier=None):
     """测试Google Drive API连接"""
     try:

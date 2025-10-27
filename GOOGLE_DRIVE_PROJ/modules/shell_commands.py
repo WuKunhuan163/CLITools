@@ -84,93 +84,6 @@ HOME_URL = path_constants.HOME_URL
 HOME_FOLDER_ID = path_constants.get_folder_id("HOME_FOLDER_ID")
 REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
 
-def resolve_file_path(file_path, current_shell):
-    """解析文件路径，返回文件信息（如果存在）"""
-    try:
-        # 分离目录和文件名
-        if "/" in file_path:
-            dir_path = "/".join(file_path.split("/")[:-1])
-            filename = file_path.split("/")[-1]
-        else:
-            # 相对于当前目录
-            dir_path = "."
-            filename = file_path
-        
-        # 解析目录路径
-        if dir_path == ".":
-            parent_folder_id = current_shell.get("current_folder_id", REMOTE_ROOT_FOLDER_ID)
-        else:
-            parent_folder_id, _ = resolve_path(dir_path, current_shell)
-            if not parent_folder_id:
-                return None
-        
-        # 导入API服务
-        import sys
-        api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
-        if not api_service_path.exists():
-            return None
-        
-        sys.path.insert(0, str(api_service_path.parent))
-        from google_drive_api import GoogleDriveService #type: ignore
-        
-        drive_service = GoogleDriveService()
-        
-        # 在父目录中查找文件
-        result = drive_service.list_files(folder_id=parent_folder_id, max_results=100)
-        if not result['success']:
-            return None
-        
-        for file in result['files']:
-            if file['name'] == filename:
-                return file
-        
-        return None
-        
-    except Exception as e:
-        print(f"Error resolving file path: {e}")
-        return None
-        
-def resolve_parent_directory(folder_id, current_path):
-    """解析父目录"""
-    try:
-        if current_path == "~":
-            return None, None  # 已经在根目录
-        
-        # 导入API服务
-        import sys
-        api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
-        if not api_service_path.exists():
-            return None, None
-        
-        sys.path.insert(0, str(api_service_path.parent))
-        from google_drive_api import GoogleDriveService #type: ignore
-        
-        drive_service = GoogleDriveService()
-        
-        # 获取当前文件夹的父目录
-        folder_info = drive_service.service.files().get(
-            fileId=folder_id,
-            fields="parents"
-        ).execute()
-        
-        parents = folder_info.get('parents', [])
-        if not parents:
-            return None, None
-        
-        parent_id = parents[0]
-        
-        # 计算父目录的逻辑路径
-        if current_path.count('/') == 1:  # ~/folder -> ~
-            parent_path = "~"
-        else:
-            parent_path = '/'.join(current_path.split('/')[:-1])
-        
-        return parent_id, parent_path
-        
-    except Exception as e:
-        print(f"Error resolving parent directory: {e}")
-        return None, None
-
 def shell_pwd(command_identifier=None):
     """显示当前远程逻辑地址"""
     try:
@@ -209,7 +122,7 @@ def shell_pwd(command_identifier=None):
             print(error_msg)
         return 1
 
-def _split_pipe_command_with_quotes(shell_cmd):
+def split_pipe_command(shell_cmd):
     """
     正确分割管道命令，考虑引号内的管道符号
     
@@ -255,7 +168,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
     """处理用|连接的pipe命令 - 修复版本：直接在远程执行整个pipe命令"""
     try:
         # 解析pipe命令：支持 | 操作符，但要正确处理引号
-        pipe_parts = _split_pipe_command_with_quotes(shell_cmd)
+        pipe_parts = split_pipe_command(shell_cmd)
         if len(pipe_parts) < 2:
             # 不是pipe命令，返回特殊值表示需要其他处理
             return None

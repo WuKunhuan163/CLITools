@@ -7,12 +7,6 @@ Google Drive主管理系统 - 使用委托模式重构版本
 
 import os
 import sys
-import json
-import webbrowser
-import hashlib
-import subprocess
-import time
-import uuid
 import warnings
 from pathlib import Path
 
@@ -53,31 +47,19 @@ except ImportError as e:
     print(f"Python path: {sys.path[:3]}...")
     sys.exit(1)
 
-# 全局常量
-HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
-HOME_FOLDER_ID = "root"  # Google Drive中My Drive的文件夹ID
-REMOTE_ROOT_FOLDER_ID = "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f"  # REMOTE_ROOT文件夹ID
-
 class GoogleDriveMain:
     """Google Drive主管理类 (委托模式重构版本)"""
     
     def __init__(self):
         """初始化Google Drive主管理器"""
         # 从配置文件加载常量
-        try:
-            sys.path.insert(0, str(google_drive_proj_dir))
-            from modules.config_loader import get_config
-            config = get_config()
-            self.HOME_URL = config.HOME_URL
-            self.HOME_FOLDER_ID = config.HOME_FOLDER_ID
-            self.REMOTE_ROOT_FOLDER_ID = config.REMOTE_ROOT_FOLDER_ID
-            self.REMOTE_ROOT = config.REMOTE_ROOT
-        except ImportError:
-            # 降级使用硬编码常量
-            self.HOME_URL = HOME_URL
-            self.HOME_FOLDER_ID = HOME_FOLDER_ID
-            self.REMOTE_ROOT_FOLDER_ID = REMOTE_ROOT_FOLDER_ID
-            self.REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
+        sys.path.insert(0, str(google_drive_proj_dir))
+        from modules.config_loader import get_config
+        config = get_config()
+        self.HOME_URL = config.HOME_URL
+        self.HOME_FOLDER_ID = config.HOME_FOLDER_ID
+        self.REMOTE_ROOT_FOLDER_ID = config.REMOTE_ROOT_FOLDER_ID
+        self.REMOTE_ROOT = config.REMOTE_ROOT
         
         # 初始化管理器
         self.initialize_managers()

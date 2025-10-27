@@ -149,12 +149,6 @@ class DriveApiService:
     def test_api_connection(self, *args, **kwargs):
         return test_api_connection(*args, **kwargs)
     
-    def list_drive_files(self, *args, **kwargs):
-        return list_drive_files(*args, **kwargs)
-    
-    def upload_file_to_drive(self, *args, **kwargs):
-        return upload_file_to_drive(*args, **kwargs)
-
 class ShellCommands:
     """Shell命令管理器"""
     def __init__(self, drive_service, main_instance=None):
