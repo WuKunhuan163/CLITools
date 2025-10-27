@@ -1589,8 +1589,7 @@ done
         """
         
         try:
-            if isinstance(input_command, list):
-                # 列表格式：直接用shlex.quote处理每个参数
+            if isinstance(input_command, list): 
                 import shlex
                 if not input_command:
                     return {
@@ -1598,15 +1597,12 @@ done
                         "error": "Empty command list"
                     }
                 
-                # 智能引号处理：只对需要引号的参数添加引号
                 quoted_parts = []
                 for i, part in enumerate(input_command):
                     part_str = str(part)
-                    # 重定向操作符不添加引号
                     if part_str in ['>', '>>', '<', '|', '&', '&&', '||', ';']:
                         quoted_parts.append(part_str)
                     else:
-                        # 检查是否需要引号（包含空格或特殊字符）
                         needs_quotes = any(char in part_str for char in [' ', '\t', '\n', '"', "'", '\\', '&', '|', ';', 
                             '(', ')', '<', '>', '$', '`', '*', '?', '[', ']', 
                             '{', '}', '~', '#'])
@@ -3121,4 +3117,181 @@ except Exception as e:
         except Exception as e:
             print(f"ERROR: 从config.json加载路径失败: {e}")
             print("使用默认路径")
+    
+    def handle_command_line_args(self, args=None, command_identifier=None):
+        """
+        处理命令行参数 - 替代remote_commands.main()的功能
+        
+        Args:
+            args: 命令行参数列表，如果为None则从sys.argv获取
+            command_identifier: 命令标识符
+            
+        Returns:
+            int: 退出码
+        """
+        import sys
+        
+        if args is None:
+            # 检查是否在RUN环境中
+            if len(sys.argv) > 1 and (sys.argv[1].startswith('test_') or sys.argv[1].startswith('cmd_')):
+                command_identifier = sys.argv[1]
+                args = sys.argv[2:]
+            else:
+                args = sys.argv[1:]
+        
+        # 导入需要的函数
+        try:
+            from .modules.remote_shell_manager import list_shells, create_shell, checkout_shell, terminate_shell, enter_shell_mode
+            from .modules.drive_api_service import open_google_drive
+            from .modules.sync_config_manager import set_local_sync_dir, set_global_sync_dir
+            from .modules.remote_commands import show_help, handle_remount_command
+        except ImportError:
+            try:
+                from modules.remote_shell_manager import list_shells, create_shell, checkout_shell, terminate_shell, enter_shell_mode
+                from modules.drive_api_service import open_google_drive
+                from modules.sync_config_manager import set_local_sync_dir, set_global_sync_dir
+                from modules.remote_commands import show_help, handle_remount_command
+            except ImportError:
+                print("Error: Failed to import required modules")
+                return 1
+        
+        if not args:
+            # 没有参数，打开默认Google Drive
+            return open_google_drive(None, command_identifier) if open_google_drive else 1
+        
+        # 处理各种命令行参数
+        if args[0] in ['--help', '-h']:
+            show_help()
+            return 0
+        elif args[0] == '--console-setup':
+            # TODO: 实现console_setup_interactive
+            print("Console setup not implemented yet")
+            return 1
+        elif args[0] == '--create-remote-shell':
+            return create_shell(None, None, command_identifier) if create_shell else 1
+        elif args[0] == '--list-remote-shell':
+            return list_shells(command_identifier) if list_shells else 1
+        elif args[0] == '--checkout-remote-shell':
+            if len(args) < 2:
+                print(f"Error: 错误: 需要指定shell ID")
+                return 1
+            shell_id = args[1]
+            return checkout_shell(shell_id, command_identifier) if checkout_shell else 1
+        elif args[0] == '--terminate-remote-shell':
+            if len(args) < 2:
+                print(f"Error: 错误: 需要指定shell ID")
+                return 1
+            shell_id = args[1]
+            return terminate_shell(shell_id, command_identifier) if terminate_shell else 1
+        elif args[0] == '--remount':
+            # 处理重新挂载命令
+            return self._handle_remount_command(command_identifier)
+        elif args[0] == '--shell':
+            if len(args) == 1:
+                # 进入交互模式
+                return enter_shell_mode(command_identifier) if enter_shell_mode else 1
+            else:
+                # 执行指定的shell命令
+                return self._handle_shell_command_args(args[1:], command_identifier)
+        elif args[0] == '--desktop':
+            return self._handle_desktop_command(args[1:], command_identifier)
+        else:
+            # 未知参数
+            print(f"Error: Unknown argument '{args[0]}'")
+            print("Use --help for usage information")
+            return 1
+    
+    def _handle_shell_command_args(self, shell_cmd_parts, command_identifier=None):
+        """处理--shell命令的参数"""
+        no_direct_feedback = False
+        is_priority = False
+        filtered_shell_parts = []
+        
+        for part in shell_cmd_parts:
+            if part == '--no-direct-feedback':
+                no_direct_feedback = True
+            elif part == '--priority':
+                is_priority = True
+            else:
+                filtered_shell_parts.append(part)
+        
+        shell_cmd_parts = filtered_shell_parts
+        
+        # 检测引号包围的完整命令（用于远端重定向等）
+        if len(shell_cmd_parts) == 1 and (' > ' in shell_cmd_parts[0] or ' && ' in shell_cmd_parts[0] or ' || ' in shell_cmd_parts[0] or ' | ' in shell_cmd_parts[0]):
+            # 这是一个引号包围的完整命令，直接使用
+            shell_cmd = shell_cmd_parts[0]
+            # 只有在没有标记的情况下才添加标记，避免重复添加
+            if not shell_cmd.startswith("__QUOTED_COMMAND__"):
+                shell_cmd = f"__QUOTED_COMMAND__{shell_cmd}"
+        else:
+            # 正常的多参数命令，需要正确处理带空格的参数
+            # 对包含空格的参数添加引号
+            shell_cmd_parts_quoted = []
+            for part in shell_cmd_parts:
+                if ' ' in part:
+                    shell_cmd_parts_quoted.append(f'"{part}"')
+                else:
+                    shell_cmd_parts_quoted.append(part)
+            shell_cmd = ' '.join(shell_cmd_parts_quoted)
+        
+        # 设置模式标志
+        if no_direct_feedback and hasattr(self, 'remote_commands'):
+            self.remote_commands._no_direct_feedback = True
+        
+        if is_priority and hasattr(self, 'remote_commands'):
+            self.remote_commands._is_priority = True
+        
+        # 执行shell命令
+        return self.execute_shell_command(shell_cmd, command_identifier)
+    
+    def _handle_desktop_command(self, args, command_identifier=None):
+        """处理--desktop命令"""
+        if not args:
+            print(f"Error: --desktop needs to specify operation type")
+            return 1
+        
+        desktop_action = args[0]
+        if desktop_action == '--status':
+            try:
+                from .modules.sync_config_manager import get_google_drive_status
+                return get_google_drive_status(command_identifier)
+            except ImportError:
+                try:
+                    from modules.sync_config_manager import get_google_drive_status
+                    return get_google_drive_status(command_identifier)
+                except ImportError:
+                    print(f"Error: Unable to find get_google_drive_status function")
+                    return 1
+        elif desktop_action == '--shutdown':
+            try:
+                from .modules.drive_process_manager import shutdown_google_drive
+                return shutdown_google_drive(command_identifier)
+            except ImportError:
+                try:
+                    from modules.drive_process_manager import shutdown_google_drive
+                    return shutdown_google_drive(command_identifier)
+                except ImportError:
+                    print(f"Error: Unable to find shutdown_google_drive function")
+                    return 1
+        else:
+            print(f"Error: Unknown desktop action '{desktop_action}'")
+            return 1
+    
+    def _handle_remount_command(self, command_identifier=None):
+        """处理GOOGLE_DRIVE --remount命令"""
+        try:
+            # 调用重新挂载方法
+            from .modules.sync_config_manager import remount_google_drive
+            return remount_google_drive(command_identifier)
+        except ImportError:
+            try:
+                from modules.sync_config_manager import remount_google_drive
+                return remount_google_drive(command_identifier)
+            except ImportError:
+                print(f"Error: 重新挂载功能不可用")
+                return 1
+        except Exception as e:
+            print(f"Error: 重新挂载命令失败: {e}")
+            return 1
     

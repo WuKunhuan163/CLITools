@@ -44,11 +44,11 @@ def start_test(test_name):
     """启动一个测试"""
     # 创建输出文件名
     test_short_name = test_name.split('.')[-1]
-    output_file = f"tmp/{test_short_name}_output.txt"
+    output_file = f"_TEMP/{test_short_name}_output.txt"
     
-    # 确保tmp目录存在
-    tmp_dir = Path(__file__).parent / "tmp"
-    tmp_dir.mkdir(exist_ok=True)
+    # 确保_TEMP目录存在
+    _TEMP_dir = Path(__file__).parent / "_TEMP"
+    _TEMP_dir.mkdir(exist_ok=True)
     
     # 修改命令以重定向输出到文件
     cmd = f'cd {Path(__file__).parent} && /usr/bin/python3 -m unittest {test_name} -v > {output_file} 2>&1'
@@ -222,7 +222,7 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
             output_file = test_results[test]["output_file"]
             print(f"  - {test_short} ({output_file})")
     
-    print(f"\nAll test outputs saved in tmp/ folder")
+    print(f"\nAll test outputs saved in _TEMP/ folder")
     print(f"Use '../BACKGROUND_CMD --status' to see process details")
 
 def main():

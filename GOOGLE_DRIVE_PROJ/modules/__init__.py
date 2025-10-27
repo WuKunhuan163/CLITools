@@ -39,11 +39,9 @@ class CoreUtils:
         return get_multiline_input_safe(*args, **kwargs)
     
     def is_run_environment(self, *args, **kwargs):
-        from .remote_commands import is_run_environment
         return is_run_environment(*args, **kwargs)
     
     def write_to_json_output(self, *args, **kwargs):
-        from .remote_commands import write_to_json_output
         return write_to_json_output(*args, **kwargs)
     
     def copy_to_clipboard(self, *args, **kwargs):
@@ -57,13 +55,59 @@ class CoreUtils:
         return show_help(*args, **kwargs)
     
     def main(self, *args, **kwargs):
-        # 临时绕过remote_commands导入问题
+        """主函数 - 直接使用GoogleDriveShell处理命令行参数"""
         try:
-            from .remote_commands import main
-            return main(*args, **kwargs)
-        except ImportError:
-            # 使用简化的main实现
+            # 直接使用GoogleDriveShell处理命令行参数
+            import os
+            import sys
+            current_dir = os.path.dirname(os.path.dirname(__file__))
+            sys.path.insert(0, current_dir)
+            from google_drive_shell import GoogleDriveShell
+            
+            shell = GoogleDriveShell()
+            return shell.handle_command_line_args()
+        except Exception as e:
+            # 如果出错，回退到简化实现
+            print(f"Warning: Failed to use GoogleDriveShell: {e}")
             return self._simplified_main(*args, **kwargs)
+
+# 独立的工具函数（从remote_commands.py迁移）
+def is_run_environment(command_identifier=None):
+    """Check if running in RUN environment by checking environment variables"""
+    import os
+    if command_identifier:
+        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
+    return False
+
+def write_to_json_output(data, command_identifier=None):
+    """将结果写入到指定的 JSON 输出文件中"""
+    import os
+    import json
+    from pathlib import Path
+    
+    if not is_run_environment(command_identifier):
+        return False
+    
+    # Get the specific output file for this command identifier
+    if command_identifier:
+        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
+    else:
+        output_file = os.environ.get('RUN_DATA_FILE')
+    
+    if not output_file:
+        return False
+    
+    try:
+        # 确保输出目录存在
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Error writing to JSON output file: {e}")
+        return False
     
     def _simplified_main(self, *args, **kwargs):
         """简化的main实现"""
