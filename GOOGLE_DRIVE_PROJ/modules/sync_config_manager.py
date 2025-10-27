@@ -133,16 +133,15 @@ def load_sync_config():
             with open(config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         else:
-            # 返回默认配置
             return {
-                "local_equivalent": "/Users/wukunhuan/Applications/Google Drive",
+                "local_equivalent": os.path.expanduser("~/Applications/Google Drive"),
                 "drive_equivalent": "/content/drive/Othercomputers/我的 MacBook Air/Google Drive",
                 "drive_equivalent_folder_id": "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY"
             }
     except Exception as e:
         print(f"加载同步配置失败: {e}")
         return {
-            "local_equivalent": "/Users/wukunhuan/Applications/Google Drive",
+            "local_equivalent": os.path.expanduser("~/Applications/Google Drive"),
             "drive_equivalent": "/content/drive/Othercomputers/我的 MacBook Air/Google Drive", 
             "drive_equivalent_folder_id": "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY"
         }

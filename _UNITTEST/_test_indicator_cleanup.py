@@ -31,9 +31,13 @@ def test_indicator_cleanup():
     print(f"Raw stdout: {repr(result.stdout)}")
     print(f"Raw stderr: {repr(result.stderr)}")
     
+    # 添加处理后的可读输出
+    readable_stdout = test_instance._process_terminal_erase(result.stdout)
+    print(f"Raw stdout (readable): {repr(readable_stdout)}")
+    
     # 测试清理函数
     print("\n测试清理函数:")
-    cleaned_stdout = test_instance._simulate_terminal_output(result.stdout)
+    cleaned_stdout = test_instance._process_terminal_erase(result.stdout)
     print(f"Cleaned stdout: {repr(cleaned_stdout)}")
     print(f"Cleaned stdout (显示): '{cleaned_stdout}'")
     
@@ -50,9 +54,13 @@ def test_indicator_cleanup():
     print(f"Raw stdout: {repr(result2.stdout)}")
     print(f"Raw stderr: {repr(result2.stderr)}")
     
+    # 添加处理后的可读输出
+    readable_stdout2 = test_instance._process_terminal_erase(result2.stdout)
+    print(f"Raw stdout (readable): {repr(readable_stdout2)}")
+    
     # 测试清理函数
     print("\n测试清理函数:")
-    cleaned_stdout2 = test_instance._simulate_terminal_output(result2.stdout)
+    cleaned_stdout2 = test_instance._process_terminal_erase(result2.stdout)
     print(f"Cleaned stdout: {repr(cleaned_stdout2)}")
     print(f"Cleaned stdout (显示): '{cleaned_stdout2}'")
     
@@ -72,7 +80,7 @@ def test_indicator_cleanup():
     for i, test_str in enumerate(test_strings, 1):
         print(f"\n测试字符串 {i}:")
         print(f"原始: {repr(test_str)}")
-        cleaned = test_instance._simulate_terminal_output(test_str)
+        cleaned = test_instance._process_terminal_erase(test_str)
         print(f"清理后: {repr(cleaned)}")
         print(f"显示: '{cleaned}'")
         

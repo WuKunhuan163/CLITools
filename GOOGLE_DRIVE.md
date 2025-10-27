@@ -597,7 +597,7 @@ UPLOAD 功能通过 Google Drive Desktop 实现文件上传，支持本地文件
 
 ### 配置参数
 ```python
-LOCAL_EQUIVALENT = "/Users/wukunhuan/Applications/Google Drive"
+LOCAL_EQUIVALENT = "~/Applications/Google Drive" # 替换成实际的用户名
 DRIVE_EQUIVALENT = "/content/drive/Othercomputers/我的 MacBook Air/Google Drive"
 REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
 ```

@@ -1980,12 +1980,6 @@ fi
                     # 回退到通配符模式
                     fingerprint_file = f"{self.main_instance.REMOTE_ROOT}/tmp/.gds_mount_fingerprint_*"
                 
-                # 生成各种状态的JSON - 使用python3 -c方式，传递原始命令让python处理转义
-                # 为了避免shell转义问题，将命令作为环境变量传递
-                starting_json_template = f'$(BG_ORIGINAL_CMD={shlex.quote(bg_original_cmd)} python3 -c "import json, os; print(json.dumps({{\\"pid\\": \\"{bg_pid}\\", \\"command\\": os.environ[\\"BG_ORIGINAL_CMD\\"], \\"status\\": \\"starting\\", \\"start_time\\": \\"{start_time}\\"}}, ensure_ascii=False))")'
-                completed_json_template = f'$(BG_ORIGINAL_CMD={shlex.quote(bg_original_cmd)} python3 -c "import json, os; print(json.dumps({{\\"pid\\": \\"{bg_pid}\\", \\"command\\": os.environ[\\"BG_ORIGINAL_CMD\\"], \\"status\\": \\"completed\\", \\"start_time\\": \\"{start_time}\\", \\"end_time\\": \\"$(date -Iseconds 2>/dev/null || date)\\", \\"exit_code\\": $EXIT_CODE, \\"result_file\\": \\"{BG_RESULT_FILE}\\"}}, ensure_ascii=False))")'
-                running_json_template = f'$(BG_ORIGINAL_CMD={shlex.quote(bg_original_cmd)} python3 -c "import json, os; print(json.dumps({{\\"pid\\": \\"{bg_pid}\\", \\"command\\": os.environ[\\"BG_ORIGINAL_CMD\\"], \\"status\\": \\"running\\", \\"start_time\\": \\"{start_time}\\", \\"result_file\\": \\"{BG_RESULT_FILE}\\", \\"real_pid\\": $REAL_PID}}, ensure_ascii=False))")'
-                
                 # 测试模板实际执行结果（模拟）
                 import subprocess
                 try:
@@ -2459,7 +2453,7 @@ JSON_SCRIPT_EOF
             # Debug: 保存原始输出到文件（用于调试）
             try:
                 import os
-                debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
+                debug_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
                 os.makedirs(debug_dir, exist_ok=True)
                 debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
                 
@@ -3085,7 +3079,7 @@ JSON_SCRIPT_EOF
         """更新debug文件的输出部分"""
         try:
             import os
-            debug_file = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
+            debug_file = "~/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
             
             if not os.path.exists(debug_file):
                 return
@@ -3100,7 +3094,7 @@ JSON_SCRIPT_EOF
                 raw_stdout = data.get("stdout", "")
                 raw_stderr = data.get("stderr", "")
                 
-                # 处理输出（模拟_simulate_terminal_output的逻辑）
+                # 处理输出（模拟_process_terminal_erase的逻辑）
                 processed_stdout = self._process_terminal_escape_sequences(raw_stdout) if raw_stdout else ""
                 processed_stderr = self._process_terminal_escape_sequences(raw_stderr) if raw_stderr else ""
                 
@@ -3152,7 +3146,7 @@ JSON_SCRIPT_EOF
         """更新debug文件的输出部分，包含真正的原始输出"""
         try:
             import os
-            debug_file = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
+            debug_file = "~/.local/bin/GOOGLE_DRIVE_DATA/raw_gds_output.txt"
             
             if not os.path.exists(debug_file):
                 return
@@ -3171,7 +3165,7 @@ JSON_SCRIPT_EOF
                 combined_raw_output = raw_progress_output + remote_stdout
                 combined_raw_error = raw_progress_error + remote_stderr
                 
-                # 处理输出（模拟_simulate_terminal_output的逻辑）
+                # 处理输出（模拟_process_terminal_erase的逻辑）
                 processed_output = self._process_terminal_escape_sequences(combined_raw_output) if combined_raw_output else ""
                 processed_error = self._process_terminal_escape_sequences(combined_raw_error) if combined_raw_error else ""
                 

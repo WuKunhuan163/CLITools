@@ -6,77 +6,30 @@ FAIL
 FAIL: test_05_navigation_mix (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1512, in test_05_navigation_mix
-    self.assertNotEqual(result.returncode, 0)
-AssertionError: 0 == 0
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 650, in _run_gds_command
+    print(f"输出: {stdout_readable.stdout[:200]}...")
+AttributeError: 'str' object has no attribute 'stdout'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1357, in test_05_navigation_mix
+    result_pwd = self._run_gds_command('pwd')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 662, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: pwd - 'str' object has no attribute 'stdout'
 
 ----------------------------------------------------------------------
-Ran 1 test in 495.155s
+Ran 1 test in 36.380s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251027_101819_618556_bfe2a407
-正在创建远端测试目录: ~/tmp/gds_test_20251027_101819_618556_bfe2a407
+远端测试目录: ~/tmp/gds_test_20251027_105755_302504_7035d473
+正在创建远端测试目录: ~/tmp/gds_test_20251027_105755_302504_7035d473
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251027_101819_618556_bfe2a407
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_jh_pqhal
+已切换到远端测试目录: ~/tmp/gds_test_20251027_105755_302504_7035d473
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_h13yu8c1
 测试环境设置完成
 命令转译成功: pwd -> pwd
 返回码: 0
-输出: ~/tmp/gds_test_20251027_101819_618556_bfe2a407
-...
-命令转译成功: ls -> ls
-返回码: 0
-命令转译成功: mkdir "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir" -> mkdir "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir"
-返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir" -> ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir"
-返回码: 0
-测试多目录创建
-命令转译成功: mkdir -p "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir1" "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir2" "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir3" -> mkdir -p "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir1" "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir2" "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir3"
-返回码: 0
-输出: ⏳ Validating directory creation ...
-...
-命令转译成功: ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir1" -> ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir1"
-返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir2" -> ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir2"
-返回码: 0
-命令转译成功: ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir3" -> ls "~/tmp/gds_test_20251027_101819_618556_bfe2a407/multi_test/dir3"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir"
-返回码: 0
-命令转译成功: pwd -> pwd
-返回码: 0
-输出: ~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_dir
-...
-命令转译成功: cd .. -> cd ..
-返回码: 0
-不同远端路径类型测试
-命令转译成功: mkdir -p "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2" -> mkdir -p "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2/../.." -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2/../.."
-返回码: 0
-命令转译成功: cd ~ -> cd ~
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2/../../.." -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_path/level1/level2/../../.."
-返回码: 0
-Error:  错误路径类型测试
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/nonexistent_directory" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/nonexistent_directory"
-返回码: 1
-错误: cd: ~/tmp/gds_test_20251027_101819_618556_bfe2a407/nonexistent_directory (resolved to: ~/tmp/gds_test_20251027_101819_618556_bfe2a407/nonexistent_directory): No such file or directory
-...
-命令转译成功: echo "test content" > "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_file.txt" -> echo "test content" > "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_file.txt"
-返回码: 0
-命令转译成功: cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_file.txt" -> cd "~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_file.txt"
-返回码: 1
-错误: cd: ~/tmp/gds_test_20251027_101819_618556_bfe2a407/test_file.txt (resolved path failed): No such file or directory
-...
-命令转译成功: cd "" -> cd ""
-返回码: 0
+命令执行异常: 'str' object has no attribute 'stdout'

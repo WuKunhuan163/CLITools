@@ -35,7 +35,7 @@ RUN 命令输出一个JSON文件的路径，该文件包含命令的执行结果
 ```bash
 # 基本执行
 RUN SEARCH_PAPER "3DGS" --max-results 3
-# 输出：/Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json
+# 输出：~/.local/bin/RUN_DATA/run_xxx.json
 
 # 带终端显示
 RUN --show SEARCH_PAPER "3DGS" --max-results 3
@@ -64,7 +64,7 @@ RUN USERINPUT
   "wrapped": true,
   "command": "SEARCH_PAPER",
   "args": "3DGS --max-results 3",
-  "output_file": "/Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json",
+  "output_file": "~/.local/bin/RUN_DATA/run_xxx.json",
   "duration": 3
 }
 ```
@@ -80,7 +80,7 @@ RUN USERINPUT
   "stderr": "",
   "exit_code": 0,
   "duration": 0,
-  "output_file": "/Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json"
+  "output_file": "~/.local/bin/RUN_DATA/run_xxx.json"
 }
 ```
 
@@ -95,7 +95,7 @@ RUN USERINPUT
   "stderr": "command not found",
   "exit_code": 1,
   "duration": 0,
-  "output_file": "/Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json"
+  "output_file": "~/.local/bin/RUN_DATA/run_xxx.json"
 }
 ```
 
@@ -113,7 +113,7 @@ RUN USERINPUT
 ```
 === RUN Command Output ===
 Command: SEARCH_PAPER 3DGS --max-results 2
-Output File: /Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json
+Output File: ~/.local/bin/RUN_DATA/run_xxx.json
 ==========================
 
 {
@@ -137,10 +137,10 @@ Output File: /Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json
     "wrapped": true,
     "command": "SEARCH_PAPER",
     "args": "3DGS --max-results 2",
-    "output_file": "/Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json",
+    "output_file": "~/.local/bin/RUN_DATA/run_xxx.json",
     "duration": 3
 }
-/Users/wukunhuan/.local/bin/RUN_DATA/run_xxx.json
+~/.local/bin/RUN_DATA/run_xxx.json
 ```
 
 ## 程序化调用

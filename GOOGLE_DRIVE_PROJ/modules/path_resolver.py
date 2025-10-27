@@ -44,14 +44,12 @@ class PathResolver:
         import os
         import platform
         import json
-        
-        # 尝试从配置文件加载设置
         try:
-            config_file = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA" / "sync_config.json"
+            config_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/sync_config.json")
             if config_file.exists():
                 with open(config_file, 'r', encoding='utf-8') as f:
                         config = json.load(f)
-                self.main_instance.LOCAL_EQUIVALENT = config.get("local_equivalent", "/Users/wukunhuan/Applications/Google Drive")
+                self.main_instance.LOCAL_EQUIVALENT = config.get("local_equivalent", os.path.expanduser("~/Applications/Google Drive"))
                 self.main_instance.DRIVE_EQUIVALENT = config.get("drive_equivalent", "/content/drive/Othercomputers/我的 MacBook Air/Google Drive")
                 self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID = config.get("drive_equivalent_folder_id", "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY")
                 pass
@@ -79,7 +77,7 @@ class PathResolver:
         import platform
         
         if platform.system() == "Darwin":  # macOS
-            self.main_instance.LOCAL_EQUIVALENT = "/Users/wukunhuan/Applications/Google Drive"
+            self.main_instance.LOCAL_EQUIVALENT = "~/Users/wukunhuan/Applications/Google Drive"
             self.main_instance.DRIVE_EQUIVALENT = "/content/drive/Othercomputers/我的 MacBook Air/Google Drive"
         else:
             raise Exception("Not Implemented Yet")

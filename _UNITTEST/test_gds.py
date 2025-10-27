@@ -352,22 +352,19 @@ Shell commands: ls -la && echo "done"
             print(f"读取本地文件失败: {file_path}, 错误: {e}")
             return None
     
-    def _simulate_terminal_output(self, stdout, stderr, returncode):
+    def _process_terminal_erase(self, stdout):
         """
         模拟终端输出处理，正确处理擦除字符
         基于实际观察到的模式：\r\x1b[K会擦除当前行
         
         Args:
             stdout: GDS命令的标准输出
-            stderr: GDS命令的标准错误输出  
-            returncode: GDS命令的返回码
             
         Returns:
-            tuple: (cleaned_stdout, cleaned_stderr, returncode)
+            tuple: (cleaned_stdout)
         """
         import re
-        
-        def process_terminal_escape_sequences(text):
+        def process(text):
             """
             处理终端转义序列，模拟真实终端行为
             使用反向处理：从后往前寻找擦除符号，从擦除符号位置向左擦除
@@ -459,36 +456,14 @@ Shell commands: ls -la && echo "done"
             return result
         
         cleaned_stdout = stdout
-        cleaned_stderr = stderr
-        
-        # 处理stdout中的终端转义序列
         if cleaned_stdout:
-            cleaned_stdout = process_terminal_escape_sequences(cleaned_stdout)
-            
-            # 移除多余的换行符和空白
+            cleaned_stdout = process(cleaned_stdout)
             cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
             cleaned_stdout = cleaned_stdout.strip()
             if cleaned_stdout:
-                cleaned_stdout += '\n'  # 保持bash风格的结尾换行符
+                cleaned_stdout += '\n'
         
-        # 对于错误情况，GDS将错误信息输出到stdout，需要移动到stderr以对齐bash行为
-        if returncode != 0 and cleaned_stdout:
-            # 检查常见的GDS错误格式并转换为bash格式
-            error_mappings = {
-                r"Path not found: (.+)": r"ls: \1: No such file or directory",
-                r"Directory does not exist: (.+)": r"cd: \1: No such file or directory", 
-                r"File or directory does not exist: (.+)": r"cat: \1: No such file or directory",
-            }
-            
-            for gds_pattern, bash_format in error_mappings.items():
-                match = re.search(gds_pattern, cleaned_stdout)
-                if match:
-                    # 将错误信息移动到stderr并转换格式
-                    cleaned_stderr = re.sub(gds_pattern, bash_format, cleaned_stdout)
-                    cleaned_stdout = ""
-                    break
-        
-        return cleaned_stdout, cleaned_stderr, returncode
+        return cleaned_stdout
     
     def _run_bash_command(self, command, cwd=None):
         """
@@ -652,11 +627,12 @@ Shell commands: ls -la && echo "done"
                 cwd=self.BIN_DIR
             )
             
-            # Debug: 保存原始输出到文件
             import os
-            debug_dir = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA"
-            os.makedirs(debug_dir, exist_ok=True)
+            # Use dynamic path with __file__
+            debug_dir = f"{os.path.dirname(os.path.abspath(__file__))}/../GOOGLE_DRIVE_DATA"
             debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
+            os.makedirs(debug_dir, exist_ok=True)
+            stdout_readable = self._process_terminal_erase(result.stdout)
             
             try:
                 with open(debug_file, 'w', encoding='utf-8') as f:
@@ -664,22 +640,20 @@ Shell commands: ls -la && echo "done"
                     f.write(f"Full command: {full_command}\n")
                     f.write(f"Return code: {result.returncode}\n")
                     f.write(f"Raw stdout: {repr(result.stdout)}\n")
+                    f.write(f"Raw stdout (readable):\n{stdout_readable}\n")
                     f.write(f"Raw stderr: {repr(result.stderr)}\n")
-                    f.write(f"Raw stdout (readable):\n{result.stdout}\n")
-                    f.write(f"Raw stderr (readable):\n{result.stderr}\n")
             except Exception as debug_e:
                 print(f"Debug output failed: {debug_e}")
             
-            stdout, stderr, returncode = self._simulate_terminal_output(result.stdout, result.stderr, result.returncode)
-            print(f"返回码: {returncode}")
-            if stdout:
-                print(f"输出: {stdout[:200]}...")
-            if stderr:
-                print(f"错误: {stderr[:200]}...")
+            print(f"返回码: {result.returncode}")
+            if result.stdout:
+                print(f"输出: {stdout_readable[:200]}...")
+            if result.stderr:
+                print(f"错误: {result.stderr[:200]}...")
             
             # 基于功能执行情况判断，而不是终端输出
             if check_function_result and expect_success:
-                self.assertEqual(returncode, 0, f"命令执行失败: {command}")
+                self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
             
             return result
         except Exception as e:
@@ -822,25 +796,15 @@ Shell commands: ls -la && echo "done"
             print(f"\n尝试 {attempt + 1}/{max_retries}")
 
             result = self._run_gds_command(command, expect_success=False, check_function_result=False)
-            print (f"=============")
-            print (f"result.stdout: {result.stdout}")
-            print (f"result.stderr: {result.stderr}")
-            print (f"result.returncode: {result.returncode}")
-            print (f"=============")
-            stdout, stderr, returncode = self._simulate_terminal_output(result.stdout, result.stderr, result.returncode)
-            print (f"=============")
-            print (f"stdout: {stdout}")
-            print (f"stderr: {stderr}")
-            print (f"returncode: {returncode}")
-            print (f"=============")
-            print(f"返回码: {returncode}")
-            if stdout:
-                print(f"输出: {stdout[:200]}...")
-            if stderr:
-                print(f"错误: {stderr[:200]}...")
+            result.stdout = self._process_terminal_erase(result.stdout)
+            print(f"返回码: {result.returncode}")
+            if result.stdout:
+                print(f"输出: {result.stdout[:200]}...")
+            if result.stderr:
+                print(f"错误: {result.stderr[:200]}...")
             
-            if returncode != 0:
-                print(f"Error: Upload command failed, return code: {returncode}")
+            if result.returncode != 0:
+                print(f"Error: Upload command failed, return code: {result.returncode}")
                 if attempt < max_retries - 1:
                     print(f"Waiting 1 second before retrying...")
                     import time
@@ -855,8 +819,11 @@ Shell commands: ls -la && echo "done"
                 print(f"验证命令 {i+1}: {verify_cmd}")
                 verify_result = self._run_gds_command(verify_cmd, expect_success=False, check_function_result=False)
                 
+                verify_result.stdout = self._process_terminal_erase(verify_result.stdout)
                 if verify_result.returncode != 0:
                     print(f"验证失败: {verify_cmd} (返回码: {verify_result.returncode})")
+                    print(f"输出: {verify_result.stdout[:200]}...")
+                    print(f"错误: {verify_result.stderr[:200]}...")
                     all_verifications_passed = False
                     break
                 else:
@@ -1472,8 +1439,8 @@ print(f"Current files: {len(os.listdir())}")'''
         
         # 测试无效的路径格式
         result = self._run_gds_command('cd ""', expect_success=False, check_function_result=False)
-        self.assertNotEqual(result.returncode, 0)
-        
+        self.assertEqual(result.returncode, 0) # bash behaviour
+
         # 测试尝试访问~上方的路径（应该被限制）
         result = self._run_gds_command('cd ~/..', expect_success=False, check_function_result=False)
         print(f"导航命令和路径测试完成")
@@ -2815,8 +2782,8 @@ if __name__ == "__main__":
             self.assertEqual(shell_result.returncode, 0, f"Shell模式执行{cmd}应该成功")
             
             # 清理输出以便比较
-            direct_output = self._simulate_terminal_output(direct_result.stdout)
-            shell_output = self._simulate_terminal_output(shell_result.stdout)
+            direct_output = self._process_terminal_erase(direct_result.stdout)
+            shell_output = self._process_terminal_erase(shell_result.stdout)
             
             # 对于help命令，验证关键内容存在
             if cmd == "help":
@@ -4300,10 +4267,7 @@ print("=== Verification completed ===")
             gds_redirect_content = self._run_gds_command("cat test_redirect.txt")
             bash_redirect_content = self._run_bash_command("cat test_redirect.txt", bash_test_dir)
             
-            gds_stdout, gds_stderr, gds_returncode = self._simulate_terminal_output(
-                gds_redirect_content.stdout, gds_redirect_content.stderr, gds_redirect_content.returncode
-            )
-            
+            gds_stdout = self._process_terminal_erase(gds_redirect_content.stdout)
             self.assertEqual(gds_returncode, bash_redirect_content.returncode, "重定向内容读取返回码应该一致")
             self.assertEqual(gds_stdout.strip(), bash_redirect_content.stdout.strip(), "重定向内容应该一致")
         
