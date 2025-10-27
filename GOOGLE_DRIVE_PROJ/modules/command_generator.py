@@ -7,7 +7,6 @@ import os
 import json
 import time
 import subprocess
-from pathlib import Path
 
 class CommandGenerator:
     """重构后的command_generator功能"""
@@ -182,9 +181,7 @@ class CommandGenerator:
             # 根据是否为background模式生成不同的远程命令脚本
             # 检查是否为背景任务
             if is_background:
-                # Background模式：生成后台任务脚本
                 import shlex
-                quoted_user_cmd = shlex.quote(bg_original_cmd)
                 start_time = datetime.now().isoformat()
                 
                 # 使用常量定义background文件名
@@ -192,58 +189,7 @@ class CommandGenerator:
                 BG_SCRIPT_FILE = get_bg_script_file(bg_pid)
                 BG_LOG_FILE = get_bg_log_file(bg_pid)
                 BG_RESULT_FILE = get_bg_result_file(bg_pid)
-                
-                # 创建统一的JSON状态生成函数
-                def generate_status_json(pid, command, status, start_time, end_time=None, exit_code=None, result_file=None, real_pid=None):
-                    """统一的状态JSON生成函数"""
-                    status_obj = {
-                        "pid": pid,
-                        "command": command,
-                        "status": status,
-                        "start_time": start_time
-                    }
-                    if end_time:
-                        status_obj["end_time"] = end_time
-                    if exit_code is not None:
-                        status_obj["exit_code"] = exit_code
-                    if result_file:
-                        status_obj["result_file"] = result_file
-                    if real_pid:
-                        status_obj["real_pid"] = real_pid
-                    return json.dumps(status_obj, ensure_ascii=False)
-                
-                
-                # 为JSON生成正确转义的命令字符串
-                escaped_bg_cmd = json.dumps(bg_original_cmd)
-                
-                # 测试shlex.quote的结果
-                quoted_bg_cmd = shlex.quote(bg_original_cmd)
-                
-                # 测试统一JSON生成函数
-                test_json = generate_status_json(bg_pid, bg_original_cmd, "starting", start_time)
-                
-                # 获取当前挂载的特定指纹文件名
-                mount_hash = getattr(self.main_instance, 'MOUNT_HASH', None)
-                if mount_hash:
-                    fingerprint_file = f"{self.main_instance.REMOTE_ROOT}/tmp/.gds_mount_fingerprint_{mount_hash}"
-                else:
-                    # 回退到通配符模式
-                    fingerprint_file = f"{self.main_instance.REMOTE_ROOT}/tmp/.gds_mount_fingerprint_*"
-                
-                # 测试模板实际执行结果（模拟）
-                import subprocess
-                try:
-                    test_env = os.environ.copy()
-                    test_env['BG_ORIGINAL_CMD'] = bg_original_cmd
-                    test_result = subprocess.run([
-                        'python3', '-c', 
-                        f'import json, os; print(json.dumps({{"pid": "{bg_pid}", "command": os.environ["BG_ORIGINAL_CMD"], "status": "starting", "start_time": "{start_time}"}}, ensure_ascii=False))'
-                    ], env=test_env, capture_output=True, text=True)
-                    if test_result.stderr:
-                        print (test_result.stderr)
-                except Exception as e:
-                    pass
-                
+                                
                 # 创建后台管理脚本内容
                 background_manager_content = f'''#!/bin/bash
 # Background Task Manager for {bg_pid}

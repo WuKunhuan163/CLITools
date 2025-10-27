@@ -6,7 +6,6 @@ Command Executor Module
 import time
 from typing import List
 import threading
-from pathlib import Path
 
 class DebugCapture:
     """Debug信息捕获和存储系统"""
@@ -54,6 +53,88 @@ def debug_print(*args, **kwargs):
         # 正常输出
         print(message, **kwargs)
 
+def write_debug_output(command=None, result=None, raw_output=None, output=None, 
+                       raw_error=None, error=None, remote_command=None, full_command=None,
+                       return_code=None):
+    """
+    统一的debug输出接口
+    
+    Args:
+        command: 用户命令
+        result: 窗口结果字典
+        raw_output: 原始stdout
+        output: 处理后的stdout
+        raw_error: 原始stderr
+        error: 处理后的stderr
+        remote_command: 远端命令
+        full_command: 完整命令（含参数）
+        return_code: 返回码
+    """
+    from .path_constants import get_data_dir
+    debug_file = str(get_data_dir() / "raw_gds_output.txt")
+    
+    with open(debug_file, 'w', encoding='utf-8') as f:
+        # 命令
+        f.write("=" * 50 + "\n")
+        f.write("COMMAND:\n")
+        f.write(f"{command if command is not None else '(not provided)'}\n\n")
+        
+        # 完整命令
+        if full_command is not None:
+            f.write("=" * 50 + "\n")
+            f.write("FULL_COMMAND:\n")
+            f.write(f"{full_command}\n\n")
+        
+        # 结果
+        if result is not None:
+            f.write("=" * 50 + "\n")
+            f.write("RESULT:\n")
+            f.write(f"{result}\n\n")
+        
+        # 返回码
+        if return_code is not None:
+            f.write("=" * 50 + "\n")
+            f.write("RETURN_CODE:\n")
+            f.write(f"{return_code}\n\n")
+        
+        # 原始输出
+        f.write("=" * 50 + "\n")
+        f.write("RAW_OUTPUT:\n")
+        if raw_output is not None:
+            f.write(f"{repr(raw_output)}\n\n")
+        else:
+            f.write("(not provided)\n\n")
+        
+        # 处理后的输出
+        f.write("=" * 50 + "\n")
+        f.write("OUTPUT:\n")
+        if output is not None:
+            f.write(f"{output}\n\n")
+        else:
+            f.write("(not provided)\n\n")
+        
+        # 原始错误
+        f.write("=" * 50 + "\n")
+        f.write("RAW_ERROR:\n")
+        if raw_error is not None:
+            f.write(f"{repr(raw_error)}\n\n")
+        else:
+            f.write("(not provided)\n\n")
+        
+        # 处理后的错误
+        f.write("=" * 50 + "\n")
+        f.write("ERROR:\n")
+        if error is not None:
+            f.write(f"{error}\n\n")
+        else:
+            f.write("(not provided)\n\n")
+        
+        # 远端命令
+        if remote_command is not None:
+            f.write("=" * 50 + "\n")
+            f.write("REMOTE_COMMAND:\n")
+            f.write(f"{remote_command}\n") # 忽略debug输出错误
+
 class CommandExecutor:
     """重构后的command_executor功能"""
 
@@ -64,6 +145,119 @@ class CommandExecutor:
             'ls', 'cd', 'pwd', 'mkdir', 'mv', 'cat', 'grep', 
             'upload', 'download', 'edit', 'read', 'find', 'help', 'exit', 'quit', 'venv'
         }
+
+    def process_terminal_erase(self, stdout):
+        """
+        模拟终端输出处理，正确处理擦除字符
+        基于实际观察到的模式：\r\x1b[K会擦除当前行
+        
+        Args:
+            stdout: GDS命令的标准输出
+            
+        Returns:
+            tuple: (cleaned_stdout)
+        """
+        import re
+        def process(text):
+            """
+            处理终端转义序列，模拟真实终端行为
+            使用反向处理：从后往前寻找擦除符号，从擦除符号位置向左擦除
+            """
+            if not text:
+                return text
+            
+            result = text
+            
+            # 反向处理：从后往前寻找擦除序列
+            while True:
+                # 寻找最后一个\r\x1b[K序列
+                last_r_erase_pos = result.rfind('\r\x1b[K')
+                # 寻找最后一个\n\x1b[K序列
+                last_n_erase_pos = result.rfind('\n\x1b[K')
+                
+                # 选择最后出现的擦除序列
+                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
+                    # 没有找到擦除序列，处理完成
+                    break
+                
+                # 确定使用哪个擦除序列（选择位置更靠后的）
+                if last_r_erase_pos > last_n_erase_pos:
+                    last_erase_pos = last_r_erase_pos
+                    erase_pattern = '\r\x1b[K'
+                else:
+                    last_erase_pos = last_n_erase_pos
+                    erase_pattern = '\n\x1b[K'
+                
+                # 找到擦除序列，需要擦除当前行
+                # 从擦除序列位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_erase_pos)
+                if line_start == -1:
+                    # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
+                    line_start = 0
+                else:
+                    # 找到了换行符，保留换行符，从换行符后开始擦除
+                    line_start += 1
+                
+                # 擦除从line_start到擦除序列结束的内容
+                erase_end = last_erase_pos + len(erase_pattern)
+                result = result[:line_start] + result[erase_end:]
+            
+            # 处理单独的\r（回车符）
+            while True:
+                last_cr_pos = result.rfind('\r')
+                if last_cr_pos == -1:
+                    break
+                
+                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
+                if (last_cr_pos + 3 < len(result) and 
+                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
+                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
+                    # 这种情况不应该发生，但为了安全起见
+                    break
+                
+                # 单独的\r：光标回到行首，后续字符会覆盖当前行
+                line_start = result.rfind('\n', 0, last_cr_pos)
+                if line_start == -1:
+                    line_start = 0
+                else:
+                    line_start += 1
+                
+                # 移除\r，保留后续内容（如果有的话）
+                result = result[:line_start] + result[last_cr_pos+1:]
+            
+            # 处理单独的\x1b[K序列
+            while True:
+                last_k_pos = result.rfind('\x1b[K')
+                if last_k_pos == -1:
+                    break
+                
+                # 检查这个\x1b[K前面是否有\r
+                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
+                    # 这是\r\x1b[K的一部分，应该已经被处理了
+                    break
+                
+                # 单独的\x1b[K：擦除从光标到行尾
+                # 需要擦除当前行的内容
+                # 从\x1b[K位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_k_pos)
+                if line_start == -1:
+                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
+                    result = result[last_k_pos+3:]
+                else:
+                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
+                    result = result[:line_start+1] + result[last_k_pos+3:]
+            
+            return result
+        
+        cleaned_stdout = stdout
+        if cleaned_stdout:
+            cleaned_stdout = process(cleaned_stdout)
+            cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
+            cleaned_stdout = cleaned_stdout.strip()
+            if cleaned_stdout:
+                cleaned_stdout += '\n'
+        
+        return cleaned_stdout
 
     def execute_command(self, user_command, result_filename=None, current_shell=None, skip_quote_escaping=False):
         """
@@ -78,6 +272,8 @@ class CommandExecutor:
         Returns:
             dict: 执行结果
         """
+        import time
+        
         # 处理__QUOTED_COMMAND__标记
         if user_command.startswith("__QUOTED_COMMAND__"):
             user_command = user_command[len("__QUOTED_COMMAND__"):]
@@ -112,50 +308,13 @@ class CommandExecutor:
             command_text=remote_command
         )
         
-        # Debug: 保存原始输出到文件（用于调试）
-        try:
-            import os
-            # 使用统一路径常量
-            try:
-                from .path_constants import get_data_dir
-                debug_dir = str(get_data_dir())
-                debug_file = str(get_data_dir() / "raw_gds_output.txt")
-            except ImportError:
-                debug_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
-                debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
-            os.makedirs(debug_dir, exist_ok=True)
-            
-            with open(debug_file, 'w', encoding='utf-8') as f:
-                f.write("=" * 50 + "\n")
-                f.write("COMMAND:\n")
-                f.write(f"{user_command}\n\n")
-                
-                f.write("=" * 50 + "\n")
-                f.write("RESULT:\n")
-                f.write(f"{window_result}\n\n")
-                
-                # 这里先写占位符，后续会在结果处理时更新
-                f.write("=" * 50 + "\n")
-                f.write("RAW_OUTPUT:\n")
-                f.write("(Will be updated after command execution)\n\n")
-                
-                f.write("=" * 50 + "\n")
-                f.write("OUTPUT:\n")
-                f.write("(Will be updated after command execution)\n\n")
-                
-                f.write("=" * 50 + "\n")
-                f.write("RAW_ERROR:\n")
-                f.write("(Will be updated after command execution)\n\n")
-                
-                f.write("=" * 50 + "\n")
-                f.write("ERROR:\n")
-                f.write("(Will be updated after command execution)\n\n")
-                
-                f.write("=" * 50 + "\n")
-                f.write("REMOTE_COMMAND:\n")
-                f.write(f"{remote_command}\n")
-        except Exception as debug_e:
-            pass  # 忽略debug输出错误
+        write_debug_output(
+            command=user_command,
+            result=window_result,
+            raw_output="(Will be updated after command execution)",
+            raw_error="(Will be updated after command execution)",
+            remote_command=remote_command
+        )
         
         # 处理窗口结果
         if window_result["action"] == "success":
@@ -166,11 +325,24 @@ class CommandExecutor:
             start_progress_buffering("⏳ Waiting for result ...")
             
             try:
-                result_file_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{actual_result_filename}"
                 result = self.main_instance.result_processor.wait_and_read_result_file(actual_result_filename)
             finally:
                 # 停止进度指示器
                 stop_progress_buffering()
+            
+            # 更新debug文件，记录实际的执行结果
+            if result.get("success", False):
+                data = result.get("data", {})
+                write_debug_output(
+                    command=user_command,
+                    result=result,
+                    raw_output=data.get("stdout", ""),
+                    output=data.get("stdout", ""),
+                    raw_error=data.get("stderr", ""),
+                    error=data.get("stderr", ""),
+                    remote_command=remote_command,
+                    return_code=data.get("exit_code", -1)
+                )
             
             if result.get("success", False):
                 data = result.get("data", {})
@@ -438,67 +610,6 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
 
         # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
         return feedback_result
-
-
-    def process_terminal_escape_sequences(self, text):
-        """处理终端转义序列，模拟用户看到的输出"""
-        if not text:
-            return ""
-        
-        # 模拟终端处理转义序列
-        lines = text.split('\n')
-        processed_lines = []
-        
-        for line in lines:
-            # 处理回车符 \r
-            if '\r' in line:
-                parts = line.split('\r')
-                # 回车符会回到行首，所以只保留最后一部分
-                line = parts[-1]
-            
-            # 处理退格符 \b
-            while '\b' in line:
-                # 找到\b的位置
-                pos = line.find('\b')
-                if pos > 0:
-                    # 删除\b前面的一个字符和\b本身
-                    line = line[:pos-1] + line[pos+1:]
-                else:
-                    # 如果\b在开头，只删除\b
-                    line = line[1:]
-            
-            # 处理ANSI转义序列（颜色代码等）
-            # 简单匹配 \033[...m 或 \x1b[...m
-            import re
-            line = re.sub(r'\033\[[0-9;]*m', '', line)  # ESC[...m
-            line = re.sub(r'\x1b\[[0-9;]*m', '', line)  # ESC[...m (十六进制)
-            line = re.sub(r'\033\[[0-9;]*[A-Za-z]', '', line)  # ESC[...字母
-            line = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', line)  # ESC[...字母
-            
-            # 处理光标移动等其他转义序列
-            line = re.sub(r'\033\[[0-9]+;[0-9]+[Hf]', '', line)  # 光标位置
-            line = re.sub(r'\x1b\[[0-9]+;[0-9]+[Hf]', '', line)
-            line = re.sub(r'\033\[[0-9]*[ABCDEFGJKST]', '', line)  # 各种光标移动
-            line = re.sub(r'\x1b\[[0-9]*[ABCDEFGJKST]', '', line)
-            
-            # 处理清屏序列
-            line = re.sub(r'\033\[2J', '', line)
-            line = re.sub(r'\x1b\[2J', '', line)
-            line = re.sub(r'\033\[H', '', line)
-            line = re.sub(r'\x1b\[H', '', line)
-            line = re.sub(r'\033\[K', '', line)  # 清除到行尾
-            line = re.sub(r'\x1b\[K', '', line)
-            
-            # 处理响铃符
-            line = line.replace('\a', '')
-            line = line.replace('\x07', '')
-            
-            # 处理制表符
-            line = line.replace('\t', '    ')  # 制表符转换为4个空格
-            
-            processed_lines.append(line)
-        
-        return '\n'.join(processed_lines)
 
     def _get_multiline_user_input(self):
         """

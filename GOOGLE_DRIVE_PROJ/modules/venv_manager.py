@@ -184,37 +184,6 @@ class VenvApiManager:
         """获取当前时间戳"""
         import datetime
         return 
-    def _save_all_venv_states(self, all_states):
-        """保存完整的虚拟环境状态"""
-        try:
-            import json
-            
-            # 构建保存状态的远程命令
-            state_file_path = self._get_venv_state_file_path()
-            json_content = json.dumps(all_states, indent=2, ensure_ascii=False)
-            
-            # 转义JSON内容以便在bash中使用
-            escaped_json = json_content.replace("'", "'\"'\"'")
-            
-            remote_command = f'''
-mkdir -p "{self._get_venv_base_path()}" && {{
-    echo '{escaped_json}' > "{state_file_path}"
-    echo "State file updated: {state_file_path}"
-}}
-'''
-            
-            result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
-            
-            if result.get("success"):
-                print(f"Venv states saved successfully")
-                return True
-            else:
-                print(f"Failed to save venv states: {result.get('error', 'Unknown error')}")
-                return False
-                
-        except Exception as e:
-            print(f"Error saving venv states: {str(e)}")
-            return False
 
     def _get_venv_api_manager(self):
         """获取虚拟环境API管理器"""

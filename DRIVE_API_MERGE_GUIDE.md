@@ -119,7 +119,6 @@ GOOGLE_DRIVE_PROJ/
 │       ├── _authenticate
 │       ├── test_connection
 │       ├── list_files
-│       ├── find_folder_by_name
 │       └── download_file
 │
 └── modules/

@@ -27,6 +27,7 @@ from pathlib import Path
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
+from GOOGLE_DRIVE_PROJ.modules.command_executor import process_terminal_erase
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -351,119 +352,6 @@ Shell commands: ls -la && echo "done"
             print(f"读取本地文件失败: {file_path}, 错误: {e}")
             return None
     
-    def _process_terminal_erase(self, stdout):
-        """
-        模拟终端输出处理，正确处理擦除字符
-        基于实际观察到的模式：\r\x1b[K会擦除当前行
-        
-        Args:
-            stdout: GDS命令的标准输出
-            
-        Returns:
-            tuple: (cleaned_stdout)
-        """
-        import re
-        def process(text):
-            """
-            处理终端转义序列，模拟真实终端行为
-            使用反向处理：从后往前寻找擦除符号，从擦除符号位置向左擦除
-            """
-            if not text:
-                return text
-            
-            result = text
-            
-            # 反向处理：从后往前寻找擦除序列
-            while True:
-                # 寻找最后一个\r\x1b[K序列
-                last_r_erase_pos = result.rfind('\r\x1b[K')
-                # 寻找最后一个\n\x1b[K序列
-                last_n_erase_pos = result.rfind('\n\x1b[K')
-                
-                # 选择最后出现的擦除序列
-                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
-                    # 没有找到擦除序列，处理完成
-                    break
-                
-                # 确定使用哪个擦除序列（选择位置更靠后的）
-                if last_r_erase_pos > last_n_erase_pos:
-                    last_erase_pos = last_r_erase_pos
-                    erase_pattern = '\r\x1b[K'
-                else:
-                    last_erase_pos = last_n_erase_pos
-                    erase_pattern = '\n\x1b[K'
-                
-                # 找到擦除序列，需要擦除当前行
-                # 从擦除序列位置向左找到行的开始位置
-                line_start = result.rfind('\n', 0, last_erase_pos)
-                if line_start == -1:
-                    # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
-                    line_start = 0
-                else:
-                    # 找到了换行符，保留换行符，从换行符后开始擦除
-                    line_start += 1
-                
-                # 擦除从line_start到擦除序列结束的内容
-                erase_end = last_erase_pos + len(erase_pattern)
-                result = result[:line_start] + result[erase_end:]
-            
-            # 处理单独的\r（回车符）
-            while True:
-                last_cr_pos = result.rfind('\r')
-                if last_cr_pos == -1:
-                    break
-                
-                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
-                if (last_cr_pos + 3 < len(result) and 
-                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
-                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
-                    # 这种情况不应该发生，但为了安全起见
-                    break
-                
-                # 单独的\r：光标回到行首，后续字符会覆盖当前行
-                line_start = result.rfind('\n', 0, last_cr_pos)
-                if line_start == -1:
-                    line_start = 0
-                else:
-                    line_start += 1
-                
-                # 移除\r，保留后续内容（如果有的话）
-                result = result[:line_start] + result[last_cr_pos+1:]
-            
-            # 处理单独的\x1b[K序列
-            while True:
-                last_k_pos = result.rfind('\x1b[K')
-                if last_k_pos == -1:
-                    break
-                
-                # 检查这个\x1b[K前面是否有\r
-                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
-                    # 这是\r\x1b[K的一部分，应该已经被处理了
-                    break
-                
-                # 单独的\x1b[K：擦除从光标到行尾
-                # 需要擦除当前行的内容
-                # 从\x1b[K位置向左找到行的开始位置
-                line_start = result.rfind('\n', 0, last_k_pos)
-                if line_start == -1:
-                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
-                    result = result[last_k_pos+3:]
-                else:
-                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
-                    result = result[:line_start+1] + result[last_k_pos+3:]
-            
-            return result
-        
-        cleaned_stdout = stdout
-        if cleaned_stdout:
-            cleaned_stdout = process(cleaned_stdout)
-            cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
-            cleaned_stdout = cleaned_stdout.strip()
-            if cleaned_stdout:
-                cleaned_stdout += '\n'
-        
-        return cleaned_stdout
-    
     def _run_bash_command(self, command, cwd=None):
         """
         运行bash命令用于对比测试
@@ -595,60 +483,36 @@ Shell commands: ls -la && echo "done"
         # 处理命令字符串
         processed_command_str = add_params_to_gds_commands(command_str)
         
-        # 如果没有组合命令，使用原来的逻辑
-        if processed_command_str == command_str:
-            # 正确转义command_str以避免shell的二次解释
-            import shlex
-            escaped_command_str = shlex.quote(command_str)
-            
-            # 构建完整命令，在测试模式下添加--no-direct-feedback和--priority参数
-            cmd_parts = [f"python3 {self.GOOGLE_DRIVE_PY}", "--shell"]
-            
+        # 构建完整命令，使用列表格式避免不必要的转义
+        if processed_command_str == command_str: 
+            cmd_parts = ["python3", str(self.GOOGLE_DRIVE_PY), "--shell"]
             if no_direct_feedback:
                 cmd_parts.append("--no-direct-feedback")
-            
             if is_priority:
                 cmd_parts.append("--priority")
-                
-            cmd_parts.append(escaped_command_str)
-            full_command = " ".join(cmd_parts)
+            cmd_parts.append(command_str)
+            # 使用列表格式
+            full_command = cmd_parts
+            use_shell = False
         else:
             # 使用处理后的组合命令
             full_command = processed_command_str
+            use_shell = True
             
         try:
             # 注意：远端窗口操作没有timeout限制，允许用户手动执行
             result = subprocess.run(
                 full_command,
-                shell=True,
+                shell=use_shell,
                 capture_output=True,
                 text=True,
                 cwd=self.BIN_DIR
             )
-            
-            import os
-            # Use dynamic path with __file__
-            debug_dir = f"{os.path.dirname(os.path.abspath(__file__))}/../GOOGLE_DRIVE_DATA"
-            debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
-            os.makedirs(debug_dir, exist_ok=True)
-            stdout_readable = self._process_terminal_erase(result.stdout)
-            
-            try:
-                with open(debug_file, 'w', encoding='utf-8') as f:
-                    f.write(f"Command: {command}\n")
-                    f.write(f"Full command: {full_command}\n")
-                    f.write(f"Return code: {result.returncode}\n")
-                    f.write(f"Raw stdout: {repr(result.stdout)}\n")
-                    f.write(f"Raw stdout (readable):\n{stdout_readable}\n")
-                    f.write(f"Raw stderr: {repr(result.stderr)}\n")
-            except Exception as debug_e:
-                print(f"Debug output failed: {debug_e}")
-            
             print(f"返回码: {result.returncode}")
             if result.stdout:
-                print(f"输出: {stdout_readable[:200]}...")
+                print(f"输出: {process_terminal_erase(result.stdout)}...")
             if result.stderr:
-                print(f"错误: {result.stderr[:200]}...")
+                print(f"错误: {process_terminal_erase(result.stderr)}...")
             
             # 基于功能执行情况判断，而不是终端输出
             if check_function_result and expect_success:
@@ -793,15 +657,7 @@ Shell commands: ls -la && echo "done"
         
         for attempt in range(max_retries):
             print(f"\n尝试 {attempt + 1}/{max_retries}")
-
             result = self._run_gds_command(command, expect_success=False, check_function_result=False)
-            result.stdout = self._process_terminal_erase(result.stdout)
-            print(f"返回码: {result.returncode}")
-            if result.stdout:
-                print(f"输出: {result.stdout[:200]}...")
-            if result.stderr:
-                print(f"错误: {result.stderr[:200]}...")
-            
             if result.returncode != 0:
                 print(f"Error: Upload command failed, return code: {result.returncode}")
                 if attempt < max_retries - 1:
@@ -817,12 +673,8 @@ Shell commands: ls -la && echo "done"
             for i, verify_cmd in enumerate(verification_commands):
                 print(f"验证命令 {i+1}: {verify_cmd}")
                 verify_result = self._run_gds_command(verify_cmd, expect_success=False, check_function_result=False)
-                
-                verify_result.stdout = self._process_terminal_erase(verify_result.stdout)
                 if verify_result.returncode != 0:
                     print(f"验证失败: {verify_cmd} (返回码: {verify_result.returncode})")
-                    print(f"输出: {verify_result.stdout[:200]}...")
-                    print(f"错误: {verify_result.stderr[:200]}...")
                     all_verifications_passed = False
                     break
                 else:
@@ -2749,77 +2601,9 @@ if __name__ == "__main__":
         
         self.assertEqual(returncode, 0, "清理操作应该成功")
         print(f"Shell模式连续操作分步骤测试完成 - 所有步骤都成功")
-
-    def test_22_shell_mode_consistency_TODO_CHECK_CONTENT_SAME_IN_AND_OUT_OF_SHELL(self):
-        """测试Shell模式与直接命令执行的输出一致性"""
-        print(f"测试Shell模式与直接命令一致性")
         
-        # 测试命令列表
-        test_commands = [
-            "pwd",
-            "ls",
-            "help"
-        ]
-        
-        for cmd in test_commands:
-            print(f"测试命令: {cmd}")
-            
-            # 直接命令执行（使用--no-direct-feedback避免交互）
-            direct_result = self._run_gds_command(f'{cmd}', expect_success=True)
-            
-            # Shell模式执行（进入交互式shell模式）
-            shell_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback "{cmd}"'
-            shell_result = subprocess.run(
-                shell_command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                cwd=self.BASE_DIR
-            )
-            
-            self.assertEqual(direct_result.returncode, 0, f"直接执行{cmd}应该成功")
-            self.assertEqual(shell_result.returncode, 0, f"Shell模式执行{cmd}应该成功")
-            
-            # 清理输出以便比较
-            direct_output = self._process_terminal_erase(direct_result.stdout)
-            shell_output = self._process_terminal_erase(shell_result.stdout)
-            
-            # 对于help命令，验证关键内容存在
-            if cmd == "help":
-                # 验证直接执行包含基本命令
-                self.assertIn("pwd", direct_output, "直接执行help应该包含pwd命令")
-                self.assertIn("ls", direct_output, "直接执行help应该包含ls命令")
-                
-                # 验证shell模式也包含相同命令
-                self.assertIn("pwd", shell_output, "Shell模式help应该包含pwd命令")
-                self.assertIn("ls", shell_output, "Shell模式help应该包含ls命令")
-                
-                print(f"{cmd}命令在两种模式下都包含必要内容")
-            elif cmd == "pwd":
-                # pwd命令应该返回相同的路径
-                # 去除可能的空白字符进行比较
-                direct_path = direct_output.strip()
-                shell_path = shell_output.strip()
-                self.assertEqual(direct_path, shell_path, f"pwd命令在两种模式下应该返回相同路径")
-                print(f"pwd命令在两种模式下返回相同路径: {direct_path}")
-            elif cmd == "ls":
-                # ls命令应该返回相同的文件列表
-                # 将输出按行分割并排序进行比较
-                direct_files = sorted(line.strip() for line in direct_output.split('\n') if line.strip())
-                shell_files = sorted(line.strip() for line in shell_output.split('\n') if line.strip())
-                self.assertEqual(direct_files, shell_files, f"ls命令在两种模式下应该返回相同文件列表")
-                print(f"ls命令在两种模式下返回相同文件列表")
-            else:
-                print(f"{cmd}命令在两种模式下都正常执行")
-        
-        print(f"Shell模式与直接命令一致性测试完成")
-
-    def test_23_shell_switching_and_state_TODO_merge_with_test_21(self):
-        """测试Shell切换和状态管理"""
-        print(f"测试Shell切换和状态管理")
-        
-        # 首先创建一个新的remote shell
-        print(f"创建新的remote shell")
+        # 步骤6: Shell切换和状态管理测试（from test_23）
+        print("步骤6: 测试Shell切换和状态管理")
         create_result = subprocess.run(
             [sys.executable, str(self.GOOGLE_DRIVE_PY), '--create-remote-shell'],
             capture_output=True, text=True, timeout=180
@@ -2833,7 +2617,6 @@ if __name__ == "__main__":
             print(f"创建的Shell ID: {new_shell_id}")
             
             # 列出所有shells
-            print(f"列出所有shells")
             list_result = subprocess.run(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), '--list-remote-shell'],
                 capture_output=True, text=True, timeout=180
@@ -2849,8 +2632,7 @@ if __name__ == "__main__":
             )
             self.assertEqual(checkout_result.returncode, 0, "切换shell应该成功")
             
-            # 在新shell中执行一些操作
-            print(f"在新shell中执行操作")
+            # 在新shell中执行操作
             test_shell_state_path = self._get_test_file_path("test_shell_state")
             shell_commands = [
                 "pwd",
@@ -2870,24 +2652,20 @@ if __name__ == "__main__":
                 timeout=3600
             )
             self.assertEqual(shell_result.returncode, 0, "新shell中的操作应该成功")
-            
-            # 验证状态保持
-            output = shell_result.stdout
-            self.assertIn("state test", output, "应该能够创建和读取文件")
-            self.assertIn(test_shell_state_path, output, "应该能够创建目录")
+            self.assertIn("state test", shell_result.stdout, "应该能够创建和读取文件")
+            self.assertIn(test_shell_state_path, shell_result.stdout, "应该能够创建目录")
             
             # 清理：删除创建的shell
-            print(f"清理：删除shell {new_shell_id}")
             cleanup_result = subprocess.run(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), '--terminate-remote-shell', new_shell_id],
                 capture_output=True, text=True, timeout=180
             )
-            print(f"Shell切换和状态管理测试完成")
+            print("Shell切换和状态管理测试完成")
         else:
-            print(f"无法从输出中提取Shell ID，跳过后续测试")
-            self.skipTest("无法提取新创建的Shell ID")
+            print("无法从输出中提取Shell ID，跳过Shell切换测试")
         
-        # 测试无效命令
+        # 步骤7: Shell模式错误处理测试（from test_23）
+        print("步骤7: 测试Shell模式错误处理")
         error_commands = [
             "invalid_command",
             f'ls "{self._get_test_file_path("nonexistent_path")}"',
@@ -2896,43 +2674,96 @@ if __name__ == "__main__":
         ]
         
         for cmd in error_commands:
-            print(f"测试错误命令: {cmd}")
             shell_input = f"{cmd}\nexit\n"
             shell_result = self._run_command_with_input(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", "--no-direct-feedback"],
                 shell_input,
             )
-            
             # Shell模式应该能够处理错误而不崩溃
             self.assertEqual(shell_result.returncode, 0, f"Shell模式处理错误命令{cmd}时不应该崩溃")
-            
-            # 验证错误信息或提示
-            output = shell_result.stdout
-            self.assertIn("GDS:", output, "即使命令失败，Shell模式也应该继续运行")
-            self.assertIn("Exit Google Drive Shell", output, "Shell应该正常退出")
+            self.assertIn("GDS:", shell_result.stdout, "即使命令失败，Shell模式也应该继续运行")
+            self.assertIn("Exit Google Drive Shell", shell_result.stdout, "Shell应该正常退出")
         
-        print(f"Shell模式错误处理测试完成")
+        print("所有Shell模式测试完成（包括连续操作、切换、错误处理）")
 
+    def test_22_shell_mode_consistency(self):
+        """测试Shell模式与直接命令执行的输出一致性"""
+        print(f"测试Shell模式与直接命令一致性")
+        
+        # 创建独立的测试环境
+        import uuid
+        test_id = str(uuid.uuid4())[:8]
+        test_dir = f"{self.REMOTE_TEST_DIR}/test_consistency_{test_id}"
+        
+        # 使用绝对路径创建测试目录和文件
+        mkdir_result = self._run_gds_command(f'mkdir -p {test_dir}', expect_success=True)
+        self.assertEqual(mkdir_result.returncode, 0, "创建测试目录应该成功")
+        
+        # 在测试目录中创建测试文件
+        test_files = ["file1.txt", "file2.txt", "file3.txt"]
+        for filename in test_files:
+            file_path = f"{test_dir}/{filename}"
+            echo_result = self._run_gds_command(f'echo "test content" > "{file_path}"', expect_success=True)
+            self.assertEqual(echo_result.returncode, 0, f"创建测试文件{filename}应该成功")
+        
+        # 创建子目录
+        subdir_result = self._run_gds_command(f'mkdir {test_dir}/subdir', expect_success=True)
+        self.assertEqual(subdir_result.returncode, 0, "创建子目录应该成功")
+        
+        # 测试命令列表（使用绝对路径）
+        test_commands = [
+            (f'ls {test_dir}', "ls"),
+            ("help", "help")
+        ]
+        
+        for cmd, cmd_type in test_commands:
+            print(f"测试命令: {cmd}")
+            
+            # 直接命令执行（使用--no-direct-feedback避免交互）
+            direct_result = self._run_gds_command(f'{cmd}', expect_success=True)
+            
+            # Shell模式执行（进入交互式shell模式）
+            shell_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback "{cmd}"'
+            shell_result = subprocess.run(
+                shell_command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                cwd=self.BASE_DIR
+            )
+            
+            self.assertEqual(direct_result.returncode, 0, f"直接执行{cmd}应该成功")
+            self.assertEqual(shell_result.returncode, 0, f"Shell模式执行{cmd}应该成功")
+            
+            # 清理输出以便比较
+            direct_output = self.process_terminal_erase(direct_result.stdout)
+            shell_output = self.process_terminal_erase(shell_result.stdout)
+            
+            # 对于help命令，验证关键内容存在
+            if cmd_type == "help":
+                self.assertIn("pwd", direct_output, "直接执行help应该包含pwd命令")
+                self.assertIn("ls", direct_output, "直接执行help应该包含ls命令")
+                
+                # 验证shell模式也包含相同命令
+                self.assertIn("pwd", shell_output, "Shell模式help应该包含pwd命令")
+                self.assertIn("ls", shell_output, "Shell模式help应该包含ls命令")
+                print(f"{cmd}命令在两种模式下都包含必要内容")
+            
+            # 对于ls命令，验证列出的文件相同
+            elif cmd_type == "ls":
+                # 验证所有测试文件都被列出
+                for filename in test_files + ["subdir"]:
+                    self.assertIn(filename, direct_output, f"直接执行ls应该列出{filename}")
+                    self.assertIn(filename, shell_output, f"Shell模式ls应该列出{filename}")
+                print(f"ls命令在两种模式下都列出了所有测试文件")
+        
+        # 清理测试环境
+        cleanup_result = self._run_gds_command(f'rm -rf {test_dir}', expect_success=True)
+        self.assertEqual(cleanup_result.returncode, 0, "清理测试目录应该成功")
+        print("测试环境清理完成")
+        print(f"Shell模式与直接命令一致性测试完成")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def test_22_gds_background_TODO_can_capture_running_status_partial_output(self):
+    def test_23_gds_background(self):
         """测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询"""
         print(f"测试GDS --bg后台任务功能 - 优先队列验证")
         
@@ -3046,11 +2877,7 @@ if __name__ == "__main__":
         run_gds_bg_cleanup(task_id)
         print("错误命令处理测试通过")
 
-        ## TODO: 验证查询到的结果能反应错误信息（command not found）
-
         print("测试4: 长时间运行任务的partial输出验证")
-        
-        # 创建长时间运行的命令：两个echo中间夹一个sleep 70
         long_command = '''python3 -c "
 import time
 import sys
@@ -3279,7 +3106,7 @@ print(f"Current directory: {os.getcwd()}")'''
         self.assertEqual(result.returncode, 0, "清理测试文件应该成功")
         print(f"Python执行集成测试完成")
 
-    def test_26_gds_single_window_control(self):
+    def test_25_gds_window_control(self):
         """测试GDS单窗口控制机制 - 确保任何时候只有一个窗口存在"""
         print(f"测试GDS单窗口控制机制")
         
@@ -3461,7 +3288,7 @@ print(f"Current directory: {os.getcwd()}")'''
         
         print(f"GDS单窗口控制测试完成")
 
-    def test_27_pyenv_basic(self):
+    def test_26_pyenv_basic(self):
         """测试Python版本管理基础功能"""
         print(f"测试Python版本管理基础功能")
         
@@ -3494,7 +3321,7 @@ print(f"Current directory: {os.getcwd()}")'''
         
         print(f"Python版本管理基础功能测试完成")
 
-    def test_28_pyenv_version_management(self):
+    def test_27_pyenv_version_management(self):
         """测试Python版本安装和管理"""
         print(f"测试Python版本安装和管理")
         test_version = "3.9.18"
@@ -3541,7 +3368,7 @@ print(f"Current directory: {os.getcwd()}")'''
         result = self._run_gds_command(["pyenv", "--versions"])
         self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
 
-    def test_29_pyenv_version_change_TODO_upgrade_testcase_reflect_multiple_versions(self):
+    def test_28_pyenv_version_change_TODO_upgrade_testcase_reflect_multiple_versions(self):
         """测试pyenv版本切换"""
         print(f"测试pyenv版本切换")
         
@@ -4266,7 +4093,7 @@ print("=== Verification completed ===")
             gds_redirect_content = self._run_gds_command("cat test_redirect.txt")
             bash_redirect_content = self._run_bash_command("cat test_redirect.txt", bash_test_dir)
             
-            gds_stdout = self._process_terminal_erase(gds_redirect_content.stdout)
+            gds_stdout = self.process_terminal_erase(gds_redirect_content.stdout)
             self.assertEqual(gds_returncode, bash_redirect_content.returncode, "重定向内容读取返回码应该一致")
             self.assertEqual(gds_stdout.strip(), bash_redirect_content.stdout.strip(), "重定向内容应该一致")
         

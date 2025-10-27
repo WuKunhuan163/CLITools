@@ -1,43 +1,13 @@
 COMPLETE FUNCTION USAGE REPORT
 ================================================================================
 
-_generate_dynamic_mount_point: 0 calls
+_download_and_display_remount_result: 0 calls
   Defined in: google_drive_shell.py
 
-_generate_python_remount_script: 0 calls
-  Defined in: google_drive_shell.py
-
-_show_remount_window_subprocess: 0 calls
-  Defined in: google_drive_shell.py
-
-refocus_window: 0 calls
-  Defined in: google_drive_shell.py
-
-_save_mount_config_to_json: 0 calls
-  Defined in: google_drive_shell.py
-
-move_cached_file: 0 calls
-  Defined in: cache_manager.py
-
-_update_cached_file_modified_time: 0 calls
-  Defined in: cache_manager.py
-
-store_pending_modified_time: 0 calls
-  Defined in: cache_manager.py
-
-delete_file: 0 calls
+find_folder_by_name: 0 calls
   Defined in: google_drive_api.py
 
 __getattr__: 0 calls
-  Defined in: modules/config_loader.py
-
-get_constant: 0 calls
-  Defined in: modules/config_loader.py
-
-get_queue_setting: 0 calls
-  Defined in: modules/config_loader.py
-
-get_file_path: 0 calls
   Defined in: modules/config_loader.py
 
 validate_all_files: 0 calls
@@ -55,6 +25,12 @@ emergency_cleanup_handler: 0 calls
 check_parent_alive: 0 calls
   Defined in: modules/window_manager.py
 
+play_bell_in_subprocess: 0 calls
+  Defined in: modules/window_manager.py
+
+execution_completed: 0 calls
+  Defined in: modules/window_manager.py
+
 on_press: 0 calls
   Defined in: modules/window_manager.py
 
@@ -70,22 +46,13 @@ auto_activate_buttons: 0 calls
 periodic_focus: 0 calls
   Defined in: modules/window_manager.py
 
+timeout_destroy: 0 calls
+  Defined in: modules/window_manager.py
+
 on_window_closing: 0 calls
   Defined in: modules/window_manager.py
 
-_cross_process_cleanup: 0 calls
-  Defined in: modules/window_manager.py
-
-update_debug_output_with_progress: 0 calls
-  Defined in: modules/command_executor.py
-
-fix_json: 0 calls
-  Defined in: modules/command_executor.py
-
-fix_string_replacement: 0 calls
-  Defined in: modules/command_executor.py
-
-fix_line_replacement: 0 calls
+process_terminal_erases: 0 calls
   Defined in: modules/command_executor.py
 
 remove_quotes_if_safe: 0 calls
@@ -94,55 +61,16 @@ remove_quotes_if_safe: 0 calls
 check_sync_status: 0 calls
   Defined in: modules/sync_manager.py
 
-print_result: 0 calls
-  Defined in: modules/progress_manager.py
-
-print_normal: 0 calls
-  Defined in: modules/progress_manager.py
-
 list_drive_files: 0 calls
   Defined in: modules/drive_api_service.py
-
-get_venv_base_path: 0 calls
-  Defined in: modules/venv_manager.py
-
-_initialize_venv_state_simple: 0 calls
-  Defined in: modules/venv_manager.py
-
-setup_environment_defaults: 0 calls
-  Defined in: modules/path_constants.py
-
-shell_cd: 0 calls
-  Defined in: modules/delegate_managers.py
 
 verify_version_with_progress: 0 calls
   Defined in: modules/commands/pyenv_command.py
 
-_command_exists: 0 calls
-  Defined in: modules/commands/linter_command.py
-
-_get_pypi_dependencies_with_size: 0 calls
-  Defined in: modules/commands/deps_command.py
-
-_get_pypi_dependencies: 0 calls
-  Defined in: modules/commands/deps_command.py
-
-_analyze_dependencies_recursive: 0 calls
-  Defined in: modules/commands/deps_command.py
-
-play_bell_in_subprocess: 1 calls
-  Defined in: google_drive_shell.py
+force_focus: 1 calls
   Defined in: modules/window_manager.py
 
-copy_script: 1 calls
-  Defined in: google_drive_shell.py
-
-execution_completed: 1 calls
-  Defined in: google_drive_shell.py
-  Defined in: modules/window_manager.py
-
-timeout_destroy: 1 calls
-  Defined in: google_drive_shell.py
+force_focus_with_count: 1 calls
   Defined in: modules/window_manager.py
 
 copy_command: 1 calls
@@ -195,6 +123,9 @@ _update_shell_venv_state: 1 calls
 test_function: 1 calls
   Defined in: modules/error_handler.py
 
+get_proj_dir: 1 calls
+  Defined in: modules/path_constants.py
+
 show_setup_step_1: 1 calls
   Defined in: modules/delegate_managers.py
 
@@ -207,20 +138,8 @@ show_setup_step_3: 1 calls
 show_setup_step_4: 1 calls
   Defined in: modules/delegate_managers.py
 
-console_setup_interactive: 1 calls
-  Defined in: modules/delegate_managers.py
-
 get_local_hf_token: 1 calls
   Defined in: modules/hf_credentials_manager.py
-
-process_package_batch: 1 calls
-  Defined in: modules/commands/deps_command.py
-
-load_shells: 2 calls
-  Defined in: google_drive_shell.py
-
-_load_cache_config_direct: 2 calls
-  Defined in: google_drive_shell.py
 
 load_drive_service: 2 calls
   Defined in: google_drive_shell.py
@@ -288,9 +207,6 @@ _update_paths_for_dynamic_mount: 2 calls
 _verify_mount_fingerprint: 2 calls
   Defined in: google_drive_shell.py
 
-_download_and_display_remount_result: 2 calls
-  Defined in: google_drive_shell.py
-
 _load_paths_from_config: 2 calls
   Defined in: google_drive_shell.py
 
@@ -305,9 +221,6 @@ _handle_desktop_command: 2 calls
 
 _handle_remount_command: 2 calls
   Defined in: google_drive_shell.py
-
-_load_cache_config: 2 calls
-  Defined in: cache_manager.py
 
 _generate_file_hash: 2 calls
   Defined in: cache_manager.py
@@ -352,10 +265,13 @@ cmd_edit_online: 2 calls
 _generate_online_edit_script: 2 calls
   Defined in: modules/text_operations.py
 
-_execute_online_edit_direct: 2 calls
+_execute_online_edit: 2 calls
   Defined in: modules/text_operations.py
 
 _load_config: 2 calls
+  Defined in: modules/config_loader.py
+
+get_config: 2 calls
   Defined in: modules/config_loader.py
 
 get_bg_script_file: 2 calls
@@ -395,6 +311,9 @@ _wait_for_lock_and_process: 2 calls
   Defined in: modules/window_manager.py
 
 _create_and_show_window: 2 calls
+  Defined in: modules/window_manager.py
+
+trigger_copy_button: 2 calls
   Defined in: modules/window_manager.py
 
 cleanup_resources: 2 calls
@@ -489,7 +408,7 @@ preprocess_json_content: 2 calls
 _read_result_file_via_gds: 2 calls
   Defined in: modules/result_processor.py
 
-_save_all_venv_states: 2 calls
+_get_current_timestamp: 2 calls
   Defined in: modules/venv_manager.py
 
 _create_initial_venv_states_file: 2 calls
@@ -547,19 +466,19 @@ _print_debug_info: 2 calls
 _load_configuration: 2 calls
   Defined in: modules/path_constants.py
 
-save_configuration: 2 calls
-  Defined in: modules/path_constants.py
-
 get_all_paths: 2 calls
   Defined in: modules/path_constants.py
 
 get_all_folder_ids: 2 calls
   Defined in: modules/path_constants.py
 
-get_proj_dir: 2 calls
+detect_environment: 2 calls
   Defined in: modules/path_constants.py
 
 copy_to_clipboard: 2 calls
+  Defined in: modules/delegate_managers.py
+
+open_google_drive: 2 calls
   Defined in: modules/delegate_managers.py
 
 handle_shell_command: 2 calls
@@ -735,6 +654,12 @@ _execute_python_file_remote: 2 calls
 is_special_command: 2 calls
   Defined in: modules/commands/command_registry.py
 
+_get_pypi_client: 2 calls
+  Defined in: modules/commands/deps_command.py
+
+_get_package_dependencies_with_pipdeptree: 2 calls
+  Defined in: modules/commands/deps_command.py
+
 _get_dependencies_via_remote_pip_show: 2 calls
   Defined in: modules/commands/deps_command.py
 
@@ -754,9 +679,6 @@ calculate_logical_size: 2 calls
   Defined in: modules/commands/deps_command.py
 
 build_tree: 2 calls
-  Defined in: modules/commands/deps_command.py
-
-_fallback_dependency_analysis: 2 calls
   Defined in: modules/commands/deps_command.py
 
 _display_smart_dependency_tree: 2 calls
@@ -781,16 +703,9 @@ _resolve_absolute_mkdir_path: 3 calls
   Defined in: google_drive_shell.py
   Defined in: modules/path_resolver.py
 
-force_focus: 3 calls
-  Defined in: google_drive_shell.py
-  Defined in: modules/window_manager.py
-
 _create_text_file: 3 calls
   Defined in: modules/text_operations.py
   Defined in: modules/file_operations.py
-
-get_config: 3 calls
-  Defined in: modules/config_loader.py
 
 get_bg_status_file: 3 calls
   Defined in: modules/config_loader.py
@@ -834,10 +749,6 @@ shell_pwd: 3 calls
   Defined in: modules/shell_commands.py
   Defined in: modules/delegate_managers.py
 
-open_google_drive: 3 calls
-  Defined in: modules/drive_api_service.py
-  Defined in: modules/delegate_managers.py
-
 enter_shell_mode: 3 calls
   Defined in: modules/remote_shell_manager.py
   Defined in: modules/delegate_managers.py
@@ -857,17 +768,6 @@ exit_shell: 4 calls
   Defined in: modules/shell_management.py
   Defined in: modules/remote_shell_manager.py
 
-force_focus_with_count: 4 calls
-  Defined in: google_drive_shell.py
-  Defined in: modules/window_manager.py
-
-trigger_copy_button: 4 calls
-  Defined in: google_drive_shell.py
-  Defined in: modules/window_manager.py
-
-_get_folder_id_by_path: 4 calls
-  Defined in: google_drive_shell.py
-
 is_file_cached: 4 calls
   Defined in: cache_manager.py
 
@@ -876,9 +776,6 @@ get_pending_modified_time: 4 calls
 
 clear_pending_modified_time: 4 calls
   Defined in: cache_manager.py
-
-find_folder_by_name: 4 calls
-  Defined in: google_drive_api.py
 
 _add_to_queue: 4 calls
   Defined in: modules/window_manager.py
@@ -921,10 +818,6 @@ start_progress: 4 calls
 update_progress: 4 calls
   Defined in: modules/progress_manager.py
 
-add_success_mark: 4 calls
-  Defined in: modules/progress_manager.py
-  Defined in: modules/progress_manager.py
-
 list_venv_environments: 4 calls
   Defined in: modules/venv_manager.py
 
@@ -945,9 +838,6 @@ _get_code_context: 4 calls
 
 capture_and_report_error: 4 calls
   Defined in: modules/error_handler.py
-
-detect_environment: 4 calls
-  Defined in: modules/path_constants.py
 
 verify_upload_success_by_ls: 4 calls
   Defined in: modules/validation.py
@@ -973,14 +863,12 @@ _scan_environment_directory: 4 calls
 _remote_update_json_packages: 4 calls
   Defined in: modules/commands/pip_command.py
 
-_get_pypi_client: 4 calls
-  Defined in: modules/commands/deps_command.py
-
-_get_package_dependencies_with_pipdeptree: 4 calls
-  Defined in: modules/commands/deps_command.py
-
 _normalize_package_name: 4 calls
   Defined in: modules/commands/deps_command.py
+
+_load_cache_config: 5 calls
+  Defined in: google_drive_shell.py
+  Defined in: cache_manager.py
 
 calculate_timeout_from_file_sizes: 5 calls
   Defined in: google_drive_shell.py
@@ -1085,9 +973,6 @@ start_progress_buffering: 6 calls
 read_venv_states: 6 calls
   Defined in: modules/venv_manager.py
 
-_get_current_timestamp: 6 calls
-  Defined in: modules/venv_manager.py
-
 _resolve_parent_directory: 6 calls
   Defined in: modules/path_resolver.py
 
@@ -1102,6 +987,9 @@ _is_user_code: 6 calls
 
 _get_installed_versions: 6 calls
   Defined in: modules/commands/pyenv_command.py
+
+_get_venv_state_file_path: 6 calls
+  Defined in: modules/commands/venv_command.py
 
 _parse_requirements_file: 6 calls
   Defined in: modules/commands/deps_command.py
@@ -1144,6 +1032,11 @@ should_rename_file: 7 calls
 _get_venv_api_manager: 7 calls
   Defined in: modules/venv_manager.py
   Defined in: modules/commands/venv_command.py
+
+cmd_cd: 8 calls
+  Defined in: google_drive_shell.py
+  Defined in: modules/file_core.py
+  Defined in: modules/file_operations.py
 
 cmd_deps: 8 calls
   Defined in: google_drive_shell.py
@@ -1204,6 +1097,9 @@ generate_commands: 8 calls
 _read_background_file: 8 calls
   Defined in: google_drive_shell.py
 
+_save_cache_config: 8 calls
+  Defined in: cache_manager.py
+
 __new__: 8 calls
   Defined in: modules/config_loader.py
   Defined in: modules/window_manager.py
@@ -1216,9 +1112,6 @@ start_capture: 8 calls
   Defined in: modules/command_executor.py
 
 show_remote_command_window: 8 calls
-  Defined in: modules/command_executor.py
-
-process_terminal_escape_sequences: 8 calls
   Defined in: modules/command_executor.py
 
 wait_and_read_result_file: 8 calls
@@ -1238,9 +1131,6 @@ _get_python_state: 8 calls
 
 _update_python_state: 8 calls
   Defined in: modules/commands/pyenv_command.py
-
-_get_venv_state_file_path: 8 calls
-  Defined in: modules/commands/venv_command.py
 
 checkout_shell: 9 calls
   Defined in: google_drive_shell.py
@@ -1266,10 +1156,12 @@ _create_error_result: 9 calls
   Defined in: modules/sync_manager.py
   Defined in: modules/validation.py
 
-cmd_cd: 10 calls
-  Defined in: google_drive_shell.py
-  Defined in: modules/file_core.py
-  Defined in: modules/file_operations.py
+_load_all_venv_states: 9 calls
+  Defined in: modules/venv_manager.py
+  Defined in: modules/commands/pip_command.py
+
+get_data_dir: 9 calls
+  Defined in: modules/path_constants.py
 
 cmd_mkdir: 10 calls
   Defined in: google_drive_shell.py
@@ -1293,9 +1185,6 @@ clear_progress: 10 calls
 _convert_local_path_to_remote: 10 calls
   Defined in: modules/path_resolver.py
 
-set_path: 10 calls
-  Defined in: modules/path_constants.py
-
 _execute_pip_command: 10 calls
   Defined in: modules/commands/pip_command.py
 
@@ -1308,15 +1197,8 @@ verify_creation_with_ls: 11 calls
   Defined in: google_drive_shell.py
   Defined in: modules/verification.py
 
-_load_all_venv_states: 11 calls
-  Defined in: modules/venv_manager.py
-  Defined in: modules/commands/pip_command.py
-
 stop_capture: 12 calls
   Defined in: modules/command_executor.py
-
-get_data_dir: 12 calls
-  Defined in: modules/path_constants.py
 
 _get_python_base_path: 12 calls
   Defined in: modules/commands/pyenv_command.py
@@ -1346,9 +1228,6 @@ get_path: 13 calls
   Defined in: modules/path_constants.py
   Defined in: modules/path_constants.py
 
-_save_cache_config: 14 calls
-  Defined in: cache_manager.py
-
 _force_cleanup_lock: 14 calls
   Defined in: modules/window_manager.py
 
@@ -1358,6 +1237,10 @@ _resolve_relative_path: 16 calls
 get_folder_id: 19 calls
   Defined in: modules/path_constants.py
   Defined in: modules/path_constants.py
+
+_get_venv_base_path: 19 calls
+  Defined in: modules/commands/venv_command.py
+  Defined in: modules/commands/pip_command.py
 
 cmd_ls: 20 calls
   Defined in: google_drive_shell.py
@@ -1397,10 +1280,6 @@ resolve_path: 21 calls
   Defined in: google_drive_shell.py
   Defined in: modules/path_resolver.py
 
-_get_venv_base_path: 21 calls
-  Defined in: modules/commands/venv_command.py
-  Defined in: modules/commands/pip_command.py
-
 cmd_cat: 24 calls
   Defined in: google_drive_shell.py
   Defined in: modules/text_operations.py
@@ -1419,6 +1298,29 @@ load_shells: 28 calls
 resolve_remote_absolute_path: 29 calls
   Defined in: google_drive_shell.py
   Defined in: modules/path_resolver.py
+
+execute: 32 calls
+  Defined in: modules/commands/edit_command.py
+  Defined in: modules/commands/pyenv_command.py
+  Defined in: modules/commands/ls_command.py
+  Defined in: modules/commands/touch_command.py
+  Defined in: modules/commands/linter_command.py
+  Defined in: modules/commands/venv_command.py
+  Defined in: modules/commands/pwd_command.py
+  Defined in: modules/commands/rm_command.py
+  Defined in: modules/commands/mkdir_command.py
+  Defined in: modules/commands/download_command.py
+  Defined in: modules/commands/mv_command.py
+  Defined in: modules/commands/base_command.py
+  Defined in: modules/commands/read_command.py
+  Defined in: modules/commands/pip_command.py
+  Defined in: modules/commands/cat_command.py
+  Defined in: modules/commands/python_command.py
+  Defined in: modules/commands/grep_command.py
+  Defined in: modules/commands/upload_command.py
+  Defined in: modules/commands/upload_folder_command.py
+  Defined in: modules/commands/cd_command.py
+  Defined in: modules/commands/deps_command.py
 
 __init__: 34 calls
   Defined in: google_drive_shell.py
@@ -1457,29 +1359,6 @@ __init__: 34 calls
   Defined in: modules/commands/base_command.py
   Defined in: modules/commands/command_registry.py
 
-execute: 34 calls
-  Defined in: modules/commands/edit_command.py
-  Defined in: modules/commands/pyenv_command.py
-  Defined in: modules/commands/ls_command.py
-  Defined in: modules/commands/touch_command.py
-  Defined in: modules/commands/linter_command.py
-  Defined in: modules/commands/venv_command.py
-  Defined in: modules/commands/pwd_command.py
-  Defined in: modules/commands/rm_command.py
-  Defined in: modules/commands/mkdir_command.py
-  Defined in: modules/commands/download_command.py
-  Defined in: modules/commands/mv_command.py
-  Defined in: modules/commands/base_command.py
-  Defined in: modules/commands/read_command.py
-  Defined in: modules/commands/pip_command.py
-  Defined in: modules/commands/cat_command.py
-  Defined in: modules/commands/python_command.py
-  Defined in: modules/commands/grep_command.py
-  Defined in: modules/commands/upload_command.py
-  Defined in: modules/commands/upload_folder_command.py
-  Defined in: modules/commands/cd_command.py
-  Defined in: modules/commands/deps_command.py
-
 list_files: 36 calls
   Defined in: google_drive_api.py
 
@@ -1489,7 +1368,7 @@ register: 42 calls
 debug_print: 52 calls
   Defined in: modules/command_executor.py
 
-write_to_json_output: 69 calls
+write_to_json_output: 66 calls
   Defined in: modules/sync_config_manager.py
   Defined in: modules/help_system.py
   Defined in: modules/drive_process_manager.py
@@ -1498,11 +1377,11 @@ write_to_json_output: 69 calls
   Defined in: modules/remote_shell_manager.py
   Defined in: modules/delegate_managers.py
 
-execute_command_interface: 71 calls
+execute_command_interface: 69 calls
   Defined in: google_drive_shell.py
   Defined in: modules/command_executor.py
 
-is_run_environment: 85 calls
+is_run_environment: 82 calls
   Defined in: modules/sync_config_manager.py
   Defined in: modules/help_system.py
   Defined in: modules/drive_process_manager.py
@@ -1512,15 +1391,15 @@ is_run_environment: 85 calls
   Defined in: modules/remote_shell_manager.py
   Defined in: modules/delegate_managers.py
 
+_debug_log: 96 calls
+  Defined in: modules/window_manager.py
+
 get_current_shell: 103 calls
   Defined in: google_drive_shell.py
   Defined in: modules/shell_management.py
   Defined in: modules/shell_commands.py
   Defined in: modules/remote_shell_manager.py
 
-_debug_log: 112 calls
-  Defined in: modules/window_manager.py
-
-get: 1284 calls
+get: 1236 calls
   Defined in: modules/config_loader.py
 

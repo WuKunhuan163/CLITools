@@ -110,36 +110,6 @@ class PathConstants:
         """
         return self._default_folder_ids.get(folder_name)
     
-    def set_path(self, path_name: str, path_value: str):
-        """
-        设置路径常量
-        
-        Args:
-            path_name: 路径名称
-            path_value: 路径值
-        """
-        self._default_paths[path_name] = path_value
-    
-    def save_configuration(self):
-        """保存当前配置到文件"""
-        try:
-            config = {}
-            
-            # 保存路径配置
-            for key, value in self._default_paths.items():
-                config[key.lower()] = value
-            
-            # 保存文件夹ID配置
-            for key, value in self._default_folder_ids.items():
-                if value is not None:
-                    config[key.lower()] = value
-            
-            with open(self.SYNC_CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-                
-        except Exception as e:
-            print(f"Warning: Failed to save path configuration: {e}")
-    
     def get_all_paths(self) -> Dict[str, str]:
         """获取所有路径常量"""
         return self._default_paths.copy()

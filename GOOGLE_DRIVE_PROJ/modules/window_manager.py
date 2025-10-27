@@ -16,6 +16,9 @@ import subprocess
 import psutil
 from pathlib import Path
 
+# 全局窗口管理器实例
+_window_manager = None
+
 class WindowManager:
     """
     统一窗口管理器
@@ -131,6 +134,37 @@ class WindowManager:
             self._debug_log(f"[WINDOW_MANAGER] 添加到{queue_type}队列失败: {e}")
             raise
     
+    def clean_stale_requests(self, queue, timeout_seconds=3600):
+        """
+        清理队列中的过期请求
+        
+        Args:
+            queue (list): 请求队列
+            
+        Returns:
+            list: 清理后的队列
+        """
+        import time
+        import psutil
+        
+        current_time = time.time()
+        cleaned_queue = []
+        
+        for request in queue:
+            # 检查请求是否超过10分钟
+            request_time = request.get('timestamp', 0)
+            if current_time - request_time > timeout_seconds: 
+                continue
+            
+            # 检查进程是否还存在
+            request_pid = request.get('process_id')
+            if request_pid and not psutil.pid_exists(request_pid):
+                continue
+            
+            cleaned_queue.append(request)
+        
+        return cleaned_queue
+    
     def _get_next_request(self):
         """
         从队列中获取下一个请求（优先队列优先）
@@ -148,32 +182,46 @@ class WindowManager:
                     with open(self.priority_queue_file, 'r') as f:
                         priority_queue = json.load(f)
                     
+                    # 清理过期请求
+                    priority_queue = self.clean_stale_requests(priority_queue)
+                    
                     if priority_queue:
                         # 从优先队列取出第一个请求
                         request = priority_queue.pop(0)
                         
-                        # 写回优先队列
+                        # 写回清理后的优先队列
                         with open(self.priority_queue_file, 'w') as f:
                             json.dump(priority_queue, f)
                         
                         self._debug_log(f"[QUEUE_GET] 从优先队列获取请求: {request.get('request_id')}")
                         return request
+                    else:
+                        # 清理后队列为空，写回空队列
+                        with open(self.priority_queue_file, 'w') as f:
+                            json.dump([], f)
                 
                 # 优先队列为空，检查普通队列
                 if self.normal_queue_file.exists():
                     with open(self.normal_queue_file, 'r') as f:
                         normal_queue = json.load(f)
                     
+                    # 清理过期请求
+                    normal_queue = self.clean_stale_requests(normal_queue)
+                    
                     if normal_queue:
                         # 从普通队列取出第一个请求
                         request = normal_queue.pop(0)
                         
-                        # 写回普通队列
+                        # 写回清理后的普通队列
                         with open(self.normal_queue_file, 'w') as f:
                             json.dump(normal_queue, f)
                         
                         self._debug_log(f"[QUEUE_GET] 从普通队列获取请求: {request.get('request_id')}")
                         return request
+                    else:
+                        # 清理后队列为空，写回空队列
+                        with open(self.normal_queue_file, 'w') as f:
+                            json.dump([], f)
                 
                 # 两个队列都为空
                 return None
@@ -494,7 +542,7 @@ class WindowManager:
         # 如果请求被加入队列，需要等待处理完成
         if result.get("action") == "queued":
             self._debug_log(f"[QUEUE_WAIT] 请求被排队，等待锁释放: {request_id}")
-            return self._wait_for_lock_and_process(request_id, timeout_seconds)
+            result = self._wait_for_lock_and_process(request_id, timeout_seconds)
         
         return result
     
@@ -1222,8 +1270,6 @@ except Exception as e:
             self._debug_log(f"[SUBPROCESS_STARTED] 启动窗口子进程: PID={process.pid}, window_id: {window_id}")
             self.active_processes[window_id] = process
             
-            # 统计当前tkinter窗口数量
-            time.sleep(0.5)  # 等待窗口进程启动
             window_count = self._count_tkinter_windows()
             self._debug_log(f"[WINDOW_COUNT_AFTER_CREATE] 窗口创建后，当前远端指令tkinter窗口总数: {window_count}")
             

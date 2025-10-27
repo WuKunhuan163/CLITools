@@ -177,22 +177,6 @@ class GoogleDriveService:
                 "error": f"列出文件失败: {e}"
             }
     
-    def find_folder_by_name(self, parent_folder_id, folder_name):
-        """在父目录中查找指定名称的文件夹"""
-        try:
-            query = f"'{parent_folder_id}' in parents and name='{folder_name}' and mimeType='application/vnd.google-apps.folder'"
-            results = self.service.files().list(
-                q=query,
-                pageSize=1,
-                fields="files(id)"
-            ).execute()
-            
-            items = results.get('files', [])
-            return items[0]['id'] if items else None
-            
-        except Exception:
-            return None
-    
     def download_file(self, file_id, local_save_path):
         """
         从Google Drive下载文件

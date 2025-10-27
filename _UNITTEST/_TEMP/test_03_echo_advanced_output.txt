@@ -1,0 +1,35 @@
+test_03_echo_advanced (test_gds.GDSTest)
+测试echo的正确JSON语法（修复后的功能） ... FAIL
+
+======================================================================
+FAIL: test_03_echo_advanced (test_gds.GDSTest)
+测试echo的正确JSON语法（修复后的功能）
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 512, in _run_gds_command
+    print(f"输出: {self.main_instance.command_executor.process_terminal_erase(result.stdout)}...")
+AttributeError: 'GDSTest' object has no attribute 'main_instance'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 985, in test_03_echo_advanced
+    result = self._run_gds_command(f'echo "{json_content}" > "{correct_json_file}"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 524, in _run_gds_command
+    self.fail(f"命令执行异常: {command} - {e}")
+AssertionError: 命令执行异常: echo "{'name': 'test', 'value': 123}" > "~/tmp/gds_test_20251027_234237_291482_2263df70/correct_json.txt" - 'GDSTest' object has no attribute 'main_instance'
+
+----------------------------------------------------------------------
+Ran 1 test in 123.500s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251027_234237_291482_2263df70
+正在创建远端测试目录: ~/tmp/gds_test_20251027_234237_291482_2263df70
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251027_234237_291482_2263df70
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ah035q20
+测试环境设置完成
+命令转译成功: echo "{'name': 'test', 'value': 123}" > "~/tmp/gds_test_20251027_234237_291482_2263df70/correct_json.txt" -> echo "{'name': 'test', 'value': 123}" > "~/tmp/gds_test_20251027_234237_291482_2263df70/correct_json.txt"
+返回码: 0
+命令执行异常: 'GDSTest' object has no attribute 'main_instance'

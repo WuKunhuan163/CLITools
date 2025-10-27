@@ -757,24 +757,6 @@ class DepsCommand(BaseCommand):
                 'error': str(e)
             }
 
-    def _fallback_dependency_analysis(self, packages):
-        """回退的依赖分析（当pipdeptree不可用时）"""
-        print(f"Using fallback dependency analysis")
-        dependencies = {}
-        dependencies_by_level = {}
-        
-        for package in packages:
-            dependencies[package] = []
-            dependencies_by_level[package] = {0: []}
-        
-        return {
-            "dependencies": dependencies,
-            "dependencies_by_level": dependencies_by_level,
-            "total_unique_deps": 0,
-            "shared_dependencies": [],
-            "dependency_count": {}
-        }
-
     def _normalize_package_name(self, package_name):
         """
         标准化包名进行比较

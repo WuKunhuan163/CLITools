@@ -6,30 +6,9 @@ Google Drive Shell - Path Resolver Module
 
 import os
 import sys
-import json
-import time
-import hashlib
-import warnings
-import subprocess
-import shutil
-import zipfile
-import tempfile
-from pathlib import Path
-import platform
-import psutil
-from typing import Dict
-try:
-    from ..google_drive_api import GoogleDriveService
-except ImportError:
-    try:
-        from GOOGLE_DRIVE_PROJ.google_drive_api import GoogleDriveService
-    except ImportError:
-        import sys
-        import os
-        current_dir = os.path.dirname(__file__)
-        parent_dir = os.path.dirname(current_dir)
-        sys.path.insert(0, parent_dir)
-        from google_drive_api import GoogleDriveService
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
 class PathResolver:
     """Google Drive Shell Path Resolver"""

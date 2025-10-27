@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""测试process_terminal_escape_sequences函数的终端转义序列处理能力"""
+"""测试process_terminal_erases函数的终端转义序列处理能力"""
 
 import sys
 sys.path.insert(0, '/Users/wukunhuan/.local/bin')
@@ -67,7 +67,7 @@ def test_terminal_escape_sequences():
         ("A\033[31mRed\033[0m\nB\x1b[32mGreen\x1b[0m", "ARed\nBGreen", "多行+颜色"),
     ]
     
-    print("🧪 测试 process_terminal_escape_sequences 函数\n")
+    print("🧪 测试 process_terminal_erases 函数\n")
     print("=" * 80)
     
     passed = 0
@@ -75,7 +75,7 @@ def test_terminal_escape_sequences():
     failed_cases = []
     
     for input_text, expected, description in test_cases:
-        result = executor.process_terminal_escape_sequences(input_text)
+        result = executor.process_terminal_erases(input_text)
         
         if result == expected:
             passed += 1
