@@ -980,33 +980,33 @@ class FileCore:
             # 生成远端mkdir命令，添加清屏和成功/失败提示（总是使用-p确保父目录存在）
             remote_command = f'mkdir -p "{absolute_path}"'
             
-            # 准备上下文信息
-            context_info = {
-                "target_path": target_path,
-                "absolute_path": absolute_path,
-                "recursive": recursive
-            }
-            
             # 使用统一接口执行远端命令
-            execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+            print(f"DEBUG: 执行mkdir命令: {remote_command}")
+            print(f"DEBUG: 目标路径: {target_path}")
+            print(f"DEBUG: 绝对路径: {absolute_path}")
+            
+            try:
+                execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+                print(f"DEBUG: execution_result: {execution_result}")
+            except Exception as exec_e:
+                print(f"DEBUG: execute_command_interface异常: {exec_e}")
+                import traceback
+                traceback.print_exc()
+                raise
             
             # 处理新的返回结构：result.data 包含实际的命令执行结果
             if execution_result.get("success"):
                 data = execution_result.get("data", {})
                 exit_code = data.get("exit_code", execution_result.get("exit_code", -1))
-                
-                if exit_code == 0:
-                    # 执行成功后，进行验证以确保目录真正创建（最多60次重试）
+                if exit_code == 0: 
                     verification_result = self.main_instance.verify_creation_with_ls(target_path, current_shell, creation_type="dir")
-                    
-                    if verification_result["success"]:
-                        # 验证成功，简洁返回，像bash shell一样成功时不显示任何信息
+                    if verification_result["success"]: 
                         return {
                             "success": True,
                             "path": target_path,
                             "absolute_path": absolute_path,
                             "remote_command": remote_command,
-                            "message": "",  # 空消息，不显示任何内容
+                            "message": "", 
                             "verification": verification_result
                         }
                     else:
@@ -1018,7 +1018,6 @@ class FileCore:
                             "remote_command": remote_command
                         }
                 else:
-                    # 命令执行失败（exit_code != 0）
                     stderr = data.get("stderr", execution_result.get("stderr", ""))
                     return {
                         "success": False,
@@ -1026,22 +1025,17 @@ class FileCore:
                         "remote_command": remote_command
                     }
             else:
-                # 执行失败 - 添加详细的错误信息和traceback
                 import traceback
-                
                 error_msg = execution_result.get('error', 'Unknown error')
-                
                 print(f"mkdir command execution failed: {error_msg}")
                 if error_msg == 'Unknown error':
                     print("Suggestion: Please try again. This may be a temporary issue.")
-                
                 print("\nCall stack (most recent call last):")
-                stack_lines = traceback.format_stack()[-10:]
+                stack_lines = traceback.format_stack() # Full stack trace
                 for i, line in enumerate(stack_lines, 1):
-                    # 清理和格式化每一行
                     clean_line = line.strip().replace('\n', ' ')
                     print(f"{i:2d}. {clean_line}")
-                    if i < len(stack_lines):  # 不是最后一行时添加空行
+                    if i < len(stack_lines):  
                         print()
                 
                 return {
@@ -1051,6 +1045,10 @@ class FileCore:
                 }
                 
         except Exception as e:
+            import traceback
+            print(f"\nException in cmd_mkdir_remote: {e}")
+            print("Full exception traceback:")
+            traceback.print_exc()
             return {"success": False, "error": f"Execute mkdir command failed: {e}"}
 
     def cmd_mkdir(self, path, recursive=False):

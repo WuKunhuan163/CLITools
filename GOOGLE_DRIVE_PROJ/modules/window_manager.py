@@ -46,12 +46,13 @@ class WindowManager:
         self._initialized = True
         self.window_counter = 0  # 窗口计数器
         self.active_processes = {}  # 活跃的子进程 {window_id: process}
-        self.lock_file_path = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock")
-        self.pid_file_path = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid")
+        from pathlib import Path
+        self.lock_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock"))
+        self.pid_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid"))
         self.current_lock_fd = None  # 当前持有的锁文件描述符
-        self.priority_queue_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json")
-        self.normal_queue_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json")
-        self.queue_lock_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock")
+        self.priority_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json"))
+        self.normal_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json"))
+        self.queue_lock_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock"))
         
         # 设置进程清理处理器
         self._setup_cleanup_handlers()
@@ -698,7 +699,7 @@ try:
         with open(debug_file, "a", encoding="utf-8") as f:
             import time
             timestamp = time.time() - 1757413752.714440  # 相对时间戳
-            f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={{}}, 父进程PID={})\\n".format(timestamp, os.getpid(), parent_pid))
+            f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={{}}, 父进程PID={{}})\\n".format(timestamp, os.getpid(), parent_pid))
             f.flush()
     except:
         pass
@@ -1004,7 +1005,7 @@ try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("🎯 DEBUG: [{:.3f}s] [BUTTON_ACTIVATION] 按钮激活 - 来源: {} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, activation_source))
+                f.write("🎯 DEBUG: [{{:.3f}}s] [BUTTON_ACTIVATION] 按钮激活 - 来源: {{}} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, activation_source))
                 f.flush()
         except:
             pass
@@ -1066,7 +1067,7 @@ try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("⌨️ DEBUG: [{:.3f}s] [KEY_PRESS] 按键检测: {} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, key_info))
+                f.write("⌨️ DEBUG: [{{:.3f}}s] [KEY_PRESS] 按键检测: {{}} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, key_info))
                 f.flush()
         except:
             pass
@@ -1188,11 +1189,11 @@ try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("🪟 DEBUG: [{:.3f}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 超时 - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
+                f.write("🪟 DEBUG: [{{:.3f}}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 超时 - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
                 f.flush()
         except:
             pass
-        result.update({"action": "timeout"})
+        result.update({{"action": "timeout"}})
         root.destroy()
     
     root.after(TIMEOUT_MS_PLACEHOLDER, timeout_destroy)
@@ -1228,8 +1229,8 @@ except Exception as e:
     import traceback
     error_msg = str(e)
     traceback_msg = traceback.format_exc()
-    print(f"DEBUG: Window script exception: {error_msg}", file=sys.stderr)
-    print(f"DEBUG: Window script traceback: {traceback_msg}", file=sys.stderr)
+    print(f"DEBUG: Window script exception: {{error_msg}}", file=sys.stderr)
+    print(f"DEBUG: Window script traceback: {{traceback_msg}}", file=sys.stderr)
     print(json.dumps({"action": "error", "message": error_msg, "traceback": traceback_msg}))
 '''
         
@@ -1309,8 +1310,8 @@ except Exception as e:
     def _debug_log(self, message):
         """写入debug日志"""
         try:
-            debug_file = Path("/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/window_queue_debug.log")
-            debug_file.parent.mkdir(exist_ok=True)
+            debug_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_queue_debug.log")
+            os.makedirs(os.path.dirname(debug_file), exist_ok=True)
             
             with open(debug_file, "a", encoding="utf-8") as f:
                 timestamp = time.time() - 1757413752.714440

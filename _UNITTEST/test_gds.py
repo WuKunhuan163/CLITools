@@ -79,7 +79,6 @@ class GDSTest(unittest.TestCase):
         print(f"正在创建远端测试目录: {cls.test_folder}")
         mkdir_command = f"python3 {cls.GOOGLE_DRIVE_PY} --shell --no-direct-feedback 'mkdir -p {cls.test_folder}'"
         print("使用测试模式，窗口将只显示复制指令和执行完成按钮")
-        
         result = subprocess.run(
             mkdir_command,
             shell=True,

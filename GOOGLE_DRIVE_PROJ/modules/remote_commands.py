@@ -1390,23 +1390,14 @@ fi
         Returns:
             dict: 执行结果，包含stdout、stderr、path等字段
         """
-        # Debug print (disabled)
-        # print(f"DEBUG: execute_command_interface called with cmd='{cmd}', args={args}")
-        
         # 检查是否为特殊命令，如果是则不应该到这里
         if cmd in self.SPECIAL_COMMANDS:
-            # print(f"DEBUG: WARNING - Special command '{cmd}' reached execute_command_interface!")
             return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
-        # 移除emoji字符避免远程shell编码问题（暂时禁用，测试base64方案）
-        # cleaned_args = self._remove_emoji_from_args(args)
         cleaned_args = args  # 使用原始args测试base64编码
-        # 保存原始用户命令用于后续分析
         if _original_user_command:
             original_cmd, original_args = _original_user_command
         elif hasattr(self.main_instance, '_original_user_command'):
-            # 从主实例获取原始用户命令
             original_user_cmd = self.main_instance._original_user_command
-            # 简单解析原始命令
             parts = original_user_cmd.split()
             if parts:
                 original_cmd = parts[0]
@@ -2583,6 +2574,10 @@ JSON_SCRIPT_EOF
                 }
             
         except Exception as e:
+            import traceback
+            print(f"\n❌ Exception in execute_command_interface: {e}")
+            print("Full exception traceback:")
+            traceback.print_exc()
             return {
                 "success": False,
                 "action": "error",
