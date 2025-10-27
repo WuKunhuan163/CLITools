@@ -377,7 +377,6 @@ class GoogleDriveShell:
             content_parts = []
             redirect_found = False
             target_file = None
-            
             for i, arg in enumerate(args):
                 if arg == '>':
                     redirect_found = True
@@ -389,7 +388,6 @@ class GoogleDriveShell:
             if redirect_found and content_parts and target_file:
                 enable_escapes = False
                 filtered_content_parts = []
-                
                 for part in content_parts:
                     if part == '-e':
                         enable_escapes = True
@@ -1263,8 +1261,6 @@ For more information, visit: https://github.com/your-repo/gds"""
                               'cleanup-windows', 'linter', 'pip', 'deps', 'edit', 'read', 
                               'upload', 'upload-folder', 'download', 'mv', 'find', 'rm']
             if first_word in special_commands:
-                
-                # 解析命令和参数
                 import shlex
                 try:
                     cmd_parts = shlex.split(shell_cmd_clean)
@@ -1287,15 +1283,12 @@ For more information, visit: https://github.com/your-repo/gds"""
              
             # 如果不是特殊命令，使用统一的命令解析和转译接口
             if is_quoted_command:
-                # 对于已经带有__QUOTED_COMMAND__标记的命令，跳过再次转译
                 translated_cmd = shell_cmd_clean
             else:
                 translation_result = self.parse_and_translate_command(shell_cmd_clean)
                 if not translation_result["success"]:
                     print(f"Error: {translation_result['error']}")
                     return 1
-                
-                # 直接使用转译后的命令，不需要再次解析
                 translated_cmd = translation_result["translated_command"]
             
             # 直接使用execute_command执行转译后的命令

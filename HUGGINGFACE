@@ -1,3 +1,0 @@
-#!/bin/bash
-# HuggingFace Credentials Management Tool Binary Wrapper
-exec python3 "$(dirname "$0")/HUGGINGFACE.py" "$@" 
