@@ -788,7 +788,7 @@ def handle_single_command(shell_cmd, command_identifier=None):
         return 1
 
 def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=None):
-    """处理多个用&&、||或|连接的shell命令"""
+    """处理多个用&&、||或|连接的shell命令 - 使用统一的命令解析接口"""
     try:
         # 首先检查是否包含pipe操作符（带空格或不带空格）
         if ' | ' in shell_cmd or '|' in shell_cmd:
@@ -797,32 +797,25 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                 return pipe_result
             # 如果handle_pipe_commands返回None，说明不是真正的管道命令，继续处理
         
-        # 解析命令：支持 && 和 || 操作符
-        commands_with_operators = []
+        # 使用统一的命令解析接口
+        import sys
+        import os
+        current_dir = os.path.dirname(__file__)
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+        from command_parser import parse_command
         
-        # 先按 || 分割，然后再按 && 分割
-        if ' || ' in shell_cmd:
-            # 包含 || 操作符
-            or_parts = shell_cmd.split(' || ')
-            for i, part in enumerate(or_parts):
-                if ' && ' in part:
-                    # 这部分包含 && 操作符
-                    and_parts = part.split(' && ')
-                    for j, and_part in enumerate(and_parts):
-                        operator = '&&' if j > 0 else ('||' if i > 0 else None)
-                        commands_with_operators.append((and_part.strip(), operator))
-                else:
-                    operator = '||' if i > 0 else None
-                    commands_with_operators.append((part.strip(), operator))
-        elif ' && ' in shell_cmd:
-            # 只包含 && 操作符
-            and_parts = shell_cmd.split(' && ')
-            for i, part in enumerate(and_parts):
-                operator = '&&' if i > 0 else None
-                commands_with_operators.append((part.strip(), operator))
-        else:
+        # 解析命令
+        parse_result = parse_command(shell_cmd)
+        
+        if not parse_result['is_compound']:
             # 单个命令，不应该到这里，但为了安全起见
-            commands_with_operators.append((shell_cmd.strip(), None))
+            commands_with_operators = [(shell_cmd.strip(), None)]
+        else:
+            # 转换为原有格式以保持兼容性
+            commands_with_operators = []
+            for cmd_info in parse_result['commands']:
+                commands_with_operators.append((cmd_info['command'], cmd_info['operator']))
         
         # 获取GoogleDriveShell实例来执行命令
         if shell_instance:
