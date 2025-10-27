@@ -271,7 +271,6 @@ def show_unified_help(context="command_line", command_identifier=None):
     
     return 0
 
-# Standalone functions for backward compatibility
 def show_help():
     """显示命令行帮助信息 (for --help)"""
     return show_unified_help(context="command_line")

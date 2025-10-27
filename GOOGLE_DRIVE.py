@@ -115,7 +115,21 @@ class GoogleDriveMain:
     
     def main(self, *args, **kwargs):
         """委托到core_utils管理器"""
-        return self.core_utils.main(*args, **kwargs)
+        try:
+            return self.core_utils.main(*args, **kwargs)
+        except Exception as e:
+            # 使用增强的错误处理系统
+            try:
+                sys.path.insert(0, str(google_drive_proj_dir))
+                from modules.error_handler import capture_and_report_error
+                error_info = capture_and_report_error("GoogleDriveMain.main execution", e)
+                print(f"Error in main execution: {error_info.get('exception_message', str(e))}")
+                return 1
+            except ImportError:
+                print(f"Error in main execution: {e}")
+                import traceback
+                traceback.print_exc()
+                return 1
     
     # 委托方法 - Drive Process Manager
     def is_google_drive_running(self, *args, **kwargs):
@@ -271,4 +285,18 @@ def handle_shell_command(*args, **kwargs):
 # 保持原有的main函数调用结构
 if __name__ == "__main__":
     import sys
-    sys.exit(main()) 
+    try:
+        sys.exit(main())
+    except Exception as e:
+        # 使用增强的错误处理系统
+        try:
+            sys.path.insert(0, str(google_drive_proj_dir))
+            from modules.error_handler import capture_and_report_error
+            error_info = capture_and_report_error("GOOGLE_DRIVE main execution", e)
+            print(f"Fatal error: {error_info.get('exception_message', str(e))}")
+            sys.exit(1)
+        except ImportError:
+            print(f"Fatal error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1) 
