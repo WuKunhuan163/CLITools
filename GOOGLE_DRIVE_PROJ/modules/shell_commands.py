@@ -346,7 +346,8 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                     return 1
                 
                 # 使用远程命令模块直接执行
-                result = shell.execute_command_interface("bash", ["-c", compound_cmd])
+                # 传递原始命令以保持hash一致性
+                result = shell.execute_command_interface("bash", ["-c", compound_cmd], _original_user_command=shell_cmd)
                 if isinstance(result, dict):
                     # 显示输出 - 处理嵌套的数据结构
                     data = result.get("data", {})
