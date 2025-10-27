@@ -257,55 +257,56 @@ class CommandExecutor:
         
         return cleaned_stdout
 
-    def execute_command(self, user_command, result_filename=None, current_shell=None, skip_quote_escaping=False):
-        """
-        统一的命令执行接口 - 支持任何用户命令，自动生成JSON结果
-        
-        Args:
-            user_command (str): 用户要执行的完整命令
-            result_filename (str, optional): 指定的结果文件名
-            current_shell (dict, optional): 当前shell信息
-            skip_quote_escaping (bool, optional): 跳过引号转义处理，用于已经处理过的命令
-            
-        Returns:
-            dict: 执行结果
-        """
+    def execute_command(self, user_command, result_filename=None, current_shell=None, skip_quote_escaping=False, cmd_hash=None):
+            """
+            统一的命令执行接口 - 支持任何用户命令，自动生成JSON结果
+
+            Args:
+                user_command (str): 用户要执行的完整命令
+                result_filename (str, optional): 指定的结果文件名
+                current_shell (dict, optional): 当前shell信息
+                skip_quote_escaping (bool, optional): 跳过引号转义处理，用于已经处理过的命令
+            cmd_hash (str, optional): 预计算的命令hash，用于保持一致性
+
+            Returns:
+                dict: 执行结果
+            """
         import time
-        
-        # 处理__QUOTED_COMMAND__标记
-        if user_command.startswith("__QUOTED_COMMAND__"):
-            user_command = user_command[len("__QUOTED_COMMAND__"):]
-        
-        # 使用统一的JSON生成接口（包含语法检查）
-        try:
+
+                # 处理__QUOTED_COMMAND__标记
+                if user_command.startswith("__QUOTED_COMMAND__"):
+                    user_command = user_command[len("__QUOTED_COMMAND__"):]
+
+                # 使用统一的JSON生成接口（包含语法检查）
+                try:
             remote_command, actual_result_filename = self.main_instance.command_generator.generate_command(
-                user_command, result_filename, current_shell, skip_quote_escaping
-            )
-        except Exception as e:
-            # 如果是语法错误，直接返回错误，不弹出窗口
-            if "syntax errors" in str(e).lower():
-                print(f"Error: Bash syntax error detected:")
-                print(f"   {str(e)}")
-                print(f"   Please fix the syntax error in your command and try again.")
-                return {
-                    "success": False,
-                    "action": "syntax_error",
-                    "data": {
-                        "error": str(e),
-                        "source": "syntax_check"
-                    }
-                }
-            else:
-                # 其他错误继续抛出
-                raise
-        
-        # 显示远程窗口
-        title = f"GDS Unified Command: {user_command[:50]}..."
-        window_result = self.show_remote_command_window(
-            title=title,
-            command_text=remote_command
-        )
-        
+                user_command, result_filename, current_shell, skip_quote_escaping, cmd_hash
+                    )
+                except Exception as e:
+                    # 如果是语法错误，直接返回错误，不弹出窗口
+                    if "syntax errors" in str(e).lower():
+                        print(f"Error: Bash syntax error detected:")
+                        print(f"   {str(e)}")
+                        print(f"   Please fix the syntax error in your command and try again.")
+                        return {
+                            "success": False,
+                            "action": "syntax_error",
+                            "data": {
+                                "error": str(e),
+                                "source": "syntax_check"
+                            }
+                        }
+                    else:
+                        # 其他错误继续抛出
+                        raise
+
+                # 显示远程窗口
+                title = f"GDS Unified Command: {user_command[:50]}..."
+                window_result = self.show_remote_command_window(
+                    title=title,
+                    command_text=remote_command
+                )
+
         write_debug_output(
             command=user_command,
             result=window_result,
@@ -313,21 +314,21 @@ class CommandExecutor:
             raw_error="(Will be updated after command execution)",
             remote_command=remote_command
         )
-        
-        # 处理窗口结果
-        if window_result["action"] == "success":
-            # 用户点击了执行完成，现在开始显示进度指示器，等待并读取结果
-            from .progress_manager import start_progress_buffering, stop_progress_buffering
-            
+
+                # 处理窗口结果
+                if window_result["action"] == "success":
+                    # 用户点击了执行完成，现在开始显示进度指示器，等待并读取结果
+                    from .progress_manager import start_progress_buffering, stop_progress_buffering
+
             # 启动进度指示器（让用户看到）
             start_progress_buffering("⏳ Waiting for result ...")
             
             try:
                 result = self.main_instance.result_processor.wait_and_read_result_file(actual_result_filename)
-            finally:
-                # 停止进度指示器
-                stop_progress_buffering()
-            
+                    finally:
+                    # 停止进度指示器
+                    stop_progress_buffering()
+
             # 更新debug文件，记录实际的执行结果
             if result.get("success", False):
                 data = result.get("data", {})
@@ -342,75 +343,75 @@ class CommandExecutor:
                     return_code=data.get("exit_code", -1)
                 )
             
-            if result.get("success", False):
-                data = result.get("data", {})
-                return {
-                    "success": True,
-                    "action": "success",
-                    "data": data,
-                    "source": "unified_command"
-                }
-            else:
-                return {
-                    "success": False,
-                    "action": "execution_failed",
-                    "data": {
-                        "error": result.get("error", "Command execution failed"),
-                        "source": "unified_command"
+                    if result.get("success", False):
+                        data = result.get("data", {})
+                        return {
+                            "success": True,
+                            "action": "success",
+                            "data": data,
+                            "source": "unified_command"
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "action": "execution_failed",
+                            "data": {
+                                "error": result.get("error", "Command execution failed"),
+                                "source": "unified_command"
+                            }
+                        }
+
+                elif window_result["action"] == "direct_feedback":
+                    # 用户选择直接反馈，使用direct_feedback_interface
+                    print()  # 换行
+                    feedback_result = self.direct_feedback_interface(remote_command, actual_result_filename)
+                    return feedback_result
+
+                elif window_result["action"] == "copy":
+                    return {
+                        "success": True,
+                        "action": "copy",
+                        "data": {
+                            "message": "Command copied to clipboard",
+                            "source": "unified_command"
+                        }
                     }
-                }
-                
-        elif window_result["action"] == "direct_feedback":
-            # 用户选择直接反馈，使用direct_feedback_interface
-            print()  # 换行
-            feedback_result = self.direct_feedback_interface(remote_command, actual_result_filename)
-            return feedback_result
-            
-        elif window_result["action"] == "copy":
-            return {
-                "success": True,
-                "action": "copy",
-                "data": {
-                    "message": "Command copied to clipboard",
-                    "source": "unified_command"
-                }
-            }
-            
-        else:  # timeout, cancel, failure, error
-            import traceback
-            error_details = {
-                "success": False,
-                "action": window_result["action"],
+
+                else:  # timeout, cancel, failure, error
+                    import traceback
+                    error_details = {
+                        "success": False,
+                        "action": window_result["action"],
                 "error": window_result.get("error", "Operation cancelled or failed"),
                 "traceback": traceback.format_stack()
             }
             return error_details
 
-    def execute_command_interface(self, cmd, args, _skip_queue_management=False, _original_user_command=None):
-        """
-        统一远端命令执行接口 - 处理除特殊命令外的所有命令
+        def execute_command_interface(self, cmd, args, _skip_queue_management=False, _original_user_command=None):
+            """
+            统一远端命令执行接口 - 处理除特殊命令外的所有命令
 
-        Args:
-            cmd (str): 命令名称
-            args (list): 命令参数
-            _skip_queue_management (bool): 是否跳过队列管理（避免双重管理）
+            Args:
+                cmd (str): 命令名称
+                args (list): 命令参数
+                _skip_queue_management (bool): 是否跳过队列管理（避免双重管理）
 
-        Returns:
-            dict: 执行结果，包含stdout、stderr、path等字段
-        """
-        # 检查是否为特殊命令，如果是则不应该到这里
-        if cmd in self.SPECIAL_COMMANDS:
-            return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
+            Returns:
+                dict: 执行结果，包含stdout、stderr、path等字段
+            """
+            # 检查是否为特殊命令，如果是则不应该到这里
+            if cmd in self.SPECIAL_COMMANDS:
+                return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
         cleaned_args = args
 
-        # 调试日志已禁用
-        # 导入正确的远程窗口队列管理器并生成唯一的窗口ID
-        import time
+            # 调试日志已禁用
+            # 导入正确的远程窗口队列管理器并生成唯一的窗口ID
+            import time
 
-        # 设置时间戳基准点（如果还没有设置的话）
-        if not hasattr(self, '_debug_start_time'):
-            self._debug_start_time = time.time()
-        
+            # 设置时间戳基准点（如果还没有设置的话）
+            if not hasattr(self, '_debug_start_time'):
+                self._debug_start_time = time.time()
+
         # 如果提供了原始用户命令，优先使用它（用于保持hash一致性）
         if _original_user_command:
             user_command = _original_user_command
@@ -422,11 +423,16 @@ class CommandExecutor:
                 user_command = f"{cmd} {' '.join(shlex.quote(str(arg)) for arg in cleaned_args)}"
         else:
             user_command = cmd
+        
+        # 提前计算hash并传递给execute_command
+        import hashlib
+        cmd_hash = hashlib.md5(user_command.encode()).hexdigest()[:8]
             
         current_shell = self.main_instance.get_current_shell()
         result = self.execute_command(
             user_command=user_command,
-            current_shell=current_shell
+            current_shell=current_shell,
+            cmd_hash=cmd_hash
         )
         return result
 
@@ -504,113 +510,113 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         
         result = window_manager.request_window(title, enhanced_command_text, timeout_seconds, command_hash=current_hash, no_direct_feedback=test_mode, is_priority=is_priority)
         return result
+                
+        def direct_feedback(self, remote_command, debug_info=None):
+            """
+            直接反馈功能 - 粘贴远端命令和用户反馈，用=分割
+            使用统一的_get_multiline_user_input方法
+            """
+            debug_print(f"进入direct_feedback方法")
 
-    def direct_feedback(self, remote_command, debug_info=None):
-        """
-        直接反馈功能 - 粘贴远端命令和用户反馈，用=分割
-        使用统一的_get_multiline_user_input方法
-        """
-        debug_print(f"进入direct_feedback方法")
+            # 先输出debug信息（如果有的话）
+            if debug_info:
+                print(f"Debug information:")
+                print(debug_info)
+                print(f"=" * 20)  # 20个等号分割线
 
-        # 先输出debug信息（如果有的话）
-        if debug_info:
-            print(f"Debug information:")
-            print(debug_info)
-            print(f"=" * 20)  # 20个等号分割线
+            # 然后粘贴生成的远端指令
+            print(f"Generated remote command:")
+            print(remote_command)
+            print(f"=" * 20)  # 50个等号分割线
 
-        # 然后粘贴生成的远端指令
-        print(f"Generated remote command:")
-        print(remote_command)
-        print(f"=" * 20)  # 50个等号分割线
+            print(f"Please provide command execution result (multi-line input, press Ctrl+D to finish):")
+            print()
 
-        print(f"Please provide command execution result (multi-line input, press Ctrl+D to finish):")
-        print()
+            # 使用统一的多行输入方法
+            full_output = self._get_multiline_user_input()
 
-        # 使用统一的多行输入方法
-        full_output = self._get_multiline_user_input()
+            # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
+            error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
+                             'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
 
-        # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
-        error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
-                            'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
+            # 检查是否包含错误信息
+            has_error = any(keyword in full_output for keyword in error_keywords)
+            if has_error:
+                stdout_content = ""
+                stderr_content = full_output
+                exit_code = 1  # 有错误时默认退出码为1
+            else:
+                stdout_content = full_output
+                stderr_content = ""
+                exit_code = 0 
 
-        # 检查是否包含错误信息
-        has_error = any(keyword in full_output for keyword in error_keywords)
-        if has_error:
-            stdout_content = ""
-            stderr_content = full_output
-            exit_code = 1  # 有错误时默认退出码为1
-        else:
-            stdout_content = full_output
-            stderr_content = ""
-            exit_code = 0 
-
-        # 构建反馈结果
-        feedback_result = {
-            "success": exit_code == 0,
-            "action": "direct_feedback",
-            "data": {
-                "working_dir": "user_provided",
-                "timestamp": "user_provided", 
-                "exit_code": exit_code,
-                "stdout": stdout_content,
-                "stderr": stderr_content,
-                "source": "direct_feedback"
+            # 构建反馈结果
+            feedback_result = {
+                "success": exit_code == 0,
+                "action": "direct_feedback",
+                "data": {
+                    "working_dir": "user_provided",
+                    "timestamp": "user_provided", 
+                    "exit_code": exit_code,
+                    "stdout": stdout_content,
+                    "stderr": stderr_content,
+                    "source": "direct_feedback"
+                }
             }
-        }
-        return feedback_result
+            return feedback_result
 
 
-    def direct_feedback_interface(self, remote_command, result_filename=None, debug_info=None):
-        """
-        增强的直接反馈功能 - 在收集用户反馈后，尝试等待并获取实际的执行结果
+        def direct_feedback_interface(self, remote_command, result_filename=None, debug_info=None):
+            """
+            增强的直接反馈功能 - 在收集用户反馈后，尝试等待并获取实际的执行结果
 
-        Args:
-            remote_command (str): 远端命令内容
-            result_filename (str): 结果文件名（如果有的话）
-            debug_info (str): debug信息，仅在直接反馈时输出
+            Args:
+                remote_command (str): 远端命令内容
+                result_filename (str): 结果文件名（如果有的话）
+                debug_info (str): debug信息，仅在直接反馈时输出
 
-        Returns:
-            dict: 包含直接反馈和实际结果的综合结果
-        """
-        feedback_result = self.direct_feedback(remote_command, debug_info)
+            Returns:
+                dict: 包含直接反馈和实际结果的综合结果
+            """
+            feedback_result = self.direct_feedback(remote_command, debug_info)
 
-        # 添加分隔符
-        print(f"=" * 20)
+            # 添加分隔符
+            print(f"=" * 20)
 
-        # 如果提供了result_filename，尝试等待并读取实际的执行结果
-        if result_filename:
-            try:
-                # 等待并读取结果文件
+            # 如果提供了result_filename，尝试等待并读取实际的执行结果
+            if result_filename:
+                try:
+                    # 等待并读取结果文件
                 actual_result = self.wait_and_read_result_file(result_filename)
 
-                if actual_result.get("success", False):
-                    actual_data = actual_result.get("data", {})
-                    actual_stdout = actual_data.get("stdout", "").strip()
-                    actual_stderr = actual_data.get("stderr", "").strip()
+                    if actual_result.get("success", False):
+                        actual_data = actual_result.get("data", {})
+                        actual_stdout = actual_data.get("stdout", "").strip()
+                        actual_stderr = actual_data.get("stderr", "").strip()
 
-                    # 不打印actual_stdout，因为用户的直接反馈已经包含了输出
-                    # 只在有stderr时打印stderr
-                    if actual_stderr:
-                        import sys
-                        print(actual_stderr, file=sys.stderr)
+                        # 不打印actual_stdout，因为用户的直接反馈已经包含了输出
+                        # 只在有stderr时打印stderr
+                        if actual_stderr:
+                            import sys
+                            print(actual_stderr, file=sys.stderr)
 
-                    # 返回实际的执行结果，但保留用户反馈信息
-                    return {
-                        "success": actual_result.get("success", False),
-                        "action": "direct_feedback_interface",
-                        "data": actual_data,
-                        "user_feedback": feedback_result.get("data", {}),
-                        "source": "direct_feedback_interface"
-                    }
-                else:
-                    error_msg = actual_result.get("error", "Failed to get actual result")
-                    print(f"Could not get actual execution result: {error_msg}")
+                        # 返回实际的执行结果，但保留用户反馈信息
+                        return {
+                            "success": actual_result.get("success", False),
+                            "action": "direct_feedback_interface",
+                            "data": actual_data,
+                            "user_feedback": feedback_result.get("data", {}),
+                            "source": "direct_feedback_interface"
+                        }
+                    else:
+                        error_msg = actual_result.get("error", "Failed to get actual result")
+                        print(f"Could not get actual execution result: {error_msg}")
 
-            except Exception as e:
-                print(f"Error waiting for actual result: {e}")
+                except Exception as e:
+                    print(f"Error waiting for actual result: {e}")
 
-        # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
-        return feedback_result
+            # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
+            return feedback_result
 
     def _get_multiline_user_input(self):
         """

@@ -59,7 +59,7 @@ class CommandGenerator:
         except Exception as e:
             return False, f"Syntax check failed: {str(e)}"
 
-    def generate_command(self, user_command, result_filename=None, current_shell=None, skip_quote_escaping=False):
+    def generate_command(self, user_command, result_filename=None, current_shell=None, skip_quote_escaping=False, cmd_hash=None):
         """
         统一的JSON结果生成接口 - 为任何用户命令生成包含JSON结果的远程脚本
         
@@ -68,6 +68,7 @@ class CommandGenerator:
             result_filename (str, optional): 指定的结果文件名，如果不提供则自动生成
             current_shell (dict, optional): 当前shell信息，用于路径解析
             skip_quote_escaping (bool, optional): 跳过引号转义处理，用于已经处理过的命令
+            cmd_hash (str, optional): 预计算的命令hash，用于保持一致性
             
         Returns:
             tuple: (远端命令字符串, 结果文件名)
@@ -173,7 +174,9 @@ class CommandGenerator:
             
             # 预计算所有需要的值，避免f-string中的复杂表达式
             timestamp = str(int(time.time()))
-            cmd_hash = hashlib.md5(user_command.encode()).hexdigest()[:8]
+            # 使用传入的hash，或者计算新的hash
+            if cmd_hash is None:
+                cmd_hash = hashlib.md5(user_command.encode()).hexdigest()[:8]
             
             # 保存当前命令的hash供窗口管理器使用
             self._current_cmd_hash = cmd_hash
