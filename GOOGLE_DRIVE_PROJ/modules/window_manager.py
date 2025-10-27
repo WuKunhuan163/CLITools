@@ -499,13 +499,12 @@ class WindowManager:
         except Exception as e:
             self._debug_log(f"[LOCK_RELEASE_ERROR] 释放锁时出错: {e}")
     
-    def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None, no_direct_feedback=False, is_priority=False):
+    def request_window(self, cmd, command_hash, timeout_seconds=3600, no_direct_feedback=False, is_priority=False):
         """
         请求显示窗口 - 支持优先队列的跨进程管理
         
-        Args:
-            title (str): 窗口标题
-            command_text (str): 命令文本
+        Args: 
+            cmd (str): 命令文本
             timeout_seconds (int): 超时时间
             command_hash (str): 命令哈希
             no_direct_feedback (bool): 是否隐藏直接反馈按钮
@@ -521,9 +520,8 @@ class WindowManager:
         
         # 创建窗口请求
         window_request = {
+            'cmd': cmd,
             'request_id': request_id,
-            'title': title,
-            'command_text': command_text,
             'timeout_seconds': timeout_seconds,
             'process_id': os.getpid(),
             'thread_id': threading.get_ident(),
@@ -652,19 +650,15 @@ class WindowManager:
         self.window_counter += 1
         window_id = f"win_{self.window_counter}_{request['request_id']}"
         
-        # 生成或使用提供的8位hash用于命令标识
-        if request.get('command_hash'):
-            command_hash = request['command_hash'].upper()
-        else:
-            hash_input = f"{window_id}_{time.time()}_{request.get('command_text', '')}"
-            command_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8].upper()
-        request['command_hash'] = command_hash
+        # 使用提供的command_hash（应该已经在execute_command中计算）
+        if not request.get('command_hash'):
+            raise ValueError(f"Missing command_hash in request: {request}")
+        command_hash = request['command_hash'].upper()
         
         self._debug_log(f"[TKINTER_WINDOW_CREATE] 创建窗口: {window_id}")
         
         # 使用subprocess创建窗口（避免主线程阻塞）
-        title_escaped = request['title'].replace('"', '\\"').replace("'", "\\'")
-        command_b64 = base64.b64encode(request['command_text'].encode('utf-8')).decode('ascii')
+        command_b64 = base64.b64encode(request['cmd'].encode('utf-8')).decode('ascii')
         
         # 获取音频文件路径
         current_dir = os.path.dirname(__file__)
@@ -693,7 +687,7 @@ try:
     result_queue = queue.Queue()
     
     # 解码base64命令
-    command_text = base64.b64decode("COMMAND_B64_PLACEHOLDER").decode('utf-8')
+    cmd = base64.b64decode("COMMAND_B64_PLACEHOLDER").decode('utf-8')
     
     # 获取父进程PID（由父进程传入）
     parent_pid = PARENT_PID_PLACEHOLDER
@@ -846,7 +840,7 @@ try:
     
     # 自动复制命令到剪切板
     root.clipboard_clear()
-    root.clipboard_append(command_text)
+    root.clipboard_append(cmd)
     
     # 主框架
     main_frame = tk.Frame(root, padx=10, pady=10)
@@ -862,17 +856,17 @@ try:
         try:
             # 使用更可靠的复制方法 - 一次性复制完整命令
             root.clipboard_clear()
-            root.clipboard_append(command_text)
+            root.clipboard_append(cmd)
             
             # 验证复制是否成功
             try:
                 clipboard_content = root.clipboard_get()
-                if clipboard_content == command_text:
+                if clipboard_content == cmd:
                     copy_btn.config(text="✅复制成功", bg="#4CAF50")
                 else:
                     # 复制不完整，重试一次
                     root.clipboard_clear()
-                    root.clipboard_append(command_text)
+                    root.clipboard_append(cmd)
                     copy_btn.config(text="🔄重新复制", bg="#FF9800")
             except Exception as verify_error:
                 # 验证失败但复制可能成功，显示已复制
@@ -1250,7 +1244,6 @@ except Exception as e:
         
         # 替换模板占位符
         subprocess_script = subprocess_script_template.replace("COMMAND_B64_PLACEHOLDER", command_b64)
-        subprocess_script = subprocess_script.replace("TITLE_PLACEHOLDER", title_escaped)
         subprocess_script = subprocess_script.replace("WINDOW_ID_PLACEHOLDER", window_id)
         subprocess_script = subprocess_script.replace("COMMAND_HASH_PLACEHOLDER", command_hash)
         subprocess_script = subprocess_script.replace("TIMEOUT_MS_PLACEHOLDER", str(timeout_ms))

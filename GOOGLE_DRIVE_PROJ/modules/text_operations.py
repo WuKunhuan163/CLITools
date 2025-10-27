@@ -687,9 +687,22 @@ if __name__ == "__main__":
             # 使用base64编码来避免引号问题
             script_b64 = base64.b64encode(script_content.encode('utf-8')).decode('ascii')
             
-            # 执行远程Python代码
+            # 生成并执行远程Python代码
             command = f"python3 -c \"import base64; exec(base64.b64decode('{script_b64}').decode('utf-8'))\""
-            execute_result = self.main_instance.remote_commands.execute_command(command)
+            
+            # 先生成远程命令
+            current_shell = self.main_instance.get_current_shell()
+            remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+                command, None, current_shell
+            )
+            
+            # 执行远程命令
+            execute_result = self.main_instance.command_executor.execute_command(
+                remote_command=remote_command,
+                result_filename=result_filename,
+                cmd_hash=cmd_hash,
+                user_command=command
+            )
             
             if execute_result.get("success"):
                 # 解析脚本输出 - 从data.stdout中获取

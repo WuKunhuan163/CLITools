@@ -59,44 +59,60 @@ class CommandGenerator:
         except Exception as e:
             return False, f"Syntax check failed: {str(e)}"
 
-    def generate_command(self, user_command, result_filename=None, current_shell=None, skip_quote_escaping=False, cmd_hash=None):
+    def calculate_command_hash(self, cmd):
+        """
+        计算命令的hash值
+        
+        Args:
+            cmd (str): 用户命令字符串
+            
+        Returns:
+            str: 8字符的hash值（小写）
+        """
+        import hashlib
+        window_hash = hashlib.md5(cmd.encode()).hexdigest()[:8]
+        # print(f"[DEBUG] 计算窗口hash: {window_hash.upper()} (命令: {cmd[:80]}...)")
+        return window_hash
+
+
+    def generate_command(self, cmd, result_filename=None, current_shell=None):
         """
         统一的JSON结果生成接口 - 为任何用户命令生成包含JSON结果的远程脚本
         
         Args:
-            user_command (str): 用户要执行的完整命令
+            cmd (str): 用户要执行的完整命令
             result_filename (str, optional): 指定的结果文件名，如果不提供则自动生成
             current_shell (dict, optional): 当前shell信息，用于路径解析
-            skip_quote_escaping (bool, optional): 跳过引号转义处理，用于已经处理过的命令
-            cmd_hash (str, optional): 预计算的命令hash，用于保持一致性
             
         Returns:
-            tuple: (远端命令字符串, 结果文件名)
+            tuple: (远端命令字符串, 结果文件名, 命令hash)
         """
         try:
             import time
             import hashlib
-            import json
+            
+            # 计算命令hash（统一计算点）
+            cmd_hash = self.calculate_command_hash(cmd)
             
             # 生成统一JSON命令
             import shlex
             from datetime import datetime
             # 检测和处理感叹号问题（只对简单用户命令进行检测）
-            if '!' in user_command and len(user_command) < 200 and not user_command.strip().startswith('#'):
+            if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
                 print(f"Warning: Command contains exclamation marks which may cause shell history expansion issues.")
-                print(f"Original command: {user_command}")
-                cleaned_command = user_command.replace('!', '')
+                print(f"Original command: {cmd}")
+                cleaned_command = cmd.replace('!', '')
                 print(f"Cleaned command: {cleaned_command}")
                 print(f"Suggestion: Avoid using '!' in commands to prevent shell history expansion errors.")
-                user_command = cleaned_command
+                cmd = cleaned_command
             
             # 检测和处理printf格式字符问题
             # 如果命令以printf开头且包含%字符，需要特殊处理避免格式指令错误
-            if user_command.strip().startswith('printf '):
+            if cmd.strip().startswith('printf '):
                 import re
                 # 匹配printf命令的模式: printf "content" 或 printf 'content'
                 printf_pattern = r'^printf\s+(["\'])(.*?)\1(.*)$'
-                match = re.match(printf_pattern, user_command.strip())
+                match = re.match(printf_pattern, cmd.strip())
                 if match:
                     quote_char = match.group(1)
                     content = match.group(2)
@@ -108,15 +124,15 @@ class CommandGenerator:
                         safe_command = f'printf "%s" {quote_char}{content}{quote_char}'
                         if rest_args:
                             safe_command += f' {rest_args}'
-                        user_command = safe_command
+                        cmd = safe_command
             
             # 检测和处理echo命令中的转义序列问题
             # 确保echo命令能正确处理\n和\t等转义序列
-            if user_command.strip().startswith('echo '):
+            if cmd.strip().startswith('echo '):
                 import re
                 # 匹配echo命令的模式: echo "content" 或 echo 'content'
                 echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
-                match = re.match(echo_pattern, user_command.strip())
+                match = re.match(echo_pattern, cmd.strip())
                 if match:
                     quote_char = match.group(1)
                     content = match.group(2)
@@ -128,12 +144,12 @@ class CommandGenerator:
                         safe_command = f'echo -e {quote_char}{content}{quote_char}'
                         if rest_args:
                             safe_command += f' {rest_args}'
-                        user_command = safe_command
+                        cmd = safe_command
             
             
             # 路径替换：将用户命令中的~替换为REMOTE_ROOT
-            if '~' in user_command:
-                user_command = user_command.replace('~', self.main_instance.REMOTE_ROOT)
+            if '~' in cmd:
+                cmd = cmd.replace('~', self.main_instance.REMOTE_ROOT)
                 import re
                 pattern = f"'({re.escape(self.main_instance.REMOTE_ROOT)}[^']*?)'"
                 def remove_quotes_if_safe(match):
@@ -141,7 +157,7 @@ class CommandGenerator:
                     if ' ' not in path and not any(c in path for c in ['&', '|', ';', '(', ')', '<', '>', '$', '`']):
                         return path
                     return match.group(0)  # 保持原样
-                user_command = re.sub(pattern, remove_quotes_if_safe, user_command)
+                cmd = re.sub(pattern, remove_quotes_if_safe, cmd)
             
             # 获取当前路径
             if current_shell:
@@ -162,24 +178,15 @@ class CommandGenerator:
             # 生成结果文件名（如果未提供）
             if not result_filename:
                 if is_background:
-                    # Background模式：主程序使用不同的文件名，避免与后台任务的result文件冲突
                     result_filename = f"cmd_main_{bg_pid}.result.json"
-                else:
-                    # 普通模式使用统一的结果文件名格式
+                else: 
                     timestamp = str(int(time.time()))
-                    cmd_hash = hashlib.md5(f"{user_command}_{timestamp}".encode()).hexdigest()[:8]
                     result_filename = f"cmd_{timestamp}_{cmd_hash}.json"
             
             result_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
             
             # 预计算所有需要的值，避免f-string中的复杂表达式
             timestamp = str(int(time.time()))
-            # 使用传入的hash，或者计算新的hash
-            if cmd_hash is None:
-                cmd_hash = hashlib.md5(user_command.encode()).hexdigest()[:8]
-            
-            # 保存当前命令的hash供窗口管理器使用
-            self._current_cmd_hash = cmd_hash
             
             # 根据是否为background模式生成不同的远程命令脚本
             # 检查是否为背景任务
@@ -401,7 +408,7 @@ MAIN_JSON_EOF'''
         # 忽略SIGPIPE信号以避免broken pipe错误
         trap '' PIPE
         bash << 'USER_COMMAND_EOF' > "$OUTPUT_FILE" 2> "$ERROR_FILE"
-{user_command}
+{cmd}
 USER_COMMAND_EOF
         EXIT_CODE=$?
         echo "$EXIT_CODE" > "$EXITCODE_FILE"
@@ -499,7 +506,7 @@ JSON_SCRIPT_EOF
             
             # 最终生成的remote_command
             
-            return remote_command, result_filename
+            return remote_command, result_filename, cmd_hash
             
         except Exception as e:
             raise Exception(f"Generate unified JSON command failed: {str(e)}")
@@ -579,21 +586,21 @@ JSON_SCRIPT_EOF
                     # 修复：使用shlex.quote来安全处理包含引号的命令
                     import shlex
                     safe_command = shlex.quote(args[1])
-                    user_command = f'bash -c {safe_command}'
+                    cmd = f'bash -c {safe_command}'
                 elif cmd == "sh" and len(args) >= 2 and args[0] == "-c":
-                    user_command = f'sh -c "{args[1]}"'
+                    cmd = f'sh -c "{args[1]}"'
                 elif cmd in ["python", "python3"] and len(args) >= 2 and args[0] == "-c":
                     # 对于python -c命令，使用base64编码避免转义问题
                     import base64
                     python_code = args[1]
                     python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
-                    user_command = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
+                    cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
                 elif cmd in ["python", "python3"] and len(args) == 1:
                     # 对于直接的python代码执行（如测试中的格式），转换为python -c格式
                     import base64
                     python_code = args[0]
                     python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
-                    user_command = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
+                    cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
                 else:
                     # 处理重定向和其他参数
                     import shlex
@@ -616,11 +623,11 @@ JSON_SCRIPT_EOF
                                     else:
                                         # 如果同时包含单引号和双引号，使用shlex.quote
                                         quoted_args.append(shlex.quote(arg))
-                                user_command = f"{cmd} {' '.join(quoted_args)} > {target_file}"
+                                cmd = f"{cmd} {' '.join(quoted_args)} > {target_file}"
                             else:
-                                user_command = f"{cmd} > {target_file}"
+                                cmd = f"{cmd} > {target_file}"
                         else:
-                            user_command = f"{cmd} {' '.join(args)}"
+                            cmd = f"{cmd} {' '.join(args)}"
                     else:
                         # 处理~路径展开和智能引号处理
                         processed_args = []
@@ -638,12 +645,12 @@ JSON_SCRIPT_EOF
                                 else:
                                     # 如果同时包含单引号和双引号，使用shlex.quote
                                     processed_args.append(shlex.quote(arg))
-                        user_command = f"{cmd} {' '.join(processed_args)}"
+                        cmd = f"{cmd} {' '.join(processed_args)}"
             else:
-                user_command = cmd
+                cmd = cmd
 
-            # 使用统一的JSON生成接口
-            return self.generate_command(user_command, None, current_shell, False)
+            # 计算hash并使用统一的JSON生成接口
+            return self.generate_command(cmd, current_shell)
 
         except Exception as e:
             raise Exception(f"Generate remote command failed: {str(e)}")

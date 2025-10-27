@@ -1435,7 +1435,7 @@ class FileCore:
             
             compress_result = self.main_instance.remote_commands.show_remote_command_window(
                 title=f"压缩目录: {dir_name}",
-                command_text=compress_command,
+                cmd=compress_command,
                 timeout_seconds=3600,
                 is_priority=False
             )
@@ -1482,7 +1482,7 @@ class FileCore:
                 try:
                     cleanup_result = self.main_instance.remote_commands.show_remote_command_window(
                         title="清理临时文件",
-                        command_text=f"rm -f {remote_zip_path}",
+                        cmd=f"rm -f {remote_zip_path}",
                         timeout_seconds=300,
                         is_priority=False
                     )

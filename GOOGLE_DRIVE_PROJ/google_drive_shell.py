@@ -813,13 +813,17 @@ class GoogleDriveShell:
             current_shell_copy["_background_pid"] = bg_pid
             current_shell_copy["_background_original_cmd"] = shell_cmd
             
-            # 使用统一的命令执行接口
-            # 执行背景命令
+            # 生成远程命令
+            remote_command, result_filename, cmd_hash = self.command_generator.generate_command(
+                bg_create_cmd, None, current_shell_copy
+            )
+            
+            # 执行远程命令
             result = self.command_executor.execute_command(
-                user_command=bg_create_cmd,
-                result_filename=None,
-                current_shell=current_shell_copy,
-                skip_quote_escaping=True
+                remote_command=remote_command,
+                result_filename=result_filename,
+                cmd_hash=cmd_hash,
+                user_command=bg_create_cmd
             )
             
             # 显示执行结果
@@ -1023,27 +1027,22 @@ class GoogleDriveShell:
                     return 1
                 translated_cmd = translation_result["translated_command"]
             
-            # 直接使用execute_command执行转译后的命令
-            current_shell = self.get_current_shell()
-            result = self.command_executor.execute_command(
-                user_command=translated_cmd,
-                current_shell=current_shell
-            )
+            # 使用execute_command_interface统一接口
+            result = self.execute_command_interface("bash", ["-c", translated_cmd], _original_user_command=translated_cmd)
             
-            if result.get("success", False):
-                data = result.get("data", {})
-                stdout = data.get("stdout", "").strip()
-                stderr = data.get("stderr", "").strip()
-                if stdout:
-                    print(stdout)
-                if stderr:
-                    import sys
-                    print(stderr, file=sys.stderr)
-                return 0
-            else:
-                error_msg = result.get("error", f"Command '{translated_cmd}' failed")
-                print(error_msg)
-                return 1
+            # 处理结果
+            if not result.get("success"): 
+                raise Exception(f"Command execution returned failure: {result}")
+            
+            data = result.get("data", {})
+            stdout = data.get("stdout", "").strip()
+            stderr = data.get("stderr", "").strip()
+            if stdout:
+                print(stdout)
+            if stderr:
+                import sys
+                print(stderr, file=sys.stderr)
+            return 0
                 
         except Exception as e:
             # 使用增强的错误处理系统显示完整traceback
@@ -1296,7 +1295,7 @@ done
             
             result = self.command_executor.show_remote_command_window(
                 title=f"GDS Wait Task: {bg_pid}",
-                command_text=remote_command,
+                cmd=remote_command,
                 timeout_seconds=3600  # 1小时超时
             )
             
@@ -1612,10 +1611,15 @@ else
 fi
 '''
             
-            # 使用统一的命令执行接口
+            # 生成并执行远程命令
+            remote_command, result_filename, cmd_hash = self.command_generator.generate_command(
+                cleanup_cmd, None, current_shell
+            )
             result = self.command_executor.execute_command(
-                user_command=cleanup_cmd,
-                current_shell=current_shell
+                remote_command=remote_command,
+                result_filename=result_filename,
+                cmd_hash=cmd_hash,
+                user_command=cleanup_cmd
             )
             
             if result.get("success", False):
