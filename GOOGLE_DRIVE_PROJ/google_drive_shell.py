@@ -490,20 +490,13 @@ class GoogleDriveShell:
                     return 1
         
         # 使用通用的远程命令执行机制
-        # print(f"DEBUG: echo命令参数: {args}")
         result = self.execute_command_interface('echo', args)
-        # print(f"DEBUG: echo执行结果: success={result.get('success')}, data={result.get('data', {})}")
-        
         if result.get("success", False):
-            # 统一在命令处理结束后打印输出
-            # 处理嵌套的数据结构
             if "data" in result:
-                # 新的嵌套结构
                 data = result["data"]
                 stdout = data.get("stdout", "").strip()
                 stderr = data.get("stderr", "").strip()
             else:
-                # 旧的平坦结构
                 stdout = result.get("stdout", "").strip()
                 stderr = result.get("stderr", "").strip()
             
@@ -1151,12 +1144,8 @@ class GoogleDriveShell:
         self._original_user_command = shell_cmd.strip()
         try:
             is_quoted_command = shell_cmd.startswith("__QUOTED_COMMAND__")
-            # DEBUG: Temporarily disabled
-            # print(f"DEBUG: [EXECUTE_SHELL_COMMAND] Original shell_cmd: '{shell_cmd}'")
-            # print(f"DEBUG: [EXECUTE_SHELL_COMMAND] is_quoted_command: {is_quoted_command}")
             if is_quoted_command:
                 shell_cmd = shell_cmd[len("__QUOTED_COMMAND__"):]
-                # print(f"DEBUG: [EXECUTE_SHELL_COMMAND] After removing marker: '{shell_cmd}'")
             
             # 首先检测引号包围的完整命令（在命令解析之前）
             shell_cmd_clean = shell_cmd.strip()
@@ -1170,9 +1159,7 @@ class GoogleDriveShell:
                 
                 # 引号包围的命令直接使用远程执行
                 # 不需要特殊处理，让通用的远程命令执行机制处理
-                # print(f"🔍 QUOTED_PROCESSING DEBUG: Quoted command processing completed")
 
-            # print(f"🔍 FLOW_DEBUG: About to check help commands")
             # 首先检查特殊命令（不需要远程执行）
             if shell_cmd_clean in ['--help', '-h', 'help']:
                 # 显示本地帮助信息，不触发远程窗口
@@ -1322,25 +1309,9 @@ For more information, visit: https://github.com/your-repo/gds"""
             
             # 然后检查是否为特殊命令（导航命令等）
             first_word = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
-            
-            # print(f"🔍 PARSE_DEBUG: Parsed first_word='{first_word}'")
-            # print(f"🔍 PARSE_DEBUG: shell_cmd_clean='{shell_cmd_clean}'")
-            # print(f"🔍 PARSE_DEBUG: is_quoted_command={is_quoted_command}")
-            # print(f"🔍 PARSE_DEBUG: About to check for special commands")
-            
-            # # 特殊命令处理 - 在pipe检查之后
-            # # 使用新的命令注册系统
-            # print(f"DEBUG: About to check special commands")
-            # print(f"DEBUG: first_word='{first_word}'")
-            # print(f"DEBUG: is_quoted_command={is_quoted_command}")
-            # print(f"DEBUG: shell_cmd_clean='{shell_cmd_clean}'")
-            # print(f"DEBUG: is_special={self.command_registry.is_special_command(first_word)}")
-            
+
             # 首先检查新的命令注册系统
             if self.command_registry.is_special_command(first_word):
-                # print(f"DEBUG: Processing special command '{first_word}' with new command system")
-                
-                # 解析命令和参数
                 import shlex
                 try:
                     cmd_parts = shlex.split(shell_cmd_clean)
@@ -1361,7 +1332,6 @@ For more information, visit: https://github.com/your-repo/gds"""
             special_commands = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'echo', 'help', 'pyenv', 
                               'cleanup-windows', 'linter', 'pip', 'deps', 'edit', 'read', 
                               'upload', 'upload-folder', 'download', 'mv', 'find', 'rm']
-            # print(f"DEBUG: Checking legacy special commands - first_word='{first_word}', in_special={first_word in special_commands}")
             if first_word in special_commands:
                 
                 # 解析命令和参数
@@ -1872,14 +1842,7 @@ done
             protected_cmd = (shell_cmd.replace('~/', '__TILDE_SLASH__')
                                      .replace(' ~', ' __TILDE__')
                                      .replace('\\"', '__ESCAPED_QUOTE__'))
-            
-            print(f"DEBUG: 原始命令: {repr(shell_cmd)}")
-            print(f"DEBUG: 保护后命令: {repr(protected_cmd)}")
-            
             cmd_parts = shlex.split(protected_cmd)
-            print(f"DEBUG: shlex.split成功，结果: {cmd_parts}")
-            
-            # 恢复~路径和转义引号
             cmd_parts = [part.replace('__TILDE_SLASH__', '~/').replace('__TILDE__', '~').replace('__ESCAPED_QUOTE__', '\\"') for part in cmd_parts]
             
             if not cmd_parts:
@@ -1894,32 +1857,11 @@ done
                 "args": cmd_parts[1:] if len(cmd_parts) > 1 else []
             }
             
-        except ValueError as e:
-            print(f"DEBUG: shlex.split失败，错误: {e}")
-            print(f"DEBUG: 失败的命令: {repr(shell_cmd)}")
-            print(f"DEBUG: 失败的保护后命令: {repr(protected_cmd)}")
-            
-            # 如果shlex解析失败，尝试简单分割作为fallback
-            try:
-                cmd_parts = shell_cmd.split()
-                print(f"DEBUG: fallback split结果: {cmd_parts}")
-                if not cmd_parts:
-                    return {
-                        "success": False,
-                        "error": f"Command parsing failed: {e}"
-                    }
-                
-                return {
-                    "success": True,
-                    "cmd": cmd_parts[0],
-                    "args": cmd_parts[1:] if len(cmd_parts) > 1 else [],
-                    "warning": f"Used fallback parsing due to: {e}"
-                }
-            except Exception as fallback_e:
-                return {
-                    "success": False,
-                    "error": f"Command parsing failed: {e}, fallback also failed: {fallback_e}"
-                }
+        except ValueError as e: 
+            return {
+                "success": False,
+                "error": f"Command parsing failed: {e}"
+            }
 
     def _handle_edit_command(self, shell_cmd):
         """
@@ -1930,10 +1872,7 @@ done
         import json
         
         try:
-            # print(f"DEBUG: _handle_edit_command called with: '{shell_cmd}'")
-            # 使用统一的命令解析接口
             parse_result = self.parse_and_translate_command(shell_cmd)
-            # print(f"DEBUG: parse_result = {parse_result}")
             if not parse_result["success"]:
                 print(f"Error: {parse_result['error']}")
                 return 1
@@ -1942,23 +1881,18 @@ done
             if "cmd" in parse_result and "args" in parse_result:
                 parts = [parse_result["cmd"]] + parse_result["args"]
             else:
-                # 如果parse_result没有cmd和args，从translated_command中解析
                 import shlex
                 parts = shlex.split(parse_result["translated_command"])
-            # print(f"DEBUG: parts = {parts}")
             if len(parts) < 2:
                 print("Error: edit command requires a filename")
                 return 1
                 
-            cmd = parts[0]  # 'edit'
-            # print(f"DEBUG: cmd = '{cmd}'")
             filename = None
             preview = False
             backup = False
             replacements = []
             content_mode = False
             content = None
-            
             i = 1
             while i < len(parts):
                 arg = parts[i]
@@ -2885,8 +2819,12 @@ try:
     # 居中窗口
     root.eval('tk::PlaceWindow . center')
     
-    # 音频文件路径
-    audio_file_path = "~/.local/bin/GOOGLE_DRIVE_PROJ/tkinter_bell.mp3"
+    # 音频文件路径 - 使用统一路径常量
+    try:
+        from .modules.path_constants import get_proj_dir
+        audio_file_path = str(get_proj_dir() / "tkinter_bell.mp3")
+    except ImportError:
+        audio_file_path = "~/.local/bin/GOOGLE_DRIVE_PROJ/tkinter_bell.mp3"
     
     # 定义统一的聚焦函数
     def force_focus():
@@ -3152,9 +3090,14 @@ except Exception as e:
             import json
             import os
             
-            # GOOGLE_DRIVE_DATA路径
-            config_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
-            config_file = os.path.join(config_dir, "config.json")
+            # GOOGLE_DRIVE_DATA路径 - 使用统一路径常量
+            try:
+                from .modules.path_constants import get_data_dir
+                config_dir = str(get_data_dir())
+                config_file = str(get_data_dir() / "config.json")
+            except ImportError:
+                config_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
+                config_file = os.path.join(config_dir, "config.json")
             
             # 读取现有配置
             if os.path.exists(config_file):

@@ -34,15 +34,11 @@ def get_running_background_processes():
             running_processes = [proc for proc in data.get('processes', []) 
                                if proc.get('status') == 'running']
             running_count = len(running_processes)
-            # Debug: 显示正在运行的进程详情（静默模式，避免过多输出）
-            # if running_processes:
-            #     running_pids = [proc.get('pid') for proc in running_processes]
-            #     # print(f"DEBUG: BACKGROUND_CMD running processes: {running_pids}")
             return running_count
         return 0
     except Exception as e:
-        print(f"❌ Debug: Error getting background processes: {e}")
-        return 0
+        print(f"Error getting background processes: {e}")
+        return 1
 
 def start_test(test_name):
     """启动一个测试"""
@@ -58,31 +54,25 @@ def start_test(test_name):
     cmd = f'cd {Path(__file__).parent} && /usr/bin/python3 -m unittest {test_name} -v > {output_file} 2>&1'
     
     try:
-        # print(f"DEBUG: About to run BACKGROUND_CMD with cmd: {cmd}")
         result = subprocess.run(
             ["../BACKGROUND_CMD", cmd],
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent
         )
-        # print(f"DEBUG: BACKGROUND_CMD returned code {result.returncode}")
-        # print(f"DEBUG: stdout: {result.stdout}")
-        # print(f"DEBUG: stderr: {result.stderr}")
-        
         if result.returncode == 0:
-            # 从输出中提取PID
             output = result.stdout.strip()
             if "Process started: PID" in output:
                 pid = output.split("PID ")[1].split(",")[0]
-                print(f"▶️ Started {test_short_name} (PID: {pid}) -> {output_file}")
+                print(f"Started {test_short_name} (PID: {pid}) -> {output_file}")
                 return int(pid), output_file
             else:
-                print(f"❌ Debug: Unexpected output from BACKGROUND_CMD: {output}")
+                print(f"Unexpected output from BACKGROUND_CMD: {output}")
                 return None, None
-        print(f"❌ Failed to start {test_name}: {result.stderr}")
+        print(f"Failed to start {test_name}: {result.stderr}")
         return None, None
     except Exception as e:
-        print(f"❌ Error starting {test_name}: {e}")
+        print(f"Error starting {test_name}: {e}")
         import traceback
         traceback.print_exc()
         return None, None
@@ -118,18 +108,14 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
         # 启动新测试（如果有空闲槽位）
         while len(running_pids) < max_concurrent and test_queue:
             test_name = test_queue.pop(0)
-            print(f"🚀 Debug: Attempting to start {test_name.split('.')[-1]}")
-            # print(f"DEBUG: Before start_test - len(running_pids)={len(running_pids)}, max_concurrent={max_concurrent}")
+            print(f"Attempting to start {test_name.split('.')[-1]}")
             pid, output_file = start_test(test_name)
-            # print(f"DEBUG: start_test returned pid={pid}, output_file={output_file}")
             if pid:
                 running_pids[pid] = (test_name, output_file)
-                print(f"✅ Debug: Successfully started {test_name.split('.')[-1]} with PID {pid}")
-                # print(f"DEBUG: running_pids now: {list(running_pids.keys())}")
+                print(f"Successfully started {test_name.split('.')[-1]} with PID {pid}")
             else:
                 failed_tests.append(test_name)
-                print(f"❌ Debug: Failed to start {test_name.split('.')[-1]}")
-                # print(f"DEBUG: Added to failed_tests: {failed_tests}")
+                print(f"Failed to start {test_name.split('.')[-1]}")
         
         # 检查已完成的测试
         completed_pids = []
@@ -192,13 +178,13 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
         remaining = len(test_queue)
         
         # 添加debug信息
-        progress_msg = f"📈 Progress: {done}/{total} done, {running} running, {remaining} queued"
-        debug_msg = f"DEBUG: running_pids={list(running_pids.keys())}"
+        progress_msg = f"Progress: {done}/{total} done, {running} running, {remaining} queued"
+        debug_msg = f"running_pids={list(running_pids.keys())}"
         
         # 只在进度消息发生变化时打印
         if progress_msg != last_progress_msg:
             print(progress_msg)
-            print(debug_msg)  # 添加debug信息
+            print(debug_msg)  
             last_progress_msg = progress_msg
         
         if running_pids or test_queue:
@@ -206,38 +192,38 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
     
     # 最终报告
     print(f"\n{'='*60}")
-    print(f"🏁 Test execution completed!")
+    print(f"Test execution completed!")
     
     # 统计结果
     passed_tests = [name for name, result in test_results.items() if result["status"] == "pass"]
     failed_test_results = [name for name, result in test_results.items() if result["status"] == "fail"]
     unknown_tests = [name for name, result in test_results.items() if result["status"] == "unknown"]
     
-    print(f"✅ Passed: {len(passed_tests)}")
-    print(f"❌ Failed: {len(failed_test_results) + len(failed_tests)}")
-    print(f"❓ Unknown: {len(unknown_tests)}")
+    print(f"Passed: {len(passed_tests)}")
+    print(f"Failed: {len(failed_test_results) + len(failed_tests)}")
+    print(f"Unknown: {len(unknown_tests)}")
     
     # 显示失败的测试详情
     all_failed = failed_tests + failed_test_results
     if all_failed:
-        print(f"\n❌ Failed tests:")
+        print(f"\nFailed tests:")
         for test in all_failed:
             test_short = test.split('.')[-1]
             print(f"  - {test_short}")
             if test in test_results:
                 output_file = test_results[test]["output_file"]
-                print(f"    📄 {output_file}")
+                print(f"    {output_file}")
     
     # 显示通过的测试
     if passed_tests:
-        print(f"\n✅ Passed tests:")
+        print(f"\nPassed tests:")
         for test in passed_tests:
             test_short = test.split('.')[-1]
             output_file = test_results[test]["output_file"]
-            print(f"  - {test_short} (📄 {output_file})")
+            print(f"  - {test_short} ({output_file})")
     
-    print(f"\n📊 All test outputs saved in tmp/ folder")
-    print(f"📊 Use '../BACKGROUND_CMD --status' to see process details")
+    print(f"\nAll test outputs saved in tmp/ folder")
+    print(f"Use '../BACKGROUND_CMD --status' to see process details")
 
 def main():
     """主函数"""

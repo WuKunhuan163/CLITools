@@ -40,37 +40,41 @@ class PathResolver:
         self.main_instance = main_instance  # 引用主实例以访问其他属性
 
     def _setup_environment_paths(self):
-        """根据运行环境设置路径配置"""
-        import os
-        import platform
-        import json
+        """根据运行环境设置路径配置 - 使用统一的路径常量管理器"""
         try:
-            config_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/sync_config.json")
-            if os.path.exists(config_file):
-                with open(config_file, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                self.main_instance.LOCAL_EQUIVALENT = config.get("local_equivalent", os.path.expanduser("~/Applications/Google Drive"))
-                self.main_instance.DRIVE_EQUIVALENT = config.get("drive_equivalent", "/content/drive/Othercomputers/我的 MacBook Air/Google Drive")
-                self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID = config.get("drive_equivalent_folder_id", "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY")
-                pass
-            else:
-                self._setup_default_paths()
-        except Exception as e:
-            print(f"Warning: Load sync config failed, use default config: {e}")
-            self._setup_default_paths()
-        
-        if platform.system() == "Darwin":  # macOS
-            self.environment = "macos"
+            from .path_constants import path_constants
+            
+            # 设置环境默认值
+            path_constants.setup_environment_defaults()
+            
+            # 将路径常量应用到主实例
+            self.main_instance.LOCAL_EQUIVALENT = path_constants.get_path("LOCAL_EQUIVALENT")
+            self.main_instance.DRIVE_EQUIVALENT = path_constants.get_path("DRIVE_EQUIVALENT")
+            self.main_instance.REMOTE_ROOT = path_constants.get_path("REMOTE_ROOT")
+            self.main_instance.REMOTE_ENV = path_constants.get_path("REMOTE_ENV")
+            
+            # 设置文件夹ID
+            self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID = path_constants.get_folder_id("DRIVE_EQUIVALENT_FOLDER_ID")
+            self.main_instance.REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
+            self.main_instance.REMOTE_ENV_FOLDER_ID = path_constants.get_folder_id("REMOTE_ENV_FOLDER_ID")
+            
+            # 设置环境类型
+            self.environment = path_constants.detect_environment()
+            
+            # 确保目录存在
+            import os
+            os.makedirs(self.main_instance.LOCAL_EQUIVALENT, exist_ok=True)
+            
+            # 只在Colab环境下创建REMOTE_ROOT目录
+            if self.environment == "colab":
+                os.makedirs(self.main_instance.REMOTE_ROOT, exist_ok=True)
+                
+        except ImportError:
+            # 回退到原来的逻辑
+            import os
+            import platform
+            self.environment = "macos" if platform.system() == "Darwin" else "colab"
             self.main_instance.REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
-        else: 
-            #TODO
-            raise Exception("Unsupported environment")
-        
-        # 确保目录存在
-        os.makedirs(self.main_instance.LOCAL_EQUIVALENT, exist_ok=True)
-        # 只在Colab环境下创建DRIVE_REMOTE_ROOT目录
-        if self.environment == "colab":
-            os.makedirs(self.main_instance.REMOTE_ROOT, exist_ok=True)
 
     def _setup_default_paths(self):
         """设置默认路径配置"""

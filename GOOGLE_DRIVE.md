@@ -1006,7 +1006,7 @@ GDS python -c "print('Hello from Google Drive!')"
 ### 自定义路径
 可以在代码中修改以下路径配置：
 ```python
-LOCAL_EQUIVALENT = "/Users/username/Applications/Google Drive"
+LOCAL_EQUIVALENT = "~/Applications/Google Drive"
 DRIVE_EQUIVALENT = "/content/drive/Othercomputers/MacBook/Google Drive"
 REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
 ```

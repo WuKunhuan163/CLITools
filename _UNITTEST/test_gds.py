@@ -1095,7 +1095,7 @@ Shell commands: ls -la && echo "done"
         safe_content = shlex.quote(chinese_content)
         safe_file = shlex.quote(chinese_echo_file)
         command = f'echo {safe_content} > {safe_file}'
-        print(f"DEBUG: 执行的命令: {command}")
+        print(f"执行的命令: {command}")
         result = self._run_gds_command(command)
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self._verify_file_exists(chinese_echo_file))

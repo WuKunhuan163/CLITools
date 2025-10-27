@@ -97,12 +97,8 @@ def copy_to_clipboard(text):
             return True
         return False
     except subprocess.CalledProcessError as e:
-        # 调试信息（可以注释掉）
-        # print(f"Debug: pbcopy failed with return code {e.returncode}")
-        # print(f"Debug: stderr: {e.stderr}")
         return False
     except Exception as e:
-        # print(f"Debug: Exception in copy_to_clipboard: {e}")
         return False
 
 def copy_source_commands_to_clipboard(updated_files):

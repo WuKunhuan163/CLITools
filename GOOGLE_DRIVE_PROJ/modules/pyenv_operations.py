@@ -194,7 +194,6 @@ fi
             else:
                 stderr = result.get("stderr", "")
                 stdout = result.get("stdout", "")
-                # print(f"Debug: Installation failed - stdout: {stdout[:200]}, stderr: {stderr[:200]}")
                 error_msg = f"Failed to install Python {version}"
                 if stderr:
                     error_msg += f": {stderr}"
