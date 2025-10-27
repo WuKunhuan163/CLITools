@@ -348,14 +348,19 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                 # 使用远程命令模块直接执行
                 result = shell.execute_command_interface("bash", ["-c", compound_cmd])
                 if isinstance(result, dict):
-                    # 显示输出
-                    if result.get("stdout"):
+                    # 显示输出 - 处理嵌套的数据结构
+                    data = result.get("data", {})
+                    stdout = data.get("stdout", "") or result.get("stdout", "")
+                    stderr = data.get("stderr", "") or result.get("stderr", "")
+                    exit_code = data.get("exit_code", result.get("exit_code", 0))
+                    
+                    if stdout:
                         if not is_run_environment(command_identifier):
-                            print(result["stdout"], end="")
-                    if result.get("stderr"):
+                            print(stdout, end="")
+                    if stderr:
                         if not is_run_environment(command_identifier):
-                            print(result["stderr"], end="", file=sys.stderr)
-                    return result.get("exit_code", 0)
+                            print(stderr, end="", file=sys.stderr)
+                    return exit_code
                 else:
                     return result if isinstance(result, int) else 0
             except Exception as e:
