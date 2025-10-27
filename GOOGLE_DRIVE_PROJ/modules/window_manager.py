@@ -669,7 +669,7 @@ class WindowManager:
         # 准备模板变量
         timeout_ms = request['timeout_seconds'] * 1000
         
-        subprocess_script_template = f'''
+        subprocess_script_template = '''
 import sys
 import os
 import json
@@ -710,7 +710,7 @@ try:
         with open(debug_file, "a", encoding="utf-8") as f:
             import time
             timestamp = time.time() - 1757413752.714440  # 相对时间戳
-            f.write("[{{:.3f}}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={{}}, 父进程PID={{}})\\n".format(timestamp, os.getpid(), parent_pid))
+            f.write("[{{:.3f}}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={}, 父进程PID={})\\n".format(timestamp, os.getpid(), parent_pid))
             f.flush()
     except:
         pass
@@ -1016,7 +1016,7 @@ try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("[{{:.3f}}s] [BUTTON_ACTIVATION] 按钮激活 - 来源: {{}} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, activation_source))
+                f.write("[{{:.3f}}s] [BUTTON_ACTIVATION] 按钮激活 - 来源: {} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, activation_source))
                 f.flush()
         except:
             pass
@@ -1073,12 +1073,12 @@ try:
             return  # 已经激活了
         
         # 记录按键事件到debug
-        key_info = f"keysym='{{event.keysym}}', keycode={{event.keycode}}, state={{event.state}}"
+        key_info = f"keysym='{event.keysym}', keycode={event.keycode}, state={event.state}"
         try:
             with open(debug_file, "a", encoding="utf-8") as f:
                 import time
                 timestamp = time.time() - 1757413752.714440
-                f.write("[{{:.3f}}s] [KEY_PRESS] 按键检测: {{}} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, key_info))
+                f.write("[{{:.3f}}s] [KEY_PRESS] 按键检测: {} - WINDOW_ID_PLACEHOLDER\\n".format(timestamp, key_info))
                 f.flush()
         except:
             pass
@@ -1128,7 +1128,7 @@ try:
     def on_key_release(event):
         """处理按键释放事件"""
         # 记录按键释放事件
-        key_info = f"keysym='{{event.keysym}}', keycode={{event.keycode}}"
+        key_info = f"keysym='{event.keysym}', keycode={event.keycode}"
     
     # 10秒自动激活功能（保底方案）
     def auto_activate_buttons():

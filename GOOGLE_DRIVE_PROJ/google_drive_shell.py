@@ -414,24 +414,40 @@ class GoogleDriveShell:
                     return 1
         
         # 使用通用的远程命令执行机制
-        result = self.execute_command_interface('echo', args)
-        if result.get("success", False):
-            if "data" in result:
-                data = result["data"]
-                stdout = data.get("stdout", "").strip()
-                stderr = data.get("stderr", "").strip()
+        try:
+            result = self.execute_command_interface('echo', args)
+            if result.get("success", False):
+                if "data" in result:
+                    data = result["data"]
+                    stdout = data.get("stdout", "").strip()
+                    stderr = data.get("stderr", "").strip()
+                else:
+                    stdout = result.get("stdout", "").strip()
+                    stderr = result.get("stderr", "").strip()
+                
+                if stdout:
+                    print(stdout)
+                if stderr:
+                    print(stderr, file=sys.stderr)
+                return 0
             else:
-                stdout = result.get("stdout", "").strip()
-                stderr = result.get("stderr", "").strip()
-            
-            if stdout:
-                print(stdout)
-            if stderr:
-                print(stderr, file=sys.stderr)
-            return 0
-        else:
-            error_msg = result.get("error", "Echo command failed")
-            print(error_msg)
+                error_msg = result.get("error", "Echo command failed")
+                print(error_msg)
+                return 1
+        except Exception as e:
+            # 使用增强的错误处理系统
+            try:
+                from .modules.error_handler import capture_and_report_error
+                error_info = capture_and_report_error("Echo command execution", e, {
+                    "command": "echo",
+                    "args": args,
+                    "result": result if 'result' in locals() else None
+                })
+                print(f"Echo command failed: {error_info.get('exception_message', str(e))}")
+            except ImportError:
+                print(f"Echo command failed: {e}")
+                import traceback
+                traceback.print_exc()
             return 1
     
     
@@ -1080,93 +1096,20 @@ class GoogleDriveShell:
             
             if ((shell_cmd_clean.startswith("'") and shell_cmd_clean.endswith("'")) or 
                 (shell_cmd_clean.startswith('"') and shell_cmd_clean.endswith('"'))):
-                # 去除外层引号，这是一个完整的远程命令
                 shell_cmd_clean = shell_cmd_clean[1:-1]
-                shell_cmd = shell_cmd_clean  # 更新shell_cmd以便后续使用
-                is_quoted_command = True  # 设置引号命令标记
-                
-                # 引号包围的命令直接使用远程执行
-                # 不需要特殊处理，让通用的远程命令执行机制处理
+                shell_cmd = shell_cmd_clean
+                is_quoted_command = True
 
             # 首先检查特殊命令（不需要远程执行）
             if shell_cmd_clean in ['--help', '-h', 'help']:
-                # 显示本地帮助信息，不触发远程窗口
-                try:
-                    from modules.help_system import show_unified_help
-                    return show_unified_help(context="shell", command_identifier=command_identifier)
-                except ImportError:
-                    # 回退到基本帮助
-                    help_text = """GDS (Google Drive Shell) - Available Commands:
-
-Navigation:
-  pwd                         - Show current directory
-  ls [path] [--detailed] [-R] - List directory contents
-  cd <path>                   - Change directory
-
-File Operations:
-  mkdir [-p] <dir>            - Create directory
-  rm <file>                   - Remove file
-  rm -rf <dir>                - Remove directory recursively
-  cp <src> <dst>              - Copy file/directory
-  mv <src> <dst>              - Move/rename file/directory
-
-Text Operations:
-  cat <file>                  - Display file contents
-  echo <text>                 - Display text
-  edit <file> [options]       - Edit file content
-
-Background Tasks:
-  --bg <command>              - Run command in background
-  --status [task_id]          - Show task status
-  --log <task_id>             - Show task log
-  --result <task_id>          - Show task result
-
-Other:
-  help, --help, -h            - Show this help
-  exit                        - Exit shell mode
-
-For more information, visit: https://github.com/your-repo/gds"""
-                    print(help_text)
-                    return 0
+                from modules.help_system import show_unified_help
+                return show_unified_help(context="shell", command_identifier=command_identifier)
             
-            
-            # 首先检查独立的background管理命令
-            if shell_cmd_clean.startswith('--status'):
-                # GDS --status [task_id]
-                status_args = shell_cmd_clean[8:].strip()  # 移除--status
-                if status_args:
-                    return self._show_background_status(status_args, command_identifier)
-                else:
-                    return self._show_all_background_status(command_identifier)
-            elif shell_cmd_clean.startswith('--log '):
-                # GDS --log <task_id>
-                task_id = shell_cmd_clean[6:].strip()  # 移除--log 
-                return self._show_background_log(task_id, command_identifier)
-            elif shell_cmd_clean.startswith('--result '):
-                # GDS --result <task_id>
-                task_id = shell_cmd_clean[9:].strip()  # 移除--result 
-                return self._show_background_result(task_id, command_identifier)
-            elif shell_cmd_clean.startswith('--cleanup'):
-                # GDS --cleanup [task_id]
-                cleanup_args = shell_cmd_clean[9:].strip()  # 移除--cleanup
-                if cleanup_args:
-                    return self._cleanup_background_task(cleanup_args, command_identifier)
-                else:
-                    return self._cleanup_background_tasks(command_identifier)
-            elif shell_cmd_clean.startswith('--wait '):
-                # GDS --wait <task_id>
-                task_id = shell_cmd_clean[7:].strip()  # 移除--wait 
-                return self._wait_background_task(task_id, command_identifier)
-
             # 检查background选项
-            background_mode = False
             background_options = ['--background', '--bg', '--async']
             for bg_option in background_options:
                 if shell_cmd_clean.startswith(bg_option + ' ') or shell_cmd_clean == bg_option:
-                    background_mode = True
                     remaining_cmd = shell_cmd_clean[len(bg_option):].strip()
-                    
-                    # 处理--bg的子命令
                     if remaining_cmd.startswith('--status'):
                         # GDS --bg --status [task_id]
                         status_args = remaining_cmd[8:].strip()  # 移除--status
@@ -1218,8 +1161,7 @@ For more information, visit: https://github.com/your-repo/gds"""
             # 解析命令
             has_multiple_ops = False
             for op in [' && ', ' || ', ' | ', '&&', '||', '|']:
-                if op in shell_cmd_clean:
-                    # 检查操作符是否在引号外
+                if op in shell_cmd_clean: 
                     if self._is_operator_outside_quotes(shell_cmd_clean, op):
                         has_multiple_ops = True
                         break
@@ -1232,7 +1174,7 @@ For more information, visit: https://github.com/your-repo/gds"""
                 if modules_dir not in sys.path:
                     sys.path.append(modules_dir)
                 
-                from shell_commands import handle_multiple_commands
+                from modules.shell_commands import handle_multiple_commands
                 return handle_multiple_commands(shell_cmd_clean, command_identifier, shell_instance=self)
             
             # 然后检查是否为特殊命令（导航命令等）
@@ -1299,7 +1241,6 @@ For more information, visit: https://github.com/your-repo/gds"""
             )
             
             if result.get("success", False):
-                # 显示输出
                 data = result.get("data", {})
                 stdout = data.get("stdout", "").strip()
                 stderr = data.get("stderr", "").strip()
@@ -1324,18 +1265,12 @@ For more information, visit: https://github.com/your-repo/gds"""
     def _show_background_status(self, bg_pid, command_identifier=None):
         """显示background任务状态 - 从result文件读取"""
         try:
-            # 从result文件读取状态信息
             result_data = self._read_background_file(bg_pid, 'result', command_identifier)
-            
             if not result_data.get("success", False):
-                error_msg = result_data.get("error", "Failed to read result file")
                 print(f"Error: Background task {bg_pid} not found")
                 return 1
-            
-            # 获取result文件内容并解析JSON
             data = result_data.get("data", {})
             result_content = data.get("stdout", "").strip()
-            
             if not result_content:
                 print(f"Error: Background task {bg_pid} result file is empty")
                 return 1
