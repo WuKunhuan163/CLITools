@@ -220,58 +220,28 @@ class CacheManager:
     def get_remote_file_modification_time(self, remote_path: str) -> Dict:
         """获取远端文件的修改时间"""
         try:
-            if '/' not in remote_path and not remote_path.startswith('~'):
-                result = self.main_instance.cmd_ls('', detailed=True)
-                if result["success"] and result["files"]:
-                    for file_info in result["files"]:
-                        if file_info.get("name") == remote_path:
-                            modified_time = file_info.get("modifiedTime")
-                            if modified_time:
-                                return {
-                                    "success": True,
-                                    "modified_time": modified_time,
-                                    "file_info": file_info
-                                }
-                            else:
-                                return {
-                                    "success": False,
-                                    "error": "Unable to get file modification time"
-                                }
-                    
-                    # 文件未找到
+            # 原来的逻辑，处理路径格式的文件
+            result = self.main_instance.cmd_ls(remote_path, detailed=True)
+            if result["success"] and result["files"]:
+                file_info = result["files"][0]
+                modified_time = file_info.get("modifiedTime")
+                
+                if modified_time:
                     return {
-                        "success": False,
-                        "error": f"File does not exist or cannot be accessed: {remote_path}"
+                        "success": True,
+                        "modified_time": modified_time,
+                        "file_info": file_info
                     }
                 else:
                     return {
                         "success": False,
-                        "error": f"Unable to list directory content: {result.get('error', 'unknown error')}"
+                        "error": "Unable to get file modification time"
                     }
             else:
-                # 原来的逻辑，处理路径格式的文件
-                result = self.main_instance.cmd_ls(remote_path, detailed=True)
-                
-                if result["success"] and result["files"]:
-                    file_info = result["files"][0]
-                    modified_time = file_info.get("modifiedTime")
-                    
-                    if modified_time:
-                        return {
-                            "success": True,
-                            "modified_time": modified_time,
-                            "file_info": file_info
-                        }
-                    else:
-                        return {
-                            "success": False,
-                            "error": "Unable to get file modification time"
-                        }
-                else:
-                    return {
-                        "success": False,
-                        "error": f"File does not exist or cannot be accessed: {remote_path}"
-                    }
+                return {
+                    "success": False,
+                    "error": f"File does not exist or cannot be accessed: {remote_path}"
+                }
                 
         except Exception as e:
             return {

@@ -1,96 +1,117 @@
 #!/usr/bin/env python3
-"""
-测试indicator清理功能的专用脚本
-"""
+"""测试process_terminal_escape_sequences函数的终端转义序列处理能力"""
 
 import sys
-from pathlib import Path
+sys.path.insert(0, '/Users/wukunhuan/.local/bin')
 
-# 添加项目根目录到路径
-BASE_DIR = Path(__file__).parent.parent
-sys.path.insert(0, str(BASE_DIR))
+from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
 
-from _UNITTEST.test_gds import GDSTest
-
-def test_indicator_cleanup():
-    """测试indicator清理功能"""
+def test_terminal_escape_sequences():
+    """测试各种终端转义序列的处理"""
     
-    # 创建测试实例
-    test_instance = GDSTest()
-    GDSTest.setUpClass()
-    test_instance.setUp()
+    # 创建一个CommandExecutor实例（需要main_instance参数）
+    class MockMainInstance:
+        pass
     
-    print("=== 测试indicator清理功能 ===")
+    executor = CommandExecutor(main_instance=MockMainInstance())
     
-    # 测试用例1: 简单echo命令
-    print("\n测试1: 简单echo命令")
-    test_content = "Echo stdout test content"
-    result = test_instance._run_gds_command(f"echo '{test_content}'")
-    
-    print(f"返回码: {result.returncode}")
-    print(f"Raw stdout: {repr(result.stdout)}")
-    print(f"Raw stderr: {repr(result.stderr)}")
-    
-    # 添加处理后的可读输出
-    readable_stdout = test_instance._process_terminal_erase(result.stdout)
-    print(f"Raw stdout (readable): {repr(readable_stdout)}")
-    
-    # 测试清理函数
-    print("\n测试清理函数:")
-    cleaned_stdout = test_instance._process_terminal_erase(result.stdout)
-    print(f"Cleaned stdout: {repr(cleaned_stdout)}")
-    print(f"Cleaned stdout (显示): '{cleaned_stdout}'")
-    
-    # 检查是否还有转义序列
-    has_escape = '\x1b[K' in cleaned_stdout or '\r' in cleaned_stdout
-    print(f"是否还有转义序列: {has_escape}")
-    
-    # 测试用例2: 带重定向的命令
-    print("\n测试2: 带重定向的echo命令")
-    test_file = test_instance._get_test_file_path("indicator_test.txt")
-    result2 = test_instance._run_gds_command(f"echo '{test_content}' > '{test_file}'")
-    
-    print(f"返回码: {result2.returncode}")
-    print(f"Raw stdout: {repr(result2.stdout)}")
-    print(f"Raw stderr: {repr(result2.stderr)}")
-    
-    # 添加处理后的可读输出
-    readable_stdout2 = test_instance._process_terminal_erase(result2.stdout)
-    print(f"Raw stdout (readable): {repr(readable_stdout2)}")
-    
-    # 测试清理函数
-    print("\n测试清理函数:")
-    cleaned_stdout2 = test_instance._process_terminal_erase(result2.stdout)
-    print(f"Cleaned stdout: {repr(cleaned_stdout2)}")
-    print(f"Cleaned stdout (显示): '{cleaned_stdout2}'")
-    
-    # 检查是否还有转义序列
-    has_escape2 = '\x1b[K' in cleaned_stdout2 or '\r' in cleaned_stdout2
-    print(f"是否还有转义序列: {has_escape2}")
-    
-    # 测试用例3: 手动构造包含indicator的字符串
-    print("\n测试3: 手动构造的indicator字符串")
-    test_strings = [
-        '\n\x1b[KEcho stdout test content\n',
-        '\r\x1b[K⏳ Waiting for result ...\r\x1b[KActual content\n',
-        '⏳ Processing\r\x1b[K\n\x1b[KDone\n',
-        'Line1\n\x1b[K⏳ Progress\r\x1b[KLine2\n'
+    # 测试用例列表：(输入, 期望输出, 说明)
+    test_cases = [
+        # 回车符测试
+        ("Hello\rWorld", "World", "回车符覆盖前面内容"),
+        ("Loading...\rDone!", "Done!", "进度指示器被覆盖"),
+        ("Line1\rLine2\rLine3", "Line3", "多个回车符，保留最后一个"),
+        
+        # 退格符测试
+        ("Hello\b\b\bWorld", "HeWorld", "退格符删除字符"),
+        ("Test\b\b\b\babc", "abc", "退格全部删除后重新输入"),
+        ("\bHello", "Hello", "开头的退格符被忽略"),
+        
+        # ANSI颜色代码测试
+        ("\033[31mRed Text\033[0m", "Red Text", "ANSI颜色代码（八进制）"),
+        ("\x1b[32mGreen\x1b[0m", "Green", "ANSI颜色代码（十六进制）"),
+        ("\033[1;34mBold Blue\033[0m", "Bold Blue", "组合ANSI代码"),
+        
+        # 光标移动测试
+        ("Text\033[2AUp", "TextUp", "光标上移"),
+        ("Text\033[10;20HMove", "TextMove", "光标定位"),
+        ("Text\x1b[5CRight", "TextRight", "光标右移"),
+        
+        # 清屏序列测试
+        ("Text\033[2JClear", "TextClear", "清屏代码"),
+        ("Text\033[HHome", "TextHome", "光标归位"),
+        ("Text\033[KErase", "TextErase", "清除到行尾"),
+        
+        # 响铃符测试
+        ("Hello\aWorld", "HelloWorld", "响铃符（\\a）"),
+        ("Test\x07End", "TestEnd", "响铃符（\\x07）"),
+        
+        # 制表符测试
+        ("Col1\tCol2\tCol3", "Col1    Col2    Col3", "制表符转空格"),
+        
+        # 混合测试
+        ("Loading\r\033[32m✓\033[0m Done", "✓ Done", "进度指示器+颜色代码"),
+        ("Progress: 50%\rProgress: 100%", "Progress: 100%", "进度条更新"),
+        # 注意：ANSI序列应该在退格符处理之前被移除，所以退格数应该基于可见字符数
+        # "\033[31mError\033[0m" -> "Error" (5个可见字符)，然后5个退格符删除所有字符
+        # 实际上这个场景很少见，因为终端通常先处理ANSI再处理退格
+        # 更现实的测试：直接在可见文本上使用退格
+        ("Error\b\b\b\b\b\033[32mFixed\033[0m", "Fixed", "退格+颜色组合"),
+        
+        # 空字符串测试
+        ("", "", "空字符串"),
+        (None, "", "None输入"),
+        
+        # 多行测试
+        ("Line1\nLine2\rUpdated2", "Line1\nUpdated2", "多行+回车"),
+        ("A\033[31mRed\033[0m\nB\x1b[32mGreen\x1b[0m", "ARed\nBGreen", "多行+颜色"),
     ]
     
-    for i, test_str in enumerate(test_strings, 1):
-        print(f"\n测试字符串 {i}:")
-        print(f"原始: {repr(test_str)}")
-        cleaned = test_instance._process_terminal_erase(test_str)
-        print(f"清理后: {repr(cleaned)}")
-        print(f"显示: '{cleaned}'")
+    print("🧪 测试 process_terminal_escape_sequences 函数\n")
+    print("=" * 80)
+    
+    passed = 0
+    failed = 0
+    failed_cases = []
+    
+    for input_text, expected, description in test_cases:
+        result = executor.process_terminal_escape_sequences(input_text)
         
-        # 检查是否还有转义序列
-        has_escape = '\x1b[K' in cleaned or '\r' in cleaned
-        print(f"是否还有转义序列: {has_escape}")
-        if has_escape:
-            print("❌ 清理不完整")
+        if result == expected:
+            passed += 1
+            status = "✅ PASS"
         else:
-            print("✅ 清理成功")
+            failed += 1
+            status = "❌ FAIL"
+            failed_cases.append((input_text, expected, result, description))
+        
+        print(f"\n{status}")
+        print(f"  说明: {description}")
+        print(f"  输入: {repr(input_text)}")
+        print(f"  期望: {repr(expected)}")
+        if result != expected:
+            print(f"  实际: {repr(result)}")
+    
+    print("\n" + "=" * 80)
+    print(f"\n📊 测试结果: {passed}/{len(test_cases)} 通过")
+    
+    if failed > 0:
+        print(f"\n❌ {failed} 个测试失败:")
+        for input_text, expected, result, description in failed_cases:
+            print(f"\n  {description}")
+            print(f"    输入: {repr(input_text)}")
+            print(f"    期望: {repr(expected)}")
+            print(f"    实际: {repr(result)}")
+        return 1
+    else:
+        print("✅ 所有测试通过！")
+        return 0
 
 if __name__ == '__main__':
-    test_indicator_cleanup()
+    try:
+        sys.exit(test_terminal_escape_sequences())
+    except Exception as e:
+        print(f"\n❌ 测试过程中出现错误: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
