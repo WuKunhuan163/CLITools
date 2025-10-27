@@ -193,10 +193,6 @@ class GoogleDriveMain:
         """委托到drive_api_service管理器"""
         return self.drive_api_service.list_drive_files(*args, **kwargs)
     
-    def shell_cd(self, *args, **kwargs):
-        """委托到shell_commands管理器"""
-        return self.shell_commands.shell_cd(*args, **kwargs)
-    
     def shell_mkdir(self, *args, **kwargs):
         """委托到shell_commands管理器"""
         return self.shell_commands.shell_mkdir(*args, **kwargs)

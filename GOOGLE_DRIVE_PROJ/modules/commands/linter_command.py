@@ -53,14 +53,6 @@ class LinterCommand(BaseCommand):
             print(error_msg)
             return 1
     
-    def _command_exists(self, command: str) -> bool:
-        """Check if a command exists in PATH"""
-        try:
-            subprocess.run(['which', command], capture_output=True, check=True)
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            return False
-    
     def detect_language(self, filename: str, language: Optional[str] = None) -> str:
         """Detect language from filename or use provided language"""
         if language:

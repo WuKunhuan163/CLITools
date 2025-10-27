@@ -425,7 +425,7 @@ class TextOperations:
             remote_absolute_path = self.main_instance.resolve_remote_absolute_path(filename, current_shell)
             
             # 4. 直接在远程执行编辑操作（不需要上传脚本）
-            result = self._execute_online_edit_directly(remote_absolute_path, replacements, preview, backup)
+            result = self._execute_online_editremote_absolute_path, replacements, preview, backup)
             
             # Return result without debug output for cleaner interface
             
@@ -567,7 +567,7 @@ if __name__ == "__main__":
 '''
         return script
 
-    def _execute_online_edit_directly(self, filename, replacements, preview, backup):
+    def _execute_online_editself, filename, replacements, preview, backup):
         """直接在远程执行编辑操作，不需要上传脚本"""
         try:
             import base64

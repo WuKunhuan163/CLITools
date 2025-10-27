@@ -43,10 +43,6 @@ class VenvApiManager:
         self.drive_service = drive_service
         self.main_instance = main_instance
     
-    def get_venv_base_path(self):
-        """获取虚拟环境基础路径"""
-        return f"{self.main_instance.REMOTE_ENV}/venv"
-    
     def read_venv_states(self):
         """读取虚拟环境状态文件"""
         try:
@@ -183,36 +179,6 @@ class VenvApiManager:
                 
         except Exception as e:
             return []
-
-    def _initialize_venv_state_simple(self, env_name):
-        """简化的状态初始化方法"""
-        try:
-            # 读取所有状态
-            all_states = self._load_all_venv_states()
-            
-            # 确保environments字段存在
-            if 'environments' not in all_states:
-                all_states['environments'] = {}
-            
-            # 检查特定环境是否存在
-            if env_name not in all_states['environments']:
-                all_states['environments'][env_name] = {
-                    'created_at': self._get_current_timestamp(),
-                    'packages': {},
-                    'last_updated': self._get_current_timestamp()
-                }
-                
-                # 保存更新后的状态
-                self._save_all_venv_states(all_states)
-                print(f"Initialized state for environment '{env_name}'")
-                return True
-            else:
-                print(f"Environment '{env_name}' already has state entry")
-                return True
-                
-        except Exception as e:
-            print(f"Failed to initialize venv state for '{env_name}': {str(e)}")
-            return False
 
     def _get_current_timestamp(self):
         """获取当前时间戳"""

@@ -74,7 +74,6 @@ __all__ = [
     "HfCredentialsManager",
     # 函数（向后兼容）
     "checkout_shell",
-    "console_setup_interactive",
     "console_setup_step2",
     "console_setup_step3",
     "console_setup_step4",
@@ -116,7 +115,6 @@ __all__ = [
     "set_global_sync_dir",
     "set_local_sync_dir",
     "setup_remote_hf_credentials",
-    "shell_cd",
     "shell_ls_with_id",
     "shell_mkdir",
     "shell_pwd",

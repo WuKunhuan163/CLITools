@@ -174,24 +174,6 @@ class PathConstants:
             return "windows"
         else:
             return "unknown"
-    
-    def setup_environment_defaults(self):
-        """根据环境设置默认路径"""
-        env = self.detect_environment()
-        
-        if env == "colab":
-            # Colab环境设置
-            self.set_path("REMOTE_ROOT", "/content/drive/MyDrive/REMOTE_ROOT")
-            self.set_path("REMOTE_ENV", "/content/drive/MyDrive/REMOTE_ENV")
-            self.set_path("DRIVE_EQUIVALENT", "/content/drive/MyDrive")
-        elif env == "macos":
-            # macOS环境设置
-            self.set_path("REMOTE_ROOT", "/content/drive/MyDrive/REMOTE_ROOT")
-            self.set_path("LOCAL_EQUIVALENT", str(self.HOME_DIR / "Applications/Google Drive"))
-        
-        # 保存配置
-        self.save_configuration()
-
 
 # 全局路径常量实例
 path_constants = PathConstants()

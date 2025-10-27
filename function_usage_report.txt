@@ -216,7 +216,7 @@ get_local_hf_token: 1 calls
 process_package_batch: 1 calls
   Defined in: modules/commands/deps_command.py
 
-_load_shells_direct: 2 calls
+load_shells: 2 calls
   Defined in: google_drive_shell.py
 
 _load_cache_config_direct: 2 calls
@@ -352,7 +352,7 @@ cmd_edit_online: 2 calls
 _generate_online_edit_script: 2 calls
   Defined in: modules/text_operations.py
 
-_execute_online_edit_directly: 2 calls
+_execute_online_edit_direct: 2 calls
   Defined in: modules/text_operations.py
 
 _load_config: 2 calls

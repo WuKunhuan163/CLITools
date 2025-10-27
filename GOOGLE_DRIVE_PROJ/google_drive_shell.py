@@ -95,10 +95,10 @@ class GoogleDriveShell:
         (data_dir / "remote_files").mkdir(exist_ok=True)
         
         # 直接初始化shell配置（不通过委托）
-        self.shells_data = self._load_shells_direct()
+        self.shells_data = self.load_shells()
         
         # 直接加载缓存配置（不通过委托）
-        self._load_cache_config_direct()
+        self._load_cache_config()
         
         # 直接初始化删除时间缓存（不通过委托）
         self.deletion_cache = self.load_deletion_cache()
@@ -136,7 +136,7 @@ class GoogleDriveShell:
         # 初始化管理器
         self.initialize_managers()
 
-    def _load_shells_direct(self):
+    def load_shells(self):
         """直接加载远程shell配置（不通过委托）"""
         try:
             if self.shells_file.exists():
@@ -148,7 +148,7 @@ class GoogleDriveShell:
             print(f"Error: Failed to load shell config: {e}")
             return {"shells": {}, "active_shell": None}
 
-    def _load_cache_config_direct(self):
+    def _load_cache_config(self):
         """直接加载缓存配置（不通过委托）"""
         try:
             if self.config_file.exists():
