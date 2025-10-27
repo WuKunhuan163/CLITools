@@ -46,13 +46,24 @@ class WindowManager:
         self._initialized = True
         self.window_counter = 0  # 窗口计数器
         self.active_processes = {}  # 活跃的子进程 {window_id: process}
-        from pathlib import Path
-        self.lock_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock"))
-        self.pid_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid"))
+        # 使用统一的路径常量管理器
+        try:
+            from .path_constants import path_constants
+            self.lock_file_path = path_constants.WINDOW_LOCK_FILE
+            self.pid_file_path = path_constants.WINDOW_PID_FILE
+            self.priority_queue_file = path_constants.PRIORITY_QUEUE_FILE
+            self.normal_queue_file = path_constants.NORMAL_QUEUE_FILE
+            self.queue_lock_file = path_constants.QUEUE_LOCK_FILE
+        except ImportError:
+            # 回退到原来的方法
+            from pathlib import Path
+            self.lock_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock"))
+            self.pid_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid"))
+            self.priority_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json"))
+            self.normal_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json"))
+            self.queue_lock_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock"))
+        
         self.current_lock_fd = None  # 当前持有的锁文件描述符
-        self.priority_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json"))
-        self.normal_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json"))
-        self.queue_lock_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock"))
         
         # 设置进程清理处理器
         self._setup_cleanup_handlers()

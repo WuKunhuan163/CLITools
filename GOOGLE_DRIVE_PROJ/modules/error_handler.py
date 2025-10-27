@@ -1,0 +1,352 @@
+#!/usr/bin/env python3
+"""
+统一的错误处理和traceback系统
+
+提供增强的异常捕获和错误报告功能，
+能够捕获最底层的错误并提供详细的调试信息。
+"""
+
+import traceback
+import sys
+import os
+from typing import Optional, Dict, Any, List
+from pathlib import Path
+
+
+class EnhancedErrorHandler:
+    """增强的错误处理器"""
+    
+    def __init__(self, debug_mode: bool = True):
+        self.debug_mode = debug_mode
+        self.error_log_file = None
+        self._setup_error_logging()
+    
+    def _setup_error_logging(self):
+        """设置错误日志"""
+        try:
+            log_dir = Path.home() / ".local/bin/GOOGLE_DRIVE_DATA"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            self.error_log_file = log_dir / "error_log.txt"
+        except Exception:
+            # 如果无法创建日志文件，使用None
+            self.error_log_file = None
+    
+    def capture_exception(self, 
+                         context: str = "Unknown", 
+                         exception: Optional[Exception] = None,
+                         additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        捕获并分析异常，返回详细的错误信息
+        
+        Args:
+            context: 错误发生的上下文描述
+            exception: 要分析的异常对象，如果为None则获取当前异常
+            additional_info: 额外的调试信息
+            
+        Returns:
+            Dict: 包含详细错误信息的字典
+        """
+        try:
+            # 获取异常信息
+            if exception is None:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+            else:
+                exc_type = type(exception)
+                exc_value = exception
+                exc_traceback = exception.__traceback__
+            
+            if exc_type is None:
+                return {
+                    "success": False,
+                    "error": "No exception to capture",
+                    "context": context
+                }
+            
+            # 构建详细的错误信息
+            error_info = {
+                "success": False,
+                "context": context,
+                "exception_type": exc_type.__name__,
+                "exception_message": str(exc_value),
+                "traceback_summary": self._get_traceback_summary(exc_traceback),
+                "full_traceback": self._get_full_traceback(exc_traceback),
+                "root_cause": self._find_root_cause(exc_traceback),
+                "stack_frames": self._analyze_stack_frames(exc_traceback),
+                "timestamp": self._get_timestamp()
+            }
+            
+            # 添加额外信息
+            if additional_info:
+                error_info["additional_info"] = additional_info
+            
+            # 记录到日志
+            self._log_error(error_info)
+            
+            # 如果是调试模式，打印详细信息
+            if self.debug_mode:
+                self._print_debug_info(error_info)
+            
+            return error_info
+            
+        except Exception as capture_error:
+            # 异常捕获本身出错，返回基本信息
+            return {
+                "success": False,
+                "error": f"Error capturing exception: {capture_error}",
+                "context": context,
+                "original_exception": str(exception) if exception else "Unknown"
+            }
+    
+    def _get_traceback_summary(self, tb) -> List[str]:
+        """获取traceback摘要"""
+        try:
+            return traceback.format_tb(tb, limit=10)
+        except Exception:
+            return ["Failed to get traceback summary"]
+    
+    def _get_full_traceback(self, tb) -> str:
+        """获取完整的traceback"""
+        try:
+            return ''.join(traceback.format_tb(tb))
+        except Exception:
+            return "Failed to get full traceback"
+    
+    def _find_root_cause(self, tb) -> Dict[str, Any]:
+        """找到根本原因（最底层的异常）"""
+        try:
+            frames = []
+            current_tb = tb
+            
+            while current_tb is not None:
+                frame = current_tb.tb_frame
+                frames.append({
+                    "filename": frame.f_code.co_filename,
+                    "function": frame.f_code.co_name,
+                    "line_number": current_tb.tb_lineno,
+                    "local_vars": self._safe_get_locals(frame),
+                    "code_context": self._get_code_context(frame.f_code.co_filename, current_tb.tb_lineno)
+                })
+                current_tb = current_tb.tb_next
+            
+            # 最后一个frame通常是根本原因
+            if frames:
+                root_frame = frames[-1]
+                return {
+                    "location": f"{root_frame['filename']}:{root_frame['line_number']}",
+                    "function": root_frame['function'],
+                    "code_context": root_frame['code_context'],
+                    "local_variables": root_frame['local_vars']
+                }
+            
+            return {"error": "No frames found"}
+            
+        except Exception as e:
+            return {"error": f"Failed to find root cause: {e}"}
+    
+    def _analyze_stack_frames(self, tb) -> List[Dict[str, Any]]:
+        """分析所有栈帧"""
+        try:
+            frames = []
+            current_tb = tb
+            
+            while current_tb is not None:
+                frame = current_tb.tb_frame
+                frame_info = {
+                    "filename": os.path.basename(frame.f_code.co_filename),
+                    "full_path": frame.f_code.co_filename,
+                    "function": frame.f_code.co_name,
+                    "line_number": current_tb.tb_lineno,
+                    "is_user_code": self._is_user_code(frame.f_code.co_filename)
+                }
+                
+                # 只为用户代码添加详细信息
+                if frame_info["is_user_code"]:
+                    frame_info["code_context"] = self._get_code_context(
+                        frame.f_code.co_filename, current_tb.tb_lineno
+                    )
+                    frame_info["local_vars"] = self._safe_get_locals(frame)
+                
+                frames.append(frame_info)
+                current_tb = current_tb.tb_next
+            
+            return frames
+            
+        except Exception as e:
+            return [{"error": f"Failed to analyze stack frames: {e}"}]
+    
+    def _safe_get_locals(self, frame) -> Dict[str, str]:
+        """安全地获取局部变量"""
+        try:
+            locals_dict = {}
+            for key, value in frame.f_locals.items():
+                try:
+                    # 只保留简单类型的变量，避免复杂对象
+                    if isinstance(value, (str, int, float, bool, type(None))):
+                        locals_dict[key] = str(value)
+                    elif isinstance(value, (list, tuple, dict)):
+                        # 限制集合类型的长度
+                        str_value = str(value)
+                        if len(str_value) > 200:
+                            locals_dict[key] = str_value[:200] + "..."
+                        else:
+                            locals_dict[key] = str_value
+                    else:
+                        locals_dict[key] = f"<{type(value).__name__}>"
+                except Exception:
+                    locals_dict[key] = "<unable to represent>"
+            
+            return locals_dict
+            
+        except Exception:
+            return {"error": "Failed to get local variables"}
+    
+    def _get_code_context(self, filename: str, line_number: int, context_lines: int = 3) -> Dict[str, Any]:
+        """获取代码上下文"""
+        try:
+            if not os.path.exists(filename):
+                return {"error": "File not found"}
+            
+            with open(filename, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            start_line = max(0, line_number - context_lines - 1)
+            end_line = min(len(lines), line_number + context_lines)
+            
+            context = {}
+            for i in range(start_line, end_line):
+                line_num = i + 1
+                is_error_line = line_num == line_number
+                context[line_num] = {
+                    "code": lines[i].rstrip(),
+                    "is_error_line": is_error_line
+                }
+            
+            return context
+            
+        except Exception as e:
+            return {"error": f"Failed to get code context: {e}"}
+    
+    def _is_user_code(self, filename: str) -> bool:
+        """判断是否为用户代码"""
+        try:
+            # 检查是否在项目目录中
+            project_indicators = [
+                "GOOGLE_DRIVE_PROJ",
+                "GOOGLE_DRIVE_DATA", 
+                "_UNITTEST",
+                "/.local/bin/"
+            ]
+            
+            return any(indicator in filename for indicator in project_indicators)
+            
+        except Exception:
+            return False
+    
+    def _get_timestamp(self) -> str:
+        """获取时间戳"""
+        try:
+            import datetime
+            return datetime.datetime.now().isoformat()
+        except Exception:
+            return "Unknown"
+    
+    def _log_error(self, error_info: Dict[str, Any]):
+        """记录错误到日志文件"""
+        if not self.error_log_file:
+            return
+        
+        try:
+            import json
+            with open(self.error_log_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(error_info, indent=2, ensure_ascii=False))
+                f.write("\n" + "="*80 + "\n")
+        except Exception:
+            pass  # 忽略日志记录错误
+    
+    def _print_debug_info(self, error_info: Dict[str, Any]):
+        """打印调试信息"""
+        try:
+            print(f"\n❌ Enhanced Error Report - {error_info['context']}")
+            print(f"Exception: {error_info['exception_type']}: {error_info['exception_message']}")
+            
+            if "root_cause" in error_info and "location" in error_info["root_cause"]:
+                root = error_info["root_cause"]
+                print(f"Root Cause: {root['location']} in {root['function']}()")
+                
+                if "code_context" in root and isinstance(root["code_context"], dict):
+                    print("Code Context:")
+                    for line_num, line_info in root["code_context"].items():
+                        marker = ">>> " if line_info["is_error_line"] else "    "
+                        print(f"{marker}{line_num}: {line_info['code']}")
+            
+            # 显示用户代码的栈帧
+            user_frames = [f for f in error_info.get("stack_frames", []) if f.get("is_user_code")]
+            if user_frames:
+                print("\nUser Code Stack:")
+                for frame in user_frames:
+                    print(f"  {frame['filename']}:{frame['line_number']} in {frame['function']}()")
+            
+        except Exception:
+            print(f"\n❌ Error in {error_info.get('context', 'Unknown')}: {error_info.get('exception_message', 'Unknown error')}")
+
+
+# 全局错误处理器实例
+error_handler = EnhancedErrorHandler()
+
+
+def capture_and_report_error(context: str = "Unknown", 
+                           exception: Optional[Exception] = None,
+                           additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    便捷函数：捕获并报告错误
+    
+    Args:
+        context: 错误上下文
+        exception: 异常对象
+        additional_info: 额外信息
+        
+    Returns:
+        Dict: 错误信息
+    """
+    return error_handler.capture_exception(context, exception, additional_info)
+
+
+def with_error_handling(context: str):
+    """
+    装饰器：为函数添加错误处理
+    
+    Args:
+        context: 错误上下文描述
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                error_info = capture_and_report_error(
+                    context=f"{context} - {func.__name__}",
+                    exception=e,
+                    additional_info={
+                        "function": func.__name__,
+                        "args": str(args)[:200],
+                        "kwargs": str(kwargs)[:200]
+                    }
+                )
+                return error_info
+        return wrapper
+    return decorator
+
+
+if __name__ == '__main__':
+    # 测试错误处理器
+    def test_function():
+        x = "test"
+        y = 123
+        # 故意引发错误
+        return x.nonexistent_method()
+    
+    try:
+        test_function()
+    except Exception as e:
+        error_info = capture_and_report_error("Test Error", e)
+        print("\nError captured successfully!")

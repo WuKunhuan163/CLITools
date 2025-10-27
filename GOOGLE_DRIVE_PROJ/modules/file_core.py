@@ -621,24 +621,15 @@ class FileCore:
                 target_folder_id = self.main_instance.REMOTE_ROOT_FOLDER_ID
                 display_path = "~"
             else:
-                # print(f"DEBUG: Processing custom path '{path}'")
                 # 首先将本地路径转换为远程路径格式以便在错误消息中正确显示
                 converted_path = self.main_instance.path_resolver._convert_local_path_to_remote(path)
                 
                 # 首先尝试作为目录解析
-                # print(f"DEBUG: Step 1 - Trying to resolve '{path}' as directory")
                 target_folder_id, display_path = self.main_instance.resolve_path(path, current_shell)
-                # print(f"DEBUG: resolve_path result - target_folder_id='{target_folder_id}', display_path='{display_path}'")
                 
                 if not target_folder_id:
-                    # print(f"DEBUG: Step 2 - Directory resolution failed, trying as file path")
-                    # 如果作为目录解析失败，尝试作为文件路径解析
                     file_result = self._resolve_file_path(path, current_shell)
-                    # print(f"DEBUG: _resolve_file_path result: {file_result is not None}")
                     if file_result:
-                        # 这是一个文件路径，返回单个文件信息
-                        # print(f"DEBUG: Found as file, returning single file info")
-                        # 内联_ls_single_file的逻辑
                         return {
                             "success": True,
                             "path": converted_path,
@@ -648,7 +639,6 @@ class FileCore:
                             "mode": "single_file"
                         }
                     else:
-                        # print(f"DEBUG: Neither directory nor file found for path '{path}'")
                         return {"success": False, "error": f"Path not found: {converted_path}"}
             
             if recursive:
@@ -923,7 +913,6 @@ class FileCore:
             if not ls_result.get('success'):
                 # 添加调试信息，显示路径计算过程
                 debug_info = f"Path resolution: '{path}' -> '{absolute_path}'"
-                # print(f"DEBUG: cd command failed - {debug_info}")
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
             
             # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
@@ -931,7 +920,6 @@ class FileCore:
             target_id, target_path = self.main_instance.resolve_path(absolute_path, current_shell)
             
             if not target_id:
-                # print(f"DEBUG: resolve_path failed for absolute_path: {absolute_path}")
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved path failed)"}
             
             # 更新shell状态
@@ -979,17 +967,9 @@ class FileCore:
             
             # 生成远端mkdir命令，添加清屏和成功/失败提示（总是使用-p确保父目录存在）
             remote_command = f'mkdir -p "{absolute_path}"'
-            
-            # 使用统一接口执行远端命令
-            print(f"DEBUG: 执行mkdir命令: {remote_command}")
-            print(f"DEBUG: 目标路径: {target_path}")
-            print(f"DEBUG: 绝对路径: {absolute_path}")
-            
             try:
                 execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
-                print(f"DEBUG: execution_result: {execution_result}")
-            except Exception as exec_e:
-                print(f"DEBUG: execute_command_interface异常: {exec_e}")
+            except Exception: 
                 import traceback
                 traceback.print_exc()
                 raise
@@ -1045,11 +1025,26 @@ class FileCore:
                 }
                 
         except Exception as e:
-            import traceback
-            print(f"\nException in cmd_mkdir_remote: {e}")
-            print("Full exception traceback:")
-            traceback.print_exc()
-            return {"success": False, "error": f"Execute mkdir command failed: {e}"}
+            # 使用增强的错误处理系统
+            try:
+                from .error_handler import capture_and_report_error
+                error_info = capture_and_report_error(
+                    context="cmd_mkdir_remote", 
+                    exception=e,
+                    additional_info={
+                        "target_path": locals().get("target_path", "unknown"),
+                        "absolute_path": locals().get("absolute_path", "unknown"),
+                        "remote_command": locals().get("remote_command", "unknown")
+                    }
+                )
+                return {"success": False, "error": f"Execute mkdir command failed: {e}", "debug_info": error_info}
+            except ImportError:
+                # 回退到原来的方法
+                import traceback
+                print(f"\nException in cmd_mkdir_remote: {e}")
+                print("Full exception traceback:")
+                traceback.print_exc()
+                return {"success": False, "error": f"Execute mkdir command failed: {e}"}
 
     def cmd_mkdir(self, path, recursive=False):
         """创建目录，通过远程命令界面执行以确保由用户账户创建"""
@@ -1494,52 +1489,35 @@ class FileCore:
     def _resolve_file_path(self, file_path, current_shell):
         """解析文件路径，返回文件信息（如果存在）"""
         try:
-            # print(f"DEBUG: _resolve_file_path called with file_path='{file_path}'")
-            # print(f"DEBUG: current_shell current_path='{current_shell.get('current_path', 'UNKNOWN')}'")
-            # print(f"DEBUG: current_shell current_folder_id='{current_shell.get('current_folder_id', 'UNKNOWN')}'")
-            
             # 分离目录和文件名
             if "/" in file_path:
                 dir_path = "/".join(file_path.split("/")[:-1])
                 filename = file_path.split("/")[-1]
-                # print(f"DEBUG: Path with directory - dir_path='{dir_path}', filename='{filename}'")
             else:
-                # 相对于当前目录
                 dir_path = "."
                 filename = file_path
-                # print(f"DEBUG: Path without directory - dir_path='{dir_path}', filename='{filename}'")
             
             # 解析目录路径
             if dir_path == ".":
                 parent_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
-                # print(f"DEBUG: Using current directory folder_id='{parent_folder_id}'")
             else:
                 parent_folder_id, _ = self.main_instance.resolve_path(dir_path, current_shell)
-                # print(f"DEBUG: Resolved directory path '{dir_path}' to folder_id='{parent_folder_id}'")
                 if not parent_folder_id:
-                    # print(f"DEBUG: Failed to resolve directory path '{dir_path}'")
                     return None
             
             # 在父目录中查找文件
-            # print(f"DEBUG: Listing files in folder_id='{parent_folder_id}' looking for filename='{filename}'")
             result = self.drive_service.list_files(folder_id=parent_folder_id, max_results=100)
-            # print(f"DEBUG: list_files result success={result.get('success')}")
             
             if not result['success']:
-                # print(f"DEBUG: list_files failed with error: {result.get('error', 'Unknown error')}")
                 return None
             
             files = result.get('files', [])
-            # print(f"DEBUG: Found {len(files)} files in directory")
             for i, file in enumerate(files):
                 file_name = file.get('name', 'UNKNOWN')
-                # print(f"DEBUG: File {i+1}: '{file_name}' (type: {file.get('mimeType', 'UNKNOWN')})")
                 if file_name == filename:
-                    # print(f"DEBUG: MATCH FOUND! File '{filename}' exists")
                     file['url'] = self._generate_web_url(file)
                     return file
             
-            # print(f"DEBUG: File '{filename}' NOT FOUND in {len(files)} files")
             return None
             
         except Exception as e:

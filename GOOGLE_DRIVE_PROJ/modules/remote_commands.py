@@ -1488,30 +1488,23 @@ fi
                 if cmd.startswith("__QUOTED_COMMAND__"):
                     # 对于已经转译的引号命令，直接拼接参数，不使用shlex.quote
                     user_command = f"{cmd} {' '.join(str(arg) for arg in cleaned_args)}"
-                    # print(f"DEBUG: execute_command_interface - QUOTED_COMMAND detected, cmd: {repr(cmd)}, cleaned_args: {repr(cleaned_args)}")
                 else:
                     # 对于普通命令，使用shlex.quote处理参数
                     user_command = f"{cmd} {' '.join(shlex.quote(str(arg)) for arg in cleaned_args)}"
-                    # print(f"DEBUG: execute_command_interface - normal command, cmd: {repr(cmd)}, cleaned_args: {repr(cleaned_args)}")
-                # print(f"DEBUG: execute_command_interface - constructed user_command: {repr(user_command)}")
             else:
                 user_command = cmd
-                # print(f"DEBUG: execute_command_interface - no args, user_command: {repr(user_command)}")
                 
             current_shell = self.main_instance.get_current_shell()
             result = self.execute_command(
                 user_command=user_command,
                 current_shell=current_shell
             )
-            debug_log(f"📋 DEBUG: [{get_relative_timestamp()}] [RESULT] 远端命令执行完成 - window_id: {window_id}, success: {result.get('success', False)}")
+            debug_log(f"DEBUG: [{get_relative_timestamp()}] [RESULT] 远端命令执行完成 - window_id: {window_id}, success: {result.get('success', False)}")
             
             # WindowManager自动管理窗口生命周期，无需手动释放
-            
             # 基于原始用户命令判断是否需要文件验证
             # 这里分析的是用户输入的原始命令，而不是生成的远程命令
             should_verify_file_creation = self._should_verify_file_creation(original_cmd, original_args)
-            
-            
             if result.get("success", False) and should_verify_file_creation:
                 redirect_file = self._extract_redirect_target(args)
                 if redirect_file and redirect_file.strip():
@@ -1530,8 +1523,7 @@ fi
                 "error": f"执行远端命令时出错: {str(e)}"
             }
         finally:
-            # WindowManager自动管理窗口生命周期
-            debug_log(f"🏗️ DEBUG: [{get_relative_timestamp()}] [COMMAND_END] 命令执行流程结束，WindowManager自动管理 - window_id: {window_id}, cmd: {cmd}")
+            debug_log(f"DEBUG: [{get_relative_timestamp()}] [COMMAND_END] 命令执行流程结束，WindowManager自动管理 - window_id: {window_id}, cmd: {cmd}")
     
     def _is_redirect_command(self, cmd, args):
         """检测命令是否包含文件输出重定向操作"""
@@ -2444,9 +2436,15 @@ JSON_SCRIPT_EOF
             # Debug: 保存原始输出到文件（用于调试）
             try:
                 import os
-                debug_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
+                # 使用统一路径常量
+                try:
+                    from .path_constants import get_data_dir
+                    debug_dir = str(get_data_dir())
+                    debug_file = str(get_data_dir() / "raw_gds_output.txt")
+                except ImportError:
+                    debug_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
+                    debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
                 os.makedirs(debug_dir, exist_ok=True)
-                debug_file = os.path.join(debug_dir, "raw_gds_output.txt")
                 
                 with open(debug_file, 'w', encoding='utf-8') as f:
                     f.write("=" * 50 + "\n")
@@ -2574,18 +2572,41 @@ JSON_SCRIPT_EOF
                 }
             
         except Exception as e:
-            import traceback
-            print(f"\n❌ Exception in execute_command_interface: {e}")
-            print("Full exception traceback:")
-            traceback.print_exc()
-            return {
-                "success": False,
-                "action": "error",
-                "data": {
-                    "error": f"Unified command execution failed: {str(e)}",
-                    "source": "unified_command"
+            # 使用增强的错误处理系统
+            try:
+                from .error_handler import capture_and_report_error
+                error_info = capture_and_report_error(
+                    context="execute_command_interface", 
+                    exception=e,
+                    additional_info={
+                        "cmd": locals().get("cmd", "unknown"),
+                        "args": str(locals().get("args", []))[:200],
+                        "command_identifier": locals().get("command_identifier", "unknown")
+                    }
+                )
+                return {
+                    "success": False,
+                    "action": "error",
+                    "data": {
+                        "error": f"Unified command execution failed: {str(e)}",
+                        "source": "unified_command",
+                        "debug_info": error_info
+                    }
                 }
-            }
+            except ImportError:
+                # 回退到原来的方法
+                import traceback
+                print(f"\n❌ Exception in execute_command_interface: {e}")
+                print("Full exception traceback:")
+                traceback.print_exc()
+                return {
+                    "success": False,
+                    "action": "error",
+                    "data": {
+                        "error": f"Unified command execution failed: {str(e)}",
+                        "source": "unified_command"
+                    }
+                }
 
     def _execute_with_result_capture(self, remote_command_info, cmd, args, window_id, get_timestamp_func, debug_log_func):
         """
