@@ -5,25 +5,12 @@ Google Drive - Sync Config Manager Module
 """
 
 import os
-import sys
 import json
-import webbrowser
-import hashlib
-import subprocess
-import time
-import uuid
 import warnings
 from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
 load_dotenv()
-
-# 导入Google Drive Shell管理类 - 注释掉避免循环导入
-# try:
-#     from google_drive_shell import GoogleDriveShell
-# except ImportError as e:
-#     print(f"Error: Load Google Drive Shell failed: {e}")
-#     GoogleDriveShell = None
 
 # 添加缺失的工具函数
 def get_multiline_input_safe(prompt, single_line=False):

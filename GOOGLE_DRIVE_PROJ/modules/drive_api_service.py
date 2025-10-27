@@ -53,54 +53,6 @@ def test_drive_folder_access(folder_id):
         print(f"Test folder access failed: {e}")
         return False
 
-def open_google_drive(url=None, command_identifier=None):
-    """打开Google Drive"""
-    
-    # 默认URL
-    if url is None:
-        url = "https://drive.google.com/"
-    
-    try:
-        # 打开浏览器
-        success = webbrowser.open(url)
-        
-        if success:
-            success_data = {
-                "success": True,
-                "message": "Google Drive opened successfully",
-                "url": url,
-                "action": "browser_opened"
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(success_data, command_identifier)
-            return 0
-        else:
-            error_data = {
-                "success": False,
-                "error": "Failed to open browser",
-                "url": url
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(error_data, command_identifier)
-            else:
-                print(f"Error: Failed to open browser for {url}")
-            return 1
-    
-    except Exception as e:
-        error_data = {
-            "success": False,
-            "error": f"Error opening Google Drive: {str(e)}",
-            "url": url
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: Error opening Google Drive: {e}")
-        return 1
-
 def test_drive_service():
     """测试Google Drive服务"""
     try:

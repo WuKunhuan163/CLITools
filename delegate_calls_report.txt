@@ -1,0 +1,137 @@
+委托调用分析报告
+================================================================================
+
+
+cache_manager.py (1 个)
+--------------------------------------------------------------------------------
+
+get_cached_file
+  定义: 157-159
+  调用: 163 (距离 4)
+  cached_info = self.get_cached_file(remote_path)
+
+google_drive_api.py (1 个)
+--------------------------------------------------------------------------------
+
+test_drive_service
+  定义: 232-266
+  调用: 269 (距离 3)
+  test_drive_service()
+
+modules/command_executor.py (2 个)
+--------------------------------------------------------------------------------
+
+add_debug
+  定义: 34-37
+  调用: 52 (距离 15)
+  debug_capture.add_debug(message)
+
+direct_feedback
+  定义: 335-387
+  调用: 402 (距离 15)
+  feedback_result = self.direct_feedback(remote_command, debug_info)
+
+modules/command_generator.py (1 个)
+--------------------------------------------------------------------------------
+
+generate_status_json
+  定义: 197-213
+  调用: 223 (距离 10)
+  test_json = generate_status_json(bg_pid, bg_original_cmd, "starting", start_time)
+
+modules/commands/linter_command.py (1 个)
+--------------------------------------------------------------------------------
+
+detect_language
+  定义: 56-64
+  调用: 78 (距离 14)
+  detected_language = self.detect_language(filename, language)
+
+modules/error_handler.py (2 个)
+--------------------------------------------------------------------------------
+
+capture_and_report_error
+  定义: 396-410
+  调用: 420 (距离 10)
+  error_info = capture_and_report_error("Test Error", e)
+
+test_function
+  定义: 413-416
+  调用: 418 (距离 2)
+  test_function()
+
+modules/file_core.py (1 个)
+--------------------------------------------------------------------------------
+
+cmd_mkdir_remote
+  定义: 865-970
+  调用: 986 (距离 16)
+  return self.cmd_mkdir_remote(path, recursive)
+
+modules/help_system.py (4 个)
+--------------------------------------------------------------------------------
+
+format_help_for_shell_mode
+  定义: 230-243
+  调用: 263 (距离 20)
+  help_text = format_help_for_shell_mode()
+
+show_unified_help
+  定义: 245-272
+  调用: 276 (距离 4)
+  return show_unified_help(context="command_line")
+
+is_run_environment
+  定义: 257-258
+  调用: 267 (距离 9)
+  if is_run_environment(command_identifier):
+
+write_to_json_output
+  定义: 259-260
+  调用: 268 (距离 8)
+  write_to_json_output({"success": True, "help": help_text}, command_identifier)
+
+modules/hf_credentials_manager.py (1 个)
+--------------------------------------------------------------------------------
+
+get_local_hf_token
+  定义: 29-71
+  调用: 85 (距离 14)
+  token_result = get_local_hf_token()
+
+modules/remote_shell_manager.py (1 个)
+--------------------------------------------------------------------------------
+
+generate_shell_id
+  定义: 169-175
+  调用: 181 (距离 6)
+  shell_id = generate_shell_id()
+
+modules/shell_commands.py (2 个)
+--------------------------------------------------------------------------------
+
+split_pipe_command
+  定义: 125-165
+  调用: 171 (距离 6)
+  pipe_parts = split_pipe_command(shell_cmd)
+
+handle_pipe_commands
+  定义: 167-258
+  调用: 265 (距离 7)
+  pipe_result = handle_pipe_commands(shell_cmd, command_identifier)
+
+modules/sync_manager.py (1 个)
+--------------------------------------------------------------------------------
+
+calculate_timeout_from_file_sizes
+  定义: 187-216
+  调用: 232 (距离 16)
+  timeout = self.calculate_timeout_from_file_sizes(file_moves)
+
+modules/utils.py (1 个)
+--------------------------------------------------------------------------------
+
+is_run_environment
+  定义: 2-7
+  调用: 15 (距离 8)
+  if not is_run_environment(command_identifier):

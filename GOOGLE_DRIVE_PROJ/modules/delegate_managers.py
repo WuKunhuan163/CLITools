@@ -112,10 +112,7 @@ class SetupWizard:
     
     def show_setup_step_4(self, *args, **kwargs):
         return show_setup_step_4(*args, **kwargs)
-    
-    def console_setup_interactive(self, *args, **kwargs):
-        return console_setup_interactive(*args, **kwargs)
-
+        
 class RemoteShellManager:
     """远程Shell管理器"""
     def __init__(self, drive_service, main_instance=None):
@@ -154,22 +151,6 @@ class ShellCommands:
     def __init__(self, drive_service, main_instance=None):
         self.drive_service = drive_service
         self.main_instance = main_instance
-    
-
-    
-    def shell_cd(self, *args, **kwargs):
-        # 使用main_instance的cmd_cd方法
-        if args:
-            path = args[0]
-            result = self.main_instance.cmd_cd(path)
-            if result.get("success"):
-                return 0
-            else:
-                print(result.get("error", "cd command failed"))
-                return 1
-        else:
-            print(f"Error:  cd command needs a path")
-            return 1
     
     def shell_mkdir(self, *args, **kwargs):
         return shell_mkdir(*args, **kwargs)

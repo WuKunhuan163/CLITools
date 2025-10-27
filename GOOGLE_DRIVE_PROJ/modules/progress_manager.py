@@ -46,11 +46,6 @@ class ProgressDisplay:
             self.is_active = False
             self.has_progress_line = False
             self.current_message = ""
-    
-    def print_normal(self, message: str):
-        """正常输出（不影响进度显示）"""
-        print(message)
-
 
 # 全局进度显示实例
 _global_progress_display = ProgressDisplay()
