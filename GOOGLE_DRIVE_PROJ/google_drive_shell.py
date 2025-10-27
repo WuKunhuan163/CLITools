@@ -440,6 +440,7 @@ class GoogleDriveShell:
     
     def _handle_unified_echo_command(self, args):
         """统一的echo命令处理逻辑 - 支持长内容的base64编码"""
+        
         # 空echo命令
         if not args:
             print(f"")
@@ -491,7 +492,9 @@ class GoogleDriveShell:
                     return 1
         
         # 使用通用的远程命令执行机制
+        # print(f"DEBUG: echo命令参数: {args}")
         result = self.execute_command_interface('echo', args)
+        # print(f"DEBUG: echo执行结果: success={result.get('success')}, data={result.get('data', {})}")
         
         if result.get("success", False):
             # 统一在命令处理结束后打印输出
@@ -1163,12 +1166,9 @@ class GoogleDriveShell:
             if ((shell_cmd_clean.startswith("'") and shell_cmd_clean.endswith("'")) or 
                 (shell_cmd_clean.startswith('"') and shell_cmd_clean.endswith('"'))):
                 # 去除外层引号，这是一个完整的远程命令
-                # print(f"🔍 QUOTED_COMMAND DEBUG: Detected quoted command: '{shell_cmd_clean}'")
                 shell_cmd_clean = shell_cmd_clean[1:-1]
                 shell_cmd = shell_cmd_clean  # 更新shell_cmd以便后续使用
                 is_quoted_command = True  # 设置引号命令标记
-                # print(f"🔍 QUOTED_COMMAND DEBUG: After removing quotes: '{shell_cmd_clean}'")
-                # print(f"🔍 QUOTED_COMMAND DEBUG: is_quoted_command set to: {is_quoted_command}")
                 
                 # 引号包围的命令直接使用远程执行
                 # 不需要特殊处理，让通用的远程命令执行机制处理
@@ -1830,6 +1830,7 @@ done
                         # 添加特殊标记，让后续处理知道这是远程重定向
                         marked_command = f"__QUOTED_COMMAND__{processed_command}"
                         
+                        
                         return {
                             "success": True,
                             "translated_command": marked_command,
@@ -1874,7 +1875,11 @@ done
                                      .replace(' ~', ' __TILDE__')
                                      .replace('\\"', '__ESCAPED_QUOTE__'))
             
+            print(f"DEBUG: 原始命令: {repr(shell_cmd)}")
+            print(f"DEBUG: 保护后命令: {repr(protected_cmd)}")
+            
             cmd_parts = shlex.split(protected_cmd)
+            print(f"DEBUG: shlex.split成功，结果: {cmd_parts}")
             
             # 恢复~路径和转义引号
             cmd_parts = [part.replace('__TILDE_SLASH__', '~/').replace('__TILDE__', '~').replace('__ESCAPED_QUOTE__', '\\"') for part in cmd_parts]
@@ -1892,9 +1897,14 @@ done
             }
             
         except ValueError as e:
+            print(f"DEBUG: shlex.split失败，错误: {e}")
+            print(f"DEBUG: 失败的命令: {repr(shell_cmd)}")
+            print(f"DEBUG: 失败的保护后命令: {repr(protected_cmd)}")
+            
             # 如果shlex解析失败，尝试简单分割作为fallback
             try:
                 cmd_parts = shell_cmd.split()
+                print(f"DEBUG: fallback split结果: {cmd_parts}")
                 if not cmd_parts:
                     return {
                         "success": False,

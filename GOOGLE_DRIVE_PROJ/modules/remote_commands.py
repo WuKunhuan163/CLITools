@@ -2329,7 +2329,10 @@ JSON_SCRIPT_EOF
             if args:
                 # 处理特殊命令格式
                 if cmd == "bash" and len(args) >= 2 and args[0] == "-c":
-                    user_command = f'bash -c "{args[1]}"'
+                    # 修复：使用shlex.quote来安全处理包含引号的命令
+                    import shlex
+                    safe_command = shlex.quote(args[1])
+                    user_command = f'bash -c {safe_command}'
                 elif cmd == "sh" and len(args) >= 2 and args[0] == "-c":
                     user_command = f'sh -c "{args[1]}"'
                 elif cmd in ["python", "python3"] and len(args) >= 2 and args[0] == "-c":
@@ -2411,6 +2414,7 @@ JSON_SCRIPT_EOF
         Returns:
             dict: 执行结果
         """
+        
         try:
             # 处理__QUOTED_COMMAND__标记
             if user_command.startswith("__QUOTED_COMMAND__"):
