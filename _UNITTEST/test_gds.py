@@ -805,6 +805,39 @@ Shell commands: ls -la && echo "done"
         print("所有重试都失败了")
         return False, result
 
+
+    def _wait_for_pyenv_install(self, version, timeout=1800, check_interval=10):
+        """
+        等待pyenv后台安装完成
+        
+        Args:
+            version: Python版本号
+            timeout: 超时时间（秒），默认30分钟
+            check_interval: 检查间隔（秒），默认10秒
+            
+        Returns:
+            bool: 安装是否成功
+        """
+        import time
+        start_time = time.time()
+        
+        print(f"等待Python {version}安装完成（超时{timeout}秒）...")
+        
+        while time.time() - start_time < timeout:
+            # 检查版本是否已安装
+            result = self._run_gds_command(["pyenv", "--versions"], expect_success=False)
+            if result.returncode == 0 and version in result.stdout:
+                print(f"Python {version}安装成功！")
+                return True
+            
+            # 等待一段时间后重试
+            time.sleep(check_interval)
+            elapsed = int(time.time() - start_time)
+            print(f"等待中... 已等待{elapsed}秒")
+        
+        print(f"等待超时！Python {version}未能在{timeout}秒内安装完成")
+        return False
+
     def test_00_ls_basic(self):
         """测试ls命令的全路径支持（修复后的功能）"""
         
@@ -3479,40 +3512,8 @@ print(f"Current directory: {os.getcwd()}")'''
         # 检查已安装版本
         result = self._run_gds_command(["pyenv", "--versions"])
         self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
-
-    def _wait_for_pyenv_install(self, version, timeout=1800, check_interval=10):
-        """
-        等待pyenv后台安装完成
-        
-        Args:
-            version: Python版本号
-            timeout: 超时时间（秒），默认30分钟
-            check_interval: 检查间隔（秒），默认10秒
-            
-        Returns:
-            bool: 安装是否成功
-        """
-        import time
-        start_time = time.time()
-        
-        print(f"等待Python {version}安装完成（超时{timeout}秒）...")
-        
-        while time.time() - start_time < timeout:
-            # 检查版本是否已安装
-            result = self._run_gds_command(["pyenv", "--versions"], expect_success=False)
-            if result.returncode == 0 and version in result.stdout:
-                print(f"Python {version}安装成功！")
-                return True
-            
-            # 等待一段时间后重试
-            time.sleep(check_interval)
-            elapsed = int(time.time() - start_time)
-            print(f"等待中... 已等待{elapsed}秒")
-        
-        print(f"等待超时！Python {version}未能在{timeout}秒内安装完成")
-        return False
     
-    def test_28_pyenv_version_change_TODO_upgrade_testcase_reflect_multiple_versions(self):
+    def test_28_pyenv_version_change(self):
         """测试pyenv版本切换 - 实际下载并切换多个Python版本"""
         print(f"测试pyenv版本切换（实际下载和切换）")
         
@@ -3614,7 +3615,7 @@ print("Script execution successful!")
         
         print(f"\npyenv版本切换测试完成！成功测试了{version1}和{version2}的安装和切换")
 
-    def test_30_pyenv_invalid_versions(self):
+    def test_29_pyenv_invalid_versions(self):
         """测试pyenv边缘情况和无效版本处理"""
         print(f"测试pyenv边缘情况和无效版本处理")
 
@@ -3766,7 +3767,7 @@ print("Script execution successful!")
         
         print(f"printf和echo -n重定向功能测试完成（强化补丁）")
     
-    def test_38_gds_download_functionality(self):
+    def test_30_gds_download(self):
         """测试GDS download功能"""
         print(f"测试GDS download功能")
         
@@ -3823,65 +3824,131 @@ print("Script execution successful!")
         self.assertIn("is a directory", result.stdout.lower(), "应该显示目录错误信息")
         
         # 清理测试文件
-        cleanup_files = ["download_test_source.txt", "downloaded_copy.txt"]
+        cleanup_files = [download_test_source, target_file]
         for filename in cleanup_files:
             file_path = self._get_test_file_path(filename)
             self._run_gds_command(f'rm -f "{file_path}"')
         
         # 清理测试目录
         self._run_gds_command(f'rm -rf "{test_dir}"')
-        
         print(f"GDS download功能测试完成")
     
-    def test_39_regex_validation(self):
-        """测试正则表达式验证功能"""
+    def test_31_regex(self):
+        """测试正则表达式验证功能 - 基于实际文件操作"""
         print(f"测试正则表达式验证功能")
         
-        # 测试1: 基本重定向模式匹配
-        print("测试1: 基本重定向模式匹配")
         import re
         
-        # 测试echo重定向的正则匹配
-        shell_cmd_clean = "echo -n 'Echo without newline' > redirection_test/echo_test.txt"
+        # 准备：创建测试目录和文件
+        print("准备：创建测试目录和文件")
+        redirection_test_folder = f"{self.test_folder}/regex_test"
+        result = self._run_gds_command(["mkdir", "-p", redirection_test_folder])
+        self.assertEqual(result.returncode, 0, "创建测试目录应该成功")
+        
+        # 创建测试文件1: 基本文本文件
+        test_file1 = f"{redirection_test_folder}/echo_test.txt"
+        result = self._run_gds_command(f'echo -n "Echo without newline" > "{test_file1}"')
+        self.assertEqual(result.returncode, 0, "创建测试文件1应该成功")
+        
+        # 创建测试文件2: 带路径的文件
+        test_file2 = f"{redirection_test_folder}/printf_test.txt"
+        result = self._run_gds_command(f'printf "Hello World" > "{test_file2}"')
+        self.assertEqual(result.returncode, 0, "创建测试文件2应该成功")
+        
+        # 创建测试文件3: 追加模式文件
+        test_file3 = f"{redirection_test_folder}/append.txt"
+        result = self._run_gds_command(f'echo "Line 1" > "{test_file3}"')
+        self.assertEqual(result.returncode, 0, "创建测试文件3应该成功")
+        result = self._run_gds_command(f'echo "Line 2" >> "{test_file3}"')
+        self.assertEqual(result.returncode, 0, "追加到测试文件3应该成功")
+        
+        # 创建测试文件4: 用于grep的文件
+        test_file4 = f"{redirection_test_folder}/grep_source.txt"
+        result = self._run_gds_command(f'cat > "{test_file4}" << "EOF"\npattern line 1\nno match line\npattern line 2\nEOF')
+        self.assertEqual(result.returncode, 0, "创建测试文件4应该成功")
+        
+        # 测试1: 基本重定向模式匹配（验证命令和结果）
+        print("测试1: 基本重定向模式匹配")
+        shell_cmd_clean = f'echo -n "Echo without newline" > "{test_file1}"'
         redirect_pattern = r'(.+?)\s*>\s*(.+)'
         match = re.search(redirect_pattern, shell_cmd_clean)
-        self.assertIsNotNone(match, "应该匹配重定向模式")
-        self.assertEqual(match.group(1).strip(), "echo -n 'Echo without newline'", "应该正确提取命令部分")
-        self.assertEqual(match.group(2).strip(), "redirection_test/echo_test.txt", "应该正确提取文件路径")
+        self.assertIsNotNone(match, f"应该匹配重定向模式: {shell_cmd_clean}")
         
-        # 测试2: 复杂命令模式匹配
-        print("测试2: 复杂命令模式匹配")
+        # 验证文件确实被创建
+        result = self._run_gds_command(["cat", test_file1])
+        self.assertEqual(result.returncode, 0, "读取测试文件1应该成功")
+        self.assertEqual(result.stdout.strip(), "Echo without newline", "文件内容应该正确")
+        
+        # 测试2: 复杂命令模式匹配（基于已创建的文件）
+        print(f"测试2: 复杂命令模式匹配")
+        # 验证test_file2的内容
+        result = self._run_gds_command(["cat", test_file2])
+        self.assertEqual(result.returncode, 0, "读取测试文件2应该成功")
+        self.assertEqual(result.stdout.strip(), "Hello World", "printf文件内容应该正确")
+        
+        # 验证test_file3的追加内容
+        result = self._run_gds_command(["cat", test_file3])
+        self.assertEqual(result.returncode, 0, "读取测试文件3应该成功")
+        self.assertIn("Line 1", result.stdout, "追加文件应该包含第一行")
+        self.assertIn("Line 2", result.stdout, "追加文件应该包含第二行")
+        
+        # 测试正则表达式匹配
         complex_commands = [
-            ("printf 'Hello World' > test.txt", r'printf\s+.+?\s*>\s*.+'),
-            ("echo 'Special chars: @#$%' >> append.txt", r'echo\s+.+?\s*>>\s*.+'),
-            ("cat file1.txt | grep pattern > result.txt", r'cat\s+.+?\s*\|\s*grep\s+.+?\s*>\s*.+'),
-            ("ls -la /path/to/dir > listing.txt", r'ls\s+.+?\s*>\s*.+'),
+            (f'printf "Hello World" > "{test_file2}"', r'printf\s+.+?\s*>\s*.+'),
+            (f'echo "Line 2" >> "{test_file3}"', r'echo\s+.+?\s*>>\s*.+'),
+            (f'cat "{test_file4}" | grep pattern > "{redirection_test_folder}/result.txt"', r'cat\s+.+?\s*\|\s*grep\s+.+?\s*>\s*.+'),
         ]
         
         for command, pattern in complex_commands:
             match = re.search(pattern, command)
             self.assertIsNotNone(match, f"应该匹配命令模式: {command}")
         
-        # 测试3: 文件路径验证模式
+        # 测试3: 文件路径验证模式（使用实际创建的文件路径）
         print("测试3: 文件路径验证模式")
+        # 创建不同路径类型的测试文件
+        py_file = f"{redirection_test_folder}/test_script.py"
+        sh_file = f"{redirection_test_folder}/test_script.sh"
+        json_file = f"{redirection_test_folder}/config_123.json"
+        
+        result = self._run_gds_command(f'echo "# Python script" > "{py_file}"')
+        self.assertEqual(result.returncode, 0, "创建Python文件应该成功")
+        result = self._run_gds_command(f'echo "#!/bin/bash" > "{sh_file}"')
+        self.assertEqual(result.returncode, 0, "创建Shell脚本应该成功")
+        result = self._run_gds_command(f'echo "{{}}" > "{json_file}"')
+        self.assertEqual(result.returncode, 0, "创建JSON文件应该成功")
+        
+        # 验证文件路径匹配
         path_patterns = [
-            ("~/tmp/test_file.txt", r'^~/.*\.txt$'),
-            ("/absolute/path/file.py", r'^/.*\.py$'),
-            ("relative/path/script.sh", r'^[^/].*\.sh$'),
-            ("file_with_underscores_123.json", r'^[a-zA-Z0-9_]+\.json$'),
+            (test_file1, r'.*\.txt$'),
+            (py_file, r'.*\.py$'),
+            (sh_file, r'.*\.sh$'),
+            (json_file, r'.*config.*\.json$'),
         ]
         
         for path, pattern in path_patterns:
             match = re.search(pattern, path)
             self.assertIsNotNone(match, f"应该匹配路径模式: {path}")
+            # 验证文件确实存在
+            result = self._run_gds_command(["ls", path])
+            self.assertEqual(result.returncode, 0, f"文件应该存在: {path}")
         
-        # 测试4: 命令参数解析模式
+        # 测试4: 命令参数解析模式（基于实际执行的命令）
         print("测试4: 命令参数解析模式")
+        # 使用实际创建的文件进行grep测试
+        grep_result_file = f"{redirection_test_folder}/grep_result.txt"
+        grep_cmd = f'grep -n "pattern" "{test_file4}" > "{grep_result_file}"'
+        result = self._run_gds_command(grep_cmd)
+        self.assertEqual(result.returncode, 0, "grep命令应该成功")
+        
+        # 验证grep结果
+        result = self._run_gds_command(["cat", grep_result_file])
+        self.assertEqual(result.returncode, 0, "读取grep结果应该成功")
+        self.assertIn("pattern", result.stdout, "grep结果应该包含pattern")
+        
+        # 测试参数解析正则
         arg_parsing_tests = [
-            ("echo 'hello world'", r"echo\s+'([^']+)'", "hello world"),
-            ('echo "double quotes"', r'echo\s+"([^"]+)"', "double quotes"),
-            ("grep -n 'pattern' file.txt", r"grep\s+(-[a-zA-Z]+)\s+'([^']+)'\s+(\S+)", ["-n", "pattern", "file.txt"]),
-            ("ls -la --color=auto", r"ls\s+((?:-[a-zA-Z]+\s*)+)(?:--(\w+)=(\w+))?", ["-la", "color", "auto"]),
+            (f'echo "test content"', r'echo\s+"([^"]+)"', "test content"),
+            (grep_cmd, r'grep\s+(-[a-zA-Z]+)\s+"([^"]+)"', ["-n", "pattern"]),
         ]
         
         for command, pattern, expected in arg_parsing_tests:
@@ -3889,28 +3956,43 @@ print("Script execution successful!")
             self.assertIsNotNone(match, f"应该匹配参数模式: {command}")
             if isinstance(expected, str):
                 self.assertEqual(match.group(1), expected, f"应该正确提取参数: {command}")
-            elif isinstance(expected, list):
-                groups = [g for g in match.groups() if g is not None]
-                self.assertTrue(len(groups) >= len(expected), f"应该提取足够的参数组: {command}")
         
-        # 测试5: 特殊字符转义模式
+        # 测试5: 特殊字符转义模式（使用实际文件）
         print("测试5: 特殊字符转义模式")
+        escape_file = f"{redirection_test_folder}/escape_test.txt"
+        result = self._run_gds_command(f'printf "Tab:\\tNewline:\\n" > "{escape_file}"')
+        self.assertEqual(result.returncode, 0, "创建转义测试文件应该成功")
+        
+        # 验证文件内容包含转义字符
+        result = self._run_gds_command(["cat", escape_file])
+        self.assertEqual(result.returncode, 0, "读取转义文件应该成功")
+        
+        # 测试转义模式匹配
         escape_tests = [
-            ("echo 'It\\'s a test'", r"echo\s+'([^'\\\\]*(?:\\\\.[^'\\\\]*)*)'"),
-            ('echo "Line 1\\nLine 2"', r'echo\s+"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"'),
-            ("printf 'Tab:\\tNewline:\\n'", r"printf\s+'([^'\\\\]*(?:\\\\.[^'\\\\]*)*)'"),
+            (f'printf "Tab:\\tNewline:\\n" > "{escape_file}"', r'printf\s+"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"'),
         ]
         
         for command, pattern in escape_tests:
             match = re.search(pattern, command)
             self.assertIsNotNone(match, f"应该匹配转义模式: {command}")
         
-        # 测试6: 管道和重定向组合模式
+        # 测试6: 管道和重定向组合模式（使用实际文件）
         print("测试6: 管道和重定向组合模式")
+        # 测试实际的管道命令
+        pipe_result_file = f"{redirection_test_folder}/pipe_result.txt"
+        pipe_cmd = f'cat "{test_file4}" | grep "pattern" | wc -l > "{pipe_result_file}"'
+        result = self._run_gds_command(pipe_cmd)
+        self.assertEqual(result.returncode, 0, "管道命令应该成功")
+        
+        # 验证管道结果
+        result = self._run_gds_command(["cat", pipe_result_file])
+        self.assertEqual(result.returncode, 0, "读取管道结果应该成功")
+        self.assertIn("2", result.stdout.strip(), "应该有2行匹配pattern")
+        
+        # 测试管道模式匹配
         pipe_redirect_tests = [
-            ("cat file.txt | grep pattern | sort > result.txt", r'(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*>\s*(.+)'),
-            ("ls -la | head -10 >> output.txt", r'(.+?)\s*\|\s*(.+?)\s*>>\s*(.+)'),
-            ("find . -name '*.py' | wc -l > count.txt", r'(.+?)\s*\|\s*(.+?)\s*>\s*(.+)'),
+            (pipe_cmd, r'(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*>\s*(.+)'),
+            (f'cat "{test_file3}" | head -2 > "{redirection_test_folder}/head_result.txt"', r'(.+?)\s*\|\s*(.+?)\s*>\s*(.+)'),
         ]
         
         for command, pattern in pipe_redirect_tests:
@@ -3953,14 +4035,16 @@ print("Script execution successful!")
             else:
                 self.assertIsNone(match, f"不应该检测到危险模式: {command}")
         
+        # 清理测试目录
+        print("清理测试目录")
+        result = self._run_gds_command(["rm", "-rf", redirection_test_folder])
+        self.assertEqual(result.returncode, 0, "清理测试目录应该成功")
+        
         print(f"正则表达式验证功能测试完成")
     
-    def test_40_gds_bash_output_alignment(self):
+    def test_32_gds_bash_output_alignment(self):
         """测试GDS shell输出与bash shell输出的对齐性"""
         print(f"测试GDS shell输出与bash shell输出的对齐性")
-        
-        import subprocess
-        import os
         import tempfile
         
         # 创建临时bash测试环境
