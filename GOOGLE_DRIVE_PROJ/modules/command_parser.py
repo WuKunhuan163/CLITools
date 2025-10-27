@@ -15,7 +15,7 @@ class CommandSplitter:
     
     # 支持的命令组合操作符
     COMBINATORS = ['&&', '||', ';']
-    
+
     def __init__(self):
         pass
     

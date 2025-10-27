@@ -7,8 +7,6 @@ class LsCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行ls命令"""
-        # print(f"DEBUG in LsCommand: Processing ls with args: {args}")
-        
         # 解析参数
         detailed = False
         recursive = False

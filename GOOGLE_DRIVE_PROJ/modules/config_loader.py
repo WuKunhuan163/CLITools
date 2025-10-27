@@ -30,43 +30,15 @@ class ConfigLoader:
     
     def _load_config(self):
         """加载配置文件"""
-        try:
-            # 获取配置文件路径
-            current_dir = Path(__file__).parent.parent.parent
-            config_file = current_dir / "GOOGLE_DRIVE_DATA" / "config.json"
-            
-            if not config_file.exists():
-                raise FileNotFoundError(f"Config file not found: {config_file}")
-            
-            with open(config_file, 'r', encoding='utf-8') as f:
-                self._config = json.load(f)
+        current_dir = Path(__file__).parent.parent.parent
+        config_file = current_dir / "GOOGLE_DRIVE_DATA" / "config.json"
+        
+        if not config_file.exists():
+            raise FileNotFoundError(f"Config file not found: {config_file}")
+        
+        with open(config_file, 'r', encoding='utf-8') as f:
+            self._config = json.load(f)
 
-        except Exception:
-            self._config = self._get_default_config()
-    
-    def _get_default_config(self) -> Dict[str, Any]:
-        """获取默认配置（当配置文件加载失败时使用）"""
-        return {
-            "constants": {
-                "HOME_URL": "https://drive.google.com/drive/u/0/my-drive",
-                "HOME_FOLDER_ID": "root",
-                "REMOTE_ROOT_FOLDER_ID": "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f",
-                "REMOTE_ROOT": "/content/drive/MyDrive/REMOTE_ROOT"
-            },
-            "queue_settings": {
-                "timeout_hours": 2,
-                "heartbeat_interval": 0.1,
-                "heartbeat_check_interval": 0.5,
-                "lock_timeout": 10,
-                "heartbeat_failure_threshold": 2
-            },
-            "file_paths": {
-                "remote_window_queue_file": "remote_window_queue.json",
-                "remote_window_queue_lock": "remote_window_queue.lock",
-                "debug_log_dir": "../tmp"
-            }
-        }
-    
     def get(self, key_path: str, default=None):
         """
         获取配置值，支持点号分隔的路径
@@ -92,56 +64,24 @@ class ConfigLoader:
             
         except Exception:
             return default
-    
-    def get_constants(self) -> Dict[str, str]:
-        """获取所有常量"""
-        return self.get('constants', {})
-    
-    def get_queue_settings(self) -> Dict[str, Any]:
-        """获取队列设置"""
-        return self.get('queue_settings', {})
-    
-    def get_file_paths(self) -> Dict[str, str]:
-        """获取文件路径配置"""
-        return self.get('file_paths', {})
-    
-    # 便捷属性访问
-    @property
-    def HOME_URL(self) -> str:
-        return self.get('constants.HOME_URL', 'https://drive.google.com/drive/u/0/my-drive')
-    
-    @property
-    def HOME_FOLDER_ID(self) -> str:
-        return self.get('constants.HOME_FOLDER_ID', 'root')
-    
-    @property
-    def REMOTE_ROOT_FOLDER_ID(self) -> str:
-        return self.get('constants.REMOTE_ROOT_FOLDER_ID', '1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f')
-    
-    @property
-    def REMOTE_ROOT(self) -> str:
-        return self.get('constants.REMOTE_ROOT', '/content/drive/MyDrive/REMOTE_ROOT')
-    
-    @property
-    def timeout_hours(self) -> float:
-        return self.get('queue_settings.timeout_hours', 2)
-    
-    @property
-    def heartbeat_interval(self) -> float:
-        return self.get('queue_settings.heartbeat_interval', 0.1)
-    
-    @property
-    def heartbeat_check_interval(self) -> float:
-        return self.get('queue_settings.heartbeat_check_interval', 0.5)
-    
-    @property
-    def lock_timeout(self) -> int:
-        return self.get('queue_settings.lock_timeout', 10)
-    
-    @property
-    def heartbeat_failure_threshold(self) -> int:
-        return self.get('queue_settings.heartbeat_failure_threshold', 2)
 
+
+    def __getattr__(self, name):
+        """允许通过属性访问配置值，例如 config.HOME_URL"""
+        # 尝试从constants中获取
+        value = self.get(f'constants.{name}')
+        if value is not None:
+            return value
+        # 尝试从queue_settings中获取
+        value = self.get(f'queue_settings.{name}')
+        if value is not None:
+            return value
+        # 尝试从file_paths中获取
+        value = self.get(f'file_paths.{name}')
+        if value is not None:
+            return value
+        # 如果都没找到，抛出AttributeError
+        raise AttributeError(f"'ConfigLoader' object has no attribute '{name}'")
 
 # 全局配置实例
 _config_loader = None
@@ -168,3 +108,26 @@ def get_queue_setting(name: str, default=None):
 def get_file_path(name: str, default=None):
     """获取文件路径配置"""
     return get_config().get(f'file_paths.{name}', default)
+
+# Background任务文件名模板
+BG_STATUS_FILE_TEMPLATE = "cmd_bg_{bg_pid}.status"
+BG_SCRIPT_FILE_TEMPLATE = "cmd_bg_{bg_pid}.sh"
+BG_LOG_FILE_TEMPLATE = "cmd_bg_{bg_pid}.log"
+BG_RESULT_FILE_TEMPLATE = "cmd_bg_{bg_pid}.result.json"
+
+# 生成具体文件名的辅助函数
+def get_bg_status_file(bg_pid):
+    """获取background状态文件名"""
+    return BG_STATUS_FILE_TEMPLATE.format(bg_pid=bg_pid)
+
+def get_bg_script_file(bg_pid):
+    """获取background脚本文件名"""
+    return BG_SCRIPT_FILE_TEMPLATE.format(bg_pid=bg_pid)
+
+def get_bg_log_file(bg_pid):
+    """获取background日志文件名"""
+    return BG_LOG_FILE_TEMPLATE.format(bg_pid=bg_pid)
+
+def get_bg_result_file(bg_pid):
+    """获取background结果文件名"""
+    return BG_RESULT_FILE_TEMPLATE.format(bg_pid=bg_pid)

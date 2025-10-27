@@ -15,19 +15,6 @@ warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.
 from dotenv import load_dotenv
 load_dotenv()
 
-# 导入shell命令函数
-try:
-    from .shell_commands import shell_pwd, shell_rm
-except ImportError:
-    try:
-        from shell_commands import shell_pwd, shell_rm
-    except ImportError:
-        # 如果导入失败，定义简单的fallback函数
-        def shell_pwd():
-            print(f"~/")
-        def shell_rm(path, recursive=False):
-            print(f"rm: {path}")
-
 # 定义缺失的shell命令函数
 def shell_mkdir(path):
     """创建目录的简化实现"""

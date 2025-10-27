@@ -1,9 +1,4 @@
 
-from .venv_operations import VenvOperations
-from .pyenv_operations import PyenvOperations
-from .pip_operations import PipOperations
-from .dependency_analysis import DependencyAnalysis
-from .python_execution import PythonExecution
 from .file_core import FileCore
 from .text_operations import TextOperations
 
@@ -16,51 +11,47 @@ class FileOperations:
         """Initialize all specialized modules"""
         self.drive_service = drive_service
         self.main_instance = main_instance
-    
-        # Initialize specialized modules
-        self.venv_operations = VenvOperations(drive_service, main_instance)
-        self.pyenv_operations = PyenvOperations(drive_service, main_instance)
-        self.pip_operations = PipOperations(drive_service, main_instance)
-        self.dependency_analysis = DependencyAnalysis(drive_service, main_instance)
-        self.python_execution = PythonExecution(drive_service, main_instance)
         self.file_core = FileCore(drive_service, main_instance)
         self.text_operations = TextOperations(drive_service, main_instance)
 
-    def get_venv_base_path(self, *args, **kwargs):
-        """Delegate to venv_operations"""
-        return self.venv_operations.get_venv_base_path(*args, **kwargs)
-    
-    def get_venv_state_file_path(self, *args, **kwargs):
-        """Delegate to venv_operations"""
-        return self.venv_operations.get_venv_state_file_path(*args, **kwargs)
-    
-    def read_venv_states(self, *args, **kwargs):
-        """Delegate to venv_operations"""
-        return self.venv_operations.read_venv_states(*args, **kwargs)
-    
-    def list_venv_environments(self, *args, **kwargs):
-        """Delegate to venv_operations"""
-        return self.venv_operations.list_venv_environments(*args, **kwargs)
-    
+    # These methods have been moved to their respective command classes
+    # and are now accessed through the command_registry
     def cmd_venv(self, *args, **kwargs):
-        """Delegate to venv_operations"""
-        return self.venv_operations.cmd_venv(*args, **kwargs)
+        """Delegate to VenvCommand through command_registry"""
+        command = self.main_instance.command_registry.get_command('venv')
+        if command:
+            return command.cmd_venv(*args, **kwargs)
+        else:
+            return {"success": False, "error": "VenvCommand not found"}
     
     def cmd_pyenv(self, *args, **kwargs):
-        """Delegate to pyenv_operations"""
-        return self.pyenv_operations.cmd_pyenv(*args, **kwargs)
+        """Delegate to PyenvCommand through command_registry"""
+        command = self.main_instance.command_registry.get_command('pyenv')
+        if command:
+            return command.cmd_pyenv(*args, **kwargs)
+        else:
+            return {"success": False, "error": "PyenvCommand not found"}
     
     def cmd_pip(self, *args, **kwargs):
-        """Delegate to pip_operations"""
-        return self.pip_operations.cmd_pip(*args, **kwargs)
+        """Delegate to PipCommand through command_registry"""
+        command = self.main_instance.command_registry.get_command('pip')
+        if command:
+            return command.cmd_pip(*args, **kwargs)
+        else:
+            return {"success": False, "error": "PipCommand not found"}
     
     def cmd_deps(self, *args, **kwargs):
-        """Delegate to dependency_analysis"""
-        return self.dependency_analysis.cmd_deps(*args, **kwargs)
+        """Delegate to DepsCommand through command_registry"""
+        command = self.main_instance.command_registry.get_command('deps')
+        if command:
+            return command.cmd_deps(*args, **kwargs)
+        else:
+            return {"success": False, "error": "DepsCommand not found"}
     
     def cmd_python(self, *args, **kwargs):
-        """Delegate to python_execution"""
-        return self.python_execution.cmd_python(*args, **kwargs)
+        """Delegate to PythonCommand through command_registry"""
+        command = self.main_instance.command_registry.get_command('python')
+        return command.cmd_python(*args, **kwargs)
     
     def cmd_upload_folder(self, *args, **kwargs):
         """Delegate to file_operations"""

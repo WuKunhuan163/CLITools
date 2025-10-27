@@ -39,55 +39,6 @@ class PathResolver:
         self.drive_service = drive_service
         self.main_instance = main_instance  # 引用主实例以访问其他属性
 
-    def _setup_environment_paths(self):
-        """根据运行环境设置路径配置 - 使用统一的路径常量管理器"""
-        try:
-            from .path_constants import path_constants
-            
-            # 设置环境默认值
-            path_constants.setup_environment_defaults()
-            
-            # 将路径常量应用到主实例
-            self.main_instance.LOCAL_EQUIVALENT = path_constants.get_path("LOCAL_EQUIVALENT")
-            self.main_instance.DRIVE_EQUIVALENT = path_constants.get_path("DRIVE_EQUIVALENT")
-            self.main_instance.REMOTE_ROOT = path_constants.get_path("REMOTE_ROOT")
-            self.main_instance.REMOTE_ENV = path_constants.get_path("REMOTE_ENV")
-            
-            # 设置文件夹ID
-            self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID = path_constants.get_folder_id("DRIVE_EQUIVALENT_FOLDER_ID")
-            self.main_instance.REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
-            self.main_instance.REMOTE_ENV_FOLDER_ID = path_constants.get_folder_id("REMOTE_ENV_FOLDER_ID")
-            
-            # 设置环境类型
-            self.environment = path_constants.detect_environment()
-            
-            # 确保目录存在
-            import os
-            os.makedirs(self.main_instance.LOCAL_EQUIVALENT, exist_ok=True)
-            
-            # 只在Colab环境下创建REMOTE_ROOT目录
-            if self.environment == "colab":
-                os.makedirs(self.main_instance.REMOTE_ROOT, exist_ok=True)
-                
-        except ImportError:
-            # 回退到原来的逻辑
-            import os
-            import platform
-            self.environment = "macos" if platform.system() == "Darwin" else "colab"
-            self.main_instance.REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
-
-    def _setup_default_paths(self):
-        """设置默认路径配置"""
-        import platform
-        if platform.system() == "Darwin":  # macOS
-            self.main_instance.LOCAL_EQUIVALENT = os.path.expanduser("~/Applications/Google Drive")
-            self.main_instance.DRIVE_EQUIVALENT = "/content/drive/Othercomputers/我的 MacBook Air/Google Drive"
-        else:
-            raise Exception("Not Implemented Yet")
-        
-        # 默认的DRIVE_EQUIVALENT_FOLDER_ID
-        self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID = "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY"
-
     def _expand_path(self, path):
         """展开路径，处理~等特殊字符"""
         try:
@@ -164,22 +115,22 @@ class PathResolver:
                 return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
             
             # 处理完整的绝对路径（如 /content/drive/MyDrive/REMOTE_ROOT/...）
-            elif path.startswith("/content/drive/MyDrive/REMOTE_ROOT"):
-                if path == "/content/drive/MyDrive/REMOTE_ROOT":
+            elif path.startswith(self.main_instance.REMOTE_ROOT):
+                if path == self.main_instance.REMOTE_ROOT:
                     return self.main_instance.REMOTE_ROOT_FOLDER_ID, "~"
-                elif path.startswith("/content/drive/MyDrive/REMOTE_ROOT/"):
-                    relative_path = path[len("/content/drive/MyDrive/REMOTE_ROOT/"):]
+                elif path.startswith(f"{self.main_instance.REMOTE_ROOT}/"):
+                    relative_path = path[len(f"{self.main_instance.REMOTE_ROOT}/"):]
                     return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
                 else:
                     return None, None
             
             # 处理REMOTE_ENV的绝对路径
-            elif path.startswith("/content/drive/MyDrive/REMOTE_ENV"):
-                if path == "/content/drive/MyDrive/REMOTE_ENV":
-                    return self.main_instance.REMOTE_ENV_FOLDER_ID, "/content/drive/MyDrive/REMOTE_ENV"
-                elif path.startswith("/content/drive/MyDrive/REMOTE_ENV/"):
-                    relative_path = path[len("/content/drive/MyDrive/REMOTE_ENV/"):]
-                    return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ENV_FOLDER_ID, "/content/drive/MyDrive/REMOTE_ENV")
+            elif path.startswith(self.main_instance.REMOTE_ENV):
+                if path == self.main_instance.REMOTE_ENV:
+                    return self.main_instance.REMOTE_ENV_FOLDER_ID, self.main_instance.REMOTE_ENV
+                elif path.startswith(f"{self.main_instance.REMOTE_ENV}/"):
+                    relative_path = path[len(f"{self.main_instance.REMOTE_ENV}/"):]
+                    return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ENV_FOLDER_ID, self.main_instance.REMOTE_ENV)
                 else:
                     return None, None
             

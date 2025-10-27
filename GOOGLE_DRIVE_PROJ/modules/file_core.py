@@ -4,26 +4,21 @@ import os
 from pathlib import Path
 
 # 导入debug捕获系统
-from .remote_commands import debug_capture, debug_print
+from .command_executor import debug_capture, debug_print
 
 class FileCore:
     """
     Core file operations (upload, download, navigation)
     """
-    
     def __init__(self, drive_service, main_instance):
         self.drive_service = drive_service
         self.main_instance = main_instance
 
-    def _verify_files_available(self, file_moves):
-        """委托到file_utils的文件可用性验证"""
-        return self.main_instance.file_utils._verify_files_available(file_moves)
-    
-    def _cleanup_local_equivalent_files(self, file_moves):
+    def cleanup_local_equivalent_files(self, file_moves):
         """委托到cache_manager的本地等效文件清理"""
-        return self.main_instance.cache_manager._cleanup_local_equivalent_files(file_moves)
+        return self.main_instance.cache_manager.cleanup_local_equivalent_files(file_moves)
     
-    def _check_large_files(self, source_files):
+    def check_large_files(self, source_files):
         """检查大文件并分离处理（大于1G的文件）"""
         normal_files = []
         large_files = []
@@ -46,7 +41,7 @@ class FileCore:
         
         return normal_files, large_files
     
-    def _handle_large_files(self, large_files, target_path, current_shell):
+    def handle_large_files(self, large_files, target_path, current_shell):
         """处理大文件上传"""
         print(f"\nDetected {len(large_files)} large files (>1GB):")
         for file_info in large_files:
@@ -64,35 +59,7 @@ class FileCore:
         """等待文件同步完成"""
         return self.main_instance.sync_manager.wait_for_file_sync(file_names, file_moves)
     
-
-    
-    def _check_target_file_conflicts_before_move(self, file_moves, force=False):
-        """检查目标文件冲突"""
-        # 简化实现，如果force=True直接返回成功
-        if force:
-            return {"success": True, "conflicts": []}
-        
-        # 否则检查文件是否已存在（简化版本）
-        conflicts = []
-        for move in file_moves:
-            target_path = move.get("new_path", "")
-            if os.path.exists(target_path):
-                conflicts.append({
-                    "file": move.get("source", ""),
-                    "target": target_path,
-                    "reason": "File already exists"
-                })
-        
-        if conflicts:
-            return {
-                "success": False,
-                "conflicts": conflicts,
-                "error": f"Found {len(conflicts)} file conflicts"
-            }
-        
-        return {"success": True, "conflicts": []}
-    
-    def _check_remote_file_conflicts(self, source_files, target_path):
+    def check_remote_file_conflicts(self, source_files, target_path):
         """检查远程文件是否已存在（用于非force模式）"""
         try:
             current_shell = self.main_instance.get_current_shell()
@@ -261,11 +228,11 @@ class FileCore:
                 source_files = [source_files]
             
             # 1.5. 检查大文件并分离处理
-            normal_files, large_files = self._check_large_files(source_files)
+            normal_files, large_files = self.check_large_files(source_files)
             
             # 处理大文件
             if large_files:
-                large_file_result = self._handle_large_files(large_files, target_path, current_shell)
+                large_file_result = self.handle_large_files(large_files, target_path, current_shell)
                 if not large_file_result["success"]:
                     return large_file_result
             
@@ -319,7 +286,7 @@ class FileCore:
             
             # 3.5. 检查目标文件是否已存在，避免冲突（除非使用--force）
             if not force:
-                conflict_check_result = self._check_remote_file_conflicts(source_files, target_path)
+                conflict_check_result = self.check_remote_file_conflicts(source_files, target_path)
                 if not conflict_check_result["success"]:
                     return conflict_check_result
             
@@ -402,7 +369,7 @@ class FileCore:
                 sync_result["sync_time"] = base_time
             
             # 7. 静默验证文件同步状态
-            self._verify_files_available(file_moves)
+            self.main_instance.file_utils.verify_files_available(file_moves)
             
             # 8. 静默生成远端命令
             debug_print(f"Before generate_commands - file_moves={file_moves}")
@@ -472,7 +439,7 @@ class FileCore:
             
             # 9. 上传和远端命令执行完成后，清理LOCAL_EQUIVALENT中的文件
             if verify_result["success"]:
-                self._cleanup_local_equivalent_files(file_moves)
+                self.cleanup_local_equivalent_files(file_moves)
                 
                 # 添加删除记录到缓存（记录原始文件名和临时文件名的使用）
                 for file_info in file_moves:
@@ -630,7 +597,7 @@ class FileCore:
                         return {"success": False, "error": f"Path not found: {converted_path}"}
             
             if recursive:
-                return self._ls_recursive(target_folder_id, display_path, detailed, show_hidden)
+                return self.ls_recursive(target_folder_id, display_path, detailed, show_hidden)
             else:
                 # 内联_ls_single的逻辑
                 result = self.drive_service.list_files(folder_id=target_folder_id, max_results=None)
@@ -640,7 +607,7 @@ class FileCore:
                     
                     # 添加网页链接到每个文件
                     for file in files:
-                        file['url'] = self._generate_web_url(file)
+                        file['url'] = self.generate_web_url(file)
                     
                     # 按名称排序，文件夹优先
                     folders = sorted([f for f in files if f['mimeType'] == 'application/vnd.google-apps.folder'], 
@@ -695,7 +662,7 @@ class FileCore:
 
             return {"success": False, "error": f"执行ls命令时出错: {e}"}
 
-    def _ls_recursive(self, root_folder_id, root_path, detailed, show_hidden=False, max_depth=5):
+    def ls_recursive(self, root_folder_id, root_path, detailed, show_hidden=False, max_depth=5):
         """递归列出目录内容"""
         try:
             all_items = []
@@ -720,7 +687,7 @@ class FileCore:
                 
                 # 添加网页链接
                 for file in files:
-                    file['url'] = self._generate_web_url(file)
+                    file['url'] = self.generate_web_url(file)
                     file['path'] = folder_path
                     file['depth'] = depth
                     all_items.append(file)
@@ -744,7 +711,7 @@ class FileCore:
             
             if detailed:
                 # 详细模式：返回嵌套的树形结构
-                nested_structure = self._build_nested_structure(all_items, root_path)
+                nested_structure = self.build_nested_structure(all_items, root_path)
                 
                 return {
                     "success": True,
@@ -772,7 +739,7 @@ class FileCore:
         except Exception as e:
             return {"success": False, "error": f"递归列出目录时出错: {e}"}
 
-    def _build_nested_structure(self, all_items, root_path):
+    def build_nested_structure(self, all_items, root_path):
         """构建嵌套的文件夹结构，每个文件夹包含自己的files和folders"""
         try:
             # 按路径分组所有项目
@@ -815,46 +782,11 @@ class FileCore:
         except Exception as e:
             return {'files': [], 'folders': [], 'error': str(e)}
 
-    def _build_folder_tree(self, folders):
-        """构建文件夹树结构，便于显示层次关系"""
-        try:
-            tree = {}
-            
-            for folder in folders:
-                path_parts = folder['path'].split('/')
-                current_level = tree
-                
-                for i, part in enumerate(path_parts):
-                    if part not in current_level:
-                        current_level[part] = {
-                            'folders': {},
-                            'info': None
-                        }
-                    current_level = current_level[part]['folders']
-                
-                # 在最终位置添加当前文件夹信息
-                current_level[folder['name']] = {
-                    'folders': {},
-                    'info': {
-                        'id': folder['id'],
-                        'url': folder['url'],
-                        'name': folder['name'],
-                        'path': folder['path'],
-                        'depth': folder['depth']
-                    }
-                }
-            
-            return tree
-            
-        except Exception as e:
-            print(f"构建文件夹树时出错: {e}")
-            return {}
-
     def _generate_folder_url(self, folder_id):
         """生成文件夹的网页链接"""
         return f"https://drive.google.com/drive/folders/{folder_id}"
 
-    def _generate_web_url(self, file):
+    def generate_web_url(self, file):
         """为文件生成网页链接"""
         file_id = file['id']
         mime_type = file['mimeType']
@@ -900,7 +832,6 @@ class FileCore:
             
             if not ls_result.get('success'):
                 # 添加调试信息，显示路径计算过程
-                debug_info = f"Path resolution: '{path}' -> '{absolute_path}'"
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
             
             # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
@@ -1057,38 +988,6 @@ class FileCore:
         except Exception as e:
             return {"success": False, "error": f"Execute mkdir command failed: {e}"}
 
-
-
-
-
-    def _generate_folder_url(self, folder_id):
-        """生成文件夹的网页链接"""
-        return f"https://drive.google.com/drive/folders/{folder_id}"
-
-    def _generate_web_url(self, file):
-        """为文件生成网页链接"""
-        file_id = file['id']
-        mime_type = file['mimeType']
-        
-        if mime_type == 'application/vnd.google.colaboratory':
-            # Colab文件
-            return f"https://colab.research.google.com/drive/{file_id}"
-        elif mime_type == 'application/vnd.google-apps.document':
-            # Google文档
-            return f"https://docs.google.com/document/d/{file_id}/edit"
-        elif mime_type == 'application/vnd.google-apps.spreadsheet':
-            # Google表格
-            return f"https://docs.google.com/spreadsheets/d/{file_id}/edit"
-        elif mime_type == 'application/vnd.google-apps.presentation':
-            # Google幻灯片
-            return f"https://docs.google.com/presentation/d/{file_id}/edit"
-        elif mime_type == 'application/vnd.google-apps.folder':
-            # 文件夹
-            return f"https://drive.google.com/drive/folders/{file_id}"
-        else:
-            # 其他文件（预览或下载）
-            return f"https://drive.google.com/file/d/{file_id}/view"
-
     def cmd_touch(self, filename):
         """创建空文件，通过远程命令界面执行"""
         try:
@@ -1102,21 +1001,8 @@ class FileCore:
             if not filename:
                 return {"success": False, "error": "Please specify the file name to create"}
             
-            # 解析绝对路径
-            current_path = current_shell.get("current_path", "~")
-            if filename.startswith("/"):
-                # 绝对路径（以/开头）
-                absolute_path = filename
-            elif filename.startswith("~"):
-                # 以~开头的路径，直接替换~
-                absolute_path = filename.replace("~", "/content/drive/MyDrive/REMOTE_ROOT", 1)
-            else:
-                # 相对路径
-                if current_path == "~":
-                    current_path = "/content/drive/MyDrive/REMOTE_ROOT"
-                else:
-                    current_path = current_path.replace("~", "/content/drive/MyDrive/REMOTE_ROOT", 1)
-                absolute_path = f"{current_path}/{filename}"
+            # 使用统一的路径解析接口
+            absolute_path = self.main_instance.path_resolver.resolve_remote_absolute_path(filename, current_shell)
             
             # 生成远端touch命令（创建空文件）
             remote_command = f'touch "{absolute_path}"'
@@ -1207,7 +1093,7 @@ class FileCore:
             
             # 为了避免删除当前工作目录导致的问题，先切换到安全目录
             # 构建安全的复合命令：先cd到根目录，然后执行rm
-            safe_command = f'cd "/content/drive/MyDrive/REMOTE_ROOT" && {remote_command}'
+            safe_command = f'cd "{self.main_instance.REMOTE_ROOT}" && {remote_command}'
             
             # 执行远程命令
             result = self.main_instance.execute_command_interface("bash", ["-c", safe_command])
@@ -1507,7 +1393,7 @@ class FileCore:
             for i, file in enumerate(files):
                 file_name = file.get('name', 'UNKNOWN')
                 if file_name == filename:
-                    file['url'] = self._generate_web_url(file)
+                    file['url'] = self.generate_web_url(file)
                     return file
             
             return None
@@ -1536,7 +1422,7 @@ class FileCore:
             hash_suffix = hashlib.md5(f"{remote_absolute_path}_{timestamp}".encode()).hexdigest()[:8]
             zip_filename = f"gds_download_{dir_name}_{timestamp}_{hash_suffix}.zip"
             # 使用绝对路径而不是~路径，避免shell展开问题
-            remote_zip_path = f"/content/drive/MyDrive/REMOTE_ROOT/tmp/{zip_filename}"
+            remote_zip_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{zip_filename}"
             
             print(f"正在压缩目录 {dir_name} 到 {remote_zip_path}...")
             

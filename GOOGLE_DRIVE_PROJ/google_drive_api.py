@@ -5,12 +5,9 @@ Google Drive API Service
 """
 
 import os
-import json
-from pathlib import Path
-from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from googleapiclient.http import MediaIoBaseDownload
 import io
 
 class GoogleDriveService:
@@ -180,118 +177,7 @@ class GoogleDriveService:
                 "error": f"列出文件失败: {e}"
             }
     
-    def _resolve_absolute_path_to_folder_id(self, absolute_path, remote_root_folder_id):
-        """
-        将绝对路径解析为Google Drive文件夹ID
-        
-        Args:
-            absolute_path (str): 绝对路径
-            remote_root_folder_id (str): 远程根目录ID
-            
-        Returns:
-            tuple: (folder_id, resolved_path) 或 (None, None)
-        """
-        try:
-            # 检查缓存
-            cache_key = f"{remote_root_folder_id}:{absolute_path}"
-            if cache_key in self._path_cache:
-                return self._path_cache[cache_key]
-            
-            # 处理根目录
-            if absolute_path == "~":
-                result = (remote_root_folder_id, "~")
-                self._cache_result(cache_key, result)
-                return result
-            
-            # 处理以~/开头的路径
-            if not absolute_path.startswith("~/"):
-                result = (None, None)
-                self._cache_result(cache_key, result)
-                return result
-            
-            # 移除~/前缀
-            relative_path = absolute_path[2:]
-            if not relative_path:
-                result = (remote_root_folder_id, "~")
-                self._cache_result(cache_key, result)
-                return result
-            
-            # 分割路径
-            path_parts = [part for part in relative_path.split("/") if part]
-            
-            current_folder_id = remote_root_folder_id
-            current_path = "~"
-            
-            # 逐级解析路径
-            for part in path_parts:
-                # 处理特殊路径组件
-                if part == "..":
-                    # 父目录 - 需要通过API查找父目录
-                    parent_id = self._get_parent_folder_id(current_folder_id)
-                    if not parent_id:
-                        return None, None  # 没有父目录
-                    current_folder_id = parent_id
-                    # 更新逻辑路径
-                    if current_path == "~":
-                        return None, None  # 根目录没有父目录
-                    else:
-                        # 移除路径的最后一部分
-                        path_parts_current = current_path.split("/")
-                        if len(path_parts_current) > 1:
-                            current_path = "/".join(path_parts_current[:-1])
-                        else:
-                            current_path = "~"
-                elif part == ".":
-                    # 当前目录，跳过
-                    continue
-                else:
-                    # 普通目录名
-                    folder_id = self._find_folder_by_name(current_folder_id, part)
-                    if not folder_id:
-                        return None, None  # 文件夹不存在
-                    current_folder_id = folder_id
-                    # 更新逻辑路径
-                    if current_path == "~":
-                        current_path = f"~/{part}"
-                    else:
-                        current_path = f"{current_path}/{part}"
-            
-            # 缓存成功的结果
-            result = (current_folder_id, current_path)
-            self._cache_result(cache_key, result)
-            return result
-            
-        except Exception as e:
-            # 缓存失败的结果
-            result = (None, None)
-            self._cache_result(cache_key, result)
-            return result
-    
-    def _cache_result(self, cache_key, result):
-        """缓存结果，管理缓存大小"""
-        if len(self._path_cache) >= self._cache_max_size:
-            # 清除最老的一半缓存条目
-            keys_to_remove = list(self._path_cache.keys())[:self._cache_max_size // 2]
-            for key in keys_to_remove:
-                del self._path_cache[key]
-        
-        self._path_cache[cache_key] = result
-    
-    def _get_parent_folder_id(self, folder_id):
-        """获取文件夹的父目录ID"""
-        try:
-            file_metadata = self.service.files().get(
-                fileId=folder_id,
-                fields="parents"
-            ).execute()
-            
-            parents = file_metadata.get('parents', [])
-            return parents[0] if parents else None
-            
-        except Exception:
-            return None
-    
-    def _find_folder_by_name(self, parent_folder_id, folder_name):
+    def find_folder_by_name(self, parent_folder_id, folder_name):
         """在父目录中查找指定名称的文件夹"""
         try:
             query = f"'{parent_folder_id}' in parents and name='{folder_name}' and mimeType='application/vnd.google-apps.folder'"
@@ -362,41 +248,6 @@ class GoogleDriveService:
             return {
                 "success": False,
                 "error": f"Failed to delete file: {e}"
-            }
-    
-    def share_file(self, file_id, email_address, role='reader'):
-        """
-        分享文件给指定邮箱
-        
-        Args:
-            file_id (str): 文件ID
-            email_address (str): 邮箱地址
-            role (str): 权限角色 (reader, writer, owner)
-            
-        Returns:
-            dict: 分享结果
-        """
-        try:
-            permission = {
-                'type': 'user',
-                'role': role,
-                'emailAddress': email_address
-            }
-            
-            self.service.permissions().create(
-                fileId=file_id,
-                body=permission,
-                sendNotificationEmail=True
-            ).execute()
-            
-            return {
-                "success": True,
-                "message": f"File shared with {email_address}"
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to share file: {e}"
             }
 
 # 测试函数

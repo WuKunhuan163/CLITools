@@ -120,16 +120,6 @@ class PathConstants:
         """
         self._default_paths[path_name] = path_value
     
-    def set_folder_id(self, folder_name: str, folder_id: str):
-        """
-        设置文件夹ID常量
-        
-        Args:
-            folder_name: 文件夹名称
-            folder_id: 文件夹ID
-        """
-        self._default_folder_ids[folder_name] = folder_id
-    
     def save_configuration(self):
         """保存当前配置到文件"""
         try:
@@ -157,16 +147,6 @@ class PathConstants:
     def get_all_folder_ids(self) -> Dict[str, Optional[str]]:
         """获取所有文件夹ID常量"""
         return self._default_folder_ids.copy()
-    
-    def update_dynamic_paths(self, mount_point: str):
-        """
-        更新动态挂载路径
-        
-        Args:
-            mount_point: 挂载点路径
-        """
-        self.set_path("REMOTE_ROOT", f"{mount_point}/MyDrive/REMOTE_ROOT")
-        self.set_path("REMOTE_ENV", f"{mount_point}/MyDrive/REMOTE_ENV")
     
     def detect_environment(self) -> str:
         """
