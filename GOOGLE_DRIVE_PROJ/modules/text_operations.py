@@ -94,38 +94,29 @@ class TextOperations:
     def cmd_cat(self, filename):
         """cat命令 - 显示文件内容"""
         try:
-            # print(f"DEBUG: cmd_cat called for filename: {filename}")
             if not self.drive_service:
-                # print(f"DEBUG: Drive service not initialized")
                 return {"success": False, "error": "Google Drive API service not initialized"}
                 
             current_shell = self.main_instance.get_current_shell()
             if not current_shell:
-                # print(f"DEBUG: No active shell")
                 return {"success": False, "error": "No active remote shell, please create or switch to a shell"}
             
             if not filename:
-                # print(f"DEBUG: No filename provided")
                 return {"success": False, "error": "Please specify the file to view"}
             
             # 查找文件
-            # print(f"DEBUG: Looking for file: {filename}")
             file_info = self._find_file(filename, current_shell)
-            # print(f"DEBUG: File info: {file_info}")
             if not file_info:
                 # 将本地路径转换为远程路径格式以便在错误消息中正确显示
                 converted_filename = self.main_instance.path_resolver._convert_local_path_to_remote(filename)
-                # print(f"DEBUG: File not found, converted path: {converted_filename}")
                 return {"success": False, "error": f"File or directory does not exist: {converted_filename}"}
             
             # 检查是否为文件
             if file_info['mimeType'] == 'application/vnd.google-apps.folder':
-                # print(f"DEBUG: Target is a directory")
                 return {"success": False, "error": f"cat: {filename}: Is a directory"}
             
             # 下载并读取文件内容
             try:
-                # print(f"DEBUG: Downloading file content...")
                 import io
                 from googleapiclient.http import MediaIoBaseDownload
                 
@@ -138,15 +129,12 @@ class TextOperations:
                     status, done = downloader.next_chunk()
                 
                 content = fh.getvalue().decode('utf-8', errors='replace')
-                # print(f"DEBUG: File content downloaded, length: {len(content)} chars")
                 return {"success": True, "output": content, "filename": filename}
                 
             except Exception as e:
-                # print(f"DEBUG: Error downloading file: {e}")
                 return {"success": False, "error": f"无法读取文件内容: {e}"}
                 
         except Exception as e:
-            # print(f"DEBUG: Exception in cmd_cat: {e}")
             return {"success": False, "error": f"执行cat命令时出错: {e}"}
 
     def cmd_grep(self, pattern, *filenames):
@@ -608,8 +596,12 @@ class TextOperations:
             import hashlib
             import time
             
-            # 创建临时目录
-            temp_base_dir = os.path.join(os.path.expanduser("~"), ".local", "bin", "GOOGLE_DRIVE_DATA", "tmp")
+            # 创建临时目录 - 使用统一路径常量
+            try:
+                from .path_constants import get_data_dir
+                temp_base_dir = str(get_data_dir() / "tmp")
+            except ImportError:
+                temp_base_dir = os.path.join(os.path.expanduser("~"), ".local", "bin", "GOOGLE_DRIVE_DATA", "tmp")
             os.makedirs(temp_base_dir, exist_ok=True)
             
             # 生成带时间戳的哈希文件名
@@ -1108,27 +1100,21 @@ if __name__ == "__main__":
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
                 temp_script.write(edit_script)
                 temp_script_path = temp_script.name
-            # print(f"Debug: Created temp script at - {temp_script_path}")
             
             try:
                 # 2. 上传脚本到远端
-                # print(f"Debug: Uploading script to remote...")
                 upload_result = self.cmd_upload([temp_script_path], force=True)
-                # print(f"Debug: Upload result - {upload_result}")
                 if not upload_result.get("success"):
                     return {"success": False, "error": f"Failed to upload edit script: {upload_result.get('error')}"}
                 
                 # 3. 执行脚本
                 script_name = os.path.basename(temp_script_path)
                 command = f"python3 {script_name}"
-                print(f"Debug: Executing remote command - {command}")
                 execute_result = self.main_instance.remote_commands.execute_command(command)
-                print(f"Debug: Execute result - {execute_result}")
                 
                 if execute_result.get("success"):
                     # 4. 解析脚本输出
                     output = execute_result.get("output", "")
-                    print(f"Debug: Script output - '{output}'")
                     try:
                         result = json.loads(output)
                         
@@ -1146,10 +1132,8 @@ if __name__ == "__main__":
                         return result
                         
                     except json.JSONDecodeError as e:
-                        print(f"Debug: JSON decode error - {e}")
                         return {"success": False, "error": f"Invalid script output: {output}"}
                 else:
-                    print(f"Debug: Script execution failed")
                     return {"success": False, "error": f"Script execution failed: {execute_result.get('error')}"}
                     
             finally:

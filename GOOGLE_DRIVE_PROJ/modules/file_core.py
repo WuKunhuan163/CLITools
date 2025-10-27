@@ -206,7 +206,6 @@ class FileCore:
                     try:
                         if Path(zip_path).exists():
                             Path(zip_path).unlink()
-                            # print(f"Cleaned up local temporary file: {zip_filename}")
                     except Exception as e:
                         print(f"Warning: Failed to clean up temporary file: {e}")
                 else:
@@ -217,7 +216,6 @@ class FileCore:
             try:
                 if 'zip_path' in locals() and Path(zip_path).exists():
                     Path(zip_path).unlink()
-                    # print(f"Cleaned up local temporary file: {zip_path}")
             except:
                 pass
             return {"success": False, "error": f"Folder upload process failed: {e}"}
@@ -320,20 +318,10 @@ class FileCore:
                 print(f"Warning: Google Drive API service not initialized, using mock mode")
             
             # 3.5. 检查目标文件是否已存在，避免冲突（除非使用--force）
-            overridden_files = []
             if not force:
-                # 检查远程文件是否已存在
                 conflict_check_result = self._check_remote_file_conflicts(source_files, target_path)
                 if not conflict_check_result["success"]:
                     return conflict_check_result
-            else:
-                # Force模式：检查哪些文件会被覆盖，记录警告
-                override_check_result = self.main_instance.file_utils._check_files_to_override(source_files, target_path)
-                if override_check_result["success"] and override_check_result.get("overridden_files"):
-                    overridden_files = override_check_result["overridden_files"]
-                    for file_path in overridden_files:
-                        # print(f"Warning: Overriding remote file {file_path}")
-                        pass
             
             # 4. 检查是否有文件夹，提示正确语法
             for source_file in source_files:
@@ -974,7 +962,6 @@ class FileCore:
                 traceback.print_exc()
                 raise
             
-            # 处理新的返回结构：result.data 包含实际的命令执行结果
             if execution_result.get("success"):
                 data = execution_result.get("data", {})
                 exit_code = data.get("exit_code", execution_result.get("exit_code", -1))
@@ -1005,23 +992,28 @@ class FileCore:
                         "remote_command": remote_command
                     }
             else:
-                import traceback
-                error_msg = execution_result.get('error', 'Unknown error')
+                # 使用增强的错误处理系统来处理执行失败
+                error_msg = execution_result.get('error', 'Command execution failed')
                 print(f"mkdir command execution failed: {error_msg}")
-                if error_msg == 'Unknown error':
-                    print("Suggestion: Please try again. This may be a temporary issue.")
-                print("\nCall stack (most recent call last):")
-                stack_lines = traceback.format_stack() # Full stack trace
-                for i, line in enumerate(stack_lines, 1):
-                    clean_line = line.strip().replace('\n', ' ')
-                    print(f"{i:2d}. {clean_line}")
-                    if i < len(stack_lines):  
-                        print()
+                
+                # 如果有详细的错误信息，显示它
+                if 'debug_info' in execution_result:
+                    print("Detailed error information available in debug_info")
+                else:
+                    # 显示基本的调用栈信息
+                    import traceback
+                    print("\nCall stack (most recent call last):")
+                    stack_lines = traceback.format_stack()
+                    # 只显示最后几个相关的调用
+                    for line in stack_lines[-3:]:
+                        clean_line = line.strip().replace('\n', ' ')
+                        print(f"  {clean_line}")
                 
                 return {
                     "success": False,
                     "error": f"mkdir command execution failed: {error_msg}",
-                    "remote_command": remote_command
+                    "remote_command": remote_command,
+                    "debug_info": execution_result.get('debug_info')
                 }
                 
         except Exception as e:

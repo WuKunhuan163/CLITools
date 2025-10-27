@@ -136,9 +136,17 @@ def write_to_json_output(data, command_identifier=None):
         return False
 
 # 全局常量
-HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
-HOME_FOLDER_ID = "root"  # Google Drive中My Drive的文件夹ID
-REMOTE_ROOT_FOLDER_ID = "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f"  # REMOTE_ROOT文件夹ID
+# 使用统一路径常量
+try:
+    from .path_constants import path_constants
+    HOME_URL = path_constants.HOME_URL
+    HOME_FOLDER_ID = path_constants.get_folder_id("HOME_FOLDER_ID")
+    REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
+except ImportError:
+    # 回退到硬编码值
+    HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
+    HOME_FOLDER_ID = "root"
+    REMOTE_ROOT_FOLDER_ID = "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f"
 
 def get_shells_file():
     """获取远程shell配置文件路径 - 与GoogleDriveShell保持一致"""
@@ -570,8 +578,7 @@ def enter_shell_mode(command_identifier=None):
                     
                     # 检测是否从管道读取输入，如果是则回显命令
                     import sys
-                    if not sys.stdin.isatty():
-                        # 从管道读取时，手动显示命令（不包含换行符，因为prompt已经有了）
+                    if not sys.stdin.isatty(): 
                         print(f"{user_input}")
                     
                     # 解析命令
@@ -579,10 +586,8 @@ def enter_shell_mode(command_identifier=None):
                     cmd = parts[0].lower()
                     
                     if cmd == "exit":
-                        # print(f"👋 Exit Google Drive Shell")
                         break
-                    else:
-                        # 使用GoogleDriveShell的execute_shell_command方法处理所有命令
+                    else: 
                         try:
                             import sys
                             import os
@@ -601,10 +606,8 @@ def enter_shell_mode(command_identifier=None):
                             print(f"Enter 'help' to view available commands")
                     
                 except KeyboardInterrupt:
-                    print(f"\n👋 Exited Google Drive Shell")
                     break
                 except EOFError:
-                    print(f"\n👋 Exited Google Drive Shell")
                     break
             
             return 0

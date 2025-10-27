@@ -150,12 +150,10 @@ class MinerUWrapper:
             if "Exception:" in result.stdout or "Error:" in result.stdout or "Traceback" in result.stdout:
                 # Check for specific tokenizer errors
                 if "tokenizer" in result.stdout.lower() or "unimernet" in result.stdout.lower():
-                    # print(f" Warning: UnimerNet tokenizer failed - trying without formula recognition", file=sys.stderr)  # Silenced per user request
-                    
+
                     # Try again without formula recognition
                     retry_result = self._retry_without_formulas(pdf_path, page_range, debug)
-                    if retry_result:
-                        # print(f"Successfully processed without formula recognition", file=sys.stderr)  # Silenced per user request
+                    if retry_result: 
                         return retry_result
                     
                     # If retry also fails, create basic output
@@ -207,9 +205,6 @@ class MinerUWrapper:
             print(f"MinerU: Unexpected error: {e}", file=sys.stderr)
             return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
         finally:
-            # Keep temporary directory for debugging (comment out cleanup)
-            # if self.temp_dir and os.path.exists(self.temp_dir):
-            #     shutil.rmtree(self.temp_dir)
             pass
     
     def _parse_page_range(self, page_range: str) -> tuple[Optional[int], Optional[int]]:
@@ -572,8 +567,7 @@ class MinerUWrapper:
                 if should_copy:
                     target_file = data_folder / target_name
                     try:
-                        shutil.copy2(source_file, target_file)
-                        # print(f"Copied {file} -> {target_name}", file=sys.stderr)  # Silenced per user request
+                        shutil.copy2(source_file, target_file)# Silenced per user request
                     except Exception as e:
                         print(f"Warning:  Warning: Could not copy {file}: {e}", file=sys.stderr)
         
@@ -588,10 +582,8 @@ class MinerUWrapper:
                     if target_images_dir.exists():
                         shutil.rmtree(target_images_dir)
                     shutil.copytree(source_images_dir, target_images_dir)
-                    # print(f"Copied images folder to {target_images_dir}", file=sys.stderr)  # Silenced per user request
                     break  # Only copy the first images folder found
         
-        # print(f"Created intermediate data folder: {data_folder}", file=sys.stderr)  # Silenced per user request
     
     def _retry_without_formulas(self, pdf_path: str, page_range: Optional[str], debug: bool) -> Optional[str]:
         """
@@ -606,8 +598,6 @@ class MinerUWrapper:
             Path to output file if successful, None otherwise
         """
         try:
-            # print(f"Retrying MinerU without formula recognition...", file=sys.stderr)  # Silenced per user request
-            
             # Create new temporary directory for retry
             retry_temp_dir = tempfile.mkdtemp(prefix="mineru_retry_")
             

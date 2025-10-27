@@ -43,9 +43,7 @@ class Verification:
         try:
             # 定义验证函数
             def validate():
-                # print(f"DEBUG: 验证文件创建 - 路径: {path}")
                 ls_result = self.main_instance.cmd_ls(path, detailed=False, recursive=False)
-                # print(f"DEBUG: ls结果: success={ls_result.get('success')}, error={ls_result.get('error', 'None')}")
                 return ls_result["success"]
             
             # 使用统一的验证接口

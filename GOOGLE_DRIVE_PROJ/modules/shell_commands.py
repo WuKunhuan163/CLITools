@@ -79,9 +79,17 @@ def write_to_json_output(data, command_identifier=None):
         return False
 
 # 全局常量
-HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
-HOME_FOLDER_ID = "root"  # Google Drive中My Drive的文件夹ID
-REMOTE_ROOT_FOLDER_ID = "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f"  # REMOTE_ROOT文件夹ID
+# 使用统一路径常量
+try:
+    from .path_constants import path_constants
+    HOME_URL = path_constants.HOME_URL
+    HOME_FOLDER_ID = path_constants.get_folder_id("HOME_FOLDER_ID")
+    REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
+except ImportError:
+    # 回退到硬编码值
+    HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
+    HOME_FOLDER_ID = "root"
+    REMOTE_ROOT_FOLDER_ID = "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f"
 
 
 
@@ -572,13 +580,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
             else:
                 print(error_msg)
             return 1
-        
-        # 添加调试日志（已禁用）
-        # if not is_run_environment(command_identifier):
-        #     print(f"DEBUG: Executing pipe command as remote command: {shell_cmd}")
-        #     print(f"DEBUG: Pipe parts detected: {pipe_parts}")
-        #     print(f"DEBUG: Number of pipe parts: {len(pipe_parts)}")
-        
+
         # 修复：直接将整个pipe命令作为远程命令执行，而不是本地模拟
         # 这样可以确保pipe操作在远程shell中正确执行
         try:
@@ -609,12 +611,6 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
                     stderr = result.get("stderr", "")
                     exit_code = result.get("exit_code", 0)
                 
-                # 调试输出（已禁用）
-                # if not is_run_environment(command_identifier):
-                #     print(f"DEBUG: stdout length: {len(stdout)}, stderr length: {len(stderr)}, exit_code: {exit_code}")
-                #     if stdout:
-                #         print(f"DEBUG: stdout content: {repr(stdout[:200])}")
-                
                 if stdout:
                     if not is_run_environment(command_identifier):
                         print(stdout, end="")
@@ -634,10 +630,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
                         print(stderr, end="", file=sys.stderr)
                         
                 return exit_code
-            else:
-                # 非字典结果（已禁用调试）
-                # if not is_run_environment(command_identifier):
-                #     print(f"DEBUG: Non-dict result: {result}")
+            else: 
                 return result if isinstance(result, int) else 0
                 
         except Exception as e:
@@ -912,15 +905,8 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                 should_execute = (last_result != 0)
             
             if should_execute:
-                if not is_run_environment(command_identifier):
-                    pass
-                    # print(f"- Executing command {i+1}/{len(commands_with_operators)}: {cmd}")
-                
-                # 直接执行单个命令，避免递归调用
                 try:
                     result = shell.execute_shell_command(cmd, command_identifier)
-                    
-                    # 处理返回结果
                     if isinstance(result, dict):
                         if result.get("success", True):
                             last_result = 0
@@ -929,8 +915,8 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                     elif isinstance(result, int):
                         last_result = result
                     else:
-                        # 默认认为成功
-                        last_result = 0
+                        # 默认认为失败
+                        last_result = 1
                         
                 except Exception as e:
                     if not is_run_environment(command_identifier):

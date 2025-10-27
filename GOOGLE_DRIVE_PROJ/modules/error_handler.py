@@ -24,9 +24,15 @@ class EnhancedErrorHandler:
     def _setup_error_logging(self):
         """设置错误日志"""
         try:
-            log_dir = Path.home() / ".local/bin/GOOGLE_DRIVE_DATA"
-            log_dir.mkdir(parents=True, exist_ok=True)
-            self.error_log_file = log_dir / "error_log.txt"
+            # 使用统一路径常量
+            try:
+                from .path_constants import get_data_dir
+                log_dir = get_data_dir()
+                self.error_log_file = log_dir / "error_log.txt"
+            except ImportError:
+                log_dir = Path.home() / ".local/bin/GOOGLE_DRIVE_DATA"
+                log_dir.mkdir(parents=True, exist_ok=True)
+                self.error_log_file = log_dir / "error_log.txt"
         except Exception:
             # 如果无法创建日志文件，使用None
             self.error_log_file = None
@@ -144,11 +150,40 @@ class EnhancedErrorHandler:
             return {"error": f"Failed to find root cause: {e}"}
     
     def _analyze_stack_frames(self, tb) -> List[Dict[str, Any]]:
-        """分析所有栈帧"""
+        """分析所有栈帧，包括完整的调用栈"""
         try:
             frames = []
-            current_tb = tb
             
+            # 首先获取完整的调用栈（从当前位置到顶层）
+            import inspect
+            current_stack = inspect.stack()
+            
+            # 过滤掉错误处理相关的栈帧，只保留用户代码的调用栈
+            filtered_stack = []
+            for frame_info in current_stack:
+                filename = frame_info.filename
+                function_name = frame_info.function
+                
+                # 跳过错误处理系统本身的栈帧
+                if (function_name in ['capture_exception', '_analyze_stack_frames', '_print_debug_info', 
+                                    'capture_and_report_error'] or 
+                    'error_handler.py' in filename):
+                    continue
+                
+                filtered_stack.append({
+                    "filename": os.path.basename(filename),
+                    "full_path": filename,
+                    "function": function_name,
+                    "line_number": frame_info.lineno,
+                    "is_user_code": self._is_user_code(filename),
+                    "source": "current_stack"
+                })
+            
+            # 反转栈帧顺序，使其从顶层到底层
+            filtered_stack.reverse()
+            
+            # 然后添加异常traceback中的栈帧
+            current_tb = tb
             while current_tb is not None:
                 frame = current_tb.tb_frame
                 frame_info = {
@@ -156,7 +191,8 @@ class EnhancedErrorHandler:
                     "full_path": frame.f_code.co_filename,
                     "function": frame.f_code.co_name,
                     "line_number": current_tb.tb_lineno,
-                    "is_user_code": self._is_user_code(frame.f_code.co_filename)
+                    "is_user_code": self._is_user_code(frame.f_code.co_filename),
+                    "source": "exception_traceback"
                 }
                 
                 # 只为用户代码添加详细信息
@@ -169,10 +205,37 @@ class EnhancedErrorHandler:
                 frames.append(frame_info)
                 current_tb = current_tb.tb_next
             
-            return frames
+            # 合并调用栈和异常traceback，去重
+            all_frames = filtered_stack + frames
+            
+            # 去重：如果同一个函数在同一行出现多次，只保留一个
+            unique_frames = []
+            seen = set()
+            for frame in all_frames:
+                key = (frame["full_path"], frame["line_number"], frame["function"])
+                if key not in seen:
+                    seen.add(key)
+                    unique_frames.append(frame)
+            
+            return unique_frames
             
         except Exception as e:
-            return [{"error": f"Failed to analyze stack frames: {e}"}]
+            # 如果获取完整栈失败，回退到只分析traceback
+            frames = []
+            current_tb = tb
+            while current_tb is not None:
+                frame = current_tb.tb_frame
+                frame_info = {
+                    "filename": os.path.basename(frame.f_code.co_filename),
+                    "full_path": frame.f_code.co_filename,
+                    "function": frame.f_code.co_name,
+                    "line_number": current_tb.tb_lineno,
+                    "is_user_code": self._is_user_code(frame.f_code.co_filename)
+                }
+                frames.append(frame_info)
+                current_tb = current_tb.tb_next
+            
+            return frames
     
     def _safe_get_locals(self, frame) -> Dict[str, str]:
         """安全地获取局部变量"""
@@ -234,9 +297,26 @@ class EnhancedErrorHandler:
                 "GOOGLE_DRIVE_PROJ",
                 "GOOGLE_DRIVE_DATA", 
                 "_UNITTEST",
-                "/.local/bin/"
+                "/.local/bin/",
+                "GOOGLE_DRIVE.py"  # 包含顶层入口文件
             ]
             
+            # 排除系统库和Python标准库
+            system_excludes = [
+                "/usr/lib/python",
+                "/usr/local/lib/python",
+                "site-packages",
+                "<frozen",
+                "<built-in",
+                "threading.py",
+                "subprocess.py"
+            ]
+            
+            # 如果是系统代码，返回False
+            if any(exclude in filename for exclude in system_excludes):
+                return False
+            
+            # 如果是项目代码，返回True
             return any(indicator in filename for indicator in project_indicators)
             
         except Exception:
@@ -266,8 +346,8 @@ class EnhancedErrorHandler:
     def _print_debug_info(self, error_info: Dict[str, Any]):
         """打印调试信息"""
         try:
-            print(f"\n❌ Enhanced Error Report - {error_info['context']}")
-            print(f"Exception: {error_info['exception_type']}: {error_info['exception_message']}")
+            print(f"\nError Report - {error_info['context']}")
+            print(f"{error_info['exception_type']}: {error_info['exception_message']}")
             
             if "root_cause" in error_info and "location" in error_info["root_cause"]:
                 root = error_info["root_cause"]
@@ -279,8 +359,29 @@ class EnhancedErrorHandler:
                         marker = ">>> " if line_info["is_error_line"] else "    "
                         print(f"{marker}{line_num}: {line_info['code']}")
             
-            # 显示用户代码的栈帧
-            user_frames = [f for f in error_info.get("stack_frames", []) if f.get("is_user_code")]
+            # 显示完整的调用栈
+            all_frames = error_info.get("stack_frames", [])
+            if all_frames:
+                print("\nComplete Call Stack:")
+                for i, frame in enumerate(all_frames, 1):
+                    # 标记用户代码和系统代码
+                    code_type = "USER" if frame.get("is_user_code") else "SYS"
+                    print(f"  {i:2d}. [{code_type}] {frame['filename']}:{frame['line_number']} in {frame['function']}()")
+                    
+                    # 如果是用户代码且有代码上下文，显示关键行
+                    if frame.get("is_user_code") and "code_context" in frame:
+                        context = frame["code_context"]
+                        if isinstance(context, dict):
+                            # 只显示错误行
+                            for line_num, line_info in context.items():
+                                if line_info.get("is_error_line"):
+                                    code_line = line_info["code"].strip()
+                                    if code_line:  # 只显示非空行
+                                        print(f"      >>> {code_line}")
+                                    break
+            
+            # 额外显示简化的用户代码栈（向后兼容）
+            user_frames = [f for f in all_frames if f.get("is_user_code")]
             if user_frames:
                 print("\nUser Code Stack:")
                 for frame in user_frames:
