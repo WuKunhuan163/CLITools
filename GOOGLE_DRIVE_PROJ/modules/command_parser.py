@@ -6,8 +6,7 @@
 避免将引号内的操作符误认为命令分隔符。
 """
 
-import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any
 
 
 class CommandSplitter:

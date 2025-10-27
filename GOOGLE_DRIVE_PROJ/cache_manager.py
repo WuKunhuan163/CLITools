@@ -4,13 +4,12 @@ Google Drive 文件缓存管理系统
 管理远端文件的本地缓存，使用cache_config.json统一管理
 """
 
-import os
 import json
 import hashlib
 import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List
 
 class GDSCacheManager:
     """Google Drive Shell 缓存管理器"""

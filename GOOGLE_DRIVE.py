@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Drive Main Management (Refactored with Delegation Pattern)
-Google Drive主管理系统 - 使用委托模式重构版本
-模仿google_drive_shell.py的委托模式架构
+Google Drive主管理系统
 """
 
 import os
@@ -74,168 +72,29 @@ class GoogleDriveMain:
         self.shell_commands = ShellCommands(None, self)
         self.hf_credentials_manager = HfCredentialsManager(None, self)
     
-    # 委托方法 - Core Utils
-    def get_multiline_input_safe(self, *args, **kwargs):
-        """委托到core_utils管理器"""
-        return self.core_utils.get_multiline_input_safe(*args, **kwargs)
-    
-    def is_run_environment(self, *args, **kwargs):
-        """委托到core_utils管理器"""
-        return self.core_utils.is_run_environment(*args, **kwargs)
-    
-    def write_to_json_output(self, *args, **kwargs):
-        """委托到core_utils管理器"""
-        return self.core_utils.write_to_json_output(*args, **kwargs)
-    
-    def copy_to_clipboard(self, *args, **kwargs):
-        """委托到core_utils管理器"""
-        return self.core_utils.copy_to_clipboard(*args, **kwargs)
-    
-    def show_help(self, *args, **kwargs):
-        """委托到core_utils管理器"""
-        return self.core_utils.show_help(*args, **kwargs)
-    
-    def main(self, *args, **kwargs):
-        """委托到core_utils管理器"""
-        try:
-            return self.core_utils.main(*args, **kwargs)
-        except Exception as e:
-            # 使用增强的错误处理系统
-            try:
-                sys.path.insert(0, str(google_drive_proj_dir))
-                from modules.error_handler import capture_and_report_error
-                error_info = capture_and_report_error("GoogleDriveMain.main execution", e)
-                print(f"Error in main execution: {error_info.get('exception_message', str(e))}")
-                return 1
-            except ImportError:
-                print(f"Error in main execution: {e}")
-                import traceback
-                traceback.print_exc()
-                return 1
-    
-    # 委托方法 - Drive Process Manager
-    def is_google_drive_running(self, *args, **kwargs):
-        """委托到drive_process_manager管理器"""
-        return self.drive_process_manager.is_google_drive_running(*args, **kwargs)
-    
-    def get_google_drive_processes(self, *args, **kwargs):
-        """委托到drive_process_manager管理器"""
-        return self.drive_process_manager.get_google_drive_processes(*args, **kwargs)
-    
-    def shutdown_google_drive(self, *args, **kwargs):
-        """委托到drive_process_manager管理器"""
-        return self.drive_process_manager.shutdown_google_drive(*args, **kwargs)
-    
-    def launch_google_drive(self, *args, **kwargs):
-        """委托到drive_process_manager管理器"""
-        return self.drive_process_manager.launch_google_drive(*args, **kwargs)
-    
-    def restart_google_drive(self, *args, **kwargs):
-        """委托到drive_process_manager管理器"""
-        return self.drive_process_manager.restart_google_drive(*args, **kwargs)
-    
-    # 委托方法 - Sync Config Manager  
-    def get_sync_config_file(self, *args, **kwargs):
-        """委托到sync_config_manager管理器"""
-        return self.sync_config_manager.get_sync_config_file(*args, **kwargs)
-    
-    def load_sync_config(self, *args, **kwargs):
-        """委托到sync_config_manager管理器"""
-        return self.sync_config_manager.load_sync_config(*args, **kwargs)
-    
-    def save_sync_config(self, *args, **kwargs):
-        """委托到sync_config_manager管理器"""
-        return self.sync_config_manager.save_sync_config(*args, **kwargs)
-    
-    def set_local_sync_dir(self, *args, **kwargs):
-        """委托到sync_config_manager管理器"""
-        return self.sync_config_manager.set_local_sync_dir(*args, **kwargs)
-    
-    def set_global_sync_dir(self, *args, **kwargs):
-        """委托到sync_config_manager管理器"""
-        return self.sync_config_manager.set_global_sync_dir(*args, **kwargs)
-    
-    def get_google_drive_status(self, *args, **kwargs):
-        """委托到sync_config_manager管理器"""
-        return self.sync_config_manager.get_google_drive_status(*args, **kwargs)
-    
-    # 委托方法 - Remote Shell Manager
-    def create_shell(self, *args, **kwargs):
-        """委托到remote_shell_manager管理器"""
-        return self.remote_shell_manager.create_shell(*args, **kwargs)
-    
-    def list_shells(self, *args, **kwargs):
-        """委托到remote_shell_manager管理器"""
-        return self.remote_shell_manager.list_shells(*args, **kwargs)
-    
-    def checkout_shell(self, *args, **kwargs):
-        """委托到remote_shell_manager管理器"""
-        return self.remote_shell_manager.checkout_shell(*args, **kwargs)
-    
-    def terminate_shell(self, *args, **kwargs):
-        """委托到remote_shell_manager管理器"""
-        return self.remote_shell_manager.terminate_shell(*args, **kwargs)
-    
-    def enter_shell_mode(self, *args, **kwargs):
-        """委托到remote_shell_manager管理器"""
-        return self.remote_shell_manager.enter_shell_mode(*args, **kwargs)
-    
-    # 委托方法 - Drive API Service
-    def open_google_drive(self, *args, **kwargs):
-        """委托到drive_api_service管理器"""
-        return self.drive_api_service.open_google_drive(*args, **kwargs)
-    
-    def test_api_connection(self, *args, **kwargs):
-        """委托到drive_api_service管理器"""
-        return self.drive_api_service.test_api_connection(*args, **kwargs)
-    
-    def list_drive_files(self, *args, **kwargs):
-        """委托到drive_api_service管理器"""
-        return self.drive_api_service.list_drive_files(*args, **kwargs)
-    
-    def shell_mkdir(self, *args, **kwargs):
-        """委托到shell_commands管理器"""
-        return self.shell_commands.shell_mkdir(*args, **kwargs)
-    
-    def shell_pwd(self, *args, **kwargs):
-        """委托到shell_commands管理器"""
-        return self.shell_commands.shell_pwd(*args, **kwargs)
-    
-    def handle_shell_command(self, *args, **kwargs):
-        """委托到shell_commands管理器"""
-        return self.shell_commands.handle_shell_command(*args, **kwargs)
-    
-    # 委托方法HF Credentials Manager
-    def setup_remote_hf_credentials(self, *args, **kwargs):
-        """委托到hf_credentials_manager管理器"""
-        return self.hf_credentials_manager.setup_remote_hf_credentials(*args, **kwargs)
-    
-    def test_remote_hf_setup(self, *args, **kwargs):
-        """委托到hf_credentials_manager管理器"""
-        return self.hf_credentials_manager.test_remote_hf_setup(*args, **kwargs)
 
 # 创建全局实例
 google_drive_main = GoogleDriveMain()
 
 # 将所有委托方法暴露为模块级函数，保持原有API兼容性
 def get_multiline_input_safe(*args, **kwargs):
-    return google_drive_main.get_multiline_input_safe(*args, **kwargs)
+    return google_drive_main.core_utils.get_multiline_input_safe(*args, **kwargs)
 
 def is_run_environment(*args, **kwargs):
-    return google_drive_main.is_run_environment(*args, **kwargs)
+    return google_drive_main.core_utils.is_run_environment(*args, **kwargs)
 
 def write_to_json_output(*args, **kwargs):
-    return google_drive_main.write_to_json_output(*args, **kwargs)
+    return google_drive_main.core_utils.write_to_json_output(*args, **kwargs)
 
 def copy_to_clipboard(*args, **kwargs):
-    return google_drive_main.copy_to_clipboard(*args, **kwargs)
+    return google_drive_main.core_utils.copy_to_clipboard(*args, **kwargs)
 
 def show_help(*args, **kwargs):
-    return google_drive_main.show_help(*args, **kwargs)
+    return google_drive_main.core_utils.show_help(*args, **kwargs)
 
 def main(*args, **kwargs):
     try:
-        return google_drive_main.main(*args, **kwargs)
+        return google_drive_main.core_utils.main(*args, **kwargs)
     except Exception as e:
         # 在最顶层捕获所有异常并显示完整traceback
         try:
@@ -251,28 +110,28 @@ def main(*args, **kwargs):
             return 1
 
 def is_google_drive_running(*args, **kwargs):
-    return google_drive_main.is_google_drive_running(*args, **kwargs)
+    return google_drive_main.drive_process_manager.is_google_drive_running(*args, **kwargs)
 
 def get_google_drive_processes(*args, **kwargs):
-    return google_drive_main.get_google_drive_processes(*args, **kwargs)
+    return google_drive_main.drive_process_manager.get_google_drive_processes(*args, **kwargs)
 
 def shutdown_google_drive(*args, **kwargs):
-    return google_drive_main.shutdown_google_drive(*args, **kwargs)
+    return google_drive_main.drive_process_manager.shutdown_google_drive(*args, **kwargs)
 
 def launch_google_drive(*args, **kwargs):
-    return google_drive_main.launch_google_drive(*args, **kwargs)
+    return google_drive_main.drive_process_manager.launch_google_drive(*args, **kwargs)
 
 def restart_google_drive(*args, **kwargs):
-    return google_drive_main.restart_google_drive(*args, **kwargs)
+    return google_drive_main.drive_process_manager.restart_google_drive(*args, **kwargs)
 
 def get_google_drive_status(*args, **kwargs):
-    return google_drive_main.get_google_drive_status(*args, **kwargs)
+    return google_drive_main.sync_config_manager.get_google_drive_status(*args, **kwargs)
 
 def open_google_drive(*args, **kwargs):
-    return google_drive_main.open_google_drive(*args, **kwargs)
+    return google_drive_main.drive_api_service.open_google_drive(*args, **kwargs)
 
 def handle_shell_command(*args, **kwargs):
-    return google_drive_main.handle_shell_command(*args, **kwargs)
+    return google_drive_main.shell_commands.handle_shell_command(*args, **kwargs)
 
 # 保持原有的main函数调用结构
 if __name__ == "__main__":
