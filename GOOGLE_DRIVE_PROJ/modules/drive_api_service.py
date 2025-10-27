@@ -1,46 +1,23 @@
 #!/usr/bin/env python3
 """
-Google Drive - Drive Api Service Module
-从GOOGLE_DRIVE.py重构而来的drive_api_service模块
+Google Drive Drive Api Service Module
 """
 
 import os
 import sys
-import json
 import webbrowser
-import hashlib
 import subprocess
-import time
-import uuid
 import warnings
 from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
 load_dotenv()
 
-# 导入Google Drive Shell管理类
-try:
-    # from google_drive_shell import GoogleDriveShell
-    pass
-except ImportError as e:
-    print(f"Error: Import Google Drive Shell failed: {e}")
-    GoogleDriveShell = None
-
-# 导入is_run_environment函数
-try:
-    # is_run_environment现在在remote_commands中，但这里我们直接实现一个简单版本
-    def is_run_environment(command_identifier=None):
-        """Check if running in RUN environment by checking environment variables"""
-        if command_identifier:
-            return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-        return False
-except ImportError:
-    try:
-        from core_utils import is_run_environment
-    except ImportError:
-        def is_run_environment(command_identifier=None):
-            """Fallback is_run_environment function"""
-            return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True' if command_identifier else False
+def is_run_environment(command_identifier=None):
+    """Check if running in RUN environment by checking environment variables"""
+    if command_identifier:
+        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
+    return False
 
 def extract_folder_id_from_url(url):
     """从Google Drive文件夹URL中提取文件夹ID"""
@@ -68,13 +45,8 @@ def extract_folder_id_from_url(url):
 def test_drive_folder_access(folder_id):
     """测试是否可以访问Google Drive文件夹"""
     try:
-        # 临时更新GoogleDriveShell配置以使用新的folder_id
-        shell = GoogleDriveShell()
-        if not shell.drive_service:
-            return False
-        
-        # 直接测试API访问
-        result = shell.drive_service.list_files(folder_id=folder_id, max_results=5)
+        drive_service = GoogleDriveService()
+        result = drive_service.list_files(folder_id=folder_id, max_results=5)
         return result.get('success', False)
         
     except Exception as e:
@@ -224,25 +196,6 @@ def get_folder_path_from_api(folder_id):
         print(f"Error: Error getting folder path: {e}")
         return None
 
-def url_to_logical_path(url):
-    """将Google Drive URL转换为逻辑路径"""
-    try:
-        # 如果是My Drive的URL，直接返回~
-        if "my-drive" in url.lower() or url == HOME_URL:
-            return "~"
-        
-        # 提取文件夹ID
-        folder_id = extract_folder_id_from_url(url)
-        if not folder_id:
-            return None
-        
-        # 使用API获取路径
-        return get_folder_path_from_api(folder_id)
-        
-    except Exception as e:
-        print(f"Error: Error converting URL to path: {e}")
-        return None
-
 def test_api_connection(command_identifier=None):
     """测试Google Drive API连接"""
     try:
@@ -350,121 +303,6 @@ def list_drive_files(command_identifier=None, max_results=10):
             
     except Exception as e:
         error_msg = f"Error: Error listing Drive files: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(error_msg)
-        return 1
-
-def download_file_from_drive(file_id, command_identifier=None):
-    """从Google Drive下载文件"""
-    try:
-        # 导入并使用API服务
-        import sys
-        api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
-        if not api_service_path.exists():
-            error_msg = "Error: API service file not found, please run GOOGLE_DRIVE --console-setup"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
-            return 1
-        
-        # 动态导入API服务
-        sys.path.insert(0, str(api_service_path.parent))
-        from google_drive_api import GoogleDriveService #type: ignore
-        
-        # 创建服务实例
-        drive_service = GoogleDriveService()
-        
-        # 获取文件信息
-        try:
-            file_info = drive_service.service.files().get(fileId=file_id, fields="name").execute()
-            file_name = file_info['name']
-        except:
-            file_name = f"downloaded_file_{file_id}"
-        
-        # 设置下载路径
-        download_path = f"./{file_name}"
-        
-        # 下载文件
-        result = drive_service.download_file(file_id, download_path)
-        
-        if result['success']:
-            success_msg = f"File download successful: {result['local_path']}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({
-                    "success": True,
-                    "message": success_msg,
-                    "local_path": result['local_path'],
-                    "file_id": file_id
-                }, command_identifier)
-            else:
-                print(success_msg)
-                print(f"Local path: {result['local_path']}")
-            return 0
-        else:
-            error_msg = f"Error: File download failed: {result['error']}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
-            return 1
-            
-    except Exception as e:
-        error_msg = f"Error: Error downloading file: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(error_msg)
-        return 1
-
-def delete_drive_file(file_id, command_identifier=None):
-    """删除Google Drive文件"""
-    try:
-        # 导入并使用API服务
-        import sys
-        api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
-        if not api_service_path.exists():
-            error_msg = "Error: API service file not found, please run GOOGLE_DRIVE --console-setup"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
-            return 1
-        
-        # 动态导入API服务
-        sys.path.insert(0, str(api_service_path.parent))
-        from google_drive_api import GoogleDriveService #type: ignore
-        
-        # 创建服务实例
-        drive_service = GoogleDriveService()
-        
-        # 删除文件
-        result = drive_service.delete_file(file_id)
-        
-        if result['success']:
-            success_msg = f"File delete successful"
-            if is_run_environment(command_identifier):
-                write_to_json_output({
-                    "success": True,
-                    "message": success_msg,
-                    "file_id": file_id
-                }, command_identifier)
-            else:
-                print(success_msg)
-                print(f"Deleted file ID: {file_id}")
-            return 0
-        else:
-            error_msg = f"Error: File delete failed: {result['error']}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
-            return 1
-            
-    except Exception as e:
-        error_msg = f"Error: Error deleting file: {e}"
         if is_run_environment(command_identifier):
             write_to_json_output({"success": False, "error": error_msg}, command_identifier)
         else:

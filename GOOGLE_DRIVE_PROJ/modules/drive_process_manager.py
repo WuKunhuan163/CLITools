@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 """
 Google Drive - Drive Process Manager Module
-从GOOGLE_DRIVE.py重构而来的drive_process_manager模块
 """
 
 import os
-import sys
 import json
-import webbrowser
-import hashlib
 import subprocess
 import time
-import uuid
 import warnings
-from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
 load_dotenv()

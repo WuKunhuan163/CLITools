@@ -25,39 +25,25 @@ class Validation:
             dict: 验证结果
         """
         import time
-        from .remote_commands import debug_print
+        from .command_executor import debug_print
         
         try:
             # 启动debug capture以避免验证过程中的输出干扰
-            from .remote_commands import debug_capture
+            from .command_executor import debug_capture
             debug_capture.start_capture()
             
             debug_print(f"Starting ls-based validation for {len(expected_files)} files")
             debug_print(f"target_path='{target_path}', current_path='{current_shell.get('current_path', '~')}'")
             
-            # 构造目标目录的完整逻辑路径
+            # 使用统一的路径解析接口
             current_path = current_shell.get("current_path", "~")
-            if target_path == "." or target_path == "":
-                # 当前目录
+            # 特殊处理：如果target_path看起来像文件名（不是路径），则在当前目录搜索
+            if "/" not in target_path and ("." in target_path or target_path in expected_files):
                 search_path = current_path
-            elif target_path.startswith("~/"):
-                # 绝对路径
-                search_path = target_path
-            elif target_path.startswith("/"):
-                # 系统绝对路径（简化处理）
-                search_path = target_path
+                debug_print(f"target_path '{target_path}' identified as filename, searching in current directory: {search_path}")
             else:
-                # 检查target_path是否是文件名（包含扩展名或不包含路径分隔符）
-                if "/" not in target_path and ("." in target_path or target_path in expected_files):
-                    # 这是一个文件名，应该在当前目录中查找
-                    search_path = current_path
-                    debug_print(f"target_path '{target_path}' identified as filename, searching in current directory: {search_path}")
-                else:
-                    # 相对路径，拼接到当前路径
-                    if current_path == "~":
-                        search_path = f"~/{target_path}"
-                    else:
-                        search_path = f"{current_path}/{target_path}"
+                # 使用compute_absolute_path处理所有路径情况
+                search_path = self.main_instance.path_resolver.compute_absolute_path(current_path, target_path if target_path else ".")
             
             debug_print(f"constructed search_path='{search_path}'")
             
@@ -170,36 +156,3 @@ class Validation:
         else:
             error_msg = f"{operation_name}时出错: {str(e)}"
         return self._create_error_result(error_msg)
-
-    def _format_tkinter_result_message(self, result, default_success_msg="操作成功", default_error_msg="操作失败"):
-        """
-        统一处理tkinter窗口结果的消息格式化
-        
-        Args:
-            result (dict): tkinter窗口返回的结果
-            default_success_msg (str): 默认成功消息
-            default_error_msg (str): 默认错误消息
-            
-        Returns:
-            str: 格式化后的消息
-        """
-        if result.get("success"):
-            return result.get("message", default_success_msg)
-        else:
-            # 处理不同类型的失败
-            if result.get("user_reported_failure"):
-                error_info = result.get("error_info")
-                if error_info and error_info.strip():
-                    return f"执行失败：{error_info}"
-                else:
-                    return "执行失败"
-            elif result.get("cancelled"):
-                return "用户取消操作"
-            elif result.get("window_error"):
-                error_info = result.get("error_info")
-                if error_info and error_info.strip():
-                    return f"窗口显示错误：{error_info}"
-                else:
-                    return "窗口显示错误"
-            else:
-                return result.get("message", result.get("error", default_error_msg))

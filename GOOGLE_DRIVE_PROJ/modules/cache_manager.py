@@ -1,28 +1,14 @@
 #!/usr/bin/env python3
 """
-Google Drive Shell - Cache Manager Module
-从google_drive_shell.py重构而来的cache_manager模块
+Google Drive Shell Cache Manager Module
 """
 
-import os
-import sys
 import json
 import time
-from .remote_commands import debug_print
+from .command_executor import debug_print
 import hashlib
-import warnings
-import subprocess
-import shutil
-import zipfile
-import tempfile
 from pathlib import Path
-import platform
-import psutil
 from typing import Dict
-try:
-    from ..google_drive_api import GoogleDriveService
-except ImportError:
-    from GOOGLE_DRIVE_PROJ.google_drive_api import GoogleDriveService
 
 class CacheManager:
     """Google Drive Shell Cache Manager"""
@@ -30,27 +16,20 @@ class CacheManager:
     def __init__(self, drive_service, main_instance=None):
         """初始化管理器"""
         self.drive_service = drive_service
-        self.main_instance = main_instance  # 引用主实例以访问其他属性
+        self.main_instance = main_instance
 
-    def _get_local_cache_path(self, remote_path):
+    def get_local_cache_path(self, remote_path):
         """获取远程文件对应的本地缓存路径"""
-        try:
-            from cache_manager import GDSCacheManager
-            cache_manager = GDSCacheManager()
-            
-            # 获取文件的哈希值作为本地文件名
-            file_hash = hashlib.md5(remote_path.encode()).hexdigest()[:16]
-            local_path = cache_manager.remote_files_dir / file_hash
-            
-            if local_path.exists():
-                return str(local_path)
-            else:
-                return file_hash  # 返回哈希文件名
-        except Exception:
-            # 如果无法获取缓存路径，返回简化的文件名
-            return remote_path.split('/')[-1] if '/' in remote_path else remote_path
+        from cache_manager import GDSCacheManager
+        cache_manager = GDSCacheManager()
+        file_hash = hashlib.md5(remote_path.encode()).hexdigest()[:16]
+        local_path = cache_manager.remote_files_dir / file_hash
+        if local_path.exists():
+            return str(local_path)
+        else:
+            return file_hash
 
-    def _cleanup_local_equivalent_files(self, file_moves):
+    def cleanup_local_equivalent_files(self, file_moves):
         """
         清理LOCAL_EQUIVALENT中的文件（上传完成后）
         
@@ -60,7 +39,6 @@ class CacheManager:
         try:
             cleaned_files = []
             failed_cleanups = []
-            
             for file_info in file_moves:
                 filename = file_info["filename"]  # 实际的文件名（可能已重命名）
                 file_path = Path(file_info["new_path"])
@@ -136,7 +114,7 @@ class CacheManager:
             current_time = time.time()
             
             # 添加调试信息
-            from .remote_commands import debug_print
+            from .command_executor import debug_print
             debug_print(f"Checking rename for {filename}: found {len(deletion_records)} deletion records")
             
             # 检查5分钟内是否删除过同名文件
@@ -242,17 +220,12 @@ class CacheManager:
     def get_remote_file_modification_time(self, remote_path: str) -> Dict:
         """获取远端文件的修改时间"""
         try:
-            # 如果remote_path看起来像文件名（不包含路径分隔符），在当前目录中查找
             if '/' not in remote_path and not remote_path.startswith('~'):
-                # 列出当前目录的所有文件
                 result = self.main_instance.cmd_ls('', detailed=True)
-                
                 if result["success"] and result["files"]:
-                    # 在文件列表中查找指定文件
                     for file_info in result["files"]:
                         if file_info.get("name") == remote_path:
                             modified_time = file_info.get("modifiedTime")
-                            
                             if modified_time:
                                 return {
                                     "success": True,
@@ -357,76 +330,3 @@ class CacheManager:
                 "success": False,
                 "error": f"Check cache new or old failed: {e}"
             }
-
-    def _update_uploaded_files_cache(self, found_files, context_info):
-        """
-        更新上传文件的缓存信息，记录最新的远端修改时间
-        
-        Args:
-            found_files (list): 验证成功的文件列表，包含文件信息
-            context_info (dict): 上下文信息，包含file_moves等
-        """
-        try:
-            # 导入缓存管理器
-            import sys
-            from pathlib import Path
-            cache_manager_path = Path(__file__).parent / "cache_manager.py"
-            if not cache_manager_path.exists():
-                return  # 缓存管理器不存在，静默返回
-                
-            sys.path.insert(0, str(Path(__file__).parent))
-            from cache_manager import GDSCacheManager
-            cache_manager = GDSCacheManager()
-            
-            file_moves = context_info.get("file_moves", [])
-            target_path = context_info.get("target_path", ".")
-            
-            # 为每个成功上传的文件更新缓存
-            for found_file in found_files:
-                file_name = found_file.get("name")
-                if not file_name:
-                    continue
-                    
-                # 构建远端绝对路径
-                if target_path == ".":
-                    # 当前目录
-                    current_shell = self.main_instance.get_current_shell()
-                    if current_shell:
-                        current_path = current_shell.get("current_path", "~")
-                        if current_path == "~":
-                            remote_absolute_path = f"{self.main_instance.REMOTE_ROOT}/{file_name}"
-                        else:
-                            remote_absolute_path = f"{current_path}/{file_name}"
-                    else:
-                        remote_absolute_path = f"{self.main_instance.REMOTE_ROOT}/{file_name}"
-                else:
-                    # 指定目标路径
-                    if target_path.startswith("/"):
-                        remote_absolute_path = f"{target_path}/{file_name}"
-                    else:
-                        current_shell = self.main_instance.get_current_shell()
-                        if current_shell:
-                            current_path = current_shell.get("current_path", "~")
-                            if current_path == "~":
-                                remote_absolute_path = f"{self.main_instance.REMOTE_ROOT}/{target_path}/{file_name}"
-                            else:
-                                remote_absolute_path = f"{current_path}/{target_path}/{file_name}"
-                        else:
-                            remote_absolute_path = f"{self.main_instance.REMOTE_ROOT}/{target_path}/{file_name}"
-                
-                # 获取远端修改时间
-                remote_modified_time = found_file.get("modified")
-                if remote_modified_time:
-                    # 检查是否已经有缓存
-                    if cache_manager.is_file_cached(remote_absolute_path):
-                        # 更新现有缓存的远端修改时间
-                        cache_manager._update_cached_file_modified_time(remote_absolute_path, remote_modified_time)
-                        print(f"Updated cached file time: {file_name} -> {remote_modified_time}")
-                    else:
-                        # 文件还没有缓存，存储修改时间以备后用
-                        cache_manager.store_pending_modified_time(remote_absolute_path, remote_modified_time)
-                        print(f"Record uploaded file modification time: {file_name} -> {remote_modified_time}")
-                        
-        except Exception as e:
-            # 静默处理错误，不影响主流程
-            print(f"Warning: Update cache time failed: {e}")

@@ -12,327 +12,41 @@ from .remote_shell_manager import *
 from .drive_api_service import *
 from .shell_commands import *
 from .hf_credentials_manager import *
+from .utils import is_run_environment, write_to_json_output
+from .delegate_managers import (
+    CoreUtils,
+    DriveProcessManager,
+    SyncConfigManager,
+    SetupWizard,
+    RemoteShellManager,
+    DriveApiService,
+    ShellCommands,
+    HfCredentialsManager
+)
 
 # 导入原有的Google Drive Shell系统类
 try:
     from .shell_management import ShellManagement
     from .file_operations import FileOperations
     from .cache_manager import CacheManager
-    from .remote_commands import RemoteCommands
+    from .command_executor import CommandExecutor
     from .path_resolver import PathResolver
     from .sync_manager import SyncManager
     from .file_utils import FileUtils
     from .validation import Validation
     from .verification import Verification
-    from .constants import *
+    from .config_loader import (
+        BG_STATUS_FILE_TEMPLATE,
+        BG_SCRIPT_FILE_TEMPLATE,
+        BG_LOG_FILE_TEMPLATE,
+        BG_RESULT_FILE_TEMPLATE,
+        get_bg_status_file,
+        get_bg_script_file,
+        get_bg_log_file,
+        get_bg_result_file
+    )
 except ImportError as e:
     print(f"Warning: Import Google Drive Shell system class failed: {e}")
-
-# 导入管理器类（委托模式）
-class CoreUtils:
-    """核心工具管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def get_multiline_input_safe(self, *args, **kwargs):
-        return get_multiline_input_safe(*args, **kwargs)
-    
-    def is_run_environment(self, *args, **kwargs):
-        return is_run_environment(*args, **kwargs)
-    
-    def write_to_json_output(self, *args, **kwargs):
-        return write_to_json_output(*args, **kwargs)
-    
-    def copy_to_clipboard(self, *args, **kwargs):
-        # copy_to_clipboard现在是RemoteCommands类的方法，需要创建实例
-        from .remote_commands import RemoteCommands
-        remote_cmd_instance = RemoteCommands(None, None)
-        return remote_cmd_instance.copy_to_clipboard(*args, **kwargs)
-    
-    def show_help(self, *args, **kwargs):
-        from .remote_commands import show_help
-        return show_help(*args, **kwargs)
-    
-    def main(self, *args, **kwargs):
-        """主函数 - 直接使用GoogleDriveShell处理命令行参数"""
-        try:
-            # 直接使用GoogleDriveShell处理命令行参数
-            import os
-            import sys
-            current_dir = os.path.dirname(os.path.dirname(__file__))
-            sys.path.insert(0, current_dir)
-            from google_drive_shell import GoogleDriveShell
-            
-            shell = GoogleDriveShell()
-            return shell.handle_command_line_args()
-        except Exception as e:
-            # 如果出错，回退到简化实现
-            print(f"Warning: Failed to use GoogleDriveShell: {e}")
-            return self._simplified_main(*args, **kwargs)
-
-# 独立的工具函数（从remote_commands.py迁移）
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    import os
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    import os
-    import json
-    from pathlib import Path
-    
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        # 确保输出目录存在
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
-    
-    def _simplified_main(self, *args, **kwargs):
-        """简化的main实现"""
-        import sys
-        if len(sys.argv) > 1 and sys.argv[1] == '--help':
-            print("GOOGLE_DRIVE - Google Drive Remote Control Tool")
-            print("Use 'GOOGLE_DRIVE --shell <command>' to execute commands")
-            return 0
-        
-        # 委托给GoogleDriveShell
-        try:
-            import os
-            current_dir = os.path.dirname(os.path.dirname(__file__))
-            sys.path.insert(0, current_dir)
-            from google_drive_shell import GoogleDriveShell
-            
-            shell = GoogleDriveShell()
-            args = sys.argv[1:]
-            
-            if not args:
-                print("Use --help for usage information")
-                return 0
-            
-            if args[0] == '--shell':
-                if len(args) == 1:
-                    print("Interactive mode not implemented")
-                    return 0
-                else:
-                    # 直接传递参数列表，避免双重解析
-                    return shell.execute_shell_command_with_args(args[1:])
-            elif args[0] == '--list-remote-shell':
-                return shell.list_shells()
-            elif args[0] == '--create-remote-shell':
-                return shell.create_shell()
-            elif args[0].startswith('--'):
-                # 处理未知的--参数，提供错误信息
-                print(f"Error: Unknown option '{args[0]}'")
-                print("Available options:")
-                print("  --shell <command>        Execute shell command")
-                print("  --list-remote-shell      List remote shells")
-                print("  --create-remote-shell    Create remote shell")
-                print("  --help                   Show help")
-                print("")
-                print("For background tasks, use:")
-                print("  --shell \"--bg <command>\"  Run command in background")
-                print("")
-                print("Examples:")
-                print("  GOOGLE_DRIVE --shell \"echo hello\"")
-                print("  GOOGLE_DRIVE --shell \"--bg echo hello\"")
-                return 1
-            else:
-                command = ' '.join(args)
-                return shell.execute_shell_command(command)
-                
-        except Exception as e:
-            print(f"Error: {e}")
-            return 1
-    
-class DriveProcessManager:
-    """驱动进程管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def is_google_drive_running(self, *args, **kwargs):
-        return is_google_drive_running(*args, **kwargs)
-    
-    def get_google_drive_processes(self, *args, **kwargs):
-        return get_google_drive_processes(*args, **kwargs)
-    
-    def shutdown_google_drive(self, *args, **kwargs):
-        return shutdown_google_drive(*args, **kwargs)
-    
-    def launch_google_drive(self, *args, **kwargs):
-        return launch_google_drive(*args, **kwargs)
-    
-    def restart_google_drive(self, *args, **kwargs):
-        return restart_google_drive(*args, **kwargs)
-
-class SyncConfigManager:
-    """同步配置管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def get_sync_config_file(self, *args, **kwargs):
-        return get_sync_config_file(*args, **kwargs)
-    
-    def load_sync_config(self, *args, **kwargs):
-        return load_sync_config(*args, **kwargs)
-    
-    def save_sync_config(self, *args, **kwargs):
-        return save_sync_config(*args, **kwargs)
-    
-    def set_local_sync_dir(self, *args, **kwargs):
-        return set_local_sync_dir(*args, **kwargs)
-    
-    def set_global_sync_dir(self, *args, **kwargs):
-        return set_global_sync_dir(*args, **kwargs)
-    
-    def get_google_drive_status(self, *args, **kwargs):
-        return get_google_drive_status(*args, **kwargs)
-
-class SetupWizard:
-    """设置向导管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def show_setup_step_1(self, *args, **kwargs):
-        return show_setup_step_1(*args, **kwargs)
-    
-    def show_setup_step_2(self, *args, **kwargs):
-        return show_setup_step_2(*args, **kwargs)
-    
-    def show_setup_step_3(self, *args, **kwargs):
-        return show_setup_step_3(*args, **kwargs)
-    
-    def show_setup_step_4(self, *args, **kwargs):
-        return show_setup_step_4(*args, **kwargs)
-    
-    def console_setup_interactive(self, *args, **kwargs):
-        return console_setup_interactive(*args, **kwargs)
-
-class RemoteShellManager:
-    """远程Shell管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def create_shell(self, *args, **kwargs):
-        return create_shell(*args, **kwargs)
-    
-    def list_shells(self, *args, **kwargs):
-        return list_shells(*args, **kwargs)
-    
-    def checkout_shell(self, *args, **kwargs):
-        return checkout_shell(*args, **kwargs)
-    
-    def terminate_shell(self, *args, **kwargs):
-        return terminate_shell(*args, **kwargs)
-    
-    def enter_shell_mode(self, *args, **kwargs):
-        return enter_shell_mode(*args, **kwargs)
-
-class DriveApiService:
-    """Drive API服务管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def open_google_drive(self, *args, **kwargs):
-        return open_google_drive(*args, **kwargs)
-    
-    def test_api_connection(self, *args, **kwargs):
-        return test_api_connection(*args, **kwargs)
-    
-    def list_drive_files(self, *args, **kwargs):
-        return list_drive_files(*args, **kwargs)
-    
-    def upload_file_to_drive(self, *args, **kwargs):
-        return upload_file_to_drive(*args, **kwargs)
-
-class ShellCommands:
-    """Shell命令管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-
-    
-    def shell_cd(self, *args, **kwargs):
-        # 使用main_instance的cmd_cd方法
-        if args:
-            path = args[0]
-            result = self.main_instance.cmd_cd(path)
-            if result.get("success"):
-                return 0
-            else:
-                print(result.get("error", "cd command failed"))
-                return 1
-        else:
-            print(f"Error:  cd command needs a path")
-            return 1
-    
-    def shell_mkdir(self, *args, **kwargs):
-        return shell_mkdir(*args, **kwargs)
-    
-    def shell_pwd(self, *args, **kwargs):
-        return shell_pwd(*args, **kwargs)
-    
-    def handle_shell_command(self, *args, **kwargs):
-        return handle_shell_command(*args, **kwargs)
-
-class HfCredentialsManager:
-    """HuggingFace凭据管理器"""
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-    
-    def setup_remote_hf_credentials(self, *args, **kwargs):
-        return setup_remote_hf_credentials(*args, **kwargs)
-    
-    def test_remote_hf_setup(self, *args, **kwargs):
-        return test_remote_hf_setup(*args, **kwargs)
-
-# 将所有函数添加到当前模块的全局命名空间
-import sys
-current_module = sys.modules[__name__]
-
-# 从各个子模块导入函数并添加到当前模块
-from . import drive_process_manager, sync_config_manager  # core_utils已合并到remote_commands中
-from . import remote_shell_manager, drive_api_service, shell_commands, hf_credentials_manager
-
-# 收集所有子模块的函数
-all_modules = [
-    drive_process_manager, sync_config_manager,  # core_utils已移除
-    remote_shell_manager, drive_api_service, shell_commands, hf_credentials_manager
-]
-
-# 将所有函数添加到当前模块的命名空间
-for module in all_modules:
-    for attr_name in dir(module):
-        if not attr_name.startswith('_') and callable(getattr(module, attr_name)):
-            setattr(current_module, attr_name, getattr(module, attr_name))
 
 # 导出所有函数和管理器类
 __all__ = [
@@ -340,7 +54,10 @@ __all__ = [
     "ShellManagement",
     "FileOperations", 
     "CacheManager",
-    "RemoteCommands",
+    "CommandExecutor",
+    "CommandGenerator", 
+    "FileValidator",
+    "ResultProcessor",
     "PathResolver",
     "SyncManager",
     "FileUtils",
@@ -366,8 +83,6 @@ __all__ = [
     "console_setup_step7",
     "copy_to_clipboard",
     "create_shell",
-    "delete_drive_file",
-    "download_file_from_drive",
     "enter_shell_mode",
     "exit_shell",
     "extract_folder_id_from_url",
@@ -393,11 +108,9 @@ __all__ = [
     "load_setup_config",
     "load_sync_config",
     "main",
-    "open_dir",
     "open_google_drive",
     "resolve_parent_directory",
     "resolve_path",
-    "resolve_relative_path",
     "restart_google_drive",
     "save_shells",
     "save_setup_config",
@@ -409,7 +122,6 @@ __all__ = [
     "shell_ls_with_id",
     "shell_mkdir",
     "shell_pwd",
-    "shell_rm",
     "show_help",
     "show_setup_step_1",
     "show_setup_step_2",
@@ -423,6 +135,5 @@ __all__ = [
     "test_remote_hf_setup",
     "test_upload_workflow",
     "upload_file_to_drive",
-    "url_to_logical_path",
     "write_to_json_output",
 ]

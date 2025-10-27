@@ -252,7 +252,7 @@ def show_unified_help(context="command_line", command_identifier=None):
     """
     try:
         # Import functions for RUN environment support
-        from .remote_commands import is_run_environment, write_to_json_output
+        from . import is_run_environment, write_to_json_output
     except ImportError:
         def is_run_environment(cmd_id=None):
             return False
@@ -274,7 +274,3 @@ def show_unified_help(context="command_line", command_identifier=None):
 def show_help():
     """显示命令行帮助信息 (for --help)"""
     return show_unified_help(context="command_line")
-
-def shell_help(command_identifier=None):
-    """显示shell模式帮助信息 (for GDS help)"""
-    return show_unified_help(context="shell", command_identifier=command_identifier)

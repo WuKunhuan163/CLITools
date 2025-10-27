@@ -451,10 +451,6 @@ class WindowManager:
         except Exception as e:
             self._debug_log(f"[LOCK_RELEASE_ERROR] 释放锁时出错: {e}")
     
-    def start_manager(self):
-        """跨进程窗口管理器，无需启动线程"""
-        self._debug_log("[CROSS_PROCESS_WINDOW_MANAGER] 跨进程窗口管理器启动成功")
-    
     def request_window(self, title, command_text, timeout_seconds=3600, command_hash=None, no_direct_feedback=False, is_priority=False):
         """
         请求显示窗口 - 支持优先队列的跨进程管理
@@ -538,45 +534,6 @@ class WindowManager:
             "action": "timeout",
             "message": f"等待锁释放超时: {request_id}"
         }
-    
-    def _is_request_in_queue(self, request_id):
-        """
-        检查请求是否还在队列中
-        
-        Args:
-            request_id (str): 请求ID
-            
-        Returns:
-            bool: 是否在队列中
-        """
-        try:
-            # 获取队列锁
-            with open(self.queue_lock_file, 'w') as lock_f:
-                fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX)
-                
-                # 检查优先队列
-                if self.priority_queue_file.exists():
-                    with open(self.priority_queue_file, 'r') as f:
-                        priority_queue = json.load(f)
-                    
-                    for request in priority_queue:
-                        if request.get('request_id') == request_id:
-                            return True
-                
-                # 检查普通队列
-                if self.normal_queue_file.exists():
-                    with open(self.normal_queue_file, 'r') as f:
-                        normal_queue = json.load(f)
-                    
-                    for request in normal_queue:
-                        if request.get('request_id') == request_id:
-                            return True
-                
-                return False
-                
-        except Exception as e:
-            self._debug_log(f"[WINDOW_MANAGER] 检查队列请求失败: {e}")
-            return False
     
     def _process_queue(self):
         """
@@ -1352,25 +1309,6 @@ except Exception as e:
             pass
         return count
     
-    def cleanup_windows(self, force=False):
-        """
-        手动清理窗口 - 支持跨进程清理
-        
-        Args:
-            force (bool): 是否使用强制清理模式
-        """
-        if force:
-            self._debug_log("[MANUAL_FORCE_CLEANUP] 手动强制清理所有窗口")
-            self._force_cleanup_all_processes()
-        else:
-            self._debug_log("[MANUAL_CLEANUP] 手动清理所有窗口")
-            self._cleanup_all_processes()
-        
-        # 额外执行跨进程清理
-        self._cross_process_cleanup(force=force)
-        
-        self._release_lock()
-    
     def _cross_process_cleanup(self, force=False):
         """跨进程清理 - 清理所有GDS相关的tkinter窗口"""
         try:
@@ -1419,53 +1357,6 @@ except Exception as e:
         except Exception as e:
             self._debug_log(f"[CROSS_PROCESS_CLEANUP_ERROR] 跨进程清理失败: {e}")
     
-    def get_active_windows_count(self):
-        """获取当前活跃窗口数量 - 跨进程统计"""
-        # 本进程的窗口数量
-        local_count = 0
-        if hasattr(self, 'active_processes'):
-            for window_id, process in list(self.active_processes.items()):
-                try:
-                    if process.poll() is None:  # 进程还在运行
-                        local_count += 1
-                    else:
-                        # 进程已结束，从列表中移除
-                        self.active_processes.pop(window_id, None)
-                except Exception:
-                    # 进程可能已经不存在，移除它
-                    self.active_processes.pop(window_id, None)
-        
-        # 跨进程统计所有GDS tkinter窗口
-        system_count = 0
-        try:
-            import psutil
-            for proc in psutil.process_iter(['pid', 'cmdline']):
-                try:
-                    cmdline = proc.info['cmdline']
-                    if not cmdline:
-                        continue
-                        
-                    cmdline_str = ' '.join(cmdline)
-                    
-                    # 检测GDS相关的tkinter窗口进程
-                    if ('python' in cmdline_str.lower() and 
-                        ('-c' in cmdline_str or 'tkinter' in cmdline_str.lower()) and
-                        ('Google Drive Shell' in cmdline_str or 'root.title' in cmdline_str or 
-                         'tkinter' in cmdline_str)):
-                        system_count += 1
-                        
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-        except Exception:
-            pass
-        
-        # 返回系统级统计（更准确）
-        return system_count
-    
-    def stop_manager(self):
-        """停止跨进程窗口管理器"""
-        self._debug_log("[CROSS_PROCESS_WINDOW_MANAGER] 跨进程窗口管理器已停止")
-
 # 全局窗口管理器实例
 _window_manager = None
 

@@ -364,9 +364,7 @@ class EnhancedErrorHandler:
             if all_frames:
                 print("\nComplete Call Stack:")
                 for i, frame in enumerate(all_frames, 1):
-                    # 标记用户代码和系统代码
-                    code_type = "USER" if frame.get("is_user_code") else "SYS"
-                    print(f"  {i:2d}. [{code_type}] {frame['filename']}:{frame['line_number']} in {frame['function']}()")
+                    print(f"  {i:2d}. {frame['filename']}:{frame['line_number']} in {frame['function']}()")
                     
                     # 如果是用户代码且有代码上下文，显示关键行
                     if frame.get("is_user_code") and "code_context" in frame:
@@ -380,12 +378,12 @@ class EnhancedErrorHandler:
                                         print(f"      >>> {code_line}")
                                     break
             
-            # 额外显示简化的用户代码栈（向后兼容）
-            user_frames = [f for f in all_frames if f.get("is_user_code")]
-            if user_frames:
-                print("\nUser Code Stack:")
-                for frame in user_frames:
-                    print(f"  {frame['filename']}:{frame['line_number']} in {frame['function']}()")
+            # # 额外显示简化的用户代码栈（向后兼容）
+            # user_frames = [f for f in all_frames if f.get("is_user_code")]
+            # if user_frames:
+            #     print("\nUser Code Stack:")
+            #     for frame in user_frames:
+            #         print(f"  {frame['filename']}:{frame['line_number']} in {frame['function']}()")
             
         except Exception:
             print(f"\n❌ Error in {error_info.get('context', 'Unknown')}: {error_info.get('exception_message', 'Unknown error')}")
@@ -411,41 +409,11 @@ def capture_and_report_error(context: str = "Unknown",
     """
     return error_handler.capture_exception(context, exception, additional_info)
 
-
-def with_error_handling(context: str):
-    """
-    装饰器：为函数添加错误处理
-    
-    Args:
-        context: 错误上下文描述
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                error_info = capture_and_report_error(
-                    context=f"{context} - {func.__name__}",
-                    exception=e,
-                    additional_info={
-                        "function": func.__name__,
-                        "args": str(args)[:200],
-                        "kwargs": str(kwargs)[:200]
-                    }
-                )
-                return error_info
-        return wrapper
-    return decorator
-
-
 if __name__ == '__main__':
-    # 测试错误处理器
     def test_function():
         x = "test"
         y = 123
-        # 故意引发错误
         return x.nonexistent_method()
-    
     try:
         test_function()
     except Exception as e:

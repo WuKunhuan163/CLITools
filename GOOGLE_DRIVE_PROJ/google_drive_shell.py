@@ -13,44 +13,50 @@ try:
         ShellManagement,
         FileOperations,
         CacheManager,
-        RemoteCommands,
         PathResolver,
         SyncManager,
         FileUtils,
         Validation,
         Verification,
     )
-    from .modules.commands import CommandRegistry
-    from .modules.commands.venv_command import VenvCommand
-    from .modules.commands.grep_command import GrepCommand
-    from .modules.commands.python_command import PythonCommand
-    from .modules.commands.ls_command import LsCommand
-    from .modules.commands.cd_command import CdCommand
-    from .modules.commands.cat_command import CatCommand
-    from .modules.commands.mkdir_command import MkdirCommand
-    from .modules.commands.rm_command import RmCommand
-    from .modules.commands.touch_command import TouchCommand
-    from .modules.commands.mv_command import MvCommand
-    from .modules.commands.edit_command import EditCommand
-    from .modules.commands.read_command import ReadCommand
-    from .modules.commands.pwd_command import PwdCommand
-    from .modules.commands.upload_command import UploadCommand
-    from .modules.commands.upload_folder_command import UploadFolderCommand
-    from .modules.commands.pip_command import PipCommand
-    from .modules.commands.deps_command import DepsCommand
-    from .modules.commands.pyenv_command import PyenvCommand
+    from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
+    from GOOGLE_DRIVE_PROJ.modules.command_generator import CommandGenerator
+    from GOOGLE_DRIVE_PROJ.modules.file_validator import FileValidator
+    from GOOGLE_DRIVE_PROJ.modules.result_processor import ResultProcessor
+    from GOOGLE_DRIVE_PROJ.modules.commands import CommandRegistry
+    from GOOGLE_DRIVE_PROJ.modules.commands.venv_command import VenvCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.grep_command import GrepCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.python_command import PythonCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.ls_command import LsCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.cd_command import CdCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.touch_command import TouchCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.mv_command import MvCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
+    from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
 except ImportError:
     from GOOGLE_DRIVE_PROJ.modules import (
         ShellManagement,
         FileOperations,
         CacheManager,
-        RemoteCommands,
         PathResolver,
         SyncManager,
         FileUtils,
         Validation,
         Verification,
     )
+    from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
+    from GOOGLE_DRIVE_PROJ.modules.command_generator import CommandGenerator
+    from GOOGLE_DRIVE_PROJ.modules.file_validator import FileValidator
+    from GOOGLE_DRIVE_PROJ.modules.result_processor import ResultProcessor
     # 导入命令系统
     from GOOGLE_DRIVE_PROJ.modules.commands import CommandRegistry
     from GOOGLE_DRIVE_PROJ.modules.commands.venv_command import VenvCommand
@@ -95,7 +101,7 @@ class GoogleDriveShell:
         self._load_cache_config_direct()
         
         # 直接初始化删除时间缓存（不通过委托）
-        self.deletion_cache = self._load_deletion_cache_direct()
+        self.deletion_cache = self.load_deletion_cache()
         
         # 设置常量
         self.HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
@@ -134,13 +140,13 @@ class GoogleDriveShell:
         self.dynamic_mode = False
         
         # 先初始化Google Drive API服务
-        self.drive_service = self._load_drive_service_direct()
+        self.drive_service = self.load_drive_service()
         
         # 然后检查挂载点（需要drive_service进行指纹验证）
         self._check_and_setup_mount_point()
 
         # 初始化管理器
-        self._initialize_managers()
+        self.initialize_managers()
 
     def _load_shells_direct(self):
         """直接加载远程shell配置（不通过委托）"""
@@ -169,7 +175,7 @@ class GoogleDriveShell:
             self.cache_config = {}
             self.cache_config_loaded = False
 
-    def _load_deletion_cache_direct(self):
+    def load_deletion_cache(self):
         """直接加载删除时间缓存（不通过委托）"""
         try:
             if self.deletion_cache_file.exists():
@@ -182,7 +188,7 @@ class GoogleDriveShell:
             print(f"Warning: Failed to load deletion cache: {e}")
             return []
 
-    def _load_drive_service_direct(self):
+    def load_drive_service(self):
         """直接加载Google Drive API服务（不通过委托）"""
         try:
             import sys
@@ -198,12 +204,23 @@ class GoogleDriveShell:
             print(f"Warning: Failed to load Google Drive API service: {e}")
             return None
 
-    def _initialize_managers(self):
+    def initialize_managers(self):
         """初始化各个管理器"""
         self.shell_management = ShellManagement(self.drive_service, self)
         self.file_operations = FileOperations(self.drive_service, self)
         self.cache_manager = CacheManager(self.drive_service, self)
-        self.remote_commands = RemoteCommands(self.drive_service, self)
+        self.command_executor = CommandExecutor(self.drive_service, self)
+        self.command_generator = CommandGenerator(self.drive_service, self)
+        self.file_validator = FileValidator(self.drive_service, self)
+        self.result_processor = ResultProcessor(self.drive_service, self)
+        self.remote_commands = type('RemoteCommandsWrapper', (), {
+            'execute_command_interface': self.command_executor.execute_command_interface,
+            'execute_command': self.command_executor.execute_command,
+            'generate_commands': self.command_generator.generate_commands,
+            'generate_mkdir_commands': self.command_generator.generate_mkdir_commands,
+            'generate_command_interface': self.command_generator.generate_command_interface,
+            'wait_and_read_result_file': self.result_processor.wait_and_read_result_file,
+        })()
         self.path_resolver = PathResolver(self.drive_service, self)
         self.sync_manager = SyncManager(self.drive_service, self)
         self.file_utils = FileUtils(self.drive_service, self)
@@ -212,8 +229,6 @@ class GoogleDriveShell:
         
         # 初始化命令注册系统
         self.command_registry = CommandRegistry()
-        
-        # 注册命令处理器
         self.command_registry.register(VenvCommand(self))
         self.command_registry.register(GrepCommand(self))
         self.command_registry.register(PythonCommand(self))
@@ -352,106 +367,15 @@ class GoogleDriveShell:
         return self.shell_management.create_shell(*args, **kwargs)
     
     def execute_command_interface(self, *args, **kwargs):
-        """委托到remote_commands管理器"""
+        """委托到command_executor管理器"""
         kwargs['_skip_queue_management'] = kwargs.get('_skip_queue_management', False)
-        return self.remote_commands.execute_command_interface(*args, **kwargs)
-    
-    def _verify_mkdir_with_ls(self, *args, **kwargs):
-        """委托到verification管理器"""
-        return self.verification._verify_mkdir_with_ls(*args, **kwargs)
+        return self.command_executor.execute_command_interface(*args, **kwargs)
     
     def verify_creation_with_ls(self, *args, **kwargs):
         """委托到verification管理器"""
         return self.verification.verify_creation_with_ls(*args, **kwargs)
     
-    def _handle_unified_echo_command(self, args):
-        """统一的echo命令处理逻辑 - 支持长内容的base64编码"""
-        
-        # 空echo命令
-        if not args:
-            print(f"")
-            return 0
-        
-        # 检测是否为重定向命令，如果是则统一使用base64编码
-        if '>' in args: 
-            content_parts = []
-            redirect_found = False
-            target_file = None
-            for i, arg in enumerate(args):
-                if arg == '>':
-                    redirect_found = True
-                    if i + 1 < len(args):
-                        target_file = args[i + 1]
-                    break
-                content_parts.append(arg)
-            
-            if redirect_found and content_parts and target_file:
-                enable_escapes = False
-                filtered_content_parts = []
-                for part in content_parts:
-                    if part == '-e':
-                        enable_escapes = True
-                    else:
-                        filtered_content_parts.append(part)
-                
-                # 重组内容
-                content = ' '.join(filtered_content_parts)
-                
-                # 如果启用了转义序列，处理常见的转义字符
-                if enable_escapes:
-                    content = content.replace('\\n', '\n')
-                    content = content.replace('\\t', '\t')
-                    content = content.replace('\\r', '\r')
-                    content = content.replace('\\\\', '\\')
-                
-                # 统一使用base64编码的文件创建方法
-                result = self.file_operations._create_text_file(target_file, content)
-                if result.get("success", False):
-                    return 0
-                else:
-                    error_msg = result.get("error", "File creation failed")
-                    print(error_msg)
-                    return 1
-        
-        # 使用通用的远程命令执行机制
-        try:
-            result = self.execute_command_interface('echo', args)
-            if result.get("success", False):
-                if "data" in result:
-                    data = result["data"]
-                    stdout = data.get("stdout", "").strip()
-                    stderr = data.get("stderr", "").strip()
-                else:
-                    stdout = result.get("stdout", "").strip()
-                    stderr = result.get("stderr", "").strip()
-                
-                if stdout:
-                    print(stdout)
-                if stderr:
-                    print(stderr, file=sys.stderr)
-                return 0
-            else:
-                error_msg = result.get("error", "Echo command failed")
-                print(error_msg)
-                return 1
-        except Exception as e:
-            # 使用增强的错误处理系统
-            try:
-                from .modules.error_handler import capture_and_report_error
-                error_info = capture_and_report_error("Echo command execution", e, {
-                    "command": "echo",
-                    "args": args,
-                    "result": result if 'result' in locals() else None
-                })
-                print(f"Echo command failed: {error_info.get('exception_message', str(e))}")
-            except ImportError:
-                print(f"Echo command failed: {e}")
-                import traceback
-                traceback.print_exc()
-            return 1
-    
-    
-    def _process_echo_escapes(self, echo_command):
+    def process_json(self, echo_command):
         """处理echo命令中的转义字符"""
         import re
         
@@ -524,12 +448,12 @@ class GoogleDriveShell:
         return self.shell_management.exit_shell(*args, **kwargs)
     
     def generate_mkdir_commands(self, *args, **kwargs):
-        """委托到remote_commands管理器"""
-        return self.remote_commands.generate_mkdir_commands(*args, **kwargs)
+        """委托到command_generator管理器"""
+        return self.command_generator.generate_mkdir_commands(*args, **kwargs)
     
     def generate_commands(self, *args, **kwargs):
-        """委托到remote_commands管理器"""
-        return self.remote_commands.generate_commands(*args, **kwargs)
+        """委托到command_generator管理器"""
+        return self.command_generator.generate_commands(*args, **kwargs)
     
     def generate_shell_id(self, *args, **kwargs):
         """委托到shell_management管理器"""
@@ -563,9 +487,6 @@ class GoogleDriveShell:
         """委托到cache_manager管理器"""
         return self.cache_manager.load_cache_config(*args, **kwargs)
     
-    def load_deletion_cache(self, *args, **kwargs):
-        """委托到cache_manager管理器"""
-        return self.cache_manager.load_deletion_cache(*args, **kwargs)
     
     def load_shells(self, *args, **kwargs):
         """委托到shell_management管理器"""
@@ -740,9 +661,7 @@ class GoogleDriveShell:
         import random
         import base64
         from datetime import datetime
-        from modules.constants import get_bg_status_file, get_bg_script_file, get_bg_log_file, get_bg_result_file
-        
-        # 开始调试后台任务创建
+        from modules.config_loader import get_bg_status_file, get_bg_script_file, get_bg_log_file, get_bg_result_file
         
         try:
             # 获取当前shell
@@ -913,7 +832,7 @@ class GoogleDriveShell:
             
             # 使用统一的命令执行接口
             # 执行背景命令
-            result = self.remote_commands.execute_command(
+            result = self.command_executor.execute_command(
                 user_command=bg_create_cmd,
                 result_filename=None,
                 current_shell=current_shell_copy,
@@ -973,116 +892,8 @@ class GoogleDriveShell:
             print(f"Error executing background command: {e}")
             return 1
 
-    def execute_shell_command_with_args(self, args, command_identifier=None):
-        """执行shell命令 - 直接使用参数列表，避免双重解析"""
-        if not args:
-            return 0
-        
-        # 检查是否有--priority参数（用于测试优先队列）
-        priority_mode = False
-        filtered_args = []
-        for arg in args:
-            if arg == '--priority':
-                priority_mode = True
-            else:
-                filtered_args.append(arg)
-        
-        args = filtered_args
-        
-        # 如果启用优先模式，设置到remote_commands实例中
-        if priority_mode and hasattr(self, 'remote_commands'):
-            self.remote_commands._is_priority = True
-        
-        if not args:
-            return 0
-        
-        # 如果第一个参数是引号包围的完整命令，需要重新解析
-        if len(args) == 1 and (' ' in args[0] or args[0].startswith('"') or args[0].startswith("'")):
-            # 这是一个完整的命令字符串，需要分解
-            import shlex
-            try:
-                args = shlex.split(args[0])
-            except ValueError:
-                # 如果shlex解析失败，按空格分割
-                args = args[0].split()
-        
-        cmd = args[0]
-        cmd_args = args[1:]
-        
-        # 直接处理命令，跳过字符串解析
-        if cmd == 'ls':
-            # 解析ls命令的参数
-            recursive = False
-            detailed = False
-            force_mode = False  # -f选项
-            directory_mode = False  # -d选项：显示目录本身而不是内容
-            paths = []  # 支持多个路径
-            
-            for arg in cmd_args:
-                if arg == '-R':
-                    recursive = True
-                elif arg == '--detailed':
-                    detailed = True
-                elif arg == '-f':
-                    force_mode = True
-                elif arg == '-d':
-                    directory_mode = True
-                elif not arg.startswith('-'):
-                    paths.append(arg)
-            
-            # 单个路径或无路径的情况，直接使用cmd_ls
-            if len(paths) <= 1 and not recursive and not force_mode and not directory_mode:
-                path = paths[0] if paths else None
-                
-                # 检查是否包含通配符
-                if path and ('*' in path or '?' in path or '[' in path):
-                    return self._handle_wildcard_ls(path)
-                
-                result = self.cmd_ls(path=path, detailed=detailed, recursive=recursive, show_hidden=False)
-                
-                if result.get("success"):
-                    files = result.get("files", [])
-                    folders = result.get("folders", [])
-                    all_items = folders + files
-                    
-                    if all_items:
-                        # 按名称排序，文件夹优先
-                        sorted_folders = sorted(folders, key=lambda x: x.get('name', '').lower())
-                        sorted_files = sorted(files, key=lambda x: x.get('name', '').lower())
-                        
-                        # 合并列表，文件夹在前
-                        all_sorted_items = sorted_folders + sorted_files
-                        
-                        # 简单的列表格式，类似bash ls
-                        for item in all_sorted_items:
-                            name = item.get('name', 'Unknown')
-                            if item.get('mimeType') == 'application/vnd.google-apps.folder':
-                                print(f"{name}/")
-                            else:
-                                print(name)
-                    
-                    return 0
-                else:
-                    error_msg = result.get('error', 'Unknown error')
-                    print(f"Failed to list files: {error_msg}")
-                    return 1
-            else:
-                # 多路径或特殊选项，回退到字符串命令
-                shell_cmd = cmd + ' ' + ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in cmd_args)
-                return self.execute_shell_command(shell_cmd, command_identifier)
-        else:
-            # 其他命令，回退到字符串命令
-            shell_cmd = cmd + ' ' + ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in cmd_args)
-            
-            # 如果启用了优先模式，确保在执行前设置标志
-            if priority_mode and hasattr(self, 'remote_commands'):
-                self.remote_commands._is_priority = True
-                
-            return self.execute_shell_command(shell_cmd, command_identifier)
-
     def execute_shell_command(self, shell_cmd, command_identifier=None):
         """执行shell命令 - 使用WindowManager的新架构入口点"""
-        
         
         # 保存原始用户命令，用于后续的文件验证分析
         self._original_user_command = shell_cmd.strip()
@@ -1114,9 +925,9 @@ class GoogleDriveShell:
                         # GDS --bg --status [task_id]
                         status_args = remaining_cmd[8:].strip()  # 移除--status
                         if status_args:
-                            return self._show_background_status(status_args, command_identifier)
+                            return self.show_background_status(status_args, command_identifier)
                         else:
-                            return self._show_all_background_status(command_identifier)
+                            return self.show_all_background_status(command_identifier)
                     elif remaining_cmd.startswith('--log '):
                         # GDS --bg --log <task_id>
                         task_id = remaining_cmd[6:].strip()  # 移除--log 
@@ -1162,7 +973,7 @@ class GoogleDriveShell:
             has_multiple_ops = False
             for op in [' && ', ' || ', ' | ', '&&', '||', '|']:
                 if op in shell_cmd_clean: 
-                    if self._is_operator_outside_quotes(shell_cmd_clean, op):
+                    if self.is_operator_outside_quotes(shell_cmd_clean, op):
                         has_multiple_ops = True
                         break
             
@@ -1196,10 +1007,10 @@ class GoogleDriveShell:
                     return 1
                 
                 # 使用命令注册系统执行命令
-                return self.command_registry.execute_command(cmd, args, command_identifier=command_identifier)
+                return self.command_executor.execute_special_command(cmd, args)
             
             # 回退到旧的特殊命令处理系统
-            special_commands = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'echo', 'help', 'pyenv', 
+            special_commands = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'help', 'pyenv', 
                               'cleanup-windows', 'linter', 'pip', 'deps', 'edit', 'read', 
                               'upload', 'upload-folder', 'download', 'mv', 'find', 'rm']
             if first_word in special_commands:
@@ -1216,12 +1027,8 @@ class GoogleDriveShell:
                     print(f"Error: Command parsing failed: {e}")
                     return 1
                 
-                # 特殊处理：echo命令通过远程接口处理
-                if cmd == 'echo':
-                    return self._handle_unified_echo_command(args)
-                
-                # 其他特殊命令使用命令注册系统（包括mkdir、touch等需要验证的命令）
-                return self.command_registry.execute_command(cmd, args, command_identifier=command_identifier)
+                # 所有特殊命令统一使用命令执行系统
+                return self.command_executor.execute_special_command(cmd, args)
              
             # 如果不是特殊命令，使用统一的命令解析和转译接口
             if is_quoted_command:
@@ -1235,7 +1042,7 @@ class GoogleDriveShell:
             
             # 直接使用execute_command执行转译后的命令
             current_shell = self.get_current_shell()
-            result = self.remote_commands.execute_command(
+            result = self.command_executor.execute_command(
                 user_command=translated_cmd,
                 current_shell=current_shell
             )
@@ -1256,13 +1063,25 @@ class GoogleDriveShell:
                 return 1
                 
         except Exception as e:
-            error_msg = f"Error: Error executing shell command: {e}"
-            print(error_msg)
-            return 1
+            # 使用增强的错误处理系统显示完整traceback
+            try:
+                from GOOGLE_DRIVE_PROJ.modules.error_handler import capture_and_report_error
+                error_info = capture_and_report_error("Shell command execution", e, {
+                    "command": shell_cmd,
+                    "command_identifier": command_identifier
+                })
+                print(f"Shell command execution failed with detailed traceback above")
+                return 1
+            except ImportError:
+                error_msg = f"Error: Error executing shell command: {e}"
+                print(error_msg)
+                import traceback
+                traceback.print_exc()
+                return 1
         finally: 
             pass
 
-    def _show_background_status(self, bg_pid, command_identifier=None):
+    def show_background_status(self, bg_pid, command_identifier=None):
         """显示background任务状态 - 从result文件读取"""
         try:
             result_data = self._read_background_file(bg_pid, 'result', command_identifier)
@@ -1319,7 +1138,7 @@ class GoogleDriveShell:
             print(f"Error: Failed to check status: {e}")
             return 1
 
-    def _show_all_background_status(self, command_identifier=None):
+    def show_all_background_status(self, command_identifier=None):
         """显示所有background任务状态"""
         try:
             current_shell = self.get_current_shell()
@@ -1489,17 +1308,17 @@ done
 '''
             
             # 执行等待
-            remote_command_info = self.remote_commands._generate_command_interface("bash", ["-c", wait_cmd], current_shell)
+            remote_command_info = self.command_generator.generate_command_interface("bash", ["-c", wait_cmd], current_shell)
             remote_command, result_filename = remote_command_info
             
-            result = self.remote_commands.show_remote_command_window(
+            result = self.command_executor.show_remote_command_window(
                 title=f"GDS Wait Task: {bg_pid}",
                 command_text=remote_command,
                 timeout_seconds=3600  # 1小时超时
             )
             
             if result["action"] == "success":
-                result_data = self.remote_commands._wait_and_read_result_file(result_filename)
+                result_data = self.result_processor.wait_and_read_result_file(result_filename)
                 if result_data.get("success"):
                     stdout_content = result_data.get("data", {}).get("stdout", "")
                     if stdout_content:
@@ -1516,9 +1335,9 @@ done
             print(f"Error: Wait failed: {e}")
             return 1
 
-    def _is_operator_outside_quotes(self, shell_cmd, operator):
+    def is_operator_outside_quotes(self, shell_cmd, operator):
         """
-        检查操作符是否在引号外
+        检查操作符是否在引号外（改进版，正确处理转义字符）
         
         Args:
             shell_cmd (str): shell命令
@@ -1530,9 +1349,16 @@ done
         in_single_quote = False
         in_double_quote = False
         i = 0
+        op_len = len(operator)
         
         while i < len(shell_cmd):
             char = shell_cmd[i]
+            
+            # 处理转义字符（但只在双引号内或引号外有效，单引号内反斜杠无效）
+            if char == '\\' and not in_single_quote and i + 1 < len(shell_cmd):
+                # 跳过下一个字符
+                i += 2
+                continue
             
             if char == "'" and not in_double_quote:
                 in_single_quote = not in_single_quote
@@ -1540,38 +1366,68 @@ done
                 in_double_quote = not in_double_quote
             elif not in_single_quote and not in_double_quote:
                 # 检查是否匹配操作符
-                if shell_cmd[i:i+len(operator)] == operator:
+                if i + op_len <= len(shell_cmd) and shell_cmd[i:i+op_len] == operator:
                     return True
             
             i += 1
         
         return False
 
-    def _smart_quote(self, text):
+    def detect_redirection(self, command_str):
         """
-        智能引用函数，根据内容选择最合适的引号类型
-        优先使用双引号以避免与外层单引号冲突
+        智能检测命令中是否包含重定向操作符（忽略引号内的操作符）
+        
+        Args:
+            command_str: 命令字符串
+            
+        Returns:
+            bool: 如果包含有效的重定向操作符返回True，否则False
         """
-        import shlex
+        # 重定向操作符列表（按长度降序排列，优先匹配长的）
+        redirect_operators = ['>>>', '>>', '>&', '&>', '2>', '1>', '<&', '<<', '>', '<', '|']
         
-        text_str = str(text)
+        i = 0
+        in_single_quote = False
+        in_double_quote = False
         
-        # 如果不包含空格和特殊字符，不需要引号
-        if not any(c in text_str for c in [' ', '\t', '\n', '"', "'", '\\', '&', '|', ';', '(', ')', '<', '>', '$', '`', '*', '?', '[', ']', '{', '}', '~']):
-            return text_str
+        while i < len(command_str):
+            char = command_str[i]
             
-        # 优先使用双引号（避免与外层单引号冲突）
-        if '"' not in text_str:
-            # 需要转义反斜杠、美元符号和反引号
-            escaped = text_str.replace('\\', '\\\\').replace('$', '\\$').replace('`', '\\`')
-            return f'"{escaped}"'
+            # 处理转义字符
+            if char == '\\' and i + 1 < len(command_str):
+                i += 2  # 跳过转义字符和下一个字符
+                continue
             
-        # 如果包含双引号但不包含单引号，使用单引号
-        if "'" not in text_str:
-            return f"'{text_str}'"
+            # 跟踪引号状态
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+                i += 1
+                continue
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+                i += 1
+                continue
             
-        # 如果两种引号都包含，使用shlex.quote的默认行为
-        return shlex.quote(text_str)
+            # 如果不在引号内，检查重定向操作符
+            if not in_single_quote and not in_double_quote:
+                for op in redirect_operators:
+                    op_len = len(op)
+                    if i + op_len <= len(command_str):
+                        substring = command_str[i:i+op_len]
+                        if substring == op:
+                            # 找到了重定向操作符
+                            # 对于管道符，需要确保不是||（逻辑或）
+                            if op == '|':
+                                # 检查前后是否是||
+                                if ((i > 0 and command_str[i-1] == '|') or 
+                                    (i + 1 < len(command_str) and command_str[i+1] == '|')):
+                                    i += 1
+                                    continue
+                            return True
+            
+            i += 1
+        
+        return False
 
     def parse_and_translate_command(self, input_command):
         """
@@ -1640,16 +1496,12 @@ done
                     # 去掉外层引号
                     inner_command = command_str[1:-1]
                     
-                    # 检查是否包含重定向操作符
-                    if any(op in inner_command for op in [' > ', ' >> ', ' < ', ' | ']):
-                        # 这是一个引号包围的重定向命令，需要特殊处理
-                        # 处理转义字符（特别是echo命令中的转义）
+                    # 使用智能重定向检测
+                    if self.detect_redirection(inner_command):
                         processed_command = inner_command
-                        if processed_command.strip().startswith('echo '):
-                            # 对echo命令进行转义字符处理
-                            processed_command = self._process_echo_escapes(processed_command)
-                        
-                        # 添加特殊标记，让后续处理知道这是远程重定向
+
+                        # 处理json内容
+                        processed_command = self.process_json(processed_command)
                         marked_command = f"__QUOTED_COMMAND__{processed_command}"
                         
                         
@@ -1675,219 +1527,6 @@ done
                 "error": f"Experimental translation failed: {e}"
             }
     
-    def _parse_shell_command(self, shell_cmd):
-        """
-        接口化的shell命令解析方法
-        
-        Args:
-            shell_cmd (str): 要解析的shell命令
-            
-        Returns:
-            dict: 解析结果
-                - success (bool): 是否解析成功
-                - cmd (str): 命令名称
-                - args (list): 命令参数
-                - error (str): 错误信息（如果失败）
-        """
-        import shlex
-        
-        try:
-            # 在shlex.split之前保护~路径和转义引号，防止本地路径展开和引号丢失
-            protected_cmd = (shell_cmd.replace('~/', '__TILDE_SLASH__')
-                                     .replace(' ~', ' __TILDE__')
-                                     .replace('\\"', '__ESCAPED_QUOTE__'))
-            cmd_parts = shlex.split(protected_cmd)
-            cmd_parts = [part.replace('__TILDE_SLASH__', '~/').replace('__TILDE__', '~').replace('__ESCAPED_QUOTE__', '\\"') for part in cmd_parts]
-            
-            if not cmd_parts:
-                return {
-                    "success": False,
-                    "error": "Empty command"
-                }
-            
-            return {
-                "success": True,
-                "cmd": cmd_parts[0],
-                "args": cmd_parts[1:] if len(cmd_parts) > 1 else []
-            }
-            
-        except ValueError as e: 
-            return {
-                "success": False,
-                "error": f"Command parsing failed: {e}"
-            }
-
-    def _handle_edit_command(self, shell_cmd):
-        """
-        处理edit命令的用户友好接口
-        支持多种参数格式，避免复杂的JSON和引号嵌套
-        """
-        import shlex
-        import json
-        
-        try:
-            parse_result = self.parse_and_translate_command(shell_cmd)
-            if not parse_result["success"]:
-                print(f"Error: {parse_result['error']}")
-                return 1
-            
-            # 从parse_result中提取命令和参数
-            if "cmd" in parse_result and "args" in parse_result:
-                parts = [parse_result["cmd"]] + parse_result["args"]
-            else:
-                import shlex
-                parts = shlex.split(parse_result["translated_command"])
-            if len(parts) < 2:
-                print("Error: edit command requires a filename")
-                return 1
-                
-            filename = None
-            preview = False
-            backup = False
-            replacements = []
-            content_mode = False
-            content = None
-            i = 1
-            while i < len(parts):
-                arg = parts[i]
-                
-                if arg == '--preview':
-                    preview = True
-                elif arg == '--backup':
-                    backup = True
-                elif arg in ['--content', '-c']:
-                    if i + 1 >= len(parts):
-                        print("Error: --content requires a value")
-                        return 1
-                    content_mode = True
-                    # 处理转义字符，特别是\n
-                    content = parts[i + 1].replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-                    i += 1
-                elif arg in ['--replace', '-r']:
-                    if i + 2 >= len(parts):
-                        print("Error: --replace requires old and new values")
-                        return 1
-                    old_text = parts[i + 1].replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-                    new_text = parts[i + 2].replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-                    replacements.append([old_text, new_text])
-                    i += 2
-                elif arg in ['--line', '-l']:
-                    if i + 2 >= len(parts):
-                        print("Error: --line requires line number and content")
-                        return 1
-                    try:
-                        line_spec = parts[i + 1]
-                        line_content = parts[i + 2].replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-                        
-                        # 支持行号范围：5-10 或单个行号：5
-                        if '-' in line_spec and line_spec.count('-') == 1:
-                            # 行号范围模式
-                            start_str, end_str = line_spec.split('-', 1)
-                            start_line = int(start_str.strip())
-                            end_line = int(end_str.strip())
-                            if start_line > end_line:
-                                print(f"Error: Invalid line range: {line_spec}. Start line must be <= end line.")
-                                return 1
-                            replacements.append([[start_line, end_line], line_content])
-                        else:
-                            # 单个行号模式
-                            line_num = int(line_spec)
-                            replacements.append([[line_num, line_num], line_content])
-                        i += 2
-                    except ValueError:
-                        print(f"Error: Invalid line number or range: {parts[i + 1]}")
-                        return 1
-                elif arg in ['--insert', '-i']:
-                    if i + 2 >= len(parts):
-                        print("Error: --insert requires line number and content")
-                        return 1
-                    try:
-                        line_num = int(parts[i + 1])
-                        line_content = parts[i + 2].replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
-                        replacements.append([[line_num, None], line_content])
-                        i += 2
-                    except ValueError:
-                        print(f"Error: Invalid line number: {parts[i + 1]}")
-                        return 1
-                elif not arg.startswith('-'):
-                    if filename is None:
-                        filename = arg
-                    else:
-                        print(f"Error: Unrecognized argument: {arg}")
-                        print("Use --content, --replace, --line, or --insert")
-                        return 1
-                else:
-                    print(f"Error: Unknown option: {arg}")
-                    return 1
-                    
-                i += 1
-            
-            if filename is None:
-                print("Error: No filename specified")
-                return 1
-            
-            # 构建替换规范
-            if content_mode:
-                # 内容模式：使用行号范围替换整个文件内容
-                try:
-                    read_result = self.cmd_read(filename)
-                    if read_result.get("success"):
-                        current_content = read_result.get("output", "")
-                        if current_content.strip():  # 文件有内容
-                            # 计算总行数
-                            lines = current_content.splitlines()
-                            total_lines = len(lines)
-                            if total_lines > 0:
-                                # 使用行号范围替换：替换从第0行到最后一行（包含）
-                                json_spec = json.dumps([[[0, total_lines - 1], content]])
-                            else:
-                                # 空文件，使用插入模式
-                                json_spec = json.dumps([[[0, None], content]])
-                        else:
-                            # 空文件，使用插入模式
-                            json_spec = json.dumps([[[0, None], content]])
-                    else:
-                        # 文件不存在，使用插入模式创建新文件
-                        json_spec = json.dumps([[[0, None], content]])
-                except Exception:
-                    # 出错时回退到插入模式
-                    json_spec = json.dumps([[[0, None], content]])
-            elif replacements:
-                # 替换模式：使用收集的替换规则
-                json_spec = json.dumps(replacements)
-            else:
-                print("Error: No edit operations specified")
-                print("Use --content, --replace, --line, or --insert")
-                return 1
-            
-            # 调用原有的edit方法
-            try:
-                result = self.cmd_edit(filename, json_spec, preview=preview, backup=backup)
-            except KeyboardInterrupt:
-                result = {"success": False, "error": "Operation interrupted by user"}
-            
-            if result.get("success", False):
-                # 显示diff比较（预览模式和正常模式都显示）
-                diff_output = result.get("diff_output", "")
-                
-                if diff_output and diff_output != "No changes detected":
-                    print(f"\nEdit comparison: {filename}")
-                    print(f"=" * 50)
-                    print(diff_output)
-                    print(f"=" * 50)
-                
-                # 对于正常模式，显示成功信息
-                if result.get("mode") != "preview":
-                    print(result.get("message", "\nFile edited successfully"))
-                return 0
-            else:
-                print(result.get("error", "Edit failed"))
-                return 1
-                
-        except Exception as e:
-            print(f"Error parsing edit command: {e}")
-            return 1
-
     def _cleanup_background_tasks(self, command_identifier=None):
         """清理所有已完成的background任务"""
         try:
@@ -1991,7 +1630,7 @@ fi
 '''
             
             # 使用统一的命令执行接口
-            result = self.remote_commands.execute_command(
+            result = self.command_executor.execute_command(
                 user_command=cleanup_cmd,
                 current_shell=current_shell
             )
@@ -2039,13 +1678,13 @@ fi
             
             # 根据文件类型选择相应的文件
             if file_type == 'status':
-                from modules.constants import get_bg_status_file
+                from modules.config_loader import get_bg_status_file
                 target_file = get_bg_status_file(bg_pid)
             elif file_type == 'result':
-                from modules.constants import get_bg_result_file
+                from modules.config_loader import get_bg_result_file
                 target_file = get_bg_result_file(bg_pid)
             elif file_type == 'log':
-                from modules.constants import get_bg_log_file
+                from modules.config_loader import get_bg_log_file
                 target_file = get_bg_log_file(bg_pid)
             else:
                 return {"success": False, "error": f"Unknown file type: {file_type}"}
@@ -2342,60 +1981,6 @@ fi
             
         return dynamic_mount
     
-    def _handle_remount_command(self, command_identifier):
-        """处理GOOGLE_DRIVE --remount命令"""
-        import time
-        import hashlib
-        import random
-        
-        # 首先检查当前是否已有有效的指纹文件
-        current_mount_point = getattr(self, 'current_mount_point', None) or "/content/drive"
-        if self._verify_mount_fingerprint(current_mount_point, silent=True):
-            print("当前挂载已有效，无需重新挂载")
-            return 0
-        
-        # 生成动态挂载点（避免挂载点冲突）
-        mount_point = self._generate_dynamic_mount_point()
-        
-        # 需要重新挂载
-        timestamp = str(int(time.time()))
-        random_hash = hashlib.md5(f"{timestamp}_{random.randint(1000, 9999)}".encode()).hexdigest()[:8]
-        
-        # 生成指纹文件名（以.开头，保存在tmp文件夹内）
-        fingerprint_filename = f".gds_mount_fingerprint_{random_hash}"
-        fingerprint_path = f"{mount_point}/MyDrive/REMOTE_ROOT/tmp/{fingerprint_filename}"
-        
-        # 生成结果文件
-        result_filename = f"remount_result_{timestamp}_{random_hash}.json"
-        result_path = f"{mount_point}/MyDrive/REMOTE_ROOT/tmp/{result_filename}"
-        
-        # 生成全Python挂载脚本
-        python_remount_script = self._generate_python_remount_script(
-            mount_point, fingerprint_path, result_path, timestamp, random_hash
-        )
-        
-        # 复制到剪切板（静默）
-        try:
-            import subprocess
-            subprocess.run(['pbcopy'], input=python_remount_script.encode('utf-8'), 
-                          capture_output=True)
-        except Exception as e:
-            pass
-        
-        # 显示tkinter窗口（使用subprocess压制IMK信息）
-        success = self._show_remount_window_subprocess(python_remount_script, mount_point, result_path)
-        
-        if success:
-            # 更新挂载点信息
-            self._update_paths_for_dynamic_mount(mount_point)
-            
-            # 保存挂载配置到config.json
-            config_saved = self._save_mount_config_to_json(mount_point, timestamp, random_hash)
-            
-            return 0
-        else:
-            return 1
-    
     def _generate_python_remount_script(self, mount_point, fingerprint_path, result_path, timestamp, random_hash):
         """生成全Python重新挂载脚本"""
         
@@ -2517,103 +2102,6 @@ except Exception as e:
 
 '''
         return script
-    
-    def _show_remount_window(self, python_script, mount_point, result_path):
-        """显示重新挂载窗口"""
-        try:
-            import tkinter as tk
-            from tkinter import messagebox, scrolledtext
-            import subprocess
-            import time
-            import json
-            
-            # 创建窗口（使用远端指令窗口风格）
-            window = tk.Tk()
-            window.title("GDS 重新挂载")
-            window.geometry("500x60")  # 与普通指令窗口完全一致
-            window.resizable(False, False)
-            window.attributes('-topmost', True)  # 置顶显示
-            
-            # 结果变量
-            remount_success = False
-            
-            def copy_script():
-                """复制脚本到剪切板"""
-                try:
-                    subprocess.run(['pbcopy'], input=python_script.encode('utf-8'), 
-                                  capture_output=True)
-                except Exception as e:
-                    pass
-            
-            def execution_completed():
-                """用户确认执行完成"""
-                nonlocal remount_success
-                
-                try:
-                        remount_success = True
-                        
-                        # 保存挂载信息到GOOGLE_DRIVE_DATA（简化版）
-                        try:
-                            mount_info = {
-                                "mount_point": mount_point,
-                                "timestamp": int(time.time()),
-                                "type": "dynamic_mount"
-                            }
-                        except Exception as e:
-                            pass
-                        
-                        window.quit()
-                        
-                except Exception as e:
-                    pass
-            
-            def cancel_remount():
-                """取消重新挂载"""
-                nonlocal remount_success
-                remount_success = False
-                window.quit()
-            
-            # 自动复制脚本到剪切板（静默）
-            try:
-                subprocess.run(['pbcopy'], input=python_script.encode('utf-8'), 
-                              capture_output=True)
-            except Exception as e:
-                pass  # 静默处理复制失败
-            
-            # 创建主框架（类似远端指令窗口布局）
-            main_frame = tk.Frame(window, padx=10, pady=10)
-            main_frame.pack(fill=tk.BOTH, expand=True)
-            
-            # 按钮框架（类似远端指令窗口的按钮布局）
-            button_frame = tk.Frame(main_frame)
-            button_frame.pack(fill=tk.X, expand=True)
-            
-            # 复制Python代码按钮（使用与远端指令窗口一致的风格）
-            copy_btn = tk.Button(button_frame, text="📋复制指令", command=copy_script,
-                               bg="#2196F3", fg="white", font=("Arial", 9), 
-                               padx=10, pady=5, relief=tk.RAISED, bd=2)
-            copy_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
-            
-            # 执行完成按钮（使用与远端指令窗口一致的风格）
-            complete_btn = tk.Button(button_frame, text="✅执行完成", command=execution_completed,
-                                   bg="#4CAF50", fg="white", font=("Arial", 9, "bold"), 
-                                   padx=10, pady=5, relief=tk.RAISED, bd=2)
-            complete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-            
-            # 运行窗口
-            try:
-                window.mainloop()
-            finally:
-                try:
-                    window.destroy()
-                except:
-                    pass  # 忽略destroy错误
-            
-            return remount_success
-            
-        except Exception as e:
-            print(f"Error: 显示重新挂载窗口失败: {e}")
-            return False
     
     def _show_remount_window_subprocess(self, python_script, mount_point, result_path):
         """使用subprocess显示重新挂载窗口，压制IMK信息"""
@@ -2885,7 +2373,7 @@ except Exception as e:
             result_filename = os.path.basename(result_path)
             
             # 使用统一的等待和读取接口
-            file_result = self.remote_commands._wait_and_read_result_file(result_filename)
+            file_result = self.result_processor.wait_and_read_result_file(result_filename)
             
             if file_result.get("success"):
                 content = file_result.get("content", "")
@@ -3041,13 +2529,13 @@ except Exception as e:
             
             # 使用GoogleDriveService的正确API
             # 首先获取MyDrive文件夹的ID
-            mydrive_folder_id = self.drive_service._find_folder_by_name("root", "My Drive")
+            mydrive_folder_id = self.drive_service.find_folder_by_name("root", "My Drive")
             if not mydrive_folder_id:
                 # 如果找不到"My Drive"，尝试直接在root下搜索
                 mydrive_folder_id = "root"
             
             # 在MyDrive中搜索目标文件夹
-            folder_id = self.drive_service._find_folder_by_name(mydrive_folder_id, folder_name)
+            folder_id = self.drive_service.find_folder_by_name(mydrive_folder_id, folder_name)
             
             if folder_id:
                 if not silent:
@@ -3143,20 +2631,14 @@ except Exception as e:
         try:
             from .modules.remote_shell_manager import list_shells, create_shell, checkout_shell, terminate_shell, enter_shell_mode
             from .modules.drive_api_service import open_google_drive
-            from .modules.sync_config_manager import set_local_sync_dir, set_global_sync_dir
-            from .modules.remote_commands import show_help, handle_remount_command
         except ImportError:
             try:
                 from modules.remote_shell_manager import list_shells, create_shell, checkout_shell, terminate_shell, enter_shell_mode
                 from modules.drive_api_service import open_google_drive
-                from modules.sync_config_manager import set_local_sync_dir, set_global_sync_dir
-                from modules.remote_commands import show_help, handle_remount_command
             except ImportError:
                 print("Error: Failed to import required modules")
                 return 1
-        
         if not args:
-            # 没有参数，打开默认Google Drive
             return open_google_drive(None, command_identifier) if open_google_drive else 1
         
         # 处理各种命令行参数
@@ -3236,11 +2718,11 @@ except Exception as e:
             shell_cmd = ' '.join(shell_cmd_parts_quoted)
         
         # 设置模式标志
-        if no_direct_feedback and hasattr(self, 'remote_commands'):
-            self.remote_commands._no_direct_feedback = True
+        if no_direct_feedback and hasattr(self, 'command_executor'):
+            self.command_executor._no_direct_feedback = True
         
-        if is_priority and hasattr(self, 'remote_commands'):
-            self.remote_commands._is_priority = True
+        if is_priority and hasattr(self, 'command_executor'):
+            self.command_executor._is_priority = True
         
         # 执行shell命令
         return self.execute_shell_command(shell_cmd, command_identifier)

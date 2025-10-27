@@ -80,9 +80,9 @@ class GoogleDriveMain:
             self.REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
         
         # 初始化管理器
-        self._initialize_managers()
+        self.initialize_managers()
     
-    def _initialize_managers(self):
+    def initialize_managers(self):
         """初始化各个管理器"""
         self.core_utils = CoreUtils(None, self)
         self.drive_process_manager = DriveProcessManager(None, self)
@@ -256,7 +256,21 @@ def show_help(*args, **kwargs):
     return google_drive_main.show_help(*args, **kwargs)
 
 def main(*args, **kwargs):
-    return google_drive_main.main(*args, **kwargs)
+    try:
+        return google_drive_main.main(*args, **kwargs)
+    except Exception as e:
+        # 在最顶层捕获所有异常并显示完整traceback
+        try:
+            sys.path.insert(0, str(google_drive_proj_dir))
+            from modules.error_handler import capture_and_report_error
+            error_info = capture_and_report_error("Top-level main execution", e)
+            print(f"Top-level error: {error_info.get('exception_message', str(e))}")
+            return 1
+        except ImportError:
+            print(f"Top-level error: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
 
 def is_google_drive_running(*args, **kwargs):
     return google_drive_main.is_google_drive_running(*args, **kwargs)

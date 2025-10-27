@@ -119,8 +119,8 @@ class GDSCacheManager:
             # 如果绝对路径没找到，尝试相对路径格式
             if not pending_modified_time:
                 # 将绝对路径转换为相对路径格式进行查找
-                if remote_path.startswith("/content/drive/MyDrive/REMOTE_ROOT/"):
-                    relative_path = remote_path.replace("/content/drive/MyDrive/REMOTE_ROOT/", "~/")
+                if remote_path.startswith(f"{self.main_instance.REMOTE_ROOT}/"):
+                    relative_path = remote_path.replace(f"{self.main_instance.REMOTE_ROOT}/", "~/")
                     pending_modified_time = self.get_pending_modified_time(relative_path)
                     if pending_modified_time:
                         # 清除相对路径格式的待处理时间
@@ -287,31 +287,6 @@ class GDSCacheManager:
                 "error": f"Failed to clean cache: {e}"
             }
     
-    def get_cache_stats(self) -> Dict:
-        """获取缓存统计信息"""
-        try:
-            total_files = len(self.cache_config["files"])
-            total_size = 0
-            
-            for file_info in self.cache_config["files"].values():
-                cache_file_path = self.remote_files_dir / file_info["cache_file"]
-                if cache_file_path.exists():
-                    total_size += cache_file_path.stat().st_size
-            
-            return {
-                "success": True,
-                "total_files": total_files,
-                "total_size_bytes": total_size,
-                "total_size_mb": round(total_size / (1024 * 1024), 2),
-                "cache_root": str(self.cache_root),
-                "remote_files_dir": str(self.remote_files_dir)
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to get cache stats: {e}"
-            } 
     def _update_cached_file_modified_time(self, remote_path: str, remote_modified_time: str):
         """
         更新已缓存文件的远端修改时间

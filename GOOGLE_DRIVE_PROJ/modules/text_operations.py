@@ -26,23 +26,6 @@ class TextOperations:
         file_core = FileCore(self.drive_service, self.main_instance)
         return file_core.cmd_upload(*args, **kwargs)
 
-    def _find_folder(self, folder_name, parent_id):
-        """在指定父目录中查找文件夹"""
-        try:
-            files_result = self.drive_service.list_files(folder_id=parent_id, max_results=100)
-            if not files_result['success']:
-                return None
-            
-            for file in files_result['files']:
-                if (file['name'] == folder_name and 
-                    file['mimeType'] == 'application/vnd.google-apps.folder'):
-                    return file
-            
-            return None
-            
-        except Exception:
-            return None
-
     def _create_text_file(self, filename, content):
         """通过远程命令创建文本文件"""
         try:
@@ -183,7 +166,7 @@ class TextOperations:
                 formatted_occurrences = occurrences
                 
                 # 获取本地缓存文件路径
-                local_file = self.main_instance.cache_manager._get_local_cache_path(filename)
+                local_file = self.main_instance.cache_manager.get_local_cache_path(filename)
                 
                 result[filename] = {
                     "local_file": local_file,
@@ -226,121 +209,6 @@ class TextOperations:
             
         except Exception:
             return None
-
-    def _download_and_get_content(self, filename, remote_absolute_path, force=False):
-        """
-        下载文件并获取内容（用于read命令）
-        
-        Args:
-            filename (str): 文件名
-            remote_absolute_path (str): 远程绝对路径
-            force (bool): 是否强制下载并更新缓存
-        """
-        try:
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "没有活跃的远程shell"}
-            
-            # 解析路径以获取目标文件夹和文件名
-            path_parts = remote_absolute_path.strip('/').split('/')
-            actual_filename = path_parts[-1]
-            
-            # 对于绝对路径，需要特殊处理
-            if remote_absolute_path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
-                # 移除前缀，获取相对于REMOTE_ROOT的路径
-                relative_path = remote_absolute_path.replace('/content/drive/MyDrive/REMOTE_ROOT/', '')
-                relative_parts = relative_path.split('/')
-                actual_filename = relative_parts[-1]
-                parent_relative_path = '/'.join(relative_parts[:-1]) if len(relative_parts) > 1 else ''
-                
-                if parent_relative_path:
-                    # 转换为~路径格式
-                    parent_logical_path = '~/' + parent_relative_path
-                    resolve_result = self.main_instance.path_resolver.resolve_path(parent_logical_path, current_shell)
-                    if isinstance(resolve_result, tuple) and len(resolve_result) >= 2:
-                        target_folder_id, _ = resolve_result
-                        if not target_folder_id:
-                            return {"success": False, "error": f"无法解析目标路径: {parent_logical_path}"}
-                    else:
-                        return {"success": False, "error": f"路径解析返回格式错误: {parent_logical_path}"}
-                else:
-                    # 文件在REMOTE_ROOT根目录
-                    target_folder_id = self.main_instance.REMOTE_ROOT_FOLDER_ID
-            else:
-                # 使用当前shell的文件夹ID
-                target_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
-            
-            # 在目标文件夹中查找文件
-            result = self.drive_service.list_files(folder_id=target_folder_id, max_results=100)
-            if not result['success']:
-                return {"success": False, "error": f"无法列出文件夹内容: {result.get('error', '未知错误')}"}
-            
-            file_info = None
-            files = result['files']
-            for file in files:
-                if file['name'] == actual_filename:
-                    file_info = file
-                    break
-            
-            if not file_info:
-                return {"success": False, "error": f"File does not exist: {actual_filename}"}
-            
-            # 检查是否为文件（不是文件夹）
-            if file_info['mimeType'] == 'application/vnd.google-apps.folder':
-                return {"success": False, "error": f"{actual_filename} 是一个目录，无法读取"}
-            
-            # 使用Google Drive API下载文件内容
-            try:
-                file_id = file_info['id']
-                request = self.drive_service.service.files().get_media(fileId=file_id)
-                content = request.execute()
-                
-                # 将字节内容转换为字符串
-                if isinstance(content, bytes):
-                    try:
-                        content_str = content.decode('utf-8')
-                    except UnicodeDecodeError:
-                        try:
-                            content_str = content.decode('gbk')
-                        except UnicodeDecodeError:
-                            content_str = content.decode('utf-8', errors='replace')
-                else:
-                    content_str = str(content)
-                
-
-                
-                return {
-                    "success": True,
-                    "content": content_str,
-                    "file_info": file_info
-                }
-                
-            except Exception as e:
-                return {"success": False, "error": f"下载文件内容失败: {e}"}
-                
-        except Exception as e:
-            return {"success": False, "error": f"下载和获取内容时出错: {e}"}
-
-    def _format_read_output(self, selected_lines):
-        """
-        格式化读取输出
-        
-        Args:
-            selected_lines: 包含(line_number, line_content)元组的列表
-            
-        Returns:
-            str: 格式化后的输出字符串
-        """
-        if not selected_lines:
-            return ""
-        
-        # 格式化每行，显示行号和内容
-        formatted_lines = ["line_num: line_content"]
-        for line_num, line_content in selected_lines:
-            # 行号从0开始, 0-indexed
-            formatted_lines.append(f"{line_num:4d}: {line_content}")
-        
-        return "\n".join(formatted_lines)
 
     def _parse_find_args(self, args):
         """解析find命令参数"""
@@ -404,16 +272,9 @@ class TextOperations:
         try:
             import fnmatch
             
-            # 解析搜索路径
-            if search_path == ".":
-                # 使用当前shell路径
-                current_shell = self.main_instance.get_current_shell()
-                if current_shell:
-                    search_path = current_shell.get("current_path", "~")
-            
-            # 将~转换为实际的REMOTE_ROOT路径
-            if search_path.startswith("~"):
-                search_path = search_path.replace("~", "/content/drive/MyDrive/REMOTE_ROOT", 1)
+            # 使用统一的路径解析接口
+            current_shell = self.main_instance.get_current_shell()
+            search_path = self.main_instance.path_resolver.resolve_remote_absolute_path(search_path, current_shell)
             
             # 生成远程find命令
             find_cmd_parts = ["find", f'"{search_path}"']
@@ -518,168 +379,6 @@ class TextOperations:
             return {
                 "success": False,
                 "error": f"Find command error: {e}"
-            }
-
-    def _generate_edit_diff(self, original_lines, modified_lines, parsed_replacements):
-        """
-        生成编辑差异信息
-        
-        Args:
-            original_lines: 原始文件行列表
-            modified_lines: 修改后文件行列表
-            parsed_replacements: 解析后的替换操作列表
-            
-        Returns:
-            dict: 差异信息
-        """
-        try:
-            import difflib
-            
-            # 生成unified diff
-            diff = list(difflib.unified_diff(
-                original_lines,
-                modified_lines,
-                fromfile='original',
-                tofile='modified',
-                lineterm=''
-            ))
-            
-            # 统计变更信息
-            lines_added = len(modified_lines) - len(original_lines)
-            changes_count = len(parsed_replacements)
-            
-            # 生成简化的变更摘要
-            changes_summary = []
-            for replacement in parsed_replacements:
-                if replacement["type"] == "line_range":
-                    changes_summary.append(f"Lines {replacement['start_line']}-{replacement['end_line']}: range replacement")
-                elif replacement["type"] == "line_insert":
-                    changes_summary.append(f"Line {replacement['insert_line']}: content insertion")
-                elif replacement["type"] == "text_search":
-                    changes_summary.append(f"Text search: '{replacement['old_text'][:50]}...' -> '{replacement['new_text'][:50]}...'")
-            
-            return {
-                "diff_lines": diff,
-                "lines_added": lines_added,
-                "changes_count": changes_count,
-                "changes_summary": changes_summary,
-                "original_line_count": len(original_lines),
-                "modified_line_count": len(modified_lines)
-            }
-            
-        except Exception as e:
-            return {
-                "error": f"Failed to generate diff: {e}",
-                "diff_lines": [],
-                "lines_added": 0,
-                "changes_count": 0,
-                "changes_summary": []
-            }
-
-    def _generate_local_diff_preview(self, filename, original_lines, modified_lines, parsed_replacements):
-        """
-        生成本地diff预览，只显示修改的部分
-        
-        Args:
-            filename (str): 文件名
-            original_lines (list): 原始文件行
-            modified_lines (list): 修改后文件行
-            parsed_replacements (list): 解析后的替换操作
-            
-        Returns:
-            dict: 包含diff输出和变更摘要
-        """
-        try:
-            import tempfile
-            import os
-            import subprocess
-            import hashlib
-            import time
-            
-            # 创建临时目录 - 使用统一路径常量
-            try:
-                from .path_constants import get_data_dir
-                temp_base_dir = str(get_data_dir() / "tmp")
-            except ImportError:
-                temp_base_dir = os.path.join(os.path.expanduser("~"), ".local", "bin", "GOOGLE_DRIVE_DATA", "tmp")
-            os.makedirs(temp_base_dir, exist_ok=True)
-            
-            # 生成带时间戳的哈希文件名
-            timestamp = str(int(time.time() * 1000))
-            content_hash = hashlib.md5(filename.encode()).hexdigest()[:8]
-            
-            original_filename = f"{content_hash}_{timestamp}_original.tmp"
-            modified_filename = f"{content_hash}_{timestamp}_modified.tmp"
-            
-            original_path = os.path.join(temp_base_dir, original_filename)
-            modified_path = os.path.join(temp_base_dir, modified_filename)
-            
-            try:
-                # 写入原始文件
-                with open(original_path, 'w', encoding='utf-8') as f:
-                    f.writelines(original_lines)
-                
-                # 写入修改后文件
-                with open(modified_path, 'w', encoding='utf-8') as f:
-                    f.writelines(modified_lines)
-                
-                # 执行diff命令
-                diff_cmd = ['diff', '-u', original_path, modified_path]
-                result = subprocess.run(diff_cmd, capture_output=True, text=True, encoding='utf-8')
-                
-                # diff命令返回码：0=无差异，1=有差异，2=错误
-                if result.returncode == 0:
-                    diff_output = "No changes detected"
-                elif result.returncode == 1:
-                    # 有差异，处理输出
-                    diff_lines = result.stdout.splitlines()
-                    # 移除文件路径行，只保留差异内容
-                    filtered_lines = []
-                    for line in diff_lines:
-                        if line.startswith('---') or line.startswith('+++'):
-                            # 替换临时文件路径为实际文件名
-                            if line.startswith('---'):
-                                filtered_lines.append(f"--- {filename} (original)")
-                            elif line.startswith('+++'):
-                                filtered_lines.append(f"+++ {filename} (modified)")
-                        else:
-                            filtered_lines.append(line)
-                    diff_output = '\n'.join(filtered_lines)
-                else:
-                    diff_output = f"Diff command error: {result.stderr}"
-                
-                # 生成变更摘要
-                changes_summary = []
-                for replacement in parsed_replacements:
-                    if replacement["type"] == "line_range":
-                        changes_summary.append(f"Lines {replacement['start_line']}-{replacement['end_line']}: range replacement")
-                    elif replacement["type"] == "line_insert":
-                        changes_summary.append(f"Line {replacement['insert_line']}: content insertion")
-                    elif replacement["type"] == "text_search":
-                        changes_summary.append(f"Text search: '{replacement['old_text'][:50]}...' -> '{replacement['new_text'][:50]}...'")
-                
-                return {
-                    "diff_output": diff_output,
-                    "changes_summary": changes_summary,
-                    "temp_files_created": [original_path, modified_path]
-                }
-                
-            finally:
-                # 清理临时文件
-                try:
-                    if os.path.exists(original_path):
-                        os.unlink(original_path)
-                    if os.path.exists(modified_path):
-                        os.unlink(modified_path)
-                except Exception as cleanup_error:
-                    # 清理失败不影响主要功能
-                    pass
-                    
-        except Exception as e:
-            return {
-                "diff_output": f"Failed to generate diff preview: {str(e)}",
-                "changes_summary": [],
-                "temp_files_created": []
             }
 
     def cmd_edit_online(self, filename, replacement_spec, preview=False, backup=False):
@@ -1089,62 +788,6 @@ if __name__ == "__main__":
                 
         except Exception as e:
             return {"success": False, "error": f"Direct execution failed: {str(e)}"}
-
-    def _execute_online_edit_script(self, script_filename, edit_script, target_filename):
-        """执行在线编辑脚本"""
-        try:
-            # 1. 创建临时脚本文件
-            import tempfile
-            import os
-            
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
-                temp_script.write(edit_script)
-                temp_script_path = temp_script.name
-            
-            try:
-                # 2. 上传脚本到远端
-                upload_result = self.cmd_upload([temp_script_path], force=True)
-                if not upload_result.get("success"):
-                    return {"success": False, "error": f"Failed to upload edit script: {upload_result.get('error')}"}
-                
-                # 3. 执行脚本
-                script_name = os.path.basename(temp_script_path)
-                command = f"python3 {script_name}"
-                execute_result = self.main_instance.remote_commands.execute_command(command)
-                
-                if execute_result.get("success"):
-                    # 4. 解析脚本输出
-                    output = execute_result.get("output", "")
-                    try:
-                        result = json.loads(output)
-                        
-                        # 5. 格式化diff输出用于显示
-                        if result.get("success") and result.get("diff_lines"):
-                            diff_output = "\\n".join(result["diff_lines"])
-                            # 过滤diff输出
-                            filtered_lines = []
-                            for line in result["diff_lines"]:
-                                if line.startswith('---') or line.startswith('+++') or line.startswith('@@'):
-                                    continue
-                                filtered_lines.append(line)
-                            result["diff_output"] = "\\n".join(filtered_lines) if filtered_lines else "No changes detected"
-                        
-                        return result
-                        
-                    except json.JSONDecodeError as e:
-                        return {"success": False, "error": f"Invalid script output: {output}"}
-                else:
-                    return {"success": False, "error": f"Script execution failed: {execute_result.get('error')}"}
-                    
-            finally:
-                # 清理临时文件
-                try:
-                    os.unlink(temp_script_path)
-                except:
-                    pass
-                    
-        except Exception as e:
-            return {"success": False, "error": f"Failed to execute online edit: {e}"}
 
     def cmd_edit(self, filename, replacement_spec, preview=False, backup=False):
         """

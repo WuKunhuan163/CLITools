@@ -47,10 +47,6 @@ class VenvApiManager:
         """获取虚拟环境基础路径"""
         return f"{self.main_instance.REMOTE_ENV}/venv"
     
-    def get_venv_state_file_path(self):
-        """获取虚拟环境状态文件路径"""
-        return f"{self.get_venv_base_path()}/venv_states.json"
-    
     def read_venv_states(self):
         """读取虚拟环境状态文件"""
         try:
@@ -188,11 +184,6 @@ class VenvApiManager:
         except Exception as e:
             return []
 
-
-    def _initialize_venv_state(self, env_name):
-        """为新创建的虚拟环境初始化状态条目"""
-        return self._initialize_venv_state_simple(env_name)
-
     def _initialize_venv_state_simple(self, env_name):
         """简化的状态初始化方法"""
         try:
@@ -221,40 +212,6 @@ class VenvApiManager:
                 
         except Exception as e:
             print(f"Failed to initialize venv state for '{env_name}': {str(e)}")
-            return False
-
-    def _initialize_venv_states_batch(self, env_names):
-        """批量初始化虚拟环境状态条目（状态已在远程命令中初始化）"""
-        # 状态已经在远程命令中初始化，这里只需要记录日志
-        print(f"Initialized state for {len(env_names)} environment(s): {', '.join(env_names)}")
-        return True
-
-    def _ensure_environment_state_exists(self, env_name):
-        """确保环境状态存在（向后兼容）"""
-        try:
-            all_states = self._load_all_venv_states()
-            
-            # 检查environments字段是否存在
-            if 'environments' not in all_states:
-                all_states['environments'] = {}
-            
-            # 检查特定环境是否存在
-            if env_name not in all_states['environments']:
-                print(f"Environment '{env_name}' not found in state, creating entry...")
-                all_states['environments'][env_name] = {
-                    'created_at': self._get_current_timestamp(),
-                    'packages': {},
-                    'last_updated': self._get_current_timestamp()
-                }
-                
-                # 保存更新后的状态
-                self._save_all_venv_states(all_states)
-                print(f"Created state entry for environment '{env_name}'")
-            
-            return True
-            
-        except Exception as e:
-            print(f"Failed to ensure environment state exists: {str(e)}")
             return False
 
     def _get_current_timestamp(self):
@@ -367,110 +324,3 @@ mkdir -p "{self._get_venv_base_path()}" && {{
         except Exception as e:
             print(f"Error: Create initial state file failed: {e}")
             return False
-
-    def _update_environment_packages_in_json(self, env_name, packages_dict):
-        """更新JSON文件中指定环境的包信息"""
-        try:
-            import datetime
-            
-            # 加载现有状态
-            all_states = self._load_all_venv_states()
-            
-            # 确保环境存在
-            if "environments" not in all_states:
-                all_states["environments"] = {{}}
-            
-            if env_name not in all_states["environments"]:
-                all_states["environments"][env_name] = {{
-                    "created_at": datetime.datetime.now().isoformat(),
-                    "packages": {},
-                    "last_updated": datetime.datetime.now().isoformat()
-                }}
-            
-            # 更新包信息
-            all_states["environments"][env_name]["packages"] = packages_dict
-            all_states["environments"][env_name]["last_updated"] = datetime.datetime.now().isoformat()
-            
-            # 保存更新后的状态
-            self._save_all_venv_states(all_states)
-            
-        except Exception as e:
-            print(f"Error: Update environment package info failed: {e}")
-    
-    def _clear_venv_state(self, shell_id):
-        """清除指定shell的虚拟环境状态"""
-        try:
-            # 读取现有的状态文件
-            existing_states = self._load_all_venv_states()
-            
-            # 移除指定shell的状态
-            if shell_id in existing_states:
-                del existing_states[shell_id]
-            
-            # 保存更新后的状态
-            state_file = self._get_venv_state_file_path()
-            import json
-            json_content = json.dumps(existing_states, indent=2, ensure_ascii=False)
-            
-            commands = [
-                f"mkdir -p '{self._get_venv_base_path()}'",
-                f"cat > '{state_file}' << 'EOF'\n{json_content}\nEOF"
-            ]
-            
-            command_script = " && ".join(commands)
-            result = self.main_instance.execute_command_interface("bash", ["-c", command_script])
-            
-            return result.get("success", False)
-            
-        except Exception as e:
-            print(f"Warning: Clear virtual environment state failed: {e}")
-            return False
-
-    def _get_current_venv(self):
-        """获取当前激活的虚拟环境名称"""
-        try:
-            current_shell = self.main_instance.get_current_shell()
-            
-            if not current_shell:
-                return None
-            
-            shell_id = current_shell.get("id", "default")
-            
-            # 尝试从JSON状态文件加载
-            state_data = self._load_venv_state(shell_id)
-            
-            if state_data and state_data.get("current_venv"):
-                return state_data["current_venv"]
-            
-            # 回退到旧的txt文件格式
-            current_venv_file = f"{self._get_venv_base_path()}/current_venv_{shell_id}.txt"
-            
-            # 通过远程命令检查虚拟环境状态文件
-            check_command = f'cat "{current_venv_file}" 2>/dev/null || echo "none"'
-            result = self.main_instance.execute_command_interface("bash", ["-c", check_command])
-            
-            if result.get("success") and result.get("stdout"):
-                venv_name = result["stdout"].strip()
-                return venv_name if venv_name != "none" else None
-            
-            return None
-            
-        except Exception as e:
-            print(f"Warning: Get current virtual environment failed: {e}")
-            return None
-
-    def _get_environment_json_path(self, is_remote=True):
-        """
-        获取环境JSON文件的路径
-        
-        Args:
-            is_remote: 是否为远端路径
-            
-        Returns:
-            str: JSON文件路径
-        """
-        if is_remote:
-            return "/content/drive/MyDrive/REMOTE_ROOT/environments.json"
-        else:
-            return os.path.join(self.main_instance.REMOTE_ENV or ".", "environments_local.json")
-    

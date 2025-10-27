@@ -97,10 +97,6 @@ def progress_print(message: str, end: str = "\n", flush: bool = False):
     else:
         _global_progress_display.update_progress(message)
 
-def normal_print(message: str, end: str = "\n", flush: bool = False):
-    """输出正常信息（不影响进度显示）"""
-    _global_progress_display.print_normal(message)
-
 def add_success_mark():
     """在进度行添加成功标记√"""
     _global_progress_display.add_success_mark()
@@ -108,10 +104,6 @@ def add_success_mark():
 def clear_progress():
     """清除进度显示"""
     _global_progress_display.stop_progress()
-
-def result_print(message: str, success: bool = True):
-    """显示最终结果（替换进度显示）"""
-    _global_progress_display.print_result(message, success)
 
 def is_progress_active() -> bool:
     """检查是否在进度显示模式"""
@@ -215,7 +207,6 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
         "message": f"Operation failed after {attempt} attempts",
         "attempts": attempt
     }
-
 
 def validate_creation(validation_func, item_name, max_attempts=20, validation_type="file"):
     """
