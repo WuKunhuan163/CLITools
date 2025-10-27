@@ -1309,57 +1309,6 @@ except Exception as e:
             pass
         return count
     
-    def _cross_process_cleanup(self, force=False):
-        """跨进程清理 - 清理所有GDS相关的tkinter窗口"""
-        try:
-            import psutil
-            cleaned_count = 0
-            
-            self._debug_log(f"[CROSS_PROCESS_CLEANUP] 开始跨进程清理，force={force}")
-            
-            for proc in psutil.process_iter(['pid', 'cmdline', 'ppid']):
-                try:
-                    cmdline = proc.info['cmdline']
-                    if not cmdline:
-                        continue
-                        
-                    cmdline_str = ' '.join(cmdline)
-                    
-                    # 检测GDS相关的tkinter窗口进程
-                    if ('python' in cmdline_str.lower() and 
-                        ('-c' in cmdline_str or 'tkinter' in cmdline_str.lower()) and
-                        ('Google Drive Shell' in cmdline_str or 'root.title' in cmdline_str or 
-                         'tkinter' in cmdline_str)):
-                        
-                        self._debug_log(f"[CROSS_PROCESS_FOUND] 发现tkinter进程: PID={proc.info['pid']}")
-                        
-                        if force:
-                            # 强制清理：立即杀死
-                            proc.kill()
-                            self._debug_log(f"[CROSS_PROCESS_KILLED] 强制杀死进程: PID={proc.info['pid']}")
-                        else:
-                            # 温和清理：先尝试terminate
-                            proc.terminate()
-                            self._debug_log(f"[CROSS_PROCESS_TERMINATED] 温和终止进程: PID={proc.info['pid']}")
-                        
-                        cleaned_count += 1
-                        
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-                except Exception as e:
-                    self._debug_log(f"[CROSS_PROCESS_ERROR] 清理进程失败: {e}")
-            
-            if cleaned_count > 0:
-                self._debug_log(f"[CROSS_PROCESS_COMPLETE] 跨进程清理了 {cleaned_count} 个tkinter进程")
-            else:
-                self._debug_log("[CROSS_PROCESS_NONE] 没有找到需要清理的tkinter进程")
-                
-        except Exception as e:
-            self._debug_log(f"[CROSS_PROCESS_CLEANUP_ERROR] 跨进程清理失败: {e}")
-    
-# 全局窗口管理器实例
-_window_manager = None
-
 def get_window_manager():
     """获取全局窗口管理器实例"""
     global _window_manager

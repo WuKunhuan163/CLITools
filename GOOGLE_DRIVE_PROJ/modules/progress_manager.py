@@ -47,25 +47,6 @@ class ProgressDisplay:
             self.has_progress_line = False
             self.current_message = ""
     
-    def add_success_mark(self):
-        """在进度行添加成功标记√"""
-        with self.lock:
-            if self.is_active and self.has_progress_line:
-                # 不立即flush，让后续的clear_progress统一处理
-                print(f"√", end='', flush=False)
-    
-    def print_result(self, message: str, success: bool = True):
-        """显示最终结果（替换进度显示）"""
-        with self.lock:
-            # 先清除进度显示（包括√）
-            # 强制清除，无论状态如何
-            print('\r\033[K', end='', flush=True)
-            self.is_active = False
-            self.has_progress_line = False
-            
-            # 显示最终结果（不带√前缀）
-            print(message, flush=True)
-    
     def print_normal(self, message: str):
         """正常输出（不影响进度显示）"""
         print(message)
@@ -96,10 +77,6 @@ def progress_print(message: str, end: str = "\n", flush: bool = False):
             _global_progress_display.start_progress(message)
     else:
         _global_progress_display.update_progress(message)
-
-def add_success_mark():
-    """在进度行添加成功标记√"""
-    _global_progress_display.add_success_mark()
 
 def clear_progress():
     """清除进度显示"""

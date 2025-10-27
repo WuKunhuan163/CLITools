@@ -228,28 +228,6 @@ class GoogleDriveService:
                 "error": f"{e}"
             }
     
-    def delete_file(self, file_id):
-        """
-        删除文件
-        
-        Args:
-            file_id (str): 文件ID
-            
-        Returns:
-            dict: 删除结果
-        """
-        try:
-            self.service.files().delete(fileId=file_id).execute()
-            return {
-                "success": True,
-                "message": "File deleted successfully"
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to delete file: {e}"
-            }
-
 # 测试函数
 def test_drive_service():
     """测试Google Drive服务"""

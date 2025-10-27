@@ -287,7 +287,10 @@ def set_global_sync_dir(command_identifier=None):
         if not test_result["success"]:
             print(f"Error: Upload workflow test failed: {test_result['error']}")
             print(f"请检查逻辑路径是否正确")
-            print(f"注意: REMOTE_ROOT的逻辑路径应为 /content/drive/MyDrive/REMOTE_ROOT")
+            # 从配置获取正确的REMOTE_ROOT路径
+            from modules.config_loader import get_config
+            config = get_config()
+            print(f"注意: REMOTE_ROOT的逻辑路径应为 {config.REMOTE_ROOT}")
             return 1
         
         print(f"Upload workflow test passed")

@@ -35,8 +35,6 @@ class Verification:
             def validate():
                 ls_result = self.main_instance.cmd_ls(path, detailed=False, recursive=False)
                 return ls_result["success"]
-            
-            # 使用统一的验证接口
             from .progress_manager import validate_creation, clear_progress, is_progress_active
             if is_progress_active():
                 clear_progress()

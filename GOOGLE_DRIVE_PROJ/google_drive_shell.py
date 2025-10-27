@@ -123,18 +123,6 @@ class GoogleDriveShell:
         # 从config.json动态加载REMOTE_ROOT和REMOTE_ENV
         self._load_paths_from_config()
         
-        # 确保所有必要的属性都存在（回退值）
-        if not hasattr(self, 'REMOTE_ROOT'):
-            self.REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
-        if not hasattr(self, 'REMOTE_ROOT_FOLDER_ID'):
-            self.REMOTE_ROOT_FOLDER_ID = "1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f"
-        
-        # 添加虚拟环境管理相关属性
-        if not hasattr(self, 'REMOTE_ENV'):
-            self.REMOTE_ENV = "/content/drive/MyDrive/REMOTE_ENV"
-        if not hasattr(self, 'REMOTE_ENV_FOLDER_ID'):
-            self.REMOTE_ENV_FOLDER_ID = "1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h"
-        
         # 动态挂载点管理：检查是否需要使用动态挂载
         self.current_mount_point = None
         self.dynamic_mode = False
@@ -1810,8 +1798,12 @@ fi
         
         # 如果检测到需要动态挂载（比如传统挂载失败），启用动态模式
         try:
-            # 简单的启发式：如果REMOTE_ROOT包含默认路径，可能需要动态挂载
-            if self.REMOTE_ROOT == "/content/drive/MyDrive/REMOTE_ROOT":
+            # 简单的启发式：如果REMOTE_ROOT包含固定路径，可能需要动态挂载
+            # 从配置加载默认路径进行比较
+            from modules.config_loader import get_config
+            config = get_config()
+            default_remote_root = config.REMOTE_ROOT
+            if self.REMOTE_ROOT == default_remote_root:
                 self.dynamic_mode = True
             else:
                 self.dynamic_mode = False
@@ -1822,8 +1814,6 @@ fi
     def _update_paths_for_dynamic_mount(self, mount_point):
         """更新路径以使用动态挂载点"""
         self.current_mount_point = mount_point
-        self.REMOTE_ROOT = f"{mount_point}/MyDrive/REMOTE_ROOT"
-        self.REMOTE_ENV = f"{mount_point}/MyDrive/REMOTE_ENV"
         self.dynamic_mode = True
         
         # 保存挂载点信息到临时文件
@@ -1955,154 +1945,6 @@ fi
                 print(f"Error: 指纹验证失败: {e}")
             return False
         
-    
-    def _generate_dynamic_mount_point(self):
-        """生成动态挂载点，避免挂载冲突"""
-        import os
-        import time
-        
-        # 基础挂载目录
-        base_mount_dir = "/content"
-        
-        # 首先尝试传统的挂载点
-        traditional_mount = "/content/drive"
-        if not os.path.exists(traditional_mount) or not os.listdir(traditional_mount):
-            return traditional_mount
-        
-        # 如果传统挂载点有文件，使用动态挂载点
-        timestamp = int(time.time())
-        dynamic_mount = f"/content/drive_{timestamp}"
-        
-        # 确保动态挂载点不存在
-        counter = 0
-        while os.path.exists(dynamic_mount):
-            counter += 1
-            dynamic_mount = f"/content/drive_{timestamp}_{counter}"
-            
-        return dynamic_mount
-    
-    def _generate_python_remount_script(self, mount_point, fingerprint_path, result_path, timestamp, random_hash):
-        """生成全Python重新挂载脚本"""
-        
-        # 检查当前挂载点信息
-        current_mount = getattr(self, 'current_mount_point', None)
-        current_fingerprint = None
-        if current_mount:
-            current_fingerprint = f"{current_mount}/REMOTE_ROOT/tmp/.gds_mount_fingerprint_*"
-        
-        script = f'''# GDS 动态挂载脚本
-import os
-import json
-from datetime import datetime
-
-print("挂载点: {mount_point}")
-
-# Google Drive挂载
-try:
-    from google.colab import drive
-    drive.mount("{mount_point}", force_remount=True)
-    mount_result = "挂载成功"
-except Exception as e:
-    mount_result = str(e)
-    if "Drive already mounted" not in str(e):
-        raise
-
-print(f"挂载结果: {{mount_result}}")
-
-# 验证并创建必要目录
-remote_root_path = "{mount_point}/MyDrive/REMOTE_ROOT"
-remote_env_path = "{mount_point}/MyDrive/REMOTE_ENV"
-
-# 确保目录存在
-os.makedirs(remote_root_path, exist_ok=True)
-os.makedirs(f"{{remote_root_path}}/tmp", exist_ok=True)
-os.makedirs(remote_env_path, exist_ok=True)
-
-# 尝试获取文件夹ID（使用kora库）
-remote_root_id = None
-remote_env_id = None
-remote_root_status = "失败"
-remote_env_status = "失败"
-
-try:
-    try: 
-        import kora  
-    except:   
-        # 安装并导入kora库
-        import subprocess
-        subprocess.run(['pip', 'install', 'kora'], check=True, capture_output=True)
-    from kora.xattr import get_id
-    
-    # 获取REMOTE_ROOT文件夹ID
-    if os.path.exists(remote_root_path):
-        try:
-            remote_root_id = get_id(remote_root_path)
-            remote_root_status = f"成功（ID: {{remote_root_id}}）"
-        except Exception:
-            remote_root_status = "失败"
-    
-    # 获取REMOTE_ENV文件夹ID
-    if os.path.exists(remote_env_path):
-        try:
-            remote_env_id = get_id(remote_env_path)
-            remote_env_status = f"成功（ID: {{remote_env_id}}）"
-        except Exception:
-            remote_env_status = "失败"
-            
-except Exception:
-    remote_root_status = "失败（kora库问题）"
-    remote_env_status = "失败（kora库问题）"
-
-print(f"访问REMOTE_ROOT: {{remote_root_status}}")
-print(f"访问REMOTE_ENV: {{remote_env_status}}")
-
-# 创建指纹文件（包含挂载签名信息）
-fingerprint_data = {{
-    "mount_point": "{mount_point}",
-    "timestamp": "{timestamp}",
-    "hash": "{random_hash}",
-    "remote_root_id": remote_root_id,
-    "remote_env_id": remote_env_id,
-    "signature": f"{timestamp}_{random_hash}_{{remote_root_id or 'unknown'}}_{{remote_env_id or 'unknown'}}",
-    "created": datetime.now().isoformat(),
-    "type": "mount_fingerprint"
-}}
-
-fingerprint_file = "{fingerprint_path}"
-try:
-    with open(fingerprint_file, 'w') as f:
-        json.dump(fingerprint_data, f, indent=2)
-    print(f"指纹文件已创建: {{fingerprint_file}}")
-except Exception as e:
-    print(f"指纹文件创建失败: {{e}}")
-
-# 创建结果文件（包含文件夹ID）
-result_file = "{result_path}"
-try:
-    with open(result_file, 'w') as f:
-        result_data = {{
-            "success": True,
-            "mount_point": "{mount_point}",
-            "timestamp": "{timestamp}",
-            "remote_root": remote_root_path,
-            "remote_env": remote_env_path,
-            "remote_root_id": remote_root_id,
-            "remote_env_id": remote_env_id,
-            "fingerprint_signature": fingerprint_data.get("signature"),
-            "completed": datetime.now().isoformat(),
-            "type": "remount",
-            "note": "Dynamic remount with kora folder ID detection and fingerprint"
-        }}
-        json.dump(result_data, f, indent=2)
-    print(f"结果文件已创建: {{result_file}}")
-    print("重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
-    print("✅执行完成")
-except Exception as e:
-    print(f"结果文件创建失败: {{e}}")
-
-'''
-        return script
-    
     def _show_remount_window_subprocess(self, python_script, mount_point, result_path):
         """使用subprocess显示重新挂载窗口，压制IMK信息"""
         import subprocess
@@ -2409,114 +2251,6 @@ except Exception as e:
             
         except Exception as e:
             print(f"下载执行结果时出错: {e}")
-            return False
-    
-    def _save_mount_config_to_json(self, mount_point, timestamp, random_hash):
-        """保存挂载配置到GOOGLE_DRIVE_DATA/config.json"""
-        try:
-            import json
-            import os
-            
-            # GOOGLE_DRIVE_DATA路径 - 使用统一路径常量
-            try:
-                from .modules.path_constants import get_data_dir
-                config_dir = str(get_data_dir())
-                config_file = str(get_data_dir() / "config.json")
-            except ImportError:
-                config_dir = "~/.local/bin/GOOGLE_DRIVE_DATA"
-                config_file = os.path.join(config_dir, "config.json")
-            
-            # 读取现有配置
-            if os.path.exists(config_file):
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-            else:
-                config = {"version": "1.0.0", "description": "Google Drive Shell 配置文件"}
-            
-            # 计算动态路径
-            dynamic_remote_root = f"{mount_point}/MyDrive/REMOTE_ROOT"
-            dynamic_remote_env = f"{mount_point}/MyDrive/REMOTE_ENV"
-            
-            # 更新配置中的动态挂载信息
-            if "constants" not in config:
-                config["constants"] = {}
-            
-            # 保存动态挂载配置
-            config["constants"].update({
-                "REMOTE_ROOT": dynamic_remote_root,
-                "REMOTE_ENV": dynamic_remote_env,
-                "CURRENT_MOUNT_POINT": mount_point,
-                "MOUNT_TIMESTAMP": timestamp,
-                "MOUNT_HASH": random_hash,
-                "MOUNT_TYPE": "dynamic"
-            })
-            
-            # 尝试从挂载结果文件中读取kora获取的文件夹ID
-            remote_root_id = None
-            remote_env_id = None
-            
-            try:
-                # 先尝试从挂载结果文件读取（kora方法）
-                result_file = f"{mount_point}/MyDrive/REMOTE_ROOT/tmp/remount_{timestamp}.json"
-                if os.path.exists(result_file):
-                    with open(result_file, 'r') as f:
-                        result_data = json.load(f)
-                        remote_root_id = result_data.get('remote_root_id')
-                        remote_env_id = result_data.get('remote_env_id')
-                        if remote_root_id or remote_env_id:
-                            print(f"从挂载结果读取到kora文件夹ID")
-                else:
-                    # 静默处理：kora方法的结果文件不存在时，不显示警告
-                    pass
-                    
-                # 如果kora方法失败，回退到API方法（静默模式）
-                if not remote_root_id:
-                    remote_root_id = self._get_folder_id_by_path("REMOTE_ROOT", mount_point, silent=True)
-                if not remote_env_id:
-                    remote_env_id = self._get_folder_id_by_path("REMOTE_ENV", mount_point, silent=True)
-                
-                # 保存文件夹ID到配置
-                if remote_root_id:
-                    config["constants"]["REMOTE_ROOT_FOLDER_ID"] = remote_root_id
-                    print(f"REMOTE_ROOT文件夹ID: {remote_root_id}")
-                
-                if remote_env_id:
-                    config["constants"]["REMOTE_ENV_FOLDER_ID"] = remote_env_id
-                    print(f"📁 REMOTE_ENV文件夹ID: {remote_env_id}")
-                    
-            except Exception as e:
-                print(f"Warning: 获取文件夹ID失败: {e}")
-            
-            # 添加动态挂载历史记录
-            if "mount_history" not in config:
-                config["mount_history"] = []
-            
-            mount_record = {
-                "mount_point": mount_point,
-                "timestamp": timestamp,
-                "hash": random_hash,
-                "remote_root": dynamic_remote_root,
-                "remote_env": dynamic_remote_env,
-                "created": timestamp
-            }
-            
-            # 保留最近10个挂载记录
-            config["mount_history"].insert(0, mount_record)
-            config["mount_history"] = config["mount_history"][:10]
-            
-            # 保存配置文件
-            with open(config_file, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-            
-            print(f"挂载配置已保存到: {config_file}")
-            print(f"   REMOTE_ROOT: {dynamic_remote_root}")
-            print(f"   REMOTE_ENV: {dynamic_remote_env}")
-            print(f"   挂载点: {mount_point}")
-            
-            return True
-            
-        except Exception as e:
-            print(f"ERROR: 保存挂载配置失败: {e}")
             return False
     
     def _get_folder_id_by_path(self, folder_name, mount_point, silent=False):

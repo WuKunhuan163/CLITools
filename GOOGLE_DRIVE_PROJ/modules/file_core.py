@@ -1428,9 +1428,10 @@ class FileCore:
             
             # 步骤1：远程压缩目录为zip包
             # 使用远程命令窗口执行压缩
-            # 确保/content/drive/MyDrive/REMOTE_ROOT/tmp目录存在
+            # 确保REMOTE_ROOT/tmp目录存在
             parent_dir = os.path.dirname(remote_absolute_path)
-            compress_command = f"mkdir -p /content/drive/MyDrive/REMOTE_ROOT/tmp && cd '{parent_dir}' && zip -r '{remote_zip_path}' '{dir_name}'"
+            tmp_dir = f"{self.main_instance.REMOTE_ROOT}/tmp"
+            compress_command = f"mkdir -p '{tmp_dir}' && cd '{parent_dir}' && zip -r '{remote_zip_path}' '{dir_name}'"
             
             compress_result = self.main_instance.remote_commands.show_remote_command_window(
                 title=f"压缩目录: {dir_name}",
