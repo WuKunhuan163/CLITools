@@ -4,6 +4,42 @@
 
 GOOGLE_DRIVE 是一个强大的 Google Drive 远程控制工具，支持通过命令行进行文件管理、上传下载、以及与 Google Colab 的集成。
 
+## 🏗️ 系统架构改进
+
+### 统一路径常量管理
+
+项目现在使用统一的路径常量管理系统，提供：
+
+- **集中化路径管理**: 所有路径常量在 `GOOGLE_DRIVE_PROJ/modules/path_constants.py` 中统一定义
+- **环境自适应**: 自动检测运行环境（macOS、Linux、Colab）并设置相应的默认路径
+- **配置持久化**: 路径配置保存在 `~/.local/bin/GOOGLE_DRIVE_DATA/sync_config.json`
+- **向后兼容**: 保持与现有代码的完全兼容性
+
+### 增强错误处理系统
+
+新增的错误处理系统提供：
+
+- **详细错误诊断**: 捕获异常的根本原因和完整上下文
+- **代码上下文显示**: 显示出错代码行及其周围上下文
+- **智能错误分类**: 区分用户代码和系统代码的错误
+- **错误日志记录**: 自动记录详细错误信息到日志文件
+
+### 关键路径常量
+
+```python
+# 主要目录
+~/.local/bin/GOOGLE_DRIVE_PROJ/     # 项目代码目录
+~/.local/bin/GOOGLE_DRIVE_DATA/     # 数据和配置目录
+
+# 远程路径
+REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
+REMOTE_ENV = "/content/drive/MyDrive/REMOTE_ENV"
+
+# 本地等效路径
+LOCAL_EQUIVALENT = "~/Applications/Google Drive"  # macOS默认
+DRIVE_EQUIVALENT = "/content/drive/Othercomputers/我的 MacBook Air/Google Drive"
+```
+
 ## 🔧 GDS Shell 管理系统
 
 ### GDS vs GOOGLE_DRIVE --shell 的区别
