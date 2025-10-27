@@ -2,8 +2,6 @@
 Command Executor Module
 从 remote_commands.py 重构而来
 """
-
-import time
 from typing import List
 import threading
 
@@ -413,7 +411,10 @@ class CommandExecutor:
         if not hasattr(self, '_debug_start_time'):
             self._debug_start_time = time.time()
         
-        if cleaned_args:
+        # 如果提供了原始用户命令，优先使用它（用于保持hash一致性）
+        if _original_user_command:
+            user_command = _original_user_command
+        elif cleaned_args:
             import shlex
             if cmd.startswith("__QUOTED_COMMAND__"):
                 user_command = f"{cmd} {' '.join(str(arg) for arg in cleaned_args)}"
