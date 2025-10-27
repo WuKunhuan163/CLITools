@@ -389,10 +389,26 @@ def timeout_handler(signum, frame):
     raise TimeoutException("Input timeout")
 
 def _read_input_with_signal(lines, timeout_seconds):
-    """使用信号的传统方法，简化输入处理"""
+    """使用信号的传统方法，改进超时时的输入捕获"""
     import readline
     
-    original_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    # 创建一个共享变量来保存当前正在输入的内容
+    current_input_buffer = []
+    
+    def enhanced_timeout_handler(signum, frame):
+        """增强的超时处理器，尝试多种方法捕获当前输入"""
+        try:
+            # 方法1: 使用readline.get_line_buffer()
+            buffer = readline.get_line_buffer()
+            if buffer and buffer.strip():
+                current_input_buffer.append(buffer.strip())
+        except Exception:
+            pass
+        
+        # 抛出超时异常以退出input()
+        raise TimeoutException("Input timeout")
+    
+    original_handler = signal.signal(signal.SIGALRM, enhanced_timeout_handler)
     signal.alarm(timeout_seconds)
     
     try:
@@ -421,16 +437,22 @@ def _read_input_with_signal(lines, timeout_seconds):
                     pass
                 return "partial_input" if lines else "no_input"
             except TimeoutException:
-                # 超时处理
-                try:
-                    current_line = readline.get_line_buffer()
-                    if current_line.strip():
-                        stripped_line = current_line.strip()
-                        # 避免重复添加已经存在的行
-                        if not lines or lines[-1] != stripped_line:
-                            lines.append(stripped_line)
-                except Exception:
-                    pass
+                # 超时处理 - 检查是否捕获了部分输入
+                if current_input_buffer:
+                    # 从超时处理器中捕获的内容
+                    stripped_line = current_input_buffer[0]
+                    if stripped_line and (not lines or lines[-1] != stripped_line):
+                        lines.append(stripped_line)
+                else:
+                    # 再次尝试从readline获取
+                    try:
+                        current_line = readline.get_line_buffer()
+                        if current_line.strip():
+                            stripped_line = current_line.strip()
+                            if not lines or lines[-1] != stripped_line:
+                                lines.append(stripped_line)
+                    except Exception:
+                        pass
                 return True
     finally:
         # 清理超时设置
