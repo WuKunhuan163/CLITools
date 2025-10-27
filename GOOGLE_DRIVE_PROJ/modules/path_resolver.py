@@ -46,7 +46,7 @@ class PathResolver:
         import json
         try:
             config_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/sync_config.json")
-            if config_file.exists():
+            if os.path.exists(config_file):
                 with open(config_file, 'r', encoding='utf-8') as f:
                         config = json.load(f)
                 self.main_instance.LOCAL_EQUIVALENT = config.get("local_equivalent", os.path.expanduser("~/Applications/Google Drive"))
@@ -75,9 +75,8 @@ class PathResolver:
     def _setup_default_paths(self):
         """设置默认路径配置"""
         import platform
-        
         if platform.system() == "Darwin":  # macOS
-            self.main_instance.LOCAL_EQUIVALENT = "~/Users/wukunhuan/Applications/Google Drive"
+            self.main_instance.LOCAL_EQUIVALENT = os.path.expanduser("~/Applications/Google Drive")
             self.main_instance.DRIVE_EQUIVALENT = "/content/drive/Othercomputers/我的 MacBook Air/Google Drive"
         else:
             raise Exception("Not Implemented Yet")
