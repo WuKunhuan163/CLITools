@@ -575,11 +575,45 @@ Shell commands: ls -la && echo "done"
             """为组合命令中的每个GDS命令添加参数"""
             import re
             
-            # 检测组合操作符
-            combinators = ['&&', '||', ';']
-            has_combinators = any(op in cmd_str for op in combinators)
+            # 检测组合操作符（但要排除引号内的）
+            def has_real_combinators(text):
+                """检测是否有真正的命令组合符（不在引号内的）"""
+                combinators = ['&&', '||', ';']
+                in_single_quote = False
+                in_double_quote = False
+                i = 0
+                
+                while i < len(text):
+                    char = text[i]
+                    
+                    # 处理转义字符
+                    if char == '\\' and i + 1 < len(text):
+                        i += 2
+                        continue
+                    
+                    # 处理引号
+                    if char == "'" and not in_double_quote:
+                        in_single_quote = not in_single_quote
+                    elif char == '"' and not in_single_quote:
+                        in_double_quote = not in_double_quote
+                    
+                    # 检测组合符（只有在引号外才算）
+                    elif not in_single_quote and not in_double_quote:
+                        for combinator in combinators:
+                            if text[i:i+len(combinator)] == combinator:
+                                # 确保这不是更长操作符的一部分
+                                if combinator == ';':
+                                    return True
+                                elif combinator == '&&' and i + 2 < len(text) and text[i+2] != '&':
+                                    return True
+                                elif combinator == '||' and i + 2 < len(text) and text[i+2] != '|':
+                                    return True
+                    
+                    i += 1
+                
+                return False
             
-            if not has_combinators:
+            if not has_real_combinators(cmd_str):
                 # 单个命令，直接处理
                 return cmd_str
             
@@ -1279,6 +1313,66 @@ print(f"Current files: {len(os.listdir())}")'''
         for filename in files:
             result = self._run_gds_command('rm ' + filename)
             self.assertEqual(result.returncode, 0, f"rm命令应该成功，但返回码为{result.returncode}")
+        
+        # === 增强的echo测试用例 ===
+        print("开始增强的echo测试")
+        
+        # 测试1: JSON不同引号处理
+        print("测试JSON不同引号处理")
+        
+        # 1.1 单引号JSON（推荐方式）
+        json_single_file = self._get_test_file_path("json_single_quote.txt")
+        json_content_proper = '{"name": "test", "value": 123}'
+        result = self._run_gds_command(f"echo '{json_content_proper}' > \"{json_single_file}\"")
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(self._verify_file_content_contains(json_single_file, json_content_proper))
+        
+        # 1.2 转义双引号JSON
+        json_escaped_file = self._get_test_file_path("json_escaped_quote.txt")
+        escaped_json = json_content_proper.replace('"', '\\"')
+        result = self._run_gds_command(f'echo "{escaped_json}" > "{json_escaped_file}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(self._verify_file_content_contains(json_escaped_file, json_content_proper))
+        
+        # 测试2: 引号内特殊字符（不应触发重定向）
+        print("测试引号内特殊字符")
+        
+        # 2.1 包含>字符但不是重定向
+        content_with_gt = "This content has > symbol but no redirect"
+        result = self._run_gds_command(f"echo '{content_with_gt}'")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(content_with_gt, result.stdout)
+        
+        # 2.2 包含多种特殊字符
+        special_chars = "Special: @#$%^&*()_+-=[]{}|;:,.<>?"
+        special_file = self._get_test_file_path("special_chars.txt")
+        result = self._run_gds_command(f"echo '{special_chars}' > \"{special_file}\"")
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(self._verify_file_content_contains(special_file, special_chars))
+        
+        # 测试3: 中文和特殊字符组合
+        print("测试中文和特殊字符组合")
+        chinese_special = "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?"
+        chinese_file = self._get_test_file_path("chinese_special.txt")
+        
+        # 使用shlex.quote安全处理
+        import shlex
+        safe_content = shlex.quote(chinese_special)
+        safe_file = shlex.quote(chinese_file)
+        result = self._run_gds_command(f'echo {safe_content} > {safe_file}')
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(self._verify_file_content_contains(chinese_file, "你好世界"))
+        
+        # 测试4: 复杂JSON结构
+        print("测试复杂JSON结构")
+        complex_json = '{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}'
+        complex_json_file = self._get_test_file_path("complex_json.txt")
+        result = self._run_gds_command(f"echo '{complex_json}' > \"{complex_json_file}\"")
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(self._verify_file_content_contains(complex_json_file, '"users"'))
+        self.assertTrue(self._verify_file_content_contains(complex_json_file, '"Alice"'))
+        
+        print("增强的echo测试完成")
     
     def test_04_file_ops_mixed(self):
         # 1. 创建复杂目录结构
