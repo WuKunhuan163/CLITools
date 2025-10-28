@@ -87,121 +87,117 @@ class CommandGenerator:
         Returns:
             tuple: (远端命令字符串, 结果文件名, 命令hash)
         """
-        try:
-            import time
-            import hashlib
-            
-            # 计算命令hash（统一计算点）
-            cmd_hash = self.calculate_command_hash(cmd)
-            
-            # 生成统一JSON命令
-            import shlex
-            from datetime import datetime
-            # 检测和处理感叹号问题（只对简单用户命令进行检测）
-            if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
-                print(f"Warning: Command contains exclamation marks which may cause shell history expansion issues.")
-                print(f"Original command: {cmd}")
-                cleaned_command = cmd.replace('!', '')
-                print(f"Cleaned command: {cleaned_command}")
-                print(f"Suggestion: Avoid using '!' in commands to prevent shell history expansion errors.")
-                cmd = cleaned_command
-            
-            # 检测和处理printf格式字符问题
-            # 如果命令以printf开头且包含%字符，需要特殊处理避免格式指令错误
-            if cmd.strip().startswith('printf '):
-                import re
-                # 匹配printf命令的模式: printf "content" 或 printf 'content'
-                printf_pattern = r'^printf\s+(["\'])(.*?)\1(.*)$'
-                match = re.match(printf_pattern, cmd.strip())
-                if match:
-                    quote_char = match.group(1)
-                    content = match.group(2)
-                    rest_args = match.group(3).strip()  # 可能包含重定向等
-                    
-                    # 检查内容是否包含%字符（可能导致格式指令问题）
-                    if '%' in content:
-                        # 转换为安全的printf "%s" "content"格式
-                        safe_command = f'printf "%s" {quote_char}{content}{quote_char}'
-                        if rest_args:
-                            safe_command += f' {rest_args}'
-                        cmd = safe_command
-            
-            # 检测和处理echo命令中的转义序列问题
-            # 确保echo命令能正确处理\n和\t等转义序列
-            if cmd.strip().startswith('echo '):
-                import re
-                # 匹配echo命令的模式: echo "content" 或 echo 'content'
-                echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
-                match = re.match(echo_pattern, cmd.strip())
-                if match:
-                    quote_char = match.group(1)
-                    content = match.group(2)
-                    rest_args = match.group(3).strip()  # 可能包含重定向等
-                    
-                    # 检查内容是否包含转义序列
-                    if '\\n' in content or '\\t' in content:
-                        # 添加-e标志以启用转义序列解释
-                        safe_command = f'echo -e {quote_char}{content}{quote_char}'
-                        if rest_args:
-                            safe_command += f' {rest_args}'
-                        cmd = safe_command
-            
-            
-            # 路径替换：将用户命令中的~替换为REMOTE_ROOT
-            if '~' in cmd:
-                cmd = cmd.replace('~', self.main_instance.REMOTE_ROOT)
-                import re
-                pattern = f"'({re.escape(self.main_instance.REMOTE_ROOT)}[^']*?)'"
-                def remove_quotes_if_safe(match):
-                    path = match.group(1)
-                    if ' ' not in path and not any(c in path for c in ['&', '|', ';', '(', ')', '<', '>', '$', '`']):
-                        return path
-                    return match.group(0)  # 保持原样
-                cmd = re.sub(pattern, remove_quotes_if_safe, cmd)
-            
-            # 获取当前路径
-            if current_shell:
-                current_path = current_shell.get("current_path", "~")
-                is_background = current_shell.get("_background_mode", False)
-                bg_pid = current_shell.get("_background_pid", "")
-                bg_original_cmd = current_shell.get("_background_original_cmd", "")
-            else:
-                current_path = "~"
-                is_background = False
-                bg_pid = ""
-                bg_original_cmd = ""
-            
-            
-            # 使用统一的路径解析接口
-            remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(current_path, current_shell)
-            
-            # 生成结果文件名（如果未提供）
-            if not result_filename:
-                if is_background:
-                    result_filename = f"cmd_main_{bg_pid}.result.json"
-                else: 
-                    timestamp = str(int(time.time()))
-                    result_filename = f"cmd_{timestamp}_{cmd_hash}.json"
-            
-            result_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
-            
-            # 预计算所有需要的值，避免f-string中的复杂表达式
-            timestamp = str(int(time.time()))
-            
-            # 根据是否为background模式生成不同的远程命令脚本
-            # 检查是否为背景任务
-            if is_background:
-                import shlex
-                start_time = datetime.now().isoformat()
+
+        import time
+        cmd_hash = self.calculate_command_hash(cmd)
+        
+        # 生成统一JSON命令
+        import shlex
+        from datetime import datetime
+        if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
+            print(f"Warning: Command contains exclamation marks which may cause shell history expansion issues.")
+            print(f"Original command: {cmd}")
+            cleaned_command = cmd.replace('!', '')
+            print(f"Cleaned command: {cleaned_command}")
+            print(f"Suggestion: Avoid using '!' in commands to prevent shell history expansion errors.")
+            cmd = cleaned_command
+        
+        # 检测和处理printf格式字符问题
+        # 如果命令以printf开头且包含%字符，需要特殊处理避免格式指令错误
+        if cmd.strip().startswith('printf '):
+            import re
+            # 匹配printf命令的模式: printf "content" 或 printf 'content'
+            printf_pattern = r'^printf\s+(["\'])(.*?)\1(.*)$'
+            match = re.match(printf_pattern, cmd.strip())
+            if match:
+                quote_char = match.group(1)
+                content = match.group(2)
+                rest_args = match.group(3).strip()  # 可能包含重定向等
                 
-                # 使用常量定义background文件名
-                BG_STATUS_FILE = get_bg_status_file(bg_pid)
-                BG_SCRIPT_FILE = get_bg_script_file(bg_pid)
-                BG_LOG_FILE = get_bg_log_file(bg_pid)
-                BG_RESULT_FILE = get_bg_result_file(bg_pid)
-                                
-                # 创建后台管理脚本内容
-                background_manager_content = f'''#!/bin/bash
+                # 检查内容是否包含%字符（可能导致格式指令问题）
+                if '%' in content:
+                    # 转换为安全的printf "%s" "content"格式
+                    safe_command = f'printf "%s" {quote_char}{content}{quote_char}'
+                    if rest_args:
+                        safe_command += f' {rest_args}'
+                    cmd = safe_command
+        
+        # 检测和处理echo命令中的转义序列问题
+        # 确保echo命令能正确处理\n和\t等转义序列
+        if cmd.strip().startswith('echo '):
+            import re
+            # 匹配echo命令的模式: echo "content" 或 echo 'content'
+            echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
+            match = re.match(echo_pattern, cmd.strip())
+            if match:
+                quote_char = match.group(1)
+                content = match.group(2)
+                rest_args = match.group(3).strip()  # 可能包含重定向等
+                
+                # 检查内容是否包含转义序列
+                if '\\n' in content or '\\t' in content:
+                    # 添加-e标志以启用转义序列解释
+                    safe_command = f'echo -e {quote_char}{content}{quote_char}'
+                    if rest_args:
+                        safe_command += f' {rest_args}'
+                    cmd = safe_command
+        
+        
+        # 路径替换：将用户命令中的~替换为REMOTE_ROOT
+        if '~' in cmd:
+            cmd = cmd.replace('~', self.main_instance.REMOTE_ROOT)
+            import re
+            pattern = f"'({re.escape(self.main_instance.REMOTE_ROOT)}[^']*?)'"
+            def remove_quotes_if_safe(match):
+                path = match.group(1)
+                if ' ' not in path and not any(c in path for c in ['&', '|', ';', '(', ')', '<', '>', '$', '`']):
+                    return path
+                return match.group(0)  # 保持原样
+            cmd = re.sub(pattern, remove_quotes_if_safe, cmd)
+        
+        # 获取当前路径
+        if current_shell:
+            current_path = current_shell.get("current_path", "~")
+            is_background = current_shell.get("_background_mode", False)
+            bg_pid = current_shell.get("_background_pid", "")
+            bg_original_cmd = current_shell.get("_background_original_cmd", "")
+        else:
+            current_path = "~"
+            is_background = False
+            bg_pid = ""
+            bg_original_cmd = ""
+        
+        
+        # 使用统一的路径解析接口
+        remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(current_path, current_shell)
+        
+        # 生成结果文件名（如果未提供）
+        if not result_filename:
+            if is_background:
+                result_filename = f"cmd_main_{bg_pid}.result.json"
+            else: 
+                timestamp = str(int(time.time()))
+                result_filename = f"cmd_{timestamp}_{cmd_hash}.json"
+        
+        result_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
+        
+        # 预计算所有需要的值，避免f-string中的复杂表达式
+        timestamp = str(int(time.time()))
+        
+        # 根据是否为background模式生成不同的远程命令脚本
+        # 检查是否为背景任务
+        if is_background:
+            import shlex
+            start_time = datetime.now().isoformat()
+            
+            # 使用常量定义background文件名
+            BG_STATUS_FILE = get_bg_status_file(bg_pid)
+            BG_SCRIPT_FILE = get_bg_script_file(bg_pid)
+            BG_LOG_FILE = get_bg_log_file(bg_pid)
+            BG_RESULT_FILE = get_bg_result_file(bg_pid)
+                            
+            # 创建后台管理脚本内容
+            background_manager_content = f'''#!/bin/bash
 # Background Task Manager for {bg_pid}
 
 # 确保工作目录存在并切换到正确的基础目录
@@ -223,19 +219,19 @@ import os
 from datetime import datetime
 
 result = {{
-    "status": "running",
-    "pid": "{bg_pid}",
-    "command": {shlex.quote(bg_original_cmd)},
-    "start_time": "{start_time}",
-    "stdout": "",
-    "stderr": "",
-    "exit_code": None,
-    "working_dir": os.getcwd(),
-    "timestamp": datetime.now().isoformat()
+"status": "running",
+"pid": "{bg_pid}",
+"command": {shlex.quote(bg_original_cmd)},
+"start_time": "{start_time}",
+"stdout": "",
+"stderr": "",
+"exit_code": None,
+"working_dir": os.getcwd(),
+"timestamp": datetime.now().isoformat()
 }}
 
 with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
+json.dump(result, f, indent=2, ensure_ascii=False)
 INITIAL_RESULT_EOF
 
 # 执行用户命令并捕获输出（同时写入log文件以便实时查看）
@@ -262,54 +258,54 @@ import os
 from datetime import datetime
 
 try:
-    exit_code = int(os.environ.get('EXIT_CODE', '0'))
+exit_code = int(os.environ.get('EXIT_CODE', '0'))
+
+# 读取实际的命令输出
+stdout_content = ""
+stderr_content = ""
+
+stdout_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
+stderr_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
+
+if os.path.exists(stdout_file):
+    try:
+        with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
+            stdout_content = f.read().rstrip('\\n')
+    except Exception:
+        stdout_content = ""
+
+if os.path.exists(stderr_file):
+    try:
+        with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
+            stderr_content = f.read().rstrip('\\n')
+    except Exception:
+        stderr_content = ""
+
+result = {{
+    "status": "completed",
+    "pid": "{bg_pid}",
+    "command": {shlex.quote(bg_original_cmd)},
+    "start_time": "{start_time}",
+    "end_time": datetime.now().isoformat(),
+    "stdout": stdout_content,
+    "stderr": stderr_content,
+    "exit_code": exit_code,
+    "working_dir": os.getcwd(),
+    "timestamp": datetime.now().isoformat()
+}}
+
+with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
+    json.dump(result, f, indent=2, ensure_ascii=False)
+
+# 清理临时文件
+if os.path.exists(stdout_file):
+    os.remove(stdout_file)
+if os.path.exists(stderr_file):
+    os.remove(stderr_file)
     
-    # 读取实际的命令输出
-    stdout_content = ""
-    stderr_content = ""
-    
-    stdout_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
-    stderr_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
-    
-    if os.path.exists(stdout_file):
-        try:
-            with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
-                stdout_content = f.read().rstrip('\\n')
-        except Exception:
-            stdout_content = ""
-    
-    if os.path.exists(stderr_file):
-        try:
-            with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
-                stderr_content = f.read().rstrip('\\n')
-        except Exception:
-            stderr_content = ""
-    
-    result = {{
-        "status": "completed",
-        "pid": "{bg_pid}",
-        "command": {shlex.quote(bg_original_cmd)},
-        "start_time": "{start_time}",
-        "end_time": datetime.now().isoformat(),
-        "stdout": stdout_content,
-        "stderr": stderr_content,
-        "exit_code": exit_code,
-        "working_dir": os.getcwd(),
-        "timestamp": datetime.now().isoformat()
-    }}
-    
-    with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
-    
-    # 清理临时文件
-    if os.path.exists(stdout_file):
-        os.remove(stdout_file)
-    if os.path.exists(stderr_file):
-        os.remove(stderr_file)
-        
 except Exception as e:
-    print(f"ERROR: Failed to generate JSON result: {{e}}", file=sys.stderr)
-    sys.exit(1)
+print(f"ERROR: Failed to generate JSON result: {{e}}", file=sys.stderr)
+sys.exit(1)
 PYTHON_EOF
 SCRIPT_EOF
 
@@ -321,22 +317,22 @@ REAL_PID=$!
 # 验证background任务文件是否被正确创建
 sleep 1  # 等待文件系统同步
 if [ -f "{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}" ]; then
-    echo "Background task started with ID: {bg_pid}"
-    echo "Command: {bg_original_cmd}"
-    echo ""
-    echo "Run the following commands to track the background task status:"
-    echo "  GDS --bg --status {bg_pid}    # Check task status"
-    echo "  GDS --bg --result {bg_pid}    # View task result"
-    echo "  GDS --bg --log {bg_pid}       # View task log"
-    echo "  GDS --bg --cleanup {bg_pid}   # Clean up task files"
+echo "Background task started with ID: {bg_pid}"
+echo "Command: {bg_original_cmd}"
+echo ""
+echo "Run the following commands to track the background task status:"
+echo "  GDS --bg --status {bg_pid}    # Check task status"
+echo "  GDS --bg --result {bg_pid}    # View task result"
+echo "  GDS --bg --log {bg_pid}       # View task log"
+echo "  GDS --bg --cleanup {bg_pid}   # Clean up task files"
 else
-    echo "Error: Background task creation failed - status file not found"
-    exit 1
+echo "Error: Background task creation failed - status file not found"
+exit 1
 fi
 '''
 
-                # 主程序：创建后台管理进程并立即返回，同时生成主程序的JSON结果
-                remote_command = f'''# Background任务启动脚本 - 主程序立即返回
+            # 主程序：创建后台管理进程并立即返回，同时生成主程序的JSON结果
+            remote_command = f'''# Background任务启动脚本 - 主程序立即返回
 # 确保基础目录存在
 mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
 
@@ -370,64 +366,64 @@ from datetime import datetime
 
 # 构建主程序执行结果
 result = {{
-    "cmd": "background_task_created",
-    "working_dir": os.getcwd(),
-    "timestamp": datetime.now().isoformat(),
-    "exit_code": 0,
-    "stdout": "",
-    "stderr": ""
+"cmd": "background_task_created",
+"working_dir": os.getcwd(),
+"timestamp": datetime.now().isoformat(),
+"exit_code": 0,
+"stdout": "",
+"stderr": ""
 }}
 
 # 写入主程序结果文件（注意：这是主程序的结果文件，不是背景任务的结果文件）
 result_file = "{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
 result_dir = os.path.dirname(result_file)
 if result_dir:
-    os.makedirs(result_dir, exist_ok=True)
+os.makedirs(result_dir, exist_ok=True)
 
 with open(result_file, "w", encoding="utf-8") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
+json.dump(result, f, indent=2, ensure_ascii=False)
 MAIN_JSON_EOF'''
-            else:
-                # 普通模式：使用原有的统一JSON生成脚本
-                remote_command = f'''
+        else:
+            # 普通模式：使用原有的统一JSON生成脚本
+            remote_command = f'''
 # 确保工作目录存在并切换到正确的基础目录
-    mkdir -p "{remote_path}"
-    cd "{remote_path}" && {{
-        # 确保tmp目录存在
-        mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
-        
-        # 执行用户命令并捕获输出
-        TIMESTAMP="{timestamp}"
-        HASH="{cmd_hash}"
-        OUTPUT_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stdout_${{TIMESTAMP}}_${{HASH}}"
-        ERROR_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stderr_${{TIMESTAMP}}_${{HASH}}"
-        EXITCODE_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_exitcode_${{TIMESTAMP}}_${{HASH}}"
-        
-        # 直接执行用户命令，捕获输出和错误
-        set +e  # 允许命令失败
-        # 忽略SIGPIPE信号以避免broken pipe错误
-        trap '' PIPE
-        bash << 'USER_COMMAND_EOF' > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+mkdir -p "{remote_path}"
+cd "{remote_path}" && {{
+    # 确保tmp目录存在
+    mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
+    
+    # 执行用户命令并捕获输出
+    TIMESTAMP="{timestamp}"
+    HASH="{cmd_hash}"
+    OUTPUT_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stdout_${{TIMESTAMP}}_${{HASH}}"
+    ERROR_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stderr_${{TIMESTAMP}}_${{HASH}}"
+    EXITCODE_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_exitcode_${{TIMESTAMP}}_${{HASH}}"
+    
+    # 直接执行用户命令，捕获输出和错误
+    set +e  # 允许命令失败
+    # 忽略SIGPIPE信号以避免broken pipe错误
+    trap '' PIPE
+    bash << 'USER_COMMAND_EOF' > "$OUTPUT_FILE" 2> "$ERROR_FILE"
 {cmd}
 USER_COMMAND_EOF
-        EXIT_CODE=$?
-        echo "$EXIT_CODE" > "$EXITCODE_FILE"
-        set -e
-        
-        # 显示stderr内容（如果有）
-        if [ -s "$ERROR_FILE" ]; then
-            cat "$ERROR_FILE" >&2
-        fi
-        
-        # 统一的执行完成提示
-        clear && echo "✅执行完成"
-        echo "Command hash: {cmd_hash.upper()}"
-        
-        # 生成JSON结果文件
-        export EXIT_CODE=$EXIT_CODE
-        export TIMESTAMP=$TIMESTAMP
-        export HASH=$HASH
-        python3 << 'JSON_SCRIPT_EOF'
+    EXIT_CODE=$?
+    echo "$EXIT_CODE" > "$EXITCODE_FILE"
+    set -e
+    
+    # 显示stderr内容（如果有）
+    if [ -s "$ERROR_FILE" ]; then
+        cat "$ERROR_FILE" >&2
+    fi
+    
+    # 统一的执行完成提示
+    clear && echo "✅执行完成"
+    echo "Command hash: {cmd_hash.upper()}"
+    
+    # 生成JSON结果文件
+    export EXIT_CODE=$EXIT_CODE
+    export TIMESTAMP=$TIMESTAMP
+    export HASH=$HASH
+    python3 << 'JSON_SCRIPT_EOF'
 import json
 import os
 import sys
@@ -447,69 +443,65 @@ stdout_content = ""
 stderr_content = ""
 
 if os.path.exists(stdout_file):
-    try:
-        with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
-            stdout_content = f.read()
-    except Exception as e:
-        stdout_content = f"ERROR: 无法读取stdout文件: {{e}}"
+try:
+    with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
+        stdout_content = f.read()
+except Exception as e:
+    stdout_content = f"ERROR: 无法读取stdout文件: {{e}}"
 else:
-    stdout_content = ""
+stdout_content = ""
 
 if os.path.exists(stderr_file):
-    try:
-        with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
-            stderr_content = f.read()
-    except Exception as e:
-        stderr_content = f"ERROR: 无法读取stderr文件: {{e}}"
+try:
+    with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
+        stderr_content = f.read()
+except Exception as e:
+    stderr_content = f"ERROR: 无法读取stderr文件: {{e}}"
 else:
-    stderr_content = ""
+stderr_content = ""
 
 # 读取退出码
 exit_code = int(os.environ.get('EXIT_CODE', '0'))
 
 # 构建统一的结果JSON格式
 result = {{
-    "cmd": "remote_command_executed",
-    "working_dir": os.getcwd(),
-    "timestamp": datetime.now().isoformat(),
-    "exit_code": exit_code,
-    "stdout": stdout_content,
-    "stderr": stderr_content
+"cmd": "remote_command_executed",
+"working_dir": os.getcwd(),
+"timestamp": datetime.now().isoformat(),
+"exit_code": exit_code,
+"stdout": stdout_content,
+"stderr": stderr_content
 }}
 
 # 写入结果文件
 result_file = "{result_path}"
 result_dir = os.path.dirname(result_file)
 if result_dir:
-    os.makedirs(result_dir, exist_ok=True)
+os.makedirs(result_dir, exist_ok=True)
 
 with open(result_file, "w", encoding="utf-8") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
+json.dump(result, f, indent=2, ensure_ascii=False)
 
 
 JSON_SCRIPT_EOF
+    
+    # 清理临时文件
+    rm -f "$OUTPUT_FILE" "$ERROR_FILE" "$EXITCODE_FILE"
+}}'''
         
-        # 清理临时文件
-        rm -f "$OUTPUT_FILE" "$ERROR_FILE" "$EXITCODE_FILE"
-    }}'''
-            
-            
-            # 检查生成的完整脚本语法（包括wrapper部分）
-            is_valid, error_msg = self._check_bash_syntax(remote_command)
-            if not is_valid:
-                print(f"Error: Bash syntax error detected in generated remote script:")
-                print(f"Error: {error_msg}")
-                print(f"Script content preview:")
-                print(remote_command[:500] + "..." if len(remote_command) > 500 else remote_command)
-                print(f"Full script length: {len(remote_command)} characters")
-                raise Exception(f"Generated remote script has syntax errors: {error_msg}")
-            
-            # 最终生成的remote_command
-            
-            return remote_command, result_filename, cmd_hash
-            
-        except Exception as e:
-            raise Exception(f"Generate unified JSON command failed: {str(e)}")
+        
+        # 检查生成的完整脚本语法（包括wrapper部分）
+        is_valid, error_msg = self._check_bash_syntax(remote_command)
+        if not is_valid:
+            print(f"Error: Bash syntax error detected in generated remote script:")
+            print(f"Error: {error_msg}")
+            print(f"Script content preview:")
+            print(remote_command[:500] + "..." if len(remote_command) > 500 else remote_command)
+            print(f"Full script length: {len(remote_command)} characters")
+            raise Exception(f"Generated remote script has syntax errors: {error_msg}")
+        
+        # 最终生成的remote_command
+        return remote_command, result_filename, cmd_hash
 
     def generate_commands(self, file_moves, target_path, folder_upload_info=None):
         """

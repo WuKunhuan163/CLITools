@@ -132,7 +132,7 @@ class WindowManager:
                 
         except Exception as e:
             self._debug_log(f"[WINDOW_MANAGER] 添加到{queue_type}队列失败: {e}")
-            raise
+            raise Exception(f"添加到{queue_type}队列失败: {e}")
     
     def clean_stale_requests(self, queue, timeout_seconds=3600):
         """
@@ -630,11 +630,6 @@ class WindowManager:
             self._debug_log(f"[QUEUE_COMPLETE] 请求处理完成: {next_request.get('request_id')}, action: {result.get('action')}")
             
             return result
-            
-        except Exception as e:
-            error_msg = f"队列处理失败: {str(e)}"
-            self._debug_log(f"[QUEUE_ERROR] 队列处理错误: {str(e)}")
-            return {"action": "error", "message": error_msg}
         finally:
             # 确保释放锁
             self._release_lock()
@@ -644,8 +639,6 @@ class WindowManager:
         import subprocess
         import json
         import base64
-        import hashlib
-        import time
         
         self.window_counter += 1
         window_id = f"win_{self.window_counter}_{request['request_id']}"
@@ -665,9 +658,7 @@ class WindowManager:
         audio_file_path = os.path.join(os.path.dirname(current_dir), "tkinter_bell.mp3")
         
         # 创建子进程脚本
-        # 准备模板变量
         timeout_ms = request['timeout_seconds'] * 1000
-        
         subprocess_script_template = '''
 import sys
 import os
