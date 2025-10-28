@@ -690,6 +690,7 @@ except:
         """从状态文件获取Python版本信息"""
         try:
             # 通过远程命令读取状态文件
+            import json
             state_file = self._get_python_state_file_path()
             read_command = f'cat "{state_file}" 2>/dev/null || echo "{{}}"'
             result = self.shell.execute_command_interface("bash", ["-c", read_command])
@@ -709,11 +710,10 @@ except:
     
     def _update_python_state(self, key, value):
         """更新状态文件中的Python版本信息"""
-        try:
-            state_file = self._get_python_state_file_path()
+        state_file = self._get_python_state_file_path()
             
-            # 构建更新状态的远程命令
-            update_command = f'''
+        # 构建更新状态的远程命令
+        update_command = f'''
 # 确保目录存在
 mkdir -p "{self._get_python_base_path()}"
 
@@ -739,65 +739,37 @@ print('State updated successfully')
 "
 '''
             
-            result = self.shell.execute_command_interface("bash", ["-c", update_command])
-            
-            if not (result.get("success") and result.get("exit_code") == 0):
-                raise Exception(f"Failed to update Python state: {result.get('error', 'Unknown error')}")
-                
-        except Exception as e:
-            # 重新抛出原始异常以保留完整traceback
-            raise
+        result = self.shell.execute_command_interface("bash", ["-c", update_command])
+        
+        if not (result.get("success") and result.get("exit_code") == 0):
+            raise Exception(f"Failed to update Python state: {result.get('error', 'Unknown error')}")
     
     def _get_cached_available_versions(self):
         """获取缓存的可用Python版本列表"""
         cache_file = self._get_available_versions_cache_file()
+        import json
+        import os
+        from datetime import datetime, timedelta
         
-        try:
-            import json
-            import os
-            from datetime import datetime, timedelta
+        # 检查缓存文件是否存在且未过期（7天）
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
             
-            # 检查缓存文件是否存在且未过期（7天）
-            if os.path.exists(cache_file):
-                with open(cache_file, 'r') as f:
-                    cache_data = json.load(f)
-                
-                # 检查缓存是否过期
-                cache_time = datetime.fromisoformat(cache_data.get("updated_at", "1970-01-01"))
-                if datetime.now() - cache_time < timedelta(days=7):
-                    return cache_data.get("versions", [])
-            
-            # 缓存不存在或已过期，生成新的缓存
-            return self._generate_available_versions_cache()
-            
-        except Exception as e:
-            print(f"Warning: Failed to load version cache: {e}")
-            # 返回默认版本列表
-            return [
-                {"version": "3.8.10", "status": "unknown"},
-                {"version": "3.8.18", "status": "unknown"},
-                {"version": "3.9.18", "status": "unknown"},
-                {"version": "3.9.19", "status": "unknown"},
-                {"version": "3.10.12", "status": "unknown"},
-                {"version": "3.10.13", "status": "unknown"},
-                {"version": "3.11.7", "status": "unknown"},
-                {"version": "3.11.8", "status": "unknown"},
-                {"version": "3.12.1", "status": "unknown"},
-                {"version": "3.12.2", "status": "unknown"}
-            ]
+            # 检查缓存是否过期
+            cache_time = datetime.fromisoformat(cache_data.get("updated_at", "1970-01-01"))
+            if datetime.now() - cache_time < timedelta(days=7):
+                return cache_data.get("versions", [])
+        
+        # 缓存不存在或已过期，生成新的缓存
+        return self._generate_available_versions_cache()
     
     def _get_available_versions_cache_file(self):
         """获取可用版本缓存文件路径"""
         import os
-        # 使用统一路径常量
-        try:
-            from ..path_constants import get_data_dir
-            cache_dir = str(get_data_dir())
-            cache_file = str(get_data_dir() / "python_available_versions.json")
-        except ImportError:
-            cache_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
-            cache_file = os.path.join(cache_dir, "python_available_versions.json")
-        
+        from ..path_constants import get_data_dir
+        cache_dir = str(get_data_dir())
+        cache_file = str(get_data_dir() / "python_available_versions.json")
         os.makedirs(cache_dir, exist_ok=True)
         return cache_file
     
@@ -812,7 +784,6 @@ print('State updated successfully')
         
         # 生成更全面的Python版本候选列表
         candidate_versions = self._generate_python_version_candidates()
-        
         verified_versions = []
         completed_count = 0
         total_count = len(candidate_versions)
@@ -934,8 +905,6 @@ print('State updated successfully')
         try:
             # 创建临时目录
             temp_dir = tempfile.mkdtemp(prefix=f"python_test_{version}_")
-            
-            # 尝试多种下载URL（包含Python 2.x和3.x）
             download_urls = []
             
             # Python 2.x 使用不同的URL模式
@@ -964,7 +933,6 @@ print('State updated successfully')
                         file_name = f"python-{version}.exe"
                     else:
                         file_name = f"python-{version}.tar.gz"
-                    
                     file_path = os.path.join(temp_dir, file_name)
                     
                     # 尝试下载（减少超时时间提高并发效率）
@@ -1000,12 +968,11 @@ print('State updated successfully')
                                         break
                             
                             if os.path.exists(python_exe):
-                                # 尝试执行python --version
                                 try:
                                     result = subprocess.run(
                                         [python_exe, "--version"],
                                         capture_output=True,
-                                        timeout=5,  # 减少执行超时
+                                        timeout=5, 
                                         text=True
                                     )
                                     if result.returncode == 0 and version in result.stdout:
