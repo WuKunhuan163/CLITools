@@ -745,7 +745,8 @@ print('State updated successfully')
                 raise Exception(f"Failed to update Python state: {result.get('error', 'Unknown error')}")
                 
         except Exception as e:
-            raise Exception(f"Error updating Python state: {str(e)}")
+            # 重新抛出原始异常以保留完整traceback
+            raise
     
     def _get_cached_available_versions(self):
         """获取缓存的可用Python版本列表"""
