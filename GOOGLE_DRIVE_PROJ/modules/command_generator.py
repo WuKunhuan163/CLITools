@@ -515,47 +515,42 @@ JSON_SCRIPT_EOF
         Returns:
             str: 生成的远程命令
         """
-        try:
-            # 准备文件移动信息
-            all_file_moves = []
-            for file_move in file_moves:
-                all_file_moves.append({
-                    "filename": file_move["filename"],
-                    "original_filename": file_move.get("original_filename", file_move["filename"]),
-                    "renamed": file_move.get("renamed", False),
-                    "target_path": target_path
-                })
+        all_file_moves = []
+        for file_move in file_moves:
+            all_file_moves.append({
+                "filename": file_move["filename"],
+                "original_filename": file_move.get("original_filename", file_move["filename"]),
+                "renamed": file_move.get("renamed", False),
+                "target_path": target_path
+            })
 
-            # 调用多文件远程命令生成方法
-            base_command = self._generate_multi_file_commands(all_file_moves)
+        # 调用多文件远程命令生成方法
+        base_command = self._generate_multi_file_commands(all_file_moves)
 
-            # 如果是文件夹上传，需要添加解压和清理命令
-            if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
-                zip_filename = folder_upload_info.get("zip_filename", "")
-                keep_zip = folder_upload_info.get("keep_zip", False)
+        # 如果是文件夹上传，需要添加解压和清理命令
+        if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
+            zip_filename = folder_upload_info.get("zip_filename", "")
+            keep_zip = folder_upload_info.get("keep_zip", False)
 
-                if zip_filename:
-                    # 使用统一的路径解析接口
-                    current_shell = self.main_instance.get_current_shell()
-                    remote_target_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
+            if zip_filename:
+                # 使用统一的路径解析接口
+                current_shell = self.main_instance.get_current_shell()
+                remote_target_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
 
-                    # 生成解压命令 - 使用统一函数
-                    # generate_unzip_command现在是类方法
-                    unzip_command = self.generate_unzip_command(
-                        remote_target_path, 
-                        zip_filename, 
-                        delete_zip=not keep_zip,
-                        handle_empty_zip=True
-                    )
+                # 生成解压命令 - 使用统一函数
+                # generate_unzip_command现在是类方法
+                unzip_command = self.generate_unzip_command(
+                    remote_target_path, 
+                    zip_filename, 
+                    delete_zip=not keep_zip,
+                    handle_empty_zip=True
+                )
 
-                    # 将解压命令添加到基础命令之后
-                    combined_command = f"{base_command}\n\n# 解压和清理zip文件\n({unzip_command})"
-                    return combined_command
+                # 将解压命令添加到基础命令之后
+                combined_command = f"{base_command}\n\n# 解压和清理zip文件\n({unzip_command})"
+                return combined_command
 
-            return base_command
-
-        except Exception as e:
-            return f"# Error generating remote commands: {e}"
+        return base_command
 
 
     def generate_command_interface(self, cmd, args, current_shell):
@@ -570,83 +565,71 @@ JSON_SCRIPT_EOF
         Returns:
             tuple: (远端命令字符串, 结果文件名)
         """
-        try:
-            # 构建完整的用户命令
-            if args:
-                # 处理特殊命令格式
-                if cmd == "bash" and len(args) >= 2 and args[0] == "-c":
-                    # 修复：使用shlex.quote来安全处理包含引号的命令
-                    import shlex
-                    safe_command = shlex.quote(args[1])
-                    cmd = f'bash -c {safe_command}'
-                elif cmd == "sh" and len(args) >= 2 and args[0] == "-c":
-                    cmd = f'sh -c "{args[1]}"'
-                elif cmd in ["python", "python3"] and len(args) >= 2 and args[0] == "-c":
-                    # 对于python -c命令，使用base64编码避免转义问题
-                    import base64
-                    python_code = args[1]
-                    python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
-                    cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
-                elif cmd in ["python", "python3"] and len(args) == 1:
-                    # 对于直接的python代码执行（如测试中的格式），转换为python -c格式
-                    import base64
-                    python_code = args[0]
-                    python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
-                    cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
-                else:
-                    # 处理重定向和其他参数
-                    import shlex
-                    if '>' in args:
-                        # 处理重定向：将参数分为命令部分和重定向部分
-                        redirect_index = args.index('>')
-                        cmd_args = args[:redirect_index]
-                        target_file = args[redirect_index + 1] if redirect_index + 1 < len(args) else None
-
-                        if target_file:
-                            if cmd_args:
-                                # 对命令参数进行适当的引号处理，避免引号冲突
-                                quoted_args = []
-                                for arg in cmd_args:
-                                    # 智能引号处理：优先使用双引号，避免与外层单引号冲突
-                                    if '"' not in arg:
-                                        quoted_args.append(f'"{arg}"')
-                                    elif "'" not in arg:
-                                        quoted_args.append(f"'{arg}'")
-                                    else:
-                                        # 如果同时包含单引号和双引号，使用shlex.quote
-                                        quoted_args.append(shlex.quote(arg))
-                                cmd = f"{cmd} {' '.join(quoted_args)} > {target_file}"
-                            else:
-                                cmd = f"{cmd} > {target_file}"
-                        else:
-                            cmd = f"{cmd} {' '.join(args)}"
-                    else:
-                        # 处理~路径展开和智能引号处理
-                        processed_args = []
-                        for arg in args:
-                            if arg == "~":
-                                processed_args.append(f'"{self.main_instance.REMOTE_ROOT}"')
-                            elif arg.startswith("~/"):
-                                processed_args.append(f'"{self.main_instance.REMOTE_ROOT}/{arg[2:]}"')
-                            else:
-                                # 智能引号处理：优先使用双引号，避免与外层单引号冲突
+        if args:
+            # 处理特殊命令格式
+            if cmd == "bash" and len(args) >= 2 and args[0] == "-c":
+                import shlex
+                safe_command = shlex.quote(args[1])
+                cmd = f'bash -c {safe_command}'
+            elif cmd == "sh" and len(args) >= 2 and args[0] == "-c":
+                cmd = f'sh -c "{args[1]}"'
+            elif cmd in ["python", "python3"] and len(args) >= 2 and args[0] == "-c":
+                import base64
+                python_code = args[1]
+                python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
+                cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
+            elif cmd in ["python", "python3"] and len(args) == 1:
+                # 对于直接的python代码执行（如测试中的格式），转换为python -c格式
+                import base64
+                python_code = args[0]
+                python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
+                cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
+            else:
+                # 处理重定向和其他参数
+                import shlex
+                if '>' in args:
+                    # 处理重定向：将参数分为命令部分和重定向部分
+                    redirect_index = args.index('>')
+                    cmd_args = args[:redirect_index]
+                    target_file = args[redirect_index + 1] if redirect_index + 1 < len(args) else None
+                    if target_file:
+                        if cmd_args:
+                            quoted_args = []
+                            for arg in cmd_args:
                                 if '"' not in arg:
-                                    processed_args.append(f'"{arg}"')
+                                    quoted_args.append(f'"{arg}"')
                                 elif "'" not in arg:
-                                    processed_args.append(f"'{arg}'")
+                                    quoted_args.append(f"'{arg}'")
                                 else:
                                     # 如果同时包含单引号和双引号，使用shlex.quote
-                                    processed_args.append(shlex.quote(arg))
-                        cmd = f"{cmd} {' '.join(processed_args)}"
-            else:
-                cmd = cmd
+                                    quoted_args.append(shlex.quote(arg))
+                            cmd = f"{cmd} {' '.join(quoted_args)} > {target_file}"
+                        else:
+                            cmd = f"{cmd} > {target_file}"
+                    else:
+                        cmd = f"{cmd} {' '.join(args)}"
+                else:
+                    # 处理~路径展开和智能引号处理
+                    processed_args = []
+                    for arg in args:
+                        if arg == "~":
+                            processed_args.append(f'"{self.main_instance.REMOTE_ROOT}"')
+                        elif arg.startswith("~/"):
+                            processed_args.append(f'"{self.main_instance.REMOTE_ROOT}/{arg[2:]}"')
+                        else:
+                            # 智能引号处理：优先使用双引号，避免与外层单引号冲突
+                            if '"' not in arg:
+                                processed_args.append(f'"{arg}"')
+                            elif "'" not in arg:
+                                processed_args.append(f"'{arg}'")
+                            else:
+                                # 如果同时包含单引号和双引号，使用shlex.quote
+                                processed_args.append(shlex.quote(arg))
+                    cmd = f"{cmd} {' '.join(processed_args)}"
+        else:
+            cmd = cmd
 
-            # 计算hash并使用统一的JSON生成接口
-            return self.generate_command(cmd, current_shell)
-
-        except Exception as e:
-            raise Exception(f"Generate remote command failed: {str(e)}")
-
+        return self.generate_command(cmd, current_shell)
 
     def generate_mkdir_commands(self, target_path):
         """
@@ -695,29 +678,10 @@ JSON_SCRIPT_EOF
 
                 # 计算目标绝对路径 - 使用original_filename作为最终文件名
                 target_filename = original_filename
-
-                if target_path == "." or target_path == "":
-                    # 当前目录
-                    current_shell = self.main_instance.get_current_shell()
-                    if current_shell and current_shell.get("current_path") != "~":
-                        current_path = current_shell.get("current_path", "~")
-                        if current_path.startswith("~/"):
-                            relative_path = current_path[2:]
-                            target_absolute = f"{self.main_instance.REMOTE_ROOT}/{relative_path}" if relative_path else self.main_instance.REMOTE_ROOT
-                        else:
-                            target_absolute = self.main_instance.REMOTE_ROOT
-                    else:
-                        target_absolute = self.main_instance.REMOTE_ROOT
-                    dest_absolute = f"{target_absolute.rstrip('/')}/{target_filename}"
-                else:
-                    # 使用统一的路径解析接口
-                    current_shell = self.main_instance.get_current_shell()
-                    target_absolute = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
-                    dest_absolute = f"{target_absolute.rstrip('/')}/{target_filename}"
-
-                # 源文件路径使用重命名后的文件名
+                current_shell = self.main_instance.get_current_shell()
+                target_absolute = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
+                dest_absolute = f"{target_absolute.rstrip('/')}/{target_filename}"
                 source_absolute = f"{self.main_instance.DRIVE_EQUIVALENT}/{filename}"
-
                 file_info_list.append({
                     'source': source_absolute,
                     'dest': dest_absolute,
@@ -738,10 +702,6 @@ JSON_SCRIPT_EOF
             # 创建目录命令
             mkdir_commands = [f'mkdir -p "{target_dir}"' for target_dir in sorted(target_dirs)]
 
-            # 组合所有命令
-            all_commands = mkdir_commands + mv_commands
-            command_summary = f"mkdir + mv {len(file_info_list)} files"
-
             # 创建实际命令的显示列表 - 保持引号显示
             actual_commands_display = []
             if mkdir_commands:
@@ -756,15 +716,6 @@ JSON_SCRIPT_EOF
                     filename = cmd.split('"')[3].split('/')[-1] if len(cmd.split('"')) > 3 else 'file'
                 except:
                     filename = 'file'
-
-                # 提取源文件和目标文件路径用于debug
-                try:
-                    cmd_parts = cmd.split('"')
-                    source_path = cmd_parts[1] if len(cmd_parts) > 1 else "unknown_source"
-                    dest_path = cmd_parts[3] if len(cmd_parts) > 3 else "unknown_dest"
-                except:
-                    source_path = "unknown_source"
-                    dest_path = "unknown_dest"
 
                 retry_cmd = f'''
 for attempt in $(seq 1 30); do
