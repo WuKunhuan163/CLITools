@@ -242,21 +242,26 @@ def _show_remount_window(python_script, mount_point, result_path):
             from path_constants import get_proj_dir
             audio_file_path = str(get_proj_dir() / "tkinter_bell.mp3")
         
-        # 创建subprocess脚本 - 显示Tkinter窗口
+        # 创建subprocess脚本 - 显示Tkinter窗口（使用完整历史UI）
         subprocess_script = f'''
 import sys
 import os
 import base64
+import time
 
-# 抑制所有警告
+# 抑制所有警告和IMK信息
 import warnings
-warnings.filterwarnings('ignore')
-os.environ['TK_SILENCE_DEPRECATION'] = '1'
+warnings.filterwarnings("ignore")
+
+# 设置环境变量抑制tkinter警告
+os.environ["TK_SILENCE_DEPRECATION"] = "1"
 
 try:
     import tkinter as tk
-    from tkinter import font as tkfont
+    from tkinter import messagebox
     import subprocess
+    
+    result = False
     
     # 解码脚本
     python_script = base64.b64decode("{script_b64}").decode('utf-8')
@@ -270,67 +275,208 @@ try:
     # 居中窗口
     root.eval('tk::PlaceWindow . center')
     
-    # 全局结果变量
-    result = [False]  # 使用列表以便在嵌套函数中修改
+    # 音频文件路径
+    audio_file_path = "{audio_file_path}"
+    
+    # 定义统一的聚焦函数
+    def force_focus():
+        try:
+            root.focus_force()
+            root.lift()
+            root.attributes('-topmost', True)
+            
+            # macOS特定的焦点获取方法
+            import platform
+            if platform.system() == 'Darwin':
+                import subprocess
+                try:
+                    # 尝试多个可能的应用程序名称
+                    app_names = ['Python', 'python3', 'tkinter', 'Tk']
+                    for app_name in app_names:
+                        try:
+                            subprocess.run(['osascript', '-e', 'tell application "' + app_name + '" to activate'], 
+                                          timeout=0.5, capture_output=True)
+                            break
+                        except:
+                            continue
+                    
+                    # 尝试使用系统事件来强制获取焦点
+                    applescript_code = "tell application \\\\"System Events\\\\"\\\\n    set frontmost of first process whose name contains \\\\"Python\\\\" to true\\\\nend tell"
+                    subprocess.run(['osascript', '-e', applescript_code], timeout=0.5, capture_output=True)
+                except:
+                    pass  # 如果失败就忽略
+        except:
+            pass
+    
+    # 全局focus计数器和按钮点击标志
+    focus_count = 0
+    button_clicked = False
+    
+    # 定义音频播放函数
+    def play_bell_in_subprocess():
+        try:
+            audio_path = audio_file_path
+            if os.path.exists(audio_path):
+                import platform
+                import subprocess
+                system = platform.system()
+                if system == "Darwin":  # macOS
+                    subprocess.run(["afplay", audio_path],
+                                 capture_output=True, timeout=2)
+                elif system == "Linux":
+                    # 尝试多个Linux音频播放器
+                    players = ["paplay", "aplay", "mpg123", "mpv", "vlc"]
+                    for player in players:
+                        try:
+                            subprocess.run([player, audio_path],
+                                         capture_output=True, timeout=2, check=True)
+                            break
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            continue
+                elif system == "Windows":
+                    # Windows可以使用winsound模块或powershell
+                    try:
+                        subprocess.run(["powershell", "-c",
+                                      "(New-Object Media.SoundPlayer '" + audio_path + "').PlaySync()"],
+                                     capture_output=True, timeout=2)
+                    except:
+                        pass
+        except Exception:
+            pass  # 如果播放失败，忽略错误
+    
+    # 带focus计数的聚焦函数
+    def force_focus_with_count():
+        global focus_count, button_clicked
+        
+        focus_count += 1
+        force_focus()
+        
+        try:
+            import threading
+            threading.Thread(target=play_bell_in_subprocess, daemon=True).start()
+            root.after(100, lambda: trigger_copy_button())
+        except Exception:
+            pass
+    
+    # 设置窗口置顶并初始聚焦（第1次，会播放音效）
+    root.attributes('-topmost', True)
+    force_focus_with_count()
+    
+    # 自动复制脚本到剪切板
+    try:
+        root.clipboard_clear()
+        root.clipboard_append(python_script)
+    except:
+        pass
     
     def copy_script():
-        """复制脚本到剪切板"""
+        global button_clicked
+        button_clicked = True
         try:
-            subprocess.run(['pbcopy'], input=python_script.encode('utf-8'), capture_output=True)
-            copy_btn.config(text="✅ 已复制", bg="#4CAF50")
-            root.after(1500, lambda: copy_btn.config(text="📋 复制脚本", bg="#2196F3"))
-        except:
-            copy_btn.config(text="❌ 复制失败", bg="#f44336")
+            subprocess.run(['pbcopy'], input=python_script.encode('utf-8'),
+                          capture_output=True)
+            
+            # 验证复制是否成功
+            try:
+                clipboard_content = root.clipboard_get()
+                if clipboard_content == python_script:
+                    copy_btn.config(text="✅复制成功", bg="#4CAF50")
+                else:
+                    # 复制不完整，重试一次
+                    root.clipboard_clear()
+                    root.clipboard_append(python_script)
+                    copy_btn.config(text="🔄重新复制", bg="#FF9800")
+            except Exception as verify_error:
+                # 验证失败但复制可能成功，显示已复制
+                copy_btn.config(text="已复制", bg="#4CAF50")
+            
+            root.after(1500, lambda: copy_btn.config(text="📋 复制指令", bg="#2196F3"))
+        except Exception as e:
+            copy_btn.config(text="Error: 复制失败", bg="#f44336")
+    
+    def trigger_copy_button():
+        """触发复制按钮的点击效果（用于音效播放时自动触发）"""
+        try:
+            # 模拟按钮点击效果
+            copy_btn.config(relief='sunken')
+            root.after(50, lambda: copy_btn.config(relief='raised'))
+            # 执行复制功能
+            copy_script()
+        except Exception:
+            pass
     
     def execution_completed():
-        """用户确认执行完成"""
-        result[0] = True
+        global result, button_clicked
+        button_clicked = True
+        result = True
         root.quit()
+    
+    # 定期重新获取焦点的函数
+    def refocus_window():
+        global button_clicked
+        if not button_clicked:  # 只有在用户未点击按钮时才重新获取焦点
+            try:
+                # 使用带focus计数的聚焦函数
+                force_focus_with_count()
+                # 每30秒重新获取焦点并播放音效
+                root.after(30000, refocus_window)
+            except:
+                pass  # 如果窗口已关闭，忽略错误
+    
+    # 开始定期重新获取焦点 - 每30秒播放音效
+    root.after(30000, refocus_window)
     
     # 主框架
     main_frame = tk.Frame(root, padx=10, pady=10)
     main_frame.pack(fill=tk.BOTH, expand=True)
     
-    # 复制按钮
-    copy_btn = tk.Button(main_frame, text="📋 复制脚本", command=copy_script,
-                        bg="#2196F3", fg="white", font=("Arial", 12, "bold"),
-                        relief=tk.RAISED, bd=2, padx=10)
-    copy_btn.pack(side=tk.LEFT, padx=5)
+    # 按钮框架
+    button_frame = tk.Frame(main_frame)
+    button_frame.pack(fill=tk.X, expand=True)
     
-    # 执行完成按钮
-    done_btn = tk.Button(main_frame, text="✅ 执行完成", command=execution_completed,
-                        bg="#4CAF50", fg="white", font=("Arial", 12, "bold"),
-                        relief=tk.RAISED, bd=2, padx=10)
-    done_btn.pack(side=tk.LEFT, padx=5)
+    # 复制Python代码按钮（使用与远端指令窗口一致的风格）
+    copy_btn = tk.Button(button_frame, text="📋 复制指令", command=copy_script,
+                       bg="#2196F3", fg="white", font=("Arial", 9),
+                       padx=10, pady=5, relief=tk.RAISED, bd=2)
+    copy_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
     
-    # 自动复制到剪切板
-    root.after(100, copy_script)
+    # 执行完成按钮（使用与远端指令窗口一致的风格）
+    complete_btn = tk.Button(button_frame, text="✅执行完成", command=execution_completed,
+                           bg="#4CAF50", fg="white", font=("Arial", 9, "bold"),
+                           padx=10, pady=5, relief=tk.RAISED, bd=2)
+    complete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    
+    # 设置自动关闭定时器（5分钟）
+    def timeout_destroy():
+        global result
+        result = False
+        root.destroy()
+    
+    root.after(300000, timeout_destroy)  # 5分钟超时
     
     # 运行窗口
     root.mainloop()
     
     # 返回结果
-    sys.exit(0 if result[0] else 1)
+    print("success" if result else "cancelled")
     
 except Exception as e:
-    print(f"Error showing window: {{e}}", file=sys.stderr)
-    sys.exit(1)
+    print("error")
 '''
         
-        # 执行subprocess显示窗口
+        # 运行subprocess窗口，压制所有输出
         result = subprocess.run(
             ['python3', '-c', subprocess_script],
-            capture_output=True,
-            text=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # 完全抑制stderr（包括IMK信息）
+            text=True,
+            timeout=300  # 5分钟超时
         )
         
-        # 显示错误输出（如果有）
-        if result.stderr:
-            print(f"窗口错误: {result.stderr}")
-        if result.stdout:
-            print(f"窗口输出: {result.stdout}")
+        # 检查结果
+        window_success = result.returncode == 0 and "success" in result.stdout
         
-        return result.returncode == 0
+        return window_success
         
     except Exception as e:
         print(f"Error: 显示remount窗口失败: {e}")
