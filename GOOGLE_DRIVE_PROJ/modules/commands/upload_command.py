@@ -1,60 +1,544 @@
-from .base_command import BaseCommand
+"""
+Upload operations commands
+从file_core.py迁移而来
+"""
 
-class UploadCommand(BaseCommand):
-    @property
-    def command_name(self):
-        return "upload"
+import os
+from pathlib import Path
+from ..command_executor import debug_capture, debug_print
+
+
+class UploadCommand:
+    """上传命令"""
     
-    def execute(self, cmd, args, command_identifier=None):
-        """执行upload命令"""
-        # print(f"DEBUG in UploadCommand: Processing upload with args: {args}")
+    def __init__(self, main_instance):
+        self.main_instance = main_instance
+        self.drive_service = main_instance.drive_service
+    
+    def check_large_files(self, source_files):
+        """检查大文件并分离处理（大于1G的文件）"""
+        normal_files = []
+        large_files = []
         
-        if not args:
-            print("Error: upload command needs a file name")
-            return 1
-        
-        # 参数解析规则：
-        # 格式: upload [--target-dir TARGET] [--force] [--remove-local] file1 file2 file3 ...
-        # 或者: upload file1 file2 file3 ... [--force] [--remove-local]
-        
-        target_path = "."  # 默认上传到当前目录
-        source_files = []
-        force = False
-        remove_local = False
-        
-        i = 0
-        while i < len(args):
-            if args[i] == '--target-dir':
-                if i + 1 < len(args):
-                    target_path = args[i + 1]
-                    i += 2  # 跳过--target-dir和其值
+        for file_path in source_files:
+            try:
+                file_size = os.path.getsize(file_path)
+                # 1G = 1024 * 1024 * 1024 bytes
+                if file_size > 1024 * 1024 * 1024:
+                    large_files.append({
+                        "path": file_path,
+                        "size": file_size,
+                        "name": os.path.basename(file_path)
+                    })
                 else:
-                    print("Error: --target-dir option requires a directory path")
-                    return 1
-            elif args[i] == '--force':
-                force = True
-                i += 1
-            elif args[i] == '--remove-local':
-                remove_local = True
-                i += 1
+                    normal_files.append(file_path)
+            except OSError:
+                # 文件不存在或无法访问，加入normal_files让后续处理报错
+                normal_files.append(file_path)
+        
+        return normal_files, large_files
+    
+    def handle_large_files(self, large_files, target_path, current_shell):
+        """处理大文件上传"""
+        print(f"\nDetected {len(large_files)} large files (>1GB):")
+        for file_info in large_files:
+            size_gb = file_info["size"] / (1024 * 1024 * 1024)
+            print(f"  - {file_info['name']} ({size_gb:.1f} GB)")
+        
+        print(f"\nLarge files need to be manually uploaded to Google Drive:")
+        print(f"  1. Open Google Drive web version")
+        print(f"  2. Manually drag and drop these large files")
+        print(f"  3. Wait for upload to complete")
+        
+        return {"success": True, "message": "Large files detected, manual upload required"}
+    
+    def wait_for_file_sync(self, file_names, file_moves):
+        """等待文件同步完成"""
+        return self.main_instance.sync_manager.wait_for_file_sync(file_names, file_moves)
+    
+    def check_remote_file_conflicts(self, source_files, target_path):
+        """检查远程文件是否已存在（用于非force模式）"""
+        try:
+            current_shell = self.main_instance.get_current_shell()
+            if not current_shell:
+                return {"success": False, "error": "No active remote shell"}
+            
+            conflicts = []
+            
+            # 获取目标目录中的文件列表
+            ls_result = self.main_instance.cmd_ls(target_path, detailed=False, recursive=False)
+            if not ls_result.get("success"):
+                # 如果无法列出文件（可能是目录不存在），则认为没有冲突
+                return {"success": True, "conflicts": []}
+            
+            # 获取远程文件名列表
+            remote_files = set()
+            if ls_result.get("files"):
+                for file_info in ls_result["files"]:
+                    remote_files.add(file_info["name"])
+            
+            # 检查每个源文件是否在远程已存在
+            for source_file in source_files:
+                if not os.path.exists(source_file):
+                    continue
+                
+                filename = os.path.basename(source_file)
+                if filename in remote_files:
+                    conflicts.append({
+                        "local_file": source_file,
+                        "remote_file": filename,
+                        "reason": "File already exists in remote directory"
+                    })
+            
+            if conflicts:
+                conflict_files = [c["remote_file"] for c in conflicts]
+                return {
+                    "success": False,
+                    "conflicts": conflicts,
+                    "error": f"\nFile exists: {', '.join(conflict_files)}. Use --force to override."
+                }
+            
+            return {"success": True, "conflicts": []}
+            
+        except Exception as e:
+            # 如果检查过程出错，允许继续上传（保守处理）
+            debug_print(f"Remote file conflict check failed: {e}")
+            return {"success": True, "conflicts": []}
+    
+    def cmd_upload_folder(self, folder_path, target_path=".", keep_zip=False, force=False):
+        """
+        上传文件夹到Google Drive
+        
+        流程：打包 -> 上传zip文件（作为普通文件）
+        
+        Args:
+            folder_path (str): 要上传的文件夹路径
+            target_path (str): 目标路径（相对于当前shell路径）
+            keep_zip (bool): 是否保留本地zip文件（远端总是保留zip文件）
+            force (bool): 是否强制覆盖现有文件
+            
+        Returns:
+            dict: 上传结果
+        """
+        try:
+            folder_name = Path(folder_path).name
+            
+            # 使用统一的进度显示系统
+            from ..progress_manager import start_progress_buffering, add_success_mark, clear_progress
+            start_progress_buffering(f"Packing {folder_name} ...")
+            
+            # 步骤1: 打包文件夹
+            zip_result = self.main_instance.file_utils._zip_folder(folder_path)
+            if not zip_result["success"]:
+                clear_progress()
+                return {"success": False, "error": f"打包失败: {zip_result['error']}"}
+            else: 
+                add_success_mark()
+                clear_progress()
+            
+            zip_path = zip_result["zip_path"]
+            zip_filename = Path(zip_path).name
+            
+            try:
+                # 步骤2: 上传zip文件并自动解压
+                # 传递文件夹上传的特殊参数
+                upload_result = self.cmd_upload([zip_path], target_path, force=force, 
+                                              folder_upload_info={
+                                                  "is_folder_upload": True,
+                                                  "zip_filename": zip_filename,
+                                                  "keep_zip": keep_zip
+                                              })
+                if not upload_result["success"]:
+                    return {"success": False, "error": f"上传失败: {upload_result['error']}"}
+                
+                # 成功完成 - 不需要额外的输出，cmd_upload已经处理了进度显示
+                return {
+                    "success": True,
+                    "message": f"Uploaded folder: {folder_name}",
+                    "original_folder": folder_path,
+                    "zip_uploaded": zip_filename,
+                    "zip_kept": keep_zip,
+                    "target_path": target_path,
+                    "zip_size": zip_result.get("zip_size", 0),
+                    "method": "zip_upload_and_extract",
+                    "upload_details": upload_result
+                }
+                
+            finally:
+                # 根据keep_zip参数决定是否清理本地临时zip文件
+                if not keep_zip:
+                    try:
+                        if Path(zip_path).exists():
+                            Path(zip_path).unlink()
+                    except Exception as e:
+                        print(f"Warning: Failed to clean up temporary file: {e}")
+                else:
+                    print(f"Saved local zip file: {zip_path}")
+                    
+        except Exception as e:
+            # 如果出错，也要清理临时文件
+            try:
+                if 'zip_path' in locals() and Path(zip_path).exists():
+                    Path(zip_path).unlink()
+            except:
+                pass
+            return {"success": False, "error": f"Folder upload process failed: {e}"}
+    
+    def cmd_upload(self, source_files, target_path=".", force=False, folder_upload_info=None, remove_local=False):
+        """
+        GDS UPLOAD 命令实现
+        
+        Args:
+            source_files (list): 要上传的源文件路径列表
+            target_path (str): 目标路径（相对于当前 shell 路径）
+            force (bool): 是否强制覆盖现有文件
+            
+        Returns:
+            dict: 上传结果
+        """
+        progress_started = False
+        try:
+            # 使用进度管理器显示上传进度
+            from ..progress_manager import start_progress_buffering
+            start_progress_buffering("⏳ Waiting for upload ...")
+            progress_started = True
+            debug_capture.start_capture()
+            
+            # 延迟启动debug信息捕获，让重命名信息能够显示
+            debug_print(f"cmd_upload called with source_files={source_files}, target_path='{target_path}', force={force}")
+            
+            # 0. 检查Google Drive Desktop是否运行
+            if not self.main_instance.file_operations.ensure_google_drive_desktop_running():
+                if progress_started:
+                    from ..progress_manager import stop_progress_buffering
+                    stop_progress_buffering()
+                return {"success": False, "error": "用户取消上传操作"}
+            
+            # 1. 验证输入参数
+            if not source_files:
+                if progress_started:
+                    from ..progress_manager import stop_progress_buffering
+                    stop_progress_buffering()
+                return {"success": False, "error": "请指定要上传的文件"}
+            
+            if isinstance(source_files, str):
+                source_files = [source_files]
+            
+            # 1.5. 检查大文件并分离处理
+            normal_files, large_files = self.check_large_files(source_files)
+            
+            # 处理大文件
+            if large_files:
+                large_file_result = self.handle_large_files(large_files, target_path, current_shell)
+                if not large_file_result["success"]:
+                    return large_file_result
+            
+            # 如果没有正常大小的文件需要处理，但有大文件，需要等待手动上传完成
+            if not normal_files:
+                if large_files:
+                    # 等待大文件手动上传完成
+                    large_file_names = [Path(f["path"]).name for f in large_files]
+                    start_progress_buffering(f"⏳ Waiting for large files manual upload ...")
+                    
+                    # 创建虚拟file_moves用于计算超时时间
+                    virtual_file_moves = [{"new_path": f["path"]} for f in large_files]
+                    sync_result = self.wait_for_file_sync(large_file_names, virtual_file_moves)
+                    
+                    if sync_result["success"]:
+                        return {
+                            "success": True,
+                            "message": f"\nLarge files manual upload completed: {len(large_files)} files",
+                            "large_files_handled": True,
+                            "sync_time": sync_result.get("sync_time", 0)
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "error": f"Manual upload failed: {sync_result.get('error', 'Unknown error')}",
+                            "large_files_handled": True
+                        }
+                else:
+                    return {"success": False, "error": "Cannot find valid files"}
+            
+            # 继续处理正常大小的文件
+            source_files = normal_files
+            
+            # 2. 获取当前 shell
+            current_shell = self.main_instance.get_current_shell()
+            if not current_shell:
+                return {"success": False, "error": "No active remote shell, please create or switch to a shell"}
+            
+            # 3. 解析目标路径
+            debug_print(f"Before _resolve_target_path_for_upload - target_path='{target_path}'")
+            debug_print(f"current_shell={current_shell}")
+            target_folder_id, target_display_path = self.main_instance.path_resolver._resolve_target_path_for_upload(target_path, current_shell)
+            debug_print(f"After _resolve_target_path_for_upload - target_folder_id='{target_folder_id}', target_display_path='{target_display_path}'")
+            if target_folder_id is None and self.drive_service:
+                # 目标路径不存在，但这是正常的，我们会在远端创建它
+                # 静默处理目标路径创建
+                target_folder_id = None  # 标记为需要创建
+                target_display_path = target_path
+            elif not self.drive_service:
+                print(f"Warning: Google Drive API service not initialized, using mock mode")
+            
+            # 3.5. 检查目标文件是否已存在，避免冲突（除非使用--force）
+            if not force:
+                conflict_check_result = self.check_remote_file_conflicts(source_files, target_path)
+                if not conflict_check_result["success"]:
+                    return conflict_check_result
+            
+            # 4. 检查是否有文件夹，提示正确语法
+            for source_file in source_files:
+                if Path(source_file).is_dir():
+                    print(f"\nError: '{source_file}' is a directory")
+                    print(f"To upload folders, use: GDS upload-folder {source_file}")
+                    print(f"   Options: --keep-zip to preserve local zip file")
+                    return {"success": False, "error": f""}
+            
+            # 5. 移动文件到 LOCAL_EQUIVALENT
+            file_moves = []
+            failed_moves = []
+            
+            for source_file in source_files:
+                debug_print(f"Processing file: {source_file}")
+                move_result = self.main_instance.sync_manager.move_to_local_equivalent(source_file)
+                debug_print(f"Move result: {move_result}")
+                
+                if move_result["success"]:
+                    file_moves.append({
+                        "original_path": move_result["original_path"],
+                        "filename": move_result["filename"],
+                        "original_filename": move_result["original_filename"],
+                        "new_path": move_result["new_path"],
+                        "renamed": move_result["renamed"]
+                    })
+                    
+                    # 记录重命名信息到debug（不显示给用户）
+                    if move_result["renamed"]:
+                        debug_print(f"File renamed: {move_result['original_filename']} -> {move_result['filename']}")
+                    else:
+                        debug_print(f"File processed without renaming: {move_result['filename']}")
+                else:
+                    failed_moves.append({
+                        "file": source_file,
+                        "error": move_result.get("error", "Unknown error")
+                    })
+                    print(f"\n✗ {move_result['error']}")
+            
+            if not file_moves:
+                return {
+                    "success": False,
+                    "error": "All file moves failed",
+                    "failed_moves": failed_moves
+                }
+            
+            # 6. 等待文件同步到 DRIVE_EQUIVALENT
+            # 对于同步检测，使用重命名后的文件名（在DRIVE_EQUIVALENT中的实际文件名）
+            expected_filenames = [fm["filename"] for fm in file_moves]
+            
+            sync_result = self.wait_for_file_sync(expected_filenames, file_moves)
+            
+            if sync_result.get("cancelled"):
+                # 用户取消了同步等待
+                return {
+                    "success": False,
+                    "cancelled": True,
+                    "error": "Upload cancelled by user during file sync",
+                    "file_moves": file_moves,
+                    "sync_time": sync_result.get("sync_time", 0)
+                }
+            elif not sync_result["success"]:
+                # 同步检测失败，但继续执行
+                print(f"Warning: File sync check failed: {sync_result.get('error', 'Unknown error')}")
+                print(f"Upload may have succeeded, please manually verify files have been uploaded")
+                print(f"You can retry upload if needed")
+                
+                # 返回失败结果，让用户决定是否重试
+                return {
+                    "success": False,
+                    "error": f"Upload sync verification failed: {sync_result.get('error', 'Unknown error')}",
+                    "file_moves": file_moves,
+                    "sync_time": sync_result.get("sync_time", 0),
+                    "suggestion": "Files may have been uploaded successfully. Please check manually and retry if needed."
+                }
             else:
-                source_files.append(args[i])
-                i += 1
-        
-        if not source_files:
-            print("Error: No source files specified for upload")
-            return 1
-        
-        # 调用upload命令
-        result = self.shell.cmd_upload(source_files, target_path=target_path, force=force, remove_local=remove_local)
-        
-        if result.get("success"):
-            # 统一在命令处理结束后打印输出
-            stdout = result.get("stdout", "")
-            if stdout:
-                print(stdout)
-            return 0
-        else:
-            error_msg = result.get("error", "Upload failed")
-            print(error_msg)
-            return 1
+                # 优先使用 base_sync_time，如果不存在则使用 sync_time，都不存在时使用0
+                base_time = (sync_result.get("base_sync_time") if "base_sync_time" in sync_result else sync_result.get("sync_time", 0))
+                sync_result["sync_time"] = base_time
+            
+            # 7. 静默验证文件同步状态
+            self.main_instance.file_utils.verify_files_available(file_moves)
+            
+            # 8. 静默生成远端命令
+            debug_print(f"Before generate_commands - file_moves={file_moves}")
+            debug_print(f"Before generate_commands - target_path='{target_path}'")
+            remote_command = self.main_instance.remote_commands.generate_commands(file_moves, target_path, folder_upload_info)
+            debug_print(f"After generate_commands - remote_command preview: {remote_command[:200]}...")
+            
+            # 7.5. 远端目录创建已经集成到generate_commands中，无需额外处理
+            
+            # 8. 使用统一的远端命令执行接口
+            # 对于文件夹上传，跳过文件验证因为验证的是zip文件而不是解压后的内容
+            if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
+                # 文件夹上传：跳过文件验证，信任远程命令执行结果
+                context_info = {
+                    "expected_filenames": None,  # 跳过验证
+                    "sync_filenames": expected_filenames,
+                    "target_folder_id": target_folder_id,
+                    "target_path": target_path,
+                    "file_moves": file_moves,
+                    "is_folder_upload": True
+                }
+            else:
+                # 普通文件上传：正常验证
+                context_info = {
+                    "expected_filenames": [fm.get("original_filename", fm["filename"]) for fm in file_moves],  # 验证阶段用原始文件名
+                    "sync_filenames": expected_filenames,  # 同步阶段用重命名后的文件名
+                    "target_folder_id": target_folder_id,
+                    "target_path": target_path,
+                    "file_moves": file_moves
+                }
+            
+            execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+            
+            # 如果执行失败，直接返回错误
+            if not execution_result["success"]:
+                # 明确处理错误信息的获取
+                if "error" in execution_result:
+                    error = execution_result["error"]
+                elif "data" in execution_result and isinstance(execution_result["data"], dict):
+                    error = execution_result["data"].get("error", "Unknown error")
+                else:
+                    error = "Unknown error"
+                
+                return {
+                    "success": False,
+                    "error": error,
+                    "remote_command": remote_command,
+                    "execution_result": execution_result
+                }
+            
+            if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
+                # 文件夹上传：跳过文件验证，信任远程命令执行结果
+                debug_print(f"Folder upload detected, skipping file verification")
+                verify_result = {
+                    "success": True,
+                    "found_files": [],
+                    "missing_files": [],
+                    "total_expected": len(expected_filenames),
+                    "total_found": 0,
+                    "skip_verification": True
+                }
+            else:
+                # 普通文件上传：使用ls-based验证
+                expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
+
+                # 使用带进度的验证机制
+                verify_result = self.main_instance.remote_commands._verify_upload_with_progress(
+                    expected_for_verification, 
+                    target_path, 
+                    current_shell
+                )
+
+                debug_capture.start_capture()
+                debug_print(f"Verification completed: {verify_result}")
+            
+            # 9. 上传和远端命令执行完成后，清理LOCAL_EQUIVALENT中的文件
+            if verify_result["success"]:
+                self.main_instance.cache_manager.cleanup_local_equivalent_files(file_moves)
+                
+                # 添加删除记录到缓存（记录原始文件名和临时文件名的使用）
+                for file_info in file_moves:
+                    original_filename = file_info["original_filename"]
+                    temp_filename = file_info["filename"]
+                    
+                    # 记录原始文件名的使用
+                    self.main_instance.cache_manager.add_deletion_record(original_filename)
+                    debug_print(f"Added deletion record for original: {original_filename}")
+                    
+                    # 如果文件被重命名，也记录临时文件名的使用
+                    if file_info["renamed"] and temp_filename != original_filename:
+                        self.main_instance.cache_manager.add_deletion_record(temp_filename)
+                        debug_print(f"Added deletion record for temp: {temp_filename}")
+                
+                # 如果指定了 --remove-local 选项，删除本地源文件
+                if remove_local:
+                    removed_files = []
+                    failed_removals = []
+                    for source_file in source_files:
+                        try:
+                            if os.path.exists(source_file):
+                                os.unlink(source_file)
+                                removed_files.append(source_file)
+                        except Exception as e:
+                            failed_removals.append({"file": source_file, "error": str(e)})
+            
+            result = {
+                "success": verify_result["success"],
+                "uploaded_files": verify_result.get("found_files", []),
+                "failed_files": verify_result.get("missing_files", []) + [fm["file"] for fm in failed_moves],
+                "target_path": target_display_path,
+                "target_folder_id": target_folder_id,
+                "total_attempted": len(file_moves) + len(failed_moves),
+                "total_succeeded": len(verify_result.get("found_files", [])),
+                "remote_command": remote_command,
+                "file_moves": file_moves,
+                "failed_moves": failed_moves,
+                "sync_time": sync_result.get("sync_time", 0),
+                "message": f"Upload completed: {len(verify_result.get('found_files', []))}/{len(file_moves)} files" if verify_result["success"] else f" ✗\n⚠️ Partially uploaded: {len(verify_result.get('found_files', []))}/{len(file_moves)} files",
+                "api_available": self.drive_service is not None
+            }
+            
+            # Add debug information for all uploads to diagnose verification issues
+            used_direct_feedback = verify_result.get("source") == "direct_feedback"
+            upload_failed = not verify_result["success"]
+            
+            # Always show debug information to diagnose verification problems
+            if used_direct_feedback:
+                debug_print(f"User used direct feedback, showing debug information:")
+            elif upload_failed:
+                debug_print(f"Upload failed, showing debug information:")
+            else:
+                debug_print(f"Upload completed, showing verification debug information:")
+            
+            debug_print(f"verify_result={verify_result}")
+            debug_print(f"sync_result={sync_result}")
+            debug_print(f"target_folder_id='{target_folder_id}'")
+            debug_print(f"target_display_path='{target_display_path}'")
+            
+            # 停止debug信息捕获
+            debug_capture.stop_capture()
+            
+            # Always print debug capture buffer
+            captured_debug = debug_capture.get_debug_info()
+            if captured_debug:
+                debug_print(f"Captured debug output:")
+                debug_print(captured_debug)
+            
+            # 添加本地文件删除信息
+            if remove_local and verify_result["success"]:
+                result["removed_local_files"] = removed_files
+                result["failed_local_removals"] = failed_removals
+                if removed_files:
+                    result["message"] += f" (removed {len(removed_files)} local files)"
+                if failed_removals:
+                    result["message"] += f" (failed to remove {len(failed_removals)} local files)"
+            
+            # 停止debug信息捕获
+            # 注意：不在这里清除进度显示，让调用方的result_print统一处理
+            debug_capture.stop_capture()
+            return result
+            
+        except Exception as e:
+            # 停止debug信息捕获和进度显示
+            debug_capture.stop_capture()
+            if progress_started:
+                from ..progress_manager import clear_progress, is_progress_active
+                if is_progress_active():
+                    clear_progress()
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": f"Upload error: {str(e)}"
+            }
