@@ -224,6 +224,11 @@ class UploadCommand:
             if isinstance(source_files, str):
                 source_files = [source_files]
             
+            # 2. 获取当前 shell (需要提前获取，因为大文件处理也需要)
+            current_shell = self.main_instance.get_current_shell()
+            if not current_shell:
+                return {"success": False, "error": "No active remote shell, please create or switch to a shell"}
+            
             # 1.5. 检查大文件并分离处理
             normal_files, large_files = self.check_large_files(source_files)
             
@@ -262,11 +267,6 @@ class UploadCommand:
             
             # 继续处理正常大小的文件
             source_files = normal_files
-            
-            # 2. 获取当前 shell
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "No active remote shell, please create or switch to a shell"}
             
             # 3. 解析目标路径
             debug_print(f"Before _resolve_target_path_for_upload - target_path='{target_path}'")

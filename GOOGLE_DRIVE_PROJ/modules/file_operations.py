@@ -1,6 +1,7 @@
 
 from .file_core import FileCore
 from .text_operations import TextOperations
+from .commands.upload_command import UploadCommand
 
 class FileOperations:
     """
@@ -13,6 +14,7 @@ class FileOperations:
         self.main_instance = main_instance
         self.file_core = FileCore(drive_service, main_instance)
         self.text_operations = TextOperations(drive_service, main_instance)
+        self.upload_cmd = UploadCommand(main_instance)
 
     # These methods have been moved to their respective command classes
     # and are now accessed through the command_registry
@@ -54,16 +56,25 @@ class FileOperations:
         return command.cmd_python(*args, **kwargs)
     
     def cmd_upload_folder(self, *args, **kwargs):
-        """Delegate to file_operations"""
-        return self.file_core.cmd_upload_folder(*args, **kwargs)
+        """Delegate to upload_command"""
+        return self.upload_cmd.cmd_upload_folder(*args, **kwargs)
     
     def cmd_upload(self, *args, **kwargs):
-        """Delegate to file_operations"""
-        return self.file_core.cmd_upload(*args, **kwargs)
+        """Delegate to upload_command"""
+        return self.upload_cmd.cmd_upload(*args, **kwargs)
     
     def cmd_download(self, *args, **kwargs):
-        """Delegate to file_operations"""
-        return self.file_core.cmd_download(*args, **kwargs)
+        """Delegate to download command (через command_registry или file_core если еще существует)"""
+        # Проверяем, есть ли метод в file_core
+        if hasattr(self.file_core, 'cmd_download'):
+            return self.file_core.cmd_download(*args, **kwargs)
+        else:
+            # Если нет, используем command_registry
+            command = self.main_instance.command_registry.get_command('download')
+            if command:
+                return command.execute('download', list(args), **kwargs)
+            else:
+                return {"success": False, "error": "Download command not found"}
     
     def cmd_pwd(self, *args, **kwargs):
         """Delegate to file_operations"""
@@ -94,8 +105,8 @@ class FileOperations:
         return self.file_core.cmd_mv(*args, **kwargs)
     
     def wait_for_file_sync(self, *args, **kwargs):
-        """Delegate to file_operations"""
-        return self.file_core.wait_for_file_sync(*args, **kwargs)
+        """Delegate to upload_command"""
+        return self.upload_cmd.wait_for_file_sync(*args, **kwargs)
     
     def cmd_edit(self, *args, **kwargs):
         """Delegate to text_operations"""
