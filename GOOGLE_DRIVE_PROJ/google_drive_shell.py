@@ -286,10 +286,6 @@ class GoogleDriveShell:
         """委托到file_operations管理器"""
         return self.file_operations.cmd_mkdir(*args, **kwargs)
     
-    def cmd_mkdir_remote(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_mkdir_remote(*args, **kwargs)
-    
     def cmd_touch(self, *args, **kwargs):
         """委托到file_operations管理器"""
         return self.file_operations.cmd_touch(*args, **kwargs)

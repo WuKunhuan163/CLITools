@@ -77,10 +77,6 @@ class FileOperations:
         """Delegate to file_operations"""
         return self.file_core.cmd_cd(*args, **kwargs)
     
-    def cmd_mkdir(self, *args, **kwargs):
-        """Delegate to file_operations"""
-        return self.file_core.cmd_mkdir(*args, **kwargs)
-    
     def cmd_touch(self, *args, **kwargs):
         """Delegate to file_operations"""
         return self.file_core.cmd_touch(*args, **kwargs)
