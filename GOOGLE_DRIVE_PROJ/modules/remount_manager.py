@@ -26,55 +26,36 @@ def remount_google_drive(command_identifier=None):
     Returns:
         int: 退出码，0表示成功，1表示失败
     """
-    try:
-        # 导入需要的模块
-        try:
-            from .path_constants import get_data_dir, get_proj_dir
-        except ImportError:
-            from path_constants import get_data_dir, get_proj_dir
-            
-        # 生成新的mount hash
-        timestamp = str(int(time.time()))
-        mount_hash = hashlib.md5(timestamp.encode()).hexdigest()[:8]
+    # 导入需要的模块
+    from .path_constants import get_data_dir, get_proj_dir
         
-        # 获取配置
-        config_file = get_data_dir() / "config.json"
-        if config_file.exists():
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-            constants = config.get('constants', {})
-            remote_root = constants.get('REMOTE_ROOT', '/content/drive/MyDrive/REMOTE_ROOT')
-            remote_env = constants.get('REMOTE_ENV', '/content/drive/MyDrive/REMOTE_ENV')
-        else:
-            remote_root = '/content/drive/MyDrive/REMOTE_ROOT'
-            remote_env = '/content/drive/MyDrive/REMOTE_ENV'
-        
-        # 生成Python remount脚本
-        python_script = _generate_remount_python_script(
-            remote_root=remote_root,
-            remote_env=remote_env,
-            mount_hash=mount_hash,
-            timestamp=timestamp
-        )
-        
-        # 显示Tkinter窗口
-        mount_point = "/content/drive"  # 默认挂载点
-        result_path = f"/tmp/remount_result_{mount_hash}.json"
-        
-        success = _show_remount_window(python_script, mount_point, result_path)
-        
-        if success:
-            print("Remount成功！")
-            return 0
-        else:
-            print("Remount取消或失败")
-            return 1
-            
-    except Exception as e:
-        print(f"Error: Remount失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+    # 生成新的mount hash
+    timestamp = str(int(time.time()))
+    mount_hash = hashlib.md5(timestamp.encode()).hexdigest()[:8]
+    
+    # 获取配置
+    config_file = get_data_dir() / "config.json"
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+        constants = config.get('constants', {})
+        remote_root = constants.get('REMOTE_ROOT', '/content/drive/MyDrive/REMOTE_ROOT')
+        remote_env = constants.get('REMOTE_ENV', '/content/drive/MyDrive/REMOTE_ENV')
+    else:
+        remote_root = '/content/drive/MyDrive/REMOTE_ROOT'
+        remote_env = '/content/drive/MyDrive/REMOTE_ENV'
+    
+    # 生成Python remount脚本
+    python_script = _generate_remount_python_script(
+        remote_root=remote_root,
+        remote_env=remote_env,
+        mount_hash=mount_hash,
+        timestamp=timestamp
+    )
+    
+    # 显示Tkinter窗口
+    _show_remount_window(python_script)
+    print("Remount成功")
 
 
 def _generate_remount_python_script(remote_root, remote_env, mount_hash, timestamp):
@@ -215,35 +196,25 @@ except Exception as e:
     return script
 
 
-def _show_remount_window(python_script, mount_point, result_path):
+def _show_remount_window(python_script):
     """
     显示Tkinter窗口，让用户复制并执行remount脚本
     
     Args:
         python_script: 要执行的Python脚本
-        mount_point: 挂载点路径
-        result_path: 结果文件路径
-        
-    Returns:
-        bool: True表示用户确认执行完成，False表示取消
     """
     import subprocess
     import base64
     
-    try:
-        # 将脚本编码为base64以避免shell转义问题
-        script_b64 = base64.b64encode(python_script.encode('utf-8')).decode('ascii')
-        
-        # 获取音频文件路径
-        try:
-            from .path_constants import get_proj_dir
-            audio_file_path = str(get_proj_dir() / "tkinter_bell.mp3")
-        except ImportError:
-            from path_constants import get_proj_dir
-            audio_file_path = str(get_proj_dir() / "tkinter_bell.mp3")
-        
-        # 创建subprocess脚本 - 显示Tkinter窗口（使用完整历史UI）
-        subprocess_script = f'''
+    # 将脚本编码为base64以避免shell转义问题
+    script_b64 = base64.b64encode(python_script.encode('utf-8')).decode('ascii')
+    
+    # 获取音频文件路径
+    from .path_constants import get_proj_dir
+    audio_file_path = str(get_proj_dir() / "tkinter_bell.mp3")
+    
+    # 创建subprocess脚本 - 显示Tkinter窗口（使用完整历史UI）
+    subprocess_script = f'''
 import sys
 import os
 import base64
@@ -301,7 +272,7 @@ try:
                             continue
                     
                     # 尝试使用系统事件来强制获取焦点
-                    applescript_code = "tell application \\\\"System Events\\\\"\\\\n    set frontmost of first process whose name contains \\\\"Python\\\\" to true\\\\nend tell"
+                    applescript_code = 'tell application "System Events"\\n    set frontmost of first process whose name contains "Python" to true\\nend tell'
                     subprocess.run(['osascript', '-e', applescript_code], timeout=0.5, capture_output=True)
                 except:
                     pass  # 如果失败就忽略
@@ -464,20 +435,16 @@ except Exception as e:
     print("error")
 '''
         
-        # 运行subprocess窗口，压制所有输出
-        result = subprocess.run(
-            ['python3', '-c', subprocess_script],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,  # 完全抑制stderr（包括IMK信息）
-            text=True,
-            timeout=300  # 5分钟超时
-        )
-        
-        # 检查结果
-        window_success = result.returncode == 0 and "success" in result.stdout
-        
-        return window_success
-        
-    except Exception as e:
-        print(f"Error: 显示remount窗口失败: {e}")
-        return False
+    # 运行subprocess窗口，暂时不抑制stderr用于调试
+    result = subprocess.run(
+        ['python3', '-c', subprocess_script],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,  # 抑制stderr输出
+        text=True,
+        timeout=300  # 5分钟超时
+    )
+    # 检查结果
+    window_success = result.returncode == 0 and "success" in result.stdout
+    if (not window_success):
+        import traceback
+        raise Exception("remount窗口显示失败: " + traceback.format_exc())
