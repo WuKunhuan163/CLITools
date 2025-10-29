@@ -49,9 +49,7 @@ class TextOperations:
             
             if result.get("success"):
                 # 验证文件是否真的被创建了
-                verification_result = self.main_instance.verify_creation_with_ls(
-                    filename, current_shell, creation_type="file")
-                
+                verification_result = self.main_instance.verify_creation_with_ls(filename, current_shell, creation_type="file")
                 if verification_result.get("success", False):
                     return {
                         "success": True,
@@ -65,7 +63,7 @@ class TextOperations:
                     }
             else:
                 # 优先使用用户提供的错误信息
-                error_msg = result.get('error_info') or result.get('error') or 'Unknown error'
+                error_msg = (result.get('error_info') if 'error_info' in result else result.get('error', 'Unknown error'))
                 return {
                     "success": False,
                     "error": f"Create file failed: {error_msg}"
@@ -90,7 +88,6 @@ class TextOperations:
             # 查找文件
             file_info = self._find_file(filename, current_shell)
             if not file_info:
-                # 将本地路径转换为远程路径格式以便在错误消息中正确显示
                 converted_filename = self.main_instance.path_resolver._convert_local_path_to_remote(filename)
                 return {"success": False, "error": f"File or directory does not exist: {converted_filename}"}
             
@@ -426,9 +423,6 @@ class TextOperations:
             
             # 4. 直接在远程执行编辑操作（不需要上传脚本）
             result = self._execute_online_edit(remote_absolute_path, replacements, preview, backup)
-            
-            # Return result without debug output for cleaner interface
-            
             return result
             
         except Exception as e:
@@ -436,7 +430,6 @@ class TextOperations:
 
     def _generate_online_edit_script(self, filename, replacements, preview, backup):
         """生成在线编辑的Python脚本"""
-        # 使用字符串拼接而不是f-string来避免花括号转义问题
         script = '''#!/usr/bin/env python3
 import json
 import sys

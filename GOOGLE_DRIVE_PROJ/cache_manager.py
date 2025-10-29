@@ -16,9 +16,7 @@ class GDSCacheManager:
     
     def __init__(self, cache_root: str = None):
         if cache_root is None:
-            # 更新缓存根目录到GOOGLE_DRIVE_DATA
             cache_root = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA"
-        
         self.cache_root = Path(cache_root)
         self.remote_files_dir = self.cache_root / "remote_files"
         self.cache_config_file = self.cache_root / "cache_config.json"
@@ -38,11 +36,8 @@ class GDSCacheManager:
     def _load_cache_config(self) -> Dict:
         """加载缓存配置"""
         if self.cache_config_file.exists():
-            try:
-                with open(self.cache_config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception as e:
-                print(f"Warning:  Failed to load cache config: {e}")
+            with open(self.cache_config_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
         
         # 默认配置
         return {
@@ -72,14 +67,10 @@ class GDSCacheManager:
     def _get_file_content_hash(self, local_file_path: str) -> str:
         """计算文件内容的哈希值，用于检测修改"""
         hasher = hashlib.md5()
-        try:
-            with open(local_file_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hasher.update(chunk)
-            return hasher.hexdigest()
-        except Exception as e:
-            print(f"Error: Failed to calculate file hash: {e}")
-            return ""
+        with open(local_file_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
     
     def cache_file(self, remote_path: str, temp_file_path: str) -> Dict:
         """
@@ -93,17 +84,10 @@ class GDSCacheManager:
             Dict: 缓存结果
         """
         try:
-            # 生成缓存文件名
             cache_hash = self._generate_file_hash(remote_path)
             cache_file_path = self.remote_files_dir / cache_hash
-            
-            # 复制文件到缓存目录
             shutil.copy2(temp_file_path, cache_file_path)
-            
-            # 计算文件内容哈希
             content_hash = self._get_file_content_hash(str(cache_file_path))
-            
-            # 更新缓存配置
             cache_info = {
                 "cache_file": cache_hash,
                 "cache_path": str(cache_file_path),
@@ -114,28 +98,15 @@ class GDSCacheManager:
             
             # 检查是否有待处理的修改时间（支持多种路径格式）
             pending_modified_time = self.get_pending_modified_time(remote_path)
-            
-            # 如果绝对路径没找到，尝试相对路径格式
-            if not pending_modified_time:
-                # 将绝对路径转换为相对路径格式进行查找
-                if remote_path.startswith(f"{self.main_instance.REMOTE_ROOT}/"):
-                    relative_path = remote_path.replace(f"{self.main_instance.REMOTE_ROOT}/", "~/")
-                    pending_modified_time = self.get_pending_modified_time(relative_path)
-                    if pending_modified_time:
-                        # 清除相对路径格式的待处理时间
-                        self.clear_pending_modified_time(relative_path)
-            else:
-                # 清除绝对路径格式的待处理时间
-                self.clear_pending_modified_time(remote_path)
-            
+            current_shell = self.main_instance.get_current_shell()
+            remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(remote_path, current_shell)
+            self.clear_pending_modified_time(remote_path)
             if pending_modified_time:
                 cache_info["remote_modified_time"] = pending_modified_time
-            
             self.cache_config["files"][remote_path] = cache_info
             
             # 保存配置
             self._save_cache_config()
-            
             return {
                 "success": True,
                 "cache_file": cache_hash,
@@ -237,14 +208,10 @@ class GDSCacheManager:
         Returns:
             str or None: 修改时间字符串，如果不存在则返回None
         """
-        try:
-            pending_times = self.cache_config.get("pending_modified_times", {})
-            if remote_path in pending_times:
-                return pending_times[remote_path]["modified_time"]
-            return None
-        except Exception as e:
-            print(f"Failed to get pending modified time: {e}")
-            return None
+        pending_times = self.cache_config.get("pending_modified_times", {})
+        if remote_path in pending_times:
+            return pending_times[remote_path]["modified_time"]
+        return None
     
     def clear_pending_modified_time(self, remote_path: str):
         """
@@ -253,13 +220,9 @@ class GDSCacheManager:
         Args:
             remote_path: 远端文件路径
         """
-        try:
-            if "pending_modified_times" in self.cache_config and remote_path in self.cache_config["pending_modified_times"]:
-                del self.cache_config["pending_modified_times"][remote_path]
-                self._save_cache_config()
-                return True
-            return False
-        except Exception as e:
-            print(f"Failed to clear pending modified time: {e}")
-            return False
+        if "pending_modified_times" in self.cache_config and remote_path in self.cache_config["pending_modified_times"]:
+            del self.cache_config["pending_modified_times"][remote_path]
+            self._save_cache_config()
+            return True
+        return False
 

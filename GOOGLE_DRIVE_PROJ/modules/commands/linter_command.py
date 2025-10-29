@@ -1,6 +1,8 @@
 import subprocess
 from typing import Dict, Optional
 from .base_command import BaseCommand
+import os, tempfile, json, sys
+from pathlib import Path
 
 class LinterCommand(BaseCommand):
     """
@@ -336,7 +338,7 @@ class LinterCommand(BaseCommand):
             print(f"Error: File {args.file} not found")
             sys.exit(1)
         
-        linter = GDSLinter()
+        linter = LinterCommand()
         
         try:
             with open(args.file, 'r', encoding='utf-8') as f:

@@ -376,3 +376,27 @@ def get_google_drive_status(command_identifier=None):
         except:
             print(f"获取状态时出错: {e}")
         return 1
+
+def remount_google_drive(command_identifier=None):
+    """
+    重新挂载Google Drive
+    
+    Args:
+        command_identifier: 命令标识符
+        
+    Returns:
+        int: 退出码
+    """
+    try:
+        from .remount_manager import remount_google_drive as remount_impl
+        return remount_impl(command_identifier)
+    except ImportError:
+        try:
+            from remount_manager import remount_google_drive as remount_impl
+            return remount_impl(command_identifier)
+        except ImportError:
+            print("Error: 无法导入remount_manager模块")
+            return 1
+    except Exception as e:
+        print(f"Error: Remount命令失败: {e}")
+        return 1

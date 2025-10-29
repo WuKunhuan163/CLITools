@@ -351,9 +351,11 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                 if isinstance(result, dict):
                     # 显示输出 - 处理嵌套的数据结构
                     data = result.get("data", {})
-                    stdout = data.get("stdout", "") or result.get("stdout", "")
-                    stderr = data.get("stderr", "") or result.get("stderr", "")
-                    exit_code = data.get("exit_code", result.get("exit_code", 0))
+                    # 优先使用data中的值，只有在data中不存在时才使用result中的值
+                    stdout = data.get("stdout") if "stdout" in data else result.get("stdout", "")
+                    stderr = data.get("stderr") if "stderr" in data else result.get("stderr", "")
+                    # exit_code需要明确区分0和None
+                    exit_code = data.get("exit_code") if "exit_code" in data else result.get("exit_code", 0)
                     
                     if stdout:
                         if not is_run_environment(command_identifier):

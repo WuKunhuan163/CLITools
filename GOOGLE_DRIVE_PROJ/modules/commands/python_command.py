@@ -43,7 +43,9 @@ class PythonCommand(BaseCommand):
                 import sys
                 print(stderr, end="", file=sys.stderr, flush=True)
             
-            return_code = result.get("return_code", result.get("returncode", 0))
+            # 明确处理return_code，优先使用return_code字段
+            return_code = (result.get("return_code") if "return_code" in result 
+                         else result.get("returncode", 0))
             return return_code
         else:
             error_msg = result.get("error", "Python command execution failed")
@@ -205,11 +207,12 @@ except:
             
             if result.get("success"):
                 data = result.get("data", {})
+                # 明确处理数据字段，优先使用data中的值
                 return {
                     "success": True,
-                    "stdout": data.get("stdout", result.get("stdout", "")),
-                    "stderr": data.get("stderr", result.get("stderr", "")),
-                    "return_code": data.get("exit_code", result.get("exit_code", 0)),
+                    "stdout": data.get("stdout") if "stdout" in data else result.get("stdout", ""),
+                    "stderr": data.get("stderr") if "stderr" in data else result.get("stderr", ""),
+                    "return_code": data.get("exit_code") if "exit_code" in data else result.get("exit_code", 0),
                     "source": result.get("source", ""),
                     "output_displayed": result.get("output_displayed", False)  # 传递输出显示标记
                 }
@@ -254,11 +257,12 @@ except:
             
             if result.get("success"):
                 data = result.get("data", {})
+                # 明确处理数据字段，优先使用data中的值
                 return {
                     "success": True,
-                    "stdout": data.get("stdout", result.get("stdout", "")),
-                    "stderr": data.get("stderr", result.get("stderr", "")),
-                    "return_code": data.get("exit_code", result.get("exit_code", 0)),
+                    "stdout": data.get("stdout") if "stdout" in data else result.get("stdout", ""),
+                    "stderr": data.get("stderr") if "stderr" in data else result.get("stderr", ""),
+                    "return_code": data.get("exit_code") if "exit_code" in data else result.get("exit_code", 0),
                     "output_displayed": result.get("output_displayed", False)  # 传递输出显示标记
                 }
             else:

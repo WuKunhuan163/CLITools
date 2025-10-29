@@ -10,7 +10,7 @@ class Validation:
     def __init__(self, drive_service, main_instance=None):
         """初始化管理器"""
         self.drive_service = drive_service
-        self.main_instance = main_instance  # 引用主实例以访问其他属性
+        self.main_instance = main_instance
 
     def verify_upload_success_by_ls(self, expected_files, target_path, current_shell):
         """

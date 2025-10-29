@@ -443,22 +443,22 @@ stdout_content = ""
 stderr_content = ""
 
 if os.path.exists(stdout_file):
-try:
-    with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
-        stdout_content = f.read()
-except Exception as e:
-    stdout_content = f"ERROR: 无法读取stdout文件: {{e}}"
+    try:
+        with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
+            stdout_content = f.read()
+    except Exception as e:
+        stdout_content = f"ERROR: 无法读取stdout文件: {{e}}"
 else:
-stdout_content = ""
+    stdout_content = ""
 
 if os.path.exists(stderr_file):
-try:
-    with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
-        stderr_content = f.read()
-except Exception as e:
-    stderr_content = f"ERROR: 无法读取stderr文件: {{e}}"
+    try:
+        with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
+            stderr_content = f.read()
+    except Exception as e:
+        stderr_content = f"ERROR: 无法读取stderr文件: {{e}}"
 else:
-stderr_content = ""
+    stderr_content = ""
 
 # 读取退出码
 exit_code = int(os.environ.get('EXIT_CODE', '0'))
@@ -477,10 +477,10 @@ result = {{
 result_file = "{result_path}"
 result_dir = os.path.dirname(result_file)
 if result_dir:
-os.makedirs(result_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
 
 with open(result_file, "w", encoding="utf-8") as f:
-json.dump(result, f, indent=2, ensure_ascii=False)
+    json.dump(result, f, indent=2, ensure_ascii=False)
 
 
 JSON_SCRIPT_EOF

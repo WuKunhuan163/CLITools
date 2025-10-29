@@ -1048,7 +1048,7 @@ class GoogleDriveShell:
             # 使用增强的错误处理系统显示完整traceback
             try:
                 from GOOGLE_DRIVE_PROJ.modules.error_handler import capture_and_report_error
-                error_info = capture_and_report_error("Shell command execution", e, {
+                capture_and_report_error("Shell command execution", e, {
                     "command": shell_cmd,
                     "command_identifier": command_identifier
                 })
@@ -1195,12 +1195,11 @@ fi
             
             # 处理结果 - 使用与单个任务状态查询相同的格式
             if result.get("success", False):
-                # 尝试从不同的数据结构中获取stdout和stderr
                 data = result.get("data", {})
-                stdout = result.get("stdout", "") or data.get("stdout", "")
-                stderr = result.get("stderr", "") or data.get("stderr", "")
-                stdout = stdout.strip()
-                stderr = stderr.strip()
+                stdout = data.get("stdout") if "stdout" in data else result.get("stdout", "")
+                stderr = data.get("stderr") if "stderr" in data else result.get("stderr", "")
+                stdout = (stdout or "").strip()
+                stderr = (stderr or "").strip()
                 
                 # 统一在命令处理结束后打印输出
                 if stdout:
@@ -1556,10 +1555,11 @@ echo "Cleaned up $CLEANED completed background tasks"
             if result.get("success", False):
                 # 尝试从不同的数据结构中获取stdout和stderr
                 data = result.get("data", {})
-                stdout = result.get("stdout", "") or data.get("stdout", "")
-                stderr = result.get("stderr", "") or data.get("stderr", "")
-                stdout = stdout.strip()
-                stderr = stderr.strip()
+                # 优先使用data中的值，只有在data中不存在时才使用result中的值
+                stdout = data.get("stdout") if "stdout" in data else result.get("stdout", "")
+                stderr = data.get("stderr") if "stderr" in data else result.get("stderr", "")
+                stdout = (stdout or "").strip()
+                stderr = (stderr or "").strip()
                 
                 # 统一在命令处理结束后打印输出
                 if stdout:
@@ -1934,6 +1934,9 @@ fi
             if remote_env_id:
                 self.REMOTE_ENV_FOLDER_ID = remote_env_id
             
+            # 保存folder ID到config.json
+            self._save_folder_ids_to_config(remote_root_id, remote_env_id)
+            
             return True
             
         except Exception as e:
@@ -1941,6 +1944,43 @@ fi
                 print(f"Error: 指纹验证失败: {e}")
             return False
         
+    def _save_folder_ids_to_config(self, remote_root_id=None, remote_env_id=None):
+        """保存folder ID到config.json"""
+        try:
+            import json
+            import os
+            
+            # GOOGLE_DRIVE_DATA路径
+            try:
+                from .modules.path_constants import get_data_dir
+                config_file = str(get_data_dir() / "config.json")
+            except ImportError:
+                config_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/config.json")
+            
+            # 读取现有配置
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            else:
+                config = {"version": "1.0.0", "constants": {}}
+            
+            # 更新constants
+            if "constants" not in config:
+                config["constants"] = {}
+            
+            if remote_root_id:
+                config["constants"]["REMOTE_ROOT_FOLDER_ID"] = remote_root_id
+            
+            if remote_env_id:
+                config["constants"]["REMOTE_ENV_FOLDER_ID"] = remote_env_id
+            
+            # 保存配置
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+            
+        except Exception as e:
+            print(f"Warning: 保存folder ID到config.json失败: {e}")
+    
     def _load_paths_from_config(self):
         """从config.json动态加载REMOTE_ROOT和REMOTE_ENV路径"""
         try:
@@ -2040,13 +2080,13 @@ fi
             return list_shells(command_identifier) if list_shells else 1
         elif args[0] == '--checkout-remote-shell':
             if len(args) < 2:
-                print(f"Error: 错误: 需要指定shell ID")
+                print(f"Error: 需要指定shell ID")
                 return 1
             shell_id = args[1]
             return checkout_shell(shell_id, command_identifier) if checkout_shell else 1
         elif args[0] == '--terminate-remote-shell':
             if len(args) < 2:
-                print(f"Error: 错误: 需要指定shell ID")
+                print(f"Error: 需要指定shell ID")
                 return 1
             shell_id = args[1]
             return terminate_shell(shell_id, command_identifier) if terminate_shell else 1
@@ -2147,18 +2187,6 @@ fi
     
     def _handle_remount_command(self, command_identifier=None):
         """处理GOOGLE_DRIVE --remount命令"""
-        try:
-            # 调用重新挂载方法
-            from .modules.sync_config_manager import remount_google_drive
-            return remount_google_drive(command_identifier)
-        except ImportError:
-            try:
-                from modules.sync_config_manager import remount_google_drive
-                return remount_google_drive(command_identifier)
-            except ImportError:
-                print(f"Error: 重新挂载功能不可用")
-                return 1
-        except Exception as e:
-            print(f"Error: 重新挂载命令失败: {e}")
-            return 1
+        from modules.sync_config_manager import remount_google_drive
+        return remount_google_drive(command_identifier)
     
