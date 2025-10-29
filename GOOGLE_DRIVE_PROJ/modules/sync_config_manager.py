@@ -321,7 +321,6 @@ def get_google_drive_status(command_identifier=None):
     try:
         # 导入需要的函数（延迟导入避免循环依赖）
         import sys
-        current_module = sys.modules[__name__]
         parent_module = sys.modules.get('modules')
         
         if parent_module:
@@ -387,16 +386,5 @@ def remount_google_drive(command_identifier=None):
     Returns:
         int: 退出码
     """
-    try:
-        from .remount_manager import remount_google_drive as remount_impl
-        return remount_impl(command_identifier)
-    except ImportError:
-        try:
-            from remount_manager import remount_google_drive as remount_impl
-            return remount_impl(command_identifier)
-        except ImportError:
-            print("Error: 无法导入remount_manager模块")
-            return 1
-    except Exception as e:
-        print(f"Error: Remount命令失败: {e}")
-        return 1
+    from . import remount_manager
+    return remount_manager.remount_google_drive(command_identifier)
