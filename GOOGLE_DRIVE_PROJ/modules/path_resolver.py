@@ -16,7 +16,7 @@ class PathResolver:
     def __init__(self, drive_service=None, main_instance=None):
         """初始化管理器"""
         self.drive_service = drive_service
-        self.main_instance = main_instance  # 引用主实例以访问其他属性
+        self.main_instance = main_instance
 
     def _expand_path(self, path):
         """展开路径，处理~等特殊字符"""

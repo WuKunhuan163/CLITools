@@ -93,7 +93,7 @@ class FileUtils:
         self.drive_service = drive_service
         self.main_instance = main_instance
     
-  # 引用主实例以访问其他属性
+
 
     def _zip_folder(self, folder_path, zip_path=None):
         """

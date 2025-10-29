@@ -5,26 +5,9 @@ Google Drive Shell - Sync Manager Module
 """
 
 import os
-import sys
-import json
-import time
-import hashlib
-import warnings
-import subprocess
 import shutil
-import zipfile
-import tempfile
 from pathlib import Path
-import platform
-import psutil
-from typing import Dict
-try:
-    from ..google_drive_api import GoogleDriveService
-except ImportError:
-    from GOOGLE_DRIVE_PROJ.google_drive_api import GoogleDriveService
-
-# 导入debug捕获系统
-from .command_executor import debug_capture, debug_print
+from .command_executor import debug_print
 
 class SyncManager:
     """Google Drive Shell Sync Manager"""
@@ -32,7 +15,7 @@ class SyncManager:
     def __init__(self, drive_service, main_instance=None):
         """初始化管理器"""
         self.drive_service = drive_service
-        self.main_instance = main_instance  # 引用主实例以访问其他属性
+        self.main_instance = main_instance
 
     def move_to_local_equivalent(self, file_path):
         """
@@ -76,7 +59,7 @@ class SyncManager:
             
             # 如果远端有同名文件或缓存建议重命名，使用重命名策略
             if remote_has_same_file or cache_suggests_rename:
-                debug_print(f"🏷️  Need to rename {filename} to avoid conflict")
+                debug_print(f"Need to rename {filename} to avoid conflict")
                 
                 # 生成新的文件名：name_1.ext, name_2.ext, ...
                 counter = 1
@@ -86,17 +69,15 @@ class SyncManager:
                     
                     # 检查新文件名是否在本地不冲突，并且不在缓存记录中
                     if not new_target_path.exists():
-                        # 检查缓存是否建议这个临时文件名也需要重命名
                         temp_cache_suggests_rename = self.should_rename_file(new_filename)
                         if not temp_cache_suggests_rename:
-                            # 找到了不冲突的文件名（本地不存在，缓存中也没有使用记录）
                             target_path = new_target_path
                             final_filename = new_filename
                             renamed = True
-                            debug_print(f"🏷️  Found available temp filename: {new_filename}")
+                            debug_print(f"Found available temp filename: {new_filename}")
                             break
                         else:
-                            debug_print(f"🏷️  Temp filename {new_filename} also in cache, trying next")
+                            debug_print(f"Temp filename {new_filename} also in cache, trying next")
                     
                     counter += 1
                     if counter > 100:  # 防止无限循环
@@ -106,9 +87,9 @@ class SyncManager:
                         }
                 
                 if cache_suggests_rename:
-                    debug_print(f"🏷️  Renamed based on deletion cache: {filename} -> {final_filename}")
+                    debug_print(f"Renamed based on deletion cache: {filename} -> {final_filename}")
                 else:
-                    debug_print(f"🏷️  Renamed to avoid remote conflict: {filename} -> {final_filename}")
+                    debug_print(f"Renamed to avoid remote conflict: {filename} -> {final_filename}")
             
             elif target_path.exists():
                 # 本地存在同名文件，但远端没有且缓存无风险，删除本地旧文件
@@ -145,45 +126,12 @@ class SyncManager:
         Returns:
             dict: 网络连接状态
         """
-        try:
-            # 如果有可用的API服务，直接测试API连接
-            if self.drive_service:
-                try:
-                    # 尝试一个简单的API调用
-                    result = self.drive_service.test_connection()
-                    if result.get('success'):
-                        return self._create_success_result("Google Drive API connection is normal")
-                    else:
-                        return {"success": False, "error": f"Google Drive API connection failed: {result.get('error', 'Unknown error')}"}
-                except Exception as e:
-                    # API测试失败，继续尝试ping
-                    pass
+        result = self.drive_service.test_connection()
+        if result.get('success'):
+            return self._create_success_result("Google Drive API connection is normal")
+        else:
+            return {"success": False, "error": f"Google Drive API connection failed: {result.get('error', 'Unknown error')}"}
             
-            # 回退到ping测试（更宽松的参数）
-            import platform
-            if platform.system() == "Darwin":  # macOS
-                ping_cmd = ["ping", "-c", "1", "-W", "3000", "8.8.8.8"]  # 使用Google DNS
-            else:
-                ping_cmd = ["ping", "-c", "1", "-W", "3", "8.8.8.8"]
-            
-            result = subprocess.run(
-                ping_cmd, 
-                capture_output=True, 
-                text=True, 
-                timeout=5
-            )
-            
-            if result.returncode == 0:
-                return self._create_success_result("Network connection is normal")
-            else:
-                # 网络测试失败但不影响功能
-                return {"success": True, "message": "Network status unknown, but will continue"}
-                
-        except subprocess.TimeoutExpired:
-            return {"success": True, "message": "Network detection timeout, but will continue"}
-        except Exception as e:
-            return {"success": True, "message": f"Network detection failed, but will continue: {e}"}
-
     def calculate_timeout_from_file_sizes(self, file_moves):
         """
         根据文件大小计算超时时间
@@ -194,26 +142,20 @@ class SyncManager:
         Returns:
             int: 超时时间（秒）
         """
-        try:
-            total_size_mb = 0
-            for file_info in file_moves:
-                file_path = file_info["new_path"]
-                if os.path.exists(file_path):
-                    size_bytes = os.path.getsize(file_path)
-                    size_mb = size_bytes / (1024 * 1024)  # 转换为MB
-                    total_size_mb += size_mb
-            
-            # 基础检测时间30秒 + 按照100KB/s的速度计算文件传输时间
-            # 100KB/s = 0.1MB/s，所以每MB需要10秒
-            base_time = 30  # 基础检测时间（从10秒增加到30秒）
-            transfer_time = max(30, int(total_size_mb * 10))  # 按100KB/s计算，最少30秒（从10秒增加到30秒）
-            timeout = base_time + transfer_time
-            
-            return timeout
-            
-        except Exception as e:
-            debug_print(f"Error calculating timeout: {e}")
-            return 60  # 默认60秒（10秒基础 + 50秒传输）
+        total_size_mb = 0
+        for file_info in file_moves:
+            file_path = file_info["new_path"]
+            if os.path.exists(file_path):
+                size_bytes = os.path.getsize(file_path)
+                size_mb = size_bytes / (1024 * 1024)  # 转换为MB
+                total_size_mb += size_mb
+        
+        # 基础检测时间30秒 + 按照100KB/s的速度计算文件传输时间
+        # 100KB/s = 0.1MB/s，所以每MB需要10秒
+        base_time = 30
+        transfer_time = max(30, int(total_size_mb * 10))
+        timeout = base_time + transfer_time
+        return timeout
 
     def wait_for_file_sync(self, expected_files, file_moves):
         """
@@ -234,7 +176,6 @@ class SyncManager:
             
             # 定义检查函数
             def check_sync_status():
-                # 直接使用Google Drive API检查DRIVE_EQUIVALENT目录
                 if hasattr(self.main_instance, 'drive_service') and self.main_instance.drive_service:
                     ls_result = self.main_instance.drive_service.list_files(
                         folder_id=self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID, 

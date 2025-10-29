@@ -2495,6 +2495,109 @@ if __name__ == "__main__":
         result = self._run_gds_command(f'venv --activate {empty_venv_name}', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0)  # 应该失败
     
+    def test_18a_venv_protect_unprotect(self):
+        """测试虚拟环境的保护和取消保护功能"""
+        import time
+        protected_env = f'protected_env_{int(time.time())}'
+        normal_env = f'normal_env_{int(time.time())}'
+        
+        print(f'测试venv --protect和--unprotect功能')
+        
+        # 1. 创建两个虚拟环境
+        print(f'创建测试环境: {protected_env}, {normal_env}')
+        result = self._run_gds_command(f'venv --create {protected_env}')
+        self.assertEqual(result.returncode, 0)
+        
+        result = self._run_gds_command(f'venv --create {normal_env}')
+        self.assertEqual(result.returncode, 0)
+        
+        # 2. 保护第一个环境
+        print(f'保护环境: {protected_env}')
+        result = self._run_gds_command(f'venv --protect {protected_env}')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('protected', result.stdout.lower())
+        
+        # 3. 尝试删除被保护的环境（应该被跳过）
+        print(f'尝试删除被保护的环境（应该被跳过）')
+        result = self._run_gds_command(f'venv --delete {protected_env}')
+        self.assertEqual(result.returncode, 0)
+        # 应该包含警告信息
+        self.assertIn('protected', result.stdout.lower())
+        
+        # 4. 验证被保护的环境仍然存在
+        print(f'验证被保护的环境仍然存在')
+        result = self._run_gds_command('venv --list')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(protected_env, result.stdout)
+        
+        # 5. 删除未保护的环境（应该成功）
+        print(f'删除未保护的环境: {normal_env}')
+        result = self._run_gds_command(f'venv --delete {normal_env}')
+        self.assertEqual(result.returncode, 0)
+        
+        # 6. 验证未保护的环境已被删除
+        print(f'验证未保护的环境已被删除')
+        result = self._run_gds_command('venv --list')
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn(normal_env, result.stdout)
+        
+        # 7. 取消保护
+        print(f'取消保护: {protected_env}')
+        result = self._run_gds_command(f'venv --unprotect {protected_env}')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('unprotected', result.stdout.lower())
+        
+        # 8. 现在应该可以删除了
+        print(f'再次尝试删除（应该成功）')
+        result = self._run_gds_command(f'venv --delete {protected_env}')
+        self.assertEqual(result.returncode, 0)
+        
+        # 9. 验证环境已被删除
+        print(f'验证环境已被删除')
+        result = self._run_gds_command('venv --list')
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn(protected_env, result.stdout)
+        
+        # 10. 测试批量保护
+        print(f'测试批量保护功能')
+        batch_env1 = f'batch_env1_{int(time.time())}'
+        batch_env2 = f'batch_env2_{int(time.time())}'
+        
+        result = self._run_gds_command(f'venv --create {batch_env1}')
+        self.assertEqual(result.returncode, 0)
+        result = self._run_gds_command(f'venv --create {batch_env2}')
+        self.assertEqual(result.returncode, 0)
+        
+        # 批量保护
+        result = self._run_gds_command(f'venv --protect {batch_env1} {batch_env2}')
+        self.assertEqual(result.returncode, 0)
+        
+        # 尝试批量删除（应该都被跳过）
+        result = self._run_gds_command(f'venv --delete {batch_env1} {batch_env2}')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('protected', result.stdout.lower())
+        
+        # 验证都还存在
+        result = self._run_gds_command('venv --list')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(batch_env1, result.stdout)
+        self.assertIn(batch_env2, result.stdout)
+        
+        # 批量取消保护并删除
+        result = self._run_gds_command(f'venv --unprotect {batch_env1} {batch_env2}')
+        self.assertEqual(result.returncode, 0)
+        
+        result = self._run_gds_command(f'venv --delete {batch_env1} {batch_env2}')
+        self.assertEqual(result.returncode, 0)
+        
+        # 验证都已删除
+        result = self._run_gds_command('venv --list')
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn(batch_env1, result.stdout)
+        self.assertNotIn(batch_env2, result.stdout)
+        
+        print(f'venv protect/unprotect功能测试通过')
+    
     def test_19_pip_deps_analysis(self):
         # 测试简单包的依赖分析（depth=1）
         print(f'测试简单包依赖分析（depth=1）')

@@ -10,7 +10,7 @@ class Verification:
     def __init__(self, drive_service, main_instance=None):
         """初始化管理器"""
         self.drive_service = drive_service
-        self.main_instance = main_instance  # 引用主实例以访问其他属性
+        self.main_instance = main_instance
 
     def verify_creation_with_ls(self, path, current_shell, creation_type="dir", max_attempts=20):
         """

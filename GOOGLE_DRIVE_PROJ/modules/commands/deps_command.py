@@ -525,237 +525,217 @@ class DepsCommand(BaseCommand):
         Returns:
             dict: 分析结果，包含依赖树和层级信息
         """
-        try:
-            import concurrent.futures
-            from collections import defaultdict
-            import time
+        import concurrent.futures
+        from collections import defaultdict
+        import time
+        
+        # 初始化数据结构
+        # Q: {package_name: {'physical_size': int, 'logical_size': None, 'dependencies': []}}
+        Q = {}
+        R = []  # 待分析的包列表
+        layers = defaultdict(set)  # layer -> set of packages
+        
+        # 清理包名并初始化
+        current_packages = [pkg.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0] for pkg in packages]
+        layers[0].update(current_packages)
+        
+        # 初始化Q和R
+        for pkg in current_packages:
+            Q[pkg] = {
+                'physical_size': None,
+                'logical_size': None, 
+                'dependencies': []
+            }
+            R.append(pkg)
+        
+        total_calls = 0
+        current_depth = 0
+        analysis_start_time = time.time()
+        
+        # 主分析循环
+        while R and len(Q) < 1000 and current_depth <= max_depth:
+            # 准备这一轮要分析的包（最多40个）
+            batch_size = min(40, len(R))
+            current_batch = R[:batch_size]
+            R = R[batch_size:]  # 移除已处理的包
             
-            # 初始化数据结构
-            # Q: {package_name: {'physical_size': int, 'logical_size': None, 'dependencies': []}}
-            Q = {}
-            R = []  # 待分析的包列表
-            layers = defaultdict(set)  # layer -> set of packages
+            # 过滤掉已经分析过依赖的包（dependencies不为空的包）
+            packages_to_analyze = []
+            for pkg in current_batch:
+                if pkg not in Q:
+                    packages_to_analyze.append(pkg)
+                elif len(Q[pkg]['dependencies']) == 0:  # dependencies为空，表示尚未分析依赖
+                    packages_to_analyze.append(pkg)
             
-            # 清理包名并初始化
-            current_packages = [pkg.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0] for pkg in packages]
-            layers[0].update(current_packages)
+            if not packages_to_analyze:
+                if not R:  # R空了，进入下一层
+                    current_depth += 1
+                    if current_depth <= max_depth:
+                        # 收集下一层的包
+                        R_prime = []
+                        for pkg_name, pkg_data in Q.items():
+                            if pkg_data['dependencies']:
+                                for dep in pkg_data['dependencies']:
+                                    if dep not in Q and dep not in R_prime:
+                                        R_prime.append(dep)
+                        
+                        R = R_prime
+                        if R:
+                            layers[current_depth].update(R)
+                continue
             
-            # 初始化Q和R
-            for pkg in current_packages:
-                Q[pkg] = {
-                    'physical_size': None,
-                    'logical_size': None, 
-                    'dependencies': []
+            # 并行分析当前批次
+            batch_start_time = time.time()
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(40, len(packages_to_analyze))) as executor:
+                future_to_package = {
+                    executor.submit(self._get_pypi_dependencies_with_all_sizes, pkg): pkg 
+                    for pkg in packages_to_analyze
                 }
-                R.append(pkg)
+                
+                for future in concurrent.futures.as_completed(future_to_package):
+                    package_name = future_to_package[future]
+                    try:
+                        deps, pkg_size, dep_sizes = future.result()
+                        total_calls += 1
+                        
+                        # 更新Q
+                        if package_name not in Q:
+                            Q[package_name] = {
+                                'physical_size': pkg_size,
+                                'logical_size': None,
+                                'dependencies': deps or []
+                            }
+                        else:
+                            Q[package_name]['physical_size'] = pkg_size
+                            Q[package_name]['dependencies'] = deps or []
+                        
+                        # 将新发现的依赖加入Q（如果还有空间），但不设置dependencies
+                        # 这样它们在下一层仍然可以被分析
+                        if deps:
+                            for dep in deps:
+                                if dep not in Q and len(Q) < 1000:
+                                    Q[dep] = {
+                                        'physical_size': None, 
+                                        'logical_size': None,
+                                        'dependencies': []  # 空列表，表示尚未分析依赖
+                                    }
+                        
+                    except Exception as e:
+                        print(f"Error analyzing {package_name}: {e}")
+                        if package_name not in Q:
+                            Q[package_name] = {
+                                'physical_size': 0,
+                                'logical_size': None,
+                                'dependencies': []
+                            }
             
-            total_calls = 0
-            current_depth = 0
-            analysis_start_time = time.time()
+            batch_duration = time.time() - batch_start_time
+            print(f"    Processed {len(packages_to_analyze)} packages in {batch_duration:.2f}s")
             
-            # 主分析循环
-            while R and len(Q) < 1000 and current_depth <= max_depth:
-                # 准备这一轮要分析的包（最多40个）
-                batch_size = min(40, len(R))
-                current_batch = R[:batch_size]
-                R = R[batch_size:]  # 移除已处理的包
+            # 如果这批处理时间少于1秒，等待到1秒
+            if batch_duration < 1.0:
+                time.sleep(1.0 - batch_duration)
+            
+            # 检查是否需要进入下一层
+            if not R and current_depth < max_depth:
+                current_depth += 1
+                R_prime = []
+                current_layer_packages = layers.get(current_depth - 1, [])
                 
-                # 过滤掉已经分析过依赖的包（dependencies不为空的包）
-                packages_to_analyze = []
-                for pkg in current_batch:
-                    if pkg not in Q:
-                        packages_to_analyze.append(pkg)
-                    elif len(Q[pkg]['dependencies']) == 0:  # dependencies为空，表示尚未分析依赖
-                        packages_to_analyze.append(pkg)
-                
-                if not packages_to_analyze:
-                    if not R:  # R空了，进入下一层
-                        current_depth += 1
-                        if current_depth <= max_depth:
-                            # 收集下一层的包
-                            R_prime = []
-                            for pkg_name, pkg_data in Q.items():
-                                if pkg_data['dependencies']:
-                                    for dep in pkg_data['dependencies']:
-                                        if dep not in Q and dep not in R_prime:
-                                            R_prime.append(dep)
-                            
-                            R = R_prime
-                            if R:
-                                layers[current_depth].update(R)
-                    continue
-                
-                # 并行分析当前批次
-                batch_start_time = time.time()
-                
-                with concurrent.futures.ThreadPoolExecutor(max_workers=min(40, len(packages_to_analyze))) as executor:
-                    future_to_package = {
-                        executor.submit(self._get_pypi_dependencies_with_all_sizes, pkg): pkg 
-                        for pkg in packages_to_analyze
-                    }
-                    
-                    for future in concurrent.futures.as_completed(future_to_package):
-                        package_name = future_to_package[future]
-                        try:
-                            deps, pkg_size, dep_sizes = future.result()
-                            total_calls += 1
-                            
-                            # 更新Q
-                            if package_name not in Q:
-                                Q[package_name] = {
-                                    'physical_size': pkg_size,
-                                    'logical_size': None,
-                                    'dependencies': deps or []
-                                }
-                            else:
-                                Q[package_name]['physical_size'] = pkg_size
-                                Q[package_name]['dependencies'] = deps or []
-                            
-                            # 将新发现的依赖加入Q（如果还有空间），但不设置dependencies
-                            # 这样它们在下一层仍然可以被分析
-                            if deps:
-                                for dep in deps:
-                                    if dep not in Q and len(Q) < 1000:
-                                        Q[dep] = {
-                                            'physical_size': None,  # 依赖的大小未知，需要后续分析
-                                            'logical_size': None,
-                                            'dependencies': []  # 空列表，表示尚未分析依赖
-                                        }
-                            
-                        except Exception as e:
-                            print(f"Error analyzing {package_name}: {e}")
-                            if package_name not in Q:
-                                Q[package_name] = {
-                                    'physical_size': 0,
+                for pkg_name in current_layer_packages:
+                    if pkg_name in Q and Q[pkg_name]['dependencies']:
+                        for dep in Q[pkg_name]['dependencies']:
+                            if dep in Q and len(Q[dep]['dependencies']) == 0 and dep not in R_prime:
+                                R_prime.append(dep)
+                            elif dep not in Q:
+                                R_prime.append(dep)
+                                Q[dep] = {
+                                    'physical_size': None,
                                     'logical_size': None,
                                     'dependencies': []
                                 }
                 
-                batch_duration = time.time() - batch_start_time
-                print(f"    Processed {len(packages_to_analyze)} packages in {batch_duration:.2f}s")
-                
-                # 如果这批处理时间少于1秒，等待到1秒
-                if batch_duration < 1.0:
-                    time.sleep(1.0 - batch_duration)
-                
-                # 检查是否需要进入下一层
-                if not R and current_depth < max_depth:
-                    current_depth += 1
-                    # 收集下一层的包：从当前层的包中找出它们的依赖
-                    R_prime = []
-                    current_layer_packages = layers.get(current_depth - 1, [])
-                    
-                    for pkg_name in current_layer_packages:
-                        if pkg_name in Q and Q[pkg_name]['dependencies']:
-                            for dep in Q[pkg_name]['dependencies']:
-                                # 只添加尚未分析过依赖的包（dependencies为空且不在R_prime中）
-                                if dep in Q and len(Q[dep]['dependencies']) == 0 and dep not in R_prime:
-                                    R_prime.append(dep)
-                                elif dep not in Q:
-                                    R_prime.append(dep)
-                                    # 确保在Q中有条目
-                                    Q[dep] = {
-                                        'physical_size': None,
-                                        'logical_size': None,
-                                        'dependencies': []
-                                    }
-                    
-                    R = R_prime
-                    if R:
-                        layers[current_depth].update(R)
-                        print(f"Moving to depth {current_depth} with {len(R)} new packages: {R[:5]}{'...' if len(R) > 5 else ''}")
+                R = R_prime
+                if R:
+                    layers[current_depth].update(R)
+                    print(f"Moving to depth {current_depth} with {len(R)} new packages: {R[:5]}{'...' if len(R) > 5 else ''}")
+        
+        analysis_end_time = time.time()
+        total_analysis_time = analysis_end_time - analysis_start_time
+        
+        # 计算逻辑大小
+        def calculate_logical_size(pkg_name, visited=None):
+            if visited is None:
+                visited = set()
             
-            analysis_end_time = time.time()
-            total_analysis_time = analysis_end_time - analysis_start_time
+            if pkg_name in visited or pkg_name not in Q:
+                return 0
             
-            # 计算逻辑大小
-            def calculate_logical_size(pkg_name, visited=None):
-                if visited is None:
-                    visited = set()
-                
-                if pkg_name in visited or pkg_name not in Q:
-                    return 0
-                
-                visited.add(pkg_name)
-                pkg_data = Q[pkg_name]
-                
-                if pkg_data['logical_size'] is not None:
-                    return pkg_data['logical_size']
-                
-                # 计算逻辑大小 = 物理大小 + 所有子包的逻辑大小
-                logical_size = pkg_data['physical_size'] if pkg_data['physical_size'] is not None else 0
-                
+            visited.add(pkg_name)
+            pkg_data = Q[pkg_name]
+            
+            if pkg_data['logical_size'] is not None:
+                return pkg_data['logical_size']
+            
+            # 计算逻辑大小 = 物理大小 + 所有子包的逻辑大小
+            logical_size = pkg_data['physical_size'] if pkg_data['physical_size'] is not None else 0
+            for dep in pkg_data['dependencies']:
+                if dep in Q:
+                    logical_size += calculate_logical_size(dep, visited.copy())
+            pkg_data['logical_size'] = logical_size
+            return logical_size
+        
+        # 为所有包计算逻辑大小
+        for pkg_name in current_packages:
+            calculate_logical_size(pkg_name)
+        
+        # 构建结果
+        result = {
+            'trees': {},
+            'layers': {},
+            'package_sizes': {pkg: (data['physical_size'] if data['physical_size'] is not None else 0) for pkg, data in Q.items()},
+            'logical_sizes': {pkg: (data['logical_size'] if data['logical_size'] is not None else 0) for pkg, data in Q.items()},
+            'total_calls': total_calls,
+            'analyzed_packages': len(Q),
+            'total_time': total_analysis_time,
+            'Q': Q  # 调试用
+        }
+        
+        # 构建依赖树
+        def build_tree(pkg_name, visited=None, max_tree_depth=3):
+            if visited is None:
+                visited = set()
+            
+            if pkg_name in visited or pkg_name not in Q:
+                return {}
+            
+            visited.add(pkg_name)
+            pkg_data = Q[pkg_name]
+            
+            result_tree = {
+                'dependencies': pkg_data['dependencies'],
+                'size': pkg_data['physical_size'] if pkg_data['physical_size'] is not None else 0,
+                'logical_size': pkg_data['logical_size'] if pkg_data['logical_size'] is not None else 0,
+                'children': {}
+            }
+            
+            if len(visited) < max_tree_depth:
                 for dep in pkg_data['dependencies']:
-                    if dep in Q:
-                        logical_size += calculate_logical_size(dep, visited.copy())
-                    # 如果依赖不在Q中（由于限制），使用其物理大小
-                
-                pkg_data['logical_size'] = logical_size
-                return logical_size
+                    result_tree['children'][dep] = build_tree(dep, visited.copy(), max_tree_depth)
             
-            # 为所有包计算逻辑大小
-            for pkg_name in current_packages:
-                calculate_logical_size(pkg_name)
-            
-            # 构建结果
-            result = {
-                'trees': {},
-                'layers': {},
-                'package_sizes': {pkg: (data['physical_size'] if data['physical_size'] is not None else 0) for pkg, data in Q.items()},
-                'logical_sizes': {pkg: (data['logical_size'] if data['logical_size'] is not None else 0) for pkg, data in Q.items()},
-                'total_calls': total_calls,
-                'analyzed_packages': len(Q),
-                'total_time': total_analysis_time,
-                'Q': Q  # 调试用
-            }
-            
-            # 构建依赖树
-            def build_tree(pkg_name, visited=None, max_tree_depth=3):
-                if visited is None:
-                    visited = set()
-                
-                if pkg_name in visited or pkg_name not in Q:
-                    return {}
-                
-                visited.add(pkg_name)
-                pkg_data = Q[pkg_name]
-                
-                result_tree = {
-                    'dependencies': pkg_data['dependencies'],
-                    'size': pkg_data['physical_size'] if pkg_data['physical_size'] is not None else 0,
-                    'logical_size': pkg_data['logical_size'] if pkg_data['logical_size'] is not None else 0,
-                    'children': {}
-                }
-                
-                if len(visited) < max_tree_depth:
-                    for dep in pkg_data['dependencies']:
-                        result_tree['children'][dep] = build_tree(dep, visited.copy(), max_tree_depth)
-                
-                return result_tree
-            
-            for pkg in current_packages:
-                result['trees'][pkg] = build_tree(pkg)
-            
-            # 转换layers为list
-            for layer_num in layers:
-                result['layers'][layer_num] = list(layers[layer_num])
-            
-            if interface_mode:
-                result['download_layers'] = result['layers'].copy()
-                    
-            return result
-            
-        except Exception as e:
-            # Analysis failed, fallback to simple analysis
-            return {
-                'trees': {},
-                'layers': {0: current_packages},
-                'package_sizes': {},
-                'logical_sizes': {},
-                'total_calls': 0,
-                'analyzed_packages': 0,
-                'error': str(e)
-            }
+            return result_tree
+        
+        for pkg in current_packages:
+            result['trees'][pkg] = build_tree(pkg)
+        
+        # 转换layers为list
+        for layer_num in layers:
+            result['layers'][layer_num] = list(layers[layer_num])
+        
+        if interface_mode:
+            result['download_layers'] = result['layers'].copy()
+        return result
 
     def _normalize_package_name(self, package_name):
         """
@@ -766,7 +746,6 @@ class DepsCommand(BaseCommand):
             return ""
         # 移除版本信息
         base_name = package_name.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0]
-        # 将下划线转换为连字符，转换为小写
         normalized = base_name.replace('_', '-').lower().strip()
         return normalized
 
@@ -839,10 +818,8 @@ class DepsCommand(BaseCommand):
                         for j, child_dep in enumerate(child_deps):
                             is_last_child = (j == len(child_deps) - 1)
                             if is_last:
-                                # 父级是最后一个，使用空格
                                 child_connector = "    └─" if is_last_child else "    ├─"
                             else:
-                                # 父级不是最后一个，使用竖线连接
                                 child_connector = "│   └─" if is_last_child else "│   ├─"
                             child_installed = " [√]" if is_package_installed(child_dep) else ""
                             child_physical = package_sizes.get(child_dep, 0)
@@ -861,5 +838,4 @@ class DepsCommand(BaseCommand):
                 unique_pkgs = list(set(pkgs))
                 pkg_with_sizes = [(pkg, package_sizes.get(pkg, 0)) for pkg in unique_pkgs]
                 pkg_with_sizes.sort(key=lambda x: x[1], reverse=True)
-                
                 print(f"\nLevel {layer_num}: {', '.join([f'{pkg}{format_size(size)}' for pkg, size in pkg_with_sizes])}")

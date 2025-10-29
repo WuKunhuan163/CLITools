@@ -365,7 +365,8 @@ class FileCore:
                     "suggestion": "Files may have been uploaded successfully. Please check manually and retry if needed."
                 }
             else:
-                base_time = sync_result.get("base_sync_time", sync_result.get("sync_time", 0))
+                # 优先使用 base_sync_time，如果不存在则使用 sync_time，都不存在时使用0
+                base_time = (sync_result.get("base_sync_time") if "base_sync_time" in sync_result else sync_result.get("sync_time", 0))
                 sync_result["sync_time"] = base_time
             
             # 7. 静默验证文件同步状态
@@ -405,9 +406,17 @@ class FileCore:
             
             # 如果执行失败，直接返回错误
             if not execution_result["success"]:
+                # 明确处理错误信息的获取
+                if "error" in execution_result:
+                    error = execution_result["error"]
+                elif "data" in execution_result and isinstance(execution_result["data"], dict):
+                    error = execution_result["data"].get("error", "Unknown error")
+                else:
+                    error = "Unknown error"
+                
                 return {
                     "success": False,
-                    "error": execution_result.get("error", execution_result.get("data", {}).get("error", "Unknown error")),
+                    "error": error,
                     "remote_command": remote_command,
                     "execution_result": execution_result
                 }
@@ -1355,7 +1364,8 @@ class FileCore:
                     }
             else:
                 # 优先使用用户提供的错误信息
-                error_msg = result.get('error_info') or result.get('error') or 'Unknown error'
+                error_msg = (result.get('error_info') if 'error_info' in result 
+                           else result.get('error', 'Unknown error'))
                 return {
                     "success": False,
                     "error": f"Remote mv command execution failed: {error_msg}"

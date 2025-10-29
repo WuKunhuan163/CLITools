@@ -4,29 +4,12 @@ Google Drive Shell - Virtual environment management
 Refactored from file_operations.py
 """
 
-import os
-import time
-import subprocess
-from pathlib import Path
-import platform
-from typing import Dict
-from .linter import GDSLinter
-
-try:
-    from ..google_drive_api import GoogleDriveService
-except ImportError:
-    from GOOGLE_DRIVE_PROJ.google_drive_api import GoogleDriveService
-
-# 导入debug捕获系统
-
-
 class FileOperationsBase:
     """Base class for file operations modules"""
     
     def __init__(self, drive_service, main_instance=None):
         self.drive_service = drive_service
         self.main_instance = main_instance
-        # Add other common initialization as needed
         
     def check_network_connection(self):
         """Check network connection - placeholder"""
