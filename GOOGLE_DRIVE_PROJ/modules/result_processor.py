@@ -3,12 +3,6 @@ Result Processor Module
 从 remote_commands.py 重构而来
 """
 
-import os
-import json
-import time
-import subprocess
-from pathlib import Path
-
 class ResultProcessor:
     """重构后的result_processor功能"""
 
@@ -55,11 +49,11 @@ class ResultProcessor:
                         raise KeyboardInterrupt()
                     
                     # 检查文件是否存在
-                    check_result = self.main_instance.file_validator._check_remote_file_exists(remote_file_path)
+                    check_result = self.main_instance.check_remote_file_exists(remote_file_path)
                     
                     if check_result.get("exists"):
                         # 文件存在，读取内容
-                        file_result = self._read_result_file_via_gds(result_filename)
+                        file_result = self.read_result_file_via_gds(result_filename)
                         
                         # 直接清除进度显示，不添加√标记（与upload validation保持一致）
                         from .progress_manager import clear_progress
@@ -81,7 +75,6 @@ class ResultProcessor:
                     progress_print(f".")
                 
             except KeyboardInterrupt:
-                # 用户按下Ctrl+C，清除进度显示并退出
                 from .progress_manager import clear_progress
                 clear_progress()
                 # 恢复原来的信号处理器
@@ -130,7 +123,7 @@ class ResultProcessor:
             print()
             
             # 获取用户手动输入
-            user_feedback = self._get_multiline_user_input()
+            user_feedback = self.get_multiline_user_input(prompt="Please provide feedback (press Ctrl+D when done):")
             
             if user_feedback.strip():
                 # 用户提供了反馈
@@ -194,7 +187,7 @@ class ResultProcessor:
             return f'{{"exit_code": -1, "stdout": "{content}", "stderr": "preprocess failed: {str(e)}"}}'
 
 
-    def _read_result_file_via_gds(self, result_filename):
+    def read_result_file_via_gds(self, result_filename):
         """
         使用GDS ls和cat机制读取远端结果文件
 
@@ -210,7 +203,7 @@ class ResultProcessor:
             remote_file_path = f"~/tmp/{result_filename}"
 
             # 首先使用ls检查文件是否存在
-            check_result = self.main_instance.file_validator._check_remote_file_exists(remote_file_path)
+            check_result = self.main_instance.check_remote_file_exists(remote_file_path)
             if not check_result.get("exists"):
                 return {
                     "success": False,
@@ -258,44 +251,3 @@ class ResultProcessor:
                 "error": f"Read result file failed: {str(e)}"
             }
 
-    def _get_multiline_user_input(self):
-        """
-        获取用户的多行输入，支持Ctrl+D结束
-        使用与USERINPUT完全相同的信号超时输入逻辑
-        
-        Returns:
-            str: 用户输入的多行内容
-        """
-        lines = []
-        timeout_seconds = 180  # 3分钟超时，和USERINPUT一致
-        
-        # 定义超时异常
-        class TimeoutException(Exception):
-            pass
-        
-        def timeout_handler(signum, frame):
-            raise TimeoutException("Input timeout")
-        
-        # 使用信号方式进行超时控制，完全复制USERINPUT逻辑
-        import signal
-        import readline
-        
-        original_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(timeout_seconds)
-        
-        try:
-            while True:
-                try:
-                    line = input()
-                    lines.append(line)
-                except EOFError:
-                    # Ctrl+D结束输入
-                    break
-        except TimeoutException:
-            print("\nInput timeout after 180 seconds")
-        finally:
-            # 恢复信号处理器
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, original_handler)
-        
-        return '\n'.join(lines)

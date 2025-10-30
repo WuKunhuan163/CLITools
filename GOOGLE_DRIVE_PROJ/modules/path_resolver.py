@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Path Resolver Module
-从google_drive_shell.py重构而来的path_resolver模块
 """
 
 import os
@@ -18,7 +17,7 @@ class PathResolver:
         self.drive_service = drive_service
         self.main_instance = main_instance
 
-    def _expand_path(self, path):
+    def expand_path(self, path):
         """展开路径，处理~等特殊字符"""
         try:
             import os
@@ -27,7 +26,7 @@ class PathResolver:
             print(f"Path expansion failed: {e}")
             return path
 
-    def _resolve_target_path_for_upload(self, target_path, current_shell=None):
+    def resolve_target_path_for_upload(self, target_path, current_shell=None):
         """
         解析上传目标路径的通用方法
         
@@ -65,7 +64,7 @@ class PathResolver:
             return None, None
         
         # 处理bash shell自动扩展的本地路径
-        path = self._convert_local_path_to_remote(path)
+        path = self.convert_local_path_to_remote(path)
             
         if not current_shell:
             current_shell = self.main_instance.get_current_shell()
@@ -84,14 +83,14 @@ class PathResolver:
                 else:
                     # 处理@drive_equivalent下的子路径
                     relative_path = path[len("@drive_equivalent/"):]
-                    return self._resolve_relative_path(relative_path, self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID, "@drive_equivalent")
+                    return self.resolve_relative_path(relative_path, self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID, "@drive_equivalent")
             
             # 处理绝对路径（基于REMOTE_ROOT）
             if path == "~":
                 return self.main_instance.REMOTE_ROOT_FOLDER_ID, "~"
             elif path.startswith("~/"):
                 relative_path = path[2:]
-                return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
+                return self.resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
             
             # 处理完整的绝对路径（如 /content/drive/MyDrive/REMOTE_ROOT/...）
             elif path.startswith(self.main_instance.REMOTE_ROOT):
@@ -99,7 +98,7 @@ class PathResolver:
                     return self.main_instance.REMOTE_ROOT_FOLDER_ID, "~"
                 elif path.startswith(f"{self.main_instance.REMOTE_ROOT}/"):
                     relative_path = path[len(f"{self.main_instance.REMOTE_ROOT}/"):]
-                    return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
+                    return self.resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
                 else:
                     return None, None
             
@@ -109,7 +108,7 @@ class PathResolver:
                     return self.main_instance.REMOTE_ENV_FOLDER_ID, self.main_instance.REMOTE_ENV
                 elif path.startswith(f"{self.main_instance.REMOTE_ENV}/"):
                     relative_path = path[len(f"{self.main_instance.REMOTE_ENV}/"):]
-                    return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ENV_FOLDER_ID, self.main_instance.REMOTE_ENV)
+                    return self.resolve_relative_path(relative_path, self.main_instance.REMOTE_ENV_FOLDER_ID, self.main_instance.REMOTE_ENV)
                 else:
                     return None, None
             
@@ -120,7 +119,7 @@ class PathResolver:
                 relative_path = path[1:]  # 去掉前导的 /
                 if relative_path:
                     # 将绝对路径映射为相对于REMOTE_ROOT的路径
-                    return self._resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
+                    return self.resolve_relative_path(relative_path, self.main_instance.REMOTE_ROOT_FOLDER_ID, "~")
                 else:
                     # 如果是根路径 "/"，映射到REMOTE_ROOT
                     return self.main_instance.REMOTE_ROOT_FOLDER_ID, "~"
@@ -128,26 +127,26 @@ class PathResolver:
             # 处理相对路径
             elif path.startswith("./"):
                 relative_path = path[2:]
-                return self._resolve_relative_path(relative_path, current_folder_id, current_path)
+                return self.resolve_relative_path(relative_path, current_folder_id, current_path)
             
             elif path == ".":
                 return current_folder_id, current_path
             
             elif path == "..":
-                return self._resolve_parent_directory(current_folder_id, current_path)
+                return self.resolve_parent_directory(current_folder_id, current_path)
             
             elif path.startswith("../"):
                 # 递归处理多级 ../../../ 路径
-                return self._resolve_multi_level_parent_path(path, current_folder_id, current_path)
+                return self.resolve_multi_level_parent_path(path, current_folder_id, current_path)
             
             else:
-                return self._resolve_relative_path(path, current_folder_id, current_path)
+                return self.resolve_relative_path(path, current_folder_id, current_path)
                 
         except Exception as e:
             print(f"Error: Resolve path failed: {e}")
             return None, None
 
-    def _resolve_multi_level_parent_path(self, path, current_folder_id, current_path):
+    def resolve_multi_level_parent_path(self, path, current_folder_id, current_path):
         """递归处理多级父目录路径，如 ../../../folder"""
         try:
             # 分解路径组件
@@ -168,7 +167,7 @@ class PathResolver:
             current_logical_path = current_path
             
             for _ in range(up_levels):
-                parent_id, parent_path = self._resolve_parent_directory(current_id, current_logical_path)
+                parent_id, parent_path = self.resolve_parent_directory(current_id, current_logical_path)
                 if not parent_id:
                     return None, None
                 current_id = parent_id
@@ -177,7 +176,7 @@ class PathResolver:
             # 如果还有剩余路径，继续解析
             if remaining_path:
                 remaining_relative_path = '/'.join(remaining_path)
-                return self._resolve_relative_path(remaining_relative_path, current_id, current_logical_path)
+                return self.resolve_relative_path(remaining_relative_path, current_id, current_logical_path)
             else:
                 return current_id, current_logical_path
                 
@@ -185,7 +184,7 @@ class PathResolver:
             print(f"Error: Resolve multi-level parent path failed: {e}")
             return None, None
 
-    def _resolve_relative_path(self, relative_path, base_folder_id, base_path):
+    def resolve_relative_path(self, relative_path, base_folder_id, base_path):
         """解析相对路径"""
         if not relative_path:
             return base_folder_id, base_path
@@ -205,7 +204,7 @@ class PathResolver:
                     continue
                 elif part == "..":
                     # 父目录
-                    parent_id, parent_path = self._resolve_parent_directory(current_id, current_logical_path)
+                    parent_id, parent_path = self.resolve_parent_directory(current_id, current_logical_path)
                     if parent_id is None:
                         return None, None  # 没有父目录
                     current_id = parent_id
@@ -237,7 +236,7 @@ class PathResolver:
             print(f"Error: Resolve relative path failed: {e}")
             return None, None
 
-    def _resolve_parent_directory(self, folder_id, current_path):
+    def resolve_parent_directory(self, folder_id, current_path):
         """解析父目录"""
         if current_path == "~":
             return None, None
@@ -267,7 +266,7 @@ class PathResolver:
     
     # Shell命令实现
 
-    def _resolve_absolute_mkdir_path(self, path, current_shell, recursive=False):
+    def resolve_absolute_mkdir_path(self, path, current_shell, recursive=False):
         """解析mkdir路径为绝对路径"""
         try:
             # 获取当前路径
@@ -290,7 +289,7 @@ class PathResolver:
                     return f"{self.main_instance.REMOTE_ROOT}/{path[2:]}"
                 else:
                     # 将当前GDS路径转换为绝对路径
-                    abs_current = self._gds_path_to_absolute(current_path)
+                    abs_current = self.path_to_absolute(current_path)
                     return f"{abs_current}/{path[2:]}"
             else:
                 # 相对路径
@@ -298,14 +297,14 @@ class PathResolver:
                     return f"{self.main_instance.REMOTE_ROOT}/{path}"
                 else:
                     # 将当前GDS路径转换为绝对路径
-                    abs_current = self._gds_path_to_absolute(current_path)
+                    abs_current = self.path_to_absolute(current_path)
                     return f"{abs_current}/{path}"
                     
         except Exception as e:
             print(f"Error: Resolve mkdir path failed: {e}")
             return None
 
-    def _gds_path_to_absolute(self, gds_path):
+    def path_to_absolute(self, gds_path):
         """将GDS路径转换为绝对路径"""
         try:
             if gds_path == "~":
@@ -318,7 +317,7 @@ class PathResolver:
             print(f"Error: Convert GDS path failed: {e}")
             return gds_path
 
-    def _convert_local_path_to_remote(self, path):
+    def convert_local_path_to_remote(self, path):
         """
         将bash shell扩展的本地路径转换回远程路径格式
         
@@ -365,14 +364,14 @@ class PathResolver:
         """
         try:
             # 首先转换可能被bash扩展的本地路径
-            input_path = self._convert_local_path_to_remote(input_path)
+            input_path = self.convert_local_path_to_remote(input_path)
             
             # 如果输入路径已经是绝对路径（以~开头），仍需要规范化处理
             if input_path.startswith("~"):
                 # 检查是否包含需要规范化的路径组件（如 .. 或 .）
                 if '../' in input_path or '/./' in input_path or input_path.endswith('/..') or input_path.endswith('/.'):
                     # 需要规范化处理
-                    return self._normalize_path_components("~", input_path[2:] if input_path.startswith("~/") else input_path[1:])
+                    return self.normalize_path_components("~", input_path[2:] if input_path.startswith("~/") else input_path[1:])
                 else:
                     # 简单的绝对路径，直接返回
                     return input_path
@@ -387,11 +386,11 @@ class PathResolver:
             
             # 处理父目录路径
             if input_path == "..":
-                return self._get_parent_path(current_shell_path)
+                return self.get_parent_path(current_shell_path)
             
             if input_path.startswith("../"):
                 # 先获取父目录，然后递归处理剩余路径
-                parent_path = self._get_parent_path(current_shell_path)
+                parent_path = self.get_parent_path(current_shell_path)
                 remaining_path = input_path[3:]  # 移除 ../
                 # 递归处理剩余路径
                 return self.compute_absolute_path(parent_path, remaining_path)
@@ -400,19 +399,19 @@ class PathResolver:
             # 特别处理包含 ../ 的复杂路径（如 level1/../level1/level2）
             if '../' in input_path:
                 # 使用路径规范化处理复杂的相对路径
-                normalized_path = self._normalize_path_components(current_shell_path, input_path)
+                normalized_path = self.normalize_path_components(current_shell_path, input_path)
 # Debug log removed
                 return normalized_path
             else:
                 # 简单相对路径
-                normalized_path = self._normalize_path_components(current_shell_path, input_path)
+                normalized_path = self.normalize_path_components(current_shell_path, input_path)
                 return normalized_path
             
         except Exception as e:
             # 如果计算失败，返回输入路径
             return input_path
     
-    def _get_parent_path(self, path):
+    def get_parent_path(self, path):
         """获取路径的父目录"""
         if path == "~":
             return "~"  # 根目录没有父目录，返回自己
@@ -426,7 +425,7 @@ class PathResolver:
         
         return path
     
-    def _join_paths(self, base_path, relative_path):
+    def join_paths(self, base_path, relative_path):
         """连接基础路径和相对路径"""
         if not relative_path:
             return base_path
@@ -436,11 +435,11 @@ class PathResolver:
         else:
             return f"{base_path}/{relative_path}"
     
-    def _normalize_path_components(self, base_path, relative_path):
+    def normalize_path_components(self, base_path, relative_path):
         """规范化路径组件，处理路径中的 .. 和 ."""
         try:
             # 先连接路径
-            combined_path = self._join_paths(base_path, relative_path)
+            combined_path = self.join_paths(base_path, relative_path)
             
             # 分解路径为组件
             if combined_path == "~":
@@ -482,7 +481,7 @@ class PathResolver:
                 
         except Exception as e:
             # 如果规范化失败，返回原始连接的路径
-            return self._join_paths(base_path, relative_path)
+            return self.join_paths(base_path, relative_path)
 
     def resolve_remote_absolute_path(self, path, current_shell=None):
         """

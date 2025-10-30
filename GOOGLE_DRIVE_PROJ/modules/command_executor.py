@@ -468,11 +468,11 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 使用传入的cmd_hash
         result = window_manager.request_window(enhanced_cmd, cmd_hash, timeout_seconds, no_direct_feedback=test_mode, is_priority=is_priority)
         return result
-
+            
     def direct_feedback(self, remote_command, debug_info=None):
         """
         直接反馈功能 - 粘贴远端命令和用户反馈，用=分割
-        使用统一的_get_multiline_user_input方法
+        使用统一的get_multiline_user_input方法
         """
         debug_print(f"进入direct_feedback方法")
 
@@ -491,7 +491,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         print()
 
         # 使用统一的多行输入方法
-        full_output = self._get_multiline_user_input()
+        full_output = self.get_multiline_user_input(prompt="Enter command output (press Ctrl+D when done):")
 
         # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
         error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
@@ -549,10 +549,8 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
 
                 if actual_result.get("success", False):
                     actual_data = actual_result.get("data", {})
-                    actual_stdout = actual_data.get("stdout", "").strip()
                     actual_stderr = actual_data.get("stderr", "").strip()
 
-                    # 不打印actual_stdout，因为用户的直接反馈已经包含了输出
                     # 只在有stderr时打印stderr
                     if actual_stderr:
                         import sys
@@ -576,16 +574,21 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
         return feedback_result
 
-    def _get_multiline_user_input(self):
+    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180):
         """
         获取用户的多行输入，支持Ctrl+D结束
         使用与USERINPUT完全相同的信号超时输入逻辑
+        增强：支持中文字符输入
         
+        Args:
+            prompt (str): 输入提示（暂未使用，保留接口兼容性）
+            is_single_line (bool): 是否单行输入（暂未使用，保留接口兼容性）
+            timeout_seconds (int): 超时时间（秒），默认180秒
+            
         Returns:
             str: 用户输入的多行内容
         """
         lines = []
-        timeout_seconds = 180  # 3分钟超时，和USERINPUT一致
         
         # 定义超时异常
         class TimeoutException(Exception):
@@ -594,9 +597,28 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         def timeout_handler(signum, frame):
             raise TimeoutException("Input timeout")
         
-        # 使用信号方式进行超时控制，完全复制USERINPUT逻辑
+        # 使用信号方式进行超时控制
         import signal
         import readline
+        
+        # 配置readline以支持中文字符
+        try:
+            readline.set_startup_hook(None)
+            readline.clear_history()
+            
+            # 设置编辑模式为emacs（支持更好的中文编辑）
+            readline.parse_and_bind("set editing-mode emacs")
+            # 启用UTF-8支持
+            readline.parse_and_bind("set input-meta on")
+            readline.parse_and_bind("set output-meta on")
+            readline.parse_and_bind("set convert-meta off")
+            # 启用中文字符显示
+            readline.parse_and_bind("set print-completions-horizontally off")
+            readline.parse_and_bind("set skip-completed-text on")
+            # 确保正确处理宽字符
+            readline.parse_and_bind("set enable-bracketed-paste on")
+        except Exception:
+            pass  # 如果配置失败，继续使用默认设置
         
         original_handler = signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(timeout_seconds)
@@ -610,7 +632,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
                     # Ctrl+D结束输入
                     break
         except TimeoutException:
-            print("\nInput timeout after 180 seconds")
+            print(f"\nInput timeout after {timeout_seconds} seconds")
         finally:
             # 恢复信号处理器
             signal.alarm(0)

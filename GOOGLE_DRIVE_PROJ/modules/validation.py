@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Validation Module
-从google_drive_shell.py重构而来的validation模块
 """
 
 class Validation:
@@ -110,7 +109,7 @@ class Validation:
                 "total_expected": len(expected_files)
             }
 
-    def _create_error_result(self, error_message):
+    def create_error_result(self, error_message):
         """
         创建标准的错误返回结果
         
@@ -122,7 +121,7 @@ class Validation:
         """
         return {"success": False, "error": error_message}
 
-    def _create_success_result(self, message=None, **kwargs):
+    def create_success_result(self, message=None, **kwargs):
         """
         创建标准的成功返回结果
         
@@ -139,7 +138,7 @@ class Validation:
         result.update(kwargs)
         return result
 
-    def _handle_exception(self, e, operation_name, default_message=None):
+    def handle_exception(self, e, operation_name, default_message=None):
         """
         通用异常处理方法
         
@@ -155,4 +154,48 @@ class Validation:
             error_msg = f"{default_message}: {str(e)}"
         else:
             error_msg = f"{operation_name}时出错: {str(e)}"
-        return self._create_error_result(error_msg)
+        return self.create_error_result(error_msg)
+
+
+    def verify_creation_with_ls(self, path, max_attempts=20):
+        """
+        通用的创建验证接口，支持目录和文件验证
+        
+        Args:
+            path (str): 要验证的路径
+            current_shell (dict): 当前shell信息
+            creation_type (str): 创建类型，"dir"或"file"
+            max_attempts (int): 最大重试次数
+            
+        Returns:
+            dict: 验证结果
+        """
+        def validate():
+            ls_result = self.main_instance.cmd_ls(path, detailed=False, recursive=False)
+            return ls_result["success"]
+        from .progress_manager import validate_creation, clear_progress, is_progress_active
+        if is_progress_active():
+            clear_progress()
+        result = validate_creation(validate, path, max_attempts, creation_type)
+        
+        # 转换返回格式以保持兼容性
+        if result["success"]:
+            return {
+                "success": True,
+                "message": f"Creation verified: {path}",
+                "attempts": result["attempts"]
+            }
+        elif result.get("cancelled", False):
+            return {
+                "success": False,
+                "error": f"Verification of '{path}' cancelled by user (Ctrl+C)",
+                "attempts": result["attempts"],
+                "cancelled": True
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Path '{path}' not found after {max_attempts} verification attempts",
+                "attempts": result["attempts"]
+            }
+

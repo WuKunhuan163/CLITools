@@ -12,33 +12,11 @@ warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.
 from dotenv import load_dotenv
 load_dotenv()
 
-# 添加缺失的工具函数
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
+# 导入工具函数
+from .system_utils import is_run_environment, write_to_json_output
 
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception:
-        return False
+# 添加缺失的工具函数
+
 
 # 导入Google Drive Shell管理类 - 注释掉避免循环导入
 # try:
@@ -88,8 +66,8 @@ def shutdown_google_drive(command_identifier=None):
             return 0
         
         # 尝试优雅关闭
-        result = subprocess.run(['killall', 'Google Drive'], 
-                              capture_output=True, text=True)
+        subprocess.run(['killall', 'Google Drive'], 
+                     capture_output=True, text=True)
         
         # 等待一下让进程完全关闭
         time.sleep(2)

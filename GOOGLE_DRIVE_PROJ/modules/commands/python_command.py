@@ -55,19 +55,9 @@ class PythonCommand(BaseCommand):
                 import sys
                 print(stderr, end="", file=sys.stderr)
             return 1
-    
-    # ============================================================================
-    # 请将 GOOGLE_DRIVE_PROJ/modules/python_execution.py 中的所有方法粘贴到下方
-    # 从 def cmd_python(self, filename, python_args=None): 开始，一直到文件结尾
-    # 注意：将所有 self.main_instance 替换为 self.shell
-    #       将所有 self.drive_service 替换为 self.shell.drive_service  
-    # ============================================================================
 
-        
-    def _get_python_executable(self):
+    def get_python_executable(self):
         """获取当前应该使用的Python可执行文件路径 - 已废弃，Python版本选择在远程进行"""
-        # 这个方法已经不再使用，Python版本选择逻辑已移到远程命令中
-        # 保留这个方法以保持兼容性，但总是返回默认值
         return "python3"
 
     def cmd_python(self, code=None, filename=None, python_args=None, save_output=False):
@@ -75,35 +65,17 @@ class PythonCommand(BaseCommand):
         try:
             if filename:
                 # 执行Drive中的Python文件
-                return self._execute_python_file(filename, save_output, python_args)
+                return self.execute_python_file(filename, save_output, python_args)
             elif code:
                 # 执行直接提供的Python代码
-                return self._execute_python_code(code, save_output)
+                return self.execute_python_code(code, save_output)
             else:
                 return {"success": False, "error": "请提供Python代码或文件名"}
                 
         except Exception as e:
             return {"success": False, "error": f"执行Python命令时出错: {e}"}
 
-    def _execute_python_file(self, filename, save_output=False, python_args=None):
-        """执行Google Drive中的Python文件"""
-        try:
-            # 直接在远端执行Python文件，不需要先读取文件内容
-            return self._execute_python_file_remote(filename, save_output, python_args)
-            
-        except Exception as e:
-            return {"success": False, "error": f"执行Python文件时出错: {e}"}
-    
-    def _execute_python_code(self, code, save_output=False, filename=None):
-        """执行Python代码并返回结果"""
-        try:
-            # 直接尝试远程执行，在远程命令中检查和应用虚拟环境
-            return self._execute_python_code_remote_unified(code, save_output, filename)
-                
-        except Exception as e:
-            return {"success": False, "error": f"执行Python代码时出错: {e}"}
-
-    def _execute_python_code_remote_unified(self, code, save_output=False, filename=None):
+    def execute_python_code(self, code, save_output=False, filename=None):
         """统一的远程Python执行方法，在一个命令中检查虚拟环境并执行代码"""
         try:
             import base64
@@ -120,8 +92,6 @@ class PythonCommand(BaseCommand):
             temp_filename = f"python_code_{timestamp}_{random_id}.b64"
             
             # 获取环境文件路径
-            current_shell = self.main_instance.get_current_shell()
-            shell_id = current_shell.get("id", "default") if current_shell else "default"
             # Direct storage in REMOTE_ENV, no .tmp subdirectory needed
             env_file = f"{self.main_instance.REMOTE_ENV}/venv/venv_pythonpath.sh"
             temp_file_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{temp_filename}"
@@ -227,17 +197,14 @@ except:
         except Exception as e:
             return {"success": False, "error": f"远程Python执行时出错: {e}"}
 
-    def _execute_python_file_remote(self, filename, save_output=False, python_args=None):
+    def execute_python_file(self, filename, save_output=False, python_args=None):
         """远程执行Python文件"""
         try:
             # 获取环境文件路径
-            current_shell = self.main_instance.get_current_shell()
-            shell_id = current_shell.get("id", "default") if current_shell else "default"
-            # Direct storage in REMOTE_ENV, no .tmp subdirectory needed
             env_file = f"{self.main_instance.REMOTE_ENV}/venv/venv_pythonpath.sh"
             
             # 构建Python命令，包含文件名和参数
-            python_executable = self._get_python_executable()
+            python_executable = self.get_python_executable()
             python_cmd_parts = [python_executable, filename]
             if python_args:
                 python_cmd_parts.extend(python_args)
@@ -245,9 +212,7 @@ except:
             
             # 构建远程命令：检查并应用虚拟环境，然后执行Python文件
             commands = [
-                # source环境文件，如果失败则忽略（会使用默认的PYTHONPATH）
                 f"source {env_file} 2>/dev/null || true",
-
                 python_cmd
             ]
             command = " && ".join(commands)

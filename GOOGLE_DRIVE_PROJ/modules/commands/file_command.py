@@ -3,9 +3,6 @@ File operations commands (touch, rm, mv)
 从file_core.py迁移而来
 """
 
-import shlex
-
-
 class FileCommand:
     """文件操作命令"""
     
@@ -13,6 +10,7 @@ class FileCommand:
         self.main_instance = main_instance
         self.drive_service = main_instance.drive_service
     
+
     def cmd_touch(self, filename):
         """创建空文件，通过远程命令界面执行"""
         try:
@@ -31,12 +29,6 @@ class FileCommand:
             
             # 生成远端touch命令（创建空文件）
             remote_command = f'touch "{absolute_path}"'
-            
-            # 准备上下文信息
-            context_info = {
-                "filename": filename,
-                "absolute_path": absolute_path
-            }
             
             # 使用统一接口执行远端命令
             execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
@@ -60,7 +52,7 @@ class FileCommand:
                 "error": str(e),
                 "message": f"Remote touch command generation failed: {e}"
             }
-    
+
     def cmd_rm(self, path, recursive=False, force=False):
         """删除文件或目录，通过远程rm命令执行"""
         try:
@@ -138,7 +130,7 @@ class FileCommand:
                 
         except Exception as e:
             return {"success": False, "error": f"Error executing rm command: {e}"}
-    
+
     def cmd_mv(self, source, destination, force=False):
         """mv命令 - 移动/重命名文件或文件夹（使用远端指令执行）"""
         try:
@@ -156,6 +148,7 @@ class FileCommand:
             destination_absolute_path = self.main_instance.resolve_remote_absolute_path(destination, current_shell)
             
             # 使用shlex.quote对路径进行shell转义，处理空格和特殊字符
+            import shlex
             escaped_source = shlex.quote(source_absolute_path)
             escaped_destination = shlex.quote(destination_absolute_path)
             
@@ -167,10 +160,7 @@ class FileCommand:
             result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
             
             if result.get("success"):
-                # 验证文件是否真的被移动了
-                # 使用绝对路径进行验证以确保正确性
                 verification_result = self.main_instance.verify_creation_with_ls(destination_absolute_path, current_shell, creation_type="file")
-                
                 if verification_result.get("success", False):
                     return {
                         "success": True,
@@ -181,7 +171,7 @@ class FileCommand:
                 else:
                     return {
                         "success": False,
-                        "error": f"mv command execution succeeded but verification failed: {verification_result.get('error', 'Unknown verification error')}"
+                        "error": f"mv verification failed: {verification_result.get('error', 'Unknown verification error')}"
                     }
             else:
                 # 优先使用用户提供的错误信息
@@ -189,9 +179,8 @@ class FileCommand:
                            else result.get('error', 'Unknown error'))
                 return {
                     "success": False,
-                    "error": f"Remote mv command execution failed: {error_msg}"
+                    "error": f"mv command execution failed: {error_msg}"
                 }
                 
         except Exception as e:
             return {"success": False, "error": f"Execute mv command failed: {e}"}
-

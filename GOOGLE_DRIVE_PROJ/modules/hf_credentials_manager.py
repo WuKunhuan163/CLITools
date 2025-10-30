@@ -4,27 +4,14 @@ Google Drive - Hf Credentials Manager Module
 从GOOGLE_DRIVE.py重构而来的hf_credentials_manager模块
 """
 
-import os
-import sys
-import json
-import webbrowser
-import hashlib
-import subprocess
-import time
-import uuid
 import warnings
-from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
 load_dotenv()
 
-# 导入Google Drive Shell管理类
-try:
-    # from google_drive_shell import GoogleDriveShell
-    pass
-except ImportError as e:
-    print(f"Error: Import Google Drive Shell failed: {e}")
-    GoogleDriveShell = None
+# 导入工具函数
+from .system_utils import is_run_environment
+from .shell_commands import handle_multiple_commands
 
 def get_local_hf_token():
     """
@@ -185,9 +172,6 @@ fi
             # 非RUN环境，使用subprocess方法显示窗口
             # show_remote_command_window现在在remote_commands中，需要通过main_instance访问
             
-            title = "🤗 HuggingFace remote setup"
-            instruction = "Please execute the following command in your remote environment to set up HuggingFace credentials:"
-            
             # HuggingFace credentials setup is not implemented yet
             # Just return a simple interface response
             result = {
@@ -286,7 +270,7 @@ echo "🏁 HuggingFace configuration test completed"
             }
         else:
             # 使用GDS执行测试命令
-            result = handle_shell_command(f'bash -c "{test_command}"', command_identifier)
+            result = handle_multiple_commands(f'bash -c "{test_command}"', command_identifier)
             return result
             
     except Exception as e:

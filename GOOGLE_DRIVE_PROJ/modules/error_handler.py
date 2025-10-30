@@ -19,9 +19,9 @@ class EnhancedErrorHandler:
     def __init__(self, debug_mode: bool = True):
         self.debug_mode = debug_mode
         self.error_log_file = None
-        self._setup_error_logging()
+        self.setup_error_logging()
     
-    def _setup_error_logging(self):
+    def setup_error_logging(self):
         """设置错误日志"""
         try:
             # 使用统一路径常量
@@ -74,11 +74,11 @@ class EnhancedErrorHandler:
                 "context": context,
                 "exception_type": exc_type.__name__,
                 "exception_message": str(exc_value),
-                "traceback_summary": self._get_traceback_summary(exc_traceback),
-                "full_traceback": self._get_full_traceback(exc_traceback),
-                "root_cause": self._find_root_cause(exc_traceback),
-                "stack_frames": self._analyze_stack_frames(exc_traceback),
-                "timestamp": self._get_timestamp()
+                "traceback_summary": self.get_traceback_summary(exc_traceback),
+                "full_traceback": self.get_full_traceback(exc_traceback),
+                "root_cause": self.find_root_cause(exc_traceback),
+                "stack_frames": self.analyze_stack_frames(exc_traceback),
+                "timestamp": self.get_timestamp()
             }
             
             # 添加额外信息
@@ -86,11 +86,11 @@ class EnhancedErrorHandler:
                 error_info["additional_info"] = additional_info
             
             # 记录到日志
-            self._log_error(error_info)
+            self.log_error(error_info)
             
             # 如果是调试模式，打印详细信息
             if self.debug_mode:
-                self._print_debug_info(error_info)
+                self.print_debug_info(error_info)
             
             return error_info
             
@@ -103,21 +103,21 @@ class EnhancedErrorHandler:
                 "original_exception": str(exception) if exception else "Unknown"
             }
     
-    def _get_traceback_summary(self, tb) -> List[str]:
+    def get_traceback_summary(self, tb) -> List[str]:
         """获取traceback摘要"""
         try:
             return traceback.format_tb(tb, limit=10)
         except Exception:
             return ["Failed to get traceback summary"]
     
-    def _get_full_traceback(self, tb) -> str:
+    def get_full_traceback(self, tb) -> str:
         """获取完整的traceback"""
         try:
             return ''.join(traceback.format_tb(tb))
         except Exception:
             return "Failed to get full traceback"
     
-    def _find_root_cause(self, tb) -> Dict[str, Any]:
+    def find_root_cause(self, tb) -> Dict[str, Any]:
         """找到根本原因（最底层的异常）"""
         try:
             frames = []
@@ -129,8 +129,8 @@ class EnhancedErrorHandler:
                     "filename": frame.f_code.co_filename,
                     "function": frame.f_code.co_name,
                     "line_number": current_tb.tb_lineno,
-                    "local_vars": self._safe_get_locals(frame),
-                    "code_context": self._get_code_context(frame.f_code.co_filename, current_tb.tb_lineno)
+                    "local_vars": self.safeget_locals(frame),
+                    "code_context": self.get_code_context(frame.f_code.co_filename, current_tb.tb_lineno)
                 })
                 current_tb = current_tb.tb_next
             
@@ -149,7 +149,7 @@ class EnhancedErrorHandler:
         except Exception as e:
             return {"error": f"Failed to find root cause: {e}"}
     
-    def _analyze_stack_frames(self, tb) -> List[Dict[str, Any]]:
+    def analyze_stack_frames(self, tb) -> List[Dict[str, Any]]:
         """分析所有栈帧，包括完整的调用栈"""
         try:
             frames = []
@@ -165,7 +165,7 @@ class EnhancedErrorHandler:
                 function_name = frame_info.function
                 
                 # 跳过错误处理系统本身的栈帧
-                if (function_name in ['capture_exception', '_analyze_stack_frames', '_print_debug_info', 
+                if (function_name in ['capture_exception', 'analyze_stack_frames', 'print_debug_info', 
                                     'capture_and_report_error'] or 
                     'error_handler.py' in filename):
                     continue
@@ -175,7 +175,7 @@ class EnhancedErrorHandler:
                     "full_path": filename,
                     "function": function_name,
                     "line_number": frame_info.lineno,
-                    "is_user_code": self._is_user_code(filename),
+                    "is_user_code": self.is_user_code(filename),
                     "source": "current_stack"
                 })
             
@@ -191,16 +191,16 @@ class EnhancedErrorHandler:
                     "full_path": frame.f_code.co_filename,
                     "function": frame.f_code.co_name,
                     "line_number": current_tb.tb_lineno,
-                    "is_user_code": self._is_user_code(frame.f_code.co_filename),
+                    "is_user_code": self.is_user_code(frame.f_code.co_filename),
                     "source": "exception_traceback"
                 }
                 
                 # 只为用户代码添加详细信息
                 if frame_info["is_user_code"]:
-                    frame_info["code_context"] = self._get_code_context(
+                    frame_info["code_context"] = self.get_code_context(
                         frame.f_code.co_filename, current_tb.tb_lineno
                     )
-                    frame_info["local_vars"] = self._safe_get_locals(frame)
+                    frame_info["local_vars"] = self.safeget_locals(frame)
                 
                 frames.append(frame_info)
                 current_tb = current_tb.tb_next
@@ -230,14 +230,14 @@ class EnhancedErrorHandler:
                     "full_path": frame.f_code.co_filename,
                     "function": frame.f_code.co_name,
                     "line_number": current_tb.tb_lineno,
-                    "is_user_code": self._is_user_code(frame.f_code.co_filename)
+                    "is_user_code": self.is_user_code(frame.f_code.co_filename)
                 }
                 frames.append(frame_info)
                 current_tb = current_tb.tb_next
             
             return frames
     
-    def _safe_get_locals(self, frame) -> Dict[str, str]:
+    def safeget_locals(self, frame) -> Dict[str, str]:
         """安全地获取局部变量"""
         try:
             locals_dict = {}
@@ -263,7 +263,7 @@ class EnhancedErrorHandler:
         except Exception:
             return {"error": "Failed to get local variables"}
     
-    def _get_code_context(self, filename: str, line_number: int, context_lines: int = 3) -> Dict[str, Any]:
+    def get_code_context(self, filename: str, line_number: int, context_lines: int = 3) -> Dict[str, Any]:
         """获取代码上下文"""
         try:
             if not os.path.exists(filename):
@@ -289,7 +289,7 @@ class EnhancedErrorHandler:
         except Exception as e:
             return {"error": f"Failed to get code context: {e}"}
     
-    def _is_user_code(self, filename: str) -> bool:
+    def is_user_code(self, filename: str) -> bool:
         """判断是否为用户代码"""
         try:
             # 检查是否在项目目录中
@@ -322,7 +322,7 @@ class EnhancedErrorHandler:
         except Exception:
             return False
     
-    def _get_timestamp(self) -> str:
+    def get_timestamp(self) -> str:
         """获取时间戳"""
         try:
             import datetime
@@ -330,7 +330,7 @@ class EnhancedErrorHandler:
         except Exception:
             return "Unknown"
     
-    def _log_error(self, error_info: Dict[str, Any]):
+    def log_error(self, error_info: Dict[str, Any]):
         """记录错误到日志文件"""
         if not self.error_log_file:
             return
@@ -343,7 +343,7 @@ class EnhancedErrorHandler:
         except Exception:
             pass  # 忽略日志记录错误
     
-    def _print_debug_info(self, error_info: Dict[str, Any]):
+    def print_debug_info(self, error_info: Dict[str, Any]):
         """打印调试信息"""
         try:
             print(f"\nError Report - {error_info['context']}")
@@ -412,7 +412,6 @@ def capture_and_report_error(context: str = "Unknown",
 if __name__ == '__main__':
     def test_function():
         x = "test"
-        y = 123
         return x.nonexistent_method()
     try:
         test_function()

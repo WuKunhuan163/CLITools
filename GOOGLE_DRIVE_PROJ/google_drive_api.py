@@ -29,7 +29,7 @@ class GoogleDriveService:
         self._cache_max_size = 100  # 最大缓存条目数
         
         # 优先尝试从环境变量加载密钥信息
-        if self._load_from_environment():
+        if self.load_from_environment():
             pass  # 已从环境变量加载
         elif service_account_key_path:
             self.key_path = service_account_key_path
@@ -43,9 +43,9 @@ class GoogleDriveService:
             if not os.path.exists(self.key_path):
                 raise FileNotFoundError(f"服务账户密钥文件不存在: {self.key_path}")
         
-        self._authenticate()
+        self.authenticate()
     
-    def _load_from_environment(self):
+    def load_from_environment(self):
         """
         从环境变量加载服务账户密钥信息
         
@@ -94,7 +94,7 @@ class GoogleDriveService:
         except Exception as e:
             return False
     
-    def _authenticate(self):
+    def authenticate(self):
         """认证并创建服务对象"""
         try:
             # 定义需要的权限范围

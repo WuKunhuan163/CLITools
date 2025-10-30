@@ -178,6 +178,39 @@ class CodeAnalyzer(ast.NodeVisitor):
             import_name = alias.asname if alias.asname else alias.name
             self.definitions['imports'][import_name] = node.lineno
             
+    def visit_Attribute(self, node):
+        """Visit attribute access (e.g., self.method, obj.attr)"""
+        # Mark attribute as used
+        if isinstance(node.ctx, ast.Load):
+            attr_name = node.attr
+            
+            # Check if this is self.method_name
+            if isinstance(node.value, ast.Name) and node.value.id == 'self':
+                # Mark method as used - try to find the class context
+                if self.current_scope:
+                    # In a class method, current_scope is like ['ClassName', 'method_name']
+                    # Find the class name (first element that's capitalized or all scope parts)
+                    for i, scope_part in enumerate(self.current_scope):
+                        if i == 0 or scope_part[0].isupper():
+                            # This might be a class name
+                            full_name = f"{scope_part}.{attr_name}"
+                            self.usages['functions'].add(full_name)
+                
+                # Also mark without class prefix (for simpler matching)
+                self.usages['functions'].add(attr_name)
+            
+            # Check if this is obj.method where obj is a known variable/import
+            elif isinstance(node.value, ast.Name):
+                obj_name = node.value.id
+                # Mark the attribute/method as potentially used
+                self.usages['functions'].add(attr_name)
+                self.usages['variables'].add(attr_name)
+                # Also mark the object itself as used
+                self.usages['variables'].add(obj_name)
+                self.usages['imports'].add(obj_name)
+        
+        self.generic_visit(node)
+    
     def visit_Name(self, node):
         """Visit name usage"""
         if isinstance(node.ctx, ast.Load):
@@ -201,7 +234,7 @@ class CodeAnalyzer(ast.NodeVisitor):
                 self.usages['variables'].add(name)
             if name in self.definitions['imports']:
                 self.usages['imports'].add(name)
-                
+        
         self.generic_visit(node)
         
     def visit_Call(self, node):
@@ -367,9 +400,24 @@ class UnusedCodeDetector:
                 
                 is_used = False
                 
-                # Direct usage check
+                # Direct usage check - check simple name
                 if name in self.all_usages[def_type]:
                     is_used = True
+                
+                # For functions/methods: also check if full name (ClassName.method_name) is used
+                if def_type == 'functions' and not is_used:
+                    # Check each location's full_name
+                    for filepath, lineno, full_name in locations:
+                        # Check if full_name is in usages
+                        if full_name in self.all_usages[def_type]:
+                            is_used = True
+                            break
+                        # Check if any part of the full_name matches
+                        # E.g., for "GoogleDriveShell.cmd_cd", check if "cmd_cd" is used
+                        simple_name = full_name.split('.')[-1]
+                        if simple_name in self.all_usages[def_type]:
+                            is_used = True
+                            break
                 
                 # Special handling for module imports with dots (e.g., concurrent.futures)
                 # If the module is "concurrent.futures", check if "concurrent" is used

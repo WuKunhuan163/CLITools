@@ -7,6 +7,7 @@ import os
 import json
 import time
 import subprocess
+from .config_loader import get_bg_status_file, get_bg_script_file, get_bg_log_file, get_bg_result_file
 
 class CommandGenerator:
     """重构后的command_generator功能"""
@@ -15,7 +16,7 @@ class CommandGenerator:
         self.drive_service = drive_service
         self.main_instance = main_instance
     
-    def _check_bash_syntax(self, script_content):
+    def check_bash_syntax(self, script_content):
         """
         检查bash脚本语法
         
@@ -191,8 +192,6 @@ class CommandGenerator:
             start_time = datetime.now().isoformat()
             
             # 使用常量定义background文件名
-            BG_STATUS_FILE = get_bg_status_file(bg_pid)
-            BG_SCRIPT_FILE = get_bg_script_file(bg_pid)
             BG_LOG_FILE = get_bg_log_file(bg_pid)
             BG_RESULT_FILE = get_bg_result_file(bg_pid)
                             
@@ -491,7 +490,7 @@ JSON_SCRIPT_EOF
         
         
         # 检查生成的完整脚本语法（包括wrapper部分）
-        is_valid, error_msg = self._check_bash_syntax(remote_command)
+        is_valid, error_msg = self.check_bash_syntax(remote_command)
         if not is_valid:
             print(f"Error: Bash syntax error detected in generated remote script:")
             print(f"Error: {error_msg}")
@@ -503,7 +502,7 @@ JSON_SCRIPT_EOF
         # 最终生成的remote_command
         return remote_command, result_filename, cmd_hash
 
-    def generate_commands(self, file_moves, target_path, folder_upload_info=None):
+    def generate_mv_commands(self, file_moves, target_path, folder_upload_info=None):
         """
         生成远程命令
 
@@ -525,15 +524,14 @@ JSON_SCRIPT_EOF
             })
 
         # 调用多文件远程命令生成方法
-        base_command = self._generate_multi_file_commands(all_file_moves)
+        base_command = self.generate_multi_file_commands(all_file_moves)
 
         # 如果是文件夹上传，需要添加解压和清理命令
         if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
             zip_filename = folder_upload_info.get("zip_filename", "")
             keep_zip = folder_upload_info.get("keep_zip", False)
 
-            if zip_filename:
-                # 使用统一的路径解析接口
+            if zip_filename: 
                 current_shell = self.main_instance.get_current_shell()
                 remote_target_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
 
@@ -545,8 +543,6 @@ JSON_SCRIPT_EOF
                     delete_zip=not keep_zip,
                     handle_empty_zip=True
                 )
-
-                # 将解压命令添加到基础命令之后
                 combined_command = f"{base_command}\n\n# 解压和清理zip文件\n({unzip_command})"
                 return combined_command
 
@@ -666,7 +662,7 @@ JSON_SCRIPT_EOF
 
 
 
-    def _generate_multi_file_commands(self, all_file_moves):
+    def generate_multi_file_commands(self, all_file_moves):
         """生成简化的多文件上传远端命令，只显示关键状态信息"""
         try:
             # 生成文件信息数组 - 保留原有的路径解析逻辑

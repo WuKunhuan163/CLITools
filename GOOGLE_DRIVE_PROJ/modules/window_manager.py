@@ -5,7 +5,6 @@ GDS窗口管理器 - 统一管理所有tkinter窗口
 """
 
 import threading
-import queue
 import time
 import os
 import fcntl
@@ -14,9 +13,6 @@ import signal
 import atexit
 import subprocess
 import psutil
-from pathlib import Path
-
-# 全局窗口管理器实例
 _window_manager = None
 
 class WindowManager:
@@ -69,17 +65,17 @@ class WindowManager:
         self.current_lock_fd = None  # 当前持有的锁文件描述符
         
         # 设置进程清理处理器
-        self._setup_cleanup_handlers()
+        self.setup_cleanup_handlers()
         
         # 清理可能存在的无效锁
-        self._cleanup_stale_locks()
+        self.cleanup_stale_locks()
         
         # 初始化队列文件
-        self._initialize_queue_files()
+        self.initialize_queue_files()
         
         # 跨进程窗口管理，不需要线程队列
     
-    def _initialize_queue_files(self):
+    def initialize_queue_files(self):
         """初始化队列文件"""
         try:
             # 确保目录存在
@@ -96,9 +92,9 @@ class WindowManager:
                     json.dump([], f)
                     
         except Exception as e:
-            self._debug_log(f"[WINDOW_MANAGER] 初始化队列文件失败: {e}")
+            self.debug_log(f"[WINDOW_MANAGER] 初始化队列文件失败: {e}")
     
-    def _add_to_queue(self, request, is_priority=False):
+    def add_to_queue(self, request, is_priority=False):
         """
         添加请求到队列
         
@@ -128,10 +124,10 @@ class WindowManager:
                 with open(queue_file, 'w') as f:
                     json.dump(queue, f)
                 
-                self._debug_log(f"[QUEUE_ADD] 请求已添加到{queue_type}队列: {request.get('request_id')}")
+                self.debug_log(f"[QUEUE_ADD] 请求已添加到{queue_type}队列: {request.get('request_id')}")
                 
         except Exception as e:
-            self._debug_log(f"[WINDOW_MANAGER] 添加到{queue_type}队列失败: {e}")
+            self.debug_log(f"[WINDOW_MANAGER] 添加到{queue_type}队列失败: {e}")
             raise Exception(f"添加到{queue_type}队列失败: {e}")
     
     def clean_stale_requests(self, queue, timeout_seconds=3600):
@@ -165,7 +161,7 @@ class WindowManager:
         
         return cleaned_queue
     
-    def _get_next_request(self):
+    def get_next_request(self):
         """
         从队列中获取下一个请求（优先队列优先）
         
@@ -193,7 +189,7 @@ class WindowManager:
                         with open(self.priority_queue_file, 'w') as f:
                             json.dump(priority_queue, f)
                         
-                        self._debug_log(f"[QUEUE_GET] 从优先队列获取请求: {request.get('request_id')}")
+                        self.debug_log(f"[QUEUE_GET] 从优先队列获取请求: {request.get('request_id')}")
                         return request
                     else:
                         # 清理后队列为空，写回空队列
@@ -216,7 +212,7 @@ class WindowManager:
                         with open(self.normal_queue_file, 'w') as f:
                             json.dump(normal_queue, f)
                         
-                        self._debug_log(f"[QUEUE_GET] 从普通队列获取请求: {request.get('request_id')}")
+                        self.debug_log(f"[QUEUE_GET] 从普通队列获取请求: {request.get('request_id')}")
                         return request
                     else:
                         # 清理后队列为空，写回空队列
@@ -227,21 +223,21 @@ class WindowManager:
                 return None
                 
         except Exception as e:
-            self._debug_log(f"[WINDOW_MANAGER] 获取队列请求失败: {e}")
+            self.debug_log(f"[WINDOW_MANAGER] 获取队列请求失败: {e}")
             return None
     
-    def _setup_cleanup_handlers(self):
+    def setup_cleanup_handlers(self):
         """设置进程清理处理器"""
         def cleanup_handler(signum=None, frame=None):
-            self._debug_log(f"[CLEANUP_HANDLER] 进程清理处理器触发，信号: {signum}")
-            self._cleanup_all_processes()
-            self._release_lock()
+            self.debug_log(f"[CLEANUP_HANDLER] 进程清理处理器触发，信号: {signum}")
+            self.cleanup_all_processes()
+            self.release_lock()
         
         def emergency_cleanup_handler(signum=None, frame=None):
             """紧急清理处理器 - 用于强制退出信号"""
-            self._debug_log(f"[EMERGENCY_CLEANUP] 紧急清理处理器触发，信号: {signum}")
-            self._force_cleanup_all_processes()
-            self._release_lock()
+            self.debug_log(f"[EMERGENCY_CLEANUP] 紧急清理处理器触发，信号: {signum}")
+            self.cleanup_all_processes_force()
+            self.release_lock()
             # 对于SIGKILL等信号，立即退出
             if signum in (signal.SIGKILL, signal.SIGQUIT):
                 os._exit(1)
@@ -262,93 +258,89 @@ class WindowManager:
         # 注册退出处理器
         atexit.register(cleanup_handler)
         
-        self._debug_log("[CLEANUP_SETUP] 进程清理处理器已设置")
+        self.debug_log("[CLEANUP_SETUP] 进程清理处理器已设置")
     
-    def _cleanup_all_processes(self):
-        """清理所有活跃的子进程"""
+    def cleanup_all_processes(self, force=False):
+        """
+        清理所有活跃的子进程
+        
+        Args:
+            force (bool): 是否强制清理（默认False=优雅清理，True=强制清理+系统级清理）
+        """
         if not hasattr(self, 'active_processes'):
             return
             
         cleanup_count = 0
+        cleanup_mode = "FORCE_CLEANUP" if force else "CLEANUP"
+        
         for window_id, process in list(self.active_processes.items()):
             try:
                 if process.poll() is None:  # 进程还在运行
-                    self._debug_log(f"[CLEANUP_PROCESS] 清理子进程: PID={process.pid}, window_id: {window_id}")
-                    process.terminate()
-                    try:
-                        process.wait(timeout=2)
-                    except subprocess.TimeoutExpired:
+                    self.debug_log(f"[{cleanup_mode}_PROCESS] {'强制' if force else ''}清理子进程: PID={process.pid}, window_id: {window_id}")
+                    
+                    if force:
+                        # 强制模式：立即杀死进程
                         process.kill()
-                        process.wait(timeout=2)
+                        try:
+                            process.wait(timeout=1)
+                        except subprocess.TimeoutExpired:
+                            # 如果1秒内还没死，就忽略
+                            pass
+                    else:
+                        # 优雅模式：先terminate，再kill
+                        process.terminate()
+                        try:
+                            process.wait(timeout=2)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait(timeout=2)
+                    
                     cleanup_count += 1
             except Exception as e:
-                self._debug_log(f"[CLEANUP_ERROR] 清理进程失败: {e}")
+                self.debug_log(f"[{cleanup_mode}_ERROR] 清理进程失败: {e}")
             
             # 从活跃进程列表中移除
             self.active_processes.pop(window_id, None)
         
         if cleanup_count > 0:
-            self._debug_log(f"[CLEANUP_COMPLETE] 清理了 {cleanup_count} 个子进程")
-    
-    def _force_cleanup_all_processes(self):
-        """强制清理所有活跃的子进程 - 用于紧急情况"""
-        if not hasattr(self, 'active_processes'):
-            return
-            
-        cleanup_count = 0
-        for window_id, process in list(self.active_processes.items()):
+            self.debug_log(f"[{cleanup_mode}_COMPLETE] {'强制' if force else ''}清理了 {cleanup_count} 个子进程")
+        
+        # 如果是强制模式，进行额外的系统级清理
+        if force:
             try:
-                if process.poll() is None:  # 进程还在运行
-                    self._debug_log(f"[FORCE_CLEANUP_PROCESS] 强制清理子进程: PID={process.pid}, window_id: {window_id}")
-                    
-                    # 立即杀死进程，不等待
-                    process.kill()
+                import psutil
+                killed_count = 0
+                for proc in psutil.process_iter(['pid', 'cmdline']):
                     try:
-                        process.wait(timeout=1)
-                    except subprocess.TimeoutExpired:
-                        # 如果1秒内还没死，就忽略
-                        pass
-                    cleanup_count += 1
-            except Exception as e:
-                self._debug_log(f"[FORCE_CLEANUP_ERROR] 强制清理进程失败: {e}")
-            
-            # 从活跃进程列表中移除
-            self.active_processes.pop(window_id, None)
-        
-        # 额外的系统级清理：查找并杀死所有可能的tkinter窗口进程
-        try:
-            import psutil
-            killed_count = 0
-            for proc in psutil.process_iter(['pid', 'cmdline']):
-                try:
-                    cmdline = proc.info['cmdline']
-                    if not cmdline:
+                        cmdline = proc.info['cmdline']
+                        if not cmdline:
+                            continue
+                            
+                        cmdline_str = ' '.join(cmdline)
+                        
+                        # 检测可能的GDS tkinter窗口进程
+                        if ('python' in cmdline_str.lower() and 
+                            ('-c' in cmdline_str or 'tkinter' in cmdline_str.lower()) and
+                            ('Google Drive Shell' in cmdline_str or 'root.title' in cmdline_str)):
+                            
+                            self.debug_log(f"[SYSTEM_CLEANUP] 发现并清理tkinter进程: PID={proc.info['pid']}")
+                            proc.kill()
+                            killed_count += 1
+                            
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                         continue
-                        
-                    cmdline_str = ' '.join(cmdline)
-                    
-                    # 检测可能的GDS tkinter窗口进程
-                    if ('python' in cmdline_str.lower() and 
-                        ('-c' in cmdline_str or 'tkinter' in cmdline_str.lower()) and
-                        ('Google Drive Shell' in cmdline_str or 'root.title' in cmdline_str)):
-                        
-                        self._debug_log(f"[SYSTEM_CLEANUP] 发现并清理tkinter进程: PID={proc.info['pid']}")
-                        proc.kill()
-                        killed_count += 1
-                        
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-            
-            if killed_count > 0:
-                self._debug_log(f"[SYSTEM_CLEANUP_COMPLETE] 系统级清理了 {killed_count} 个tkinter进程")
                 
-        except Exception as e:
-            self._debug_log(f"[SYSTEM_CLEANUP_ERROR] 系统级清理失败: {e}")
-        
-        if cleanup_count > 0:
-            self._debug_log(f"[FORCE_CLEANUP_COMPLETE] 强制清理了 {cleanup_count} 个子进程")
+                if killed_count > 0:
+                    self.debug_log(f"[SYSTEM_CLEANUP_COMPLETE] 系统级清理了 {killed_count} 个tkinter进程")
+                    
+            except Exception as e:
+                self.debug_log(f"[SYSTEM_CLEANUP_ERROR] 系统级清理失败: {e}")
     
-    def _cleanup_stale_locks(self):
+    def cleanup_all_processes_force(self):
+        """强制清理所有活跃的子进程 - 用于紧急情况（已弃用，请使用 cleanup_all_processes(force=True)）"""
+        self.cleanup_all_processes(force=True)
+    
+    def cleanup_stale_locks(self):
         """清理过期的锁文件"""
         try:
             if self.pid_file_path.exists():
@@ -362,17 +354,17 @@ class WindowManager:
                     cmdline = ' '.join(old_process.cmdline())
                     if 'GOOGLE_DRIVE.py' not in cmdline:
                         # 不是GDS进程，清理锁
-                        self._force_cleanup_lock()
-                        self._debug_log(f"[STALE_LOCK_CLEANUP] 清理了非GDS进程的锁: PID={old_pid}")
+                        self.force_cleanup_lock()
+                        self.debug_log(f"[STALE_LOCK_CLEANUP] 清理了非GDS进程的锁: PID={old_pid}")
                 except psutil.NoSuchProcess:
                     # 进程不存在，清理锁
-                    self._force_cleanup_lock()
-                    self._debug_log(f"[STALE_LOCK_CLEANUP] 清理了不存在进程的锁: PID={old_pid}")
+                    self.force_cleanup_lock()
+                    self.debug_log(f"[STALE_LOCK_CLEANUP] 清理了不存在进程的锁: PID={old_pid}")
                     
         except Exception as e:
-            self._debug_log(f"[STALE_LOCK_CLEANUP_ERROR] 清理过期锁失败: {e}")
+            self.debug_log(f"[STALE_LOCK_CLEANUP_ERROR] 清理过期锁失败: {e}")
     
-    def _force_cleanup_lock(self):
+    def force_cleanup_lock(self):
         """强制清理锁文件"""
         try:
             if self.lock_file_path.exists():
@@ -380,9 +372,9 @@ class WindowManager:
             if self.pid_file_path.exists():
                 self.pid_file_path.unlink()
         except Exception as e:
-            self._debug_log(f"[FORCE_CLEANUP_ERROR] 强制清理锁失败: {e}")
+            self.debug_log(f"[FORCE_CLEANUP_ERROR] 强制清理锁失败: {e}")
     
-    def _acquire_lock(self, request_id, timeout_seconds=30):
+    def acquire_lock(self, request_id, timeout_seconds=30):
         """
         获取跨进程锁
         
@@ -396,7 +388,7 @@ class WindowManager:
         current_pid = os.getpid()
         start_time = time.time()
         
-        self._debug_log(f"DEBUG: [LOCK_REQUEST] 进程 {current_pid} 请求窗口锁: {request_id}")
+        self.debug_log(f"DEBUG: [LOCK_REQUEST] 进程 {current_pid} 请求窗口锁: {request_id}")
         
         while time.time() - start_time < timeout_seconds:
             try:
@@ -418,11 +410,11 @@ class WindowManager:
                         try:
                             self.current_lock_fd = open(self.lock_file_path, 'w')
                             fcntl.flock(self.current_lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                            self._debug_log(f"[LOCK_ACQUIRED] 进程 {current_pid} 成功获得窗口锁: {request_id}")
+                            self.debug_log(f"[LOCK_ACQUIRED] 进程 {current_pid} 成功获得窗口锁: {request_id}")
                             return True
                         except (IOError, OSError):
                             # 文件锁获取失败，清理PID文件
-                            self._force_cleanup_lock()
+                            self.force_cleanup_lock()
                             continue
                     else:
                         # PID文件被其他进程修改，继续等待
@@ -439,22 +431,22 @@ class WindowManager:
                             cmdline = ' '.join(lock_process.cmdline())
                             if 'GOOGLE_DRIVE.py' in cmdline:
                                 # 是有效的GDS进程，等待
-                                self._debug_log(f"[LOCK_WAITING] 进程 {current_pid} 等待锁释放，当前持有者: PID={lock_holder_pid}")
+                                self.debug_log(f"[LOCK_WAITING] 进程 {current_pid} 等待锁释放，当前持有者: PID={lock_holder_pid}")
                                 time.sleep(0.5)
                                 continue
                             else:
                                 # 不是GDS进程，清理锁
-                                self._force_cleanup_lock()
+                                self.force_cleanup_lock()
                                 continue
                         except psutil.NoSuchProcess:
                             # 持有锁的进程已不存在，清理锁
-                            self._force_cleanup_lock()
-                            self._debug_log(f"[DEAD_LOCK_CLEANUP] 清理了死进程的锁: PID={lock_holder_pid}")
+                            self.force_cleanup_lock()
+                            self.debug_log(f"[DEAD_LOCK_CLEANUP] 清理了死进程的锁: PID={lock_holder_pid}")
                             continue
                             
                     except (ValueError, FileNotFoundError):
                         # PID文件损坏，清理
-                        self._force_cleanup_lock()
+                        self.force_cleanup_lock()
                         continue
                         
             except FileExistsError:
@@ -462,15 +454,15 @@ class WindowManager:
                 time.sleep(0.1)
                 continue
             except Exception as e:
-                self._debug_log(f"[LOCK_ERROR] 获取锁时出错: {e}")
+                self.debug_log(f"[LOCK_ERROR] 获取锁时出错: {e}")
                 time.sleep(0.5)
                 continue
         
         # 超时
-        self._debug_log(f"[LOCK_TIMEOUT] 进程 {current_pid} 获取锁超时: {request_id}")
+        self.debug_log(f"[LOCK_TIMEOUT] 进程 {current_pid} 获取锁超时: {request_id}")
         return False
     
-    def _release_lock(self):
+    def release_lock(self):
         """释放跨进程锁"""
         try:
             current_pid = os.getpid()
@@ -488,16 +480,16 @@ class WindowManager:
                             self.current_lock_fd.close()
                             self.current_lock_fd = None
                         except Exception as e:
-                            self._debug_log(f"[FILE_LOCK_RELEASE_ERROR] 释放文件锁失败: {e}")
+                            self.debug_log(f"[FILE_LOCK_RELEASE_ERROR] 释放文件锁失败: {e}")
                     
                     # 清理锁文件
-                    self._force_cleanup_lock()
-                    self._debug_log(f"[LOCK_RELEASED] 进程 {current_pid} 释放了窗口锁")
+                    self.force_cleanup_lock()
+                    self.debug_log(f"[LOCK_RELEASED] 进程 {current_pid} 释放了窗口锁")
                 else:
-                    self._debug_log(f"[LOCK_RELEASE_WARNING] 进程 {current_pid} 尝试释放不属于自己的锁")
+                    self.debug_log(f"[LOCK_RELEASE_WARNING] 进程 {current_pid} 尝试释放不属于自己的锁")
             
         except Exception as e:
-            self._debug_log(f"[LOCK_RELEASE_ERROR] 释放锁时出错: {e}")
+            self.debug_log(f"[LOCK_RELEASE_ERROR] 释放锁时出错: {e}")
     
     def request_window(self, cmd, command_hash, timeout_seconds=3600, no_direct_feedback=False, is_priority=False):
         """
@@ -516,7 +508,7 @@ class WindowManager:
         request_id = f"req_{int(time.time() * 1000)}_{os.getpid()}_{threading.get_ident()}"
         queue_type = "优先" if is_priority else "普通"
         
-        self._debug_log(f"[QUEUE_REQUEST] 请求添加到{queue_type}队列: {request_id}")
+        self.debug_log(f"[QUEUE_REQUEST] 请求添加到{queue_type}队列: {request_id}")
         
         # 创建窗口请求
         window_request = {
@@ -532,19 +524,19 @@ class WindowManager:
         }
         
         # 添加到相应的队列
-        self._add_to_queue(window_request, is_priority)
+        self.add_to_queue(window_request, is_priority)
         
         # 尝试处理队列（如果当前没有窗口在显示）
-        result = self._process_queue()
+        result = self.process_queue()
         
         # 如果请求被加入队列，需要等待处理完成
         if result.get("action") == "queued":
-            self._debug_log(f"[QUEUE_WAIT] 请求被排队，等待锁释放: {request_id}")
-            result = self._wait_for_lock_and_process(request_id, timeout_seconds)
+            self.debug_log(f"[QUEUE_WAIT] 请求被排队，等待锁释放: {request_id}")
+            result = self.wait_for_lock_and_process(request_id, timeout_seconds)
         
         return result
     
-    def _wait_for_lock_and_process(self, request_id, timeout_seconds):
+    def wait_for_lock_and_process(self, request_id, timeout_seconds):
         """
         等待锁释放并处理请求
         
@@ -560,28 +552,28 @@ class WindowManager:
         start_time = time.time()
         check_interval = 0.5  # 每0.5秒检查一次
         
-        self._debug_log(f"[LOCK_WAIT_START] 开始等待锁释放: {request_id}")
+        self.debug_log(f"[LOCK_WAIT_START] 开始等待锁释放: {request_id}")
         
         while time.time() - start_time < timeout_seconds:
             # 尝试处理队列
-            result = self._process_queue()
+            result = self.process_queue()
             
             # 如果成功获取到锁并处理了请求
             if result.get("action") != "queued":
-                self._debug_log(f"[LOCK_WAIT_SUCCESS] 锁释放，请求处理完成: {request_id}")
+                self.debug_log(f"[LOCK_WAIT_SUCCESS] 锁释放，请求处理完成: {request_id}")
                 return result
             
             # 等待一段时间后重试
             time.sleep(check_interval)
         
         # 超时
-        self._debug_log(f"[LOCK_WAIT_TIMEOUT] 等待锁释放超时: {request_id}")
+        self.debug_log(f"[LOCK_WAIT_TIMEOUT] 等待锁释放超时: {request_id}")
         return {
             "action": "timeout",
             "message": f"等待锁释放超时: {request_id}"
         }
     
-    def _process_queue(self):
+    def process_queue(self):
         """
         处理队列中的请求（优先队列优先）
         
@@ -591,7 +583,7 @@ class WindowManager:
         # 尝试获取窗口锁
         request_id = f"process_{int(time.time() * 1000)}_{os.getpid()}"
         
-        if not self._acquire_lock(request_id):
+        if not self.acquire_lock(request_id):
             # 无法获取锁，说明有其他窗口在显示，当前请求需要等待
             return {
                 "action": "queued", 
@@ -600,7 +592,7 @@ class WindowManager:
         
         try:
             # 获取下一个请求
-            next_request = self._get_next_request()
+            next_request = self.get_next_request()
             
             if not next_request:
                 # 队列为空
@@ -615,26 +607,26 @@ class WindowManager:
             
             if request_pid != current_pid:
                 # 请求属于其他进程，重新放回队列
-                self._add_to_queue(next_request, next_request.get('is_priority', False))
+                self.add_to_queue(next_request, next_request.get('is_priority', False))
                 return {
                     "action": "queued",
                     "message": "请求属于其他进程，已重新排队"
                 }
             
             # 处理当前进程的请求
-            self._debug_log(f"[QUEUE_PROCESS] 开始处理请求: {next_request.get('request_id')}")
+            self.debug_log(f"[QUEUE_PROCESS] 开始处理请求: {next_request.get('request_id')}")
             
             # 创建和显示窗口
-            result = self._create_and_show_window(next_request)
+            result = self.create_and_show_window(next_request)
             
-            self._debug_log(f"[QUEUE_COMPLETE] 请求处理完成: {next_request.get('request_id')}, action: {result.get('action')}")
+            self.debug_log(f"[QUEUE_COMPLETE] 请求处理完成: {next_request.get('request_id')}, action: {result.get('action')}")
             
             return result
         finally:
             # 确保释放锁
-            self._release_lock()
+            self.release_lock()
     
-    def _create_and_show_window(self, request):
+    def create_and_show_window(self, request):
         """创建和显示tkinter窗口"""
         import subprocess
         import json
@@ -648,7 +640,7 @@ class WindowManager:
             raise ValueError(f"Missing command_hash in request: {request}")
         command_hash = request['command_hash'].upper()
         
-        self._debug_log(f"[TKINTER_WINDOW_CREATE] 创建窗口: {window_id}")
+        self.debug_log(f"[TKINTER_WINDOW_CREATE] 创建窗口: {window_id}")
         
         # 使用subprocess创建窗口（避免主线程阻塞）
         command_b64 = base64.b64encode(request['cmd'].encode('utf-8')).decode('ascii')
@@ -1251,11 +1243,11 @@ except Exception as e:
                 preexec_fn=os.setsid if hasattr(os, 'setsid') else None  # Unix系统创建新进程组
             )
             
-            self._debug_log(f"[SUBPROCESS_STARTED] 启动窗口子进程: PID={process.pid}, window_id: {window_id}")
+            self.debug_log(f"[SUBPROCESS_STARTED] 启动窗口子进程: PID={process.pid}, window_id: {window_id}")
             self.active_processes[window_id] = process
             
-            window_count = self._count_tkinter_windows()
-            self._debug_log(f"[WINDOW_COUNT_AFTER_CREATE] 窗口创建后，当前远端指令tkinter窗口总数: {window_count}")
+            window_count = self.count_tkinter_windows()
+            self.debug_log(f"[WINDOW_COUNT_AFTER_CREATE] 窗口创建后，当前远端指令tkinter窗口总数: {window_count}")
             
             try:
                 # 等待进程完成，带超时
@@ -1267,7 +1259,7 @@ except Exception as e:
                 if process.returncode == 0 and stdout.strip():
                     try:
                         window_result = json.loads(stdout.strip())
-                        self._debug_log(f"[TKINTER_WINDOW_RESULT] 窗口结果: {window_id}, action: {window_result.get('action')}")
+                        self.debug_log(f"[TKINTER_WINDOW_RESULT] 窗口结果: {window_id}, action: {window_result.get('action')}")
                         return window_result
                     except json.JSONDecodeError as e:
                         return {"action": "error", "message": f"窗口结果解析失败: {e}"}
@@ -1276,20 +1268,20 @@ except Exception as e:
                     
             except subprocess.TimeoutExpired:
                 # 超时时强制终止子进程
-                self._debug_log(f"[SUBPROCESS_TIMEOUT] 窗口子进程超时，强制终止: PID={process.pid}, window_id: {window_id}")
+                self.debug_log(f"[SUBPROCESS_TIMEOUT] 窗口子进程超时，强制终止: PID={process.pid}, window_id: {window_id}")
                 
                 try:
                     # 尝试温和终止
                     process.terminate()
                     process.wait(timeout=3)
-                    self._debug_log(f"[SUBPROCESS_TERMINATED] 窗口子进程已终止: PID={process.pid}")
+                    self.debug_log(f"[SUBPROCESS_TERMINATED] 窗口子进程已终止: PID={process.pid}")
                 except subprocess.TimeoutExpired:
                     # 强制杀死
                     process.kill()
                     process.wait(timeout=3)
-                    self._debug_log(f"[SUBPROCESS_KILLED] 窗口子进程已强制杀死: PID={process.pid}")
+                    self.debug_log(f"[SUBPROCESS_KILLED] 窗口子进程已强制杀死: PID={process.pid}")
                 except Exception as cleanup_error:
-                    self._debug_log(f"[SUBPROCESS_CLEANUP_ERROR] 清理子进程失败: {cleanup_error}")
+                    self.debug_log(f"[SUBPROCESS_CLEANUP_ERROR] 清理子进程失败: {cleanup_error}")
                 
                 # 从活跃进程列表中移除
                 self.active_processes.pop(window_id, None)
@@ -1299,7 +1291,7 @@ except Exception as e:
         except Exception as e:
             return {"action": "error", "message": f"窗口创建失败: {e}"}
     
-    def _debug_log(self, message):
+    def debug_log(self, message):
         """写入debug日志"""
         try:
             # 使用统一路径常量
@@ -1311,14 +1303,13 @@ except Exception as e:
             os.makedirs(os.path.dirname(debug_file), exist_ok=True)
             
             with open(debug_file, "a", encoding="utf-8") as f:
-                timestamp = time.time() - 1757413752.714440
                 current_time = time.strftime("[%H:%M:%S]")
                 f.write(f"{current_time} {message}\n")
                 f.flush()
         except Exception:
             pass  # 忽略日志错误
     
-    def _count_tkinter_windows(self):
+    def count_tkinter_windows(self):
         """统计当前GDS tkinter窗口数量"""
         count = 0
         try:

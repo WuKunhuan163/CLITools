@@ -42,7 +42,7 @@ class NavigationCommand:
                 path = "~"
             
             # 转换bash扩展的本地路径为远程路径格式
-            path = self.main_instance.path_resolver._convert_local_path_to_remote(path)
+            path = self.main_instance.path_resolver.convert_local_path_to_remote(path)
             
             # 使用新的路径解析器计算绝对路径
             current_shell_path = current_shell.get("current_path", "~")

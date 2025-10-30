@@ -11,7 +11,7 @@ import hashlib
 import time
 import json
 
-def remount_google_drive(command_identifier=None):
+def remount_google_drive(command_identifier=None, google_drive_shell=None):
     """
     重新挂载Google Drive的主函数
     
@@ -19,9 +19,11 @@ def remount_google_drive(command_identifier=None):
     1. 生成新的mount hash
     2. 创建Python remount脚本  
     3. 显示Tkinter窗口让用户复制并执行脚本
+    4. 验证远端指纹文件是否创建成功
     
     Args:
         command_identifier: 命令标识符
+        google_drive_shell: GoogleDriveShell实例（用于验证）
         
     Returns:
         int: 退出码，0表示成功，1表示失败
@@ -46,7 +48,7 @@ def remount_google_drive(command_identifier=None):
         remote_env = '/content/drive/MyDrive/REMOTE_ENV'
     
     # 生成Python remount脚本
-    python_script = _generate_remount_python_script(
+    python_script = generate_remount_python_script(
         remote_root=remote_root,
         remote_env=remote_env,
         mount_hash=mount_hash,
@@ -54,11 +56,44 @@ def remount_google_drive(command_identifier=None):
     )
     
     # 显示Tkinter窗口
-    _show_remount_window(python_script)
-    print("Remount成功")
+    show_remount_window(python_script)
+    
+    # 验证远端指纹文件是否创建成功
+    fingerprint_filename = f".gds_mount_fingerprint_{mount_hash}"
+    fingerprint_path = f"tmp/{fingerprint_filename}"
+    
+    print(f"\n正在验证远端指纹文件: {fingerprint_path}")
+    
+    # 如果没有提供GoogleDriveShell实例，尝试创建一个
+    if google_drive_shell is None:
+        try:
+            from ..google_drive_shell import GoogleDriveShell
+            google_drive_shell = GoogleDriveShell()
+        except Exception as e:
+            print(f"Warning: 无法创建GoogleDriveShell实例进行验证: {e}")
+            print("Remount完成（未验证）")
+            return 0
+    
+    # 使用GDS ls命令检查文件是否存在
+    try:
+        # 构造ls命令参数
+        ls_result = google_drive_shell.cmd_ls(fingerprint_path)
+        
+        if ls_result and ls_result.get("success"):
+            print("✓ 远端指纹文件验证成功")
+            print("Remount成功")
+            return 0
+        else:
+            print("✗ 远端指纹文件未找到")
+            print(f"  提示: 请确认远端脚本已正确执行并创建了 {fingerprint_path}")
+            return 1
+    except Exception as e:
+        print(f"Warning: 验证远端指纹文件时出错: {e}")
+        print("Remount完成（验证失败）")
+        return 1
 
 
-def _generate_remount_python_script(remote_root, remote_env, mount_hash, timestamp):
+def generate_remount_python_script(remote_root, remote_env, mount_hash, timestamp):
     """
     生成在远端Colab执行的Python remount脚本
     
@@ -196,7 +231,7 @@ except Exception as e:
     return script
 
 
-def _show_remount_window(python_script):
+def show_remount_window(python_script):
     """
     显示Tkinter窗口，让用户复制并执行remount脚本
     

@@ -61,32 +61,32 @@ class PyenvCommand(BaseCommand):
             if action == "--install":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install"}
-                return self._pyenv_install(version)
+                return self.pyenv_install(version)
             elif action == "--uninstall":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to uninstall"}
-                return self._pyenv_uninstall(version)
+                return self.pyenv_uninstall(version)
             elif action == "--list":
                 return {
                     "success": False,
                     "error": "pyenv: no such command `list'. Use 'pyenv --versions' to list installed versions."
                 }
             elif action == "--list-available":
-                return self._pyenv_list_available()
+                return self.pyenv_list_available()
             elif action == "--update-cache":
-                return self._pyenv_update_cache()
+                return self.pyenv_update_cache()
             elif action == "--global":
                 if not version:
-                    return self._pyenv_global_get()
-                return self._pyenv_global_set(version)
+                    return self.pyenv_global_get()
+                return self.pyenv_global_set(version)
             elif action == "--local":
                 if not version:
-                    return self._pyenv_local_get()
-                return self._pyenv_local_set(version)
+                    return self.pyenv_local_get()
+                return self.pyenv_local_set(version)
             elif action == "--version":
-                return self._pyenv_version()
+                return self.pyenv_version()
             elif action == "--versions":
-                return self._pyenv_versions()
+                return self.getpyenv_versions()
             else:
                 return {
                     "success": False,
@@ -96,17 +96,17 @@ class PyenvCommand(BaseCommand):
         except Exception as e:
             return {"success": False, "error": f"pyenv命令执行失败: {str(e)}"}
     
-    def _get_python_base_path(self):
+    def get_python_base_path(self):
         """获取Python版本基础路径"""
         return f"{self.shell.REMOTE_ENV}/python"
     
-    def _get_python_state_file_path(self):
+    def get_python_state_file_path(self):
         """获取Python版本状态文件路径"""
-        return f"{self._get_python_base_path()}/python_states.json"
+        return f"{self.get_python_base_path()}/python_states.json"
     
-    def _pyenv_install(self, version):
+    def pyenv_install(self, version):
         """安装指定Python版本"""
-        if not self._validate_version(version):
+        if not self.validate_version(version):
             return {
                 "success": False, 
                 "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'"
@@ -114,14 +114,14 @@ class PyenvCommand(BaseCommand):
         
         try:
             # 检查版本是否已安装
-            if self._is_version_installed(version):
+            if self.is_version_installed(version):
                 return {
                     "success": False,
                     "error": f"Python {version} is already installed"
                 }
             
             # 构建安装路径
-            install_path = f"{self._get_python_base_path()}/{version}"
+            install_path = f"{self.get_python_base_path()}/{version}"
             
             print(f"Installing Python {version}...")
             print(f"This may take several minutes...")
@@ -200,7 +200,7 @@ fi
             
             if result.get("success") and result.get("exit_code") == 0:
                 # 更新状态文件
-                self._add_installed_version(version)
+                self.add_installed_version(version)
                 
                 return {
                     "success": True,
@@ -222,21 +222,21 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error installing Python {version}: {str(e)}"}
     
-    def _pyenv_uninstall(self, version):
+    def pyenv_uninstall(self, version):
         """卸载指定Python版本"""
-        if not self._validate_version(version):
+        if not self.validate_version(version):
             return {"success": False, "error": f"Invalid Python version format: {version}"}
         
         try:
             # 检查版本是否已安装
-            if not self._is_version_installed(version):
+            if not self.is_version_installed(version):
                 return {
                     "success": False,
                     "error": f"Python {version} is not installed"
                 }
             
             # 检查是否为当前使用的版本
-            current_version = self._get_current_python_version()
+            current_version = self.get_current_python_version()
             if current_version == version:
                 return {
                     "success": False,
@@ -244,7 +244,7 @@ fi
                 }
             
             # 构建卸载路径
-            install_path = f"{self._get_python_base_path()}/{version}"
+            install_path = f"{self.get_python_base_path()}/{version}"
             
             print(f"Uninstalling Python {version}...")
             
@@ -264,7 +264,7 @@ fi
             
             if result.get("success") and result.get("exit_code") == 0:
                 # 更新状态文件
-                self._remove_installed_version(version)
+                self.remove_installed_version(version)
                 
                 return {
                     "success": True,
@@ -280,12 +280,12 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error uninstalling Python {version}: {str(e)}"}
     
-    def _get_versions_and_current_unified(self):
+    def get_versions_and_current_unified(self):
         """使用单个远程命令同时获取已安装版本、当前版本和版本来源信息"""
         try:
             # 构建统一的远程命令，同时获取版本列表和状态文件
-            python_base_path = self._get_python_base_path()
-            state_file = self._get_python_state_file_path()
+            python_base_path = self.get_python_base_path()
+            state_file = self.get_python_state_file_path()
             
             unified_command = f'''
 # 获取已安装版本
@@ -354,11 +354,11 @@ print(json.dumps(result))
             print(f"Warning: Error in unified version query: {e}")
             return [], None, "system"
     
-    def _pyenv_list_available(self):
+    def pyenv_list_available(self):
         """列出可下载的Python版本"""
         try:
             # 获取缓存的可用版本列表
-            available_versions = self._get_cached_available_versions()
+            available_versions = self.get_cached_available_versions()
             
             # 只显示验证成功的版本
             verified_versions = [v for v in available_versions if v.get("status") == "verified"]
@@ -389,14 +389,14 @@ print(json.dumps(result))
         except Exception as e:
             return {"success": False, "error": f"Error listing available Python versions: {str(e)}"}
     
-    def _pyenv_update_cache(self):
+    def pyenv_update_cache(self):
         """更新Python版本缓存"""
         try:
             print("Updating Python versions cache...")
             print("This may take several minutes as we test each version...")
             
             # 强制重新生成缓存
-            verified_versions = self._generate_available_versions_cache()
+            verified_versions = self.py_available_versions()
             
             verified_count = len([v for v in verified_versions if v.get("status") == "verified"])
             total_count = len(verified_versions)
@@ -414,21 +414,21 @@ print(json.dumps(result))
         except Exception as e:
             return {"success": False, "error": f"Error updating cache: {str(e)}"}
     
-    def _pyenv_global_set(self, version):
+    def pyenv_global_set(self, version):
         """设置全局默认Python版本"""
-        if not self._validate_version(version):
+        if not self.validate_version(version):
             return {
                 "success": False, 
                 "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'"
             }
         
         # 对于特殊版本（如system），不需要检查是否已安装
-        if version not in ["system", "global"] and not self._is_version_installed(version):
+        if version not in ["system", "global"] and not self.is_version_installed(version):
             return {"success": False, "error": f"Python {version} is not installed. Use 'pyenv --install {version}' first."}
         
         try:
             # 更新全局Python版本设置
-            self._update_python_state("global", version)
+            self.update_python_state("global", version)
             
             print(f"Global Python version set to {version}")
             return {
@@ -441,10 +441,10 @@ print(json.dumps(result))
         except Exception as e:
             return {"success": False, "error": f"Error setting global Python version: {str(e)}"}
     
-    def _pyenv_global_get(self):
+    def pyenv_global_get(self):
         """获取全局默认Python版本"""
         try:
-            global_version = self._get_python_state("global")
+            global_version = self.get_python_state("global")
             
             if global_version:
                 print(f"Global Python version: {global_version}")
@@ -464,16 +464,16 @@ print(json.dumps(result))
         except Exception as e:
             return {"success": False, "error": f"Error getting global Python version: {str(e)}"}
     
-    def _pyenv_local_set(self, version):
+    def pyenv_local_set(self, version):
         """设置当前shell的Python版本"""
-        if not self._validate_version(version):
+        if not self.validate_version(version):
             return {
                 "success": False, 
                 "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'"
             }
         
         # 对于特殊版本（如system），不需要检查是否已安装
-        if version not in ["system", "global"] and not self._is_version_installed(version):
+        if version not in ["system", "global"] and not self.is_version_installed(version):
             return {"success": False, "error": f"Python {version} is not installed. Use 'pyenv --install {version}' first."}
         
         try:
@@ -482,7 +482,7 @@ print(json.dumps(result))
             shell_id = current_shell.get("id", "default") if current_shell else "default"
             
             # 更新shell级别的Python版本设置
-            self._update_python_state(f"shell_{shell_id}", version)
+            self.update_python_state(f"shell_{shell_id}", version)
             
             print(f"Local Python version set to {version} for shell {shell_id}")
             return {
@@ -496,13 +496,13 @@ print(json.dumps(result))
         except Exception as e:
             return {"success": False, "error": f"Error setting local Python version: {str(e)}"}
     
-    def _pyenv_local_get(self):
+    def pyenv_local_get(self):
         """获取当前shell的Python版本"""
         try:
             current_shell = self.shell.get_current_shell()
             shell_id = current_shell.get("id", "default") if current_shell else "default"
             
-            local_version = self._get_python_state(f"shell_{shell_id}")
+            local_version = self.get_python_state(f"shell_{shell_id}")
             
             if local_version:
                 print(f"Local Python version: {local_version}")
@@ -524,7 +524,7 @@ print(json.dumps(result))
         except Exception as e:
             return {"success": False, "error": f"Error getting local Python version: {str(e)}"}
     
-    def _pyenv_version(self):
+    def pyenv_version(self):
         """显示当前使用的Python版本"""
         try:
             # 一次性读取状态文件，避免多次远程调用
@@ -533,7 +533,7 @@ print(json.dumps(result))
             
             # 构建一个命令来一次性获取所有需要的信息
             check_command = f'''
-            STATE_FILE="{self._get_python_state_file_path()}"
+            STATE_FILE="{self.get_python_state_file_path()}"
             if [ -f "$STATE_FILE" ]; then
                 python3 -c "
 import json
@@ -587,11 +587,11 @@ except:
         except Exception as e:
             return {"success": False, "error": f"Error getting current Python version: {str(e)}"}
     
-    def _pyenv_versions(self):
+    def getpyenv_versions(self):
         """显示所有已安装版本及当前版本标记"""
         try:
             # 使用单个远程命令同时获取已安装版本、当前版本和版本来源信息
-            installed_versions, current_version, version_source = self._get_versions_and_current_unified()
+            installed_versions, current_version, version_source = self.get_versions_and_current_unified()
             
             if not installed_versions:
                 print("No Python versions installed")
@@ -624,7 +624,7 @@ except:
             return {"success": False, "error": f"Error listing Python versions: {str(e)}"}
     
     # 辅助方法
-    def _validate_version(self, version):
+    def validate_version(self, version):
         """验证Python版本格式"""
         import re
         
@@ -637,19 +637,19 @@ except:
         pattern = r'^\d+\.\d+(\.\d+)?$'  # 匹配 x.y.z 或 x.y 格式
         return bool(re.match(pattern, version))
     
-    def _is_version_installed(self, version):
+    def is_version_installed(self, version):
         """检查指定版本是否已安装"""
         try:
-            installed_versions = self._get_installed_versions()
+            installed_versions = self.get_installed_versions()
             return version in installed_versions
         except:
             return False
     
-    def _get_installed_versions(self):
+    def get_installed_versions(self):
         """获取所有已安装的Python版本"""
         try:
             # 通过远程命令列出python目录下的版本
-            list_command = f'ls -1 "{self._get_python_base_path()}" 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" || echo ""'
+            list_command = f'ls -1 "{self.get_python_base_path()}" 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" || echo ""'
             result = self.shell.execute_command_interface("bash", ["-c", list_command])
             
             if result.get("success") and result.get("stdout"):
@@ -662,7 +662,7 @@ except:
             print(f"Warning: Error getting installed versions: {e}")
             return []
     
-    def _get_current_python_version(self):
+    def get_current_python_version(self):
         """获取当前使用的Python版本"""
         try:
             # 优先级：local > global > system
@@ -670,12 +670,12 @@ except:
             shell_id = current_shell.get("id", "default") if current_shell else "default"
             
             # 检查local版本
-            local_version = self._get_python_state(f"shell_{shell_id}")
+            local_version = self.get_python_state(f"shell_{shell_id}")
             if local_version:
                 return local_version
             
             # 检查global版本
-            global_version = self._get_python_state("global")
+            global_version = self.get_python_state("global")
             if global_version:
                 return global_version
             
@@ -686,12 +686,12 @@ except:
             print(f"Warning: Error getting current Python version: {e}")
             return None
     
-    def _get_python_state(self, key):
+    def get_python_state(self, key):
         """从状态文件获取Python版本信息"""
         try:
             # 通过远程命令读取状态文件
             import json
-            state_file = self._get_python_state_file_path()
+            state_file = self.get_python_state_file_path()
             read_command = f'cat "{state_file}" 2>/dev/null || echo "{{}}"'
             result = self.shell.execute_command_interface("bash", ["-c", read_command])
             
@@ -708,14 +708,14 @@ except:
             print(f"Warning: Error reading Python state: {e}")
             return None
     
-    def _update_python_state(self, key, value):
+    def update_python_state(self, key, value):
         """更新状态文件中的Python版本信息"""
-        state_file = self._get_python_state_file_path()
+        state_file = self.get_python_state_file_path()
             
         # 构建更新状态的远程命令
         update_command = f'''
 # 确保目录存在
-mkdir -p "{self._get_python_base_path()}"
+mkdir -p "{self.get_python_base_path()}"
 
 # 更新状态
 python3 -c "
@@ -744,9 +744,9 @@ print('State updated successfully')
         if not (result.get("success") and result.get("exit_code") == 0):
             raise Exception(f"Failed to update Python state: {result.get('error', 'Unknown error')}")
     
-    def _get_cached_available_versions(self):
+    def get_cached_available_versions(self):
         """获取缓存的可用Python版本列表"""
-        cache_file = self._get_available_versions_cache_file()
+        cache_file = self.get_available_versions_cache_file()
         import json
         import os
         from datetime import datetime, timedelta
@@ -762,9 +762,9 @@ print('State updated successfully')
                 return cache_data.get("versions", [])
         
         # 缓存不存在或已过期，生成新的缓存
-        return self._generate_available_versions_cache()
+        return self.py_available_versions()
     
-    def _get_available_versions_cache_file(self):
+    def get_available_versions_cache_file(self):
         """获取可用版本缓存文件路径"""
         import os
         from ..path_constants import get_data_dir
@@ -773,7 +773,7 @@ print('State updated successfully')
         os.makedirs(cache_dir, exist_ok=True)
         return cache_file
     
-    def _generate_available_versions_cache(self):
+    def py_available_versions(self):
         """生成可用Python版本缓存（并发验证）"""
         import json
         from datetime import datetime
@@ -783,7 +783,7 @@ print('State updated successfully')
         print("Updating Python versions cache...")
         
         # 生成更全面的Python版本候选列表
-        candidate_versions = self._generate_python_version_candidates()
+        candidate_versions = self.generate_python_version_candidates()
         verified_versions = []
         completed_count = 0
         total_count = len(candidate_versions)
@@ -793,7 +793,7 @@ print('State updated successfully')
         
         def verify_version_with_progress(version):
             nonlocal completed_count
-            status = self._verify_python_version_availability(version)
+            status = self.verify_python_version_availability(version)
             
             with progress_lock:
                 completed_count += 1
@@ -833,7 +833,7 @@ print('State updated successfully')
             "updated_at": datetime.now().isoformat()
         }
         
-        cache_file = self._get_available_versions_cache_file()
+        cache_file = self.get_available_versions_cache_file()
         try:
             with open(cache_file, 'w') as f:
                 json.dump(cache_data, f, indent=2)
@@ -843,7 +843,7 @@ print('State updated successfully')
         
         return verified_versions
     
-    def _generate_python_version_candidates(self):
+    def generate_python_version_candidates(self):
         """生成Python版本候选列表"""
         candidates = []
         
@@ -893,7 +893,7 @@ print('State updated successfully')
         print(f"Generated {len(candidates)} Python version candidates for testing")
         return candidates
     
-    def _verify_python_version_availability(self, version):
+    def verify_python_version_availability(self, version):
         """验证Python版本是否可用（通过下载和测试执行，自动清理临时文件）"""
         import subprocess
         import tempfile
@@ -1001,26 +1001,26 @@ print('State updated successfully')
                 except:
                     pass  # 忽略清理错误
     
-    def _add_installed_version(self, version):
+    def add_installed_version(self, version):
         """添加已安装版本到状态文件"""
         try:
-            installed_versions = self._get_installed_versions()
+            installed_versions = self.get_installed_versions()
             if version not in installed_versions:
                 installed_versions.append(version)
             
-            self._update_python_state("installed_versions", json.dumps(sorted(installed_versions)))
+            self.update_python_state("installed_versions", json.dumps(sorted(installed_versions)))
             
         except Exception as e:
             print(f"Warning: Failed to update installed versions: {e}")
     
-    def _remove_installed_version(self, version):
+    def remove_installed_version(self, version):
         """从状态文件移除已安装版本"""
         try:
-            installed_versions = self._get_installed_versions()
+            installed_versions = self.get_installed_versions()
             if version in installed_versions:
                 installed_versions.remove(version)
             
-            self._update_python_state("installed_versions", json.dumps(sorted(installed_versions)))
+            self.update_python_state("installed_versions", json.dumps(sorted(installed_versions)))
             
         except Exception as e:
             print(f"Warning: Failed to update installed versions: {e}")
