@@ -166,7 +166,6 @@ class VenvApiManager:
                 print(f"API call failed: {{api_error}}")
             
             # 回退到远程命令
-            state_file = self.get_venv_state_file_path()
             check_command = f'cat "{{state_file}}" 2>/dev/null || echo "{{}}"'
             result = self.main_instance.execute_command_interface("bash", ["-c", check_command])
             if result.get("success") and result.get("stdout"):

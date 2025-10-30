@@ -458,9 +458,6 @@ class GoogleDriveShell:
         """委托到path_resolver管理器"""
         return self.path_resolver.resolve_remote_absolute_path(*args, **kwargs)
     
-    def _resolve_absolute_mkdir_path(self, *args, **kwargs):
-        """委托到path_resolver管理器"""
-        return self.path_resolver._resolve_absolute_mkdir_path(*args, **kwargs)
     
     def save_deletion_cache(self, *args, **kwargs):
         """委托到cache_manager管理器"""

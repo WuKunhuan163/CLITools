@@ -1,13 +1,13 @@
 {
   "success": true,
-  "message": "Analyzed 46 files, found 62 unused items",
+  "message": "Analyzed 46 files, found 61 unused items",
   "total_files": 46,
-  "total_unused": 62,
+  "total_unused": 61,
   "unused": {
     "functions": {
       "GOOGLE_DRIVE_PROJ/google_drive_shell.py": {
-        "566": "GoogleDriveShell._sync_venv_state_to_local_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
-        "2018": "GoogleDriveShell.handle_command_line_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+        "563": "GoogleDriveShell._sync_venv_state_to_local_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "2015": "GoogleDriveShell.handle_command_line_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/command_executor.py": {
         "597": "CommandExecutor.get_multiline_user_input.timeout_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
@@ -173,9 +173,6 @@
       },
       "GOOGLE_DRIVE_PROJ/modules/result_processor.py": {
         "40": "ResultProcessor.wait_and_read_result_file.signal_handler.interrupted \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
-      },
-      "GOOGLE_DRIVE_PROJ/modules/venv_manager.py": {
-        "169": "VenvApiManager.load_all_venv_states.state_file \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
       }
     },
     "imports": {}
