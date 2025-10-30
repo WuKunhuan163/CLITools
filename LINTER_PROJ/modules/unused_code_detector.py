@@ -34,6 +34,14 @@ class CodeAnalyzer(ast.NodeVisitor):
         # Track which local vars are used: {scope_name: {var_name}}
         self.local_vars_used_by_scope = {}
         
+        # Track variable types for simple type inference
+        # {var_name: class_name}
+        self.variable_types = {}
+        
+        # Track class methods for matching attribute calls
+        # {class_name: [method_names]}
+        self.class_methods = {}
+        
     def visit_FunctionDef(self, node):
         """Visit function definition"""
         func_name = node.name
