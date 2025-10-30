@@ -142,7 +142,7 @@ class GoogleDriveService:
                 "error": f"连接测试失败: {e}"
             }
     
-    def list_files(self, folder_id=None, max_results=10):
+    def list_files(self, folder_id=None, max_results=9999):
         """
         列出文件
         
@@ -210,6 +210,90 @@ class GoogleDriveService:
             return {
                 "success": False,
                 "error": f"{e}"
+            }
+    
+    def retrieve_content(self, folder_id, filename):
+        """
+        从指定文件夹中读取指定文件名的文件内容
+        
+        Args:
+            folder_id (str): 文件夹ID
+            filename (str): 文件名
+            
+        Returns:
+            dict: 包含文件内容的结果字典
+                - success (bool): 是否成功
+                - content (str): 文件内容（成功时）
+                - file_id (str): 文件ID（成功时）
+                - error (str): 错误信息（失败时）
+        """
+        try:
+            # 1. 列出文件夹中的文件
+            files_result = self.list_files(folder_id=folder_id, max_results=100)
+            if not files_result.get('success'):
+                return {
+                    "success": False,
+                    "error": f"Failed to list files in folder {folder_id}"
+                }
+            
+            # 2. 查找目标文件
+            target_file = None
+            for f in files_result['files']:
+                if f['name'] == filename:
+                    target_file = f
+                    break
+            
+            if not target_file:
+                available_files = [f['name'] for f in files_result['files']]
+                return {
+                    "success": False,
+                    "error": f"File '{filename}' not found in folder. Available files: {available_files}"
+                }
+            
+            # 3. 下载文件到临时位置
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(mode='w+b', delete=False, suffix=f"_{filename}")
+            temp_path = temp_file.name
+            temp_file.close()
+            
+            try:
+                # 使用download_file接口下载
+                download_result = self.download_file(target_file['id'], temp_path)
+                
+                if not download_result.get('success'):
+                    import os
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                    return {
+                        "success": False,
+                        "error": f"Failed to download file: {download_result.get('error')}"
+                    }
+                
+                # 4. 读取临时文件内容
+                with open(temp_path, 'r', encoding='utf-8', errors='replace') as f:
+                    content = f.read()
+                
+                # 5. 删除临时文件
+                import os
+                os.remove(temp_path)
+                
+                return {
+                    "success": True,
+                    "content": content,
+                    "file_id": target_file['id'],
+                    "filename": filename
+                }
+            except Exception as e:
+                # 清理临时文件
+                import os
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                raise e
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to retrieve content: {e}"
             }
     
 # 测试函数

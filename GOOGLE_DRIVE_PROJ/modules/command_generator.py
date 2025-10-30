@@ -72,7 +72,6 @@ class CommandGenerator:
         """
         import hashlib
         window_hash = hashlib.md5(cmd.encode()).hexdigest()[:8]
-        # print(f"[DEBUG] 计算窗口hash: {window_hash.upper()} (命令: {cmd[:80]}...)")
         return window_hash
 
 

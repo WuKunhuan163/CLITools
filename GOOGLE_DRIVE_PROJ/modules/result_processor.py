@@ -10,7 +10,7 @@ class ResultProcessor:
         self.drive_service = drive_service
         self.main_instance = main_instance
 
-    def wait_and_read_result_file(self, result_filename, max_wait_time=60):
+    def wait_and_read_result_file(self, result_filename, max_wait_time=15):
         """
         等待并读取远端结果文件，最多等待60秒
         
@@ -23,8 +23,8 @@ class ResultProcessor:
         try:
             import time
             
-            # 远端文件路径（在REMOTE_ROOT/tmp目录中）
-            remote_file_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
+            # 使用逻辑路径而不是远端绝对路径，因为check_remote_file_exists会传递给cmd_ls
+            logical_file_path = f"~/tmp/{result_filename}"
 
             # 使用进度缓冲输出等待指示器
             from .progress_manager import start_progress_buffering
@@ -49,7 +49,7 @@ class ResultProcessor:
                         raise KeyboardInterrupt()
                     
                     # 检查文件是否存在
-                    check_result = self.main_instance.check_remote_file_exists(remote_file_path)
+                    check_result = self.main_instance.check_remote_file_exists(logical_file_path)
                     
                     if check_result.get("exists"):
                         # 文件存在，读取内容
@@ -96,7 +96,7 @@ class ResultProcessor:
             print()  # 换行
             print(f"等待结果超时。可能的原因：")
             print(f"  (1) 网络问题导致命令执行缓慢。请检查")
-            print(f"  (2) Google Drive挂载失效，需要使用 GOOGLE_DRIVE --remount重新挂载")
+            print(f"  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载")
             
             # 检查是否在后台模式或无交互环境
             import sys
@@ -112,7 +112,7 @@ class ResultProcessor:
                 print(f"后台模式检测：自动返回超时错误")
                 return {
                     "success": False,
-                    "error": f"Result file timeout: {remote_file_path}",
+                    "error": f"Result file timeout: {logical_file_path}",
                     "timeout": True,
                     "background_mode": True
                 }
@@ -144,8 +144,8 @@ class ResultProcessor:
             else:
                 # 用户跳过了输入
                 return {
-                    "success": False,
-                    "error": f"等待远端结果文件超时，用户未提供反馈: {remote_file_path}"
+                    "success": False, 
+                    "error": f"等待远端结果文件超时，用户未提供反馈: {logical_file_path}"
                 }
             
         except Exception as e:

@@ -97,41 +97,30 @@ class TextCommand(BaseCommand):
             if not filename:
                 return {"success": False, "error": "Please specify the file to view"}
             
-            # 查找文件
-            try:
-                folder_id, resolved_path = self.main_instance.resolve_path(filename, current_shell)
-                # 获取文件信息
-                files_result = self.main_instance.drive_service.list_files(folder_id=folder_id, max_results=1)
-                if not files_result.get('success') or not files_result.get('files'):
-                    converted_filename = self.main_instance.path_resolver.convert_local_path_to_remote(filename)
-                    return {"success": False, "error": f"File or directory does not exist: {converted_filename}"}
-                file_info = files_result['files'][0]
-            except Exception as e:
-                converted_filename = self.main_instance.path_resolver.convert_local_path_to_remote(filename)
-                return {"success": False, "error": f"File or directory does not exist: {converted_filename}"}
+            # 分离目录路径和文件名
+            import os
+            if '/' in filename:
+                # 包含路径分隔符，分离目录和文件名
+                dir_path = os.path.dirname(filename)
+                target_filename = os.path.basename(filename)
+                
+                # 解析目录路径获取folder_id
+                folder_id, _ = self.main_instance.resolve_drive_id(dir_path, current_shell)
+                
+                if not folder_id:
+                    return {"success": False, "error": f"Directory not found: {dir_path}"}
+            else:
+                # 简单文件名，使用当前目录
+                folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
+                target_filename = filename
             
-            # 检查是否为文件
-            if file_info['mimeType'] == 'application/vnd.google-apps.folder':
-                return {"success": False, "error": f"cat: {filename}: Is a directory"}
+            # 使用retrieve_content API读取文件内容
+            result = self.drive_service.retrieve_content(folder_id, target_filename)
             
-            # 下载并读取文件内容
-            try:
-                import io
-                from googleapiclient.http import MediaIoBaseDownload
-                
-                request = self.drive_service.service.files().get_media(fileId=file_info['id'])
-                fh = io.BytesIO()
-                downloader = MediaIoBaseDownload(fh, request)
-                
-                done = False
-                while done is False:
-                    status, done = downloader.next_chunk()
-                
-                content = fh.getvalue().decode('utf-8', errors='replace')
-                return {"success": True, "output": content, "filename": filename}
-                
-            except Exception as e:
-                return {"success": False, "error": f"无法读取文件内容: {e}"}
+            if result.get('success'):
+                return {"success": True, "output": result['content'], "filename": filename}
+            else:
+                return {"success": False, "error": result.get('error', 'Failed to read file')}
                 
         except Exception as e:
             return {"success": False, "error": f"执行cat命令时出错: {e}"}

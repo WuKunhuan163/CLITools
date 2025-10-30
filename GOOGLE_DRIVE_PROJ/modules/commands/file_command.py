@@ -244,6 +244,7 @@ class FileCommand(BaseCommand):
             result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
             
             if result.get("success"):
+                # 现在可以直接传递远端绝对路径，cmd_ls会自动转换为逻辑路径
                 verification_result = self.main_instance.verify_creation_with_ls(destination_absolute_path, current_shell, creation_type="file")
                 if verification_result.get("success", False):
                     return {

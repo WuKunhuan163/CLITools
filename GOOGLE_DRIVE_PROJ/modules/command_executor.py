@@ -451,7 +451,7 @@ except Exception:
     sys.exit(1)
 "
 if [ $? -ne 0 ]; then
-    clear && echo "Error: 当前session的GDS无法访问Google Drive文件结构。请使用GOOGLE_DRIVE --remount指令重新挂载，然后执行GDS的其他命令"
+    clear && echo "Error: 当前session的GDS无法访问Google Drive文件结构。请使用python: GOOGLE_DRIVE --remount指令重新挂载，然后执行GDS的其他命令"
     MOUNT_CHECK_FAILED=1
 fi
 

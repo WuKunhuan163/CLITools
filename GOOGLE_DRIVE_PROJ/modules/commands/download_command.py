@@ -140,7 +140,7 @@ class DownloadCommand(BaseCommand):
                 actual_filename = path_parts[1]
                 
                 # 解析目录路径
-                target_folder_id, resolved_path = self.main_instance.resolve_path(dir_path, current_shell)
+                target_folder_id, resolved_path = self.main_instance.resolve_drive_id(dir_path, current_shell)
                 if not target_folder_id:
                     return {"success": False, "error": f"Download failed: directory not found: {dir_path}"}
             else:
