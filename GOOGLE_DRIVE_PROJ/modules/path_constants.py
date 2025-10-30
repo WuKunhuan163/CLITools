@@ -120,7 +120,7 @@ class PathConstants:
         
         # 检测Colab环境
         try:
-            import google.colab
+            __import__('google.colab')
             return "colab"
         except ImportError:
             pass

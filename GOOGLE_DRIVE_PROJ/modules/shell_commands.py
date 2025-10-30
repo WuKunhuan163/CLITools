@@ -26,7 +26,6 @@ def get_current_shell():
 # 全局常量
 from .path_constants import path_constants
 HOME_URL = path_constants.HOME_URL
-HOME_FOLDER_ID = path_constants.get_folder_id("HOME_FOLDER_ID")
 REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
 
 def shell_pwd(command_identifier=None):
