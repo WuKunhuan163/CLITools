@@ -41,8 +41,12 @@ class Validation:
                 search_path = current_path
                 debug_print(f"target_path '{target_path}' identified as filename, searching in current directory: {search_path}")
             else:
-                # 使用compute_absolute_path处理所有路径情况
-                search_path = self.main_instance.path_resolver.compute_absolute_path(current_path, target_path if target_path else ".")
+                # 使用resolve_remote_absolute_path处理所有路径情况（返回逻辑路径格式）
+                search_path = self.main_instance.path_resolver.resolve_remote_absolute_path(
+                    target_path if target_path else ".", 
+                    {"current_path": current_path}, 
+                    return_logical=True
+                )
             
             debug_print(f"constructed search_path='{search_path}'")
             

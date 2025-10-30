@@ -91,11 +91,10 @@ class NavigationCommand(BaseCommand):
                 path = "~"
             
             # 转换bash扩展的本地路径为远程路径格式
-            path = self.main_instance.path_resolver.convert_local_path_to_remote(path)
+            path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
             
-            # 使用新的路径解析器计算绝对路径
-            current_shell_path = current_shell.get("current_path", "~")
-            absolute_path = self.main_instance.path_resolver.compute_absolute_path(current_shell_path, path)
+            # 使用新的路径解析器计算绝对路径（逻辑路径格式）
+            absolute_path = self.main_instance.path_resolver.resolve_remote_absolute_path(path, current_shell, return_logical=True)
             
             # 使用统一的cmd_ls接口检测目录是否存在
             ls_result = self.main_instance.cmd_ls(absolute_path)
@@ -104,9 +103,9 @@ class NavigationCommand(BaseCommand):
                 # 添加调试信息，显示路径计算过程
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
             
-            # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
+            # 如果ls成功，说明目录存在，使用resolve_drive_id获取目标ID和路径
             # 使用规范化后的绝对路径进行解析
-            target_id, target_path = self.main_instance.resolve_path(absolute_path, current_shell)
+            target_id, target_path = self.main_instance.resolve_drive_id(absolute_path, current_shell)
             
             if not target_id:
                 return {"success": False, "error": f"Directory does not exist: {path} (resolved path failed)"}

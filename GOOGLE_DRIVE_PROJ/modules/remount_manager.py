@@ -67,7 +67,13 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     # 如果没有提供GoogleDriveShell实例，尝试创建一个
     if google_drive_shell is None:
         try:
-            from ..google_drive_shell import GoogleDriveShell
+            # 使用绝对导入避免relative import错误
+            import sys
+            import os
+            current_dir = os.path.dirname(os.path.dirname(__file__))
+            if current_dir not in sys.path:
+                sys.path.insert(0, current_dir)
+            from google_drive_shell import GoogleDriveShell
             google_drive_shell = GoogleDriveShell()
         except Exception as e:
             print(f"Warning: 无法创建GoogleDriveShell实例进行验证: {e}")
@@ -273,7 +279,7 @@ try:
     python_script = base64.b64decode("{script_b64}").decode('utf-8')
     
     root = tk.Tk()
-    root.title("GDS Remount")
+    root.title("python: GOOGLE_DRIVE --remount")
     root.geometry("500x60")
     root.resizable(False, False)
     root.attributes('-topmost', True)

@@ -54,6 +54,48 @@ class LsCommand(BaseCommand):
             return 1
 
 
+    def _convert_absolute_to_logical(self, path):
+        """
+        内部接口：将远端绝对路径转换为逻辑路径
+        
+        Args:
+            path (str): 可能是逻辑路径或远端绝对路径
+            
+        Returns:
+            str: 逻辑路径格式 (~/xxx)
+        """
+        if not path:
+            return path
+        
+        # 如果已经是逻辑路径格式（~/xxx 或 @drive_equivalent/xxx），直接返回
+        if path.startswith("~/") or path == "~" or path.startswith("@drive_equivalent"):
+            return path
+        
+        # 如果是相对路径（不以/开头），直接返回
+        if not path.startswith("/"):
+            return path
+        
+        # 检查是否是远端绝对路径
+        remote_root = self.main_instance.REMOTE_ROOT
+        if path.startswith(remote_root):
+            # 去掉REMOTE_ROOT前缀，转换为~/xxx格式
+            relative_part = path[len(remote_root):]
+            if relative_part.startswith("/"):
+                relative_part = relative_part[1:]
+            
+            if relative_part:
+                return f"~/{relative_part}"
+            else:
+                return "~"
+        
+        # 如果是其他格式的绝对路径，假设它是REMOTE_ROOT的子路径
+        # 例如 /tmp/file.txt -> ~/tmp/file.txt
+        if path.startswith("/"):
+            return f"~{path}"
+        
+        # 默认返回原路径
+        return path
+    
     def cmd_ls(self, path=None, detailed=False, recursive=False, show_hidden=False):
         """列出目录内容，支持递归、详细模式和扩展信息模式，支持文件路径"""
         try:
@@ -65,6 +107,9 @@ class LsCommand(BaseCommand):
             if not current_shell:
                 return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
             
+            # 首先将可能的远端绝对路径转换为逻辑路径
+            if path:
+                path = self._convert_absolute_to_logical(path)
             
             if path is None or path == ".":
                 # 当前目录
@@ -76,10 +121,10 @@ class LsCommand(BaseCommand):
                 display_path = "~"
             else:
                 # 首先将本地路径转换为远程路径格式以便在错误消息中正确显示
-                converted_path = self.main_instance.path_resolver.convert_local_path_to_remote(path)
+                converted_path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
                 
                 # 首先尝试作为目录解析
-                target_folder_id, display_path = self.main_instance.resolve_path(path, current_shell)
+                target_folder_id, display_path = self.main_instance.resolve_drive_id(path, current_shell)
                 
                 if not target_folder_id:
                     file_result = self.resolve_file_path(path, current_shell)
@@ -323,7 +368,7 @@ class LsCommand(BaseCommand):
         if dir_path == ".":
             parent_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
         else:
-            parent_folder_id, _ = self.main_instance.resolve_path(dir_path, current_shell)
+            parent_folder_id, _ = self.main_instance.resolve_drive_id(dir_path, current_shell)
             if not parent_folder_id:
                 return None
         
@@ -344,15 +389,18 @@ class LsCommand(BaseCommand):
 
     def check_remote_file_exists(self, file_path):
         """
-        检查远端文件是否存在（绝对路径）
+        检查远端文件是否存在
 
         Args:
-            file_path (str): 绝对路径的文件路径（如~/tmp/filename.json）
+            file_path (str): 文件路径（支持逻辑路径或远端绝对路径）
 
         Returns:
             dict: 检查结果
         """
         try:
+            # 首先将可能的远端绝对路径转换为逻辑路径
+            file_path = self._convert_absolute_to_logical(file_path)
+            
             # 解析路径
             if "/" in file_path:
                 dir_path, filename = file_path.rsplit("/", 1)

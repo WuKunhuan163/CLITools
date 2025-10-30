@@ -276,14 +276,15 @@ class UploadCommand(BaseCommand):
             # 继续处理正常大小的文件
             source_files = normal_files
             
-            # 3. 解析目标路径
-            debug_print(f"Before resolve_target_path_for_upload - target_path='{target_path}'")
+            # 3. 解析目标路径（使用absolute path接口 + drive id接口）
+            debug_print(f"Before resolve - target_path='{target_path}'")
             debug_print(f"current_shell={current_shell}")
-            target_folder_id, target_display_path = self.main_instance.path_resolver.resolve_target_path_for_upload(target_path, current_shell)
-            debug_print(f"After resolve_target_path_for_upload - target_folder_id='{target_folder_id}', target_display_path='{target_display_path}'")
+            # 先获取逻辑路径
+            target_display_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell, return_logical=True)
+            # 再获取drive ID
+            target_folder_id, _ = self.main_instance.path_resolver.resolve_drive_id(target_path, current_shell)
+            debug_print(f"After resolve - target_folder_id='{target_folder_id}', target_display_path='{target_display_path}'")
             if target_folder_id is None and self.drive_service:
-                # 目标路径不存在，但这是正常的，我们会在远端创建它
-                # 静默处理目标路径创建
                 target_folder_id = None  # 标记为需要创建
                 target_display_path = target_path
             elif not self.drive_service:
@@ -709,7 +710,7 @@ class UploadCommand(BaseCommand):
                         if target_path == ".":
                             target_folder_id = self.get_current_folder_id(current_shell)
                         else:
-                            target_folder_id, _ = self.main_instance.resolve_path(target_path, current_shell)
+                            target_folder_id, _ = self.main_instance.resolve_drive_id(target_path, current_shell)
                         
                         if target_folder_id:
                             target_url = f"https://drive.google.com/drive/folders/{target_folder_id}"

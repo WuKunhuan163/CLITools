@@ -526,7 +526,7 @@ Shell commands: ls -la && echo "done"
             
             # 创建临时实例用于命令转译
             gds = GoogleDriveShell()
-            translation_result = gds.parse_and_translate_command(command)
+            translation_result = gds.execute_generic_command(command)
             if not translation_result["success"]:
                 print(f'命令转译失败: {translation_result["error"]}')
                 command_str = str(command)  # 回退到原始格式
@@ -1072,7 +1072,7 @@ Shell commands: ls -la && echo "done"
         
         # 包含JSON格式的echo（检查实际的转义字符处理）
         json_echo_file = self.get_test_file_path("json_echo.txt")
-        json_content = "{'name': 'test', 'value': 123}"
+        json_content = "{'name': 'test02_json_echo_01', 'value': 123}"
         json_content_escaped = json_content.replace("'", "\'")
         result = self._run_gds_command(f'\'echo "{json_content_escaped}" > "{json_echo_file}"\'')
         self.assertEqual(result.returncode, 0)
@@ -1103,7 +1103,7 @@ Shell commands: ls -la && echo "done"
         
         # 使用正确的语法创建JSON文件（单引号包围重定向范围）
         correct_json_file = self.get_test_file_path("correct_json.txt")
-        json_content = "{'name': 'test', 'value': 123}"
+        json_content = "{'name': 'test03_json_echo_01', 'value': 123}"
         json_content_escaped = json_content.replace("'", "\'")
         result = self._run_gds_command(f'echo "{json_content_escaped}" > "{correct_json_file}"')
         self.assertEqual(result.returncode, 0)
@@ -1132,7 +1132,7 @@ Shell commands: ls -la && echo "done"
         
         # 使用本地重定向语法（GDS输出被本地重定向）
         local_redirect_path = self.get_local_file_path("local_redirect.txt")
-        json_content = "{'name': 'test', 'value': 123}"
+        json_content = "{'name': 'test03_json_echo_02', 'value': 123}"
         json_content_escaped = json_content.replace("'", "\'")
         full_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback echo "{json_content_escaped}" > "{local_redirect_path}"'
         result = self._run_gds_command(full_command)
@@ -1220,7 +1220,7 @@ print(f'Current files: {len(os.listdir())}')'''
         
         # 1.1 单引号JSON（推荐方式）
         json_single_file = self.get_test_file_path("json_single_quote.txt")
-        json_content_proper = '{"name": "test", "value": 123}'
+        json_content_proper = '{"name": "test03_json_single_quote_03", "value": 123}'
         result = self._run_gds_command(f"echo '{json_content_proper}' > \"{json_single_file}\"")
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self._verify_file_content_contains(json_single_file, json_content_proper))

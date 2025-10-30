@@ -7,7 +7,7 @@ Google Drive远程Shell管理系统 - 重构版本
 import os
 import json
 from pathlib import Path
-from .modules import (
+from GOOGLE_DRIVE_PROJ.modules import (
         CacheManager,
         PathResolver,
         SyncManager,
@@ -387,16 +387,20 @@ class GoogleDriveShell:
                     # 对于JSON内容，先将 \" 转换为实际引号，然后用单引号包围整个内容
                     # 这样可以避免bash解释内部的引号
                     json_content = content.replace('\\"', '"')
+                    # 转义单引号：在bash单引号字符串中，使用'\''来表示单引号
+                    json_content = json_content.replace("'", "'\\''")
                     if has_n_option:
                         return f"echo -n '{json_content}' > {target_file}"
                     else:
                         return f"echo '{json_content}' > {target_file}"
                 else:
                     # 使用单引号包围内容，避免bash进一步解释引号
+                    # 转义单引号：在bash单引号字符串中，使用'\''来表示单引号
+                    escaped_content = content.replace("'", "'\\''")
                     if has_n_option:
-                        return f"echo -n '{content}' > {target_file}"
+                        return f"echo -n '{escaped_content}' > {target_file}"
                     else:
-                        return f"echo '{content}' > {target_file}"
+                        return f"echo '{escaped_content}' > {target_file}"
         
         # 如果解析失败，返回原命令
         return echo_command
@@ -450,14 +454,13 @@ class GoogleDriveShell:
         """委托到sync_manager管理器"""
         return self.sync_manager.move_to_local_equivalent(*args, **kwargs)
     
-    def resolve_path(self, *args, **kwargs):
+    def resolve_drive_id(self, *args, **kwargs):
         """委托到path_resolver管理器"""
-        return self.path_resolver.resolve_path(*args, **kwargs)
+        return self.path_resolver.resolve_drive_id(*args, **kwargs)
     
     def resolve_remote_absolute_path(self, *args, **kwargs):
         """委托到path_resolver管理器"""
         return self.path_resolver.resolve_remote_absolute_path(*args, **kwargs)
-    
     
     def save_deletion_cache(self, *args, **kwargs):
         """委托到cache_manager管理器"""
@@ -497,7 +500,7 @@ class GoogleDriveShell:
             if dir_path == ".":
                 target_folder_id = current_shell.get("current_folder_id", self.REMOTE_ROOT_FOLDER_ID)
             else:
-                target_folder_id, _ = self.resolve_path(dir_path, current_shell)
+                target_folder_id, _ = self.resolve_drive_id(dir_path, current_shell)
                 if not target_folder_id:
                     print(f"Path not found: {dir_path}")
                     return 1
@@ -506,7 +509,7 @@ class GoogleDriveShell:
             if dir_path == ".":
                 folder_id = current_shell.get("current_folder_id", self.REMOTE_ROOT_FOLDER_ID)
             else:
-                folder_id, _ = self.resolve_path(dir_path, current_shell)
+                folder_id, _ = self.resolve_drive_id(dir_path, current_shell)
                 if not folder_id:
                     print(f"Path not found: {dir_path}")
                     return 1
@@ -987,7 +990,7 @@ class GoogleDriveShell:
             if is_quoted_command:
                 translated_cmd = shell_cmd_clean
             else:
-                translation_result = self.parse_and_translate_command(shell_cmd_clean)
+                translation_result = self.execute_generic_command(shell_cmd_clean)
                 if not translation_result["success"]:
                     print(f"Error: {translation_result['error']}")
                     return 1
@@ -1376,7 +1379,7 @@ done
         
         return False
 
-    def parse_and_translate_command(self, input_command):
+    def execute_generic_command(self, input_command):
         """
         统一的命令解析和转译接口
         
@@ -2161,7 +2164,7 @@ fi
             return 1
     
     def handle_remount_command(self, command_identifier=None):
-        """处理GOOGLE_DRIVE --remount命令"""
+        """处理python: GOOGLE_DRIVE --remount命令"""
         from modules.remount_manager import remount_google_drive
         return remount_google_drive(command_identifier)
     
