@@ -22,7 +22,7 @@ class LsCommand(BaseCommand):
         
         # 检查是否包含通配符
         if path and ('*' in path or '?' in path or '[' in path):
-            return self.shell._handle_wildcard_ls(path)
+            return self.shell.handle_wildcard_ls(path)
         
         # 调用shell的ls方法
         result = self.shell.cmd_ls(path, detailed=detailed, recursive=recursive)
@@ -76,13 +76,13 @@ class LsCommand(BaseCommand):
                 display_path = "~"
             else:
                 # 首先将本地路径转换为远程路径格式以便在错误消息中正确显示
-                converted_path = self.main_instance.path_resolver._convert_local_path_to_remote(path)
+                converted_path = self.main_instance.path_resolver.convert_local_path_to_remote(path)
                 
                 # 首先尝试作为目录解析
                 target_folder_id, display_path = self.main_instance.resolve_path(path, current_shell)
                 
                 if not target_folder_id:
-                    file_result = self._resolve_file_path(path, current_shell)
+                    file_result = self.resolve_file_path(path, current_shell)
                     if file_result:
                         return {
                             "success": True,
@@ -137,7 +137,7 @@ class LsCommand(BaseCommand):
                             "success": True,
                             "path": display_path,
                             "folder_id": target_folder_id,
-                            "folder_url": self._generate_folder_url(target_folder_id),
+                            "folder_url": self.generate_folder_url(target_folder_id),
                             "files": clean_files,  # 只有非文件夹文件
                             "folders": clean_folders,  # 只有文件夹
                             "count": len(clean_folders) + len(clean_files),
@@ -216,7 +216,7 @@ class LsCommand(BaseCommand):
                     "success": True,
                     "path": root_path,
                     "folder_id": root_folder_id,
-                    "folder_url": self._generate_folder_url(root_folder_id),
+                    "folder_url": self.generate_folder_url(root_folder_id),
                     "files": nested_structure["files"],
                     "folders": nested_structure["folders"],  # 每个文件夹包含自己的files和folders
                     "count": len(all_items),
@@ -281,73 +281,101 @@ class LsCommand(BaseCommand):
         except Exception as e:
             return {'files': [], 'folders': [], 'error': str(e)}
 
+    def generate_folder_url(self, folder_id):
+        """生成文件夹的网页链接"""
+        return f"https://drive.google.com/drive/folders/{folder_id}"
+    
+    def generate_web_url(self, file):
+        """为文件生成网页链接"""
+        file_id = file['id']
+        mime_type = file['mimeType']
+        
+        if mime_type == 'application/vnd.google.colaboratory':
+            # Colab文件
+            return f"https://colab.research.google.com/drive/{file_id}"
+        elif mime_type == 'application/vnd.google-apps.document':
+            # Google文档
+            return f"https://docs.google.com/document/d/{file_id}/edit"
+        elif mime_type == 'application/vnd.google-apps.spreadsheet':
+            # Google表格
+            return f"https://docs.google.com/spreadsheets/d/{file_id}/edit"
+        elif mime_type == 'application/vnd.google-apps.presentation':
+            # Google幻灯片
+            return f"https://docs.google.com/presentation/d/{file_id}/edit"
+        elif mime_type == 'application/vnd.google-apps.folder':
+            # 文件夹
+            return f"https://drive.google.com/drive/folders/{file_id}"
+        else:
+            # 其他文件（预览或下载）
+            return f"https://drive.google.com/file/d/{file_id}/view"
+    
+    def resolve_file_path(self, file_path, current_shell):
+        """解析文件路径，返回文件信息（如果存在）"""
+        # 分离目录和文件名
+        if "/" in file_path:
+            dir_path = "/".join(file_path.split("/")[:-1])
+            filename = file_path.split("/")[-1]
+        else:
+            dir_path = "."
+            filename = file_path
+        
+        # 解析目录路径
+        if dir_path == ".":
+            parent_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
+        else:
+            parent_folder_id, _ = self.main_instance.resolve_path(dir_path, current_shell)
+            if not parent_folder_id:
+                return None
+        
+        # 在父目录中查找文件
+        result = self.drive_service.list_files(folder_id=parent_folder_id, max_results=100)
+        
+        if not result['success']:
+            return None
+        
+        files = result.get('files', [])
+        for i, file in enumerate(files):
+            file_name = file.get('name', 'UNKNOWN')
+            if file_name == filename:
+                file['url'] = self.generate_web_url(file)
+                return file
+        
+        return None
 
-    def cmd_pwd(self):
-        """显示当前路径"""
+    def check_remote_file_exists(self, file_path):
+        """
+        检查远端文件是否存在（绝对路径）
+
+        Args:
+            file_path (str): 绝对路径的文件路径（如~/tmp/filename.json）
+
+        Returns:
+            dict: 检查结果
+        """
         try:
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
-            
-            return {
-                "success": True,
-                "current_path": current_shell.get("current_path", "~"),
-                "home_url": self.main_instance.HOME_URL,
-                "shell_id": current_shell["id"],
-                "shell_name": current_shell["name"]
-            }
-            
-        except Exception as e:
-            return {"success": False, "error": f"获取当前路径时出错: {e}"}
-
-
-    def cmd_cd(self, path):
-        """切换目录"""
-        try:
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
-            
-            if not path:
-                path = "~"
-            
-            # 转换bash扩展的本地路径为远程路径格式
-            path = self.main_instance.path_resolver._convert_local_path_to_remote(path)
-            
-            # 使用新的路径解析器计算绝对路径
-            current_shell_path = current_shell.get("current_path", "~")
-            absolute_path = self.main_instance.path_resolver.compute_absolute_path(current_shell_path, path)
-            
-            # 使用统一的cmd_ls接口检测目录是否存在
-            ls_result = self.main_instance.cmd_ls(absolute_path)
-            
-            if not ls_result.get('success'): 
-                return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
-            
-            # 如果ls成功，说明目录存在，使用resolve_path获取目标ID和路径
-            target_id, target_path = self.main_instance.resolve_path(absolute_path, current_shell)
-            
-            if not target_id:
-                return {"success": False, "error": f"Directory does not exist: {path} (resolved path failed)"}
-            
-            # 更新shell状态
-            shells_data = self.main_instance.load_shells()
-            shell_id = current_shell['id']
-            
-            shells_data["shells"][shell_id]["current_path"] = target_path
-            shells_data["shells"][shell_id]["current_folder_id"] = target_id
-            shells_data["shells"][shell_id]["last_accessed"] = time.strftime("%Y-%m-%d %H:%M:%S")
-            
-            if self.main_instance.save_shells(shells_data):
-                return {
-                    "success": True,
-                    "new_path": target_path,
-                    "folder_id": target_id,
-                    "message": f"Switched to directory: {target_path}"
-                }
+            # 解析路径
+            if "/" in file_path:
+                dir_path, filename = file_path.rsplit("/", 1)
             else:
-                return {"success": False, "error": "Save shell state failed"}
-                
+                dir_path = "~"
+                filename = file_path
+
+            # 列出目录内容
+            ls_result = self.main_instance.cmd_ls(dir_path)
+
+            if not ls_result.get("success"):
+                return {"exists": False, "error": f"Cannot access directory: {dir_path}"}
+
+            # 检查文件和文件夹是否在列表中
+            files = ls_result.get("files", [])
+            folders = ls_result.get("folders", [])
+            all_items = files + folders
+
+            # 检查文件或文件夹是否存在
+            file_exists = any(f.get("name") == filename for f in all_items)
+
+            return {"exists": file_exists}
+
         except Exception as e:
-            return {"success": False, "error": f"Execute cd command failed: {e}"}
+            return {"exists": False, "error": f"Check file existence failed: {str(e)}"}
 

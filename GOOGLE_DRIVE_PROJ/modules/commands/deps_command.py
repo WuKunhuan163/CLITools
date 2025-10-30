@@ -55,17 +55,17 @@ class DepsCommand(BaseCommand):
                     # 处理requirements.txt文件
                     if i + 1 < len(args):
                         requirements_file = args[i + 1]
-                        packages_from_file = self._parse_requirements_file(requirements_file)
+                        packages_from_file = self.parse_requirements_file(requirements_file)
                         packages.extend(packages_from_file)
                         i += 1
                 elif arg.startswith('-r'):
                     # 处理 -rrequirements.txt 格式
                     requirements_file = arg[2:]
-                    packages_from_file = self._parse_requirements_file(requirements_file)
+                    packages_from_file = self.parse_requirements_file(requirements_file)
                     packages.extend(packages_from_file)
                 elif arg.endswith('.txt') and ('requirements' in arg.lower() or 'req' in arg.lower()):
                     # 直接指定requirements文件
-                    packages_from_file = self._parse_requirements_file(arg)
+                    packages_from_file = self.parse_requirements_file(arg)
                     packages.extend(packages_from_file)
                 elif not arg.startswith('-'):
                     packages.append(arg)
@@ -78,18 +78,31 @@ class DepsCommand(BaseCommand):
             print(f"Analysis depth: {max_depth}")
             
             # 获取当前环境的已安装包信息
-            installed_packages = self._detect_current_environment_packages()
+            current_shell = self.shell.get_current_shell()
+            shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
+            
+            from .venv_command import VenvCommand
+            venv_cmd = VenvCommand(self.shell)
+            all_states = venv_cmd.load_all_venv_states()
+            
+            current_venv = None
+            if shell_id in all_states and all_states[shell_id].get("current_venv"):
+                current_venv = all_states[shell_id]["current_venv"]
+            
+            from .pip_command import PipCommand
+            pip_cmd = PipCommand(self.shell)
+            installed_packages = pip_cmd.detect_current_environment_packages(current_venv)
             
             # 根据分析类型选择不同的分析方法
             if analysis_type == "smart":
-                analysis_result = self._smart_dependency_analysis(
+                analysis_result = self.smart_dependency_analysis(
                     packages, 
                     max_calls=10, 
                     interface_mode=False, 
                     installed_packages=installed_packages
                 )
             elif analysis_type == "depth":
-                analysis_result = self._depth_based_dependency_analysis(
+                analysis_result = self.depth_based_dependency_analysis(
                     packages, 
                     max_depth=max_depth, 
                     interface_mode=False, 
@@ -109,7 +122,7 @@ class DepsCommand(BaseCommand):
                 print(f"Analysis completed: {total_calls} API calls, {analyzed_packages} packages analyzed\n")
             
             # 显示依赖树
-            self._display_smart_dependency_tree(analysis_result, installed_packages)
+            self.display_smart_dependency_tree(analysis_result, installed_packages)
             
             return {
                 "success": True,
@@ -120,7 +133,7 @@ class DepsCommand(BaseCommand):
         except Exception as e:
             return {"success": False, "error": f"Dependency analysis failed: {str(e)}"}
     
-    def _parse_requirements_file(self, requirements_file):
+    def parse_requirements_file(self, requirements_file):
         """解析requirements.txt文件"""
         packages = []
         try:
@@ -131,47 +144,8 @@ class DepsCommand(BaseCommand):
         except Exception as e:
             print(f"Error parsing requirements file: {e}")
             return packages
-    
-    def _detect_current_environment_packages(self):
-        """检测当前环境的已安装包"""
-        try:
-            # 获取当前shell信息
-            current_shell = self.shell.get_current_shell()
-            shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
-            
-            # 检查是否有激活的虚拟环境
-            try:
-                from .venv_command import VenvCommand
-                venv_cmd = VenvCommand(self.shell)
-                all_states = venv_cmd._load_all_venv_states()
-                
-                current_venv = None
-                if shell_id in all_states and all_states[shell_id].get("current_venv"):
-                    current_venv = all_states[shell_id]["current_venv"]
-                
-                if current_venv:
-                    # 从JSON获取虚拟环境的包信息
-                    if 'environments' in all_states and current_venv in all_states['environments']:
-                        env_data = all_states['environments'][current_venv]
-                        return env_data.get('packages', {})
-                else:
-                    # 系统环境的基础包
-                    return {
-                        'pip': '23.0.0',
-                        'setuptools': '65.0.0'
-                    }
-            except Exception:
-                # 如果获取失败，返回基础包
-                return {
-                    'pip': '23.0.0',
-                    'setuptools': '65.0.0'
-                }
-            
-            return {}
-        except Exception as e:
-            return {}
         
-    def _get_pypi_client(self):
+    def get_pypi_client(self):
         """Get or create PyPI client instance"""
         if self._pypi_client is None:
             try:
@@ -186,33 +160,23 @@ class DepsCommand(BaseCommand):
                 self._pypi_client = None
         return self._pypi_client
 
-    def _get_package_dependencies_with_pipdeptree(self, package_name, installed_packages=None):
+    def get_package_dependencies_with_pipdeptree(self, package_name, installed_packages=None):
         """使用pipdeptree获取单个包的依赖信息"""
         try:
-            # Getting dependencies for package
-            
-            # 首先检查包是否在已安装包列表中
             if installed_packages:
-                # 标准化包名进行比较
                 pkg_variants = [package_name, package_name.replace('-', '_'), package_name.replace('_', '-')]
                 found_in_installed = False
-                actual_pkg_name = package_name
                 
                 for variant in pkg_variants:
                     if variant.lower() in [pkg.lower() for pkg in installed_packages.keys()]:
                         found_in_installed = True
-                        # 找到实际的包名（保持原始大小写）
                         for installed_pkg in installed_packages.keys():
                             if installed_pkg.lower() == variant.lower():
-                                actual_pkg_name = installed_pkg
                                 break
                         break
                 
                 if not found_in_installed:
-                    # Package not found in installed packages
                     return None
-                
-                # Package found in installed packages
             
             # 方法1：尝试本地pipdeptree (可能不会找到远程包，但值得一试)
             try:
@@ -220,8 +184,6 @@ class DepsCommand(BaseCommand):
                 import json
                 
                 cmd = ['pipdeptree', '-p', package_name, '--json', '--warn', 'silence']
-                # Running local command
-                
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
                 # Local command completed
                 
@@ -232,67 +194,49 @@ class DepsCommand(BaseCommand):
                     for pkg_info in dep_data:
                         pkg_name_in_data = pkg_info['package']['package_name']
                         if pkg_name_in_data.lower() == package_name.lower():
-                            # Found matching package locally
                             dependencies = []
                             for dep in pkg_info.get('dependencies', []):
                                 dependencies.append(dep['package_name'])
                             # Local dependencies found
                             return dependencies
                 
-                # Package not found in local pipdeptree, trying fallback
-                
-            except Exception as e:
-                # Local pipdeptree failed
-                
-                # 方法2：使用远程pip show命令获取依赖信息
-                return self._get_dependencies_via_remote_pip_show(package_name)
+            except Exception:
+                return self.get_dependencies_via_remote_pip_show(package_name)
                 
         except Exception as e:
-            # Error getting dependencies
             import traceback
             traceback.print_exc()
             return None
 
-    def _get_dependencies_via_remote_pip_show(self, package_name):
+    def get_dependencies_via_remote_pip_show(self, package_name):
         """通过远程pip show命令获取包依赖信息"""
         try:
-            # Using remote pip show for package
-            
-            # 构建远程pip show命令
             pip_show_cmd = f"pip show {package_name}"
             result = self.shell.execute_command_interface("bash", ["-c", pip_show_cmd])
             
             if not result.get("success"):
-                # Remote pip show failed
                 return []
             
             output = result.get("stdout", "")
-            # pip show output received
-            
-            # 解析pip show输出中的Requires字段
             dependencies = []
             for line in output.split('\n'):
                 if line.startswith('Requires:'):
                     requires_text = line.replace('Requires:', '').strip()
                     if requires_text and requires_text != 'None':
-                        # 解析依赖，处理版本约束
                         for dep in requires_text.split(','):
                             dep = dep.strip()
                             if dep:
-                                # 移除版本约束，只保留包名
                                 dep_name = dep.split('>=')[0].split('<=')[0].split('==')[0].split('>')[0].split('<')[0].split('!=')[0].split('~=')[0].strip()
                                 if dep_name:
                                     dependencies.append(dep_name)
                     break
             
-            # Remote pip show dependencies found
             return dependencies
             
         except Exception as e:
-            # Remote pip show error
             return []
 
-    def _get_pypi_dependencies_with_all_sizes(self, package_name):
+    def get_pypi_dependencies_with_all_sizes(self, package_name):
         """
         从PyPI JSON API获取包的直接依赖信息，同时获取每个依赖的大小
         这算作一次完整的API调用
@@ -305,7 +249,7 @@ class DepsCommand(BaseCommand):
                    如果失败返回(None, 0, {})
         """
         try:
-            pypi_client = self._get_pypi_client()
+            pypi_client = self.get_pypi_client()
             if pypi_client:
                 # Use PYPI tool
                 dependencies, package_size = pypi_client.get_package_dependencies_with_size(package_name)
@@ -356,7 +300,7 @@ class DepsCommand(BaseCommand):
         except Exception as e:
             return None, 0, {}
 
-    def _smart_dependency_analysis(self, packages, max_calls=10, interface_mode=False, installed_packages=None):
+    def smart_dependency_analysis(self, packages, max_calls=10, interface_mode=False, installed_packages=None):
         """
         智能依赖分析策略，限制API调用次数，基于包大小优化队列
         
@@ -399,7 +343,7 @@ class DepsCommand(BaseCommand):
                     continue  # 已经分析过了
                     
                 # 调用新的API获取依赖和所有大小信息
-                deps, pkg_size, dep_sizes = self._get_pypi_dependencies_with_all_sizes(current_pkg)
+                deps, pkg_size, dep_sizes = self.get_pypi_dependencies_with_all_sizes(current_pkg)
                 i += 1
                 
                 # 更新数据结构
@@ -433,7 +377,7 @@ class DepsCommand(BaseCommand):
                                     heapq.heappop(Q)
                 else:
                     # API失败，尝试fallback
-                    fallback_deps = self._get_package_dependencies_with_pipdeptree(current_pkg, installed_packages)
+                    fallback_deps = self.get_package_dependencies_with_pipdeptree(current_pkg, installed_packages)
                     if fallback_deps:
                         D[current_pkg] = fallback_deps
                     else:
@@ -512,7 +456,7 @@ class DepsCommand(BaseCommand):
                 'error': str(e)
             }
 
-    def _depth_based_dependency_analysis(self, packages, max_depth=1, interface_mode=False, installed_packages=None):
+    def depth_based_dependency_analysis(self, packages, max_depth=1, interface_mode=False, installed_packages=None):
         """
         基于深度和包数量限制的依赖分析策略
         
@@ -589,7 +533,7 @@ class DepsCommand(BaseCommand):
             
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(40, len(packages_to_analyze))) as executor:
                 future_to_package = {
-                    executor.submit(self._get_pypi_dependencies_with_all_sizes, pkg): pkg 
+                    executor.submit(self.get_pypi_dependencies_with_all_sizes, pkg): pkg 
                     for pkg in packages_to_analyze
                 }
                 
@@ -737,7 +681,7 @@ class DepsCommand(BaseCommand):
             result['download_layers'] = result['layers'].copy()
         return result
 
-    def _normalize_package_name(self, package_name):
+    def normalize_package_name(self, package_name):
         """
         标准化包名进行比较
         将下划线转换为连字符，并转换为小写
@@ -749,7 +693,7 @@ class DepsCommand(BaseCommand):
         normalized = base_name.replace('_', '-').lower().strip()
         return normalized
 
-    def _display_smart_dependency_tree(self, smart_analysis, installed_packages=None):
+    def display_smart_dependency_tree(self, smart_analysis, installed_packages=None):
         """
         显示智能依赖分析结果，包含包大小和层级信息
         
@@ -782,8 +726,8 @@ class DepsCommand(BaseCommand):
             """检查包是否已安装"""
             if not installed_packages:
                 return False
-            normalized_name = self._normalize_package_name(pkg_name)
-            normalized_installed = {self._normalize_package_name(pkg): pkg for pkg in installed_packages.keys()}
+            normalized_name = self.normalize_package_name(pkg_name)
+            normalized_installed = {self.normalize_package_name(pkg): pkg for pkg in installed_packages.keys()}
             return normalized_name in normalized_installed
         
         trees = smart_analysis.get('trees', {})

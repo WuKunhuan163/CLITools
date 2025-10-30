@@ -1,10 +1,9 @@
 """
 Venv command handler for GDS.
 """
-
 from typing import List
 from .base_command import BaseCommand
-
+import json
 
 class VenvCommand(BaseCommand):
     """Handler for venv commands."""
@@ -18,13 +17,10 @@ class VenvCommand(BaseCommand):
         if not args:
             self.print_error("venv command needs arguments")
             return 1
-        
-        # 直接调用cmd_venv方法
+
         result = self.cmd_venv(*args)
-        
-        if result.get("success", False):
-            # venv命令成功后，同步更新本地shell状态
-            self.shell._sync_venv_state_to_local_shell(args)
+        if result.get("success", False): 
+            self.shell.sync_venv_state_to_local_shell(args)
             return 0
         else:
             error_message = result.get("error", "Virtual environment operation failed")
@@ -64,29 +60,29 @@ class VenvCommand(BaseCommand):
             if action == "--create":
                 if not env_names:
                     return {"success": False, "error": "Please specify at least one environment name"}
-                return self._venv_create_batch(env_names)
+                return self.venv_create_batch(env_names)
             elif action == "--delete":
                 if not env_names:
                     return {"success": False, "error": "Please specify at least one environment name"}
-                return self._venv_delete_batch(env_names)
+                return self.venv_delete_batch(env_names)
             elif action == "--activate":
                 if len(env_names) != 1:
                     return {"success": False, "error": "Please specify exactly one environment name for activation"}
-                return self._venv_activate(env_names[0])
+                return self.venv_activate(env_names[0])
             elif action == "--deactivate":
-                return self._venv_deactivate()
+                return self.venv_deactivate()
             elif action == "--list":
-                return self._venv_list()
+                return self.venv_list()
             elif action == "--current":
-                return self._venv_current()
+                return self.venv_current()
             elif action == "--protect":
                 if not env_names:
                     return {"success": False, "error": "Please specify at least one environment name"}
-                return self._venv_protect_batch(env_names)
+                return self.venv_protect_batch(env_names)
             elif action == "--unprotect":
                 if not env_names:
                     return {"success": False, "error": "Please specify at least one environment name"}
-                return self._venv_unprotect_batch(env_names)
+                return self.venv_protect_batch(env_names, protected=False)
             else:
                 return {
                     "success": False,
@@ -96,11 +92,11 @@ class VenvCommand(BaseCommand):
         except Exception as e:
             return {"success": False, "error": f"venv命令执行失败: {str(e)}"}
     
-    def _venv_create_batch(self, env_names):
+    def venv_create_batch(self, env_names):
         """批量创建虚拟环境"""
         results = []
         for env_name in env_names:
-            result = self._venv_create(env_name)
+            result = self.venv_create(env_name)
             results.append(result)
         
         # 返回综合结果
@@ -111,22 +107,22 @@ class VenvCommand(BaseCommand):
             failed = [r.get("error", "Unknown error") for r in results if not r.get("success", False)]
             return {"success": False, "error": failed}
     
-    def _get_venv_base_path(self):
+    def get_venv_base_path(self):
         """获取虚拟环境基础路径"""
         return f"{self.shell.REMOTE_ENV}/venv"
     
-    def _get_venv_api_manager(self):
+    def get_venv_api_manager(self):
         """获取虚拟环境API管理器"""
         if not hasattr(self, '_venv_api_manager'):
             from ..venv_manager import VenvApiManager
             self._venv_api_manager = VenvApiManager(self.shell.drive_service , self.shell)
         return self._venv_api_manager
     
-    def _get_venv_state_file_path(self):
+    def get_venv_state_file_path(self):
         """获取虚拟环境状态文件路径（统一的JSON格式）"""
-        return f"{self._get_venv_base_path()}/venv_states.json"
+        return f"{self.get_venv_base_path()}/venv_states.json"
     
-    def _venv_create(self, env_name):
+    def venv_create(self, env_name):
         """创建虚拟环境"""
         if not env_name:
             return {"success": False, "error": "Environment name required"}
@@ -136,12 +132,12 @@ class VenvCommand(BaseCommand):
         
         try:
             # 使用正确的路径：REMOTE_ENV/venv
-            env_path = f"{self._get_venv_base_path()}/{env_name}"
+            env_path = f"{self.get_venv_base_path()}/{env_name}"
             
 
             
             # 使用API管理器检查环境是否已存在
-            api_manager = self._get_venv_api_manager()
+            api_manager = self.get_venv_api_manager()
             existing_envs = api_manager.list_venv_environments()
             
             if env_name in existing_envs:
@@ -181,10 +177,10 @@ class VenvCommand(BaseCommand):
         except Exception as e:
             return {"success": False, "error": f"Error creating environment '{env_name}': {str(e)}"}
     
-    def _venv_delete_batch(self, env_names):
+    def venv_delete_batch(self, env_names):
         """批量删除虚拟环境（优化版：一个远程命令完成检查和删除）"""
         # 获取被保护的环境列表
-        protected_envs = self._get_protected_environments()
+        protected_envs = self.get_protected_environments()
         candidate_envs = []
         skipped_protected = []
         
@@ -218,7 +214,7 @@ class VenvCommand(BaseCommand):
         
         # 为每个候选环境添加检查和删除逻辑
         for env_name in candidate_envs:
-            env_path = f"{self._get_venv_base_path()}/{env_name}"
+            env_path = f"{self.get_venv_base_path()}/{env_name}"
             env_script = f'''
 if [ "$CURRENT_ENV" != "{env_name}" ] && [ -d "{env_path}" ]; then
   rm -rf "{env_path}"
@@ -236,7 +232,112 @@ fi
                 "error": f"Failed to execute delete operation: {result.get('error', 'Unknown error')}"
             }
     
-    def _venv_activate(self, env_name):
+    def update_venv_json_field(self, env_name, field_path, value, success_message="Field updated"):
+        """
+        统一的JSON状态文件字段更新方法
+        
+        Args:
+            env_name (str): 环境名称
+            field_path (str): 字段路径，例如 "environments.{env}.protected" 或 "shells.{shell}.current_venv"
+            value: 要设置的值
+            success_message (str): 成功时显示的消息
+            
+        Returns:
+            dict: 操作结果
+        """
+        if not env_name or env_name.startswith('.'):
+            return {"success": False, "error": "Invalid environment name"}
+        
+        try:
+            env_path = f"{self.get_venv_base_path()}/{env_name}"
+            venv_states_file = self.get_venv_state_file_path()
+            
+            # 将value转换为JSON字符串（如果是字符串则添加引号，如果是bool/None则用Python表示）
+            if isinstance(value, str):
+                value_json = f'"{value}"'
+            elif isinstance(value, bool):
+                value_json = 'True' if value else 'False'
+            elif value is None:
+                value_json = 'None'
+            else:
+                value_json = str(value)
+            
+            # 生成远程命令
+            remote_command = f'''
+# 检查环境是否存在
+if [ -d "{env_path}" ]; then
+    : # Environment exists, continue
+else
+    echo "ERROR: Environment '{env_name}' does not exist"
+    exit 1
+fi
+
+# 确保状态文件存在
+mkdir -p "{self.get_venv_base_path()}"
+if [ -f "{venv_states_file}" ]; then
+    : # State file exists
+else
+    echo '{{}}' > "{venv_states_file}"
+fi
+
+# 使用Python更新状态文件
+python3 -c "
+import json
+
+state_file = '{venv_states_file}'
+env_name = '{env_name}'
+field_path = '{field_path}'
+value = {value_json}
+
+# 读取现有状态
+try:
+    with open(state_file, 'r') as f:
+        states = json.load(f)
+except:
+    states = {{}}
+
+# 解析字段路径并设置值
+# 例如: 'environments.{{env}}.protected' -> states['environments'][env_name]['protected'] = value
+parts = field_path.replace('{{env}}', env_name).replace('{{shell}}', '${{GDS_SHELL_ID:-default_shell}}').split('.')
+
+# 确保中间路径存在
+current = states
+for part in parts[:-1]:
+    if part not in current:
+        current[part] = {{}}
+    current = current[part]
+
+# 设置最终值
+current[parts[-1]] = value
+
+# 写入更新后的状态
+with open(state_file, 'w') as f:
+    json.dump(states, f, indent=2, ensure_ascii=False)
+
+print('{success_message}')
+"
+'''
+            
+            result = self.shell.execute_command_interface("bash", ["-c", remote_command])
+            
+            if result.get("success"):
+                data = result.get("data", {})
+                exit_code = data.get("exit_code", result.get("exit_code", -1))
+                
+                if exit_code == 0:
+                    return {"success": True, "message": success_message}
+                else:
+                    stderr = data.get("stderr", result.get("stderr", ""))
+                    if "does not exist" in stderr:
+                        return {"success": False, "error": f"Environment '{env_name}' does not exist"}
+                    return {"success": False, "error": f"Failed to update field: {stderr}"}
+            else:
+                return {"success": False, "error": f"Command execution failed: {result.get('error', 'Unknown error')}"}
+                
+        except Exception as e:
+            return {"success": False, "error": f"Error updating field: {str(e)}"}
+    
+    def venv_activate(self, env_name):
         """激活虚拟环境（设置PYTHONPATH）"""
         if not env_name:
             return {"success": False, "error": "Please specify the environment name"}
@@ -245,8 +346,8 @@ fi
             return {"success": False, "error": "Environment name cannot start with '.'"}
         
         try:
-            venv_states_file = f"{self._get_venv_base_path()}/venv_states.json"
-            env_path = f"{self._get_venv_base_path()}/{env_name}"
+            venv_states_file = f"{self.get_venv_base_path()}/venv_states.json"
+            env_path = f"{self.get_venv_base_path()}/{env_name}"
             
             remote_env_path = self.shell.REMOTE_ENV
             remote_command = f'''
@@ -286,7 +387,7 @@ if [ "$CURRENT_VENV" = "already_active" ]; then
 fi
 
 # 保存新的状态到JSON文件
-mkdir -p "{self._get_venv_base_path()}"
+mkdir -p "{self.get_venv_base_path()}"
 python3 -c "
 import json
 import os
@@ -397,10 +498,10 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error activating virtual environment: {str(e)}"}
     
-    def _venv_deactivate(self):
+    def venv_deactivate(self):
         """取消激活虚拟环境（清除PYTHONPATH）"""
         try:
-            venv_states_file = self._get_venv_state_file_path()
+            venv_states_file = self.get_venv_state_file_path()
             
             remote_command = f'''
 # 获取当前shell ID
@@ -486,11 +587,11 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error deactivating virtual environment: {str(e)}"}
     
-    def _venv_list(self):
+    def venv_list(self):
         """列出所有虚拟环境（显示当前激活环境的*标记）"""
         try:
             # 使用API管理器列出虚拟环境
-            api_manager = self._get_venv_api_manager()
+            api_manager = self.get_venv_api_manager()
             env_names = api_manager.list_venv_environments()
             
             # 获取当前激活的环境
@@ -534,11 +635,11 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error listing environments: {str(e)}"}
     
-    def _venv_current(self):
+    def venv_current(self):
         """显示当前激活的虚拟环境"""
         try:
             # 使用API管理器获取当前状态
-            api_manager = self._get_venv_api_manager()
+            api_manager = self.get_venv_api_manager()
             states = api_manager.read_venv_states()
             
             if states.get("success"):
@@ -578,230 +679,177 @@ fi
             print(f"No virtual environment currently activated")
             return {"success": True, "current": None, "error": str(e)}
     
-    def _venv_protect_batch(self, env_names):
-        """批量保护虚拟环境（防止误删）"""
-        success_list = []
-        failed_list = []
+    def venv_protect_batch(self, env_names, protected=True):
+        """
+        批量保护或取消保护虚拟环境（优化：单次远程命令，只弹出一个窗口）
         
-        for env_name in env_names:
-            result = self._venv_protect(env_name)
-            if result.get("success"):
-                success_list.append(env_name)
-            else:
-                failed_list.append(f"{env_name}: {result.get('error', 'Unknown error')}")
+        Args:
+            env_names (list): 环境名称列表
+            protected (bool): True=保护, False=取消保护
+        """
+        if not env_names:
+            return {"success": False, "error": "No environments specified"}
         
-        if failed_list:
-            return {
-                "success": False,
-                "error": f"Failed to protect some environments: {', '.join(failed_list)}",
-                "success_count": len(success_list),
-                "failed_count": len(failed_list)
-            }
-        else:
-            return {
-                "success": True,
-                "message": f"Successfully protected {len(success_list)} environment(s)",
-                "protected": success_list
-            }
-    
-    def _venv_unprotect_batch(self, env_names):
-        """批量取消保护虚拟环境"""
-        success_list = []
-        failed_list = []
-        
-        for env_name in env_names:
-            result = self._venv_unprotect(env_name)
-            if result.get("success"):
-                success_list.append(env_name)
-            else:
-                failed_list.append(f"{env_name}: {result.get('error', 'Unknown error')}")
-        
-        if failed_list:
-            return {
-                "success": False,
-                "error": f"Failed to unprotect some environments: {', '.join(failed_list)}",
-                "success_count": len(success_list),
-                "failed_count": len(failed_list)
-            }
-        else:
-            return {
-                "success": True,
-                "message": f"Successfully unprotected {len(success_list)} environment(s)",
-                "unprotected": success_list
-            }
-    
-    def _venv_protect(self, env_name):
-        """保护虚拟环境（在状态文件中标记为protected）"""
-        if not env_name:
-            return {"success": False, "error": "Environment name required"}
-        
-        if env_name.startswith('.'):
-            return {"success": False, "error": "Environment name cannot start with '.'"}
+        # 过滤无效的环境名
+        valid_env_names = [name for name in env_names if name and not name.startswith('.')]
+        if not valid_env_names:
+            return {"success": False, "error": "No valid environment names provided"}
         
         try:
-            env_path = f"{self._get_venv_base_path()}/{env_name}"
-            venv_states_file = self._get_venv_state_file_path()
+            venv_base_path = self.get_venv_base_path()
+            venv_states_file = self.get_venv_state_file_path()
             
-            # 使用远程命令更新状态文件
+            # 生成JSON数组用于Python脚本
+            env_names_json = json.dumps(valid_env_names)
+            
+            # 生成单个远程命令处理所有环境
             remote_command = f'''
-# 检查环境是否存在
-if [ -d "{env_path}" ]; then
-    : # Environment exists, continue
-else
-    echo "ERROR: Environment '{env_name}' does not exist"
-    exit 1
-fi
+#!/bin/bash
+# 批量保护虚拟环境
 
 # 确保状态文件存在
-mkdir -p "{self._get_venv_base_path()}"
-if [ -f "{venv_states_file}" ]; then
-    : # State file exists
-else
+mkdir -p "{venv_base_path}"
+if [ ! -f "{venv_states_file}" ]; then
     echo '{{}}' > "{venv_states_file}"
 fi
 
-# 使用Python更新状态文件，添加protected标记
-python3 -c "
+# 使用Python批量处理所有环境
+python3 << 'PYEOF'
 import json
 import os
+import sys
 
-state_file = '{venv_states_file}'
-env_name = '{env_name}'
+env_names = {env_names_json}
+venv_base_path = "{venv_base_path}"
+state_file = "{venv_states_file}"
 
-# 读取现有状态
-try:
-    with open(state_file, 'r') as f:
-        states = json.load(f)
-except:
-    states = {{}}
+success_list = []
+failed_list = []
 
-# 确保environments字段存在
-if 'environments' not in states:
-    states['environments'] = {{}}
+# 检查每个环境是否存在
+for env_name in env_names:
+    env_path = os.path.join(venv_base_path, env_name)
+    if not os.path.isdir(env_path):
+        failed_list.append(f"{{env_name}}: Environment does not exist")
+    else:
+        success_list.append(env_name)
 
-# 添加或更新环境的protected标记
-if env_name not in states['environments']:
-    states['environments'][env_name] = {{}}
-
-states['environments'][env_name]['protected'] = True
-
-# 写入更新后的状态
-with open(state_file, 'w') as f:
-    json.dump(states, f, indent=2, ensure_ascii=False)
-
-print(f'Environment {{env_name}} has been protected')
-"
-'''
-            
-            result = self.shell.execute_command_interface("bash", ["-c", remote_command])
-            
-            if result.get("success"):
-                data = result.get("data", {})
-                exit_code = data.get("exit_code") if "exit_code" in data else result.get("exit_code", -1)
-                
-                if exit_code == 0:
-                    print(f"Virtual environment '{env_name}' is now protected")
-                    return {"success": True, "message": f"Environment '{env_name}' protected"}
-                else:
-                    stderr = data.get("stderr") if "stderr" in data else result.get("stderr", "")
-                    if "does not exist" in stderr:
-                        return {"success": False, "error": f"Environment '{env_name}' does not exist"}
-                    return {"success": False, "error": f"Failed to protect environment: {stderr}"}
-            else:
-                return {"success": False, "error": f"Command execution failed: {result.get('error', 'Unknown error')}"}
-                
-        except Exception as e:
-            return {"success": False, "error": f"Error protecting environment: {str(e)}"}
-    
-    def _venv_unprotect(self, env_name):
-        """取消保护虚拟环境（移除protected标记）"""
-        if not env_name:
-            return {"success": False, "error": "Environment name required"}
-        
-        if env_name.startswith('.'):
-            return {"success": False, "error": "Environment name cannot start with '.'"}
-        
+# 如果有成功的环境，更新状态文件
+if success_list:
+    try:
+        # 读取现有状态
         try:
-            env_path = f"{self._get_venv_base_path()}/{env_name}"
-            venv_states_file = self._get_venv_state_file_path()
-            
-            # 使用远程命令更新状态文件
-            remote_command = f'''
-# 检查环境是否存在
-if [ -d "{env_path}" ]; then
-    : # Environment exists, continue
-else
-    echo "ERROR: Environment '{env_name}' does not exist"
-    exit 1
-fi
-
-# 确保状态文件存在
-if [ -f "{venv_states_file}" ]; then
-    : # State file exists, continue
-else
-    echo "WARNING: State file does not exist, nothing to unprotect"
-    exit 0
-fi
-
-# 使用Python更新状态文件，移除protected标记
-python3 -c "
-import json
-import os
-
-state_file = '{venv_states_file}'
-env_name = '{env_name}'
-
-# 读取现有状态
-try:
-    with open(state_file, 'r') as f:
-        states = json.load(f)
-except:
-    print(f'Environment {{env_name}} was not protected')
-    exit(0)
-
-# 移除protected标记
-if 'environments' in states and env_name in states['environments']:
-    if 'protected' in states['environments'][env_name]:
-        del states['environments'][env_name]['protected']
+            with open(state_file, 'r') as f:
+                states = json.load(f)
+        except:
+            states = {{}}
         
-        # 如果环境记录变为空字典，也保留它（可能有其他元数据）
+        # 确保environments字段存在
+        if 'environments' not in states:
+            states['environments'] = {{}}
+        
+        # 批量添加/移除protected标记
+        for env_name in success_list:
+            if env_name not in states['environments']:
+                states['environments'][env_name] = {{}}
+            states['environments'][env_name]['protected'] = {protected}
         
         # 写入更新后的状态
         with open(state_file, 'w') as f:
             json.dump(states, f, indent=2, ensure_ascii=False)
-        
-        print(f'Environment {{env_name}} protection removed')
-    else:
-        print(f'Environment {{env_name}} was not protected')
-else:
-    print(f'Environment {{env_name}} was not protected')
-"
+    except Exception as e:
+        # 如果状态文件更新失败，将所有环境标记为失败
+        failed_list.extend([f"{{env}}: State file update failed" for env in success_list])
+        success_list = []
+
+# 输出JSON结果
+result = {{
+    "success": len(success_list) > 0,
+    "protected": success_list,
+    "failed": failed_list,
+    "success_count": len(success_list),
+    "failed_count": len(failed_list)
+}}
+print(json.dumps(result))
+PYEOF
 '''
             
             result = self.shell.execute_command_interface("bash", ["-c", remote_command])
             
             if result.get("success"):
                 data = result.get("data", {})
-                exit_code = data.get("exit_code") if "exit_code" in data else result.get("exit_code", -1)
+                stdout = data.get("stdout", "") if "stdout" in data else result.get("stdout", "")
                 
-                if exit_code == 0:
-                    print(f"Virtual environment '{env_name}' protection removed")
-                    return {"success": True, "message": f"Environment '{env_name}' unprotected"}
-                else:
-                    stderr = data.get("stderr") if "stderr" in data else result.get("stderr", "")
-                    if "does not exist" in stderr:
-                        return {"success": False, "error": f"Environment '{env_name}' does not exist"}
-                    return {"success": False, "error": f"Failed to unprotect environment: {stderr}"}
+                # 解析JSON结果
+                try:
+                    batch_result = json.loads(stdout.strip())
+                    
+                    if batch_result.get("success"):
+                        action_key = "protected" if protected else "unprotected"
+                        action_list = batch_result.get(action_key, [])
+                        failed = batch_result.get("failed", [])
+                        action_verb = "Protected" if protected else "Unprotected"
+                        
+                        if action_list:
+                            print(f"{action_verb} {len(action_list)} environment(s): {', '.join(action_list)}")
+                        if failed:
+                            print(f"Failed {len(failed)} environment(s): {', '.join(failed)}")
+                        
+                        return {
+                            "success": True,
+                            "message": f"Successfully {action_verb.lower()} {len(action_list)} environment(s)",
+                            action_key: action_list,
+                            "failed": failed
+                        }
+                    else:
+                        action_verb = "protect" if protected else "unprotect"
+                        return {
+                            "success": False,
+                            "error": f"Failed to {action_verb} environments: {', '.join(batch_result.get('failed', []))}",
+                            "failed": batch_result.get("failed", [])
+                        }
+                except json.JSONDecodeError:
+                    return {"success": False, "error": f"Failed to parse result: {stdout}"}
             else:
                 return {"success": False, "error": f"Command execution failed: {result.get('error', 'Unknown error')}"}
                 
         except Exception as e:
-            return {"success": False, "error": f"Error unprotecting environment: {str(e)}"}
+            return {"success": False, "error": f"Error protecting environments: {str(e)}"}
     
-    def _get_protected_environments(self):
+    
+    def venv_protect(self, env_name, protected=True):
+        """
+        保护或取消保护虚拟环境
+        
+        Args:
+            env_name (str): 环境名称
+            protected (bool): True=保护, False=取消保护
+            
+        Returns:
+            dict: 操作结果
+        """
+        if not env_name:
+            return {"success": False, "error": "Environment name required"}
+        
+        action_msg = "protected" if protected else "unprotected"
+        result = self.update_venv_json_field(
+            env_name, 
+            "environments.{env}.protected", 
+            protected, 
+            f"Environment {env_name} has been {action_msg}"
+        )
+        
+        if result.get("success"):
+            status = "protected" if protected else "unprotected"
+            print(f"Virtual environment '{env_name}' is now {status}")
+        
+        return result
+    
+    
+    def get_protected_environments(self):
         """获取被保护的虚拟环境列表"""
         try:
-            venv_states_file = self._get_venv_state_file_path()
+            venv_states_file = self.get_venv_state_file_path()
             
             # 读取状态文件
             read_command = f'''

@@ -1,13 +1,32 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Sync Manager Module
-从google_drive_shell.py重构而来的sync_manager模块
 """
 
 import os
+import json
 import shutil
 from pathlib import Path
 from .command_executor import debug_print
+from .system_utils import is_run_environment, write_to_json_output
+from .drive_api_service import test_drive_folder_access, extract_folder_id_from_url
+
+def get_multiline_user_input(prompt, single_line=False):
+    """简单的用户输入函数（为了向后兼容）"""
+    if single_line:
+        return input(prompt)
+    else:
+        lines = []
+        print(prompt)
+        while True:
+            try:
+                line = input()
+                if not line:
+                    break
+                lines.append(line)
+            except EOFError:
+                break
+        return '\n'.join(lines)
 
 class SyncManager:
     """Google Drive Shell Sync Manager"""
@@ -31,11 +50,11 @@ class SyncManager:
             # 确保 LOCAL_EQUIVALENT 目录存在
             local_equiv_path = Path(self.main_instance.LOCAL_EQUIVALENT)
             if not local_equiv_path.exists():
-                return self._create_error_result(f"LOCAL_EQUIVALENT directory does not exist: {self.main_instance.LOCAL_EQUIVALENT}")
+                return {"success": False, "error": f"LOCAL_EQUIVALENT directory does not exist: {self.main_instance.LOCAL_EQUIVALENT}"}
             
             source_path = Path(file_path)
             if not source_path.exists():
-                return self._create_error_result(f"File does not exist: {file_path}")
+                return {"success": False, "error": f"File does not exist: {file_path}"}
             
             # 获取文件名和扩展名
             filename = source_path.name
@@ -49,11 +68,11 @@ class SyncManager:
             
             # 首先检查远端是否有同名文件和缓存建议
             debug_print(f"Checking conflicts for: {filename}")
-            remote_check_result = self.main_instance.file_validator._check_remote_file_exists(filename)
+            remote_check_result = self.main_instance.check_remote_file_exists(filename)
             remote_has_same_file = remote_check_result.get("exists", False)
             
             # 检查是否在删除时间缓存中（5分钟内删除过）
-            cache_suggests_rename = self.should_rename_file(filename)
+            cache_suggests_rename = self.main_instance.cache_manager.should_rename_file(filename)
             
             debug_print(f"Conflict check: {filename} -> remote_exists={remote_has_same_file}, cache_suggests_rename={cache_suggests_rename}, local_exists={target_path.exists()}")
             
@@ -69,7 +88,7 @@ class SyncManager:
                     
                     # 检查新文件名是否在本地不冲突，并且不在缓存记录中
                     if not new_target_path.exists():
-                        temp_cache_suggests_rename = self.should_rename_file(new_filename)
+                        temp_cache_suggests_rename = self.main_instance.cache_manager.should_rename_file(new_filename)
                         if not temp_cache_suggests_rename:
                             target_path = new_target_path
                             final_filename = new_filename
@@ -117,7 +136,7 @@ class SyncManager:
             }
             
         except Exception as e:
-            return self._handle_exception(e, "Moving file")
+            return self.handle_exception(e, "Moving file")
 
     def check_network_connection(self):
         """
@@ -128,7 +147,7 @@ class SyncManager:
         """
         result = self.drive_service.test_connection()
         if result.get('success'):
-            return self._create_success_result("Google Drive API connection is normal")
+            return self.create_success_result("Google Drive API connection is normal")
         else:
             return {"success": False, "error": f"Google Drive API connection failed: {result.get('error', 'Unknown error')}"}
             
@@ -243,42 +262,243 @@ class SyncManager:
                 "sync_time": 0,
                 "error": f"File sync error: {str(e)}"
             }
-    
-    def _create_error_result(self, error_message):
-        """
-        创建标准的错误返回结果
-        
-        Args:
-            error_message (str): 错误消息
-            
-        Returns:
-            dict: 标准错误结果字典
-        """
-        return {"success": False, "error": error_message}
-    
-    def _handle_exception(self, e, operation_name, default_message=None):
-        """
-        通用异常处理方法
-        
-        Args:
-            e (Exception): 异常对象
-            operation_name (str): 操作名称
-            default_message (str, optional): 默认错误消息
-            
-        Returns:
-            dict: 错误结果字典
-        """
-        if default_message:
-            error_msg = f"{default_message}: {str(e)}"
-        else:
-            error_msg = f"{operation_name}时出错: {str(e)}"
-        return self._create_error_result(error_msg)
-    
 
-    def should_rename_file(self, filename):
-        """委托到cache_manager的文件重命名检查"""
-        return self.main_instance.cache_manager.should_rename_file(filename)
-    
-    def add_deletion_record(self, filename):
-        """委托到cache_manager的删除记录添加"""
-        return self.main_instance.cache_manager.add_deletion_record(filename)
+def get_sync_config_file():
+    """获取同步配置文件路径"""
+    # 从modules目录向上两级到bin目录，然后进入GOOGLE_DRIVE_DATA
+    data_dir = Path(__file__).parent.parent.parent / "GOOGLE_DRIVE_DATA"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir / "sync_config.json"
+
+def load_sync_config():
+    """加载同步配置"""
+    try:
+        config_file = get_sync_config_file()
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            return {
+                "local_equivalent": os.path.expanduser("~/Applications/Google Drive"),
+                "drive_equivalent": "/content/drive/Othercomputers/我的 MacBook Air/Google Drive",
+                "drive_equivalent_folder_id": "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY"
+            }
+    except Exception as e:
+        print(f"加载同步配置失败: {e}")
+        return {
+            "local_equivalent": os.path.expanduser("~/Applications/Google Drive"),
+            "drive_equivalent": "/content/drive/Othercomputers/我的 MacBook Air/Google Drive", 
+            "drive_equivalent_folder_id": "1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY"
+        }
+
+def save_sync_config(config):
+    """保存同步配置"""
+    try:
+        config_file = get_sync_config_file()
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"保存同步配置失败: {e}")
+        return False
+
+def set_local_sync_dir(command_identifier=None):
+    """设置本地同步目录"""
+    try:
+        # 加载当前配置
+        config = load_sync_config()
+        current_local = config.get("local_equivalent", "未设置")
+        
+        if is_run_environment(command_identifier):
+            # RUN环境下返回交互式设置信息
+            write_to_json_output({
+                "success": True,
+                "action": "interactive_setup",
+                "current_local_equivalent": current_local,
+                "instructions": "请在终端中运行: GOOGLE_DRIVE --desktop --set-local-sync-dir"
+            }, command_identifier)
+            return 0
+        
+        print(f"设置本地同步目录")
+        print(f"=" * 50)
+        print(f"当前设置: {current_local}")
+        print()
+        
+        new_path = get_multiline_user_input("请输入新的本地同步目录路径 (直接回车保持不变): ", single_line=True)
+        
+        if not new_path:
+            print(f"Keep current setting")
+            return 0
+        
+        # 展开路径
+        expanded_path = os.path.expanduser(os.path.expandvars(new_path))
+        
+        # 检查路径是否存在
+        if not os.path.exists(expanded_path):
+            print(f"Error: Path does not exist: {expanded_path}")
+            print(f"请确认路径正确后重试")
+            return 1
+        
+        if not os.path.isdir(expanded_path):
+            print(f"Error: Path is not a directory: {expanded_path}")
+            return 1
+        
+        # 更新配置
+        config["local_equivalent"] = expanded_path
+        
+        if save_sync_config(config):
+            print(f"Local sync directory updated: {expanded_path}")
+            return 0
+        else:
+            print(f"Error:  Save configuration failed")
+            return 1
+            
+    except KeyboardInterrupt:
+        print(f"\nError: Operation cancelled")
+        return 1
+    except Exception as e:
+        error_msg = f"Error setting local sync directory: {e}"
+        if is_run_environment(command_identifier):
+            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
+        else:
+            print(f"Error: {error_msg}")
+        return 1
+
+def set_global_sync_dir(command_identifier=None):
+    """设置全局同步目录"""
+    try:
+        # 加载当前配置
+        config = load_sync_config()
+        current_drive = config.get("drive_equivalent", "未设置")
+        current_folder_id = config.get("drive_equivalent_folder_id", "未设置")
+        
+        if is_run_environment(command_identifier):
+            # RUN环境下返回交互式设置信息
+            write_to_json_output({
+                "success": True,
+                "action": "interactive_setup",
+                "current_drive_equivalent": current_drive,
+                "current_folder_id": current_folder_id,
+                "instructions": "请在终端中运行: GOOGLE_DRIVE --desktop --set-global-sync-dir"
+            }, command_identifier)
+            return 0
+        
+        print(f"设置全局同步目录")
+        print(f"=" * 50)
+        print(f"当前设置:")
+        print(f"  逻辑路径: {current_drive}")
+        print(f"  文件夹ID: {current_folder_id}")
+        print()
+        
+        # 获取文件夹URL
+        folder_url = get_multiline_user_input("请输入Google Drive文件夹链接 (直接回车保持不变): ", single_line=True)
+        
+        if not folder_url:
+            print(f"Keep current setting")
+            return 0
+        
+        # 提取文件夹ID
+        folder_id = extract_folder_id_from_url(folder_url)
+        if not folder_id:
+            print(f"Error: Unable to extract folder ID from URL")
+            print(f"请确认URL格式正确，例如: https://drive.google.com/drive/u/0/folders/1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY")
+            return 1
+        
+        print(f"Extracted folder ID: {folder_id}")
+        
+        # 测试文件夹访问
+        print(f"测试文件夹访问权限...")
+        if not test_drive_folder_access(folder_id):
+            print(f"Error: Unable to access the folder")
+            print(f"请确认:")
+            print(f"  1. 文件夹ID正确")
+            print(f"  2. 服务账户有访问权限")
+            print(f"  3. 网络连接正常")
+            return 1
+        
+        print(f"Folder access test passed")
+        
+        # 获取逻辑路径
+        logical_path = get_multiline_user_input("请输入该文件夹对应的逻辑路径 (例如: /content/drive/Othercomputers/我的 MacBook Air/Google Drive): ", single_line=True)
+        
+        if not logical_path:
+            print(f"Error: Logical path cannot be empty")
+            return 1
+        
+        # 验证逻辑路径格式
+        if not logical_path.startswith('/'):
+            print(f"Warning: 逻辑路径通常以 / 开头")
+        
+        print(f"逻辑路径已设置为: {logical_path}")
+        
+        # 更新配置
+        config["drive_equivalent"] = logical_path
+        config["drive_equivalent_folder_id"] = folder_id
+        
+        if save_sync_config(config):
+            print(f"Global sync directory configuration updated:")
+            print(f"  文件夹ID: {folder_id}")
+            print(f"  逻辑路径: {logical_path}")
+            
+            # 更新GoogleDriveShell实例的配置
+            try:
+                from ..google_drive_shell import GoogleDriveShell
+                shell = GoogleDriveShell()
+                shell.DRIVE_EQUIVALENT = logical_path
+                shell.DRIVE_EQUIVALENT_FOLDER_ID = folder_id
+                print(f"Runtime configuration also updated")
+            except:
+                pass  # 如果更新失败也不影响主要功能
+            
+            return 0
+        else:
+            print(f"Error:  Save configuration failed")
+            return 1
+            
+    except KeyboardInterrupt:
+        print(f"\nError: Operation cancelled")
+        return 1
+    except Exception as e:
+        error_msg = f"Error setting global sync directory: {e}"
+        if is_run_environment(command_identifier):
+            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
+        else:
+            print(f"Error: {error_msg}")
+        return 1
+
+def get_google_drive_status(command_identifier=None):
+    """获取Google Drive Desktop状态信息"""
+    try:
+        # 导入需要的函数（延迟导入避免循环依赖）
+        from . import drive_process_manager
+        
+        running = drive_process_manager.is_google_drive_running()
+        processes = drive_process_manager.get_google_drive_processes()
+        
+        result_data = {
+            "success": True,
+            "running": running,
+            "process_count": len(processes),
+            "processes": processes,
+            "message": f"Google Drive {'正在运行' if running else '未运行'} ({len(processes)} 个进程)"
+        }
+        
+        if is_run_environment(command_identifier):
+            write_to_json_output(result_data, command_identifier)
+        else:
+            print(result_data["message"])
+            if running and processes:
+                print(f"进程ID: {', '.join(processes)}")
+        return 0
+        
+    except Exception as e:
+        error_data = {
+            "success": False,
+            "error": f"获取状态时出错: {e}"
+        }
+        
+        if is_run_environment(command_identifier):
+            write_to_json_output(error_data, command_identifier)
+        else:
+            print(error_data["error"])
+        return 1

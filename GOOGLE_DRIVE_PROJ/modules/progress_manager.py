@@ -59,6 +59,10 @@ def stop_progress_buffering():
     """停止进度显示"""
     _global_progress_display.stop_progress()
 
+def is_progress_active():
+    """检查进度显示是否激活"""
+    return _global_progress_display.is_active
+
 def progress_print(message: str, end: str = "\n", flush: bool = False):
     """更新进度信息（添加点或其他内容）"""
     if end == "" or end == "\n":
@@ -77,9 +81,10 @@ def clear_progress():
     """清除进度显示"""
     _global_progress_display.stop_progress()
 
-def is_progress_active() -> bool:
-    """检查是否在进度显示模式"""
-    return _global_progress_display.is_active
+def add_success_mark():
+    """添加成功标记到进度显示"""
+    _global_progress_display.update_progress(" ✓")
+
 
 
 def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0, max_attempts=None):
@@ -100,7 +105,7 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
     import sys
     
     # 开始进度显示
-    if is_progress_active():
+    if _global_progress_display.is_active:
         clear_progress()
     start_progress_buffering(progress_message)
     

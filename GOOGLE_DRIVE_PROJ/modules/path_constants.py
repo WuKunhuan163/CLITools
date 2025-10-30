@@ -6,11 +6,9 @@
 提供统一的路径解析和配置加载功能。
 """
 
-import os
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
-
+from typing import Optional
 
 class PathConstants:
     """路径常量管理器"""
@@ -62,9 +60,9 @@ class PathConstants:
         self.HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
         
         # 加载配置
-        self._load_configuration()
+        self.load_path_configuration()
     
-    def _load_configuration(self):
+    def load_path_configuration(self):
         """加载配置文件中的路径设置"""
         try:
             if self.SYNC_CONFIG_FILE.exists():
@@ -110,13 +108,6 @@ class PathConstants:
         """
         return self._default_folder_ids.get(folder_name)
     
-    def get_all_paths(self) -> Dict[str, str]:
-        """获取所有路径常量"""
-        return self._default_paths.copy()
-    
-    def get_all_folder_ids(self) -> Dict[str, Optional[str]]:
-        """获取所有文件夹ID常量"""
-        return self._default_folder_ids.copy()
     
     def detect_environment(self) -> str:
         """
@@ -150,33 +141,9 @@ path_constants = PathConstants()
 
 
 # 便捷函数
-def get_path(path_name: str) -> str:
-    """获取路径常量的便捷函数"""
-    return path_constants.get_path(path_name)
 
 
-def get_folder_id(folder_name: str) -> Optional[str]:
-    """获取文件夹ID的便捷函数"""
-    return path_constants.get_folder_id(folder_name)
-
-
-def get_data_dir() -> Path:
-    """获取数据目录的便捷函数"""
-    return path_constants.GOOGLE_DRIVE_DATA_DIR
-
-
-def get_proj_dir() -> Path:
-    """获取项目目录的便捷函数"""
-    return path_constants.GOOGLE_DRIVE_PROJ_DIR
-
-
-# 向后兼容的常量定义
-LOCAL_EQUIVALENT = path_constants.get_path("LOCAL_EQUIVALENT")
-DRIVE_EQUIVALENT = path_constants.get_path("DRIVE_EQUIVALENT")
-REMOTE_ROOT = path_constants.get_path("REMOTE_ROOT")
-REMOTE_ENV = path_constants.get_path("REMOTE_ENV")
-
-HOME_FOLDER_ID = path_constants.get_folder_id("HOME_FOLDER_ID")
+# 向后兼容的常量定义 (保留常用的)
 REMOTE_ROOT_FOLDER_ID = path_constants.get_folder_id("REMOTE_ROOT_FOLDER_ID")
 REMOTE_ENV_FOLDER_ID = path_constants.get_folder_id("REMOTE_ENV_FOLDER_ID")
 DRIVE_EQUIVALENT_FOLDER_ID = path_constants.get_folder_id("DRIVE_EQUIVALENT_FOLDER_ID")
@@ -184,19 +151,30 @@ DRIVE_EQUIVALENT_FOLDER_ID = path_constants.get_folder_id("DRIVE_EQUIVALENT_FOLD
 HOME_URL = path_constants.HOME_URL
 
 
+# 向后兼容的辅助函数
+def get_data_dir():
+    """获取数据目录"""
+    return path_constants.GOOGLE_DRIVE_DATA_DIR
+
+
+def get_proj_dir():
+    """获取项目目录"""
+    return path_constants.GOOGLE_DRIVE_PROJ_DIR
+
+
 if __name__ == '__main__':
     # 测试路径常量管理器
     print("=== 路径常量管理器测试 ===")
-    print(f"数据目录: {get_data_dir()}")
-    print(f"项目目录: {get_proj_dir()}")
-    print(f"REMOTE_ROOT: {get_path('REMOTE_ROOT')}")
-    print(f"LOCAL_EQUIVALENT: {get_path('LOCAL_EQUIVALENT')}")
+    print(f"数据目录: {path_constants.GOOGLE_DRIVE_DATA_DIR}")
+    print(f"项目目录: {path_constants.GOOGLE_DRIVE_PROJ_DIR}")
+    print(f"REMOTE_ROOT: {path_constants.get_path('REMOTE_ROOT')}")
+    print(f"LOCAL_EQUIVALENT: {path_constants.get_path('LOCAL_EQUIVALENT')}")
     print(f"环境类型: {path_constants.detect_environment()}")
     
     print("\n所有路径:")
-    for name, path in path_constants.get_all_paths().items():
+    for name, path in path_constants._default_paths.items():
         print(f"  {name}: {path}")
     
     print("\n所有文件夹ID:")
-    for name, folder_id in path_constants.get_all_folder_ids().items():
+    for name, folder_id in path_constants._default_folder_ids.items():
         print(f"  {name}: {folder_id}")

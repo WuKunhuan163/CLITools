@@ -1,23 +1,7 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Virtual environment management
-Refactored from file_operations.py
 """
-
-class FileOperationsBase:
-    """Base class for file operations modules"""
-    
-    def __init__(self, drive_service, main_instance=None):
-        self.drive_service = drive_service
-        self.main_instance = main_instance
-        
-    def check_network_connection(self):
-        """Check network connection - placeholder"""
-        return True
-        
-    def generate_commands(self, *args, **kwargs):
-        """Generate remote commands - placeholder"""
-        return self.main_instance.generate_commands(*args, **kwargs) if self.main_instance else None
 
 class VenvApiManager:
     """虚拟环境API管理器 - 统一处理所有虚拟环境相关的API操作"""
@@ -162,33 +146,27 @@ class VenvApiManager:
                 
         except Exception as e:
             return []
-
-    def _get_current_timestamp(self):
-        """获取当前时间戳"""
-        import datetime
-        return 
-
-    def _get_venv_api_manager(self):
-        """获取虚拟环境API管理器"""
-        if not hasattr(self, '_venv_api_manager'):
-            self._venv_api_manager = VenvApiManager(self.drive_service, self.main_instance)
-        return self._venv_api_manager
     
-    def _load_all_venv_states(self):
+    def read_venv_states_via_api(self):
+        """通过API读取venv状态文件（如果可用）"""
+        # 这是一个回退方法，暂未实现API读取
+        return {"success": False, "error": "API read not implemented"}
+    
+    def load_all_venv_states(self):
         """从统一的JSON文件加载所有虚拟环境状态（优先使用API，回退到远程命令）"""
         try:
             import json
             
             # 首先尝试通过API读取
             try:
-                api_result = self._read_venv_states_via_api()
+                api_result = self.read_venv_states_via_api()
                 if api_result.get("success"):
                     return api_result.get("data", {{}})
             except Exception as api_error:
                 print(f"API call failed: {{api_error}}")
             
             # 回退到远程命令
-            state_file = self._get_venv_state_file_path()
+            state_file = self.get_venv_state_file_path()
             check_command = f'cat "{{state_file}}" 2>/dev/null || echo "{{}}"'
             result = self.main_instance.execute_command_interface("bash", ["-c", check_command])
             if result.get("success") and result.get("stdout"):
@@ -199,7 +177,7 @@ class VenvApiManager:
                 except json.JSONDecodeError as e:
                     return {{}}
             else:
-                self._create_initial_venv_states_file()
+                self.create_initial_venv_states_file()
                 return {{}}
             
         except Exception: 
@@ -207,21 +185,22 @@ class VenvApiManager:
             traceback.print_exc()
             return {{}}
     
-    def _create_initial_venv_states_file(self):
+    def create_initial_venv_states_file(self):
         """创建初始的虚拟环境状态文件"""
         try:
             import json
-            state_file = self._get_venv_state_file_path()
+            state_file = self.get_venv_state_file_path()
             
             # 创建基本的JSON结构
+            import datetime
             initial_structure = {
                 "environments": {},
-                "created_at": self._get_current_timestamp(),
+                "created_at": datetime.datetime.now().isoformat(),
                 "version": "1.0"
             }
             
             # 确保目录存在
-            venv_dir = f"{self._get_venv_base_path()}"
+            venv_dir = f"{self.get_venv_base_path()}"
             mkdir_command = f'mkdir -p "{venv_dir}"'
             mkdir_result = self.main_instance.execute_command_interface("bash", ["-c", mkdir_command])
             print(f"创建目录结果: {mkdir_result}")

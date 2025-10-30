@@ -13,11 +13,9 @@ warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.
 from dotenv import load_dotenv
 load_dotenv()
 
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
+# 导入工具函数
+from .system_utils import is_run_environment, write_to_json_output
+
 
 def extract_folder_id_from_url(url):
     """从Google Drive文件夹URL中提取文件夹ID"""

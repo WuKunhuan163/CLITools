@@ -5,80 +5,36 @@ Google Drive远程Shell管理系统 - 重构版本
 """
 
 import os
-import sys
 import json
 from pathlib import Path
-try:
-    from .modules import (
-        ShellManagement,
-        FileOperations,
+from .modules import (
         CacheManager,
         PathResolver,
         SyncManager,
-        FileUtils,
-        Validation,
-        Verification,
+        Validation
     )
-    from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
-    from GOOGLE_DRIVE_PROJ.modules.command_generator import CommandGenerator
-    from GOOGLE_DRIVE_PROJ.modules.file_validator import FileValidator
-    from GOOGLE_DRIVE_PROJ.modules.result_processor import ResultProcessor
-    from GOOGLE_DRIVE_PROJ.modules.commands import CommandRegistry
-    from GOOGLE_DRIVE_PROJ.modules.commands.venv_command import VenvCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.grep_command import GrepCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.python_command import PythonCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.ls_command import LsCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.cd_command import CdCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.touch_command import TouchCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.mv_command import MvCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
-except ImportError:
-    from GOOGLE_DRIVE_PROJ.modules import (
-        ShellManagement,
-        FileOperations,
-        CacheManager,
-        PathResolver,
-        SyncManager,
-        FileUtils,
-        Validation,
-        Verification,
-    )
-    from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
-    from GOOGLE_DRIVE_PROJ.modules.command_generator import CommandGenerator
-    from GOOGLE_DRIVE_PROJ.modules.file_validator import FileValidator
-    from GOOGLE_DRIVE_PROJ.modules.result_processor import ResultProcessor
-    # 导入命令系统
-    from GOOGLE_DRIVE_PROJ.modules.commands import CommandRegistry
-    from GOOGLE_DRIVE_PROJ.modules.commands.venv_command import VenvCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.grep_command import GrepCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.python_command import PythonCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.ls_command import LsCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.cd_command import CdCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.touch_command import TouchCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.mv_command import MvCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.linter_command import LinterCommand
-    from GOOGLE_DRIVE_PROJ.modules.commands.download_command import DownloadCommand
+from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
+from GOOGLE_DRIVE_PROJ.modules.command_generator import CommandGenerator
+from GOOGLE_DRIVE_PROJ.modules.result_processor import ResultProcessor
+from GOOGLE_DRIVE_PROJ.modules.commands import CommandRegistry
+from GOOGLE_DRIVE_PROJ.modules.commands.venv_command import VenvCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.grep_command import GrepCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.python_command import PythonCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.ls_command import LsCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.cd_command import CdCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.touch_command import TouchCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.mv_command import MvCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
 
 class GoogleDriveShell:
     """Google Drive Shell管理类 (重构版本)"""
@@ -98,7 +54,18 @@ class GoogleDriveShell:
         self.shells_data = self.load_shells()
         
         # 直接加载缓存配置（不通过委托）
-        self._load_cache_config()
+        try:
+            if self.config_file.exists():
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    self.cache_config = json.load(f)
+                    self.cache_config_loaded = True
+            else:
+                self.cache_config = {}
+                self.cache_config_loaded = False
+        except Exception as e:
+            print(f"Warning: Load cache config failed: {e}")
+            self.cache_config = {}
+            self.cache_config_loaded = False
         
         # 直接初始化删除时间缓存（不通过委托）
         self.deletion_cache = self.load_deletion_cache()
@@ -121,7 +88,7 @@ class GoogleDriveShell:
             raise Exception("配置加载失败")
         
         # 从config.json动态加载REMOTE_ROOT和REMOTE_ENV
-        self._load_paths_from_config()
+        self.load_paths_from_config()
         
         # 动态挂载点管理：检查是否需要使用动态挂载
         self.current_mount_point = None
@@ -131,7 +98,7 @@ class GoogleDriveShell:
         self.drive_service = self.load_drive_service()
         
         # 然后检查挂载点（需要drive_service进行指纹验证）
-        self._check_and_setup_mount_point()
+        self.check_and_setup_mount_point()
 
         # 初始化管理器
         self.initialize_managers()
@@ -148,7 +115,7 @@ class GoogleDriveShell:
             print(f"Error: Failed to load shell config: {e}")
             return {"shells": {}, "active_shell": None}
 
-    def _load_cache_config(self):
+    def load_cache_config(self):
         """直接加载缓存配置（不通过委托）"""
         try:
             if self.config_file.exists():
@@ -194,28 +161,31 @@ class GoogleDriveShell:
 
     def initialize_managers(self):
         """初始化各个管理器"""
-        self.shell_management = ShellManagement(self.drive_service, self)
-        self.file_operations = FileOperations(self.drive_service, self)
+        from GOOGLE_DRIVE_PROJ.modules.remote_shell_manager import RemoteShellManager
+        from GOOGLE_DRIVE_PROJ.modules.commands.directory_command import DirectoryCommand
+        
+        # 初始化shell管理器
+        self.shell_management = RemoteShellManager(self.drive_service, self)
+        
+        # 初始化文件操作管理器（使用DirectoryCommand等）
+        # 注意：大部分cmd_*方法现在通过command_registry处理，这里只是为了向后兼容
+        self.file_operations = DirectoryCommand(self)
+        
         self.cache_manager = CacheManager(self.drive_service, self)
         self.command_executor = CommandExecutor(self.drive_service, self)
         self.command_generator = CommandGenerator(self.drive_service, self)
-        self.file_validator = FileValidator(self.drive_service, self)
         self.result_processor = ResultProcessor(self.drive_service, self)
         self.remote_commands = type('RemoteCommandsWrapper', (), {
             'execute_command_interface': self.command_executor.execute_command_interface,
             'execute_command': self.command_executor.execute_command,
-            'generate_commands': self.command_generator.generate_commands,
+            'generate_mv_commands': self.command_generator.generate_mv_commands,
             'generate_mkdir_commands': self.command_generator.generate_mkdir_commands,
             'generate_command_interface': self.command_generator.generate_command_interface,
             'wait_and_read_result_file': self.result_processor.wait_and_read_result_file,
         })()
         self.path_resolver = PathResolver(self.drive_service, self)
         self.sync_manager = SyncManager(self.drive_service, self)
-        self.file_utils = FileUtils(self.drive_service, self)
         self.validation = Validation(self.drive_service, self)
-        self.verification = Verification(self.drive_service, self)
-        
-        # 初始化命令注册系统
         self.command_registry = CommandRegistry()
         self.command_registry.register(VenvCommand(self))
         self.command_registry.register(GrepCommand(self))
@@ -235,8 +205,20 @@ class GoogleDriveShell:
         self.command_registry.register(PipCommand(self))
         self.command_registry.register(DepsCommand(self))
         self.command_registry.register(PyenvCommand(self))
-        self.command_registry.register(LinterCommand(self))
-        self.command_registry.register(DownloadCommand(self))
+    
+    def _execute_command_via_registry(self, command_name, method_name, *args, **kwargs):
+        """通用的命令委托方法 - 通过command_registry执行命令"""
+        command = self.command_registry.get_command(command_name)
+        if command and hasattr(command, method_name):
+            method = getattr(command, method_name)
+            return method(*args, **kwargs)
+        else:
+            return {"success": False, "error": f"{command_name} command or method {method_name} not available"}
+    
+    def check_remote_file_exists(self, file_path):
+        """检查远端文件是否存在"""
+        ls_command = self.command_registry.get_command('ls')
+        return ls_command.check_remote_file_exists(file_path)
     
     def calculate_timeout_from_file_sizes(self, *args, **kwargs):
         """委托到sync_manager管理器"""
@@ -251,100 +233,103 @@ class GoogleDriveShell:
         return self.shell_management.checkout_shell(*args, **kwargs)
     
     def cmd_cat(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_cat(*args, **kwargs)
+        """委托到command_registry - CatCommand"""
+        return self._execute_command_via_registry('cat', 'cmd_cat', *args, **kwargs)
     
     def cmd_cd(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_cd(*args, **kwargs)
+        """委托到command_registry - CdCommand"""
+        return self._execute_command_via_registry('cd', 'cmd_cd', *args, **kwargs)
     
     def cmd_deps(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_deps(*args, **kwargs)
+        """委托到command_registry - DepsCommand"""
+        return self._execute_command_via_registry('deps', 'cmd_deps', *args, **kwargs)
     
     def cmd_download(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_download(*args, **kwargs)
+        """委托到command_registry - DownloadCommand"""
+        # DownloadCommand might not be registered, fall back to error
+        return {"success": False, "error": "Download command not implemented"}
     
     def cmd_edit(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_edit(*args, **kwargs)
+        """委托到command_registry - EditCommand"""
+        return self._execute_command_via_registry('edit', 'cmd_edit', *args, **kwargs)
     
     def cmd_find(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_find(*args, **kwargs)
+        """委托到command_registry - FindCommand"""
+        # FindCommand might not be registered
+        return {"success": False, "error": "Find command not implemented"}
     
     def cmd_grep(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_grep(*args, **kwargs)
+        """委托到command_registry - GrepCommand"""
+        return self._execute_command_via_registry('grep', 'cmd_grep', *args, **kwargs)
     
     def cmd_ls(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_ls(*args, **kwargs)
+        """委托到command_registry - LsCommand"""
+        return self._execute_command_via_registry('ls', 'cmd_ls', *args, **kwargs)
     
     def cmd_mkdir(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_mkdir(*args, **kwargs)
+        """委托到command_registry - MkdirCommand"""
+        return self._execute_command_via_registry('mkdir', 'cmd_mkdir', *args, **kwargs)
     
     def cmd_touch(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_touch(*args, **kwargs)
+        """委托到command_registry - TouchCommand"""
+        return self._execute_command_via_registry('touch', 'cmd_touch', *args, **kwargs)
     
     def cmd_mv(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_mv(*args, **kwargs)
+        """委托到command_registry - MvCommand"""
+        return self._execute_command_via_registry('mv', 'cmd_mv', *args, **kwargs)
     
     def cmd_mv_multi(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_mv_multi(*args, **kwargs)
+        """委托到command_registry - MvCommand"""
+        return self._execute_command_via_registry('mv', 'cmd_mv_multi', *args, **kwargs)
     
     def cmd_pwd(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_pwd(*args, **kwargs)
+        """委托到command_registry - PwdCommand"""
+        return self._execute_command_via_registry('pwd', 'cmd_pwd', *args, **kwargs)
     
     def cmd_python(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_python(*args, **kwargs)
+        """委托到command_registry - PythonCommand"""
+        return self._execute_command_via_registry('python', 'cmd_python', *args, **kwargs)
     
     def cmd_python_code(self, code, save_output=False):
-        """执行Python代码 - 委托到file_operations管理器"""
-        return self.file_operations.cmd_python(code=code, save_output=save_output)
+        """委托到command_registry - PythonCommand"""
+        return self._execute_command_via_registry('python', 'cmd_python', code=code, save_output=save_output)
     
     def cmd_read(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_read(*args, **kwargs)
+        """委托到command_registry - ReadCommand"""
+        return self._execute_command_via_registry('read', 'cmd_read', *args, **kwargs)
     
     def cmd_rm(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_rm(*args, **kwargs)
+        """委托到command_registry - RmCommand"""
+        return self._execute_command_via_registry('rm', 'cmd_rm', *args, **kwargs)
     
     def cmd_upload(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_upload(*args, **kwargs)
+        """委托到command_registry - UploadCommand"""
+        return self._execute_command_via_registry('upload', 'cmd_upload', *args, **kwargs)
     
     def cmd_upload_folder(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_upload_folder(*args, **kwargs)
+        """委托到command_registry - UploadFolderCommand"""
+        return self._execute_command_via_registry('upload_folder', 'cmd_upload_folder', *args, **kwargs)
     
     def cmd_upload_multi(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_upload_multi(*args, **kwargs)
+        """委托到command_registry - UploadCommand"""
+        return self._execute_command_via_registry('upload', 'cmd_upload_multi', *args, **kwargs)
     
     def cmd_venv(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_venv(*args, **kwargs)
+        """委托到command_registry - VenvCommand"""
+        return self._execute_command_via_registry('venv', 'cmd_venv', *args, **kwargs)
     
     def cmd_pyenv(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_pyenv(*args, **kwargs)
+        """委托到command_registry - PyenvCommand"""
+        return self._execute_command_via_registry('pyenv', 'cmd_pyenv', *args, **kwargs)
     
     def cmd_linter(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_linter(*args, **kwargs)
+        """委托到command_registry - LinterCommand"""
+        # LinterCommand might not be registered
+        return {"success": False, "error": "Linter command not implemented"}
     
     def cmd_pip(self, *args, **kwargs):
-        """委托到file_operations管理器"""
-        return self.file_operations.cmd_pip(*args, **kwargs)
+        """委托到command_registry - PipCommand"""
+        return self._execute_command_via_registry('pip', 'cmd_pip', *args, **kwargs)
     
     def create_shell(self, *args, **kwargs):
         """委托到shell_management管理器"""
@@ -435,9 +420,9 @@ class GoogleDriveShell:
         """委托到command_generator管理器"""
         return self.command_generator.generate_mkdir_commands(*args, **kwargs)
     
-    def generate_commands(self, *args, **kwargs):
+    def generate_mv_commands(self, *args, **kwargs):
         """委托到command_generator管理器"""
-        return self.command_generator.generate_commands(*args, **kwargs)
+        return self.command_generator.generate_mv_commands(*args, **kwargs)
     
     def generate_shell_id(self, *args, **kwargs):
         """委托到shell_management管理器"""
@@ -503,7 +488,7 @@ class GoogleDriveShell:
         """委托到sync_manager管理器"""
         return self.sync_manager.wait_for_file_sync(*args, **kwargs)
     
-    def _handle_wildcard_ls(self, wildcard_path):
+    def handle_wildcard_ls(self, wildcard_path):
         """处理包含通配符的ls命令"""
         import fnmatch
         import os.path
@@ -524,9 +509,8 @@ class GoogleDriveShell:
             
             if dir_path == ".":
                 target_folder_id = current_shell.get("current_folder_id", self.REMOTE_ROOT_FOLDER_ID)
-                display_path = current_shell.get("current_path", "~")
             else:
-                target_folder_id, display_path = self.resolve_path(dir_path, current_shell)
+                target_folder_id, _ = self.resolve_path(dir_path, current_shell)
                 if not target_folder_id:
                     print(f"Path not found: {dir_path}")
                     return 1
@@ -567,8 +551,7 @@ class GoogleDriveShell:
                     matched_items.append(item)
             
             # 显示匹配的项目
-            if matched_items:
-                # 按名称排序，文件夹优先
+            if matched_items: 
                 folders = [item for item in matched_items if item.get('mimeType') == 'application/vnd.google-apps.folder']
                 files = [item for item in matched_items if item.get('mimeType') != 'application/vnd.google-apps.folder']
                 
@@ -634,7 +617,7 @@ class GoogleDriveShell:
             # 如果同步失败，不影响venv命令的正常执行
             pass
     
-    def _execute_background_command(self, shell_cmd, command_identifier=None):
+    def execute_background_command(self, shell_cmd, command_identifier=None):
         """执行background命令 - 使用echo命令构建，完全避免f-string嵌套引号"""
         import time
         import random
@@ -929,7 +912,7 @@ class GoogleDriveShell:
                     elif remaining_cmd.startswith('--wait '):
                         # GDS --bg --wait <task_id>
                         task_id = remaining_cmd[7:].strip()  # 移除--wait 
-                        return self._wait_background_task(task_id, command_identifier)
+                        return self.wait_background_task(task_id, command_identifier)
                     elif remaining_cmd == '':
                         # 只有--bg，显示帮助
                         print("GDS Background Commands:")
@@ -949,7 +932,7 @@ class GoogleDriveShell:
                         return 0
                     else:
                         # 执行background命令
-                        return self._execute_background_command(remaining_cmd, command_identifier)
+                        return self.execute_background_command(remaining_cmd, command_identifier)
                     break
             
             # 解析命令
@@ -1048,7 +1031,7 @@ class GoogleDriveShell:
                     "command": shell_cmd,
                     "command_identifier": command_identifier
                 })
-                print(f"Shell command execution failed with detailed traceback above")
+                print(f"Google Drive Shell command execution failed with detailed traceback above. ")
                 return 1
             except ImportError:
                 error_msg = f"Error: Error executing shell command: {e}"
@@ -1246,7 +1229,7 @@ fi
             print(f"Error: Log view failed: {e}")
             return 1
 
-    def _wait_background_task(self, bg_pid, command_identifier=None):
+    def wait_background_task(self, bg_pid, command_identifier=None):
         """等待background任务完成"""
         try:
             current_shell = self.get_current_shell()
@@ -1769,7 +1752,7 @@ fi
             print(f"Error: Result view failed: {e}")
             return 1
     
-    def _check_and_setup_mount_point(self):
+    def check_and_setup_mount_point(self):
         """检查并设置动态挂载点"""
         import os
         import tempfile
@@ -1784,7 +1767,7 @@ fi
                     stored_mount_point = f.read().strip()
                 if stored_mount_point:
                     # 验证挂载点的指纹文件（静默模式，不输出调试信息）
-                    if self._verify_mount_fingerprint(stored_mount_point, silent=True):
+                    if self.verify_mount_fingerprint(stored_mount_point, silent=True):
                         self.current_mount_point = stored_mount_point
                         self._update_paths_for_dynamic_mount(stored_mount_point)
                         return
@@ -1818,7 +1801,7 @@ fi
         except Exception as e:
             print(f"Warning: 保存挂载点信息失败: {e}")
     
-    def _verify_mount_fingerprint(self, mount_point, silent=False):
+    def verify_mount_fingerprint(self, mount_point, silent=False):
         """验证挂载点的指纹文件（通过Google Drive API）"""
         import json
         
@@ -1831,16 +1814,26 @@ fi
                 return False
             
             # 首先获取tmp文件夹ID
+            # 注意: list_files不支持query参数，需要手动过滤
             tmp_folder_result = self.drive_service.list_files(
                 folder_id=self.REMOTE_ROOT_FOLDER_ID, 
-                query="name='tmp' and mimeType='application/vnd.google-apps.folder'",
-                max_results=1
+                max_results=100  # 获取足够多的结果以便过滤
             )
             
             if not tmp_folder_result.get('success') or not tmp_folder_result.get('files'):
                 return False
             
-            tmp_folder_id = tmp_folder_result['files'][0]['id']
+            # 过滤出名为'tmp'的文件夹
+            tmp_folder = None
+            for item in tmp_folder_result['files']:
+                if item.get('name') == 'tmp' and item.get('mimeType') == 'application/vnd.google-apps.folder':
+                    tmp_folder = item
+                    break
+            
+            if not tmp_folder:
+                return False
+            
+            tmp_folder_id = tmp_folder['id']
             
             # 列出tmp文件夹中的所有文件
             result = self.drive_service.list_files(folder_id=tmp_folder_id, max_results=100)
@@ -1977,7 +1970,7 @@ fi
         except Exception as e:
             print(f"Warning: 保存folder ID到config.json失败: {e}")
     
-    def _load_paths_from_config(self):
+    def load_paths_from_config(self):
         """从config.json动态加载REMOTE_ROOT和REMOTE_ENV路径"""
         try:
             import json
@@ -2054,9 +2047,8 @@ fi
                 args = sys.argv[1:]
         
         # 导入需要的函数
-        from modules.remote_shell_manager import list_shells, create_shell, checkout_shell, terminate_shell, enter_shell_mode
         from modules.help_system import show_unified_help
-        # from modules.drive_api_service import open_google_drive
+        
         if not args:
             # 默认显示帮助
             show_unified_help()
@@ -2088,23 +2080,23 @@ fi
             return terminate_shell(shell_id, command_identifier) if terminate_shell else 1
         elif args[0] == '--remount':
             # 处理重新挂载命令
-            return self._handle_remount_command(command_identifier)
+            return self.handle_remount_command(command_identifier)
         elif args[0] == '--shell':
             if len(args) == 1:
                 # 进入交互模式
                 return enter_shell_mode(command_identifier) if enter_shell_mode else 1
             else:
                 # 执行指定的shell命令
-                return self._handle_shell_command_args(args[1:], command_identifier)
+                return self.handle_shell_command_args(args[1:], command_identifier)
         elif args[0] == '--desktop':
-            return self._handle_desktop_command(args[1:], command_identifier)
+            return self.handle_desktop_command(args[1:], command_identifier)
         else:
             # 未知参数
             print(f"Error: Unknown argument '{args[0]}'")
             print("Use --help for usage information")
             return 1
     
-    def _handle_shell_command_args(self, shell_cmd_parts, command_identifier=None):
+    def handle_shell_command_args(self, shell_cmd_parts, command_identifier=None):
         """处理--shell命令的参数"""
         no_direct_feedback = False
         is_priority = False
@@ -2148,7 +2140,7 @@ fi
         # 执行shell命令
         return self.execute_shell_command(shell_cmd, command_identifier)
     
-    def _handle_desktop_command(self, args, command_identifier=None):
+    def handle_desktop_command(self, args, command_identifier=None):
         """处理--desktop命令"""
         if not args:
             print(f"Error: --desktop needs to specify operation type")
@@ -2181,8 +2173,8 @@ fi
             print(f"Error: Unknown desktop action '{desktop_action}'")
             return 1
     
-    def _handle_remount_command(self, command_identifier=None):
+    def handle_remount_command(self, command_identifier=None):
         """处理GOOGLE_DRIVE --remount命令"""
-        from modules.sync_config_manager import remount_google_drive
+        from modules.remount_manager import remount_google_drive
         return remount_google_drive(command_identifier)
     

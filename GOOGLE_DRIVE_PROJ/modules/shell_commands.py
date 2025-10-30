@@ -4,79 +4,24 @@ Google Drive - Shell Commands Module
 从GOOGLE_DRIVE.py重构而来的shell_commands模块
 """
 
-import os
-import sys
-import json
-import webbrowser
-import hashlib
-import subprocess
-import time
-import uuid
 import warnings
-from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
 load_dotenv()
 
-# GoogleDriveShell will be imported when needed to avoid circular import
+# 导入必要的工具函数
+from .system_utils import is_run_environment, write_to_json_output
+from .remote_shell_manager import RemoteShellManager
 
-# 导入需要的函数
-try:
-    HOME_URL = "https://drive.google.com/drive/my-drive"  # 直接定义常量
-except ImportError:
-    HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
+# 创建全局shell管理器实例
+_shell_manager = None
 
-# 使用统一的shell管理系统
 def get_current_shell():
-    """获取当前shell，使用统一的GoogleDriveShell实例"""
-    try:
-        # 动态导入避免循环导入
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from google_drive_shell import GoogleDriveShell
-        
-        shell = GoogleDriveShell()
-        return shell.get_current_shell()
-    except Exception as e:
-        print(f"Failed to get current shell: {e}")
-        return None
-
-# 导入Google Drive Shell管理类 - 注释掉避免循环导入
-# try:
-#     from google_drive_shell import GoogleDriveShell
-# except ImportError as e:
-#     print(f"Failed to import Google Drive Shell: {e}")
-#     GoogleDriveShell = None
-
-# 添加缺失的工具函数
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        print(f"写入JSON输出文件失败: {e}")
-        return False
+    """获取当前shell"""
+    global _shell_manager
+    if _shell_manager is None:
+        _shell_manager = RemoteShellManager()
+    return _shell_manager.get_current_shell()
 
 # 全局常量
 from .path_constants import path_constants
@@ -188,7 +133,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
             else:
                 print(error_msg)
             return 1
-
+        
         # 修复：直接将整个pipe命令作为远程命令执行，而不是本地模拟
         # 这样可以确保pipe操作在远程shell中正确执行
         try:
@@ -238,7 +183,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
                         print(stderr, end="", file=sys.stderr)
                         
                 return exit_code
-            else: 
+            else:
                 return result if isinstance(result, int) else 0
                 
         except Exception as e:
@@ -291,41 +236,28 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
         if shell_instance:
             shell = shell_instance
         else:
-            try:
-                import sys
-                import os
-                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-                from google_drive_shell import GoogleDriveShell
-                
-                shell = GoogleDriveShell()
-            except Exception as e:
-                error_msg = f"Failed to get GoogleDriveShell instance: {e}"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
-                return 1
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+            from google_drive_shell import GoogleDriveShell
+            shell = GoogleDriveShell()
         
         # 执行命令
         results = []
         last_result = 0
         
         # 检查是否所有命令都可以作为一个复合远程命令执行
-        # 这样可以避免目录状态不一致的问题
         can_execute_as_compound = True
         contains_cd = False
         for cmd, operator in commands_with_operators:
-            # 如果包含需要本地处理的命令，不能作为复合命令执行
             cmd_parts = cmd.split()
             if cmd_parts and cmd_parts[0] in ['help', 'exit', 'quit', 'shells', 'switch']:
                 can_execute_as_compound = False
                 break
-            # 如果包含cd命令，需要特殊处理以更新shell状态
             if cmd_parts and cmd_parts[0] == 'cd':
                 contains_cd = True
         
         if can_execute_as_compound and len(commands_with_operators) > 1 and not contains_cd:
-            # 作为复合命令执行，重建原始命令字符串
             rebuilt_cmd = []
             for i, (cmd, operator) in enumerate(commands_with_operators):
                 if i > 0 and operator:
@@ -333,9 +265,7 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                 rebuilt_cmd.append(cmd)
             compound_cmd = ''.join(rebuilt_cmd)
             
-            # 直接使用远程命令执行复合命令，避免递归
             try:
-                # 直接调用远程命令执行，绕过shell命令解析
                 current_shell = get_current_shell()
                 if not current_shell:
                     error_msg = "No active shell found"
@@ -345,16 +275,11 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                         print(error_msg)
                     return 1
                 
-                # 使用远程命令模块直接执行
-                # 传递原始命令以保持hash一致性
                 result = shell.execute_command_interface("bash", ["-c", compound_cmd], _original_user_command=shell_cmd)
                 if isinstance(result, dict):
-                    # 显示输出 - 处理嵌套的数据结构
                     data = result.get("data", {})
-                    # 优先使用data中的值，只有在data中不存在时才使用result中的值
                     stdout = data.get("stdout") if "stdout" in data else result.get("stdout", "")
                     stderr = data.get("stderr") if "stderr" in data else result.get("stderr", "")
-                    # exit_code需要明确区分0和None
                     exit_code = data.get("exit_code") if "exit_code" in data else result.get("exit_code", 0)
                     
                     if stdout:

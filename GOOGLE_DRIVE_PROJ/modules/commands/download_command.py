@@ -61,15 +61,8 @@ class DownloadCommand(BaseCommand):
         """
         try:
             # 导入缓存管理器
-            import sys
-            from pathlib import Path
-            cache_manager_path = Path(__file__).parent.parent / "cache_manager.py"
-            if cache_manager_path.exists():
-                sys.path.insert(0, str(Path(__file__).parent.parent))
-                from cache_manager import GDSCacheManager
-                cache_manager = GDSCacheManager()
-            else:
-                return {"success": False, "error": "缓存管理器未找到"}
+            # 使用统一的 CacheManager
+            cache_manager = self.main_instance.cache_manager
             
             current_shell = self.main_instance.get_current_shell()
             if not current_shell:
@@ -81,7 +74,7 @@ class DownloadCommand(BaseCommand):
             # 检查是否已经缓存（如果force=True则跳过缓存检查）
             if not force and cache_manager.is_file_cached(remote_absolute_path):
                 cached_info = cache_manager.get_cached_file(remote_absolute_path)
-                cached_path = cache_manager.get_cached_file_path(remote_absolute_path)
+                cached_path = cache_manager.get_cached_file(remote_absolute_path, return_path_only=True)
                 
                 if local_path:
                     # 如果指定了本地目标，复制缓存文件到目标位置（cp操作）
@@ -169,7 +162,7 @@ class DownloadCommand(BaseCommand):
             
             # 检查是否为目录，如果是则使用目录下载功能
             if file_info['mimeType'] == 'application/vnd.google-apps.folder':
-                return self._download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
+                return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
             
             # 使用Google Drive API直接下载文件
             import tempfile
@@ -246,7 +239,7 @@ class DownloadCommand(BaseCommand):
             return {"success": False, "error": f"Download file failed: {e}"}
 
 
-    def _download_directory(self, dir_info, dir_name, remote_absolute_path, local_path, force):
+    def download_directory(self, dir_info, dir_name, remote_absolute_path, local_path, force):
         """
         下载目录：先在远程压缩为zip，然后下载zip包
         

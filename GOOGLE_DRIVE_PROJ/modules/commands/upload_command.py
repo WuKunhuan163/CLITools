@@ -6,14 +6,25 @@ Upload operations commands
 import os
 from pathlib import Path
 from ..command_executor import debug_capture, debug_print
+from .base_command import BaseCommand
 
 
-class UploadCommand:
+class UploadCommand(BaseCommand):
     """上传命令"""
     
+    @property
+    def command_name(self):
+        return "upload"
+    
     def __init__(self, main_instance):
+        super().__init__(main_instance)
         self.main_instance = main_instance
         self.drive_service = main_instance.drive_service
+    
+    def execute(self, cmd, args, **kwargs):
+        """执行上传命令（BaseCommand要求的方法）"""
+        # 这里暂时返回0，实际实现需要处理args
+        return 0
     
     def check_large_files(self, source_files):
         """检查大文件并分离处理（大于1G的文件）"""
@@ -52,9 +63,6 @@ class UploadCommand:
         
         return {"success": True, "message": "Large files detected, manual upload required"}
     
-    def wait_for_file_sync(self, file_names, file_moves):
-        """等待文件同步完成"""
-        return self.main_instance.sync_manager.wait_for_file_sync(file_names, file_moves)
     
     def check_remote_file_conflicts(self, source_files, target_path):
         """检查远程文件是否已存在（用于非force模式）"""
@@ -128,7 +136,7 @@ class UploadCommand:
             start_progress_buffering(f"Packing {folder_name} ...")
             
             # 步骤1: 打包文件夹
-            zip_result = self.main_instance.file_utils._zip_folder(folder_path)
+            zip_result = self.main_instance.file_utils.zip_folder(folder_path)
             if not zip_result["success"]:
                 clear_progress()
                 return {"success": False, "error": f"打包失败: {zip_result['error']}"}
@@ -269,10 +277,10 @@ class UploadCommand:
             source_files = normal_files
             
             # 3. 解析目标路径
-            debug_print(f"Before _resolve_target_path_for_upload - target_path='{target_path}'")
+            debug_print(f"Before resolve_target_path_for_upload - target_path='{target_path}'")
             debug_print(f"current_shell={current_shell}")
-            target_folder_id, target_display_path = self.main_instance.path_resolver._resolve_target_path_for_upload(target_path, current_shell)
-            debug_print(f"After _resolve_target_path_for_upload - target_folder_id='{target_folder_id}', target_display_path='{target_display_path}'")
+            target_folder_id, target_display_path = self.main_instance.path_resolver.resolve_target_path_for_upload(target_path, current_shell)
+            debug_print(f"After resolve_target_path_for_upload - target_folder_id='{target_folder_id}', target_display_path='{target_display_path}'")
             if target_folder_id is None and self.drive_service:
                 # 目标路径不存在，但这是正常的，我们会在远端创建它
                 # 静默处理目标路径创建
@@ -370,35 +378,14 @@ class UploadCommand:
             self.main_instance.file_utils.verify_files_available(file_moves)
             
             # 8. 静默生成远端命令
-            debug_print(f"Before generate_commands - file_moves={file_moves}")
-            debug_print(f"Before generate_commands - target_path='{target_path}'")
-            remote_command = self.main_instance.remote_commands.generate_commands(file_moves, target_path, folder_upload_info)
-            debug_print(f"After generate_commands - remote_command preview: {remote_command[:200]}...")
+            debug_print(f"Before generate_mv_commands - file_moves={file_moves}")
+            debug_print(f"Before generate_mv_commands - target_path='{target_path}'")
+            remote_command = self.main_instance.remote_commands.generate_mv_commands(file_moves, target_path, folder_upload_info)
+            debug_print(f"After generate_mv_commands - remote_command preview: {remote_command[:200]}...")
             
-            # 7.5. 远端目录创建已经集成到generate_commands中，无需额外处理
+            # 7.5. 远端目录创建已经集成到generate_mv_commands中，无需额外处理
             
             # 8. 使用统一的远端命令执行接口
-            # 对于文件夹上传，跳过文件验证因为验证的是zip文件而不是解压后的内容
-            if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
-                # 文件夹上传：跳过文件验证，信任远程命令执行结果
-                context_info = {
-                    "expected_filenames": None,  # 跳过验证
-                    "sync_filenames": expected_filenames,
-                    "target_folder_id": target_folder_id,
-                    "target_path": target_path,
-                    "file_moves": file_moves,
-                    "is_folder_upload": True
-                }
-            else:
-                # 普通文件上传：正常验证
-                context_info = {
-                    "expected_filenames": [fm.get("original_filename", fm["filename"]) for fm in file_moves],  # 验证阶段用原始文件名
-                    "sync_filenames": expected_filenames,  # 同步阶段用重命名后的文件名
-                    "target_folder_id": target_folder_id,
-                    "target_path": target_path,
-                    "file_moves": file_moves
-                }
-            
             execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
             
             # 如果执行失败，直接返回错误
@@ -434,7 +421,7 @@ class UploadCommand:
                 expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
 
                 # 使用带进度的验证机制
-                verify_result = self.main_instance.remote_commands._verify_upload_with_progress(
+                verify_result = self.main_instance.remote_commands.verify_upload_with_progress(
                     expected_for_verification, 
                     target_path, 
                     current_shell
@@ -542,3 +529,334 @@ class UploadCommand:
                 "success": False,
                 "error": f"Upload error: {str(e)}"
             }
+
+
+    def zip_folder(self, folder_path, zip_path=None):
+        """
+        将文件夹打包成zip文件
+        
+        Args:
+            folder_path (str): 要打包的文件夹路径
+            zip_path (str): zip文件保存路径，如果为None则自动生成
+            
+        Returns:
+            dict: 打包结果 {"success": bool, "zip_path": str, "error": str}
+        """
+        try:
+            folder_path = Path(folder_path)
+            if not folder_path.exists():
+                return {"success": False, "error": f"文件夹不存在: {folder_path}"}
+            
+            if not folder_path.is_dir():
+                return {"success": False, "error": f"路径不是文件夹: {folder_path}"}
+            
+            # 生成zip文件路径
+            if zip_path is None:
+                # 在临时目录中创建zip文件
+                temp_dir = Path(tempfile.gettempdir())
+                zip_filename = f"{folder_path.name}.zip"
+                zip_path = temp_dir / zip_filename
+            else:
+                zip_path = Path(zip_path)
+            
+            # 创建zip文件
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # 遍历文件夹中的所有文件和目录
+                files_added = 0
+                dirs_added = 0
+                
+                for file_path in folder_path.rglob('*'):
+                    if file_path.is_file():
+                        # 计算相对路径，使用文件夹名作为根目录
+                        arcname = file_path.relative_to(folder_path.parent)
+                        zipf.write(file_path, arcname)
+                        files_added += 1
+                    elif file_path.is_dir():
+                        # 添加空目录到zip文件
+                        arcname = file_path.relative_to(folder_path.parent)
+                        # 确保目录名以/结尾
+                        dir_arcname = str(arcname) + '/'
+                        zipf.writestr(dir_arcname, '')
+                        dirs_added += 1
+                
+                # 如果文件夹完全为空，至少添加根目录本身
+                if files_added == 0 and dirs_added == 0:
+                    root_dir_name = folder_path.name + '/'
+                    zipf.writestr(root_dir_name, '')
+                    dirs_added = 1
+                        
+            # 检查zip文件是否创建成功
+            if zip_path.exists():
+                file_size = zip_path.stat().st_size
+                return {
+                    "success": True,
+                    "zip_path": str(zip_path),
+                    "original_folder": str(folder_path),
+                    "zip_size": file_size
+                }
+            else:
+                return {"success": False, "error": "zip文件创建失败"}
+                
+        except Exception as e:
+            return {"success": False, "error": f"打包过程出错: {e}"}
+
+
+    def verify_files_available(self, file_moves):
+        """
+        验证文件是否在同步目录中可用
+        
+        Args:
+            file_moves (list): 文件移动信息列表
+            
+        Returns:
+            bool: 所有文件都可用返回True，否则返回False
+        """
+        try:
+            import os
+            for file_info in file_moves:
+                filename = file_info["filename"]
+                file_path = os.path.join(self.main_instance.LOCAL_EQUIVALENT, filename)
+                if not os.path.exists(file_path):
+                    return False
+            return True
+        except Exception as e:
+            return False
+
+
+    def check_large_files(self, source_files):
+        """
+        检查大文件（>1GB）并提供手动上传方案
+        
+        Args:
+            source_files (list): 源文件路径列表
+            
+        Returns:
+            tuple: (normal_files, large_files) - 正常文件和大文件列表
+        """
+        try:
+            normal_files = []
+            large_files = []
+            GB_SIZE = 1024 * 1024 * 1024  # 1GB in bytes
+            
+            for file_path in source_files:
+                expanded_path = self.expand_path(file_path)
+                if os.path.exists(expanded_path):
+                    file_size = os.path.getsize(expanded_path)
+                    if file_size > GB_SIZE:
+                        large_files.append({
+                            "path": expanded_path,
+                            "original_path": file_path,
+                            "size_gb": file_size / GB_SIZE
+                        })
+                    else:
+                        normal_files.append(expanded_path)
+                else:
+                    print(f"File does not exist: {file_path}")
+            
+            return normal_files, large_files
+            
+        except Exception as e:
+            print(f"检查大文件时出错: {e}")
+            return source_files, []
+
+    def handle_large_files(self, large_files, target_path=".", current_shell=None):
+        """处理大文件的手动上传，支持逐一跟进"""
+        try:
+            if not large_files:
+                return {"success": True, "message": "没有大文件需要手动处理"}
+            
+            print(f"\n发现 {len(large_files)} 个大文件（>1GB），将逐一处理:")
+            
+            successful_uploads = []
+            failed_uploads = []
+            
+            for i, file_info in enumerate(large_files, 1):
+                print(f"\n{'='*60}")
+                print(f"处理第 {i}/{len(large_files)} 个大文件")
+                print(f"文件: {file_info['original_path']} ({file_info['size_gb']:.2f} GB)")
+                print(f"{'='*60}")
+                
+                # 为单个文件创建临时上传目录
+                single_upload_dir = Path(os.getcwd()) / f"_MANUAL_UPLOAD_{i}"
+                single_upload_dir.mkdir(exist_ok=True)
+                
+                file_path = Path(file_info["path"])
+                link_path = single_upload_dir / file_path.name
+                
+                # 删除已存在的链接
+                if link_path.exists():
+                    link_path.unlink()
+                
+                # 创建符号链接
+                try:
+                    link_path.symlink_to(file_path)
+                    print(f"Prepared file: {file_path.name}")
+                except Exception as e:
+                    print(f"Error: Create link failed: {file_path.name} - {e}")
+                    failed_uploads.append({
+                        "file": file_info["original_path"],
+                        "error": f"Create link failed: {e}"
+                    })
+                    continue
+                
+                # 确定目标文件夹URL
+                target_folder_id = None
+                target_url = None
+                
+                if current_shell and self.drive_service:
+                    try:
+                        # 尝试解析目标路径
+                        if target_path == ".":
+                            target_folder_id = self.get_current_folder_id(current_shell)
+                        else:
+                            target_folder_id, _ = self.main_instance.resolve_path(target_path, current_shell)
+                        
+                        if target_folder_id:
+                            target_url = f"https://drive.google.com/drive/folders/{target_folder_id}"
+                        else:
+                            target_url = f"https://drive.google.com/drive/folders/{self.main_instance.REMOTE_ROOT_FOLDER_ID}"
+                    except:
+                        target_url = f"https://drive.google.com/drive/folders/{self.main_instance.REMOTE_ROOT_FOLDER_ID}"
+                else:
+                    target_url = f"https://drive.google.com/drive/folders/{self.main_instance.REMOTE_ROOT_FOLDER_ID}"
+                
+                # 打开文件夹和目标位置
+                try:
+                    import subprocess
+                    import webbrowser
+                    
+                    # 打开本地文件夹
+                    if platform.system() == "Darwin":  # macOS
+                        subprocess.run(["open", str(single_upload_dir)])
+                    elif platform.system() == "Windows":
+                        os.startfile(str(single_upload_dir))
+                    else:  # Linux
+                        subprocess.run(["xdg-open", str(single_upload_dir)])
+                    
+                    # 打开目标Google Drive文件夹（不是DRIVE_EQUIVALENT）
+                    webbrowser.open(target_url)
+                    
+                    print(f"Opened local folder: {single_upload_dir}")
+                    print(f"Opened target Google Drive folder")
+                    print(f"Please drag the file to the Google Drive target folder")
+                    
+                except Exception as e:
+                    print(f"Warning: Open folder failed: {e}")
+                
+                # 等待用户确认
+                try:
+                    print(f"\nPlease complete the file upload and press Enter to continue...")
+                    input("按Enter键继续...")  # 等待用户确认
+                    
+                    # 清理临时目录
+                    try:
+                        if link_path.exists():
+                            link_path.unlink()
+                        single_upload_dir.rmdir()
+                    except:
+                        pass
+                    
+                    successful_uploads.append({
+                        "file": file_info["original_path"],
+                        "size_gb": file_info["size_gb"]
+                    })
+                    
+                    print(f"File {i}/{len(large_files)} processed")
+                    
+                except KeyboardInterrupt:
+                    print(f"\nError: User interrupted the large file upload process")
+                    # 清理临时目录
+                    try:
+                        if link_path.exists():
+                            link_path.unlink()
+                        single_upload_dir.rmdir()
+                    except:
+                        pass
+                    break
+                except Exception as e:
+                    print(f"Error: Error processing file: {e}")
+                    failed_uploads.append({
+                        "file": file_info["original_path"],
+                        "error": str(e)
+                    })
+            
+            print(f"\n{'='*60}")
+            print(f"Large file processing completed:")
+            print(f"Successful: {len(successful_uploads)} files")
+            print(f"Error: Failed: {len(failed_uploads)} files")
+            print(f"{'='*60}")
+            
+            return {
+                "success": len(successful_uploads) > 0,
+                "large_files_count": len(large_files),
+                "successful_uploads": successful_uploads,
+                "failed_uploads": failed_uploads,
+                "message": f"Large file processing completed: {len(successful_uploads)}/{len(large_files)} files successful"
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": f"Error processing large file: {e}"}
+
+
+    def verify_upload_with_progress(self, expected_files, target_path, current_shell):
+        """
+        带进度显示的验证逻辑，类似上传过程
+        对每个文件进行最多60次重试，显示⏳和点的进度
+        """
+        try:
+            # 生成文件名列表用于显示
+            if len(expected_files) <= 3:
+                file_display = ", ".join(expected_files)
+            else:
+                first_three = ", ".join(expected_files[:3])
+                file_display = f"{first_three}, ... ({len(expected_files)} files)"
+            
+            # 定义验证函数
+            def validate_all_files():
+                validation_result = self.main_instance.validation.verify_upload_success_by_ls(
+                    expected_files=expected_files,
+                    target_path=target_path,
+                    current_shell=current_shell
+                )
+                found_count = len(validation_result.get("found_files", []))
+                return found_count == len(expected_files)
+            
+            # 直接使用统一的验证接口，它会正确处理进度显示的切换
+            from .progress_manager import validate_creation
+            result = validate_creation(validate_all_files, file_display, 60, "upload")
+            
+            # 转换返回格式
+            all_found = result["success"]
+            if all_found:
+                found_files = expected_files
+                missing_files = []
+            else:
+                # 如果验证失败，需要重新检查哪些文件缺失
+                final_validation = self.main_instance.validation.verify_upload_success_by_ls(
+                    expected_files=expected_files,
+                    target_path=target_path,
+                    current_shell=current_shell
+                )
+                found_files = final_validation.get("found_files", [])
+                missing_files = [f for f in expected_files if f not in found_files]
+            
+            return {
+                "success": all_found,
+                "found_files": found_files,
+                "missing_files": missing_files,
+                "total_found": len(found_files),
+                "total_expected": len(expected_files),
+                "search_path": target_path
+            }
+            
+        except Exception as e:
+            debug_print(f"Validation error: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "found_files": [],
+                "missing_files": expected_files,
+                "total_found": 0,
+                "total_expected": len(expected_files)
+            }
+

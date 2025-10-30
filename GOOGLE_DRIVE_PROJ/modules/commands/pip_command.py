@@ -18,7 +18,6 @@ class PipCommand(BaseCommand):
         
         # 直接调用cmd_pip方法
         result = self.cmd_pip(*args)
-        
         if result.get("success"):
             message = result.get("message", "")
             if message.strip():
@@ -44,56 +43,57 @@ class PipCommand(BaseCommand):
             shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
             
             # 检查是否有激活的虚拟环境
-            all_states = self._load_all_venv_states()
+            from .venv_command import VenvCommand
+            venv_cmd = VenvCommand(self.shell)
+            from ..venv_manager import VenvApiManager
+            api_manager = VenvApiManager(self.shell.drive_service, self.shell)
+            result = api_manager.read_venv_states()
+            all_states = result.get('data', {}) if result.get('success') else {}
             current_venv = None
             env_path = None
             if shell_id in all_states and all_states[shell_id].get("current_venv"):
                 current_venv = all_states[shell_id]["current_venv"]
-                env_path = f"{self._get_venv_base_path()}/{current_venv}"
+                env_path = f"{venv_cmd.get_venv_base_path()}/{current_venv}"
             
             # 特殊处理不同的pip命令
             if pip_args[0] == "--show-deps":
                 # 直接处理 --show-deps，委托给dependency_analysis
-                current_packages = self._get_packages_from_json(current_venv) if current_venv else {}
+                current_packages = self.get_packages_from_json(current_venv) if current_venv else {}
                 # 这里需要调用DepsCommand，暂时先返回错误
                 return {"success": False, "error": "Please use 'GDS deps' command for dependency analysis"}
             
             # 检测当前环境中的包（用于显示[√]标记）
-            current_packages = self._detect_current_environment_packages(current_venv)
+            current_packages = self.detect_current_environment_packages(current_venv)
             
             if pip_args[0] == "install":
-                return self._handle_pip_install(pip_args[1:], current_venv, env_path, current_packages)
+                return self.handle_pip_install(pip_args[1:], current_venv, env_path, current_packages)
             elif pip_args[0] == "uninstall":
-                return self._handle_pip_uninstall(pip_args[1:], current_venv, env_path, current_packages)
+                return self.handle_pip_uninstall(pip_args[1:], current_venv, env_path, current_packages)
             elif pip_args[0] == "list":
-                return self._handle_pip_list(pip_args[1:], current_venv, env_path, current_packages)
+                return self.handle_pip_list(pip_args[1:], current_venv, env_path, current_packages)
             elif pip_args[0] == "show":
-                return self._handle_pip_show(pip_args[1:], current_venv, env_path, current_packages)
+                return self.handle_pip_show(pip_args[1:], current_venv, env_path, current_packages)
             else:
                 # 其他pip命令，使用增强版执行器
                 target_info = f"in {current_venv}" if current_venv else "in system environment"
-                return self._execute_pip_command(pip_command, current_venv, target_info)
+                return self.execute_pip_command(pip_command, current_venv, target_info)
                 
         except Exception as e:
             return {"success": False, "error": f"pip命令执行失败: {str(e)}"}
 
-    def _handle_pip_install(self, packages_args, current_venv, env_path, current_packages):
+    def handle_pip_install(self, packages_args, current_venv, env_path, current_packages):
         """处理pip install命令"""
         try:
             if not packages_args:
                 return {"success": False, "error": "pip install需要指定包名"}
             
-            # 检查是否有 --show-deps 选项
             if '--show-deps' in packages_args:
                 return {"success": False, "error": "Please use 'GDS deps' command for dependency analysis instead of 'pip install --show-deps'"}
             
             # 解析选项
             force_install = '--force' in packages_args
-            
-            # 过滤选项，获取实际的包列表
             packages_to_install = [pkg for pkg in packages_args if not pkg.startswith('--')]
-            
-            # 检查已安装包（简化版本，不进行依赖分析）
+
             if not force_install:
                 all_installed = True
                 for package in packages_to_install:
@@ -112,23 +112,20 @@ class PipCommand(BaseCommand):
             # 标准安装流程
             install_command = f"install {' '.join(packages_to_install)}"
             target_info = f"in {current_venv}" if current_venv else "in system environment"
-            return self._execute_pip_command(install_command, current_venv, target_info)
+            return self.execute_pip_command(install_command, current_venv, target_info)
             
         except Exception as e:
             return {"success": False, "error": f"处理pip install时出错: {str(e)}"}
 
-    def _handle_pip_list(self, list_args, current_venv, env_path, current_packages):
+    def handle_pip_list(self, list_args, current_venv, env_path, current_packages):
         """处理pip list命令 - 显示增强的包列表信息"""
         try:
             # 检查是否有--refresh-list选项
             force_refresh = "--refresh-list" in list_args
             if force_refresh:
                 list_args = [arg for arg in list_args if arg != "--refresh-list"]
-                # 重新获取包信息（强制刷新）
                 if current_venv:
-                    current_packages = self._get_packages_from_json(current_venv, force_refresh=True)
-            
-            env_info = f"环境: {current_venv}" if current_venv else "环境: system"
+                    current_packages = self.get_packages_from_json(current_venv, force_refresh=True)
             print(f"Total {len(current_packages)} packages")
             
             if current_packages:
@@ -139,7 +136,7 @@ class PipCommand(BaseCommand):
             if list_args:
                 list_command = f"list {' '.join(list_args)}"
                 target_info = f"in {current_venv}" if current_venv else "in system environment"
-                return self._execute_pip_command(list_command, current_venv, target_info)
+                return self.execute_pip_command(list_command, current_venv, target_info)
             
             return {
                 "success": True,
@@ -150,24 +147,21 @@ class PipCommand(BaseCommand):
         except Exception as e:
             return {"success": False, "error": f"处理pip list时出错: {str(e)}"}
 
-    def _handle_pip_uninstall(self, uninstall_args, current_venv, env_path, current_packages):
+    def handle_pip_uninstall(self, uninstall_args, current_venv, env_path, current_packages):
         """处理pip uninstall命令"""
         try:
             if not uninstall_args:
                 return {"success": False, "error": "pip uninstall需要指定包名"}
             
-            # 构建uninstall命令（添加-y自动确认）
             uninstall_command = f"uninstall -y {' '.join(uninstall_args)}"
             target_info = f"in {current_venv}" if current_venv else "in system environment"
-            
             print(f"Uninstalling packages: {', '.join(uninstall_args)}")
-            
-            return self._execute_pip_command(uninstall_command, current_venv, target_info)
+            return self.execute_pip_command(uninstall_command, current_venv, target_info)
             
         except Exception as e:
             return {"success": False, "error": f"处理pip uninstall时出错: {str(e)}"}
 
-    def _handle_pip_show(self, show_args, current_venv, env_path, current_packages):
+    def handle_pip_show(self, show_args, current_venv, env_path, current_packages):
         """处理pip show命令 - 显示包的详细信息"""
         try:
             if not show_args:
@@ -175,44 +169,29 @@ class PipCommand(BaseCommand):
             
             show_command = f"show {' '.join(show_args)}"
             target_info = f"in {current_venv}" if current_venv else "in system environment"
-            return self._execute_pip_command(show_command, current_venv, target_info)
+            return self.execute_pip_command(show_command, current_venv, target_info)
             
         except Exception as e:
             return {"success": False, "error": f"处理pip show时出错: {str(e)}"}
 
-    def _load_all_venv_states(self):
-        """Load venv states"""
-        try:
-            from ..venv_manager import VenvApiManager
-            api_manager = VenvApiManager(self.shell.drive_service, self.shell)
-            result = api_manager.read_venv_states()
-            if result.get('success') and 'data' in result:
-                return result['data']
-            return {}
-        except Exception as e:
-            return {}
 
-    def _get_venv_base_path(self):
-        """Get venv base path"""
-        try:
-            return self.shell.REMOTE_ENV + "/venv"
-        except Exception:
-            return f"{self.shell.REMOTE_ENV}/venv"
-
-    def _get_packages_from_json(self, venv_name, force_refresh=False):
+    def get_packages_from_json(self, venv_name, force_refresh=False):
         """Get packages from JSON with directory scanning fallback"""
         try:
             # 如果强制刷新或JSON中没有数据，进行目录扫描
             if force_refresh:
                 print(f"Refreshing package list from directory scan...")
-                scanned_packages = self._scan_environment_directory(venv_name)
+                scanned_packages = self.scan_environment_directory(venv_name)
                 if scanned_packages:
                     # 更新JSON文件
-                    self._remote_update_json_packages(venv_name, scanned_packages, action="replace")
+                    self.remote_update_json_packages(venv_name, scanned_packages, action="replace")
                     return scanned_packages
             
             # 获取JSON中的包信息
-            all_states = self._load_all_venv_states()
+            from ..venv_manager import VenvApiManager
+            api_manager = VenvApiManager(self.shell.drive_service, self.shell)
+            result = api_manager.read_venv_states()
+            all_states = result.get('data', {}) if result.get('success') else {}
             packages_from_json = {}
             
             if all_states and 'environments' in all_states and venv_name in all_states['environments']:
@@ -221,20 +200,22 @@ class PipCommand(BaseCommand):
             
             # 如果JSON中没有包信息，进行目录扫描
             if not packages_from_json:
-                scanned_packages = self._scan_environment_directory(venv_name)
+                scanned_packages = self.scan_environment_directory(venv_name)
                 if scanned_packages:
                     # 更新JSON文件
-                    self._remote_update_json_packages(venv_name, scanned_packages, action="replace")
+                    self.remote_update_json_packages(venv_name, scanned_packages, action="replace")
                     return scanned_packages
             
             return packages_from_json
         except Exception as e:
             return {}
 
-    def _scan_environment_directory(self, env_name):
+    def scan_environment_directory(self, env_name):
         """Scan virtual environment directory for installed packages"""
         try:
-            env_path = f"{self._get_venv_base_path()}/{env_name}"
+            from .venv_command import VenvCommand
+            venv_cmd = VenvCommand(self.shell)
+            env_path = f"{venv_cmd.get_venv_base_path()}/{env_name}"
             
             # 构建扫描命令
             scan_command = f"""
@@ -248,7 +229,7 @@ find '{env_path}' -maxdepth 1 -name '*.egg-info' -type d 2>/dev/null | sed 's|.*
             if result.get("success"):
                 output = result.get("stdout", "")
                 # 解析输出获取包信息
-                packages = self._parse_package_scan_output(output)
+                packages = self.parse_package_scan_output(output)
                 return packages
             else:
                 return {}
@@ -256,7 +237,7 @@ find '{env_path}' -maxdepth 1 -name '*.egg-info' -type d 2>/dev/null | sed 's|.*
         except Exception as e:
             return {}
 
-    def _parse_package_scan_output(self, output):
+    def parse_package_scan_output(self, output):
         """Parse package scan output to extract package names and versions"""
         packages = {}
         try:
@@ -283,7 +264,7 @@ find '{env_path}' -maxdepth 1 -name '*.egg-info' -type d 2>/dev/null | sed 's|.*
         
         return packages
 
-    def _remote_update_json_packages(self, env_name, packages, action="add"):
+    def remote_update_json_packages(self, env_name, packages, action="add"):
         """Update venv_states.json remotely with new package information"""
         try:
             # 构建Python脚本来更新JSON文件
@@ -344,12 +325,15 @@ print(f"JSON file updated successfully")
         except Exception as e:
             print(f"Error updating JSON remotely: {e}")
 
-    def _detect_current_environment_packages(self, venv_name):
+    def detect_current_environment_packages(self, venv_name):
         """Detect current environment packages with JSON and directory scanning"""
         try:
             if venv_name:
                 # 直接从JSON读取，不进行扫描（避免弹窗）
-                all_states = self._load_all_venv_states()
+                from ..venv_manager import VenvApiManager
+                api_manager = VenvApiManager(self.shell.drive_service, self.shell)
+                result = api_manager.read_venv_states()
+                all_states = result.get('data', {}) if result.get('success') else {}
                 if all_states and 'environments' in all_states and venv_name in all_states['environments']:
                     env_data = all_states['environments'][venv_name]
                     return env_data.get('packages', {})
@@ -365,7 +349,7 @@ print(f"JSON file updated successfully")
         except Exception as e:
             return {}
 
-    def _execute_pip_command(self, pip_command, current_env, target_info):
+    def execute_pip_command(self, pip_command, current_env, target_info):
         """强化的pip命令执行，支持错误处理和结果验证"""
         try:
             import time

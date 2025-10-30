@@ -5,7 +5,6 @@ Grep command handler for GDS.
 from typing import List
 from .base_command import BaseCommand
 
-
 class GrepCommand(BaseCommand):
     """Handler for grep commands."""
     
@@ -22,29 +21,22 @@ class GrepCommand(BaseCommand):
     
     def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute grep command."""
-        # self.print_debug(f"MATCHED GREP BRANCH! Processing grep with args: {args}")
-        # print(f"DEBUG in GrepCommand: Processing grep with args: {args}")
-        
+
         # 处理参数解析
         if len(args) == 1:
             # 只有一个参数，视为文件名，模式为空（等效于read）
             pattern = ""
             filenames = args
-            # print(f"DEBUG in GrepCommand: Single arg case - pattern='{pattern}', filenames={filenames}")
         elif '.' in args[-1] and not args[-1].startswith('.'):
             # 最后一个参数是文件名，前面的是模式
             filenames = [args[-1]]
-            pattern_parts = args[:-1]
-            pattern = ' '.join(pattern_parts)
-            # print(f"DEBUG in GrepCommand: Dot in last arg case - pattern='{pattern}', filenames={filenames}")
+            pattern = ' '.join(args[:-1])
         else:
             # 传统处理：第一个参数是模式，其余是文件名
             pattern = args[0]
             filenames = args[1:]
-            # print(f"DEBUG in GrepCommand: Traditional case - pattern='{pattern}', filenames={filenames}")
         
         # 移除pattern的外层引号（如果存在）
-        original_pattern = pattern
         if pattern.startswith('"') and pattern.endswith('"'):
             pattern = pattern[1:-1]
         elif pattern.startswith("'") and pattern.endswith("'"):
@@ -53,21 +45,13 @@ class GrepCommand(BaseCommand):
         # 检查是否为无模式的grep（等效于read）
         if not pattern or pattern.strip() == "":
             # 无模式grep，等效于read命令
-            # print(f"DEBUG in GrepCommand: No pattern grep, filenames: {filenames}")
             for filename in filenames:
-                # print(f"DEBUG in GrepCommand: Calling cmd_cat for filename: {filename}")
-                # print(f"DEBUG in GrepCommand: self.shell type: {type(self.shell)}")
-                # print(f"DEBUG in GrepCommand: self.shell: {self.shell}")
                 cat_result = self.shell.cmd_cat(filename)
-                # print(f"DEBUG in GrepCommand: cmd_cat result: {cat_result}")
                 if cat_result.get("success"):
                     content = cat_result["output"]
-                    # 修复换行显示问题，并添加行号（根据总行数动态调整宽度）
                     lines = content.split('\n')
-                    total_lines = len(lines)
-                    width = len(str(total_lines))  # 计算总行数的位数
                     for i, line in enumerate(lines, 1):
-                        print(f"{i:{width}}: {line}")
+                        print(f"{i}: {line}")
                 else:
                     self.print_error(f"无法读取文件: {filename}")
             return 0
@@ -76,17 +60,13 @@ class GrepCommand(BaseCommand):
         result = self.shell.cmd_grep(pattern, *filenames)
         if result.get("success", False):
             result_data = result.get("result", {})
-            has_matches = False
-            has_file_errors = False
             
             for filename, file_result in result_data.items():
                 if "error" in file_result:
                     self.print_error(f"{filename}: {file_result['error']}")
-                    has_file_errors = True
                 else:
                     occurrences = file_result.get("occurrences", {})
                     if occurrences:
-                        has_matches = True
                         # 获取文件内容用于显示匹配行
                         cat_result = self.shell.cmd_cat(filename)
                         if cat_result.get("success"):
@@ -107,3 +87,62 @@ class GrepCommand(BaseCommand):
         else:
             self.print_error(result.get("error", "Grep命令执行失败"))
             return 1
+
+
+    def cmd_grep(self, pattern, *filenames):
+        """grep命令 - 在文件中搜索模式，支持多文件和regex"""
+        import re
+        
+        try:
+            if not pattern:
+                return {"success": False, "error": "请指定搜索模式"}
+            
+            if not filenames:
+                return {"success": False, "error": "请指定要搜索的文件"}
+            
+            # 编译正则表达式
+            try:
+                regex = re.compile(pattern)
+            except re.error as e:
+                return {"success": False, "error": f"无效的正则表达式: {e}"}
+            
+            result = {}
+            
+            for filename in filenames:
+                # 获取文件内容
+                cat_result = self.cmd_cat(filename)
+                if not cat_result["success"]:
+                    result[filename] = {
+                        "local_file": None,
+                        "occurrences": [],
+                        "error": cat_result["error"]
+                    }
+                    continue
+                
+                content = cat_result["output"]
+                lines = content.split('\n')
+                
+                # 搜索匹配的位置
+                occurrences = {}
+                for line_num, line in enumerate(lines, 1):
+                    line_matches = []
+                    for match in regex.finditer(line):
+                        line_matches.append(match.start())
+                    if line_matches:
+                        occurrences[line_num] = line_matches
+                
+                # 转换为所需格式: {line_num: [positions]}
+                formatted_occurrences = occurrences
+                
+                # 获取本地缓存文件路径
+                local_file = self.main_instance.cache_manager.get_local_cache_path(filename)
+                
+                result[filename] = {
+                    "local_file": local_file,
+                    "occurrences": formatted_occurrences
+                }
+            
+            return {"success": True, "result": result}
+                
+        except Exception as e:
+            return {"success": False, "error": f"Grep command failed: {str(e)}"}

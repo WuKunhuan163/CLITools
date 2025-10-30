@@ -193,10 +193,10 @@ class CommandSplitter:
             'original': command_str,
             'is_compound': len(commands) > 1,
             'commands': commands,
-            'execution_plan': self._create_execution_plan(commands)
+            'execution_plan': self.create_execution_plan(commands)
         }
     
-    def _create_execution_plan(self, commands: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def create_execution_plan(self, commands: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         创建执行计划
         

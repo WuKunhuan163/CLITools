@@ -4,9 +4,6 @@ Google Drive Shell - Unified Help System
 Provides consistent help information for both command line and shell modes
 """
 
-import os
-import sys
-
 def get_unified_help_data():
     """
     Get structured help data that can be formatted for different contexts
@@ -188,7 +185,6 @@ Arguments:
     
     # Add shell commands by category
     for category, commands in data['shell_commands'].items():
-        category_title = category.replace('_', ' ').title().replace('_', ' ')
         if category == "navigation":
             help_text += "  Navigation:\n"
         elif category == "file_operations":
@@ -250,14 +246,7 @@ def show_unified_help(context="command_line", command_identifier=None):
         context: "command_line" for --help, "shell" for shell help
         command_identifier: For RUN environment support
     """
-    try:
-        # Import functions for RUN environment support
-        from . import is_run_environment, write_to_json_output
-    except ImportError:
-        def is_run_environment(cmd_id=None):
-            return False
-        def write_to_json_output(data, cmd_id=None):
-            return False
+    from . import is_run_environment, write_to_json_output
     
     if context == "shell":
         help_text = format_help_for_shell_mode()
@@ -271,6 +260,3 @@ def show_unified_help(context="command_line", command_identifier=None):
     
     return 0
 
-def show_help():
-    """显示命令行帮助信息 (for --help)"""
-    return show_unified_help(context="command_line")

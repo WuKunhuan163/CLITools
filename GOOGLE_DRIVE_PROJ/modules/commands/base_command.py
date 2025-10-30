@@ -3,8 +3,7 @@ Base command class for GDS special commands.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Any, Dict
-
+from typing import List
 
 class BaseCommand(ABC):
     """Base class for all GDS special commands."""
@@ -17,6 +16,8 @@ class BaseCommand(ABC):
             shell_instance: The GoogleDriveShell instance
         """
         self.shell = shell_instance
+        self.main_instance = shell_instance  # For backward compatibility
+        self.drive_service = shell_instance.drive_service if hasattr(shell_instance, 'drive_service') else None
     
     @property
     @abstractmethod
@@ -57,4 +58,3 @@ class BaseCommand(ABC):
     
     def print_debug(self, message: str) -> None:
         """Print debug message."""
-        # print(f"DEBUG in BaseCommand: {message}")

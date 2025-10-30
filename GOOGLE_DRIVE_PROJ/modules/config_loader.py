@@ -26,9 +26,9 @@ class ConfigLoader:
         if hasattr(self, '_initialized'):
             return
         self._initialized = True
-        self._load_config()
+        self.load_config_file()
     
-    def _load_config(self):
+    def load_config_file(self):
         """加载配置文件"""
         current_dir = Path(__file__).parent.parent.parent
         config_file = current_dir / "GOOGLE_DRIVE_DATA" / "config.json"
