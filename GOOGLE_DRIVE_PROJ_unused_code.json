@@ -1,8 +1,8 @@
 {
   "success": true,
-  "message": "Analyzed 46 files, found 61 unused items",
+  "message": "Analyzed 46 files, found 58 unused items",
   "total_files": 46,
-  "total_unused": 61,
+  "total_unused": 58,
   "unused": {
     "functions": {
       "GOOGLE_DRIVE_PROJ/google_drive_shell.py": {
@@ -165,14 +165,7 @@
         "168": "LsCommand.ls_recursive.visited_folders \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py": {
-        "788": "PyenvCommand.py_available_versions.completed_count \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
         "792": "PyenvCommand.py_available_versions.progress_lock \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
-      },
-      "GOOGLE_DRIVE_PROJ/modules/progress_manager.py": {
-        "117": "interruptible_progress_loop.signal_handler.interrupted \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
-      },
-      "GOOGLE_DRIVE_PROJ/modules/result_processor.py": {
-        "40": "ResultProcessor.wait_and_read_result_file.signal_handler.interrupted \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
       }
     },
     "imports": {}
