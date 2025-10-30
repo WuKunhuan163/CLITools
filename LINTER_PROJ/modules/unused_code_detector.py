@@ -163,6 +163,27 @@ class CodeAnalyzer(ast.NodeVisitor):
                         self.private_names.add(full_name)
         
         self.generic_visit(node)
+    
+    def visit_Nonlocal(self, node):
+        """Visit nonlocal statement"""
+        # Mark nonlocal variables as used in their enclosing scope
+        if self.current_scope and len(self.current_scope) > 1:
+            # Find the enclosing scope (parent function)
+            parent_scope = '.'.join(self.current_scope[:-1])
+            current_scope_name = '.'.join(self.current_scope)
+            
+            for name in node.names:
+                # Mark the variable as used in the parent scope
+                if parent_scope in self.local_vars_used_by_scope:
+                    self.local_vars_used_by_scope[parent_scope].add(name)
+                else:
+                    self.local_vars_used_by_scope[parent_scope] = {name}
+                
+                # Also mark as used in current scope for any future references
+                if current_scope_name in self.local_vars_used_by_scope:
+                    self.local_vars_used_by_scope[current_scope_name].add(name)
+                else:
+                    self.local_vars_used_by_scope[current_scope_name] = {name}
         
     def visit_Import(self, node):
         """Visit import statement"""
