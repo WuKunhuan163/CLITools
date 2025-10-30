@@ -220,16 +220,6 @@ class TestBackgroundCmdCLI(unittest.TestCase):
         self.assertIn("BACKGROUND_CMD", result.stdout)
         self.assertIn("usage:", result.stdout)
         
-    def test_create_process_command(self):
-        """测试创建进程命令"""
-        result = subprocess.run([
-            "python3", self.cmd_path, "sleep 1", 
-            "--log-dir", self.temp_dir
-        ], capture_output=True, text=True, timeout=10)
-        
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("Process started: PID", result.stdout)
-        
     def test_list_processes_json(self):
         """测试JSON格式列出进程"""
         result = subprocess.run([

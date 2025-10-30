@@ -1,18 +1,67 @@
 """
 Navigation commands (pwd, cd)
 从file_core.py迁移而来
+合并了cd_command和pwd_command
 """
 
 import time
+from .base_command import BaseCommand
 
 
-class NavigationCommand:
-    """导航命令"""
+class NavigationCommand(BaseCommand):
+    """导航命令 - 统一处理pwd, cd"""
     
-    def __init__(self, main_instance):
-        self.main_instance = main_instance
-        self.drive_service = main_instance.drive_service
+    @property
+    def command_name(self):
+        # 返回主命令名，但这个类会注册多个命令
+        return "navigation"
     
+    def execute(self, cmd, args, command_identifier=None):
+        """根据命令名分发到具体的处理方法"""
+        if cmd == "pwd":
+            return self.execute_pwd(args)
+        elif cmd == "cd":
+            return self.execute_cd(args)
+        else:
+            print(f"Error: Unknown navigation command: {cmd}")
+            return 1
+    
+    def execute_pwd(self, args):
+        """执行pwd命令"""
+        # pwd命令不需要参数
+        if args:
+            print("pwd: too many arguments")
+            return 1
+        
+        result = self.cmd_pwd()
+        
+        if result.get("success", False):
+            print(result.get("current_path", "~"))
+            return 0
+        else:
+            print(result.get("error", "Failed to get current directory"))
+            return 1
+    
+    def execute_cd(self, args):
+        """执行cd命令"""
+        if not args:
+            print("Error: cd command needs a directory path")
+            return 1
+        
+        path = args[0]
+        
+        # 调用shell的cd方法
+        result = self.cmd_cd(path)
+        
+        if result.get("success", False):
+            if not result.get("direct_feedback", False):
+                if (result.get("output", "")): 
+                    print(result.get("output", ""))
+            return 0
+        else:
+            print(result.get("error", "Failed to change directory"))
+            return 1
+
     def cmd_pwd(self):
         """显示当前路径"""
         try:
@@ -82,4 +131,3 @@ class NavigationCommand:
                 
         except Exception as e:
             return {"success": False, "error": f"Execute cd command failed: {e}"}
-

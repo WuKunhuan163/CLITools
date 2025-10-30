@@ -1,0 +1,620 @@
+{
+  "success": true,
+  "message": "Analyzed 53 files, found 416 unused items",
+  "total_files": 53,
+  "total_unused": 416,
+  "unused": {
+    "functions": {
+      "GOOGLE_DRIVE_PROJ/google_drive_api.py": {
+        "97": "GoogleDriveService.authenticate \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "180": "GoogleDriveService.download_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "145": "GoogleDriveService.list_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "48": "GoogleDriveService.load_from_environment \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "126": "GoogleDriveService.test_connection \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/google_drive_shell.py": {
+        "1729": "GoogleDriveShell.check_and_setup_mount_point \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1533": "GoogleDriveShell.cleanup_background_task \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1464": "GoogleDriveShell.cleanup_background_tasks \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "594": "GoogleDriveShell.execute_background_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "2117": "GoogleDriveShell.handle_desktop_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "2150": "GoogleDriveShell.handle_remount_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "2073": "GoogleDriveShell.handle_shell_command_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "464": "GoogleDriveShell.handle_wildcard_ls \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1604": "GoogleDriveShell._read_background_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "444": "GoogleDriveShell._resolve_absolute_mkdir_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1910": "GoogleDriveShell._save_folder_ids_to_config \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1173": "GoogleDriveShell._show_background_log \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1653": "GoogleDriveShell._show_background_result \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "550": "GoogleDriveShell._sync_venv_state_to_local_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1763": "GoogleDriveShell._update_paths_for_dynamic_mount \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "199": "GoogleDriveShell.calculate_timeout_from_file_sizes \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "203": "GoogleDriveShell.check_network_connection \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "211": "GoogleDriveShell.cmd_cat \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "215": "GoogleDriveShell.cmd_cd \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "219": "GoogleDriveShell.cmd_deps \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "223": "GoogleDriveShell.cmd_download \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "227": "GoogleDriveShell.cmd_edit \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "231": "GoogleDriveShell.cmd_find \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "235": "GoogleDriveShell.cmd_grep \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "299": "GoogleDriveShell.cmd_linter \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "239": "GoogleDriveShell.cmd_ls \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "243": "GoogleDriveShell.cmd_mkdir \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "251": "GoogleDriveShell.cmd_mv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "255": "GoogleDriveShell.cmd_mv_multi \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "303": "GoogleDriveShell.cmd_pip \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "259": "GoogleDriveShell.cmd_pwd \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "295": "GoogleDriveShell.cmd_pyenv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "263": "GoogleDriveShell.cmd_python \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "267": "GoogleDriveShell.cmd_python_code \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "271": "GoogleDriveShell.cmd_read \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "275": "GoogleDriveShell.cmd_rm \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "247": "GoogleDriveShell.cmd_touch \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "279": "GoogleDriveShell.cmd_upload \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "283": "GoogleDriveShell.cmd_upload_folder \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "287": "GoogleDriveShell.cmd_upload_multi \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "291": "GoogleDriveShell.cmd_venv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1310": "GoogleDriveShell.detect_redirection \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "311": "GoogleDriveShell.execute_command_interface \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "835": "GoogleDriveShell.execute_shell_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "388": "GoogleDriveShell.exit_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "392": "GoogleDriveShell.generate_mkdir_commands \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "396": "GoogleDriveShell.generate_mv_commands \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "400": "GoogleDriveShell.generate_shell_id \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "404": "GoogleDriveShell.get_current_folder_id \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "412": "GoogleDriveShell.get_remote_file_modification_time \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "2002": "GoogleDriveShell.handle_command_line_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "151": "GoogleDriveShell.initialize_managers \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "416": "GoogleDriveShell.is_cached_file_up_to_date \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1272": "GoogleDriveShell.is_operator_outside_quotes \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "420": "GoogleDriveShell.is_remote_file_cached \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "428": "GoogleDriveShell.load_cache_config \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "122": "GoogleDriveShell.load_deletion_cache \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "135": "GoogleDriveShell.load_drive_service \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1947": "GoogleDriveShell.load_paths_from_config \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "95": "GoogleDriveShell.load_shells \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "432": "GoogleDriveShell.move_to_local_equivalent \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1366": "GoogleDriveShell.parse_and_translate_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "320": "GoogleDriveShell.process_json \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "436": "GoogleDriveShell.resolve_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "440": "GoogleDriveShell.resolve_remote_absolute_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "448": "GoogleDriveShell.save_deletion_cache \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "452": "GoogleDriveShell.save_shells \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1076": "GoogleDriveShell.show_all_background_status \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1019": "GoogleDriveShell.show_background_status \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "316": "GoogleDriveShell.verify_creation_with_ls \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1778": "GoogleDriveShell.verify_mount_fingerprint \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1206": "GoogleDriveShell.wait_background_task \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "460": "GoogleDriveShell.wait_for_file_sync \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/cache_manager.py": {
+        "152": "CacheManager.add_deletion_record \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "331": "CacheManager.cache_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "46": "CacheManager.cleanup_local_equivalent_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "431": "CacheManager.clear_pending_modified_time \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "316": "CacheManager.generate_file_hash \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "383": "CacheManager.get_cached_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "323": "CacheManager.get_file_content_hash \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "37": "CacheManager.get_local_cache_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "416": "CacheManager.get_pending_modified_time \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "231": "CacheManager.get_remote_file_modification_time \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "263": "CacheManager.is_cached_file_up_to_date \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "379": "CacheManager.is_file_cached \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "195": "CacheManager.is_remote_file_cached \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "180": "CacheManager.load_cache_config \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "81": "CacheManager.load_deletion_cache \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "408": "CacheManager.save_cache_config \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "99": "CacheManager.save_deletion_cache \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "116": "CacheManager.should_rename_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/command_executor.py": {
+        "472": "CommandExecutor.direct_feedback \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "527": "CommandExecutor.direct_feedback_interface \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "260": "CommandExecutor.execute_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "346": "CommandExecutor.execute_command_interface \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "400": "CommandExecutor.execute_special_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "597": "CommandExecutor.get_multiline_user_input.timeout_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "147": "CommandExecutor.process_terminal_erase \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "423": "CommandExecutor.show_remote_command_window \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "31": "DebugCapture.add_debug \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "36": "DebugCapture.get_debug_info \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "22": "DebugCapture.start_capture \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "27": "DebugCapture.stop_capture \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/command_generator.py": {
+        "63": "CommandGenerator.calculate_command_hash \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "19": "CommandGenerator.check_bash_syntax \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "79": "CommandGenerator.generate_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "152": "CommandGenerator.generate_command.remove_quotes_if_safe \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "552": "CommandGenerator.generate_command_interface \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "630": "CommandGenerator.generate_mkdir_commands \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "665": "CommandGenerator.generate_multi_file_commands \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "505": "CommandGenerator.generate_mv_commands \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "747": "CommandGenerator.generate_unzip_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/command_parser.py": {
+        "199": "CommandSplitter.create_execution_plan \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "21": "CommandSplitter.has_real_combinators \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "69": "CommandSplitter.split_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "254": "has_real_combinators \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "267": "split_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/base_command.py": {
+        "22": "BaseCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "27": "BaseCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "57": "BaseCommand.print_debug \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "53": "BaseCommand.print_error \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "41": "BaseCommand.validate_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/cat_command.py": {
+        "5": "CatCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "CatCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/cd_command.py": {
+        "5": "CdCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "CdCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/command_registry.py": {
+        "24": "CommandRegistry.get_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "36": "CommandRegistry.is_special_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "15": "CommandRegistry.register \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/deps_command.py": {
+        "684": "DepsCommand.normalize_package_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "31": "DepsCommand.cmd_deps \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "9": "DepsCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "459": "DepsCommand.depth_based_dependency_analysis \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "696": "DepsCommand.display_smart_dependency_tree \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "12": "DepsCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "211": "DepsCommand.get_dependencies_via_remote_pip_show \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "163": "DepsCommand.get_package_dependencies_with_pipdeptree \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "148": "DepsCommand.get_pypi_client \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "239": "DepsCommand.get_pypi_dependencies_with_all_sizes \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "136": "DepsCommand.parse_requirements_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "303": "DepsCommand.smart_dependency_analysis \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/directory_command.py": {
+        "16": "DirectoryCommand.cmd_mkdir \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/download_command.py": {
+        "54": "DownloadCommand.cmd_download \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "5": "DownloadCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "242": "DownloadCommand.download_directory \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "DownloadCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/edit_command.py": {
+        "111": "EditCommand.cmd_edit \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "6": "EditCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "9": "EditCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "286": "EditCommand.execute_online_edit \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "154": "EditCommand.generate_online_edit_script \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/file_command.py": {
+        "137": "FileCommand.cmd_mv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "59": "FileCommand.cmd_rm \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "17": "FileCommand.cmd_touch \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/find_command.py": {
+        "127": "FindCommand.cmd_find \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "15": "FindCommand.parse_find_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "61": "FindCommand.recursive_find \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/grep_command.py": {
+        "92": "GrepCommand.cmd_grep \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "12": "GrepCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "22": "GrepCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "15": "GrepCommand.validate_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/ls_command.py": {
+        "241": "LsCommand.build_nested_structure \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "345": "LsCommand.check_remote_file_exists \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "57": "LsCommand.cmd_ls \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "5": "LsCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "LsCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "284": "LsCommand.generate_folder_url \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "288": "LsCommand.generate_web_url \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "164": "LsCommand.ls_recursive \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "312": "LsCommand.resolve_file_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py": {
+        "5": "MkdirCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "MkdirCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/mv_command.py": {
+        "5": "MvCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "MvCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/navigation_command.py": {
+        "34": "NavigationCommand.cmd_cd \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "16": "NavigationCommand.cmd_pwd \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pip_command.py": {
+        "120": "PipCommand.handle_pip_list \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "164": "PipCommand.handle_pip_show \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "31": "PipCommand.cmd_pip \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "10": "PipCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "328": "PipCommand.detect_current_environment_packages \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "13": "PipCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "352": "PipCommand.execute_pip_command \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "178": "PipCommand.get_packages_from_json \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "84": "PipCommand.handle_pip_install \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "150": "PipCommand.handle_pip_uninstall \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "240": "PipCommand.parse_package_scan_output \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "267": "PipCommand.remote_update_json_packages \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "213": "PipCommand.scan_environment_directory \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pwd_command.py": {
+        "5": "PwdCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "PwdCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py": {
+        "640": "PyenvCommand.is_version_installed \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "1004": "PyenvCommand.add_installed_version \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "31": "PyenvCommand.cmd_pyenv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "9": "PyenvCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "12": "PyenvCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "846": "PyenvCommand.generate_python_version_candidates \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "767": "PyenvCommand.get_available_versions_cache_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "747": "PyenvCommand.get_cached_available_versions \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "665": "PyenvCommand.get_current_python_version \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "648": "PyenvCommand.get_installed_versions \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "99": "PyenvCommand.get_python_base_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "689": "PyenvCommand.get_python_state \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "103": "PyenvCommand.get_python_state_file_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "283": "PyenvCommand.get_versions_and_current_unified \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "590": "PyenvCommand.getpyenv_versions \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "776": "PyenvCommand.py_available_versions \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "794": "PyenvCommand.py_available_versions.verify_version_with_progress \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "444": "PyenvCommand.pyenv_global_get \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "417": "PyenvCommand.pyenv_global_set \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "107": "PyenvCommand.pyenv_install \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "357": "PyenvCommand.pyenv_list_available \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "499": "PyenvCommand.pyenv_local_get \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "467": "PyenvCommand.pyenv_local_set \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "225": "PyenvCommand.pyenv_uninstall \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "392": "PyenvCommand.pyenv_update_cache \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "527": "PyenvCommand.pyenv_version \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1016": "PyenvCommand.remove_installed_version \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "711": "PyenvCommand.update_python_state \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "627": "PyenvCommand.validate_version \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "896": "PyenvCommand.verify_python_version_availability \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/python_command.py": {
+        "73": "PythonCommand.cmd_python \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "13": "PythonCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "16": "PythonCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "88": "PythonCommand.execute_python_code \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "210": "PythonCommand.execute_python_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "67": "PythonCommand.get_python_executable \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/read_command.py": {
+        "5": "ReadCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "ReadCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/rm_command.py": {
+        "5": "RmCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "RmCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/text_command.py": {
+        "73": "TextCommand.cmd_cat \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "27": "TextCommand.create_text_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/touch_command.py": {
+        "5": "TouchCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "TouchCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py": {
+        "626": "UploadCommand.check_large_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "67": "UploadCommand.check_remote_file_conflicts \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "195": "UploadCommand.cmd_upload \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "116": "UploadCommand.cmd_upload_folder \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "16": "UploadCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "24": "UploadCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "662": "UploadCommand.handle_large_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "604": "UploadCommand.verify_files_available \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "801": "UploadCommand.verify_upload_with_progress \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "815": "UploadCommand.verify_upload_with_progress.validate_all_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "534": "UploadCommand.zip_folder \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/upload_folder_command.py": {
+        "5": "UploadFolderCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "8": "UploadFolderCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/venv_command.py": {
+        "30": "VenvCommand.cmd_venv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "12": "VenvCommand.command_name \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "15": "VenvCommand.execute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "849": "VenvCommand.get_protected_environments \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "114": "VenvCommand.get_venv_api_manager \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "110": "VenvCommand.get_venv_base_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "121": "VenvCommand.get_venv_state_file_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "235": "VenvCommand.update_venv_json_field \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "340": "VenvCommand.venv_activate \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "125": "VenvCommand.venv_create \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "95": "VenvCommand.venv_create_batch \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "638": "VenvCommand.venv_current \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "501": "VenvCommand.venv_deactivate \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "180": "VenvCommand.venv_delete_batch \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "590": "VenvCommand.venv_list \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "820": "VenvCommand.venv_protect \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "682": "VenvCommand.venv_protect_batch \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/config_loader.py": {
+        "69": "ConfigLoader.__getattr__ \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "42": "ConfigLoader.get \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "31": "ConfigLoader.load_config_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/drive_api_service.py": {
+        "143": "list_drive_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "90": "test_api_connection \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/drive_process_manager.py": {
+        "217": "restart_google_drive \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/error_handler.py": {
+        "292": "EnhancedErrorHandler.is_user_code \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "333": "EnhancedErrorHandler.log_error \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "152": "EnhancedErrorHandler.analyze_stack_frames \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "40": "EnhancedErrorHandler.capture_exception \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "120": "EnhancedErrorHandler.find_root_cause \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "266": "EnhancedErrorHandler.get_code_context \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "113": "EnhancedErrorHandler.get_full_traceback \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "325": "EnhancedErrorHandler.get_timestamp \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "106": "EnhancedErrorHandler.get_traceback_summary \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "346": "EnhancedErrorHandler.print_debug_info \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "240": "EnhancedErrorHandler.safeget_locals \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "24": "EnhancedErrorHandler.setup_error_logging \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/hf_credentials_manager.py": {
+        "60": "setup_remote_hf_credentials \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "204": "test_remote_hf_setup \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/path_constants.py": {
+        "112": "PathConstants.detect_environment \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "99": "PathConstants.get_folder_id \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "87": "PathConstants.get_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "65": "PathConstants.load_path_configuration \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/path_resolver.py": {
+        "428": "PathResolver.join_paths \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "438": "PathResolver.normalize_path_components \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "354": "PathResolver.compute_absolute_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "320": "PathResolver.convert_local_path_to_remote \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "20": "PathResolver.expand_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "414": "PathResolver.get_parent_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "307": "PathResolver.path_to_absolute \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "269": "PathResolver.resolve_absolute_mkdir_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "149": "PathResolver.resolve_multi_level_parent_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "239": "PathResolver.resolve_parent_directory \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "61": "PathResolver.resolve_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "187": "PathResolver.resolve_relative_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "486": "PathResolver.resolve_remote_absolute_path \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "29": "PathResolver.resolve_target_path_for_upload \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/progress_manager.py": {
+        "23": "ProgressDisplay.start_progress \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "41": "ProgressDisplay.stop_progress \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "34": "ProgressDisplay.update_progress \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "115": "interruptible_progress_loop.signal_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/remote_shell_manager.py": {
+        "490": "RemoteShellManager.create_default_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "310": "RemoteShellManager.detect_active_venv \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "253": "RemoteShellManager.exit_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "68": "RemoteShellManager.generate_shell_id \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "472": "RemoteShellManager.get_current_folder_id \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "39": "RemoteShellManager.get_shells_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "46": "RemoteShellManager.load_shells \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "57": "RemoteShellManager.save_shells \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "341": "RemoteShellManager.update_shell_venv_state \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/result_processor.py": {
+        "159": "ResultProcessor.preprocess_json_content \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "190": "ResultProcessor.read_result_file_via_gds \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "13": "ResultProcessor.wait_and_read_result_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "38": "ResultProcessor.wait_and_read_result_file.signal_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/sync_manager.py": {
+        "154": "SyncManager.calculate_timeout_from_file_sizes \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "141": "SyncManager.check_network_connection \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "39": "SyncManager.move_to_local_equivalent \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "179": "SyncManager.wait_for_file_sync \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "197": "SyncManager.wait_for_file_sync.check_sync_status \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "367": "set_global_sync_dir \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "305": "set_local_sync_dir \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/system_utils.py": {
+        "7": "ensure_google_drive_desktop_running \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/validation.py": {
+        "141": "Validation.handle_exception \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "112": "Validation.create_error_result \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "124": "Validation.create_success_result \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "160": "Validation.verify_creation_with_ls \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "173": "Validation.verify_creation_with_ls.validate \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "14": "Validation.verify_upload_success_by_ls \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/venv_manager.py": {
+        "188": "VenvApiManager.create_initial_venv_states_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "97": "VenvApiManager.list_venv_environments \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "155": "VenvApiManager.load_all_venv_states \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "13": "VenvApiManager.read_venv_states \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "150": "VenvApiManager.read_venv_states_via_api \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/window_manager.py": {
+        "78": "WindowManager.initialize_queue_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "377": "WindowManager.acquire_lock \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "97": "WindowManager.add_to_queue \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "133": "WindowManager.clean_stale_requests \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "263": "WindowManager.cleanup_all_processes \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "339": "WindowManager.cleanup_all_processes_force \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "343": "WindowManager.cleanup_stale_locks \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1312": "WindowManager.count_tkinter_windows \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "629": "WindowManager.create_and_show_window \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "1294": "WindowManager.debug_log \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "367": "WindowManager.force_cleanup_lock \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "164": "WindowManager.get_next_request \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "576": "WindowManager.process_queue \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "465": "WindowManager.release_lock \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "494": "WindowManager.request_window \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "229": "WindowManager.setup_cleanup_handlers \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "231": "WindowManager.setup_cleanup_handlers.cleanup_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "236": "WindowManager.setup_cleanup_handlers.emergency_cleanup_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
+        "539": "WindowManager.wait_for_lock_and_process \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+      }
+    },
+    "classes": {
+      "GOOGLE_DRIVE_PROJ/google_drive_shell.py": {
+        "39": "GoogleDriveShell \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/cache_manager.py": {
+        "15": "CacheManager \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/command_executor.py": {
+        "136": "CommandExecutor \u7c7b\u672a\u88ab\u4f7f\u7528",
+        "594": "CommandExecutor.get_multiline_user_input.TimeoutException \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/command_generator.py": {
+        "12": "CommandGenerator \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/cat_command.py": {
+        "3": "CatCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/cd_command.py": {
+        "3": "CdCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/command_registry.py": {
+        "9": "CommandRegistry \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/deps_command.py": {
+        "3": "DepsCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/directory_command.py": {
+        "9": "DirectoryCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/download_command.py": {
+        "3": "DownloadCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/edit_command.py": {
+        "4": "EditCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/file_command.py": {
+        "9": "FileCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/find_command.py": {
+        "7": "FindCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/grep_command.py": {
+        "8": "GrepCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/ls_command.py": {
+        "3": "LsCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py": {
+        "3": "MkdirCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/mv_command.py": {
+        "3": "MvCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/navigation_command.py": {
+        "9": "NavigationCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pip_command.py": {
+        "3": "PipCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pwd_command.py": {
+        "3": "PwdCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py": {
+        "3": "PyenvCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/python_command.py": {
+        "9": "PythonCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/read_command.py": {
+        "3": "ReadCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/rm_command.py": {
+        "3": "RmCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/text_command.py": {
+        "7": "TextCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/touch_command.py": {
+        "3": "TouchCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py": {
+        "12": "UploadCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/upload_folder_command.py": {
+        "3": "UploadFolderCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/venv_command.py": {
+        "8": "VenvCommand \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/path_resolver.py": {
+        "12": "PathResolver \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/remote_shell_manager.py": {
+        "26": "RemoteShellManager \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/result_processor.py": {
+        "6": "ResultProcessor \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/sync_manager.py": {
+        "31": "SyncManager \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/validation.py": {
+        "6": "Validation \u7c7b\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/venv_manager.py": {
+        "6": "VenvApiManager \u7c7b\u672a\u88ab\u4f7f\u7528"
+      }
+    },
+    "variables": {
+      "GOOGLE_DRIVE_PROJ/modules/commands/deps_command.py": {
+        "387": "DepsCommand.smart_dependency_analysis.decomposed \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/ls_command.py": {
+        "168": "LsCommand.ls_recursive.visited_folders \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py": {
+        "788": "PyenvCommand.py_available_versions.completed_count \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "792": "PyenvCommand.py_available_versions.progress_lock \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/path_constants.py": {
+        "148": "DRIVE_EQUIVALENT \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "155": "DRIVE_EQUIVALENT_FOLDER_ID \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "152": "HOME_FOLDER_ID \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "147": "LOCAL_EQUIVALENT \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "150": "REMOTE_ENV \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "154": "REMOTE_ENV_FOLDER_ID \u53d8\u91cf\u672a\u88ab\u4f7f\u7528",
+        "149": "REMOTE_ROOT \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/progress_manager.py": {
+        "117": "interruptible_progress_loop.signal_handler.interrupted \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/remote_shell_manager.py": {
+        "23": "HOME_FOLDER_ID \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/result_processor.py": {
+        "40": "ResultProcessor.wait_and_read_result_file.signal_handler.interrupted \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/shell_commands.py": {
+        "29": "HOME_FOLDER_ID \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      },
+      "GOOGLE_DRIVE_PROJ/modules/venv_manager.py": {
+        "169": "VenvApiManager.load_all_venv_states.state_file \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
+      }
+    },
+    "imports": {
+      "GOOGLE_DRIVE_PROJ/modules/path_constants.py": {
+        "123": "google.colab \u5bfc\u5165\u672a\u88ab\u4f7f\u7528"
+      }
+    }
+  },
+  "errors": [
+    "Syntax error in GOOGLE_DRIVE_PROJ/modules/commands/linter_command.py: unmatched ')' (linter_command.py, line 103)"
+  ],
+  "target": "GOOGLE_DRIVE_PROJ/"
+}

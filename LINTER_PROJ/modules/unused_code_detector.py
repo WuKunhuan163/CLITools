@@ -179,22 +179,23 @@ class CodeAnalyzer(ast.NodeVisitor):
             self.definitions['imports'][import_name] = node.lineno
             
     def visit_Attribute(self, node):
-        """Visit attribute access (e.g., self.method, obj.attr)"""
-        # Mark attribute as used
+        """Visit attribute access (e.g., self.method, obj.attr, module.Class)"""
+        # IMPORTANT: Visit children first to handle nested attributes
+        self.generic_visit(node)
+        
+        # Then mark attribute as used
         if isinstance(node.ctx, ast.Load):
             attr_name = node.attr
             
             # Check if this is self.method_name
             if isinstance(node.value, ast.Name) and node.value.id == 'self':
-                # Mark method as used - try to find the class context
+                # Mark method as used - get class name from scope
                 if self.current_scope:
-                    # In a class method, current_scope is like ['ClassName', 'method_name']
-                    # Find the class name (first element that's capitalized or all scope parts)
-                    for i, scope_part in enumerate(self.current_scope):
-                        if i == 0 or scope_part[0].isupper():
-                            # This might be a class name
-                            full_name = f"{scope_part}.{attr_name}"
-                            self.usages['functions'].add(full_name)
+                    # current_scope = ['ClassName', 'method_name', ...]
+                    # First element is usually the class name
+                    class_name = self.current_scope[0]
+                    full_name = f"{class_name}.{attr_name}"
+                    self.usages['functions'].add(full_name)
                 
                 # Also mark without class prefix (for simpler matching)
                 self.usages['functions'].add(attr_name)
@@ -202,14 +203,21 @@ class CodeAnalyzer(ast.NodeVisitor):
             # Check if this is obj.method where obj is a known variable/import
             elif isinstance(node.value, ast.Name):
                 obj_name = node.value.id
-                # Mark the attribute/method as potentially used
+                # When accessing module.attribute or obj.method, mark both as used
                 self.usages['functions'].add(attr_name)
                 self.usages['variables'].add(attr_name)
-                # Also mark the object itself as used
                 self.usages['variables'].add(obj_name)
+                self.usages['classes'].add(obj_name)
                 self.usages['imports'].add(obj_name)
-        
-        self.generic_visit(node)
+            
+            # Handle nested attributes like module.submodule.Class
+            elif isinstance(node.value, ast.Attribute):
+                # Walk back to find the root name
+                current = node.value
+                while isinstance(current, ast.Attribute):
+                    current = current.value
+                if isinstance(current, ast.Name):
+                    self.usages['imports'].add(current.id)
     
     def visit_Name(self, node):
         """Visit name usage"""
@@ -257,24 +265,7 @@ class CodeAnalyzer(ast.NodeVisitor):
         
         self.generic_visit(node)
     
-    def visit_Attribute(self, node):
-        """Visit attribute access"""
-        if isinstance(node.value, ast.Name):
-            name = node.value.id
-            # When accessing module.attribute, mark module as used
-            self.usages['variables'].add(name)
-            self.usages['classes'].add(name)
-            self.usages['imports'].add(name)
-        elif isinstance(node.value, ast.Attribute):
-            # Handle nested attributes like module.submodule.Class
-            # Walk back to find the root name
-            current = node.value
-            while isinstance(current, ast.Attribute):
-                current = current.value
-            if isinstance(current, ast.Name):
-                self.usages['imports'].add(current.id)
-            
-        self.generic_visit(node)
+    # NOTE: visit_Attribute is defined above at line 181
 
 
 class UnusedCodeDetector:

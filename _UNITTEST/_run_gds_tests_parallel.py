@@ -221,7 +221,7 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
             print(f"  - {test_short} ({output_file})")
     
     print(f"\nAll test outputs saved in _TEMP/ folder")
-    print(f"Use '../BACKGROUND_CMD --status' to see process details")
+    print(f"Use 'BACKGROUND_CMD --status' to see process details")
 
 def main():
     """主函数"""
