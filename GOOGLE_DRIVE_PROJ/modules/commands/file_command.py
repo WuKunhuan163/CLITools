@@ -1,15 +1,99 @@
 """
 File operations commands (touch, rm, mv)
 从file_core.py迁移而来
+合并了touch_command, rm_command, mv_command
 """
 
-class FileCommand:
-    """文件操作命令"""
+from .base_command import BaseCommand
+
+class FileCommand(BaseCommand):
+    """文件操作命令 - 统一处理touch, rm, mv"""
     
-    def __init__(self, main_instance):
-        self.main_instance = main_instance
-        self.drive_service = main_instance.drive_service
+    @property
+    def command_name(self):
+        # 返回主命令名，但这个类会注册多个命令
+        return "file"
     
+    def execute(self, cmd, args, command_identifier=None):
+        """根据命令名分发到具体的处理方法"""
+        if cmd == "touch":
+            return self.execute_touch(args)
+        elif cmd == "rm":
+            return self.execute_rm(args)
+        elif cmd == "mv":
+            return self.execute_mv(args)
+        else:
+            print(f"Error: Unknown file command: {cmd}")
+            return 1
+    
+    def execute_touch(self, args):
+        """执行touch命令"""
+        if not args:
+            print("Error: touch command needs a file name")
+            return 1
+        
+        # 处理每个文件
+        for file_path in args:
+            result = self.cmd_touch(file_path)
+            
+            if not result.get("success", False):
+                print(result.get("error", f"Failed to create file: {file_path}"))
+                return 1
+        
+        return 0
+    
+    def execute_rm(self, args):
+        """执行rm命令"""
+        if not args:
+            print("Error: rm command needs a file or directory name")
+            return 1
+        
+        # 解析参数
+        recursive = False
+        force = False
+        files = []
+        
+        for arg in args:
+            if arg == '-r':
+                recursive = True
+            elif arg == '-f':
+                force = True
+            elif arg == '-rf' or arg == '-fr':
+                recursive = True
+                force = True
+            else:
+                files.append(arg)
+        
+        if not files:
+            print("Error: rm command needs a file or directory name")
+            return 1
+        
+        # 处理每个文件/目录
+        for file_path in files:
+            result = self.cmd_rm(file_path, recursive=recursive, force=force)
+            
+            if not result.get("success", False):
+                print(result.get("error", f"Failed to remove: {file_path}"))
+                return 1
+        
+        return 0
+    
+    def execute_mv(self, args):
+        """执行mv命令"""
+        if len(args) < 2:
+            print("Error: mv command needs source and destination")
+            return 1
+        
+        source = args[0]
+        destination = args[1]
+        
+        result = self.cmd_mv(source, destination)
+        
+        if not result.get("success", False):
+            print(result.get("error", f"Failed to move {source} to {destination}"))
+            return 1
+        
+        return 0
 
     def cmd_touch(self, filename):
         """创建空文件，通过远程命令界面执行"""

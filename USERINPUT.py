@@ -26,64 +26,11 @@ import platform
 _focus_count = 0
 _audio_file_path = Path(__file__).parent / "USERINPUT_PROJ" / "tkinter_bell.mp3"
 
-# 已移除should_play_audio()函数，因为音效播放逻辑已完全移至Tkinter subprocess中
-# 这样可以避免主进程和subprocess的双重音效播放问题
-# def should_play_audio():
-#     """检查是否应该播放音效（第1、4、7...次focus）"""
-#     global _focus_count
-#     _focus_count += 1
-#     # 第1次、第4次、第7次... (即 count % 3 == 1)
-#     return _focus_count % 3 == 1
-
-# 已移除主进程中的音效播放函数，因为音效播放逻辑已完全移至Tkinter subprocess中
-# 这样可以避免主进程和subprocess的双重音效播放问题
-
-# def play_bell_sound():
-#     """播放提示音"""
-#     try:
-#         if not _audio_file_path.exists():
-#             return False
-#             
-#         system = platform.system()
-#         if system == "Darwin":  # macOS
-#             subprocess.run(["afplay", str(_audio_file_path)], 
-#                          capture_output=True, timeout=2)
-#         elif system == "Linux":
-#             # 尝试多个Linux音频播放器
-#             players = ["paplay", "aplay", "mpg123", "mpv", "vlc"]
-#             for player in players:
-#                 try:
-#                     subprocess.run([player, str(_audio_file_path)], 
-#                                  capture_output=True, timeout=2, check=True)
-#                     break
-#                 except (subprocess.CalledProcessError, FileNotFoundError):
-#                     continue
-#         elif system == "Windows":
-#             # Windows可以使用winsound模块或powershell
-#             try:
-#                 subprocess.run(["powershell", "-c", 
-#                               f"(New-Object Media.SoundPlayer '{_audio_file_path}').PlaySync()"], 
-#                              capture_output=True, timeout=2)
-#             except:
-#                 pass
-#         return True
-#     except Exception:
-#         return False
-
-# def increment_focus_and_play():
-#     """增加focus计数，每3次播放一次音频"""
-#     global _focus_count
-#     _focus_count += 1
-#     if _focus_count % 3 == 1:
-#         # 在后台线程中播放音频，避免阻塞
-#         threading.Thread(target=play_bell_sound, daemon=True).start()
-
 def is_run_environment(command_identifier=None):
     """Check if running in RUN environment by checking environment variables"""
     if command_identifier:
         return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
     return False
-
 
 def get_project_name():
     """获取项目名称"""
@@ -505,7 +452,6 @@ def write_to_json_output(user_input, command_identifier=None):
     if not is_run_environment(command_identifier):
         return False
     
-    # Get the specific output file for this command identifier
     if command_identifier:
         output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
     else:

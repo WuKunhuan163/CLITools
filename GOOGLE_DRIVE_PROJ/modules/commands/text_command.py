@@ -1,28 +1,87 @@
 """
-Text operations commands (cat, create_text_file)
+Text operations commands (cat, read, create_text_file)
 从text_operations.py迁移而来
+合并了cat_command和read_command
 """
 
+from .base_command import BaseCommand
 
-class TextCommand:
-    """文本操作命令"""
+class TextCommand(BaseCommand):
+    """文本操作命令 - 统一处理cat, read"""
     
-    def __init__(self, main_instance):
-        self.main_instance = main_instance
-        self.drive_service = main_instance.drive_service
+    @property
+    def command_name(self):
+        # 返回主命令名，但这个类会注册多个命令
+        return "text"
     
-    def create_text_file(self, filename, content):
-        """通过远程命令创建文本文件
+    def execute(self, cmd, args, command_identifier=None):
+        """根据命令名分发到具体的处理方法"""
+        if cmd == "cat":
+            return self.execute_cat(args)
+        elif cmd == "read":
+            return self.execute_read(args)
+        else:
+            print(f"Error: Unknown text command: {cmd}")
+            return 1
+    
+    def execute_cat(self, args):
+        """执行cat命令"""
+        if not args:
+            print("Error: cat command needs a file name")
+            return 1
         
-        Args:
-            filename (str): 文件名
-            content (str): 文件内容
-            
-        Returns:
-            dict: 创建结果
-        """
-        # 从text_operations.py的create_text_file方法复制实现（行29-73）
-        pass
+        filename = args[0]
+        
+        # 调用shell的cat方法
+        result = self.cmd_cat(filename)
+        
+        if result.get("success", False):
+            if not result.get("direct_feedback", False):
+                print(result.get("output", ""), end = "")
+            return 0
+        else:
+            print(result.get("error", "Failed to read file"))
+            return 1
+    
+    def execute_read(self, args):
+        """执行read命令"""
+        if not args:
+            print("Error: read command needs a file name")
+            return 1
+        
+        # 解析参数
+        force = False
+        read_args = []
+        
+        for arg in args:
+            if arg == '--force':
+                force = True
+            else:
+                read_args.append(arg)
+        
+        if not read_args:
+            print("Error: read command needs a file name")
+            return 1
+        
+        filename = read_args[0]
+        remaining_args = read_args[1:]
+        
+        # 调用shell的read方法
+        result = self.cmd_read(filename, *remaining_args, force=force)
+        
+        if result.get("success", False):
+            if not result.get("direct_feedback", False):
+                # 添加行号显示，根据总行数动态调整宽度
+                content = result.get("output", "")
+                lines = content.split('\n')
+                total_lines = len(lines)
+                width = len(str(total_lines))  # 计算总行数的位数
+                for i, line in enumerate(lines, 1):
+                    print(f"{i:{width}}: {line}")
+            return 0
+        else:
+            print(result.get("error", "Failed to read file"))
+            return 1
 
     def create_text_file(self, filename, content):
         """通过远程命令创建文本文件"""
@@ -121,4 +180,8 @@ class TextCommand:
                 
         except Exception as e:
             return {"success": False, "error": f"执行cat命令时出错: {e}"}
-
+    
+    def cmd_read(self, filename, *remaining_args, force=False):
+        """read命令 - 显示文件内容(带行号)"""
+        # cmd_read is essentially the same as cmd_cat, but the execute_read method adds line numbers
+        return self.cmd_cat(filename)

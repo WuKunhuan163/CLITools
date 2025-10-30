@@ -162,14 +162,12 @@ class GoogleDriveShell:
     def initialize_managers(self):
         """初始化各个管理器"""
         from GOOGLE_DRIVE_PROJ.modules.remote_shell_manager import RemoteShellManager
-        from GOOGLE_DRIVE_PROJ.modules.commands.directory_command import DirectoryCommand
         
         # 初始化shell管理器
         self.shell_management = RemoteShellManager(self.drive_service, self)
         
-        # 初始化文件操作管理器（使用DirectoryCommand等）
-        # 注意：大部分cmd_*方法现在通过command_registry处理，这里只是为了向后兼容
-        self.file_operations = DirectoryCommand(self)
+        # file_operations不再需要，所有操作通过command_registry处理
+        self.file_operations = None
         
         self.cache_manager = CacheManager(self.drive_service, self)
         self.command_executor = CommandExecutor(self.drive_service, self)

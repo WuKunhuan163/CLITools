@@ -318,7 +318,7 @@ class CommandExecutor:
                     "success": False,
                     "action": "execution_failed",
                     "data": {
-                        "error": result.get("error", "Command execution failed"),
+                        "error": result.get("error", ""),
                         "source": "unified_command"
                     }
                 }

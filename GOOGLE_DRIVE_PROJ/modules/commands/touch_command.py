@@ -1,22 +1,13 @@
-from .base_command import BaseCommand
+"""Touch command wrapper - delegates to FileCommand"""
+from .file_command import FileCommand
 
-class TouchCommand(BaseCommand):
+class TouchCommand(FileCommand):
     @property
     def command_name(self):
         return "touch"
     
     def execute(self, cmd, args, command_identifier=None):
         """执行touch命令"""
-        if not args:
-            print("Error: touch command needs a file name")
-            return 1
-        
-        # 处理每个文件
-        for file_path in args:
-            result = self.shell.cmd_touch(file_path)
-            
-            if not result.get("success", False):
-                print(result.get("error", f"Failed to create file: {file_path}"))
-                return 1
-        
-        return 0
+        return self.execute_touch(args)
+    
+    # cmd_touch method is inherited from FileCommand
