@@ -296,6 +296,23 @@ class CodeAnalyzer(ast.NodeVisitor):
         
         self.generic_visit(node)
     
+    def visit_With(self, node):
+        """Visit with statement"""
+        # Mark context manager variables as used
+        for item in node.items:
+            if item.context_expr:
+                self.visit(item.context_expr)
+            if item.optional_vars:
+                self.visit(item.optional_vars)
+        
+        # Visit the body
+        for stmt in node.body:
+            self.visit(stmt)
+    
+    def visit_AsyncWith(self, node):
+        """Visit async with statement"""
+        self.visit_With(node)
+    
     # NOTE: visit_Attribute is defined above at line 181
 
 
