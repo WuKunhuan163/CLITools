@@ -14,7 +14,7 @@ echo_file = test_instance.get_test_file_path("test_echo.txt")
 print(f"目标文件路径: {echo_file}")
 
 # 构造命令 - 按照test_02中的格式
-command = f'\'echo "Test content" > "{echo_file}"\'\'
+command = f'\'echo "Test content" > "{echo_file}"\''
 print(f"执行命令: {command}")
 
 # 执行命令
