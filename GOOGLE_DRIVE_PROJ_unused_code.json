@@ -1,17 +1,13 @@
 {
   "success": true,
-  "message": "Analyzed 46 files, found 70 unused items",
+  "message": "Analyzed 46 files, found 62 unused items",
   "total_files": 46,
-  "total_unused": 70,
+  "total_unused": 62,
   "unused": {
     "functions": {
       "GOOGLE_DRIVE_PROJ/google_drive_shell.py": {
-        "580": "GoogleDriveShell._sync_venv_state_to_local_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
-        "260": "GoogleDriveShell.cmd_find \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
-        "329": "GoogleDriveShell.cmd_linter \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
-        "285": "GoogleDriveShell.cmd_mv_multi \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
-        "317": "GoogleDriveShell.cmd_upload_multi \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
-        "2032": "GoogleDriveShell.handle_command_line_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+        "566": "GoogleDriveShell._sync_venv_state_to_local_shell \u51fd\u6570\u672a\u88ab\u4f7f\u7528 [\u79c1\u6709]",
+        "2018": "GoogleDriveShell.handle_command_line_args \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/command_executor.py": {
         "597": "CommandExecutor.get_multiline_user_input.timeout_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
@@ -19,9 +15,6 @@
       },
       "GOOGLE_DRIVE_PROJ/modules/command_generator.py": {
         "152": "CommandGenerator.generate_command.remove_quotes_if_safe \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
-      },
-      "GOOGLE_DRIVE_PROJ/modules/commands/base_command.py": {
-        "59": "BaseCommand.print_debug \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/commands/edit_command.py": {
         "154": "EditCommand.generate_online_edit_script \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
@@ -31,9 +24,6 @@
       },
       "GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py": {
         "794": "PyenvCommand.py_available_versions.verify_version_with_progress \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
-      },
-      "GOOGLE_DRIVE_PROJ/modules/commands/text_command.py": {
-        "86": "TextCommand.create_text_file \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py": {
         "815": "UploadCommand.verify_upload_with_progress.validate_all_files \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
@@ -68,7 +58,7 @@
         "38": "ResultProcessor.wait_and_read_result_file.signal_handler \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/shell_commands.py": {
-        "32": "shell_pwd \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
+        "31": "shell_pwd \u51fd\u6570\u672a\u88ab\u4f7f\u7528"
       },
       "GOOGLE_DRIVE_PROJ/modules/sync_manager.py": {
         "197": "SyncManager.wait_for_file_sync.check_sync_status \u51fd\u6570\u672a\u88ab\u4f7f\u7528",
@@ -184,18 +174,11 @@
       "GOOGLE_DRIVE_PROJ/modules/result_processor.py": {
         "40": "ResultProcessor.wait_and_read_result_file.signal_handler.interrupted \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
       },
-      "GOOGLE_DRIVE_PROJ/modules/shell_commands.py": {
-        "29": "HOME_FOLDER_ID \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
-      },
       "GOOGLE_DRIVE_PROJ/modules/venv_manager.py": {
         "169": "VenvApiManager.load_all_venv_states.state_file \u53d8\u91cf\u672a\u88ab\u4f7f\u7528"
       }
     },
-    "imports": {
-      "GOOGLE_DRIVE_PROJ/modules/path_constants.py": {
-        "123": "google.colab \u5bfc\u5165\u672a\u88ab\u4f7f\u7528"
-      }
-    }
+    "imports": {}
   },
   "errors": [
     "Syntax error in GOOGLE_DRIVE_PROJ/modules/commands/linter_command.py: unmatched ')' (linter_command.py, line 103)"

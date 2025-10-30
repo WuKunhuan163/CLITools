@@ -257,10 +257,6 @@ class GoogleDriveShell:
         """委托到command_registry - EditCommand"""
         return self._execute_command_via_registry('edit', 'cmd_edit', *args, **kwargs)
     
-    def cmd_find(self, *args, **kwargs):
-        """委托到command_registry - FindCommand"""
-        # FindCommand might not be registered
-        return {"success": False, "error": "Find command not implemented"}
     
     def cmd_grep(self, *args, **kwargs):
         """委托到command_registry - GrepCommand"""
@@ -282,9 +278,6 @@ class GoogleDriveShell:
         """委托到command_registry - MvCommand"""
         return self._execute_command_via_registry('mv', 'cmd_mv', *args, **kwargs)
     
-    def cmd_mv_multi(self, *args, **kwargs):
-        """委托到command_registry - MvCommand"""
-        return self._execute_command_via_registry('mv', 'cmd_mv_multi', *args, **kwargs)
     
     def cmd_pwd(self, *args, **kwargs):
         """委托到command_registry - PwdCommand"""
@@ -314,9 +307,6 @@ class GoogleDriveShell:
         """委托到command_registry - UploadFolderCommand"""
         return self._execute_command_via_registry('upload_folder', 'cmd_upload_folder', *args, **kwargs)
     
-    def cmd_upload_multi(self, *args, **kwargs):
-        """委托到command_registry - UploadCommand"""
-        return self._execute_command_via_registry('upload', 'cmd_upload_multi', *args, **kwargs)
     
     def cmd_venv(self, *args, **kwargs):
         """委托到command_registry - VenvCommand"""
@@ -326,10 +316,6 @@ class GoogleDriveShell:
         """委托到command_registry - PyenvCommand"""
         return self._execute_command_via_registry('pyenv', 'cmd_pyenv', *args, **kwargs)
     
-    def cmd_linter(self, *args, **kwargs):
-        """委托到command_registry - LinterCommand"""
-        # LinterCommand might not be registered
-        return {"success": False, "error": "Linter command not implemented"}
     
     def cmd_pip(self, *args, **kwargs):
         """委托到command_registry - PipCommand"""
