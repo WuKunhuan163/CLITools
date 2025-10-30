@@ -1,0 +1,48 @@
+test_02_echo_basic (test_gds.GDSTest)
+测试基础echo命令 ... FAIL
+
+======================================================================
+FAIL: test_02_echo_basic (test_gds.GDSTest)
+测试基础echo命令
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1063, in test_02_echo_basic
+    self.assertTrue(self._verify_file_content_contains(echo_file, "Test content"))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 128.169s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251030_130632_775193_8eb0b27f
+正在创建远端测试目录: ~/tmp/gds_test_20251030_130632_775193_8eb0b27f
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251030_130632_775193_8eb0b27f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_r0z5z9ga
+测试环境设置完成
+转译接口调用失败: attempted relative import with no known parent package
+返回码: 0
+输出: ⏳ Waiting for result .....
+Hello World
+...
+转译接口调用失败: attempted relative import with no known parent package
+返回码: 0
+输出: ⏳ Waiting for result ......
+Complex: @#$%^&*() "quotes" 中文字符
+...
+转译接口调用失败: attempted relative import with no known parent package
+返回码: 0
+输出: ⏳ Waiting for result ......
+...
+转译接口调用失败: attempted relative import with no known parent package
+返回码: 0
+输出: {
+  "cmd": "remote_command_executed",
+  "working_dir": "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251030_130632_665866_fa056b49/ls_test_subdir",
+  "timestamp": "2025-10-30T05:08:17.294284",
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": ""
+}
+...

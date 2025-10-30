@@ -210,14 +210,24 @@ class CodeAnalyzer(ast.NodeVisitor):
                 self.usages['classes'].add(obj_name)
                 self.usages['imports'].add(obj_name)
             
-            # Handle nested attributes like module.submodule.Class
+            # Handle nested attributes like self.api.method or module.submodule.Class
             elif isinstance(node.value, ast.Attribute):
+                # Mark the final attribute as used (e.g., 'method' in self.api.method)
+                self.usages['functions'].add(attr_name)
+                self.usages['variables'].add(attr_name)
+                
                 # Walk back to find the root name
                 current = node.value
                 while isinstance(current, ast.Attribute):
+                    # Also mark intermediate attributes (e.g., 'api' in self.api.method)
+                    self.usages['variables'].add(current.attr)
+                    self.usages['functions'].add(current.attr)
                     current = current.value
+                
+                # Mark the root (e.g., 'self' in self.api.method, or module name)
                 if isinstance(current, ast.Name):
                     self.usages['imports'].add(current.id)
+                    self.usages['variables'].add(current.id)
     
     def visit_Name(self, node):
         """Visit name usage"""

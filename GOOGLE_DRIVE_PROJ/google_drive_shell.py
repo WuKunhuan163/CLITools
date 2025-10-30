@@ -21,15 +21,11 @@ from GOOGLE_DRIVE_PROJ.modules.commands.venv_command import VenvCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.grep_command import GrepCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.python_command import PythonCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.ls_command import LsCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.cd_command import CdCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.cat_command import CatCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.mkdir_command import MkdirCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.rm_command import RmCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.touch_command import TouchCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.mv_command import MvCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.edit_command import EditCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.read_command import ReadCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.pwd_command import PwdCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.navigation_command import NavigationCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.text_command import TextCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.file_command import FileCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
@@ -189,15 +185,25 @@ class GoogleDriveShell:
         self.command_registry.register(GrepCommand(self))
         self.command_registry.register(PythonCommand(self))
         self.command_registry.register(LsCommand(self))
-        self.command_registry.register(CdCommand(self))
-        self.command_registry.register(CatCommand(self))
+        
+        # Navigation commands (cd, pwd) - using merged NavigationCommand
+        nav_cmd = NavigationCommand(self)
+        self.command_registry.register_under_name(nav_cmd, "cd")
+        self.command_registry.register_under_name(nav_cmd, "pwd")
+        
+        # Text commands (cat, read) - using merged TextCommand
+        text_cmd = TextCommand(self)
+        self.command_registry.register_under_name(text_cmd, "cat")
+        self.command_registry.register_under_name(text_cmd, "read")
+        
+        # File commands (touch, rm, mv) - using merged FileCommand
+        file_cmd = FileCommand(self)
+        self.command_registry.register_under_name(file_cmd, "touch")
+        self.command_registry.register_under_name(file_cmd, "rm")
+        self.command_registry.register_under_name(file_cmd, "mv")
+        
         self.command_registry.register(MkdirCommand(self))
-        self.command_registry.register(RmCommand(self))
-        self.command_registry.register(TouchCommand(self))
-        self.command_registry.register(MvCommand(self))
         self.command_registry.register(EditCommand(self))
-        self.command_registry.register(ReadCommand(self))
-        self.command_registry.register(PwdCommand(self))
         self.command_registry.register(UploadCommand(self))
         self.command_registry.register(UploadFolderCommand(self))
         self.command_registry.register(PipCommand(self))
@@ -339,8 +345,8 @@ class GoogleDriveShell:
         return self.command_executor.execute_command_interface(*args, **kwargs)
     
     def verify_creation_with_ls(self, *args, **kwargs):
-        """委托到verification管理器"""
-        return self.verification.verify_creation_with_ls(*args, **kwargs)
+        """委托到validation管理器"""
+        return self.validation.verify_creation_with_ls(*args, **kwargs)
     
     def process_json(self, echo_command):
         """处理echo命令中的转义字符"""

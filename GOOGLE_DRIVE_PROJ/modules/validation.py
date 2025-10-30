@@ -157,13 +157,13 @@ class Validation:
         return self.create_error_result(error_msg)
 
 
-    def verify_creation_with_ls(self, path, max_attempts=20):
+    def verify_creation_with_ls(self, path, current_shell=None, creation_type="file", max_attempts=20):
         """
         通用的创建验证接口，支持目录和文件验证
         
         Args:
             path (str): 要验证的路径
-            current_shell (dict): 当前shell信息
+            current_shell (dict): 当前shell信息（用于兼容性，实际未使用）
             creation_type (str): 创建类型，"dir"或"file"
             max_attempts (int): 最大重试次数
             
