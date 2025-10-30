@@ -21,6 +21,17 @@ class CommandRegistry:
         """
         self._commands[command.command_name] = command
     
+    def register_under_name(self, command: BaseCommand, name: str) -> None:
+        """
+        Register a command handler under a specific name.
+        Useful for merged commands that handle multiple command names.
+        
+        Args:
+            command: Command handler instance
+            name: Command name to register under
+        """
+        self._commands[name] = command
+    
     def get_command(self, name: str) -> Optional[BaseCommand]:
         """
         Get command handler by name.
