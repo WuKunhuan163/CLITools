@@ -11,14 +11,33 @@ class LsCommand(BaseCommand):
         detailed = False
         recursive = False
         path = None
+        has_bash_flags = False
         
         for arg in args:
             if arg == '--detailed':
                 detailed = True
             elif arg == '-R':
                 recursive = True
-            elif not arg.startswith('-'):
+            elif arg.startswith('-'):
+                has_bash_flags = True
+                break
+            else:
                 path = arg
+        
+        # 如果有bash flags，作为远端命令执行
+        if has_bash_flags:
+            full_command = 'ls ' + ' '.join(args)
+            result = self.shell.execute_command_interface('bash', ['-c', full_command])
+            if result.get('success'):
+                data = result.get('data', {})
+                stdout = data.get('stdout', '')
+                if stdout:
+                    print(stdout, end='')
+                return 0
+            else:
+                error = result.get('error', data.get('stderr', 'Command failed'))
+                print(error)
+                return 1
         
         # 检查是否包含通配符
         if path and ('*' in path or '?' in path or '[' in path):

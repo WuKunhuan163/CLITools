@@ -236,8 +236,6 @@ class CommandSplitter:
 
 # 全局实例
 command_splitter = CommandSplitter()
-
-
 def parse_command(command_str: str) -> Dict[str, Any]:
     """
     便捷函数：解析命令字符串

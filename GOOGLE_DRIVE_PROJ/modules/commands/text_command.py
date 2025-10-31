@@ -1,7 +1,5 @@
 """
 Text operations commands (cat, read)
-从text_operations.py迁移而来
-合并了cat_command和read_command
 """
 
 from .base_command import BaseCommand

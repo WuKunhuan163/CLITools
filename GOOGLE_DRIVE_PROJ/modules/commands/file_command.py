@@ -1,7 +1,5 @@
 """
-File operations commands (touch, rm, mv)
-从file_core.py迁移而来
-合并了touch_command, rm_command, mv_command
+File operations commands
 """
 
 from .base_command import BaseCommand
@@ -11,7 +9,6 @@ class FileCommand(BaseCommand):
     
     @property
     def command_name(self):
-        # 返回主命令名，但这个类会注册多个命令
         return "file"
     
     def execute(self, cmd, args, command_identifier=None):
@@ -139,133 +136,121 @@ class FileCommand(BaseCommand):
 
     def cmd_rm(self, path, recursive=False, force=False):
         """删除文件或目录，通过远程rm命令执行"""
-        try:
-            if not self.drive_service:
-                return {"success": False, "error": "Google Drive API service not initialized"}
+        if not self.drive_service:
+            return {"success": False, "error": "Google Drive API service not initialized"}
+            
+        current_shell = self.main_instance.get_current_shell()
+        if not current_shell:
+            return {"success": False, "error": "No active remote shell, please create or switch to a shell first"}
+        
+        if not path:
+            return {"success": False, "error": "Please specify file or directory to delete"}
+        
+        # 解析远程绝对路径
+        absolute_path = self.main_instance.resolve_remote_absolute_path(path, current_shell)
+        if not absolute_path:
+            return {"success": False, "error": f"Cannot resolve path: {path}"}
+        
+        # 安全检查：如果是rm -rf，检查是否要删除当前目录或其上级目录
+        if recursive and force:
+            current_working_dir = current_shell.get("current_path", "")
+            if current_working_dir:
+                current_absolute = self.main_instance.resolve_remote_absolute_path(".", current_shell)
+                target_absolute = absolute_path
                 
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "No active remote shell, please create or switch to a shell first"}
-            
-            if not path:
-                return {"success": False, "error": "Please specify file or directory to delete"}
-            
-            # 解析远程绝对路径
-            absolute_path = self.main_instance.resolve_remote_absolute_path(path, current_shell)
-            if not absolute_path:
-                return {"success": False, "error": f"Cannot resolve path: {path}"}
-            
-            # 安全检查：如果是rm -rf，检查是否要删除当前目录或其上级目录
-            if recursive and force:
-                current_working_dir = current_shell.get("current_path", "")
-                if current_working_dir:
-                    current_absolute = self.main_instance.resolve_remote_absolute_path(".", current_shell)
-                    target_absolute = absolute_path
-                    
-                    # 规范化目标路径，解析 ../
-                    import os
-                    target_absolute_normalized = os.path.normpath(target_absolute)
-                    
-                    if current_absolute and target_absolute_normalized:
-                        # 检测X是否包含Y作为开头的子串
-                        if current_absolute.startswith(target_absolute_normalized):
-                            return {"success": False, "error": f"Cannot delete directory containing current working directory: {path}"}
-            
-            # 构建rm命令
-            rm_flags = ""
-            if recursive:
-                rm_flags += "r"
-            if force:
-                rm_flags += "f"
-            
-            # 检查是否包含通配符，如果包含则不加引号以允许shell展开
-            has_wildcards = '*' in absolute_path or '?' in absolute_path or '[' in absolute_path
-            
-            if rm_flags:
-                if has_wildcards:
-                    remote_command = f'rm -{rm_flags} {absolute_path}'
-                else:
-                    remote_command = f'rm -{rm_flags} "{absolute_path}"'
-            else:
-                if has_wildcards:
-                    remote_command = f'rm {absolute_path}'
-                else:
-                    remote_command = f'rm "{absolute_path}"'
-            
-            # 为了避免删除当前工作目录导致的问题，先切换到安全目录
-            # 构建安全的复合命令：先cd到根目录，然后执行rm
-            safe_command = f'cd "{self.main_instance.REMOTE_ROOT}" && {remote_command}'
-            
-            # 执行远程命令
-            result = self.main_instance.execute_command_interface("bash", ["-c", safe_command])
-            
-            if result["success"]:
-                # 简化验证逻辑：如果远程命令执行完成，就认为删除成功
-                # 避免复杂的验证逻辑导致误报
-                return {
-                    "success": True,
-                    "path": path,
-                    "absolute_path": absolute_path,
-                    "remote_command": remote_command,
-                    "message": "",  # 空消息，像bash shell一样
-                }
-            else:
-                return result
+                # 规范化目标路径，解析 ../
+                import os
+                target_absolute_normalized = os.path.normpath(target_absolute)
                 
-        except Exception as e:
-            return {"success": False, "error": f"Error executing rm command: {e}"}
+                if current_absolute and target_absolute_normalized:
+                    # 检测X是否包含Y作为开头的子串
+                    if current_absolute.startswith(target_absolute_normalized):
+                        return {"success": False, "error": f"Cannot delete directory containing current working directory: {path}"}
+        
+        # 构建rm命令
+        rm_flags = ""
+        if recursive:
+            rm_flags += "r"
+        if force:
+            rm_flags += "f"
+        
+        # 检查是否包含通配符，如果包含则不加引号以允许shell展开
+        has_wildcards = '*' in absolute_path or '?' in absolute_path or '[' in absolute_path
+        
+        if rm_flags:
+            if has_wildcards:
+                remote_command = f'rm -{rm_flags} {absolute_path}'
+            else:
+                remote_command = f'rm -{rm_flags} "{absolute_path}"'
+        else:
+            if has_wildcards:
+                remote_command = f'rm {absolute_path}'
+            else:
+                remote_command = f'rm "{absolute_path}"'
+        
+        # 为了避免删除当前工作目录导致的问题，先切换到安全目录
+        # 构建安全的复合命令：先cd到根目录，然后执行rm
+        safe_command = f'cd "{self.main_instance.REMOTE_ROOT}" && {remote_command}'
+        
+        # 执行远程命令
+        result = self.main_instance.execute_command_interface("bash", ["-c", safe_command])
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "path": path,
+                "absolute_path": absolute_path,
+                "remote_command": remote_command,
+                "message": "", 
+            }
+        else:
+            return result
 
     def cmd_mv(self, source, destination, force=False):
         """mv命令 - 移动/重命名文件或文件夹（使用远端指令执行）"""
-        try:
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "No active remote shell"}
-            
-            if not source or not destination:
-                return {"success": False, "error": "Usage: mv <source> <destination>"}
-            
-            # 简化版本：不进行复杂的冲突检查
-            
-            # 构建远端mv命令 - 需要计算绝对路径并进行shell转义
-            source_absolute_path = self.main_instance.resolve_remote_absolute_path(source, current_shell)
-            destination_absolute_path = self.main_instance.resolve_remote_absolute_path(destination, current_shell)
-            
-            # 使用shlex.quote对路径进行shell转义，处理空格和特殊字符
-            import shlex
-            escaped_source = shlex.quote(source_absolute_path)
-            escaped_destination = shlex.quote(destination_absolute_path)
-            
-            # 构建增强的远端命令，包含成功/失败提示
-            base_command = f"mv {escaped_source} {escaped_destination}"
-            remote_command = f"({base_command})"
-            
-            # 使用远端指令执行接口
-            result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
-            
-            if result.get("success"):
-                # 现在可以直接传递远端绝对路径，cmd_ls会自动转换为逻辑路径
-                verification_result = self.main_instance.verify_creation_with_ls(destination_absolute_path, current_shell, creation_type="file")
-                if verification_result.get("success", False):
-                    return {
-                        "success": True,
-                        "source": source,
-                        "destination": destination,
-                        "message": f""
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "error": f"mv verification failed: {verification_result.get('error', 'Unknown verification error')}"
-                    }
+        current_shell = self.main_instance.get_current_shell()
+        if not current_shell:
+            return {"success": False, "error": "No active remote shell"}
+        
+        if not source or not destination:
+            return {"success": False, "error": "Usage: mv <source> <destination>"}
+        
+        # 构建远端mv命令 - 需要计算绝对路径并进行shell转义
+        source_absolute_path = self.main_instance.resolve_remote_absolute_path(source, current_shell)
+        destination_absolute_path = self.main_instance.resolve_remote_absolute_path(destination, current_shell)
+        
+        # 使用shlex.quote对路径进行shell转义，处理空格和特殊字符
+        import shlex
+        escaped_source = shlex.quote(source_absolute_path)
+        escaped_destination = shlex.quote(destination_absolute_path)
+        
+        # 构建增强的远端命令，包含成功/失败提示
+        base_command = f"mv {escaped_source} {escaped_destination}"
+        remote_command = f"({base_command})"
+        
+        # 使用远端指令执行接口
+        result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+        
+        if result.get("success"):
+            verification_result = self.main_instance.verify_creation_with_ls(destination_absolute_path, current_shell, creation_type="file")
+            if verification_result.get("success", False):
+                return {
+                    "success": True,
+                    "source": source,
+                    "destination": destination,
+                    "message": f""
+                }
             else:
-                # 优先使用用户提供的错误信息
-                error_msg = (result.get('error_info') if 'error_info' in result 
-                           else result.get('error', 'Unknown error'))
                 return {
                     "success": False,
-                    "error": f"mv command execution failed: {error_msg}"
+                    "error": f"mv verification failed: {verification_result.get('error', 'Unknown verification error')}"
                 }
-                
-        except Exception as e:
-            return {"success": False, "error": f"Execute mv command failed: {e}"}
+        else:
+            # 优先使用用户提供的错误信息
+            error_msg = (result.get('error_info') if 'error_info' in result 
+                        else result.get('error', 'Unknown error'))
+            return {
+                "success": False,
+                "error": f"mv command execution failed: {error_msg}"
+            }
+            

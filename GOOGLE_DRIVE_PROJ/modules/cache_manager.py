@@ -182,15 +182,16 @@ class CacheManager:
         try:
             if self.main_instance.config_file.exists():
                 with open(self.main_instance.config_file, 'r', encoding='utf-8') as f:
-                    self.cache_config = json.load(f)
+                    config = json.load(f)
                     self.cache_config_loaded = True
+                    return config
             else:
-                self.cache_config = {}
                 self.cache_config_loaded = False
+                return {}
         except Exception as e:
             print(f"Warning: Load cache config failed: {e}")
-            self.cache_config = {}
             self.cache_config_loaded = False
+            return {}
 
     def is_remote_file_cached(self, remote_path: str) -> Dict:
         """检查远端文件是否在本地有缓存"""

@@ -4,9 +4,12 @@ Upload operations commands
 """
 
 import os
+import tempfile
+import zipfile
 from pathlib import Path
 from ..command_executor import debug_capture, debug_print
 from .base_command import BaseCommand
+from ..system_utils import ensure_google_drive_desktop_running
 
 
 class UploadCommand(BaseCommand):
@@ -23,31 +26,87 @@ class UploadCommand(BaseCommand):
     
     def execute(self, cmd, args, **kwargs):
         """执行上传命令（BaseCommand要求的方法）"""
-        # 这里暂时返回0，实际实现需要处理args
-        return 0
-    
-    def check_large_files(self, source_files):
-        """检查大文件并分离处理（大于1G的文件）"""
-        normal_files = []
-        large_files = []
+        # 检查是否是 upload_folder 命令
+        if cmd == 'upload_folder':
+            return self.execute_upload_folder(args)
         
-        for file_path in source_files:
-            try:
-                file_size = os.path.getsize(file_path)
-                # 1G = 1024 * 1024 * 1024 bytes
-                if file_size > 1024 * 1024 * 1024:
-                    large_files.append({
-                        "path": file_path,
-                        "size": file_size,
-                        "name": os.path.basename(file_path)
-                    })
+        # 解析参数: upload [--target-dir TARGET] [--force] <files...>
+        target_path = "."
+        force = False
+        source_files = []
+        
+        i = 0
+        while i < len(args):
+            if args[i] == '--target-dir':
+                if i + 1 < len(args):
+                    target_path = args[i + 1]
+                    i += 2
                 else:
-                    normal_files.append(file_path)
-            except OSError:
-                # 文件不存在或无法访问，加入normal_files让后续处理报错
-                normal_files.append(file_path)
+                    print("Error: --target-dir option requires a directory path")
+                    return 1
+            elif args[i] == '--force':
+                force = True
+                i += 1
+            else:
+                # 剩余的参数都是源文件
+                source_files.append(args[i])
+                i += 1
         
-        return normal_files, large_files
+        if not source_files:
+            print("Error: No source files specified")
+            return 1
+        
+        # 调用cmd_upload
+        result = self.cmd_upload(source_files, target_path=target_path, force=force)
+        
+        if result.get("success"):
+            return 0
+        else:
+            error_msg = result.get("error", "Upload failed")
+            print(error_msg)
+            return 1
+    
+    def execute_upload_folder(self, args):
+        """执行upload_folder命令"""
+        # 解析参数: upload_folder [--target-dir TARGET] [--keep-zip] [--force] <folder>
+        target_path = "."
+        keep_zip = False
+        force = False
+        folder_path = None
+        
+        i = 0
+        while i < len(args):
+            if args[i] == '--target-dir':
+                if i + 1 < len(args):
+                    target_path = args[i + 1]
+                    i += 2
+                else:
+                    print("Error: --target-dir option requires a directory path")
+                    return 1
+            elif args[i] == '--keep-zip':
+                keep_zip = True
+                i += 1
+            elif args[i] == '--force':
+                force = True
+                i += 1
+            else:
+                folder_path = args[i]
+                i += 1
+        
+        if not folder_path:
+            print("Error: No folder path specified")
+            return 1
+        
+        # 调用cmd_upload_folder
+        result = self.cmd_upload_folder(folder_path, target_path=target_path, keep_zip=keep_zip, force=force)
+        
+        if result.get("success"):
+            return 0
+        else:
+            error_msg = result.get("error", "Folder upload failed")
+            print(error_msg)
+            return 1
+    
     
     def handle_large_files(self, large_files, target_path, current_shell):
         """处理大文件上传"""
@@ -136,7 +195,7 @@ class UploadCommand(BaseCommand):
             start_progress_buffering(f"Packing {folder_name} ...")
             
             # 步骤1: 打包文件夹
-            zip_result = self.main_instance.file_utils.zip_folder(folder_path)
+            zip_result = self.zip_folder(folder_path)
             if not zip_result["success"]:
                 clear_progress()
                 return {"success": False, "error": f"打包失败: {zip_result['error']}"}
@@ -216,7 +275,7 @@ class UploadCommand(BaseCommand):
             debug_print(f"cmd_upload called with source_files={source_files}, target_path='{target_path}', force={force}")
             
             # 0. 检查Google Drive Desktop是否运行
-            if not self.main_instance.file_operations.ensure_google_drive_desktop_running():
+            if not ensure_google_drive_desktop_running():
                 if progress_started:
                     from ..progress_manager import stop_progress_buffering
                     stop_progress_buffering()
@@ -255,7 +314,7 @@ class UploadCommand(BaseCommand):
                     
                     # 创建虚拟file_moves用于计算超时时间
                     virtual_file_moves = [{"new_path": f["path"]} for f in large_files]
-                    sync_result = self.wait_for_file_sync(large_file_names, virtual_file_moves)
+                    sync_result = self.main_instance.sync_manager.wait_for_file_sync(large_file_names, virtual_file_moves)
                     
                     if sync_result["success"]:
                         return {
@@ -300,7 +359,7 @@ class UploadCommand(BaseCommand):
             for source_file in source_files:
                 if Path(source_file).is_dir():
                     print(f"\nError: '{source_file}' is a directory")
-                    print(f"To upload folders, use: GDS upload-folder {source_file}")
+                    print(f"To upload folders, use: GDS upload_folder {source_file}")
                     print(f"   Options: --keep-zip to preserve local zip file")
                     return {"success": False, "error": f""}
             
@@ -345,7 +404,7 @@ class UploadCommand(BaseCommand):
             # 对于同步检测，使用重命名后的文件名（在DRIVE_EQUIVALENT中的实际文件名）
             expected_filenames = [fm["filename"] for fm in file_moves]
             
-            sync_result = self.wait_for_file_sync(expected_filenames, file_moves)
+            sync_result = self.main_instance.sync_manager.wait_for_file_sync(expected_filenames, file_moves)
             
             if sync_result.get("cancelled"):
                 # 用户取消了同步等待
@@ -376,7 +435,7 @@ class UploadCommand(BaseCommand):
                 sync_result["sync_time"] = base_time
             
             # 7. 静默验证文件同步状态
-            self.main_instance.file_utils.verify_files_available(file_moves)
+            self.verify_files_available(file_moves)
             
             # 8. 静默生成远端命令
             debug_print(f"Before generate_mv_commands - file_moves={file_moves}")
@@ -422,7 +481,7 @@ class UploadCommand(BaseCommand):
                 expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
 
                 # 使用带进度的验证机制
-                verify_result = self.main_instance.remote_commands.verify_upload_with_progress(
+                verify_result = self.verify_upload_with_progress(
                     expected_for_verification, 
                     target_path, 
                     current_shell
@@ -634,31 +693,31 @@ class UploadCommand(BaseCommand):
         Returns:
             tuple: (normal_files, large_files) - 正常文件和大文件列表
         """
-        try:
-            normal_files = []
-            large_files = []
-            GB_SIZE = 1024 * 1024 * 1024  # 1GB in bytes
-            
-            for file_path in source_files:
-                expanded_path = self.expand_path(file_path)
-                if os.path.exists(expanded_path):
-                    file_size = os.path.getsize(expanded_path)
-                    if file_size > GB_SIZE:
-                        large_files.append({
-                            "path": expanded_path,
-                            "original_path": file_path,
-                            "size_gb": file_size / GB_SIZE
-                        })
-                    else:
-                        normal_files.append(expanded_path)
+        normal_files = []
+        large_files = []
+        GB_SIZE = 1024 * 1024 * 1024  # 1GB in bytes
+        
+        for file_path in source_files:
+            expanded_path = self.main_instance.path_resolver.expand_path(file_path)
+            if os.path.exists(expanded_path):
+                file_size = os.path.getsize(expanded_path)
+                if file_size > GB_SIZE:
+                    large_files.append({
+                        "path": expanded_path,
+                        "original_path": file_path,
+                        "size_gb": file_size / GB_SIZE
+                    })
                 else:
-                    print(f"File does not exist: {file_path}")
-            
-            return normal_files, large_files
-            
-        except Exception as e:
-            print(f"检查大文件时出错: {e}")
-            return source_files, []
+                    normal_files.append(expanded_path)
+            else:
+                # 停止progress显示并确保清除，然后输出错误信息
+                from ..progress_manager import stop_progress_buffering, is_progress_active
+                if is_progress_active():
+                    stop_progress_buffering()
+                    print()
+                print(f"File does not exist: {file_path}")
+        
+        return normal_files, large_files
 
     def handle_large_files(self, large_files, target_path=".", current_shell=None):
         """处理大文件的手动上传，支持逐一跟进"""
@@ -823,7 +882,7 @@ class UploadCommand(BaseCommand):
                 return found_count == len(expected_files)
             
             # 直接使用统一的验证接口，它会正确处理进度显示的切换
-            from .progress_manager import validate_creation
+            from ..progress_manager import validate_creation
             result = validate_creation(validate_all_files, file_display, 60, "upload")
             
             # 转换返回格式

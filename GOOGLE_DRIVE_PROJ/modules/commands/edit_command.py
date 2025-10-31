@@ -287,6 +287,7 @@ if __name__ == "__main__":
         """直接在远程执行编辑操作，不需要上传脚本"""
         try:
             import base64
+            import json
             
             # 创建Python脚本内容
             script_content = f"""
@@ -417,7 +418,7 @@ if __name__ == "__main__":
                 remote_command=remote_command,
                 result_filename=result_filename,
                 cmd_hash=cmd_hash,
-                user_command=command
+                raw_command=command
             )
             
             if execute_result.get("success"):

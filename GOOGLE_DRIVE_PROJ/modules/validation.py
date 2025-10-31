@@ -51,7 +51,8 @@ class Validation:
             debug_print(f"constructed search_path='{search_path}'")
             
             # 使用ls命令检查目录内容
-            ls_result = self.main_instance.file_operations.cmd_ls(path=search_path)
+            ls_command = self.main_instance.command_registry.get_command('ls')
+            ls_result = ls_command.cmd_ls(path=search_path)
             debug_print(f"ls_result success={ls_result.get('success')}")
             
             if not ls_result.get("success"):

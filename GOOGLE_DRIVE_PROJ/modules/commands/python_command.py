@@ -26,7 +26,7 @@ class PythonCommand(BaseCommand):
                 return 1
             code_args = [arg for arg in args[1:] if not arg.startswith('--')]
             code = ' '.join(code_args)
-            result = self.cmd_python_code(code)
+            result = self.shell.cmd_python_code(code)
         else:
             # 执行Python文件
             filename = args[0]

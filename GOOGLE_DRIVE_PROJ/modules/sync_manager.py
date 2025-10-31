@@ -11,23 +11,6 @@ from .command_executor import debug_print
 from .system_utils import is_run_environment, write_to_json_output
 from .drive_api_service import test_drive_folder_access, extract_folder_id_from_url
 
-def get_multiline_user_input(prompt, single_line=False):
-    """简单的用户输入函数（为了向后兼容）"""
-    if single_line:
-        return input(prompt)
-    else:
-        lines = []
-        print(prompt)
-        while True:
-            try:
-                line = input()
-                if not line:
-                    break
-                lines.append(line)
-            except EOFError:
-                break
-        return '\n'.join(lines)
-
 class SyncManager:
     """Google Drive Shell Sync Manager"""
 

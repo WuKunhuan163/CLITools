@@ -51,41 +51,6 @@ def test_drive_folder_access(folder_id):
         print(f"Test folder access failed: {e}")
         return False
 
-def test_drive_service():
-    """测试Google Drive服务"""
-    try:
-        print(f"Testing Google Drive API连接...")
-        
-        # 创建服务实例
-        drive_service = GoogleDriveService()
-        
-        # 测试连接
-        result = drive_service.test_connection()
-        
-        if result['success']:
-            print(f"API connection test successful")
-            print(f"Service account email: {result.get('user_email', 'Unknown')}")
-            print(f"User name: {result.get('user_name', 'Unknown')}")
-            
-            # 测试列出文件
-            print(f"\nTesting file list function...")
-            files_result = drive_service.list_files(max_results=5)
-            
-            if files_result['success']:
-                print(f"File list get successful! Found {files_result['count']} files")
-                for file in files_result['files'][:3]:  # 显示前3个文件
-                    print(f"{file['name']} ({file['mimeType']})")
-            else:
-                print(f"Error: File list get failed: {files_result['error']}")
-            
-            return True
-        else:
-            print(f"Error: API connection test failed: {result['error']}")
-            return False
-            
-    except Exception as e:
-        print(f"Error: Error during test: {e}")
-        return False
 
 def test_api_connection(command_identifier=None):
     """测试Google Drive API连接"""

@@ -55,15 +55,8 @@ def get_unified_help_data():
             "upload_download": {
                 "upload [--target-dir TARGET] <files...>": "upload files to Google Drive (default: current directory)",
                 "upload [--remove-local] <files...>": "upload files and optionally remove local copies",
-                "upload-folder [--target-dir TARGET] [--keep-zip] [--force] <folder>": "upload folder (zip->upload->unzip->cleanup)",
+                "upload_folder [--target-dir TARGET] [--keep-zip] [--force] <folder>": "upload folder (zip->upload->unzip->cleanup)",
                 "download [--force] <file> [path]": "download file with caching"
-            },
-            "text_operations": {
-                "echo <text>": "display text",
-                "echo <text> > <file>": "create file with text",
-                "grep <pattern> <file>": "search for pattern in file",
-                "grep <file>": "display file content with line numbers (no pattern)",
-                "edit [--preview] [--backup] <file> '<spec>'": "edit file with multi-segment replacement"
             },
             "remote_execution": {
                 "python <file>": "execute python file remotely",
@@ -191,8 +184,6 @@ Arguments:
             help_text += "  File Operations:\n"
         elif category == "upload_download":
             help_text += "  Upload/Download:\n"
-        elif category == "text_operations":
-            help_text += "  Text Operations:\n"
         elif category == "remote_execution":
             help_text += "  Remote Execution:\n"
         elif category == "package_management":
