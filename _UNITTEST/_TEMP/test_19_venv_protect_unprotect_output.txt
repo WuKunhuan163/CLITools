@@ -1,0 +1,67 @@
+test_19_venv_protect_unprotect (test_gds.GDSTest)
+测试虚拟环境的保护和取消保护功能 ... FAIL
+
+======================================================================
+FAIL: test_19_venv_protect_unprotect (test_gds.GDSTest)
+测试虚拟环境的保护和取消保护功能
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 633, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: venv --create protected_env_1761921345
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2524, in test_19_venv_protect_unprotect
+    result = self.gds(f'venv --create {protected_env}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 639, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: venv --create protected_env_1761921345 - 1 != 0 : 命令执行失败: venv --create protected_env_1761921345
+
+----------------------------------------------------------------------
+Ran 1 test in 109.561s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_223452_914525_aa0ed80e
+正在创建远端测试目录: ~/tmp/gds_test_20251031_223452_914525_aa0ed80e
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_223452_914525_aa0ed80e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_fnekoww_
+测试环境设置完成
+测试venv --protect和--unprotect功能
+创建测试环境: protected_env_1761921345, normal_env_1761921345
+命令转译成功: venv --create protected_env_1761921345 -> venv --create protected_env_1761921345
+返回码: 1
+输出: ⏳ Waiting for result ......
+Virtual environment 'protected_env_1761921345' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/protected_env_1761921345
+Error Report - Shell command execution
+AttributeError: 'GoogleDriveShell' object has no attribute 'sync_venv_state_to_local_shell'
+Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/venv_command.py:23 in execute()
+Code Context:
+    20: 
+    21:         result = self.cmd_venv(*args)
+    22:         if result.get("success", False):
+>>> 23:             self.shell.sync_venv_state_to_local_shell(args)
+    24:             return 0
+    25:         else:
+    26:             error_message = result.get("error", "Virtual environment operation failed")
+Complete Call Stack:
+   1. GOOGLE_DRIVE.py:51 in <module>()
+   2. GOOGLE_DRIVE.py:41 in main()
+   3. google_drive_shell.py:2086 in handle_command_line_args()
+   4. google_drive_shell.py:2137 in handle_shell_command_args()
+   5. google_drive_shell.py:1026 in execute_shell_command()
+   6. google_drive_shell.py:972 in execute_shell_command()
+      >>> return self.command_executor.execute_special_command(cmd, args)
+   7. command_executor.py:420 in execute_special_command()
+      >>> return command.execute(name, args, **kwargs)
+   8. venv_command.py:23 in execute()
+      >>> self.shell.sync_venv_state_to_local_shell(args)
+Google Drive Shell command execution failed with detailed traceback above.
+...
+命令执行异常: 1 != 0 : 命令执行失败: venv --create protected_env_1761921345

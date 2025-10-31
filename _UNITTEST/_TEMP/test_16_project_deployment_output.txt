@@ -1,0 +1,117 @@
+test_16_project_deployment (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_16_project_deployment (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2315, in test_16_project_deployment
+    self.assertTrue(success, f"项目文件夹上传失败: {result.stderr if result else 'Unknown error'}")
+AssertionError: False is not true : 项目文件夹上传失败: 
+
+----------------------------------------------------------------------
+Ran 1 test in 67.035s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_230935_914056_431718c9
+正在创建远端测试目录: ~/tmp/gds_test_20251031_230935_914056_431718c9
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_230935_914056_431718c9
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_pqca1zie
+测试环境设置完成
+
+执行带重试的upload命令: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls "~/tmp/~/tmp/gds_test_20251031_230935_914056_431718c9/test_project"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+返回码: 1
+输出: Error Report - Shell command execution
+AttributeError: 'UploadCommand' object has no attribute 'execute_upload_folder'
+Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py:29 in execute()
+Code Context:
+    26:         """执行上传命令（BaseCommand要求的方法）"""
+    27:         # 检查是否是 upload_folder 命令
+    28:         if cmd == 'upload_folder':
+>>> 29:             return self.execute_upload_folder(args)
+    30: 
+    31:         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
+    32:         target_path = "."
+Complete Call Stack:
+   1. GOOGLE_DRIVE.py:51 in <module>()
+   2. GOOGLE_DRIVE.py:41 in main()
+   3. google_drive_shell.py:2088 in handle_command_line_args()
+   4. google_drive_shell.py:2139 in handle_shell_command_args()
+   5. google_drive_shell.py:1028 in execute_shell_command()
+   6. google_drive_shell.py:974 in execute_shell_command()
+      >>> return self.command_executor.execute_special_command(cmd, args)
+   7. command_executor.py:445 in execute_special_command()
+      >>> return command.execute(name, args, **kwargs)
+   8. upload_command.py:29 in execute()
+      >>> return self.execute_upload_folder(args)
+Google Drive Shell command execution failed with detailed traceback above.
+...
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 2/3
+命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+返回码: 1
+输出: Error Report - Shell command execution
+AttributeError: 'UploadCommand' object has no attribute 'execute_upload_folder'
+Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py:29 in execute()
+Code Context:
+    26:         """执行上传命令（BaseCommand要求的方法）"""
+    27:         # 检查是否是 upload_folder 命令
+    28:         if cmd == 'upload_folder':
+>>> 29:             return self.execute_upload_folder(args)
+    30: 
+    31:         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
+    32:         target_path = "."
+Complete Call Stack:
+   1. GOOGLE_DRIVE.py:51 in <module>()
+   2. GOOGLE_DRIVE.py:41 in main()
+   3. google_drive_shell.py:2088 in handle_command_line_args()
+   4. google_drive_shell.py:2139 in handle_shell_command_args()
+   5. google_drive_shell.py:1028 in execute_shell_command()
+   6. google_drive_shell.py:974 in execute_shell_command()
+      >>> return self.command_executor.execute_special_command(cmd, args)
+   7. command_executor.py:445 in execute_special_command()
+      >>> return command.execute(name, args, **kwargs)
+   8. upload_command.py:29 in execute()
+      >>> return self.execute_upload_folder(args)
+Google Drive Shell command execution failed with detailed traceback above.
+...
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 3/3
+命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+返回码: 1
+输出: Error Report - Shell command execution
+AttributeError: 'UploadCommand' object has no attribute 'execute_upload_folder'
+Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py:29 in execute()
+Code Context:
+    26:         """执行上传命令（BaseCommand要求的方法）"""
+    27:         # 检查是否是 upload_folder 命令
+    28:         if cmd == 'upload_folder':
+>>> 29:             return self.execute_upload_folder(args)
+    30: 
+    31:         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
+    32:         target_path = "."
+Complete Call Stack:
+   1. GOOGLE_DRIVE.py:51 in <module>()
+   2. GOOGLE_DRIVE.py:41 in main()
+   3. google_drive_shell.py:2088 in handle_command_line_args()
+   4. google_drive_shell.py:2139 in handle_shell_command_args()
+   5. google_drive_shell.py:1028 in execute_shell_command()
+   6. google_drive_shell.py:974 in execute_shell_command()
+      >>> return self.command_executor.execute_special_command(cmd, args)
+   7. command_executor.py:445 in execute_special_command()
+      >>> return command.execute(name, args, **kwargs)
+   8. upload_command.py:29 in execute()
+      >>> return self.execute_upload_folder(args)
+Google Drive Shell command execution failed with detailed traceback above.
+...
+Error: Upload command failed, return code: 1

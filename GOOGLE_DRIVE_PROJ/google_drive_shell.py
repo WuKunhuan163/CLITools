@@ -27,7 +27,9 @@ from GOOGLE_DRIVE_PROJ.modules.commands.navigation_command import NavigationComm
 from GOOGLE_DRIVE_PROJ.modules.commands.text_command import TextCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.file_command import FileCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.upload_command import UploadCommand
-from GOOGLE_DRIVE_PROJ.modules.commands.upload_folder_command import UploadFolderCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.download_command import DownloadCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.find_command import FindCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.linter_command import LinterCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
@@ -111,33 +113,7 @@ class GoogleDriveShell:
             print(f"Error: Failed to load shell config: {e}")
             return {"shells": {}, "active_shell": None}
 
-    def load_cache_config(self):
-        """直接加载缓存配置（不通过委托）"""
-        try:
-            if self.config_file.exists():
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    self.cache_config = json.load(f)
-                    self.cache_config_loaded = True
-            else:
-                self.cache_config = {}
-                self.cache_config_loaded = False
-        except Exception as e:
-            print(f"Warning: Failed to load cache config: {e}")
-            self.cache_config = {}
-            self.cache_config_loaded = False
 
-    def load_deletion_cache(self):
-        """直接加载删除时间缓存（不通过委托）"""
-        try:
-            if self.deletion_cache_file.exists():
-                with open(self.deletion_cache_file, 'r', encoding='utf-8') as f:
-                    cache_data = json.load(f)
-                    return cache_data.get("deletion_records", [])
-            else:
-                return []
-        except Exception as e:
-            print(f"Warning: Failed to load deletion cache: {e}")
-            return []
 
     def load_drive_service(self):
         """直接加载Google Drive API服务（不通过委托）"""
@@ -204,8 +180,12 @@ class GoogleDriveShell:
         
         self.command_registry.register(MkdirCommand(self))
         self.command_registry.register(EditCommand(self))
-        self.command_registry.register(UploadCommand(self))
-        self.command_registry.register(UploadFolderCommand(self))
+        upload_cmd = UploadCommand(self)
+        self.command_registry.register(upload_cmd)
+        self.command_registry.register_under_name(upload_cmd, "upload_folder")
+        self.command_registry.register(DownloadCommand(self))
+        self.command_registry.register(FindCommand(self))
+        self.command_registry.register(LinterCommand(self))
         self.command_registry.register(PipCommand(self))
         self.command_registry.register(DepsCommand(self))
         self.command_registry.register(PyenvCommand(self))
@@ -250,8 +230,7 @@ class GoogleDriveShell:
     
     def cmd_download(self, *args, **kwargs):
         """委托到command_registry - DownloadCommand"""
-        # DownloadCommand might not be registered, fall back to error
-        return {"success": False, "error": "Download command not implemented"}
+        return self._execute_command_via_registry('download', 'cmd_download', *args, **kwargs)
     
     def cmd_edit(self, *args, **kwargs):
         """委托到command_registry - EditCommand"""
@@ -304,9 +283,12 @@ class GoogleDriveShell:
         return self._execute_command_via_registry('upload', 'cmd_upload', *args, **kwargs)
     
     def cmd_upload_folder(self, *args, **kwargs):
-        """委托到command_registry - UploadFolderCommand"""
-        return self._execute_command_via_registry('upload_folder', 'cmd_upload_folder', *args, **kwargs)
+        """委托到command_registry - UploadCommand"""
+        return self._execute_command_via_registry('upload', 'cmd_upload_folder', *args, **kwargs)
     
+    def cmd_linter(self, *args, **kwargs):
+        """委托到command_registry - LinterCommand"""
+        return self._execute_command_via_registry('linter', 'cmd_linter', *args, **kwargs)
     
     def cmd_venv(self, *args, **kwargs):
         """委托到command_registry - VenvCommand"""
@@ -563,7 +545,7 @@ class GoogleDriveShell:
             print(f"Error: Wildcard matching failed: {e}")
             return 1
 
-    def _sync_venv_state_to_local_shell(self, venv_args):
+    def sync_venv_state_to_local_shell(self, venv_args):
         """同步虚拟环境状态到本地shell配置"""
         try:
             import time

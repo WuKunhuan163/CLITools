@@ -1,15 +1,30 @@
 """
 Find command - 文件查找功能
-从text_operations.py迁移而来
 """
 
+from .base_command import BaseCommand
 
-class FindCommand:
+
+class FindCommand(BaseCommand):
     """文件查找命令"""
     
-    def __init__(self, main_instance):
-        self.main_instance = main_instance
-        self.drive_service = main_instance.drive_service
+    @property
+    def command_name(self):
+        return "find"
+    
+    def execute(self, cmd, args, **kwargs):
+        """执行find命令（BaseCommand要求的方法）"""
+        result = self.cmd_find(*args)
+        if result.get("success"):
+            # 打印输出
+            output = result.get("output", "")
+            if output:
+                print(output)
+            return 0
+        else:
+            error_msg = result.get("error", "Find command failed")
+            print(error_msg)
+            return 1
     
 
     def parse_find_args(self, args):

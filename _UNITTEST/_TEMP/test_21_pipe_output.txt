@@ -1,0 +1,56 @@
+test_21_pipe (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_21_pipe (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 633, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8" | grep "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2724, in test_21_pipe
+    result = self.gds(f'ls "{self.test_folder}" | grep "{pipe_test_path}"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 639, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8" | grep "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt" - 1 != 0 : 命令执行失败: ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8" | grep "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"
+
+----------------------------------------------------------------------
+Ran 1 test in 226.797s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_224121_016176_281c7dd8
+正在创建远端测试目录: ~/tmp/gds_test_20251031_224121_016176_281c7dd8
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_224121_016176_281c7dd8
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_pq9bzhhr
+测试环境设置完成
+命令转译成功: echo "hello world" | grep hello -> echo "hello world" | grep hello
+返回码: 0
+输出: ⏳ Waiting for result ....
+hello world
+...
+命令转译成功: echo "test content" > "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt" -> echo "test content" > "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"
+返回码: 0
+输出: ⏳ Waiting for result ......
+...
+命令转译成功: ls -la "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt" -> ls -la "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"
+返回码: 0
+输出: pipe_test.txt
+...
+创建文件后目录内容: pipe_test.txt
+
+命令转译成功: ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt" -> ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"
+返回码: 0
+输出: pipe_test.txt
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8" | grep "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt" -> ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8" | grep "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"
+返回码: 1
+输出: ⏳ Waiting for result .....
+...
+命令执行异常: 1 != 0 : 命令执行失败: ls "~/tmp/gds_test_20251031_224121_016176_281c7dd8" | grep "~/tmp/gds_test_20251031_224121_016176_281c7dd8/pipe_test.txt"

@@ -1,0 +1,174 @@
+test_10_edit (test_gds.GDSTest) ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_214522_516619_7b1fda87
+正在创建远端测试目录: ~/tmp/gds_test_20251031_214522_516619_7b1fda87
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_214522_516619_7b1fda87
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_htnmsx3k
+测试环境设置完成
+
+执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251031_214522_516619_7b1fda87" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+验证命令: ['ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_214522_516619_7b1fda87" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251031_214522_516619_7b1fda87" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+返回码: 0
+输出: ⏳ Waiting for upload ...
+⏳ Waiting for file sync ...........
+⏳ Waiting for result .......
+Captured debug output:
+Verification completed: {'success': True, 'found_files': ['test_edit_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_214522_516619_7b1fda87'}
+Added deletion record for original: test_edit_simple_hello.py
+Upload completed, showing verification debug information:
+verify_result={'success': True, 'found_files': ['test_edit_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_214522_516619_7b1fda87'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_edit_simple_hello.py'], 'sync_time': 9, 'base_sync_time': 9}
+target_folder_id='1Sm6eZAoKobKKFfaoLVhILAyoS9CiRIf5'
+target_display_path='~/tmp/gds_test_20251031_214522_516619_7b1fda87'
+...
+验证命令 1: ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+命令转译成功: ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" -> ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+返回码: 0
+输出: test_edit_simple_hello.py
+...
+验证成功: ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+所有验证通过!
+
+执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251031_214522_516619_7b1fda87" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+验证命令: ['ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_214522_516619_7b1fda87" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251031_214522_516619_7b1fda87" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+返回码: 0
+输出: ⏳ Waiting for upload ...
+⏳ Waiting for file sync ..........
+⏳ Waiting for result ......
+Captured debug output:
+Verification completed: {'success': True, 'found_files': ['test_edit_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_214522_516619_7b1fda87'}
+Added deletion record for original: test_edit_simple_hello.py
+Added deletion record for temp: test_edit_simple_hello_4.py
+Upload completed, showing verification debug information:
+verify_result={'success': True, 'found_files': ['test_edit_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_214522_516619_7b1fda87'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_edit_simple_hello_4.py'], 'sync_time': 8, 'base_sync_time': 8}
+target_folder_id='1Sm6eZAoKobKKFfaoLVhILAyoS9CiRIf5'
+target_display_path='~/tmp/gds_test_20251031_214522_516619_7b1fda87'
+...
+验证命令 1: ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+命令转译成功: ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" -> ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+返回码: 0
+输出: test_edit_simple_hello.py
+...
+验证成功: ls "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+所有验证通过!
+
+执行带重试的命令: edit "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"Hello from remote project\", \"Hello from MODIFIED remote project\"]]"
+验证命令: ['grep "MODIFIED" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: edit "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"Hello from remote project\", \"Hello from MODIFIED remote project\"]]" -> edit "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"Hello from remote project\", \"Hello from MODIFIED remote project\"]]"
+返回码: 0
+输出: ⏳ Waiting for result .....
+Edit comparison: ~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -print(f'Hello from remote project')
+4: +print(f'Hello from MODIFIED remote project')
+5:  print(f"Current working directory:", __import__("os").getcwd())
+6:  import sys
+7:  print(f"Python version:", sys.version)
+==================================================
+File edited successfully
+...
+Verify 1/1: grep "MODIFIED" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+命令转译成功: grep "MODIFIED" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" -> grep "MODIFIED" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+返回码: 0
+输出: 4: print(f'Hello from MODIFIED remote project')
+...
+Verify successful
+All verifications passed, command executed successfully
+
+执行带重试的命令: edit "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[[3, 4], \"# Modified line 3-4\"]]"
+验证命令: ['grep "# Modified line 3-4" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: edit "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[[3, 4], \"# Modified line 3-4\"]]" -> edit "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[[3, 4], \"# Modified line 3-4\"]]"
+返回码: 0
+输出: ⏳ Waiting for result .....
+Edit comparison: ~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -print(f'Hello from MODIFIED remote project')
+   -print(f"Current working directory:", __import__("os").getcwd())
+4: +# Modified line 3-4
+5: +# Modified line 3-4
+6:  import sys
+7:  print(f"Python version:", sys.version)
+==================================================
+File edited successfully
+...
+Verify 1/1: grep "# Modified line 3-4" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+命令转译成功: grep "# Modified line 3-4" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" -> grep "# Modified line 3-4" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+返回码: 0
+输出: 4: # Modified line 3-4
+  5: # Modified line 3-4
+...
+Verify successful
+All verifications passed, command executed successfully
+命令转译成功: edit --preview "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"print\", \"# print\"]]" -> edit --preview "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"print\", \"# print\"]]"
+返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 765.878s
+
+OK
+输出: ⏳ Waiting for result .....
+Edit comparison: ~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py
+==================================================
+@@ -4,4 +4,4 @@
+4:  # Modified line 3-4
+5:  # Modified line 3-4
+6:  import sys
+   -print(f"Python version:", sys.version)
+7: +# print(f"Python version:", sys.version)
+==================================================
+Edit preview completed
+...
+
+执行带重试的命令: edit --backup "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"Modified line\", \"Updated line\"]]"
+验证命令: ['grep "Updated line" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: edit --backup "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"Modified line\", \"Updated line\"]]" -> edit --backup "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" "[[\"Modified line\", \"Updated line\"]]"
+返回码: 0
+输出: ⏳ Waiting for result .....
+Edit comparison: ~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -# Modified line 3-4
+4: +# Updated line 3-4
+5:  # Modified line 3-4
+6:  import sys
+7:  print(f"Python version:", sys.version)
+==================================================
+File edited successfully
+...
+Verify 1/1: grep "Updated line" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+命令转译成功: grep "Updated line" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py" -> grep "Updated line" "~/tmp/gds_test_20251031_214522_516619_7b1fda87/test_edit_simple_hello.py"
+返回码: 0
+输出: 4: # Updated line 3-4
+...
+Verify successful
+All verifications passed, command executed successfully

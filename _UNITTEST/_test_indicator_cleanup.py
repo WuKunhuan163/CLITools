@@ -75,7 +75,7 @@ def test_terminal_escape_sequences():
     failed_cases = []
     
     for input_text, expected, description in test_cases:
-        result = executor.process_terminal_erases(input_text)
+        result = executor.process_terminal_erase(input_text)
         
         if result == expected:
             passed += 1

@@ -1,0 +1,230 @@
+test_03_echo_advanced (test_gds.GDSTest)
+测试echo的正确JSON语法（修复后的功能） ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_232111_656264_68e6664f
+正在创建远端测试目录: ~/tmp/gds_test_20251031_232111_656264_68e6664f
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_232111_656264_68e6664f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local__7cjubpl
+测试环境设置完成
+命令转译成功: echo "{'name': 'test03_json_echo_01', 'value': 123}" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/correct_json.txt" -> echo "{'name': 'test03_json_echo_01', 'value': 123}" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/correct_json.txt"
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/correct_json.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/correct_json.txt"
+返回码: 0
+输出: {'name': 'test03_json_echo_01', 'value': 123}
+...
+命令转译成功: 'echo -e "Line1
+Line2
+Line3" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/multiline.txt"' -> __QUOTED_COMMAND__echo 'Line1
+Line2
+Line3' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/multiline.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/multiline.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/multiline.txt"
+返回码: 0
+输出: Line1
+Line2
+Line3
+...
+命令转译成功: echo "Echo stdout test content" -> echo "Echo stdout test content"
+返回码: 0
+输出: ⏳ Waiting for result ......
+Echo stdout test content
+...
+命令转译成功: echo "Content for local redirect" -> echo "Content for local redirect"
+返回码: 0
+输出: ⏳ Waiting for result .....
+Content for local redirect
+...
+命令执行: python3 /Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py --shell --no-direct-feedback echo "{'name': 'test03_json_echo_02', 'value': 123}" > "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/local_redirect.txt"
+返回码: 0
+本地重定向文件内容: 
+[K⏳ Waiting for result ....
+[K
+[K{'name': 'test03_json_echo_02', 'value': 123}
+
+命令转译成功: ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/local_redirect.txt" -> ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/local_redirect.txt"
+返回码: 1
+输出: Path not found: ~/tmp/gds_test_20251031_232111_656264_68e6664f/local_redirect.txt
+...
+已清理文件: /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/local_redirect.txt
+命令转译成功: 'echo -e "import json\nimport os\n\n# 切换到脚本所在目录\nscript_dir = os.path.dirname(os.path.abspath(__file__))\nos.chdir(script_dir)\n\n# 创建配置文件\nconfig = {\n    \"name\": \"test_project\",\n    \"version\": \"1.0.0\",\n    \"debug\": True\n}\n\nwith open(\"test_config.json\", \"w\") as f:\n    json.dump(config, f, indent=2)\n\nprint(f'Config created successfully')\nprint(f'Current files: {len(os.listdir())}')" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_script.py"' -> __QUOTED_COMMAND__echo 'import json
+import os
+
+# 切换到脚本所在目录
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
+
+# 创建配置文件
+config = {
+    "name": "test_project",
+    "version": "1.0.0",
+    "debug": True
+}
+
+with open("test_config.json", "w") as f:
+    json.dump(config, f, indent=2)
+
+print(f'\''Config created successfully'\'')
+print(f'\''Current files: {len(os.listdir())}'\'')' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_script.py"
+返回码: 0
+输出: ⏳ Waiting for result ...
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_script.py" -> ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_script.py"
+返回码: 0
+输出: test_script.py
+...
+命令转译成功: python ~/tmp/gds_test_20251031_232111_656264_68e6664f/test_script.py -> python ~/tmp/gds_test_20251031_232111_656264_68e6664f/test_script.py
+返回码: 0
+输出: ⏳ Waiting for result .....
+Config created successfully
+Current files: 5
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_config.json" -> ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_config.json"
+返回码: 0
+输出: test_config.json
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_config.json" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_config.json"
+返回码: 0
+输出: {
+  "name": "test_project",
+  "version": "1.0.0",
+  "debug": true
+}
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_config.json" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/test_config.json"
+返回码: 0
+输出: {
+  "name": "test_project",
+  "version": "1.0.0",
+  "debug": true
+}
+...
+命令转译成功: 'echo "Content 1" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt"' -> __QUOTED_COMMAND__echo 'Content 1' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt"
+返回码: 0
+输出: ⏳ Waiting for result ...
+...
+命令转译成功: 'echo "Content 2" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt"' -> __QUOTED_COMMAND__echo 'Content 2' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt"
+返回码: 0
+输出: ⏳ Waiting for result ......
+...
+命令转译成功: 'echo "Content 3" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt"' -> __QUOTED_COMMAND__echo 'Content 3' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt" -> ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt"
+返回码: 0
+输出: batch_file1.txt
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt"
+返回码: 0
+输出: Content 1
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt" -> ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt"
+返回码: 0
+输出: batch_file2.txt
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt"
+返回码: 0
+输出: Content 2
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt" -> ls "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt"
+返回码: 0
+输出: batch_file3.txt
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt"
+返回码: 0
+输出: Content 3
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt"
+返回码: 0
+输出: Content 1
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt"
+返回码: 0
+输出: Content 2
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt"
+返回码: 0
+输出: Content 3
+...
+命令转译成功: find ~/tmp/gds_test_20251031_232111_656264_68e6664f -name "batch_file*.txt" -> find ~/tmp/gds_test_20251031_232111_656264_68e6664f -name "batch_file*.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+No files found matching the pattern.
+...
+命令转译成功: rm "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt" -> rm "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file1.txt"
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+命令转译成功: rm "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt" -> rm "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file2.txt"
+返回码: 0
+输出: ⏳ Waiting for result ......
+...
+命令转译成功: rm "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt" -> rm "~/tmp/gds_test_20251031_232111_656264_68e6664f/batch_file3.txt"
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1187.335s
+
+OK
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+开始增强的echo测试
+测试JSON不同引号处理
+命令转译成功: echo '{"name": "test03_json_single_quote_03", "value": 123}' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_single_quote.txt" -> echo '{"name": "test03_json_single_quote_03", "value": 123}' > "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_single_quote.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_single_quote.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_single_quote.txt"
+返回码: 0
+输出: {"name": "test03_json_single_quote_03", "value": 123}
+...
+命令转译成功: echo "{\"name\": \"test03_json_single_quote_03\", \"value\": 123}" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_escaped_quote.txt" -> echo "{\"name\": \"test03_json_single_quote_03\", \"value\": 123}" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_escaped_quote.txt"
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_escaped_quote.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/json_escaped_quote.txt"
+返回码: 0
+输出: {"name": "test03_json_single_quote_03", "value": 123}
+...
+测试引号内特殊字符
+命令转译成功: echo "This content has > symbol but no redirect" -> echo "This content has > symbol but no redirect"
+返回码: 0
+输出: ⏳ Waiting for result ......
+This content has > symbol but no redirect
+...
+命令转译成功: echo "Special: @#$%^&*()_+-=[]{}|;:,.<>?" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/special_chars.txt" -> echo "Special: @#$%^&*()_+-=[]{}|;:,.<>?" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/special_chars.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/special_chars.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/special_chars.txt"
+返回码: 0
+输出: Special: @#$%^&*()_+-=[]{}|;:,.<>?
+...
+测试中文和特殊字符组合
+命令转译成功: echo "'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'" > "'~/tmp/gds_test_20251031_232111_656264_68e6664f/chinese_special.txt'" -> echo "'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'" > "'~/tmp/gds_test_20251031_232111_656264_68e6664f/chinese_special.txt'"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/chinese_special.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/chinese_special.txt"
+返回码: 0
+输出: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'
+...
+测试复杂JSON结构
+命令转译成功: echo "{\"users\": [{\"name\": \"Alice\", \"age\": 30}, {\"name\": \"Bob\", \"age\": 25}], \"total\": 2}" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/complex_json.txt" -> echo "{\"users\": [{\"name\": \"Alice\", \"age\": 30}, {\"name\": \"Bob\", \"age\": 25}], \"total\": 2}" > "~/tmp/gds_test_20251031_232111_656264_68e6664f/complex_json.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/complex_json.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/complex_json.txt"
+返回码: 0
+输出: {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}
+...
+命令转译成功: cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/complex_json.txt" -> cat "~/tmp/gds_test_20251031_232111_656264_68e6664f/complex_json.txt"
+返回码: 0
+输出: {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}
+...
+增强的echo测试完成

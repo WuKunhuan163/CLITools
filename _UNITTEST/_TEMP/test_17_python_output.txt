@@ -1,0 +1,133 @@
+test_17_python (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_17_python (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 633, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: "cd "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" && python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2404, in test_17_python
+    result = self.gds('"cd "' + test_project_path + '" && python "' + test_project_path + '/main.py"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 639, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: "cd "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" && python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py" - 1 != 0 : 命令执行失败: "cd "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" && python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"
+
+----------------------------------------------------------------------
+Ran 1 test in 334.006s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_230948_658717_53a3c21d
+正在创建远端测试目录: ~/tmp/gds_test_20251031_230948_658717_53a3c21d
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_230948_658717_53a3c21d
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_3r62wryj
+测试环境设置完成
+阶段1: 创建测试项目
+命令转译成功: mkdir -p "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" -> mkdir -p "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: 'echo "# Test project main file
+import sys
+from datetime import datetime
+
+def main():
+    print(f'Test project started')
+    print(f'Current time: {datetime.now()}')
+    print(\"Python version:\", sys.version)
+    
+    # Simple data processing
+    data = [1, 2, 3, 4, 5]
+    result = {
+        \"count\": len(data),
+        \"sum\": sum(data),
+        \"average\": sum(data) / len(data)
+    }
+    print(f'Processing result: {result}')
+    print(f'Test project completed')
+
+if __name__ == \"__main__\":
+    main()
+" > "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"' -> __QUOTED_COMMAND__echo '# Test project main file
+import sys
+from datetime import datetime
+
+def main():
+    print(f'\''Test project started'\'')
+    print(f'\''Current time: {datetime.now()}'\'')
+    print("Python version:", sys.version)
+    
+    # Simple data processing
+    data = [1, 2, 3, 4, 5]
+    result = {
+        "count": len(data),
+        "sum": sum(data),
+        "average": sum(data) / len(data)
+    }
+    print(f'\''Processing result: {result}'\'')
+    print(f'\''Test project completed'\'')
+
+if __name__ == "__main__":
+    main()
+' > "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py" -> ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"
+返回码: 0
+输出: main.py
+...
+阶段2: 代码执行测试
+
+执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251031_230948_658717_53a3c21d" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_simple_hello.py"
+验证命令: ['ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py"']
+最大重试次数: 3
+
+尝试 1/3
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_230948_658717_53a3c21d" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251031_230948_658717_53a3c21d" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_simple_hello.py"
+返回码: 0
+输出: ⏳ Waiting for upload ...
+⏳ Waiting for file sync ..........
+⏳ Waiting for result .....
+Captured debug output:
+Verification completed: {'success': True, 'found_files': ['test_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_230948_658717_53a3c21d'}
+Added deletion record for original: test_simple_hello.py
+Upload completed, showing verification debug information:
+verify_result={'success': True, 'found_files': ['test_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_230948_658717_53a3c21d'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_simple_hello.py'], 'sync_time': 8, 'base_sync_time': 8}
+target_folder_id='1M3a1wPARqYpChj1dIjOQL1kPJTNBGMJ3'
+target_display_path='~/tmp/gds_test_20251031_230948_658717_53a3c21d'
+...
+验证命令 1: ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py"
+命令转译成功: ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py" -> ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py"
+返回码: 0
+输出: test_simple_hello.py
+...
+验证成功: ls "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py"
+所有验证通过!
+命令转译成功: python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py" -> python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_simple_hello.py"
+返回码: 0
+输出: ⏳ Waiting for result .....
+Hello from remote project
+Current working directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251031_231057_257030_f13c6720
+Python version: 3.12.12 (main, Oct 10 2025, 08:52:57) [GCC 11.4.0]
+...
+命令转译成功: python -c "print(\"Hello from Python code!\"); import os; print(os.getcwd())" -> python -c "print(\"Hello from Python code!\"); import os; print(os.getcwd())"
+返回码: 0
+输出: ⏳ Waiting for result ...
+Hello from Python code!
+/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251031_231057_257030_f13c6720
+...
+命令转译成功: "cd "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" && python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py" -> "cd "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" && python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"
+返回码: 1
+输出: Error: Command parsing failed: No closing quotation
+...
+命令执行异常: 1 != 0 : 命令执行失败: "cd "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project" && python "~/tmp/gds_test_20251031_230948_658717_53a3c21d/test_project/main.py"

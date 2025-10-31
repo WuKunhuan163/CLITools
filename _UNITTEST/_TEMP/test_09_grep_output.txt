@@ -1,0 +1,50 @@
+test_09_grep (test_gds.GDSTest) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 104.731s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_180714_284662_b9920062
+正在创建远端测试目录: ~/tmp/gds_test_20251031_180714_284662_b9920062
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_180714_284662_b9920062
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_n4um_i5o
+测试环境设置完成
+命令转译成功: 'echo "Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here" > "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"' -> __QUOTED_COMMAND__echo 'Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here' > "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt" -> ls "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"
+返回码: 0
+输出: grep_test.txt
+...
+命令转译成功: grep "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt" -> grep "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"
+返回码: 0
+输出: 1: Line 1: Hello world
+2: Line 2: This is a test
+3: Line 3: Hello again
+4: Line 4: Multiple Hello Hello Hello
+5: Line 5: No match here
+6:
+...
+命令转译成功: grep "Hello" "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt" -> grep "Hello" "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"
+返回码: 0
+输出: 1: Line 1: Hello world
+  3: Line 3: Hello again
+  4: Line 4: Multiple Hello Hello Hello
+...
+命令转译成功: grep "is a" "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt" -> grep "is a" "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"
+返回码: 0
+输出: 2: Line 2: This is a test
+...
+命令转译成功: grep "NotFound" "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt" -> grep "NotFound" "~/tmp/gds_test_20251031_180714_284662_b9920062/grep_test.txt"
+返回码: 1

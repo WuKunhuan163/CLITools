@@ -22,7 +22,7 @@ except Exception:
     sys.exit(1)
 "
 if [ $? -ne 0 ]; then
-    echo "当前session的GDS无法访问Google Drive文件结构。请使用GOOGLE_DRIVE --remount指令重新挂载，然后执行GDS的其他命令"
+    echo "当前session的GDS无法访问Google Drive文件结构。请使用python: GOOGLE_DRIVE --remount指令重新挂载，然后执行GDS的其他命令"
 else
     # 确保工作目录存在并切换到正确的基础目录
     mkdir -p "/content/drive/MyDrive/REMOTE_ROOT"

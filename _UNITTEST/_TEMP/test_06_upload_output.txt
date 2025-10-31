@@ -1,0 +1,43 @@
+test_06_upload (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_06_upload (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 675, in gds
+    result = self.gds(f'ls "{filename}"', expect_success=False)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: upload --target-dir "~/tmp/gds_test_20251031_235051_385519_4d5acaf2" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1489, in test_06_upload
+    success, result = self._run_upload(
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 681, in gds
+    """验证远端文件内容包含特定文本（基于功能结果）"""
+AssertionError: 命令执行异常: upload --target-dir "~/tmp/gds_test_20251031_235051_385519_4d5acaf2" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py" - 1 != 0 : 命令执行失败: upload --target-dir "~/tmp/gds_test_20251031_235051_385519_4d5acaf2" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"
+
+----------------------------------------------------------------------
+Ran 1 test in 342.284s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_235051_385519_4d5acaf2
+正在创建远端测试目录: ~/tmp/gds_test_20251031_235051_385519_4d5acaf2
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_235051_385519_4d5acaf2
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ybxjrgxb
+测试环境设置完成
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_235051_385519_4d5acaf2" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251031_235051_385519_4d5acaf2" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"
+返回码: 1
+输出: Captured debug output:
+Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_simple_hello.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_235051_385519_4d5acaf2'}
+Upload failed, showing debug information:
+verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_simple_hello.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_235051_385519_4d5acaf2'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_simple_hello.py'], 'sync_time': 9, 'base_sync_time': 9}
+target_folder_id='1be4vd9JxaCC0ZVdQ6ct1TEcs0sBwfLs2'
+target_display_path='~/tmp/gds_test_20251031_235051_385519_4d5acaf2'
+Upload failed...
+命令执行异常: 1 != 0 : 命令执行失败: upload --target-dir "~/tmp/gds_test_20251031_235051_385519_4d5acaf2" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"

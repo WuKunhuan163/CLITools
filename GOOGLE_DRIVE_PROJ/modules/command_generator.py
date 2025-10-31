@@ -717,7 +717,7 @@ for attempt in $(seq 1 30); do
     if {cmd} 2>/dev/null; then
         break
     elif [ "$attempt" -eq 30 ]; then
-        echo "Error: Error: {filename} move failed, still failed after 30 retries" >&2
+        echo "Error: {filename} move failed, still failed after 30 retries" >&2
         exit 1
     else
         sleep 1

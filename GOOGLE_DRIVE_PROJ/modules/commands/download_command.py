@@ -1,4 +1,5 @@
 from .base_command import BaseCommand
+import os
 
 class DownloadCommand(BaseCommand):
     @property
@@ -236,6 +237,8 @@ class DownloadCommand(BaseCommand):
                     os.unlink(temp_path)
                     
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return {"success": False, "error": f"Download file failed: {e}"}
 
 
@@ -265,18 +268,13 @@ class DownloadCommand(BaseCommand):
             print(f"正在压缩目录 {dir_name} 到 {remote_zip_path}...")
             
             # 步骤1：远程压缩目录为zip包
-            # 使用远程命令窗口执行压缩
+            # 使用execute_command_interface执行压缩
             # 确保REMOTE_ROOT/tmp目录存在
             parent_dir = os.path.dirname(remote_absolute_path)
             tmp_dir = f"{self.main_instance.REMOTE_ROOT}/tmp"
             compress_command = f"mkdir -p '{tmp_dir}' && cd '{parent_dir}' && zip -r '{remote_zip_path}' '{dir_name}'"
             
-            compress_result = self.main_instance.remote_commands.show_remote_command_window(
-                title=f"压缩目录: {dir_name}",
-                cmd=compress_command,
-                timeout_seconds=3600,
-                is_priority=False
-            )
+            compress_result = self.main_instance.execute_command_interface("bash", ["-c", compress_command])
             
             if not compress_result.get("success", False):
                 return {"success": False, "error": f"Failed to compress directory: {compress_result.get('error', 'Unknown error')}"}
@@ -318,12 +316,7 @@ class DownloadCommand(BaseCommand):
             if download_result.get("success", False):
                 # 步骤4：清理远程临时zip文件
                 try:
-                    cleanup_result = self.main_instance.remote_commands.show_remote_command_window(
-                        title="清理临时文件",
-                        cmd=f"rm -f {remote_zip_path}",
-                        timeout_seconds=300,
-                        is_priority=False
-                    )
+                    cleanup_result = self.main_instance.execute_command_interface("bash", ["-c", f"rm -f {remote_zip_path}"])
                     if not cleanup_result.get("success", False):
                         print(f"Warning: Failed to cleanup remote zip file: {remote_zip_path}")
                 except Exception as e:

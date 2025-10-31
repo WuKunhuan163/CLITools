@@ -1,0 +1,146 @@
+test_18_pip_venv (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_18_pip_venv (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2484, in test_18_pip_venv
+    self.assertIn(venv_name, result.stdout)
+AssertionError: 'test_env_1761923498' not found in 'Current virtual environment: myproject_env_1761923968\nEnvironment path: /content/drive/MyDrive/REMOTE_ENV/venv/myproject_env_1761923968\nActivated at: 2025-10-31T15:20:28.949046\n'
+
+----------------------------------------------------------------------
+Ran 1 test in 591.653s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_231057_257030_f13c6720
+正在创建远端测试目录: ~/tmp/gds_test_20251031_231057_257030_f13c6720
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_231057_257030_f13c6720
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_l1ozv39i
+测试环境设置完成
+虚拟环境名称: test_env_1761923498
+清理测试环境...
+命令转译成功: venv --deactivate -> venv --deactivate
+返回码: 0
+输出: ⏳ Waiting for result ....
+Virtual environment deactivated successfully
+No virtual environment currently activated
+...
+命令转译成功: venv --current -> venv --current
+返回码: 0
+输出: No virtual environment currently activated
+...
+命令转译成功: venv --create test_env_1761923498 -> venv --create test_env_1761923498
+返回码: 0
+输出: ⏳ Waiting for result .......
+Virtual environment 'test_env_1761923498' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/test_env_1761923498
+...
+命令转译成功: venv --list -> venv --list
+返回码: 0
+输出: Virtual environments (24 total):
+  20250826_1
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  gaussianobject_env
+  myproject_env_1761918958
+  package_test_env_1760686053
+  protected_env_1761921345
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env
+...
+命令转译成功: venv --current -> venv --current
+返回码: 0
+输出: No virtual environment currently activated
+...
+命令转译成功: venv --activate test_env_1761923498 -> venv --activate test_env_1761923498
+返回码: 0
+输出: ⏳ Waiting for result ...
+Virtual environment activated successfully
+Current virtual environment: test_env_1761923498
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/test_env_1761923498
+Activated at: 2025-10-31T15:15:31.260815
+...
+命令转译成功: venv --current -> venv --current
+返回码: 0
+输出: Current virtual environment: test_env_1761923498
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/test_env_1761923498
+Activated at: 2025-10-31T15:15:31.260815
+...
+命令转译成功: pip install colorama -> pip install colorama
+返回码: 0
+输出: ⏳ Waiting for result ...
+...
+命令转译成功: python -c "import colorama; print(\"colorama imported successfully\")" -> python -c "import colorama; print(\"colorama imported successfully\")"
+返回码: 0
+输出: ⏳ Waiting for result .....
+colorama imported successfully
+...
+命令转译成功: venv --deactivate -> venv --deactivate
+返回码: 0
+输出: ⏳ Waiting for result .....
+Virtual environment deactivated successfully
+No virtual environment currently activated
+...
+命令转译成功: venv --current -> venv --current
+返回码: 0
+输出: No virtual environment currently activated
+...
+命令转译成功: venv --create empty_env_1761923886 -> venv --create empty_env_1761923886
+返回码: 0
+输出: ⏳ Waiting for result ......
+Virtual environment 'empty_env_1761923886' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/empty_env_1761923886
+...
+命令转译成功: venv --activate empty_env_1761923886 -> venv --activate empty_env_1761923886
+返回码: 0
+输出: ⏳ Waiting for result ...
+Virtual environment activated successfully
+Current virtual environment: empty_env_1761923886
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/empty_env_1761923886
+Activated at: 2025-10-31T15:18:42.773249
+...
+命令转译成功: venv --current -> venv --current
+返回码: 0
+输出: Current virtual environment: empty_env_1761923886
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/empty_env_1761923886
+Activated at: 2025-10-31T15:18:42.773249
+...
+命令转译成功: python -c "import colorama; print(\"colorama imported\")" -> python -c "import colorama; print(\"colorama imported\")"
+返回码: 1
+输出: ⏳ Waiting for result .....
+...
+错误: Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ModuleNotFoundError: No module named 'colorama'
+...
+命令转译成功: venv --activate test_env_1761923498 -> venv --activate test_env_1761923498
+返回码: 0
+输出: ⏳ Waiting for result ....
+Virtual environment activated successfully
+Current virtual environment: test_env_1761923498
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/test_env_1761923498
+Activated at: 2025-10-31T15:20:13.158312
+...
+命令转译成功: venv --current -> venv --current
+返回码: 0
+输出: Current virtual environment: myproject_env_1761923968
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/myproject_env_1761923968
+Activated at: 2025-10-31T15:20:28.949046
+...

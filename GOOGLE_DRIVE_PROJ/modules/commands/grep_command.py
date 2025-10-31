@@ -61,12 +61,17 @@ class GrepCommand(BaseCommand):
         if result.get("success", False):
             result_data = result.get("result", {})
             
+            has_file_errors = False
+            has_matches = False
+            
             for filename, file_result in result_data.items():
                 if "error" in file_result:
                     self.print_error(f"{filename}: {file_result['error']}")
+                    has_file_errors = True
                 else:
                     occurrences = file_result.get("occurrences", {})
                     if occurrences:
+                        has_matches = True
                         # 获取文件内容用于显示匹配行
                         cat_result = self.shell.cmd_cat(filename)
                         if cat_result.get("success"):
@@ -110,7 +115,7 @@ class GrepCommand(BaseCommand):
             
             for filename in filenames:
                 # 获取文件内容
-                cat_result = self.cmd_cat(filename)
+                cat_result = self.shell.cmd_cat(filename)
                 if not cat_result["success"]:
                     result[filename] = {
                         "local_file": None,

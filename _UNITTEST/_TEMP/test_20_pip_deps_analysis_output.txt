@@ -1,0 +1,38 @@
+test_20_pip_deps_analysis (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_20_pip_deps_analysis (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 633, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: pip --show-deps requests --depth=1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2620, in test_20_pip_deps_analysis
+    result = self.gds('pip --show-deps requests --depth=1')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 639, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: pip --show-deps requests --depth=1 - 1 != 0 : 命令执行失败: pip --show-deps requests --depth=1
+
+----------------------------------------------------------------------
+Ran 1 test in 97.529s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_223508_917133_e9223307
+正在创建远端测试目录: ~/tmp/gds_test_20251031_223508_917133_e9223307
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_223508_917133_e9223307
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_dhe1y1ze
+测试环境设置完成
+测试简单包依赖分析（depth=1）
+命令转译成功: pip --show-deps requests --depth=1 -> pip --show-deps requests --depth=1
+返回码: 1
+输出: Please use 'GDS deps' command for dependency analysis
+...
+命令执行异常: 1 != 0 : 命令执行失败: pip --show-deps requests --depth=1

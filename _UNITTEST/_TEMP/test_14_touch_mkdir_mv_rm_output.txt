@@ -1,0 +1,108 @@
+test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
+测试文件和目录的创建、移动、删除操作，包括安全检查 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 608.026s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251031_185459_292704_a6b82237
+正在创建远端测试目录: ~/tmp/gds_test_20251031_185459_292704_a6b82237
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251031_185459_292704_a6b82237
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_v6xjhkwv
+测试环境设置完成
+测试文件和目录的创建、移动、删除操作
+1. 创建测试目录结构
+命令转译成功: mkdir -p "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/child" -> mkdir -p "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/child"
+返回码: 0
+输出: ⏳ Waiting for result ......
+...
+2. 测试touch创建文件
+命令转译成功: touch "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/test_file1.txt" -> touch "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/test_file1.txt"
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+命令转译成功: touch "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/test_file2.txt" -> touch "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/test_file2.txt"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 0
+输出: parent/
+test_file1.txt
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent"
+返回码: 0
+输出: child/
+test_file2.txt
+...
+3. 测试mkdir创建更多目录
+命令转译成功: mkdir "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir1" "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir2" -> mkdir "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir1" "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir2"
+返回码: 0
+输出: ⏳ Validating directory creation ...
+⏳ Waiting for result ......
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 0
+输出: new_dir1/
+new_dir2/
+parent/
+test_file1.txt
+...
+4. 测试mv移动文件
+命令转译成功: mv "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/test_file1.txt" "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir1/" -> mv "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/test_file1.txt" "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir1/"
+返回码: 0
+输出: ⏳ Waiting for result ...
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir1" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir1"
+返回码: 0
+输出: test_file1.txt
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 0
+输出: new_dir1/
+new_dir2/
+parent/
+...
+5. 测试rm删除文件
+命令转译成功: rm "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/test_file2.txt" -> rm "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/test_file2.txt"
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent"
+返回码: 0
+输出: child/
+...
+6. 测试rm -rf删除目录
+命令转译成功: rm -rf "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir2" -> rm -rf "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/new_dir2"
+返回码: 0
+输出: ⏳ Waiting for result .....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 0
+输出: new_dir1/
+parent/
+...
+7. 测试安全检查：尝试删除包含当前目录的父目录
+命令转译成功: cd "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/child" -> cd "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test/parent/child"
+返回码: 0
+命令转译成功: rm -rf "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> rm -rf "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 1
+输出: Cannot delete directory containing current working directory: ~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test
+...
+8. 测试安全检查：尝试删除当前目录的直接父目录
+命令转译成功: rm -rf .. -> rm -rf ..
+返回码: 1
+输出: Cannot delete directory containing current working directory: ..
+...
+9. 清理测试：先切换到安全目录再删除
+命令转译成功: cd ~ && rm -rf "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> cd ~ && rm -rf "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 0
+输出: ⏳ Waiting for result ....
+...
+命令转译成功: ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test" -> ls "~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test"
+返回码: 1
+输出: Path not found: ~/tmp/gds_test_20251031_185459_292704_a6b82237/file_ops_test
+...
+文件和目录操作测试完成，包括安全检查验证

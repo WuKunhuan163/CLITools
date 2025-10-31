@@ -733,7 +733,7 @@ class GoogleDriveUploadImprovementsTest(unittest.TestCase):
     - Sequential upload and validation
     - Progress display improvements
     - Parameter parsing (--force, --target-dir, --remove-local)
-    - Upload-folder improvements
+    - upload_folder improvements
     - Uses temporary test folder in ~/tmp to avoid remote file conflicts
     """
     
@@ -879,8 +879,8 @@ class GoogleDriveUploadImprovementsTest(unittest.TestCase):
         print(f"Multi-file upload verified - both files found in remote directory")
     
     def test_03_upload_folder_functionality(self):
-        """Test upload-folder functionality"""
-        print(f"\nTesting upload-folder functionality...")
+        """Test upload_folder functionality"""
+        print(f"\nTesting upload_folder functionality...")
         print(f"This test requires user interaction - please follow the prompts")
         print(f"No timeout restrictions - take your time to complete the UI interactions")
         

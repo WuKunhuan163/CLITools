@@ -100,9 +100,9 @@ class LinterCommand(BaseCommand):
             }
         
         linter = self.supported_linters[detected_language]
-        return self.run_lintercontent, filename, detected_language, linter)
+        return self.run_linter(content, filename, detected_language, linter)
     
-    def run_linterself, content: str, filename: str, language: str, linter: str) -> Dict:
+    def run_linter(self, content: str, filename: str, language: str, linter: str) -> Dict:
         """Run the specific linter on content"""
         try:
             # Create temporary file
@@ -327,7 +327,7 @@ class LinterCommand(BaseCommand):
         """Lint file - delegate to linter functionality"""
         try:
             # Get file content first
-            cat_result = self.text_operations.cmd_cat(filename)
+            cat_result = self.shell.cmd_cat(filename)
             if not cat_result.get("success"):
                 return {
                     "success": False,
@@ -336,14 +336,8 @@ class LinterCommand(BaseCommand):
             
             content = cat_result.get("output", "")
             
-            # Import and use the new LINTER tool
-            import sys
-            import os
-            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            linter = LinterCommand()
-            
             # Run linter on content
-            result = linter.lint_content(content, filename)
+            result = self.lint_content(content, filename)
             
             # Format output for display
             output_lines = []
@@ -394,7 +388,12 @@ class LinterCommand(BaseCommand):
             print(f"Error: File {args.file} not found")
             sys.exit(1)
         
-        linter = LinterCommand()
+        # For CLI mode, we don't have a shell instance
+        # Create a mock object that won't be used
+        class MockShell:
+            drive_service = None
+        
+        linter = LinterCommand(MockShell())
         
         try:
             with open(args.file, 'r', encoding='utf-8') as f:
