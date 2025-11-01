@@ -160,19 +160,19 @@ class RemoteShellManager:
                         "shells": [],
                         "count": 0,
                         "active_shell": None
-                    }, self.command_identifier)
+                    }, command_identifier)
                 else:
                     print(no_shells_msg)
                 return 0
             
-            if is_run_environment(self.command_identifier):
+            if is_run_environment(command_identifier):
                 write_to_json_output({
                     "success": True,
                     "message": f"Found {len(shells)} remote shells",
                     "shells": list(shells.values()),
                     "count": len(shells),
                     "active_shell": active_shell
-                }, self.command_identifier)
+                }, command_identifier)
             else:
                 print(f"Total {len(shells)} shells:")
                 for shell_id, shell_config in shells.items():
@@ -183,8 +183,8 @@ class RemoteShellManager:
             
         except Exception as e:
             error_msg = f"Error listing remote shells: {e}"
-            if is_run_environment(self.command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
+            if is_run_environment(command_identifier):
+                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
             else:
                 print(error_msg)
             return 1
@@ -245,6 +245,59 @@ class RemoteShellManager:
             error_msg = f"Error terminating remote shell: {e}"
             if is_run_environment(self.command_identifier):
                 write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
+            else:
+                print(error_msg)
+            return 1
+
+    def checkout_shell(self, shell_id, command_identifier=None):
+        """切换到指定的远程shell"""
+        try:
+            shells_data = self.load_shells()
+            
+            if shell_id not in shells_data["shells"]:
+                error_msg = f"Cannot find shell ID: {shell_id}"
+                if is_run_environment(command_identifier):
+                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
+                else:
+                    print(error_msg)
+                return 1
+            
+            shell_config = shells_data["shells"][shell_id]
+            shell_name = shell_config['name']
+            
+            # 更新活跃shell
+            shells_data["active_shell"] = shell_id
+            
+            # 更新最后访问时间
+            from datetime import datetime
+            shells_data["shells"][shell_id]["last_accessed"] = datetime.now().isoformat()
+            
+            # 保存配置
+            if self.save_shells(shells_data):
+                result_data = {
+                    "success": True,
+                    "shell_id": shell_id,
+                    "shell_name": shell_name,
+                    "message": f"Switched to shell: {shell_name} ({shell_id})"
+                }
+                
+                if is_run_environment(command_identifier):
+                    write_to_json_output(result_data, command_identifier)
+                else:
+                    print(f"Switched to shell: {shell_name} ({shell_id})")
+                return 0
+            else:
+                error_msg = "Failed to save shell configuration"
+                if is_run_environment(command_identifier):
+                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
+                else:
+                    print(error_msg)
+                return 1
+                
+        except Exception as e:
+            error_msg = f"Error checking out remote shell: {e}"
+            if is_run_environment(command_identifier):
+                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
             else:
                 print(error_msg)
             return 1

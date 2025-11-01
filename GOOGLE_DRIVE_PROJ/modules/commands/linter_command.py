@@ -10,6 +10,32 @@ class LinterCommand(BaseCommand):
     Merged from linter.py
     """
     
+    # Language mapping from file extensions
+    LANGUAGE_MAP = {
+        '.py': 'python',
+        '.js': 'javascript',
+        '.ts': 'typescript',
+        '.json': 'json',
+        '.java': 'java',
+        '.cpp': 'cpp',
+        '.c': 'c',
+        '.go': 'go',
+        '.rs': 'rust',
+        '.rb': 'ruby',
+        '.php': 'php',
+        '.sh': 'shell',
+        '.bash': 'shell',
+        '.zsh': 'shell',
+    }
+    
+    # Supported linters for each language
+    supported_linters = {
+        'python': 'pyflakes',
+        'javascript': 'eslint',
+        'json': 'json',
+        'shell': 'shellcheck',
+    }
+    
     @property
     def command_name(self):
         return "linter"
@@ -20,40 +46,61 @@ class LinterCommand(BaseCommand):
             print("Error: linter command needs a file name")
             return 1
         
-        filename = args[0]
+        # Parse arguments for --language option
+        language = None
+        filename = None
+        
+        i = 0
+        while i < len(args):
+            if args[i] == '--language' and i + 1 < len(args):
+                language = args[i + 1]
+                i += 2
+            else:
+                if filename is None:
+                    filename = args[i]
+                i += 1
+        
+        if not filename:
+            print("Error: linter command needs a file name")
+            return 1
         
         # 直接调用cmd_linter方法
-        result = self.cmd_linter(filename)
+        result = self.cmd_linter(filename, language=language)
         
-        if result.get("success"):
-            language = result.get("language", "unknown")
-            status = "PASS" if result.get("success", False) else "FAIL"
-            message = result.get("message", "")
-            
-            print(f"Language: {language}")
-            print(f"Status: {status}")
-            print(f"Message: {message}")
-            
-            errors = result.get("errors", [])
-            if errors:
-                print("\nErrors:")
-                for error in errors:
-                    print(f"  • {error}")
-            
-            warnings = result.get("warnings", [])
-            if warnings:
-                print("\nWarnings:")
-                for warning in warnings:
-                    print(f"  • {warning}")
-            
-            if errors or warnings:
-                return 1
-            else:
-                return 0
-        else:
+        # Check if linting process itself failed (e.g., file not found, linter not available)
+        if "error" in result and not result.get("language"):
+            # This is a fatal error (not lint errors), print and exit
             error_msg = result.get("error", "Linter failed")
             print(error_msg)
             return 1
+        
+        # Linting process completed (possibly with lint errors/warnings)
+        language = result.get("language", "unknown")
+        has_errors = bool(result.get("errors", []))
+        status = "FAIL" if has_errors else "PASS"
+        message = result.get("message", "")
+        
+        print(f"Language: {language}")
+        print(f"Status: {status}")
+        print(f"Message: {message}")
+        
+        errors = result.get("errors", [])
+        if errors:
+            print("\nErrors:")
+            for error in errors:
+                print(f"  • {error}")
+        
+        warnings = result.get("warnings", [])
+        if warnings:
+            print("\nWarnings:")
+            for warning in warnings:
+                print(f"  • {warning}")
+        
+        # Return 1 only if there are lint errors (not warnings)
+        if errors:
+            return 1
+        else:
+            return 0
     
     def detect_language(self, filename: str, language: Optional[str] = None) -> str:
         """Detect language from filename or use provided language"""
@@ -146,7 +193,10 @@ class LinterCommand(BaseCommand):
     def lint_python(self, file_path: str, linter: str) -> Dict:
         """Lint Python code"""
         try:
-            if linter == 'flake8':
+            if linter == 'pyflakes':
+                result = subprocess.run(['pyflakes', file_path], 
+                                      capture_output=True, text=True)
+            elif linter == 'flake8':
                 result = subprocess.run(['flake8', '--format=%(path)s:%(row)d:%(col)d: %(code)s %(text)s', file_path], 
                                       capture_output=True, text=True)
             elif linter == 'pylint':
@@ -323,7 +373,7 @@ class LinterCommand(BaseCommand):
             "info": [message]
         }
 
-    def cmd_linter(self, filename, *args, **kwargs):
+    def cmd_linter(self, filename, language=None, *args, **kwargs):
         """Lint file - delegate to linter functionality"""
         try:
             # Get file content first
@@ -337,7 +387,7 @@ class LinterCommand(BaseCommand):
             content = cat_result.get("output", "")
             
             # Run linter on content
-            result = self.lint_content(content, filename)
+            result = self.lint_content(content, filename, language=language)
             
             # Format output for display
             output_lines = []
@@ -360,12 +410,11 @@ class LinterCommand(BaseCommand):
                 for info in result['info']:
                     output_lines.append(f"  • {info}")
             
-            return {
-                "success": True,
-                "output": "\n".join(output_lines),
-                "has_errors": bool(result.get('errors')),
-                "linter_result": result
-            }
+            # Return the linter result directly, adding output field for backward compatibility
+            result_with_output = result.copy()
+            result_with_output["output"] = "\n".join(output_lines)
+            result_with_output["has_errors"] = bool(result.get('errors'))
+            return result_with_output
             
         except Exception as e:
             return {

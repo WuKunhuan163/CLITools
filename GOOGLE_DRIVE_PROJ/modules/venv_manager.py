@@ -10,6 +10,14 @@ class VenvApiManager:
         self.drive_service = drive_service
         self.main_instance = main_instance
     
+    def get_venv_base_path(self):
+        """获取虚拟环境基础路径"""
+        return f"{self.main_instance.REMOTE_ENV}/venv"
+    
+    def get_venv_state_file_path(self):
+        """获取虚拟环境状态文件路径（统一的JSON格式）"""
+        return f"{self.get_venv_base_path()}/venv_states.json"
+    
     def read_venv_states(self):
         """读取虚拟环境状态文件"""
         try:
@@ -146,43 +154,19 @@ class VenvApiManager:
                 
         except Exception as e:
             return []
-    
-    def read_venv_states_via_api(self):
-        """通过API读取venv状态文件（如果可用）"""
-        # 这是一个回退方法，暂未实现API读取
-        return {"success": False, "error": "API read not implemented"}
-    
+
     def load_all_venv_states(self):
-        """从统一的JSON文件加载所有虚拟环境状态（优先使用API，回退到远程命令）"""
-        try:
-            import json
-            
-            # 首先尝试通过API读取
-            try:
-                api_result = self.read_venv_states_via_api()
-                if api_result.get("success"):
-                    return api_result.get("data", {{}})
-            except Exception as api_error:
-                print(f"API call failed: {{api_error}}")
-            
-            # 回退到远程命令
-            check_command = f'cat "{{state_file}}" 2>/dev/null || echo "{{}}"'
-            result = self.main_instance.execute_command_interface("bash", ["-c", check_command])
-            if result.get("success") and result.get("stdout"):
-                stdout_content = result["stdout"].strip()
-                try:
-                    state_data = json.loads(stdout_content)
-                    return state_data if isinstance(state_data, dict) else {{}}
-                except json.JSONDecodeError as e:
-                    return {{}}
-            else:
-                self.create_initial_venv_states_file()
-                return {{}}
-            
-        except Exception: 
-            import traceback
-            traceback.print_exc()
-            return {{}}
+        """从统一的JSON文件加载所有虚拟环境状态（使用GDS cat，避免触发远程窗口）"""
+        import json
+        
+        state_file = self.get_venv_state_file_path()
+        cat_result = self.main_instance.cmd_cat(state_file)
+        if cat_result.get("success"):
+            content = cat_result.get("output", "{}")
+            state_data = json.loads(content)
+            return state_data if isinstance(state_data, dict) else {}
+        else: 
+            return {}
     
     def create_initial_venv_states_file(self):
         """创建初始的虚拟环境状态文件"""
@@ -202,13 +186,13 @@ class VenvApiManager:
             venv_dir = f"{self.get_venv_base_path()}"
             mkdir_command = f'mkdir -p "{venv_dir}"'
             mkdir_result = self.main_instance.execute_command_interface("bash", ["-c", mkdir_command])
-            print(f"创建目录结果: {mkdir_result}")
+            # Debug: print(f"创建目录结果: {mkdir_result}")
             
             # 写入初始JSON文件
             json_content = json.dumps(initial_structure, indent=2, ensure_ascii=False)
             create_command = f'cat > "{state_file}" << \'EOF\'\n{json_content}\nEOF'
             create_result = self.main_instance.execute_command_interface("bash", ["-c", create_command])
-            print(f"Create JSON file result: {create_result}")
+            # Debug: print(f"Create JSON file result: {create_result}")
             
             if create_result.get("success"):
                 print(f"Successfully created initial state file: {state_file}")

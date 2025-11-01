@@ -763,9 +763,10 @@ if success_list:
         success_list = []
 
 # 输出JSON结果
+action_key = "protected" if {protected} else "unprotected"
 result = {{
     "success": len(success_list) > 0,
-    "protected": success_list,
+    action_key: success_list,
     "failed": failed_list,
     "success_count": len(success_list),
     "failed_count": len(failed_list)
