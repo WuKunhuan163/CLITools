@@ -4374,7 +4374,7 @@ print("Script execution successful!")
         # 测试4: 命令参数解析模式（基于实际执行的命令）
         print("测试4: 命令参数解析模式")
         # 使用实际创建的文件进行grep测试
-        grep_result_file = f'{redirection_test_folder}/grep_result.txt"'
+        grep_result_file = f'{redirection_test_folder}/grep_result.txt'
         grep_cmd = f'grep -n "pattern" "{test_file4}" > "{grep_result_file}"'
         result = self.gds(grep_cmd)
         self.assertEqual(result.returncode, 0, "grep命令应该成功")
@@ -4398,7 +4398,7 @@ print("Script execution successful!")
         
         # 测试5: 特殊字符转义模式（使用实际文件）
         print("测试5: 特殊字符转义模式")
-        escape_file = f'{redirection_test_folder}/escape_test.txt"'
+        escape_file = f'{redirection_test_folder}/escape_test.txt'
         result = self.gds(f'printf "Tab:\\tNewline:\\n" > "{escape_file}"')
         self.assertEqual(result.returncode, 0, "创建转义测试文件应该成功")
         
@@ -4418,7 +4418,7 @@ print("Script execution successful!")
         # 测试6: 管道和重定向组合模式（使用实际文件）
         print("测试6: 管道和重定向组合模式")
         # 测试实际的管道命令
-        pipe_result_file = f'{redirection_test_folder}/pipe_result.txt"'
+        pipe_result_file = f'{redirection_test_folder}/pipe_result.txt'
         pipe_cmd = f'cat "{test_file4}" | grep "pattern" | wc -l > "{pipe_result_file}"'
         result = self.gds(pipe_cmd)
         self.assertEqual(result.returncode, 0, "管道命令应该成功")
@@ -4654,15 +4654,17 @@ print("Script execution successful!")
         
         # 测试echo重定向+cat组合（修复的bug）
         print("  子测试5.1: echo重定向+cat组合")
-        redirect_cat_cmd = f'echo "test content for redirect" > "{bash_test_dir}/redirect_and_cat.txt" && cat "{bash_test_dir}/redirect_and_cat.txt"'
+        # GDS使用远程路径，bash使用本地路径
+        gds_redirect_cat_cmd = f'echo "test content for redirect" > "{gds_test_dir}/redirect_and_cat.txt" && cat "{gds_test_dir}/redirect_and_cat.txt"'
+        bash_redirect_cat_cmd = f'echo "test content for redirect" > "{bash_test_dir}/redirect_and_cat.txt" && cat "{bash_test_dir}/redirect_and_cat.txt"'
         
         # GDS测试
-        gds_result = self.gds(redirect_cat_cmd)
+        gds_result = self.gds(gds_redirect_cat_cmd)
         self.assertEqual(gds_result.returncode, 0, "GDS echo+cat组合应该成功")
         self.assertIn("test content for redirect", gds_result.stdout, "GDS cat输出应该显示")
         
         # bash测试
-        bash_result = self.bash(redirect_cat_cmd, bash_test_dir)
+        bash_result = self.bash(bash_redirect_cat_cmd, bash_test_dir)
         self.assertEqual(bash_result.returncode, 0, "bash echo+cat组合应该成功")
         self.assertIn("test content for redirect", bash_result.stdout, "bash cat输出应该显示")
         
@@ -4791,28 +4793,30 @@ print("Script execution successful!")
         # 测试用例5: GDS特有功能测试（与bash行为对比）
         print("测试5: GDS特有功能测试")
         
-        # 测试touch命令
-        touch_cmd = f'touch "{bash_test_dir}/test_touch.txt"'
-        gds_touch_result = self.gds(touch_cmd)
-        bash_touch_result = self.bash(touch_cmd, bash_test_dir)
+        # 测试touch命令（GDS使用远程路径，bash使用本地路径）
+        gds_touch_cmd = f'touch "{gds_test_dir}/test_touch.txt"'
+        bash_touch_cmd = f'touch "{bash_test_dir}/test_touch.txt"'
+        gds_touch_result = self.gds(gds_touch_cmd)
+        bash_touch_result = self.bash(bash_touch_cmd, bash_test_dir)
         
         self.assertEqual(gds_touch_result.returncode, bash_touch_result.returncode, "touch返回码应该一致")
         
-        # 验证文件是否创建成功
-        gds_verify = self.gds(f'ls "{bash_test_dir}/test_touch.txt"')
+        # 验证文件是否创建成功（GDS使用远程路径，bash使用本地路径）
+        gds_verify = self.gds(f'ls "{gds_test_dir}/test_touch.txt"')
         bash_verify = self.bash(f'ls "{bash_test_dir}/test_touch.txt"', bash_test_dir)
         
         self.assertEqual(gds_verify.returncode, bash_verify.returncode, "touch后ls验证返回码应该一致")
         
-        # 测试echo重定向
-        redirect_cmd = f'echo "redirect test" > "{bash_test_dir}/test_redirect.txt"'
-        gds_redirect_result = self.gds(redirect_cmd)
-        bash_redirect_result = self.bash(redirect_cmd, bash_test_dir)
+        # 测试echo重定向（GDS使用远程路径，bash使用本地路径）
+        gds_redirect_cmd = f'echo "redirect test" > "{gds_test_dir}/test_redirect.txt"'
+        bash_redirect_cmd = f'echo "redirect test" > "{bash_test_dir}/test_redirect.txt"'
+        gds_redirect_result = self.gds(gds_redirect_cmd)
+        bash_redirect_result = self.bash(bash_redirect_cmd, bash_test_dir)
         
         self.assertEqual(gds_redirect_result.returncode, bash_redirect_result.returncode, "echo重定向返回码应该一致")
         
         # 验证重定向内容
-        gds_redirect_content = self.gds(f'cat "{bash_test_dir}/test_redirect.txt"')
+        gds_redirect_content = self.gds(f'cat "{gds_test_dir}/test_redirect.txt"')
         bash_redirect_content = self.bash(f'cat "{bash_test_dir}/test_redirect.txt"', bash_test_dir)
         
         gds_stdout = process_terminal_erase(gds_redirect_content.stdout)

@@ -1,2 +1,102 @@
 test_33_regex (test_gds.GDSTest)
-测试正则表达式验证功能 - 基于实际文件操作 ... 
+测试正则表达式验证功能 - 基于实际文件操作 ... FAIL
+
+======================================================================
+FAIL: test_33_regex (test_gds.GDSTest)
+测试正则表达式验证功能 - 基于实际文件操作
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 758, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 2 != 0 : 命令执行失败: grep -n "pattern" "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4379, in test_33_regex
+    result = self.gds(grep_cmd)
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 764, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: grep -n "pattern" "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt" - 2 != 0 : 命令执行失败: grep -n "pattern" "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt"
+
+----------------------------------------------------------------------
+Ran 1 test in 515.708s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251102_010036_804207_347843ed
+正在创建远端测试目录: ~/tmp/gds_test_20251102_010036_804207_347843ed
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251102_010036_804207_347843ed
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_kwmw24cs
+测试环境设置完成
+测试正则表达式验证功能
+准备：创建测试目录和文件
+命令转译成功: mkdir -p "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test" -> mkdir -p "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test"
+返回码: 0
+输出: ...
+命令转译成功: echo -n "Echo without newline" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/echo_test.txt" -> echo -n "Echo without newline" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/echo_test.txt"
+返回码: 0
+输出: ...
+命令转译成功: printf "Hello World" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/printf_test.txt" -> printf "Hello World" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/printf_test.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "Line 1" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/append.txt" -> echo "Line 1" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/append.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "Line 2" >> "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/append.txt" -> echo "Line 2" >> "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/append.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "pattern line 1" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" -> echo "pattern line 1" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "no match line" >> "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" -> echo "no match line" >> "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "pattern line 2" >> "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" -> echo "pattern line 2" >> "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt"
+返回码: 0
+输出: ...
+测试1: 基本重定向模式匹配
+命令转译成功: cat "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/echo_test.txt" -> cat "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/echo_test.txt"
+返回码: 0
+输出: Echo without newline...
+测试2: 复杂命令模式匹配
+命令转译成功: cat "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/printf_test.txt" -> cat "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/printf_test.txt"
+返回码: 0
+输出: Hello World...
+命令转译成功: cat "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/append.txt" -> cat "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/append.txt"
+返回码: 0
+输出: Line 1
+Line 2...
+测试3: 文件路径验证模式
+命令转译成功: echo "# Python script" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.py" -> echo "# Python script" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.py"
+返回码: 0
+输出: ...
+命令转译成功: echo "#!/bin/bash" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.sh" -> echo "#!/bin/bash" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.sh"
+返回码: 0
+输出: Warning: Command contains exclamation marks which may cause shell history expansion issues.
+Original command: echo "#!/bin/bash" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.sh"
+Cleaned command: echo "#/bin/bash" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.sh"
+Suggestion: Avoid using '!' in commands to prevent shell history expansion errors....
+命令转译成功: echo "{}" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/config_123.json" -> echo "{}" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/config_123.json"
+返回码: 0
+输出: ...
+命令转译成功: ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/echo_test.txt" -> ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/echo_test.txt"
+返回码: 0
+输出: echo_test.txt...
+命令转译成功: ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.py" -> ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.py"
+返回码: 0
+输出: test_script.py...
+命令转译成功: ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.sh" -> ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/test_script.sh"
+返回码: 0
+输出: test_script.sh...
+命令转译成功: ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/config_123.json" -> ls "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/config_123.json"
+返回码: 0
+输出: config_123.json...
+测试4: 命令参数解析模式
+命令转译成功: grep -n "pattern" "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt" -> grep -n "pattern" "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt"
+返回码: 2
+输出: Error in BaseCommand: ~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt: File 'grep_result.txt' not found in folder. Available files: ['config_123.json', 'test_script.sh', 'test_script.py', 'grep_source.txt', 'append.txt', 'printf_test.txt', 'echo_test.txt']...
+命令执行异常: 2 != 0 : 命令执行失败: grep -n "pattern" "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_source.txt" > "~/tmp/gds_test_20251102_010036_804207_347843ed/regex_test/grep_result.txt"

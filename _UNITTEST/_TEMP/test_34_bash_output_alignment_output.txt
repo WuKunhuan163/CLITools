@@ -1,2 +1,102 @@
 test_34_bash_output_alignment (test_gds.GDSTest)
-测试GDS shell输出与bash shell输出的对齐性 ... 
+测试GDS shell输出与bash shell输出的对齐性 ... FAIL
+
+======================================================================
+FAIL: test_34_bash_output_alignment (test_gds.GDSTest)
+测试GDS shell输出与bash shell输出的对齐性
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 758, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败: echo "test content for redirect" > "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" && cat "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4660, in test_34_bash_output_alignment
+    gds_result = self.gds(redirect_cat_cmd)
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 764, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: echo "test content for redirect" > "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" && cat "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" - 1 != 0 : 命令执行失败: echo "test content for redirect" > "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" && cat "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt"
+
+----------------------------------------------------------------------
+Ran 1 test in 667.945s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251102_004814_309778_cf017274
+正在创建远端测试目录: ~/tmp/gds_test_20251102_004814_309778_cf017274
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251102_004814_309778_cf017274
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_rl8tjqie
+测试环境设置完成
+测试GDS shell输出与bash shell输出的对齐性
+使用本地临时bash测试目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir
+命令转译成功: mkdir -p "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir" -> mkdir -p "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir"
+返回码: 0
+输出: ...
+测试1: 基本命令对比
+  测试简单命令: echo "Hello World"
+命令转译成功: echo "Hello World" -> echo "Hello World"
+返回码: 0
+输出: Hello World...
+  测试简单命令: echo "Line1\nLine2"
+命令转译成功: echo "Line1\nLine2" -> echo "Line1\nLine2"
+返回码: 0
+输出: Line1
+Line2...
+  测试文件系统命令:
+    GDS: mkdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir"
+    Bash: mkdir "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/test_basic_dir"
+命令转译成功: mkdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir" -> mkdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir"
+返回码: 0
+输出: ...
+    GDS: ls "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir"
+    Bash: ls "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/test_basic_dir"
+命令转译成功: ls "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir" -> ls "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir"
+返回码: 0
+    GDS: rmdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir"
+    Bash: rmdir "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/test_basic_dir"
+命令转译成功: rmdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir" -> rmdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_basic_dir"
+返回码: 0
+输出: ...
+测试2: 文件操作对比
+命令转译成功: echo "Test content for alignment\nLine 2: 中文测试\nLine 3: Special chars @#$%" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_alignment.txt" -> echo "Test content for alignment\nLine 2: 中文测试\nLine 3: Special chars @#$%" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_alignment.txt"
+返回码: 0
+输出: ...
+命令转译成功: cat "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_alignment.txt" -> cat "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/test_alignment.txt"
+返回码: 0
+输出: Test content for alignment
+Line 2: 中文测试
+Line 3: Special chars @#$%...
+测试3: 无输出命令对比
+  测试无输出命令: echo "redirect test" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/redirect_test.txt"
+命令转译成功: echo "redirect test" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/redirect_test.txt" -> echo "redirect test" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/redirect_test.txt"
+返回码: 0
+输出: ...
+  测试无输出命令: echo "append test" >> "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/redirect_test.txt"
+命令转译成功: echo "append test" >> "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/redirect_test.txt" -> echo "append test" >> "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/redirect_test.txt"
+返回码: 0
+输出: ...
+  测试无输出命令: mkdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/silent_dir"
+命令转译成功: mkdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/silent_dir" -> mkdir "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/silent_dir"
+返回码: 0
+输出: ...
+测试4: 边缘情况对比
+  测试边缘情况: echo "" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/empty_test.txt"
+命令转译成功: echo "" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/empty_test.txt" -> echo "" > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/empty_test.txt"
+返回码: 0
+输出: ...
+  测试边缘情况: echo " " > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/space_test.txt"
+命令转译成功: echo " " > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/space_test.txt" -> echo " " > "~/tmp/gds_test_20251102_004814_309778_cf017274/gds_test_dir/space_test.txt"
+返回码: 0
+输出: ...
+测试5: 组合命令和重定向对比
+  子测试5.1: echo重定向+cat组合
+命令转译成功: echo "test content for redirect" > "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" && cat "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" -> echo "test content for redirect" > "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" && cat "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt"
+返回码: 1
+输出: Directory not found: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir...
+错误: bash: line 1: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt: No such file or directory...
+命令执行异常: 1 != 0 : 命令执行失败: echo "test content for redirect" > "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt" && cat "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_d1hzz8t8/bash_test_dir/redirect_and_cat.txt"
