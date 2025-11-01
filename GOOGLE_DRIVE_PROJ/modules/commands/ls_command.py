@@ -7,6 +7,11 @@ class LsCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行ls命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+        
         # 解析参数
         detailed = False
         recursive = False
@@ -59,13 +64,17 @@ class LsCommand(BaseCommand):
                 # 合并列表，文件夹在前
                 all_sorted_items = sorted_folders + sorted_files
                 
-                # 简单的列表格式，类似bash ls
-                for item in all_sorted_items:
-                    name = item.get('name', 'Unknown')
-                    if item.get('mimeType') == 'application/vnd.google-apps.folder':
-                        print(f"{name}/")
-                    else:
-                        print(name)
+                if detailed:
+                    # 详细模式：显示表格化信息，类似 ls -la
+                    self._print_detailed_listing(all_sorted_items)
+                else:
+                    # 简单的列表格式，类似bash ls
+                    for item in all_sorted_items:
+                        name = item.get('name', 'Unknown')
+                        if item.get('mimeType') == 'application/vnd.google-apps.folder':
+                            print(f"{name}/")
+                        else:
+                            print(name)
             
             return 0
         else:
@@ -453,4 +462,110 @@ class LsCommand(BaseCommand):
 
         except Exception as e:
             return {"exists": False, "error": f"Check file existence failed: {str(e)}"}
+    
+    def _print_detailed_listing(self, items):
+        """打印详细的列表信息，类似 ls -la 的表格格式
+        
+        Args:
+            items: 文件和文件夹列表
+        """
+        from datetime import datetime
+        
+        # 计算列宽
+        max_size_width = 0
+        for item in items:
+            size_str = self._format_size(item.get('size', ''))
+            max_size_width = max(max_size_width, len(size_str))
+        
+        # 打印标题行
+        print(f"{'TYPE':<8} {'SIZE':>{max_size_width}} {'MODIFIED':<20} {'ID':<40} {'NAME'}")
+        print("-" * (8 + max_size_width + 20 + 40 + 50))
+        
+        # 打印每个项目
+        for item in items:
+            # 类型
+            mime_type = item.get('mimeType', '')
+            if mime_type == 'application/vnd.google-apps.folder':
+                type_str = 'DIR'
+            else:
+                type_str = 'FILE'
+            
+            # 大小
+            size_str = self._format_size(item.get('size', ''))
+            
+            # 修改时间
+            modified_time = item.get('modifiedTime', '')
+            if modified_time:
+                try:
+                    dt = datetime.fromisoformat(modified_time.replace('Z', '+00:00'))
+                    time_str = dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    time_str = modified_time[:16]  # 截取前16个字符
+            else:
+                time_str = '-'
+            
+            # ID
+            file_id = item.get('id', '-')
+            
+            # 名称
+            name = item.get('name', 'Unknown')
+            if mime_type == 'application/vnd.google-apps.folder':
+                name += '/'
+            
+            # 打印行
+            print(f"{type_str:<8} {size_str:>{max_size_width}} {time_str:<20} {file_id:<40} {name}")
+    
+    def _format_size(self, size):
+        """格式化文件大小
+        
+        Args:
+            size: 文件大小（字节）
+            
+        Returns:
+            格式化的大小字符串
+        """
+        if not size:
+            return '-'
+        
+        try:
+            size_bytes = int(size)
+            
+            # 转换为人类可读格式
+            for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+                if size_bytes < 1024.0:
+                    if unit == 'B':
+                        return f"{size_bytes:.0f}{unit}"
+                    else:
+                        return f"{size_bytes:.1f}{unit}"
+                size_bytes /= 1024.0
+            
+            return f"{size_bytes:.1f}PB"
+        except (ValueError, TypeError):
+            return '-'
+    
+    def show_help(self):
+        """显示ls命令的帮助信息"""
+        help_text = """ls - list directory contents
+
+Usage:
+  ls [path] [options]
+
+Arguments:
+  path                     Directory path to list (default: current directory)
+
+Options:
+  --detailed               Show detailed file information (type, size, modified time, ID, name)
+  -R                       Recursive listing
+  -f                       Force mode (bypass cache)
+  -d                       Directory mode
+  -h, --help               Show this help message
+
+Examples:
+  ls                       List current directory
+  ls /path/to/dir          List specific directory
+  ls --detailed            Show detailed information with file IDs
+  ls -R                    List recursively
+  ls ~/Documents           List Documents folder
+"""
+        print(help_text)
 

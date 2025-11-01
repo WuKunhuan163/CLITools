@@ -24,6 +24,11 @@ class TextCommand(BaseCommand):
     
     def execute_cat(self, args):
         """执行cat命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_cat_help()
+            return 0
+        
         if not args:
             print("Error: cat command needs a file name")
             return 1
@@ -43,6 +48,11 @@ class TextCommand(BaseCommand):
     
     def execute_read(self, args):
         """执行read命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_read_help()
+            return 0
+        
         if not args:
             print("Error: read command needs a file name")
             return 1
@@ -136,3 +146,57 @@ class TextCommand(BaseCommand):
         """read命令 - 显示文件内容(带行号)"""
         # cmd_read is essentially the same as cmd_cat, but the execute_read method adds line numbers
         return self.cmd_cat(filename)
+    
+    def show_cat_help(self):
+        """显示cat命令的帮助信息"""
+        help_text = """cat - display file contents
+
+Usage:
+  cat <file>
+  cat > <file> << EOF        Write multi-line content using heredoc
+  cat >> <file> << EOF       Append multi-line content using heredoc
+
+Arguments:
+  file                     File path to display
+
+Heredoc Syntax:
+  cat > file.txt << "EOF"
+  line 1
+  line 2
+  EOF
+
+Options:
+  -h, --help               Show this help message
+
+Examples:
+  cat file.txt             Display file contents
+  cat ~/docs/readme.md     Display file with full path
+  cat > output.txt << EOF  Write multi-line content
+  First line
+  Second line
+  EOF
+"""
+        print(help_text)
+    
+    def show_read_help(self):
+        """显示read命令的帮助信息"""
+        help_text = """read - display file contents with line numbers
+
+Usage:
+  read <file> [start] [end] [options]
+
+Arguments:
+  file                     File path to display
+  start                    Starting line number (optional)
+  end                      Ending line number (optional)
+
+Options:
+  --force                  Force re-read (bypass cache)
+  -h, --help               Show this help message
+
+Examples:
+  read file.txt            Display entire file with line numbers
+  read file.txt 10 20      Display lines 10-20
+  read --force file.txt    Force re-read file
+"""
+        print(help_text)
