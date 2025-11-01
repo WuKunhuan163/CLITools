@@ -191,6 +191,7 @@ class CommandGenerator:
             start_time = datetime.now().isoformat()
             
             # 使用常量定义background文件名
+            BG_SCRIPT_FILE = get_bg_script_file(bg_pid)
             BG_LOG_FILE = get_bg_log_file(bg_pid)
             BG_RESULT_FILE = get_bg_result_file(bg_pid)
                             
@@ -211,15 +212,23 @@ cat > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" << 'SCRIPT_EOF'
 set -e
 
 # 首先创建初始的result.json文件，状态为running
+# 将command作为环境变量传递，避免在Python代码中处理复杂的引号转义
+export BG_COMMAND={shlex.quote(bg_original_cmd)}
 python3 << 'INITIAL_RESULT_EOF'
 import json
 import os
+import sys
 from datetime import datetime
+
+print(f"[DEBUG BG] Creating initial result file: {self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", file=sys.stderr)
+
+# 从环境变量读取command，避免在代码中直接插入包含换行符的字符串
+bg_command = os.environ.get("BG_COMMAND", "")
 
 result = {{
 "status": "running",
 "pid": "{bg_pid}",
-"command": {shlex.quote(bg_original_cmd)},
+"command": bg_command,
 "start_time": "{start_time}",
 "stdout": "",
 "stderr": "",
@@ -229,7 +238,9 @@ result = {{
 }}
 
 with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
-json.dump(result, f, indent=2, ensure_ascii=False)
+    json.dump(result, f, indent=2, ensure_ascii=False)
+    
+print(f"[DEBUG BG] Initial result file created successfully", file=sys.stderr)
 INITIAL_RESULT_EOF
 
 # 执行用户命令并捕获输出（同时写入log文件以便实时查看）
@@ -250,60 +261,71 @@ cp "$STDOUT_FILE" "$STDOUT_FILE.bak"
 touch "$STDERR_FILE"
 
 # 生成后台任务的JSON结果文件
+# 使用环境变量传递command
 python3 << 'PYTHON_EOF'
 import json
 import os
+import sys
 from datetime import datetime
 
+print(f"[DEBUG BG] Starting final result file generation", file=sys.stderr)
+
 try:
-exit_code = int(os.environ.get('EXIT_CODE', '0'))
+    exit_code = int(os.environ.get('EXIT_CODE', '0'))
+    print(f"[DEBUG BG] EXIT_CODE={{exit_code}}", file=sys.stderr)
 
-# 读取实际的命令输出
-stdout_content = ""
-stderr_content = ""
+    # 从环境变量读取command
+    bg_command = os.environ.get("BG_COMMAND", "")
 
-stdout_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
-stderr_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
+    # 读取实际的命令输出
+    stdout_content = ""
+    stderr_content = ""
 
-if os.path.exists(stdout_file):
-    try:
-        with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
-            stdout_content = f.read().rstrip('\\n')
-    except Exception:
-        stdout_content = ""
+    stdout_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
+    stderr_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
 
-if os.path.exists(stderr_file):
-    try:
-        with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
-            stderr_content = f.read().rstrip('\\n')
-    except Exception:
-        stderr_content = ""
+    if os.path.exists(stdout_file):
+        try:
+            with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
+                stdout_content = f.read().rstrip('\\n')
+        except Exception:
+            stdout_content = ""
 
-result = {{
-    "status": "completed",
-    "pid": "{bg_pid}",
-    "command": {shlex.quote(bg_original_cmd)},
-    "start_time": "{start_time}",
-    "end_time": datetime.now().isoformat(),
-    "stdout": stdout_content,
-    "stderr": stderr_content,
-    "exit_code": exit_code,
-    "working_dir": os.getcwd(),
-    "timestamp": datetime.now().isoformat()
-}}
+    if os.path.exists(stderr_file):
+        try:
+            with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
+                stderr_content = f.read().rstrip('\\n')
+        except Exception:
+            stderr_content = ""
 
-with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
+    result = {{
+        "status": "completed",
+        "pid": "{bg_pid}",
+        "command": bg_command,
+        "start_time": "{start_time}",
+        "end_time": datetime.now().isoformat(),
+        "stdout": stdout_content,
+        "stderr": stderr_content,
+        "exit_code": exit_code,
+        "working_dir": os.getcwd(),
+        "timestamp": datetime.now().isoformat()
+    }}
 
-# 清理临时文件
-if os.path.exists(stdout_file):
-    os.remove(stdout_file)
-if os.path.exists(stderr_file):
-    os.remove(stderr_file)
+    print(f"[DEBUG BG] Writing final result to: {self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", file=sys.stderr)
+    with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
     
+    print(f"[DEBUG BG] Final result file written successfully", file=sys.stderr)
+
+    # 清理临时文件
+    if os.path.exists(stdout_file):
+        os.remove(stdout_file)
+    if os.path.exists(stderr_file):
+        os.remove(stderr_file)
+        
 except Exception as e:
-print(f"ERROR: Failed to generate JSON result: {{e}}", file=sys.stderr)
-sys.exit(1)
+    print(f"ERROR: Failed to generate JSON result: {{e}}", file=sys.stderr)
+    sys.exit(1)
 PYTHON_EOF
 SCRIPT_EOF
 
@@ -318,7 +340,7 @@ if [ -f "{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}" ]; then
 echo "Background task started with ID: {bg_pid}"
 echo "Command: {bg_original_cmd}"
 echo ""
-echo "Run the following commands to track the background task status:"
+echo "Run the following commands to track the background task:"
 echo "  GDS --bg --status {bg_pid}    # Check task status"
 echo "  GDS --bg --result {bg_pid}    # View task result"
 echo "  GDS --bg --log {bg_pid}       # View task log"
@@ -376,10 +398,10 @@ result = {{
 result_file = "{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
 result_dir = os.path.dirname(result_file)
 if result_dir:
-os.makedirs(result_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
 
 with open(result_file, "w", encoding="utf-8") as f:
-json.dump(result, f, indent=2, ensure_ascii=False)
+    json.dump(result, f, indent=2, ensure_ascii=False)
 MAIN_JSON_EOF'''
         else:
             # 普通模式：使用原有的统一JSON生成脚本

@@ -8,11 +8,11 @@ import os
 import json
 from pathlib import Path
 from GOOGLE_DRIVE_PROJ.modules import (
-        CacheManager,
-        PathResolver,
-        SyncManager,
-        Validation
-    )
+    CacheManager,
+    PathResolver,
+    SyncManager,
+    Validation
+)
 from GOOGLE_DRIVE_PROJ.modules.command_executor import CommandExecutor
 from GOOGLE_DRIVE_PROJ.modules.command_generator import CommandGenerator
 from GOOGLE_DRIVE_PROJ.modules.result_processor import ResultProcessor
@@ -65,8 +65,8 @@ class GoogleDriveShell:
             self.cache_config = {}
             self.cache_config_loaded = False
         
-        # 直接初始化删除时间缓存（不通过委托）
-        self.deletion_cache = self.load_deletion_cache()
+        # 初始化删除时间缓存（稍后通过cache_manager加载）
+        self.deletion_cache = []
         
         # 设置常量
         self.HOME_URL = "https://drive.google.com/drive/u/0/my-drive"
@@ -142,6 +142,8 @@ class GoogleDriveShell:
         self.file_operations = None
         
         self.cache_manager = CacheManager(self.drive_service, self)
+        # 现在可以加载删除缓存了
+        self.deletion_cache = self.cache_manager.load_deletion_cache()
         self.command_executor = CommandExecutor(self.drive_service, self)
         self.command_generator = CommandGenerator(self.drive_service, self)
         self.result_processor = ResultProcessor(self.drive_service, self)
@@ -376,13 +378,16 @@ class GoogleDriveShell:
                     else:
                         return f"echo '{json_content}' > {target_file}"
                 else:
-                    # 使用单引号包围内容，避免bash进一步解释引号
-                    # 转义单引号：在bash单引号字符串中，使用'\''来表示单引号
-                    escaped_content = content.replace("'", "'\\''")
+                    # 使用双引号包围内容，让bash展开变量和反引号（与本地bash行为一致）
+                    # 需要转义双引号、反斜杠和美元符号以防止意外展开
+                    escaped_content = content.replace('\\', '\\\\')  # 先转义反斜杠
+                    escaped_content = escaped_content.replace('"', '\\"')  # 转义双引号
+                    escaped_content = escaped_content.replace('$', '\\$')  # 转义美元符号（防止变量展开）
+                    # 注意：不转义反引号，让它被bash执行（与本地行为一致）
                     if has_n_option:
-                        return f"echo -n '{escaped_content}' > {target_file}"
+                        return f"echo -n \"{escaped_content}\" > {target_file}"
                     else:
-                        return f"echo '{escaped_content}' > {target_file}"
+                        return f"echo \"{escaped_content}\" > {target_file}"
         
         # 如果解析失败，返回原命令
         return echo_command
@@ -774,7 +779,7 @@ class GoogleDriveShell:
                 remote_command=remote_command,
                 result_filename=result_filename,
                 cmd_hash=cmd_hash,
-                user_command=bg_create_cmd
+                raw_command=bg_create_cmd
             )
             
             # 显示执行结果
@@ -848,6 +853,38 @@ class GoogleDriveShell:
                 shell_cmd_clean = shell_cmd_clean[1:-1]
                 shell_cmd = shell_cmd_clean
                 is_quoted_command = True
+            
+            # 预处理命令：检测并翻译heredoc语法
+            from modules.heredoc_translator import preprocess_command
+            processed_commands, needs_sequential = preprocess_command(shell_cmd_clean)
+            
+            # 如果检测到heredoc（无论是否多命令）
+            if needs_sequential:
+                if len(processed_commands) > 1:
+                    # print(f"Heredoc detected, translating to {len(processed_commands)} commands:")
+                    # for i, cmd in enumerate(processed_commands, 1):
+                    #     print(f"  {i}. {cmd}")
+                    
+                    last_result = 0
+                    for cmd in processed_commands:
+                        # 递归调用，但使用翻译后的单个命令
+                        result = self.execute_shell_command(cmd, command_identifier)
+                        if isinstance(result, int):
+                            last_result = result
+                            if result != 0:
+                                return result  # 如果任何命令失败，立即返回
+                        else:
+                            last_result = 0
+                    return last_result
+                else:
+                    # 单个命令的heredoc翻译
+                    print(f"Heredoc detected, translating to: {processed_commands[0]}")
+                    # 继续使用翻译后的命令
+            
+            # 如果是翻译后的命令，使用翻译结果
+            if needs_sequential:
+                shell_cmd_clean = processed_commands[0]
+                shell_cmd = shell_cmd_clean
 
             # 首先检查特殊命令（不需要远程执行）
             if shell_cmd_clean in ['--help', '-h', 'help']:
@@ -938,11 +975,9 @@ class GoogleDriveShell:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
                     else:
-                        print("Error: Empty command after parsing")
-                        return 1
+                        raise Exception("Empty command after parsing")
                 except Exception as e:
-                    print(f"Error: Command parsing failed: {e}")
-                    return 1
+                    raise Exception(f"Command parsing failed: {e}")
                 
                 # 使用命令注册系统执行命令
                 return self.command_executor.execute_special_command(cmd, args)
@@ -959,11 +994,9 @@ class GoogleDriveShell:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
                     else:
-                        print("Error: Empty command after parsing")
-                        return 1
+                        raise Exception("Empty command after parsing")
                 except Exception as e:
-                    print(f"Error: Command parsing failed: {e}")
-                    return 1
+                    raise Exception(f"Command parsing failed: {e}")
                 
                 # 所有特殊命令统一使用命令执行系统
                 return self.command_executor.execute_special_command(cmd, args)
@@ -974,8 +1007,7 @@ class GoogleDriveShell:
             else:
                 translation_result = self.execute_generic_command(shell_cmd_clean)
                 if not translation_result["success"]:
-                    print(f"Error: {translation_result['error']}")
-                    return 1
+                    raise Exception(f"Error: {translation_result['error']}")
                 translated_cmd = translation_result["translated_command"]
             
             # 使用execute_command_interface统一接口
@@ -983,7 +1015,7 @@ class GoogleDriveShell:
             
             # 处理结果
             if not result.get("success"): 
-                raise Exception(f"Command execution returned failure: {result}")
+                raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
             
             data = result.get("data", {})
             stdout = data.get("stdout", "").strip()
@@ -1015,12 +1047,68 @@ class GoogleDriveShell:
             pass
 
     def show_background_status(self, bg_pid, command_identifier=None):
-        """显示background任务状态 - 从result文件读取"""
+        """显示background任务状态 - 优先从status文件读取，如果不存在则从result文件读取"""
         try:
+            import json
+            
+            # 首先尝试读取status文件
+            status_data = self._read_background_file(bg_pid, 'status', command_identifier)
+            
+            if status_data.get("success", False):
+                # status文件存在，说明任务正在运行或刚启动
+                data = status_data.get("data", {})
+                status_content = data.get("stdout", "").strip()
+                
+                if status_content:
+                    try:
+                        status_json = json.loads(status_content)
+                        
+                        # 提取状态信息
+                        status = status_json.get("status", "unknown")
+                        command = status_json.get("command", "N/A")
+                        start_time = status_json.get("start_time", "N/A")
+                        end_time = status_json.get("end_time", "")
+                        pid = status_json.get("pid", bg_pid)
+                        real_pid = status_json.get("real_pid", None)
+                        
+                        # 获取日志大小
+                        log_result = self._read_background_file(bg_pid, 'log', command_identifier)
+                        log_size = 0
+                        if log_result.get("success", False):
+                            log_data = log_result.get("data", {})
+                            log_content = log_data.get("stdout", "")
+                            log_size = len(log_content.encode('utf-8'))
+                        
+                        # 显示状态信息
+                        print(f"Status: {status}")
+                        if status == "running":
+                            if real_pid:
+                                print(f"PID: {pid} (Real PID: {real_pid})")
+                            else:
+                                print(f"PID: {pid}")
+                        else:
+                            print(f"PID: {pid}")
+                        
+                        print(f"Command: {command}")
+                        print(f"Start time: {start_time}")
+                        
+                        if end_time:
+                            print(f"End time: {end_time}")
+                        
+                        print(f"Log size: {log_size} bytes")
+                        
+                        return 0
+                        
+                    except json.JSONDecodeError as e:
+                        print(f"Error: Invalid JSON in status file: {e}")
+                        return 1
+            
+            # status文件不存在，尝试读取result文件（任务已完成）
             result_data = self._read_background_file(bg_pid, 'result', command_identifier)
             if not result_data.get("success", False):
                 print(f"Error: Background task {bg_pid} not found")
                 return 1
+            
             data = result_data.get("data", {})
             result_content = data.get("stdout", "").strip()
             if not result_content:
@@ -1028,14 +1116,23 @@ class GoogleDriveShell:
                 return 1
             
             try:
-                import json
                 result_json = json.loads(result_content)
                 
-                # 提取状态信息
-                status = result_json.get("status", "unknown")
+                # 从result文件中提取status（如果有）
+                # result文件可能包含嵌套的data结构
+                if "data" in result_json:
+                    # 新格式：有嵌套data
+                    inner_data = result_json["data"]
+                    exit_code = inner_data.get("exit_code", None)
+                    status = result_json.get("status", "unknown")
+                else:
+                    # 旧格式：平坦结构
+                    exit_code = result_json.get("exit_code", None)
+                    status = result_json.get("status", "unknown")
+                
                 command = result_json.get("command", "N/A")
                 start_time = result_json.get("start_time", "N/A")
-                end_time = result_json.get("end_time", "")
+                end_time = result_json.get("end_time", "N/A")
                 pid = result_json.get("pid", bg_pid)
                 
                 # 获取日志大小
@@ -1056,8 +1153,11 @@ class GoogleDriveShell:
                 print(f"Command: {command}")
                 print(f"Start time: {start_time}")
                 
-                if end_time:
+                if status == "completed" and end_time and end_time != "N/A":
                     print(f"End time: {end_time}")
+                
+                if exit_code is not None:
+                    print(f"Exit code: {exit_code}")
                 
                 print(f"Log size: {log_size} bytes")
                 
@@ -1570,7 +1670,7 @@ fi
                 remote_command=remote_command,
                 result_filename=result_filename,
                 cmd_hash=cmd_hash,
-                user_command=cleanup_cmd
+                raw_command=cleanup_cmd
             )
             
             if result.get("success", False):
@@ -1611,9 +1711,6 @@ fi
             dict: 包含文件内容的结果字典
         """
         try:
-            # 获取REMOTE_ROOT路径
-            tmp_path = f"{self.REMOTE_ROOT}/tmp"
-            
             # 根据文件类型选择相应的文件
             if file_type == 'status':
                 from modules.config_loader import get_bg_status_file
@@ -1627,7 +1724,9 @@ fi
             else:
                 return {"success": False, "error": f"Unknown file type: {file_type}"}
             
-            file_path = f"{tmp_path}/{target_file}"
+            # 使用相对于REMOTE_ROOT的路径（~/开头），而不是绝对路径
+            # 这样cmd_cat可以正确解析路径
+            file_path = f"~/tmp/{target_file}"
             
             # 使用cmd_cat直接读取文件，避免弹窗
             result = self.cmd_cat(file_path)
@@ -1635,6 +1734,9 @@ fi
             if result.get("success", False):
                 # 将cmd_cat的结果转换为统一格式
                 content = result.get("output", "")
+                # 检查内容是否为空，空内容可能意味着文件不存在
+                if not content.strip():
+                    return {"success": False, "error": f"File {file_path} is empty or not found"}
                 return {
                     "success": True,
                     "data": {
@@ -2035,28 +2137,36 @@ fi
             print("Console setup not implemented yet")
             return 1
         elif args[0] == '--create-remote-shell':
-            return create_shell(None, None, command_identifier) if create_shell else 1
+            return self.create_shell(None, None, command_identifier)
         elif args[0] == '--list-remote-shell':
-            return list_shells(command_identifier) if list_shells else 1
+            return self.list_shells(command_identifier)
         elif args[0] == '--checkout-remote-shell':
             if len(args) < 2:
                 print(f"Error: 需要指定shell ID")
                 return 1
             shell_id = args[1]
-            return checkout_shell(shell_id, command_identifier) if checkout_shell else 1
+            return self.checkout_shell(shell_id, command_identifier)
         elif args[0] == '--terminate-remote-shell':
             if len(args) < 2:
                 print(f"Error: 需要指定shell ID")
                 return 1
             shell_id = args[1]
-            return terminate_shell(shell_id, command_identifier) if terminate_shell else 1
+            return self.terminate_shell(shell_id, command_identifier)
         elif args[0] == '--remount':
             # 处理重新挂载命令
             return self.handle_remount_command(command_identifier)
         elif args[0] == '--shell':
-            if len(args) == 1:
-                # 进入交互模式
-                return enter_shell_mode(command_identifier) if enter_shell_mode else 1
+            # 检查是否有flags
+            has_no_direct_feedback = '--no-direct-feedback' in args
+            filtered_args = [arg for arg in args[1:] if arg not in ['--no-direct-feedback', '--priority']]
+            
+            if not filtered_args:
+                # 没有命令参数，进入交互模式
+                from .modules.shell_commands import enter_shell_mode
+                # 设置flags
+                if has_no_direct_feedback and hasattr(self, 'command_executor'):
+                    self.command_executor._no_direct_feedback = True
+                return enter_shell_mode(command_identifier)
             else:
                 # 执行指定的shell命令
                 return self.handle_shell_command_args(args[1:], command_identifier)
@@ -2083,6 +2193,10 @@ fi
                 filtered_shell_parts.append(part)
         
         shell_cmd_parts = filtered_shell_parts
+        
+        # 如果没有命令参数，说明是空命令，返回0（成功）
+        if not shell_cmd_parts:
+            return 0
         
         # 检测引号包围的完整命令（用于远端重定向等）
         if len(shell_cmd_parts) == 1 and (' > ' in shell_cmd_parts[0] or ' && ' in shell_cmd_parts[0] or ' || ' in shell_cmd_parts[0] or ' | ' in shell_cmd_parts[0]):

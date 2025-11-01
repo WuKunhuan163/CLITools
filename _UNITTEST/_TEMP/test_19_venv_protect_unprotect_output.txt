@@ -1,67 +1,267 @@
 test_19_venv_protect_unprotect (test_gds.GDSTest)
-测试虚拟环境的保护和取消保护功能 ... FAIL
-
-======================================================================
-FAIL: test_19_venv_protect_unprotect (test_gds.GDSTest)
-测试虚拟环境的保护和取消保护功能
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 633, in gds
-    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
-  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
-    assertion_func(first, second, msg=msg)
-AssertionError: 1 != 0 : 命令执行失败: venv --create protected_env_1761921345
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2524, in test_19_venv_protect_unprotect
-    result = self.gds(f'venv --create {protected_env}')
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 639, in gds
-    self.fail(f'命令执行异常: {command} - {e}')
-AssertionError: 命令执行异常: venv --create protected_env_1761921345 - 1 != 0 : 命令执行失败: venv --create protected_env_1761921345
-
-----------------------------------------------------------------------
-Ran 1 test in 109.561s
-
-FAILED (failures=1)
-设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251031_223452_914525_aa0ed80e
-正在创建远端测试目录: ~/tmp/gds_test_20251031_223452_914525_aa0ed80e
+测试虚拟环境的保护和取消保护功能 ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251101_142806_333348_71884c68
+正在创建远端测试目录: ~/tmp/gds_test_20251101_142806_333348_71884c68
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251031_223452_914525_aa0ed80e
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_fnekoww_
+已切换到远端测试目录: ~/tmp/gds_test_20251101_142806_333348_71884c68
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_vkbe239x
 测试环境设置完成
 测试venv --protect和--unprotect功能
-创建测试环境: protected_env_1761921345, normal_env_1761921345
-命令转译成功: venv --create protected_env_1761921345 -> venv --create protected_env_1761921345
-返回码: 1
-输出: ⏳ Waiting for result ......
-Virtual environment 'protected_env_1761921345' created successfully
-Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/protected_env_1761921345
-Error Report - Shell command execution
-AttributeError: 'GoogleDriveShell' object has no attribute 'sync_venv_state_to_local_shell'
-Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/venv_command.py:23 in execute()
-Code Context:
-    20: 
-    21:         result = self.cmd_venv(*args)
-    22:         if result.get("success", False):
->>> 23:             self.shell.sync_venv_state_to_local_shell(args)
-    24:             return 0
-    25:         else:
-    26:             error_message = result.get("error", "Virtual environment operation failed")
-Complete Call Stack:
-   1. GOOGLE_DRIVE.py:51 in <module>()
-   2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2086 in handle_command_line_args()
-   4. google_drive_shell.py:2137 in handle_shell_command_args()
-   5. google_drive_shell.py:1026 in execute_shell_command()
-   6. google_drive_shell.py:972 in execute_shell_command()
-      >>> return self.command_executor.execute_special_command(cmd, args)
-   7. command_executor.py:420 in execute_special_command()
-      >>> return command.execute(name, args, **kwargs)
-   8. venv_command.py:23 in execute()
-      >>> self.shell.sync_venv_state_to_local_shell(args)
-Google Drive Shell command execution failed with detailed traceback above.
-...
-命令执行异常: 1 != 0 : 命令执行失败: venv --create protected_env_1761921345
+创建测试环境: protected_env_1761978897, normal_env_1761978897
+命令转译成功: venv --create protected_env_1761978897 -> venv --create protected_env_1761978897
+返回码: 0
+输出: Virtual environment 'protected_env_1761978897' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/protected_env_1761978897...
+命令转译成功: venv --create normal_env_1761978897 -> venv --create normal_env_1761978897
+返回码: 0
+输出: Virtual environment 'normal_env_1761978897' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/normal_env_1761978897...
+保护环境: protected_env_1761978897
+命令转译成功: venv --protect protected_env_1761978897 -> venv --protect protected_env_1761978897
+返回码: 0
+输出: Protected 1 environment(s): protected_env_1761978897...
+尝试删除被保护的环境（应该被跳过）
+命令转译成功: venv --delete protected_env_1761978897 -> venv --delete protected_env_1761978897
+返回码: 0
+输出: Warning:  Skipped 1 protected environment(s): protected_env_1761978897...
+验证被保护的环境仍然存在
+命令转译成功: venv --list -> venv --list
+返回码: 0
+输出: Virtual environments (35 total):
+  20250826_1
+  batch_env1_1761975327
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  normal_env_1761978074
+  normal_env_1761978897
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  protected_env_1761978897
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env...
+删除未保护的环境: normal_env_1761978897
+命令转译成功: venv --delete normal_env_1761978897 -> venv --delete normal_env_1761978897
+返回码: 0
+⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!
+   First 200 chars: ⏳ Waiting for result ..................
+等待结果超时。可能的原因：
+  (1) 网络问题导致命令执行缓慢。请检查
+  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
+后台模式检测：自动返回超时错误
+Warning: Failed to read venv states: Unknown
+输出: ⏳ Waiting for result ..................
+等待结果超时。可能的原因：
+  (1) 网络问题导致命令执行缓慢。请检查
+  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
+后台模式检测：自动返回超时错误
+Warning: Failed to read venv states: Unknown error
+Deleting 1 virtual environment(s): normal_env_1761978897...
+验证未保护的环境已被删除
+命令转译成功: venv --list -> venv --list
+返回码: 0
+输出: Virtual environments (34 total):
+  20250826_1
+  batch_env1_1761975327
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  protected_env_1761978897
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env...
+取消保护: protected_env_1761978897
+命令转译成功: venv --unprotect protected_env_1761978897 -> venv --unprotect protected_env_1761978897
+返回码: 0
+输出: Unprotected 1 environment(s): protected_env_1761978897...
+再次尝试删除（应该成功）
+命令转译成功: venv --delete protected_env_1761978897 -> venv --delete protected_env_1761978897
+返回码: 0
+输出: Deleting 1 virtual environment(s): protected_env_1761978897...
+验证环境已被删除
+命令转译成功: venv --list -> venv --list
+返回码: 0
+输出: Virtual environments (33 total):
+  20250826_1
+  batch_env1_1761975327
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env...
+测试批量保护功能
+命令转译成功: venv --create batch_env1_1761979385 -> venv --create batch_env1_1761979385
+返回码: 0
+输出: Virtual environment 'batch_env1_1761979385' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/batch_env1_1761979385...
+命令转译成功: venv --create batch_env2_1761979385 -> venv --create batch_env2_1761979385
+返回码: 0
+输出: Virtual environment 'batch_env2_1761979385' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/batch_env2_1761979385...
+命令转译成功: venv --protect batch_env1_1761979385 batch_env2_1761979385 -> venv --protect batch_env1_1761979385 batch_env2_1761979385
+返回码: 0
+输出: Protected 2 environment(s): batch_env1_1761979385, batch_env2_1761979385...
+命令转译成功: venv --delete batch_env1_1761979385 batch_env2_1761979385 -> venv --delete batch_env1_1761979385 batch_env2_1761979385
+返回码: 0
+输出: Warning:  Skipped 2 protected environment(s): batch_env1_1761979385, batch_env2_1761979385...
+命令转译成功: venv --list -> venv --list
+返回码: 0
+输出: Virtual environments (35 total):
+  20250826_1
+  batch_env1_1761975327
+  batch_env1_1761979385
+  batch_env2_1761979385
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env...
+命令转译成功: venv --unprotect batch_env1_1761979385 batch_env2_1761979385 -> venv --unprotect batch_env1_1761979385 batch_env2_1761979385
+返回码: 0
+输出: Unprotected 2 environment(s): batch_env1_1761979385, batch_env2_1761979385...
+命令转译成功: venv --delete batch_env1_1761979385 batch_env2_1761979385 -> venv --delete batch_env1_1761979385 batch_env2_1761979385
+返回码: 0
+输出: Deleting 2 virtual environment(s): batch_env1_1761979385, batch_env2_1761979385...
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1238.975s
+
+OK
+命令转译成功: venv --list -> venv --list
+返回码: 0
+输出: Virtual environments (33 total):
+  20250826_1
+  batch_env1_1761975327
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env...
+venv protect/unprotect功能测试通过

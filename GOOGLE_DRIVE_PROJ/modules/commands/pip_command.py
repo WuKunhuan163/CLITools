@@ -240,27 +240,24 @@ find '{env_path}' -maxdepth 1 -name '*.egg-info' -type d 2>/dev/null | sed 's|.*
     def parse_package_scan_output(self, output):
         """Parse package scan output to extract package names and versions"""
         packages = {}
-        try:
-            lines = output.strip().split('\n')
-            for line in lines:
-                line = line.strip()
-                # 查找 .dist-info 目录
-                if line.endswith('.dist-info'):
-                    # 格式通常是 package_name-version.dist-info
-                    parts = line.replace('.dist-info', '').split('-')
-                    if len(parts) >= 2:
-                        package_name = '-'.join(parts[:-1])  # 包名可能包含连字符
-                        version = parts[-1]
-                        packages[package_name] = version
-                # 查找 .egg-info 目录
-                elif line.endswith('.egg-info'):
-                    parts = line.replace('.egg-info', '').split('-')
-                    if len(parts) >= 2:
-                        package_name = '-'.join(parts[:-1])
-                        version = parts[-1]
-                        packages[package_name] = version
-        except Exception as e:
-            pass
+        lines = output.strip().split('\n')
+        for line in lines:
+            line = line.strip()
+            # 查找 .dist-info 目录
+            if line.endswith('.dist-info'):
+                # 格式通常是 package_name-version.dist-info
+                parts = line.replace('.dist-info', '').split('-')
+                if len(parts) >= 2:
+                    package_name = '-'.join(parts[:-1])  # 包名可能包含连字符
+                    version = parts[-1]
+                    packages[package_name] = version
+            # 查找 .egg-info 目录
+            elif line.endswith('.egg-info'):
+                parts = line.replace('.egg-info', '').split('-')
+                if len(parts) >= 2:
+                    package_name = '-'.join(parts[:-1])
+                    version = parts[-1]
+                    packages[package_name] = version
         
         return packages
 
@@ -327,26 +324,14 @@ print(f"JSON file updated successfully")
 
     def detect_current_environment_packages(self, venv_name):
         """Detect current environment packages with JSON and directory scanning"""
-        try:
-            if venv_name:
-                # 直接从JSON读取，不进行扫描（避免弹窗）
-                from ..venv_manager import VenvApiManager
-                api_manager = VenvApiManager(self.shell.drive_service, self.shell)
-                result = api_manager.read_venv_states()
-                all_states = result.get('data', {}) if result.get('success') else {}
-                if all_states and 'environments' in all_states and venv_name in all_states['environments']:
-                    env_data = all_states['environments'][venv_name]
-                    return env_data.get('packages', {})
-                else:
-                    # 如果JSON中没有数据，返回空字典（用户可以手动--refresh-list）
-                    return {}
-            else:
-                # 对于系统环境，返回基础包
-                return {
-                    'pip': '23.0.0',
-                    'setuptools': '65.0.0'
-                }
-        except Exception as e:
+        from ..venv_manager import VenvApiManager
+        api_manager = VenvApiManager(self.shell.drive_service, self.shell)
+        result = api_manager.read_venv_states()
+        all_states = result.get('data', {}) if result.get('success') else {}
+        if all_states and 'environments' in all_states and venv_name in all_states['environments']:
+            env_data = all_states['environments'][venv_name]
+            return env_data.get('packages', {})
+        else: 
             return {}
 
     def execute_pip_command(self, pip_command, current_env, target_info):

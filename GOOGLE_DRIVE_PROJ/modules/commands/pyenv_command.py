@@ -196,7 +196,7 @@ fi
 '''
             
             # 执行远程安装命令
-            result = self.shell.execute_command_interface("bash", ["-c", install_command])
+            result = self.shell.command_executor.execute_remote_script(install_command)
             
             if result.get("success") and result.get("exit_code") == 0:
                 # 更新状态文件
@@ -894,18 +894,17 @@ print('State updated successfully')
         return candidates
     
     def verify_python_version_availability(self, version):
-        """验证Python版本是否可用（通过下载和测试执行，自动清理临时文件）"""
+        """验证Python版本是否可用（使用HTTP HEAD请求检查，不实际下载）"""
         import subprocess
-        import tempfile
-        import os
-        import zipfile
-        import shutil
+        import sys
         
-        temp_dir = None
         try:
-            # 创建临时目录
-            temp_dir = tempfile.mkdtemp(prefix=f"python_test_{version}_")
             download_urls = []
+            
+            # 根据操作系统选择合适的URL
+            is_windows = sys.platform == 'win32'
+            is_macos = sys.platform == 'darwin'
+            is_linux = sys.platform.startswith('linux')
             
             # Python 2.x 使用不同的URL模式
             if version.startswith('2.'):
@@ -914,77 +913,43 @@ print('State updated successfully')
                     f"https://github.com/python/cpython/archive/v{version}.tar.gz"
                 ]
             else:
-                # Python 3.x 使用标准URL
-                download_urls = [
-                    f"https://www.python.org/ftp/python/{version}/python-{version}-embed-amd64.zip",
-                    f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz",
-                    f"https://github.com/python/cpython/archive/v{version}.tar.gz",
-                    f"https://www.python.org/ftp/python/{version}/python-{version}-amd64.exe"
-                ]
+                # Python 3.x - 根据平台选择URL
+                if is_windows:
+                    download_urls = [
+                        f"https://www.python.org/ftp/python/{version}/python-{version}-embed-amd64.zip",
+                        f"https://www.python.org/ftp/python/{version}/python-{version}-amd64.exe",
+                        f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz",
+                    ]
+                else:
+                    # macOS and Linux - 只使用源码包
+                    download_urls = [
+                        f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz",
+                        f"https://github.com/python/cpython/archive/v{version}.tar.gz"
+                    ]
             
             for download_url in download_urls:
                 try:
-                    # 根据URL确定文件名
-                    if download_url.endswith('.zip'):
-                        file_name = f"python-{version}.zip"
-                    elif download_url.endswith('.tgz'):
-                        file_name = f"Python-{version}.tgz"
-                    elif download_url.endswith('.exe'):
-                        file_name = f"python-{version}.exe"
-                    else:
-                        file_name = f"python-{version}.tar.gz"
-                    file_path = os.path.join(temp_dir, file_name)
+                    # 使用HTTP HEAD请求检查文件是否存在（不实际下载）
+                    # 使用curl的--head选项只获取头信息
+                    result = subprocess.run(
+                        ["curl", "-s", "-I", "-L", "--max-time", "5", download_url],
+                        capture_output=True,
+                        timeout=10,
+                        text=True
+                    )
                     
-                    # 尝试下载（减少超时时间提高并发效率）
-                    download_success = False
-                    try:
-                        result = subprocess.run(
-                            ["curl", "-s", "-L", "-o", file_path, download_url],
-                            capture_output=True,
-                            timeout=15  # 减少超时时间
-                        )
-                        if result.returncode == 0 and os.path.exists(file_path) and os.path.getsize(file_path) > 1000:
-                            download_success = True
-                    except (subprocess.TimeoutExpired, FileNotFoundError):
-                        continue
+                    if result.returncode == 0:
+                        # 检查HTTP响应码
+                        output = result.stdout
+                        if "HTTP/1.1 200" in output or "HTTP/2 200" in output:
+                            # 文件存在且可访问
+                            return "verified"
+                        elif "HTTP/1.1 302" in output or "HTTP/2 302" in output:
+                            # 重定向，也算可用
+                            return "verified"
                     
-                    if not download_success:
-                        continue
-                    
-                    # 如果是embed版本的zip文件，尝试解压并执行
-                    if file_name.endswith('.zip') and 'embed' in download_url:
-                        try:
-                            extract_dir = os.path.join(temp_dir, f"python-{version}")
-                            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                                zip_ref.extractall(extract_dir)
-                            
-                            # 查找python.exe
-                            python_exe = os.path.join(extract_dir, "python.exe")
-                            if not os.path.exists(python_exe):
-                                # 在Windows embed版本中，可能是python.exe
-                                for file in os.listdir(extract_dir):
-                                    if file.startswith("python") and file.endswith(".exe"):
-                                        python_exe = os.path.join(extract_dir, file)
-                                        break
-                            
-                            if os.path.exists(python_exe):
-                                try:
-                                    result = subprocess.run(
-                                        [python_exe, "--version"],
-                                        capture_output=True,
-                                        timeout=5, 
-                                        text=True
-                                    )
-                                    if result.returncode == 0 and version in result.stdout:
-                                        return "verified"
-                                except:
-                                    pass
-                        except:
-                            pass
-                    
-                    # 如果下载成功，至少标记为可用（即使无法执行测试）
-                    return "verified"
-                    
+                except (subprocess.TimeoutExpired, FileNotFoundError):
+                    continue
                 except Exception:
                     continue
             
@@ -993,13 +958,6 @@ print('State updated successfully')
             
         except Exception as e:
             return "failed"
-        finally:
-            # 确保清理临时目录
-            if temp_dir and os.path.exists(temp_dir):
-                try:
-                    shutil.rmtree(temp_dir)
-                except:
-                    pass  # 忽略清理错误
     
     def add_installed_version(self, version):
         """添加已安装版本到状态文件"""

@@ -1,117 +1,212 @@
-test_16_project_deployment (test_gds.GDSTest) ... FAIL
-
-======================================================================
-FAIL: test_16_project_deployment (test_gds.GDSTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2315, in test_16_project_deployment
-    self.assertTrue(success, f"项目文件夹上传失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : 项目文件夹上传失败: 
-
-----------------------------------------------------------------------
-Ran 1 test in 67.035s
-
-FAILED (failures=1)
-设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251031_230935_914056_431718c9
-正在创建远端测试目录: ~/tmp/gds_test_20251031_230935_914056_431718c9
+test_16_project_deployment (test_gds.GDSTest) ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+正在创建远端测试目录: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251031_230935_914056_431718c9
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_pqca1zie
+已切换到远端测试目录: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_agef5zlg
 测试环境设置完成
 
-执行带重试的upload命令: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-验证命令: ['ls "~/tmp/~/tmp/gds_test_20251031_230935_914056_431718c9/test_project"']
+执行带重试的upload命令: upload_folder --target-dir "~/tmp/gds_test_20251101_122725_763631_7482fa5b" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project"']
 最大重试次数: 3
 
 尝试 1/3
-命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-返回码: 1
-输出: Error Report - Shell command execution
-AttributeError: 'UploadCommand' object has no attribute 'execute_upload_folder'
-Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py:29 in execute()
-Code Context:
-    26:         """执行上传命令（BaseCommand要求的方法）"""
-    27:         # 检查是否是 upload_folder 命令
-    28:         if cmd == 'upload_folder':
->>> 29:             return self.execute_upload_folder(args)
-    30: 
-    31:         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
-    32:         target_path = "."
-Complete Call Stack:
-   1. GOOGLE_DRIVE.py:51 in <module>()
-   2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2088 in handle_command_line_args()
-   4. google_drive_shell.py:2139 in handle_shell_command_args()
-   5. google_drive_shell.py:1028 in execute_shell_command()
-   6. google_drive_shell.py:974 in execute_shell_command()
-      >>> return self.command_executor.execute_special_command(cmd, args)
-   7. command_executor.py:445 in execute_special_command()
-      >>> return command.execute(name, args, **kwargs)
-   8. upload_command.py:29 in execute()
-      >>> return self.execute_upload_folder(args)
-Google Drive Shell command execution failed with detailed traceback above.
-...
-Error: Upload command failed, return code: 1
-Waiting 1 second before retrying...
+命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251101_122725_763631_7482fa5b" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251101_122725_763631_7482fa5b" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+返回码: 0
+输出: Captured debug output:
+cmd_upload called with source_files=['/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip'], target_path='~/tmp/gds_test_20251101_122725_763631_7482fa5b', force=True
+Before resolve - target_path='~/tmp/gds_test_20251101_122725_763631_7482fa5b'
+current_shell={'id': 'default_shell', 'name': 'default', 'current_path': '~/tmp/gds_test_20251101_122725_763631_7482fa5b', 'current_folder_id': '1J02BwveBrNem0UrB1UIO3fBYDDWjDV_r', 'created_time': '2025-10-29 11:35:40', 'last_accessed': '2025-11-01 12:27:59', 'venv_state': {'active_env': None, 'pythonpath': '/env/python'}}
+After resolve - target_folder_id='1J02BwveBrNem0UrB1UIO3fBYDDWjDV_r', target_display_path='~/tmp/gds_test_20251101_122725_763631_7482fa5b'
+Processing file: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip
+Checking conflicts for: test_project.zip
+Checking rename for test_project.zip: found 21 deletion records
+Record: test_project.zip, age: 276.6s
+Should rename test_project.zip (found in deletion cache, age: 276.6s)
+Conflict check: test_project.zip -> remote_exists=False, cache_suggests_rename=True, local_exists=False
+Need to rename test_project.zip to avoid conflict
+Checking rename for test_project_1.zip: found 21 deletion records
+Record: test_project.zip, age: 276.6s
+Record: test_project.zip, age: 276.6s
+Record: test_project_1.zip, age: 276.6s
+Should rename test_project_1.zip (found in deletion cache, age: 276.6s)
+Temp filename test_project_1.zip also in cache, trying next
+Checking rename for test_project_2.zip: found 21 deletion records
+Record: test_project.zip, age: 276.6s
+Record: test_project.zip, age: 276.6s
+Record: test_project_1.zip, age: 276.6s
+Record: test_project.zip, age: 231.0s
+Record: test_project.zip, age: 231.0s
+Record: test_project_2.zip, age: 231.0s
+Should rename test_project_2.zip (found in deletion cache, age: 231.0s)
+Temp filename test_project_2.zip also in cache, trying next
+Checking rename for test_project_3.zip: found 21 deletion records
+Record: test_project.zip, age: 276.6s
+Record: test_project.zip, age: 276.6s
+Record: test_project_1.zip, age: 276.6s
+Record: test_project.zip, age: 231.0s
+Record: test_project.zip, age: 231.0s
+Record: test_project_2.zip, age: 231.0s
+Record: test_simple_hello.py, age: 214.6s
+Record: test_simple_hello.py, age: 214.6s
+Record: valid_script.py, age: 172.4s
+Record: valid_script.py, age: 172.4s
+Record: valid_script_2.py, age: 172.4s
+Record: invalid_script.py, age: 128.6s
+Record: invalid_script.py, age: 128.6s
+Record: valid_script.py, age: 42.7s
+Record: special_chars.txt, age: 42.7s
+Record: valid_script.py, age: 42.7s
+Record: valid_script_3.py, age: 42.7s
+Record: special_chars.txt, age: 42.7s
+Record: special_chars_2.txt, age: 42.7s
+Record: valid_config.json, age: 32.8s
+Record: valid_config.json, age: 32.8s
+No need to rename test_project_3.zip (not in recent deletion cache)
+Found available temp filename: test_project_3.zip
+Renamed based on deletion cache: test_project.zip -> test_project_3.zip
+Move result: {'success': True, 'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/test_project_3.zip', 'filename': 'test_project_3.zip', 'original_filename': 'test_project.zip', 'renamed': True}
+File renamed: test_project.zip -> test_project_3.zip
+Before generate_mv_commands - file_moves=[{'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip', 'filename': 'test_project_3.zip', 'original_filename': 'test_project.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/test_project_3.zip', 'renamed': True}]
+Before generate_mv_commands - target_path='~/tmp/gds_test_20251101_122725_763631_7482fa5b'
+After generate_mv_commands - remote_command preview: 
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251101_122725_763631_7482fa5b"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook A...
+Folder upload detected, skipping file verification
+Added deletion record for original: test_project.zip
+Added deletion record for temp: test_project_3.zip
+Upload completed, showing verification debug information:
+verify_result={'success': True, 'found_files': [], 'missing_files': [], 'total_expected': 1, 'total_found': 0, 'skip_verification': True}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_project_3.zip'], 'sync_time': 7, 'base_sync_time': 7}
+target_folder_id='1J02BwveBrNem0UrB1UIO3fBYDDWjDV_r'
+target_display_path='~/tmp/gds_test_20251101_122725_763631_7482fa5b'...
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp...
+验证命令 1: ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project"
+命令转译成功: ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project" -> ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project"
+返回码: 0
+输出: config.json
+core.py
+main.py...
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project...
+验证成功: ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project"
+所有验证通过!
+命令转译成功: cd "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project" -> cd "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project"
+返回码: 0
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project...
+命令转译成功: ls -la "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project" -> ls -la "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project"
+返回码: 0
+输出: total 2
+-rw------- 1 root root 249 Nov  1  2025 config.json
+-rw------- 1 root root 391 Nov  1  2025 core.py
+-rw------- 1 root root 686 Nov  1  2025 main.py...
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp
+[DEBUG undo_local_path_user_expansion] input path=~/tmp, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp...
+命令转译成功: ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/main.py" -> ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/main.py"
+返回码: 0
+输出: main.py...
+ok
 
-尝试 2/3
-命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-返回码: 1
-输出: Error Report - Shell command execution
-AttributeError: 'UploadCommand' object has no attribute 'execute_upload_folder'
-Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py:29 in execute()
-Code Context:
-    26:         """执行上传命令（BaseCommand要求的方法）"""
-    27:         # 检查是否是 upload_folder 命令
-    28:         if cmd == 'upload_folder':
->>> 29:             return self.execute_upload_folder(args)
-    30: 
-    31:         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
-    32:         target_path = "."
-Complete Call Stack:
-   1. GOOGLE_DRIVE.py:51 in <module>()
-   2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2088 in handle_command_line_args()
-   4. google_drive_shell.py:2139 in handle_shell_command_args()
-   5. google_drive_shell.py:1028 in execute_shell_command()
-   6. google_drive_shell.py:974 in execute_shell_command()
-      >>> return self.command_executor.execute_special_command(cmd, args)
-   7. command_executor.py:445 in execute_special_command()
-      >>> return command.execute(name, args, **kwargs)
-   8. upload_command.py:29 in execute()
-      >>> return self.execute_upload_folder(args)
-Google Drive Shell command execution failed with detailed traceback above.
-...
-Error: Upload command failed, return code: 1
-Waiting 1 second before retrying...
+----------------------------------------------------------------------
+Ran 1 test in 170.769s
 
-尝试 3/3
-命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251031_230935_914056_431718c9" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-返回码: 1
-输出: Error Report - Shell command execution
-AttributeError: 'UploadCommand' object has no attribute 'execute_upload_folder'
-Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py:29 in execute()
-Code Context:
-    26:         """执行上传命令（BaseCommand要求的方法）"""
-    27:         # 检查是否是 upload_folder 命令
-    28:         if cmd == 'upload_folder':
->>> 29:             return self.execute_upload_folder(args)
-    30: 
-    31:         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
-    32:         target_path = "."
-Complete Call Stack:
-   1. GOOGLE_DRIVE.py:51 in <module>()
-   2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2088 in handle_command_line_args()
-   4. google_drive_shell.py:2139 in handle_shell_command_args()
-   5. google_drive_shell.py:1028 in execute_shell_command()
-   6. google_drive_shell.py:974 in execute_shell_command()
-      >>> return self.command_executor.execute_special_command(cmd, args)
-   7. command_executor.py:445 in execute_special_command()
-      >>> return command.execute(name, args, **kwargs)
-   8. upload_command.py:29 in execute()
-      >>> return self.execute_upload_folder(args)
-Google Drive Shell command execution failed with detailed traceback above.
-...
-Error: Upload command failed, return code: 1
+OK
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/main.py, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/main.py
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/main.py, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/main.py
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project...
+命令转译成功: ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/core.py" -> ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/core.py"
+返回码: 0
+输出: core.py...
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/core.py, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/core.py
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/core.py, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/core.py
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project...
+命令转译成功: ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/config.json" -> ls "~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/config.json"
+返回码: 0
+输出: config.json...
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/config.json, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/config.json
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/config.json, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project/config.json
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b/test_project...
+命令转译成功: cd "~/tmp/gds_test_20251101_122725_763631_7482fa5b" -> cd "~/tmp/gds_test_20251101_122725_763631_7482fa5b"
+返回码: 0
+错误: [DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b
+[DEBUG undo_local_path_user_expansion] input path=~/tmp/gds_test_20251101_122725_763631_7482fa5b, home_dir=/Users/wukunhuan
+[DEBUG undo_local_path_user_expansion] No match, returning original: ~/tmp/gds_test_20251101_122725_763631_7482fa5b...

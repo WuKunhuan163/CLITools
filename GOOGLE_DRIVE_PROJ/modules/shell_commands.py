@@ -23,6 +23,57 @@ def get_current_shell():
         _shell_manager = RemoteShellManager()
     return _shell_manager.get_current_shell()
 
+def enter_shell_mode(command_identifier=None):
+    """
+    进入交互式shell模式
+    从stdin读取命令并执行
+    """
+    import sys
+    
+    try:
+        # 导入GoogleDriveShell
+        from ..google_drive_shell import GoogleDriveShell
+        
+        # 创建shell实例
+        shell = GoogleDriveShell()
+        
+        # 打印欢迎信息
+        print("Enter Google Drive Shell (GDS) interactive mode")
+        print("Type 'exit' or 'quit' to leave shell mode")
+        print()
+        
+        # 读取并执行命令
+        for line in sys.stdin:
+            line = line.strip()
+            
+            # 显示命令提示符（在命令之后，不是之前，因为stdin已经包含命令）
+            print(f"GDS: {line}")
+            
+            # 跳过空行
+            if not line:
+                continue
+            
+            # 检查退出命令
+            if line.lower() in ['exit', 'quit']:
+                print("Exit Google Drive Shell")
+                return 0
+            
+            # 执行命令
+            try:
+                exit_code = shell.execute_shell_command(line, command_identifier)
+                if exit_code != 0:
+                    print(f"Command failed with exit code: {exit_code}", file=sys.stderr)
+            except Exception as e:
+                print(f"Error executing command: {e}", file=sys.stderr)
+        
+        # 如果stdin结束但没有明确的exit命令
+        print("Exit Google Drive Shell")
+        return 0
+        
+    except Exception as e:
+        print(f"Shell mode error: {e}", file=sys.stderr)
+        return 1
+
 # 全局常量
 from .path_constants import path_constants
 HOME_URL = path_constants.HOME_URL

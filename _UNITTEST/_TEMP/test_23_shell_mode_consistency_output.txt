@@ -1,0 +1,86 @@
+test_23_shell_mode_consistency (test_gds.GDSTest)
+测试Shell模式与直接命令执行的输出一致性 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 594.194s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251101_134937_792382_ebac13a2
+正在创建远端测试目录: ~/tmp/gds_test_20251101_134937_792382_ebac13a2
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251101_134937_792382_ebac13a2
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0aylqz3h
+测试环境设置完成
+测试Shell模式与直接命令一致性
+命令转译成功: mkdir -p ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3 -> mkdir -p ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3
+返回码: 0
+输出: ...
+命令转译成功: echo "test content" > "~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/file1.txt" -> echo "test content" > "~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/file1.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "test content" > "~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/file2.txt" -> echo "test content" > "~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/file2.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "test content" > "~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/file3.txt" -> echo "test content" > "~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/file3.txt"
+返回码: 0
+输出: ...
+命令转译成功: mkdir ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/subdir -> mkdir ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3/subdir
+返回码: 0
+输出: ...
+测试命令: ls ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3
+命令转译成功: ls ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3 -> ls ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3
+返回码: 0
+输出: subdir/
+file1.txt
+file2.txt
+file3.txt...
+ls命令在两种模式下都列出了所有测试文件
+测试命令: help
+命令转译成功: help -> help
+返回码: 0
+输出: pwd                                 - show current directory path
+ls [path] [--detailed] [-R] [-f] [-d] - list directory contents (-R: recursive, -f: force mode, -d: directory mode)
+cd <path>                           - change directory (supports ~, .., relative paths)
+mkdir [-p] <dir>                    - create directory (recursive with -p)
+rm <file>                           - remove file
+rm -rf <dir>                        - remove directory recursively
+rm -f <file>                        - force remove file (no confirmation)
+mv <source> <dest>                  - move/rename file or folder
+cat <file>                          - display file contents
+read <file> [start end]             - read file content with line numbers
+touch <file>                        - create empty file
+upload [--target-dir TARGET] <files...> - upload files to Google Drive (default: current directory)
+upload [--remove-local] <files...>  - upload files and optionally remove local copies
+upload_folder [--target-dir TARGET] [--keep-zip] [--force] <folder> - upload folder (zip->upload->unzip->cleanup)
+download [--force] <file> [path]    - download file with caching
+python <file>                       - execute python file remotely
+python -c '<code>'                  - execute python code remotely
+pip install <package>               - install Python packages
+pip list                            - list installed packages
+pip show <package>                  - show package information
+deps <package> [options]            - analyze package dependencies
+venv --create <env_name...>         - create virtual environment(s) (supports multiple names)
+venv --delete <env_name...>         - delete virtual environment(s) (supports multiple names, protects GaussianObject)
+venv --activate <env_name>          - activate virtual environment (set PYTHONPATH)
+venv --deactivate                   - deactivate virtual environment (clear PYTHONPATH)
+venv --list                         - list all virtual environments
+pyenv --install <version>           - install specified Python version (e.g., 3.9.18, 3.10.12)
+pyenv --uninstall <version>         - uninstall specified Python version
+pyenv --list                        - list all installed Python versions
+pyenv --list-available              - list all available Python versions for download
+pyenv --global [version]            - set/show global default Python version
+pyenv --local [version]             - set/show current shell Python version
+pyenv --version                     - show currently active Python version
+pyenv --versions                    - show all installed versions with current version marked
+find [path] -name [pattern]         - search for files matching pattern
+find [path] -type [f|d] -name [pattern] - search by type (file/directory) and pattern
+linter <file>                       - lint code files (Python, JavaScript, TypeScript, etc.)
+help                                - show available commands
+exit                                - exit shell mode...
+help命令在两种模式下都包含必要内容
+命令转译成功: rm -rf ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3 -> rm -rf ~/tmp/gds_test_20251101_134937_792382_ebac13a2/test_consistency_3b85c2a3
+返回码: 0
+输出: ...
+测试环境清理完成
+Shell模式与直接命令一致性测试完成

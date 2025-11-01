@@ -23,6 +23,12 @@ def get_unified_help_data():
             "--console-setup": "Start Google Drive API setup wizard with GUI assistance",
             "--shell [--no-direct-feedback] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
             "--no-direct-feedback": "Hide direct feedback button in command windows (for automated testing)",
+            "--priority": "Execute command with high priority in remote command queue",
+            "--bg COMMAND": "Execute command in background and return immediately",
+            "--bg --status TASK_ID": "Check background task status",
+            "--bg --result TASK_ID": "View background task result",
+            "--bg --log TASK_ID": "View background task log output",
+            "--bg --cleanup TASK_ID": "Clean up background task files",
             "--upload FILE [PATH]": "Upload a file to Google Drive via local sync (PATH defaults to REMOTE_ROOT)",
             "--create-remote-shell": "Create a new remote shell session",
             "--list-remote-shell": "List all remote shell sessions",
@@ -49,6 +55,8 @@ def get_unified_help_data():
                 "rm -f <file>": "force remove file (no confirmation)",
                 "mv <source> <dest>": "move/rename file or folder",
                 "cat <file>": "display file contents",
+                "cat > <file> << EOF": "write multi-line content to file using heredoc syntax",
+                "cat >> <file> << EOF": "append multi-line content to file using heredoc syntax",
                 "read <file> [start end]": "read file content with line numbers",
                 "touch <file>": "create empty file"
             },
@@ -102,6 +110,9 @@ def get_unified_help_data():
         "advanced_features": [
             "Multi-file operations: upload [[src1, dst1], [src2, dst2], ...]",
             "Command chaining: cmd1 && cmd2 && cmd3",
+            "Background tasks: run long-running commands asynchronously with --bg",
+            "Priority queue: execute urgent commands first with --priority",
+            "Heredoc syntax: write multi-line content with cat > file << EOF",
             "Path resolution: supports ~, .., relative and absolute paths",
             "File caching: automatic download caching with cache management",
             "Remote execution: run Python code on remote Google Drive environment"
@@ -129,6 +140,15 @@ def get_unified_help_data():
             "upload": [
                 ("GOOGLE_DRIVE --upload file.txt", "Upload file to REMOTE_ROOT"),
                 ("GOOGLE_DRIVE --upload file.txt subfolder", "Upload file to REMOTE_ROOT/subfolder")
+            ],
+            "background_tasks": [
+                ("GOOGLE_DRIVE --shell --bg 'sleep 60'", "Run command in background"),
+                ('GOOGLE_DRIVE --shell --bg "python -c \'import time; time.sleep(10)\'"', "Run Python in background"),
+                ("GOOGLE_DRIVE --shell --bg --status 1234567_8901", "Check task status"),
+                ("GOOGLE_DRIVE --shell --bg --result 1234567_8901", "Get task result"),
+                ("GOOGLE_DRIVE --shell --bg --log 1234567_8901", "View task log"),
+                ("GOOGLE_DRIVE --shell --bg --cleanup 1234567_8901", "Clean up task"),
+                ("GOOGLE_DRIVE --shell --priority ls", "Execute with high priority")
             ],
             "remote_shells": [
                 ("GOOGLE_DRIVE --create-remote-shell", "Create remote shell"),

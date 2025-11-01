@@ -1,0 +1,40 @@
+test_35_priority_queue (test_gds.GDSTest)
+测试优先队列的执行顺序 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 126.657s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251101_153650_327404_d1cff076
+正在创建远端测试目录: ~/tmp/gds_test_20251101_153650_327404_d1cff076
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251101_153650_327404_d1cff076
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_uj1rmzd2
+测试环境设置完成
+启动3个并发任务...
+- Task1: 普通队列，立即启动
+- Task2: 普通队列，延迟2秒启动
+- Task3: 优先队列，延迟4秒启动
+预期执行顺序: Task1 -> Task3 -> Task2
+命令转译成功: echo "Task 1 completed" -> echo "Task 1 completed"
+命令转译成功: echo "Task 2 completed" -> echo "Task 2 completed"
+命令转译成功: echo "Task 3 completed" -> echo "Task 3 completed"
+返回码: 0
+输出: Task 1 completed...
+返回码: 0
+输出: Task 3 completed...
+返回码: 0
+输出: Task 2 completed...
+
+实际执行顺序:
+1. Task3_Priority (优先队列) - 15:38:50.489
+2. Task1_Normal (普通队列) - 15:38:50.492
+3. Task2_Normal (普通队列) - 15:38:56.977
+
+执行顺序验证:
+Task1位置: 2
+Task2位置: 3
+Task3位置: 1
+优先队列执行顺序测试完成
+验证通过：优先队列Task3在普通队列Task2之前完成

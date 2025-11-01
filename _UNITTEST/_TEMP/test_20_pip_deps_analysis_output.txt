@@ -1,38 +1,93 @@
-test_20_pip_deps_analysis (test_gds.GDSTest) ... FAIL
-
-======================================================================
-FAIL: test_20_pip_deps_analysis (test_gds.GDSTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 633, in gds
-    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
-  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
-    assertion_func(first, second, msg=msg)
-AssertionError: 1 != 0 : 命令执行失败: pip --show-deps requests --depth=1
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2620, in test_20_pip_deps_analysis
-    result = self.gds('pip --show-deps requests --depth=1')
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 639, in gds
-    self.fail(f'命令执行异常: {command} - {e}')
-AssertionError: 命令执行异常: pip --show-deps requests --depth=1 - 1 != 0 : 命令执行失败: pip --show-deps requests --depth=1
+test_20_pip_deps_analysis (test_gds.GDSTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 97.529s
+Ran 1 test in 127.882s
 
-FAILED (failures=1)
+OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251031_223508_917133_e9223307
-正在创建远端测试目录: ~/tmp/gds_test_20251031_223508_917133_e9223307
+远端测试目录: ~/tmp/gds_test_20251101_221325_159016_a4c01c91
+正在创建远端测试目录: ~/tmp/gds_test_20251101_221325_159016_a4c01c91
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251031_223508_917133_e9223307
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_dhe1y1ze
+已切换到远端测试目录: ~/tmp/gds_test_20251101_221325_159016_a4c01c91
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_krc2930h
 测试环境设置完成
 测试简单包依赖分析（depth=1）
-命令转译成功: pip --show-deps requests --depth=1 -> pip --show-deps requests --depth=1
+命令转译成功: deps requests --depth=1 -> deps requests --depth=1
+返回码: 0
+输出: Analyzing dependencies for: requests
+Analysis depth: 1
+Analysis completed: 7 API calls, 16 packages analyzed in 3.78s
+requests (0.1MB→3.3MB)
+├─ charset_normalizer (204.8KB)
+├─ idna (190.0KB)
+│   ├─ ruff
+│   ├─ mypy
+│   ├─ pytest
+│   └─ flake8
+├─ urllib3 (384.0KB)
+│   ├─ brotli
+│   ├─ brotlicffi
+│   ├─ h2
+│   ├─ pysocks
+│   └─ zstandard
+├─ certifi (160.7KB)
+├─ PySocks (277.8KB)
+└─ chardet (2.0MB)
+Level 1: chardet (2.0MB), urllib3 (384.0KB), PySocks (277.8KB), charset_normalizer (204.8KB), idna (190.0KB), certifi (160.7KB)
+Dependency analysis completed for 1 package(s)...
+简单包依赖分析测试通过
+测试复杂包依赖分析（depth=2）
+命令转译成功: deps numpy --depth=2 -> deps numpy --depth=2
+返回码: 0
+输出: Analyzing dependencies for: numpy
+Analysis depth: 2
+Analysis completed: 1 API calls, 1 packages analyzed in 3.19s
+numpy (20.3MB)
+Dependency analysis completed for 1 package(s)...
+复杂包依赖分析测试通过
+测试不存在包的错误处理
+命令转译成功: deps nonexistent-package-12345 -> deps nonexistent-package-12345
 返回码: 1
-输出: Please use 'GDS deps' command for dependency analysis
-...
-命令执行异常: 1 != 0 : 命令执行失败: pip --show-deps requests --depth=1
+输出: Analyzing dependencies for: nonexistent-package-12345
+Analysis depth: 2
+Error: Package(s) not found: nonexistent-package-12345
+Package(s) not found: nonexistent-package-12345...
+测试性能统计
+命令转译成功: deps colorama --depth=1 -> deps colorama --depth=1
+返回码: 0
+输出: Analyzing dependencies for: colorama
+Analysis depth: 1
+Analysis completed: 1 API calls, 1 packages analyzed in 1.29s
+colorama (27.0KB)
+Dependency analysis completed for 1 package(s)...
+实际执行时间: 7.04s
+测试深度参数
+命令转译成功: deps requests --depth=2 -> deps requests --depth=2
+返回码: 0
+输出: Analyzing dependencies for: requests
+Analysis depth: 2
+Analysis completed: 16 API calls, 42 packages analyzed in 5.01s
+requests (0.1MB→49.8MB)
+├─ charset_normalizer (204.8KB)
+├─ idna (0.2MB→28.5MB)
+│   ├─ ruff (13.9MB)
+│   ├─ mypy (12.9MB)
+│   ├─ pytest (1.4MB)
+│   └─ flake8 (56.6KB)
+├─ urllib3 (0.4MB→18.6MB)
+│   ├─ brotli (7.0MB)
+│   ├─ brotlicffi (2.8MB)
+│   ├─ h2 (2.1MB)
+│   ├─ pysocks (277.8KB)
+│   └─ zstandard (6.1MB)
+├─ certifi (160.7KB)
+├─ PySocks (277.8KB)
+└─ chardet (2.0MB)
+Level 1: chardet (2.0MB), urllib3 (384.0KB), PySocks (277.8KB), charset_normalizer (204.8KB), idna (190.0KB), certifi (160.7KB)
+Level 2: ruff (13.9MB), mypy (12.9MB), brotli (7.0MB), zstandard (6.1MB), brotlicffi (2.8MB), h2 (2.1MB), pytest (1.4MB), pysocks (277.8KB), flake8 (56.6KB)
+Dependency analysis completed for 1 package(s)...
+验证分析统计
+验证依赖树格式
+验证大小显示格式
+验证层级汇总
+依赖分析功能测试完成

@@ -94,6 +94,14 @@ class LsCommand(BaseCommand):
         if not path.startswith("/"):
             return path
         
+        # 首先尝试将本地扩展的路径转换回~/格式
+        # 例如 /Users/username/tmp/test -> ~/tmp/test
+        path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
+        
+        # 如果转换后已经是~/格式，直接返回
+        if path.startswith("~/") or path == "~":
+            return path
+        
         # 检查是否是远端绝对路径
         remote_root = self.main_instance.REMOTE_ROOT
         if path.startswith(remote_root):
@@ -110,7 +118,7 @@ class LsCommand(BaseCommand):
         # 如果是其他格式的绝对路径，假设它是REMOTE_ROOT的子路径
         # 例如 /tmp/file.txt -> ~/tmp/file.txt
         if path.startswith("/"):
-            return f"~{path}"
+            return f"~/{path[1:]}"  # 正确：移除前导/，然后添加~/
         
         # 默认返回原路径
         return path

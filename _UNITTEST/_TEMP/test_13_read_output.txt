@@ -1,39 +1,33 @@
 test_13_read (test_gds.GDSTest) ... 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251031_212228_208033_7b1371b1
-正在创建远端测试目录: ~/tmp/gds_test_20251031_212228_208033_7b1371b1
+远端测试目录: ~/tmp/gds_test_20251102_004545_167218_27846a36
+正在创建远端测试目录: ~/tmp/gds_test_20251102_004545_167218_27846a36
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251031_212228_208033_7b1371b1
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_crnkpyf2
+已切换到远端测试目录: ~/tmp/gds_test_20251102_004545_167218_27846a36
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ecabx046
 测试环境设置完成
 
-执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
-验证命令: ['ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"']
+执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
+验证命令: ['ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"']
 最大重试次数: 3
 
 尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
 返回码: 0
-输出: ⏳ Waiting for upload ...
-⏳ Waiting for file sync ...
-⏳ Waiting for result .....
-Captured debug output:
-Verification completed: {'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_212228_208033_7b1371b1'}
-File already deleted: test_read_simple_hello.py (skipped)
+输出: Captured debug output:
+Verification completed: {'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
 Added deletion record for original: test_read_simple_hello.py
 Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_212228_208033_7b1371b1'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_read_simple_hello.py'], 'sync_time': 1, 'base_sync_time': 1}
-target_folder_id='1LZPOkzZki1jxiTdwwZAMweLCdy3see-m'
-target_display_path='~/tmp/gds_test_20251031_212228_208033_7b1371b1'
-...
-验证命令 1: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
-命令转译成功: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" -> ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
+verify_result={'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_read_simple_hello.py'], 'sync_time': 8, 'base_sync_time': 8}
+target_folder_id='1eun4FtYAuyTkD9YB5Ls6ei3eIU_IUyD7'
+target_display_path='~/tmp/gds_test_20251102_004545_167218_27846a36'...
+验证命令 1: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+命令转译成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
 返回码: 0
-输出: test_read_simple_hello.py
-...
-验证成功: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
+输出: test_read_simple_hello.py...
+验证成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
 所有验证通过!
-命令转译成功: cat "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" -> cat "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
+命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
 返回码: 0
 输出: """
 Simple Hello Script
@@ -41,9 +35,8 @@ Simple Hello Script
 print(f'Hello from remote project')
 print(f"Current working directory:", __import__("os").getcwd())
 import sys
-print(f"Python version:", sys.version)
-...
-命令转译成功: read "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" -> read "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
+print(f"Python version:", sys.version)...
+命令转译成功: read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
 返回码: 0
 输出: 1: """
 2: Simple Hello Script
@@ -52,9 +45,8 @@ print(f"Python version:", sys.version)
 5: print(f"Current working directory:", __import__("os").getcwd())
 6: import sys
 7: print(f"Python version:", sys.version)
-8:
-...
-命令转译成功: read "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" 1 3 -> read "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" 1 3
+8:...
+命令转译成功: read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" 1 3 -> read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" 1 3
 返回码: 0
 输出: 1: """
 2: Simple Hello Script
@@ -63,20 +55,16 @@ print(f"Python version:", sys.version)
 5: print(f"Current working directory:", __import__("os").getcwd())
 6: import sys
 7: print(f"Python version:", sys.version)
-8:
-...
-命令转译成功: grep "print" "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" -> grep "print" "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
+8:...
+命令转译成功: grep "print" "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> grep "print" "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
 返回码: 0
 输出: 4: print(f'Hello from remote project')
   5: print(f"Current working directory:", __import__("os").getcwd())
-  7: print(f"Python version:", sys.version)
-...
-命令转译成功: find . -name "*.py" "~/tmp/gds_test_20251031_212228_208033_7b1371b1" -> find . -name "*.py" "~/tmp/gds_test_20251031_212228_208033_7b1371b1"
+  7: print(f"Python version:", sys.version)...
+命令转译成功: find . -name "*.py" "~/tmp/gds_test_20251102_004545_167218_27846a36" -> find . -name "*.py" "~/tmp/gds_test_20251102_004545_167218_27846a36"
 返回码: 0
-输出: ⏳ Waiting for result ....
-No files found matching the pattern.
-...
-命令转译成功: read --force "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py" -> read --force "~/tmp/gds_test_20251031_212228_208033_7b1371b1/test_read_simple_hello.py"
+输出: No files found matching the pattern....
+命令转译成功: read --force "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> read --force "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
 返回码: 0
 输出: 1: """
 2: Simple Hello Script
@@ -85,91 +73,52 @@ No files found matching the pattern.
 5: print(f"Current working directory:", __import__("os").getcwd())
 6: import sys
 7: print(f"Python version:", sys.version)
-8:
-...
+8:...
 测试cat不存在的文件
-命令转译成功: cat "~/tmp/gds_test_20251031_212228_208033_7b1371b1/nonexistent_file.txt" -> cat "~/tmp/gds_test_20251031_212228_208033_7b1371b1/nonexistent_file.txt"
+命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt"
 返回码: 1
-输出: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']
-...
+输出: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
 测试read不存在的文件
-命令转译成功: read "~/tmp/gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt" -> read "~/tmp/gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt"
+命令转译成功: read "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt" -> read "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt"
 返回码: 1
-输出: File 'gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt' not found in folder. Available files: ['cmd_1761917095_c16a4e29.json', 'cmd_1761917068_f2d4ea20.json', 'cmd_1761917019_7b47b287.json', 'cmd_1761916925_4ad1bb70.json', 'gds_test_20251031_212205_252836_14474d1d', 'cmd_1761916903_6e93c2f5.json', 'gds_test_20251031_212142_785694_bb6925d2', 'cmd_1761917007_ce2d6c31.json', 'cmd_1761917003_ed8ab06b.json', 'cmd_1761916928_88612671.json', 'gds_test_20251031_212207_944653_b4bf0363', 'cmd_1761916940_0b959243.json', 'gds_test_20251031_212219_520642_2f7cce07', 'cmd_1761916948_d997cd5a.json', 'gds_test_20251031_212228_208033_7b1371b1', 'cmd_1761916891_1f2562e8.json', 'gds_test_20251031_212131_259793_96e25191', 'cmd_1761916582_826c2d36.json', 'cmd_1761916581_0a88346a.json', 'gds_test_20251031_211618_995698_28062678', 'cmd_1761916571_c41e3af9.json', 'gds_test_20251031_211610_798471_c1cf368e', 'cmd_1761916552_4967c6a2.json', 'cmd_1761916350_b6f5edbb.json', 'cmd_1761916325_f0ddf5b5.json', 'cmd_1761916290_14e55fe4.json', 'cmd_1761916204_9707e22f.json', 'cmd_1761916163_459921b9.json', 'cmd_1761916110_34f30dee.json', 'cmd_1761916083_2bf16d24.json', 'cmd_1761916057_1419dbb8.json', 'cmd_1761915943_9b6e3cc8.json', 'cmd_1761915909_1eae1426.json', 'cmd_1761915881_f5aacddb.json', 'cmd_1761915842_5c73b07d.json', 'gds_test_20251031_210402_127704_23f8340d', 'cmd_1761915827_387aee64.json', 'cmd_1761915768_5bebb1e1.json', 'cmd_1761915755_5043dc41.json', 'cmd_1761915753_3d71d802.json', 'cmd_1761915747_d6004645.json', 'cmd_1761915688_a5b13058.json', 'cmd_1761915693_74e1b740.json', 'gds_test_20251031_210132_951996_f2ed0aa6', 'cmd_1761915689_57a772f4.json', 'cmd_1761915683_72c8914b.json', 'cmd_1761915618_35ce8e78.json', 'gds_test_20251031_210018_330251_ddfd6006', 'cmd_1761915640_c3ed6627.json', 'cmd_1761915632_31ffb08e.json', 'gds_test_20251031_210031_948441_1eee12b4', 'cmd_1761915612_7abb463f.json', 'gds_test_20251031_210012_426459_f5b11fb4', 'cmd_1761915594_60c1771c.json', 'gds_test_20251031_205954_473479_321b8f2c', '.gds_mount_fingerprint_e61df53e', 'remount_result_1761807915_e61df53e.json', 'cmd_1761915538_4ec70493.json', 'tmpxdcxmmcm.py', 'cmd_1761909394_b5466802.json', 'gds_test_20251031_191634_581782_55c72150', 'cmd_1761909319_2d201889.json', 'gds_test_20251031_191519_335129_99dcf4fa', 'cmd_1761909284_1a4ef33d.json', 'cmd_1761909231_4ccc0b01.json', 'cmd_1761909130_1a4ef33d.json', 'cmd_1761909086_874d8ff1.json', 'cmd_1761909078_4ccc0b01.json', 'cmd_1761909054_fdbcdcc5.json', 'gds_test_20251031_191054_002706_b47c8bec', 'cmd_1761909029_9759d096.json', 'cmd_1761909019_23026175.json', 'gds_test_20251031_191018_840626_717f6f51', 'cmd_1761909012_e1b6090e.json', 'gds_test_20251031_191011_198560_58efafd8', 'cmd_1761908995_540d3f85.json', 'cmd_1761908963_a5cb0395.json', 'cmd_1761908926_09df7b66.json', 'cmd_1761908894_862cba05.json', 'cmd_1761908841_20613ac2.json', 'cmd_1761908815_dea98f0e.json', 'cmd_1761908814_57b1d00a.json', 'cmd_1761908780_c28473db.json', 'cmd_1761908759_bf1c7e7a.json', 'cmd_1761908752_d97b3fc1.json', 'gds_test_20251031_190550_891050_e1704413', 'cmd_1761908735_d47d6147.json', 'cmd_1761908661_7d2780e4.json', 'cmd_1761908629_298cd85e.json', 'cmd_1761908610_8e2b4bd9.json', 'cmd_1761908600_492342ea.json', 'cmd_1761908578_1459d236.json', 'cmd_1761908571_caf8039e.json', 'cmd_1761908459_72c33878.json', 'cmd_1761908454_f87ebea8.json', 'cmd_1761908436_35b79d0f.json', 'cmd_1761908361_e3df5d37.json', 'cmd_1761908371_458220e4.json', 'gds_test_20251031_185931_061541_9beace82', 'cmd_1761908359_fc983e0f.json']
-...
+输出: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
 测试grep不存在的文件
-命令转译成功: grep "test" "~/tmp/gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt" -> grep "test" "~/tmp/gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt"
+命令转译成功: grep "test" "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt" -> grep "test" "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt"
 返回码: 2
-输出: Error in BaseCommand: ~/tmp/gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt: File 'gds_test_20251031_212228_208033_7b1371b1nonexistent_file.txt' not found in folder. Available files: ['cmd_1761917099_c9bce513.json', 'cmd_1761917095_c16a4e29.json', 'cmd_1761917068_f2d4ea20.json', 'cmd_1761917019_7b47b287.json', 'cmd_1761916925_4ad1bb70.json', 'gds_test_20251031_212205_252836_14474d1d', 'cmd_1761916903_6e93c2f5.json', 'gds_test_20251031_212142_785694_bb6925d2', 'cmd_1761917007_ce2d6c31.json', 'cmd_1761917003_ed8ab06b.json', 'cmd_1761916928_88612671.json', 'gds_test_20251031_212207_944653_b4bf0363', 'cmd_1761916940_0b959243.json', 'gds_test_20251031_212219_520642_2f7cce07', 'cmd_1761916948_d997cd5a.json', 'gds_test_20251031_212228_208033_7b1371b1', 'cmd_1761916891_1f2562e8.json', 'gds_test_20251031_212131_259793_96e25191', 'cmd_1761916582_826c2d36.json', 'cmd_1761916581_0a88346a.json', 'gds_test_20251031_211618_995698_28062678', 'cmd_1761916571_c41e3af9.json', 'gds_test_20251031_211610_798471_c1cf368e', 'cmd_1761916552_4967c6a2.json', 'cmd_1761916350_b6f5edbb.json', 'cmd_1761916325_f0ddf5b5.json', 'cmd_1761916290_14e55fe4.json', 'cmd_1761916204_9707e22f.json', 'cmd_1761916163_459921b9.json', 'cmd_1761916110_34f30dee.json', 'cmd_1761916083_2bf16d24.json', 'cmd_1761916057_1419dbb8.json', 'cmd_1761915943_9b6e3cc8.json', 'cmd_1761915909_1eae1426.json', 'cmd_1761915881_f5aacddb.json', 'cmd_1761915842_5c73b07d.json', 'gds_test_20251031_210402_127704_23f8340d', 'cmd_1761915827_387aee64.json', 'cmd_1761915768_5bebb1e1.json', 'cmd_1761915755_5043dc41.json', 'cmd_1761915753_3d71d802.json', 'cmd_1761915747_d6004645.json', 'cmd_1761915688_a5b13058.json', 'cmd_1761915693_74e1b740.json', 'gds_test_20251031_210132_951996_f2ed0aa6', 'cmd_1761915689_57a772f4.json', 'cmd_1761915683_72c8914b.json', 'cmd_1761915618_35ce8e78.json', 'gds_test_20251031_210018_330251_ddfd6006', 'cmd_1761915640_c3ed6627.json', 'cmd_1761915632_31ffb08e.json', 'gds_test_20251031_210031_948441_1eee12b4', 'cmd_1761915612_7abb463f.json', 'gds_test_20251031_210012_426459_f5b11fb4', 'cmd_1761915594_60c1771c.json', 'gds_test_20251031_205954_473479_321b8f2c', '.gds_mount_fingerprint_e61df53e', 'remount_result_1761807915_e61df53e.json', 'cmd_1761915538_4ec70493.json', 'tmpxdcxmmcm.py', 'cmd_1761909394_b5466802.json', 'gds_test_20251031_191634_581782_55c72150', 'cmd_1761909319_2d201889.json', 'gds_test_20251031_191519_335129_99dcf4fa', 'cmd_1761909284_1a4ef33d.json', 'cmd_1761909231_4ccc0b01.json', 'cmd_1761909130_1a4ef33d.json', 'cmd_1761909086_874d8ff1.json', 'cmd_1761909078_4ccc0b01.json', 'cmd_1761909054_fdbcdcc5.json', 'gds_test_20251031_191054_002706_b47c8bec', 'cmd_1761909029_9759d096.json', 'cmd_1761909019_23026175.json', 'gds_test_20251031_191018_840626_717f6f51', 'cmd_1761909012_e1b6090e.json', 'gds_test_20251031_191011_198560_58efafd8', 'cmd_1761908995_540d3f85.json', 'cmd_1761908963_a5cb0395.json', 'cmd_1761908926_09df7b66.json', 'cmd_1761908894_862cba05.json', 'cmd_1761908841_20613ac2.json', 'cmd_1761908815_dea98f0e.json', 'cmd_1761908814_57b1d00a.json', 'cmd_1761908780_c28473db.json', 'cmd_1761908759_bf1c7e7a.json', 'cmd_1761908752_d97b3fc1.json', 'gds_test_20251031_190550_891050_e1704413', 'cmd_1761908735_d47d6147.json', 'cmd_1761908661_7d2780e4.json', 'cmd_1761908629_298cd85e.json', 'cmd_1761908610_8e2b4bd9.json', 'cmd_1761908600_492342ea.json', 'cmd_1761908578_1459d236.json', 'cmd_1761908571_caf8039e.json', 'cmd_1761908459_72c33878.json', 'cmd_1761908454_f87ebea8.json', 'cmd_1761908436_35b79d0f.json', 'cmd_1761908361_e3df5d37.json', 'cmd_1761908371_458220e4.json', 'gds_test_20251031_185931_061541_9beace82']
-...
+输出: Error in BaseCommand: ~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
 测试特殊字符文件处理
-命令转译成功: ls "special_chars.txt" -> ls "special_chars.txt"
+命令转译成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt" -> ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
 返回码: 1
-输出: Path not found: special_chars.txt
-...
+输出: Path not found: ~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt...
 
-执行带重试的命令: upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
-验证命令: ['ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt"']
+执行带重试的命令: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+验证命令: ['ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"']
 最大重试次数: 3
 
 尝试 1/3
-ok
-
-----------------------------------------------------------------------
-Ran 1 test in 394.483s
-
-OK
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt" -> upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt" -> upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
 返回码: 0
-输出: ⏳ Waiting for upload ...
-⏳ Waiting for file sync ...
-⏳ Waiting for result .....
-Captured debug output:
-Verification completed: {'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_212228_208033_7b1371b1'}
+输出: Captured debug output:
+Verification completed: {'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
+File already deleted: special_chars.txt (skipped)
 Added deletion record for original: special_chars.txt
 Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_212228_208033_7b1371b1'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['special_chars.txt'], 'sync_time': 1, 'base_sync_time': 1}
-target_folder_id='1LZPOkzZki1jxiTdwwZAMweLCdy3see-m'
-target_display_path='~/tmp/gds_test_20251031_212228_208033_7b1371b1'
-...
-Verify 1/1: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt"
-命令转译成功: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt" -> ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt"
-返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt
-...
-Error: Verify failed, return code: 1
-Verify failed, waiting 2 seconds before retrying...
-
-尝试 2/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt" -> upload --target-dir "~/tmp/gds_test_20251031_212228_208033_7b1371b1" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+verify_result={'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['special_chars.txt'], 'sync_time': 6, 'base_sync_time': 6}
+target_folder_id='1eun4FtYAuyTkD9YB5Ls6ei3eIU_IUyD7'
+target_display_path='~/tmp/gds_test_20251102_004545_167218_27846a36'...
+Verify 1/1: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
+命令转译成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt" -> ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
 返回码: 0
-输出: ⏳ Waiting for upload ...
-⏳ Waiting for file sync ..........
-⏳ Waiting for result .....
-Captured debug output:
-Verification completed: {'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_212228_208033_7b1371b1'}
-Added deletion record for original: special_chars.txt
-Added deletion record for temp: special_chars_1.txt
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251031_212228_208033_7b1371b1'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['special_chars_1.txt'], 'sync_time': 8, 'base_sync_time': 8}
-target_folder_id='1LZPOkzZki1jxiTdwwZAMweLCdy3see-m'
-target_display_path='~/tmp/gds_test_20251031_212228_208033_7b1371b1'
-...
-Verify 1/1: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt"
-命令转译成功: ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt" -> ls "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt"
-返回码: 0
-输出: special_chars.txt
-...
+输出: special_chars.txt...
 Verify successful
 All verifications passed, command executed successfully
-命令转译成功: cat "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt" -> cat "~/tmp/gds_test_20251031_212228_208033_7b1371b1/special_chars.txt"
+命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
 返回码: 0
 输出: 包含中文的文件
 Special characters: !@#$%^&*()
 Quotes: "Hello" and 'World'
 Backslashes: \path\to\file
 JSON: {"key": "value", "number": 123}
-Shell commands: ls -la && echo "done"
-...
+Shell commands: ls -la && echo "done"...
+测试cat命令绝对路径支持

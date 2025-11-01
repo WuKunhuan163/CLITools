@@ -1,0 +1,223 @@
+test_29_pyenv_version_management (test_gds.GDSTest)
+测试Python版本安装和管理 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1544.073s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251101_151409_991322_aec73b42
+正在创建远端测试目录: ~/tmp/gds_test_20251101_151409_991322_aec73b42
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251101_151409_991322_aec73b42
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_szb758zz
+测试环境设置完成
+测试Python版本安装和管理
+注意：Python版本安装测试仅验证命令接口，不进行实际安装
+如需完整测试，请手动执行: GDS pyenv --install 3.9.18
+命令转译成功: ['pyenv', '--install'] -> pyenv --install
+返回码: 1
+输出: Please specify a Python version to install...
+命令转译成功: ['pyenv', '--uninstall'] -> pyenv --uninstall
+返回码: 1
+输出: Please specify a Python version to uninstall...
+命令转译成功: ['pyenv', '--global', '3.9.18'] -> pyenv --global 3.9.18
+返回码: 1
+输出: Python 3.9.18 is not installed. Use 'pyenv --install 3.9.18' first....
+命令转译成功: ['pyenv', '--local', '3.9.18'] -> pyenv --local 3.9.18
+返回码: 1
+输出: Python 3.9.18 is not installed. Use 'pyenv --install 3.9.18' first....
+Python版本安装和管理测试完成
+命令转译成功: ['pyenv', '--version'] -> pyenv --version
+返回码: 0
+输出: No Python version configured (using system default)...
+命令转译成功: ['pyenv', '--list-available'] -> pyenv --list-available
+返回码: 0
+输出: Updating Python versions cache...
+Generated 178 Python version candidates for testing
+Testing 178 Python versions concurrently...
+[1/178] Python 2.6.15: failed
+[2/178] Python 2.6.18: failed
+[3/178] Python 2.6.16: failed
+[4/178] Python 2.6.17: failed
+[5/178] Python 3.0.0: failed
+[6/178] Python 3.1.0: failed
+[7/178] Python 3.0.2: failed
+[8/178] Python 3.2.0: failed
+[9/178] Python 2.7.15: failed
+[10/178] Python 2.7.16: failed
+[11/178] Python 2.7.17: failed
+[12/178] Python 2.7.18: failed
+[13/178] Python 3.0.1: failed
+[14/178] Python 3.1.1: failed
+[15/178] Python 3.1.2: failed
+[16/178] Python 3.2.1: failed
+[17/178] Python 3.2.2: failed
+[18/178] Python 3.3.2: failed
+[19/178] Python 3.3.0: failed
+[20/178] Python 3.3.1: failed
+[21/178] Python 3.4.0: failed
+[22/178] Python 3.4.2: failed
+[23/178] Python 3.4.1: failed
+[24/178] Python 3.5.0: failed
+[25/178] Python 3.5.2: failed
+[26/178] Python 3.5.1: failed
+[27/178] Python 3.6.0: failed
+[28/178] Python 3.6.1: failed
+[29/178] Python 3.6.2: failed
+[30/178] Python 3.7.0: failed
+[31/178] Python 3.7.1: failed
+[32/178] Python 3.7.2: failed
+[33/178] Python 3.7.4: failed
+[34/178] Python 3.7.3: failed
+[35/178] Python 3.7.5: failed
+[36/178] Python 3.7.6: failed
+[37/178] Python 3.7.7: failed
+[38/178] Python 3.7.10: failed
+[39/178] Python 3.7.8: failed
+[40/178] Python 3.7.9: failed
+[41/178] Python 3.7.14: failed
+[42/178] Python 3.7.13: failed
+[43/178] Python 3.7.12: failed
+[44/178] Python 3.7.11: failed
+[45/178] Python 3.7.15: failed
+[46/178] Python 3.7.16: failed
+[47/178] Python 3.7.17: failed
+[48/178] Python 3.8.0: failed
+[49/178] Python 3.8.1: failed
+[50/178] Python 3.8.2: failed
+[51/178] Python 3.8.3: failed
+[52/178] Python 3.8.4: failed
+[53/178] Python 3.8.5: failed
+[54/178] Python 3.8.6: failed
+[55/178] Python 3.8.7: failed
+[56/178] Python 3.8.11: failed
+[57/178] Python 3.8.12: failed
+[58/178] Python 3.8.13: failed
+[59/178] Python 3.8.8: failed
+[60/178] Python 3.8.14: failed
+[61/178] Python 3.8.15: failed
+[62/178] Python 3.8.9: failed
+[63/178] Python 3.8.10: failed
+[64/178] Python 3.8.19: failed
+[65/178] Python 3.8.17: failed
+[66/178] Python 3.8.16: failed
+[67/178] Python 3.8.18: failed
+[68/178] Python 3.8.20: failed
+[69/178] Python 3.9.0: failed
+[70/178] Python 3.9.1: failed
+[71/178] Python 3.9.2: failed
+[72/178] Python 3.9.3: failed
+[73/178] Python 3.9.4: failed
+[74/178] Python 3.9.5: failed
+[75/178] Python 3.9.6: failed
+[76/178] Python 3.9.7: failed
+[77/178] Python 3.9.14: failed
+[78/178] Python 3.9.8: failed
+[79/178] Python 3.9.10: failed
+[80/178] Python 3.9.9: failed
+[81/178] Python 3.9.15: failed
+[82/178] Python 3.9.11: failed
+[83/178] Python 3.9.12: failed
+[84/178] Python 3.9.13: failed
+[85/178] Python 3.9.16: failed
+[86/178] Python 3.9.17: failed
+[87/178] Python 3.9.19: failed
+[88/178] Python 3.9.18: failed
+[89/178] Python 3.9.20: failed
+[90/178] Python 3.10.0: failed
+[91/178] Python 3.10.1: failed
+[92/178] Python 3.10.2: failed
+[93/178] Python 3.10.3: failed
+[94/178] Python 3.10.4: failed
+[95/178] Python 3.10.6: failed
+[96/178] Python 3.10.5: failed
+[97/178] Python 3.10.7: failed
+[98/178] Python 3.10.12: failed
+[99/178] Python 3.10.13: failed
+[100/178] Python 3.10.14: failed
+[101/178] Python 3.10.8: failed
+[102/178] Python 3.10.15: failed
+[103/178] Python 3.10.10: failed
+[104/178] Python 3.10.9: failed
+[105/178] Python 3.10.11: failed
+[106/178] Python 3.11.0: failed
+[107/178] Python 3.11.1: failed
+[108/178] Python 3.11.2: failed
+[109/178] Python 3.11.3: failed
+[110/178] Python 3.11.4: failed
+[111/178] Python 3.11.5: failed
+[112/178] Python 3.11.6: failed
+[113/178] Python 3.11.7: failed
+[114/178] Python 3.11.10: failed
+[115/178] Python 3.11.12: failed
+[116/178] Python 3.11.11: failed
+[117/178] Python 3.11.8: failed
+[118/178] Python 3.11.9: failed
+[119/178] Python 3.12.0: failed
+[120/178] Python 3.12.1: failed
+[121/178] Python 3.12.2: failed
+[122/178] Python 3.12.3: failed
+[123/178] Python 3.12.4: failed
+[124/178] Python 3.12.5: failed
+[125/178] Python 3.12.13: failed
+[126/178] Python 3.12.6: failed
+[127/178] Python 3.12.7: failed
+[128/178] Python 3.12.14: failed
+[129/178] Python 3.12.9: failed
+[130/178] Python 3.12.8: failed
+[131/178] Python 3.12.11: failed
+[132/178] Python 3.12.12: failed
+[133/178] Python 3.12.10: failed
+[134/178] Python 3.13.0: failed
+[135/178] Python 3.13.1: failed
+[136/178] Python 3.13.2: failed
+[137/178] Python 3.13.3: failed
+[138/178] Python 3.13.4: failed
+[139/178] Python 3.13.5: failed
+[140/178] Python 3.13.6: failed
+[141/178] Python 3.14.2: failed
+[142/178] Python 3.14.1: failed
+[143/178] Python 3.14.3: failed
+[144/178] Python 3.13.7: failed
+[145/178] Python 3.14.4: failed
+[146/178] Python 3.15.1: failed
+[147/178] Python 3.15.0: failed
+[148/178] Python 3.15.2: failed
+[149/178] Python 3.15.3: failed
+[150/178] Python 3.15.4: failed
+[151/178] Python 3.16.1: failed
+[152/178] Python 3.16.0: failed
+[153/178] Python 3.16.2: failed
+[154/178] Python 3.16.3: failed
+[155/178] Python 3.16.4: failed
+[156/178] Python 3.17.0: failed
+[157/178] Python 3.17.1: failed
+[158/178] Python 3.17.2: failed
+[159/178] Python 3.17.3: failed
+[160/178] Python 3.17.4: failed
+[161/178] Python 3.13.8: failed
+[162/178] Python 3.18.0: failed
+[163/178] Python 3.18.1: failed
+[164/178] Python 3.18.2: failed
+[165/178] Python 3.13.9: failed
+[166/178] Python 3.14.0: failed
+[167/178] Python 3.18.3: failed
+[168/178] Python 3.18.4: failed
+[169/178] Python 3.19.1: failed
+[170/178] Python 3.19.2: failed
+[171/178] Python 3.19.0: failed
+[172/178] Python 3.19.3: failed
+[173/178] Python 3.19.4: failed
+[174/178] Python 3.20.0: failed
+[175/178] Python 3.20.1: failed
+[176/178] Python 3.20.2: failed
+[177/178] Python 3.20.3: failed
+[178/178] Python 3.20.4: failed
+Cache updated: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/python_available_versions.json
+No verified Python versions available for installation.
+Run with --update-cache to refresh the version list....
+命令转译成功: ['pyenv', '--versions'] -> pyenv --versions
+返回码: 0
+输出: Warning: Unified command failed: Unknown error
+No Python versions installed...

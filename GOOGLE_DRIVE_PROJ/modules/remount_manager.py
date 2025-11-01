@@ -62,7 +62,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     fingerprint_filename = f".gds_mount_fingerprint_{mount_hash}"
     fingerprint_path = f"tmp/{fingerprint_filename}"
     
-    print(f"\n正在验证远端指纹文件: {fingerprint_path}")
+    print(f"正在验证远端指纹文件: {fingerprint_path}")
     
     # 如果没有提供GoogleDriveShell实例，尝试创建一个
     if google_drive_shell is None:
@@ -87,6 +87,34 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         
         if ls_result and ls_result.get("success"):
             print("✓ 远端指纹文件验证成功")
+            
+            # 更新config.json中的MOUNT_HASH和MOUNT_TIMESTAMP
+            try:
+                if config_file.exists():
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                else:
+                    config = {}
+                
+                # 更新constants中的MOUNT_HASH（GoogleDriveShell从这里读取）
+                if 'constants' not in config:
+                    config['constants'] = {}
+                config['constants']['MOUNT_HASH'] = mount_hash
+                config['constants']['MOUNT_TIMESTAMP'] = timestamp
+                
+                with open(config_file, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                
+                print(f"✓ 已更新config.json: MOUNT_HASH={mount_hash}")
+                
+                # 同时更新GoogleDriveShell实例的MOUNT_HASH属性（如果实例存在）
+                if google_drive_shell:
+                    google_drive_shell.MOUNT_HASH = mount_hash
+                    google_drive_shell.MOUNT_TIMESTAMP = timestamp
+                    print(f"✓ 已更新当前shell实例的MOUNT_HASH")
+            except Exception as e:
+                print(f"Warning: 无法更新config.json: {e}")
+            
             print("Remount成功")
             return 0
         else:

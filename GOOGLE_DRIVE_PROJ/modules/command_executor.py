@@ -53,85 +53,65 @@ def debug_print(*args, **kwargs):
 
 def write_debug_output(command=None, result=None, raw_output=None, output=None, 
                        raw_error=None, error=None, remote_command=None, full_command=None,
-                       return_code=None):
+                       return_code=None, append=False):
     """
-    统一的debug输出接口
+    统一的debug输出接口 - JSON格式实时查看指令执行
     
     Args:
         command: 用户命令
         result: 窗口结果字典
-        raw_output: 原始stdout
-        output: 处理后的stdout
+        raw_output: 原始stdout (应包含⏳indicator)
+        output: 处理后的stdout (应与"输出:"字段一致)
         raw_error: 原始stderr
-        error: 处理后的stderr
+        error: 处理后的stderr (应与"错误:"字段一致)
         remote_command: 远端命令
         full_command: 完整命令（含参数）
         return_code: 返回码
+        append: 是否追加模式（用于实时更新）
     """
+    import json
     from .path_constants import get_data_dir
-    debug_file = str(get_data_dir() / "raw_gds_output.txt")
+    from datetime import datetime
     
-    with open(debug_file, 'w', encoding='utf-8') as f:
-        # 命令
-        f.write("=" * 50 + "\n")
-        f.write("COMMAND:\n")
-        f.write(f"{command if command is not None else '(not provided)'}\n\n")
+    debug_file = str(get_data_dir() / "raw_gds_output.json")
+    
+    # 构建debug数据
+    debug_data = {
+        "timestamp": datetime.now().isoformat(),
+        "command": command,
+        "result": result,
+        "return_code": return_code,
+        "raw_output": raw_output,
+        "output": output,
+        "raw_error": raw_error,
+        "error": error,
+        "remote_command": remote_command,
+        "full_command": full_command,
+        "analysis": {
+            "raw_contains_indicator": '⏳' in (raw_output or ''),
+            "output_contains_indicator": '⏳' in (output or ''),
+            "indicator_removal_success": '⏳' not in (output or '') if raw_output and '⏳' in raw_output else None
+        }
+    }
+    
+    if append:
+        # 追加模式：读取现有数据，添加新条目
+        try:
+            with open(debug_file, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+            if not isinstance(existing_data, list):
+                existing_data = [existing_data]
+        except (FileNotFoundError, json.JSONDecodeError):
+            existing_data = []
         
-        # 完整命令
-        if full_command is not None:
-            f.write("=" * 50 + "\n")
-            f.write("FULL_COMMAND:\n")
-            f.write(f"{full_command}\n\n")
+        existing_data.append(debug_data)
         
-        # 结果
-        if result is not None:
-            f.write("=" * 50 + "\n")
-            f.write("RESULT:\n")
-            f.write(f"{result}\n\n")
-        
-        # 返回码
-        if return_code is not None:
-            f.write("=" * 50 + "\n")
-            f.write("RETURN_CODE:\n")
-            f.write(f"{return_code}\n\n")
-        
-        # 原始输出
-        f.write("=" * 50 + "\n")
-        f.write("RAW_OUTPUT:\n")
-        if raw_output is not None:
-            f.write(f"{repr(raw_output)}\n\n")
-        else:
-            f.write("(not provided)\n\n")
-        
-        # 处理后的输出
-        f.write("=" * 50 + "\n")
-        f.write("OUTPUT:\n")
-        if output is not None:
-            f.write(f"{output}\n\n")
-        else:
-            f.write("(not provided)\n\n")
-        
-        # 原始错误
-        f.write("=" * 50 + "\n")
-        f.write("RAW_ERROR:\n")
-        if raw_error is not None:
-            f.write(f"{repr(raw_error)}\n\n")
-        else:
-            f.write("(not provided)\n\n")
-        
-        # 处理后的错误
-        f.write("=" * 50 + "\n")
-        f.write("ERROR:\n")
-        if error is not None:
-            f.write(f"{error}\n\n")
-        else:
-            f.write("(not provided)\n\n")
-        
-        # 远端命令
-        if remote_command is not None:
-            f.write("=" * 50 + "\n")
-            f.write("REMOTE_COMMAND:\n")
-            f.write(f"{remote_command}\n") # 忽略debug输出错误
+        with open(debug_file, 'w', encoding='utf-8') as f:
+            json.dump(existing_data, f, indent=2, ensure_ascii=False)
+    else:
+        # 覆盖模式：写入单个条目
+        with open(debug_file, 'w', encoding='utf-8') as f:
+            json.dump(debug_data, f, indent=2, ensure_ascii=False)
 
 class CommandExecutor:
     """重构后的command_executor功能"""
@@ -274,13 +254,13 @@ class CommandExecutor:
         # 显示远程窗口
         window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
         
-        write_debug_output(
-            command=raw_command or "Unknown",
-            result=window_result,
-            raw_output="(Will be updated after command execution)",
-            raw_error="(Will be updated after command execution)",
-            remote_command=remote_command
-        )
+        # write_debug_output(
+        #     command=raw_command or "Unknown",
+        #     result=window_result,
+        #     raw_output="(Will be updated after command execution)",
+        #     raw_error="(Will be updated after command execution)",
+        #     remote_command=remote_command
+        # )
         
         # 处理窗口结果
         if window_result["action"] == "success": 
@@ -294,16 +274,16 @@ class CommandExecutor:
             # 更新debug文件，记录实际的执行结果
             if result.get("success", False):
                 data = result.get("data", {})
-                write_debug_output(
-                    command=raw_command or "Unknown",
-                    result=result,
-                    raw_output=data.get("stdout", ""),
-                    output=data.get("stdout", ""),
-                    raw_error=data.get("stderr", ""),
-                    error=data.get("stderr", ""),
-                    remote_command=remote_command,
-                    return_code=data.get("exit_code", -1)
-                )
+                # write_debug_output(
+                #     command=raw_command or "Unknown",
+                #     result=result,
+                #     raw_output=data.get("stdout", ""),
+                #     output=data.get("stdout", ""),
+                #     raw_error=data.get("stderr", ""),
+                #     error=data.get("stderr", ""),
+                #     remote_command=remote_command,
+                #     return_code=data.get("exit_code", -1)
+                # )
             
             if result.get("success", False):
                 data = result.get("data", {})

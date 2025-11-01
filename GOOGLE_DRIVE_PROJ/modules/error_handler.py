@@ -38,9 +38,9 @@ class EnhancedErrorHandler:
             self.error_log_file = None
     
     def capture_exception(self, 
-                         context: str = "Unknown", 
-                         exception: Optional[Exception] = None,
-                         additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+            context: str = "Unknown", 
+            exception: Optional[Exception] = None,
+            additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         捕获并分析异常，返回详细的错误信息
         

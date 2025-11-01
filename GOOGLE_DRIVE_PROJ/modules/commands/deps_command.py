@@ -5,6 +5,11 @@ class DepsCommand(BaseCommand):
     Dependency analysis command
     """
     
+    def __init__(self, shell_instance):
+        """Initialize DepsCommand with shell instance"""
+        super().__init__(shell_instance)
+        self._pypi_client = None
+    
     @property
     def command_name(self):
         return "deps"
@@ -37,6 +42,7 @@ class DepsCommand(BaseCommand):
             # 解析参数
             packages = []
             max_depth = 2
+            analysis_type = "depth"  # Default analysis type
             
             i = 0
             while i < len(args):
@@ -81,9 +87,9 @@ class DepsCommand(BaseCommand):
             current_shell = self.shell.get_current_shell()
             shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
             
-            from .venv_command import VenvCommand
-            venv_cmd = VenvCommand(self.shell)
-            all_states = venv_cmd.load_all_venv_states()
+            from ..venv_manager import VenvApiManager
+            venv_manager = VenvApiManager(self.shell.drive_service, self.shell)
+            all_states = venv_manager.load_all_venv_states()
             
             current_venv = None
             if shell_id in all_states and all_states[shell_id].get("current_venv"):
@@ -110,6 +116,28 @@ class DepsCommand(BaseCommand):
                 )
             else:
                 return {"success": False, "error": f"Unknown analysis type: {analysis_type}. Use 'smart' or 'depth'"}
+            
+            # 检查根包是否存在（即用户直接请求分析的包）
+            # Note: depth_based_dependency_analysis returns 'Q', smart_dependency_analysis may return 'dependency_tree'
+            Q = analysis_result.get('Q', analysis_result.get('dependency_tree', {}))
+            root_packages_not_found = []
+            for pkg in packages:
+                # 清理包名（去掉版本号）
+                clean_pkg = pkg.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0]
+                if clean_pkg in Q:
+                    physical_size = Q[clean_pkg].get('physical_size', 0)
+                    if physical_size == 0:
+                        root_packages_not_found.append(pkg)
+                else:
+                    root_packages_not_found.append(pkg)
+            
+            if root_packages_not_found:
+                error_msg = f"Package(s) not found: {', '.join(root_packages_not_found)}"
+                print(f"Error: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
             
             # 显示分析结果
             total_calls = analysis_result.get('total_calls', 0)
@@ -148,16 +176,12 @@ class DepsCommand(BaseCommand):
     def get_pypi_client(self):
         """Get or create PyPI client instance"""
         if self._pypi_client is None:
-            try:
-                import sys
-                import os
-                bin_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-                sys.path.insert(0, bin_path)
-                from PYPI import PyPIClient
-                self._pypi_client = PyPIClient()
-            except ImportError:
-                print(f"Warning: PYPI tool not available, falling back to direct API calls")
-                self._pypi_client = None
+            import sys
+            import os
+            bin_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            sys.path.insert(0, bin_path)
+            from PYPI import PyPIClient
+            self._pypi_client = PyPIClient()
         return self._pypi_client
 
     def get_package_dependencies_with_pipdeptree(self, package_name, installed_packages=None):
@@ -298,6 +322,7 @@ class DepsCommand(BaseCommand):
                 return dependencies, package_size, {}
             
         except Exception as e:
+            print(f"Error fetching dependencies for {package_name}: {e}")
             return None, 0, {}
 
     def smart_dependency_analysis(self, packages, max_calls=10, interface_mode=False, installed_packages=None):
@@ -575,7 +600,7 @@ class DepsCommand(BaseCommand):
                             }
             
             batch_duration = time.time() - batch_start_time
-            print(f"    Processed {len(packages_to_analyze)} packages in {batch_duration:.2f}s")
+            # Debug: print(f"    Processed {len(packages_to_analyze)} packages in {batch_duration:.2f}s")
             
             # 如果这批处理时间少于1秒，等待到1秒
             if batch_duration < 1.0:
@@ -603,7 +628,7 @@ class DepsCommand(BaseCommand):
                 R = R_prime
                 if R:
                     layers[current_depth].update(R)
-                    print(f"Moving to depth {current_depth} with {len(R)} new packages: {R[:5]}{'...' if len(R) > 5 else ''}")
+                    # Debug: print(f"Moving to depth {current_depth} with {len(R)} new packages: {R[:5]}{'...' if len(R) > 5 else ''}")
         
         analysis_end_time = time.time()
         total_analysis_time = analysis_end_time - analysis_start_time

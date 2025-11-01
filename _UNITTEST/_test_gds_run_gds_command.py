@@ -12,7 +12,7 @@ json_file = "~/correct_json.txt"
 
 # Run the test
 result = test_instance.gds(f'''
-echo "{complex_json_escaped}" > "{json_file}"; 
+python -c "print(\\"Hello from Python code!\\"); import os; print(os.getcwd())"
 ''')
 print(result)
 

@@ -107,6 +107,28 @@ class UploadCommand(BaseCommand):
             print(error_msg)
             return 1
     
+    def check_large_files(self, source_files):
+        """检查大文件并分离处理（大于1G的文件）"""
+        normal_files = []
+        large_files = []
+        
+        for file_path in source_files:
+            try:
+                file_size = os.path.getsize(file_path)
+                # 1G = 1024 * 1024 * 1024 bytes
+                if file_size > 1024 * 1024 * 1024:
+                    large_files.append({
+                        "path": file_path,
+                        "size": file_size,
+                        "name": os.path.basename(file_path)
+                    })
+                else:
+                    normal_files.append(file_path)
+            except OSError:
+                # 文件不存在或无法访问，加入normal_files让后续处理报错
+                normal_files.append(file_path)
+        
+        return normal_files, large_files
     
     def handle_large_files(self, large_files, target_path, current_shell):
         """处理大文件上传"""
