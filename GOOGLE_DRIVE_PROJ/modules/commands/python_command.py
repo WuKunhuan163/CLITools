@@ -15,6 +15,11 @@ class PythonCommand(BaseCommand):
     
     def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute python command."""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         if not args:
             self.print_error("python command needs a file name or code")
             return 1
@@ -55,6 +60,31 @@ class PythonCommand(BaseCommand):
                 import sys
                 print(stderr, end="", file=sys.stderr)
             return 1
+
+    def show_help(self):
+        """显示python命令帮助信息"""
+        print("GDS Python Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS python <file.py> [args...]     # Execute Python file")
+        print("  GDS python -c '<code>' [args...]   # Execute Python code")
+        print("  GDS python --help                  # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Execute Python scripts or code in the remote environment.")
+        print("  Uses the currently active Python version (set by pyenv).")
+        print()
+        print("EXAMPLES:")
+        print("  GDS python script.py               # Run script.py")
+        print("  GDS python script.py arg1 arg2     # Run with arguments")
+        print("  GDS python -c 'print(\"Hello\")'     # Execute inline code")
+        print("  GDS python -c 'import sys; print(sys.version)'")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS pyenv --help                   # Python version management")
+        print("  GDS pip --help                     # Package management")
+        print("  GDS venv --help                    # Virtual environment management")
 
     def get_python_executable(self):
         """获取当前应该使用的Python可执行文件路径 - 已废弃，Python版本选择在远程进行"""

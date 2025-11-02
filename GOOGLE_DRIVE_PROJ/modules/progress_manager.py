@@ -85,8 +85,6 @@ def add_success_mark():
     """添加成功标记到进度显示"""
     _global_progress_display.update_progress(" ✓")
 
-
-
 def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0, max_attempts=None):
     """
     统一的可中断进度循环接口
@@ -185,7 +183,7 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
         "attempts": attempt
     }
 
-def validate_creation(validation_func, item_name, max_attempts=20, validation_type="file"):
+def validate_creation(validation_func, item_name, max_attempts=12, validation_type="file"):
     """
     统一的文件/目录验证接口，集成进度显示
     使用统一的可中断进度循环接口

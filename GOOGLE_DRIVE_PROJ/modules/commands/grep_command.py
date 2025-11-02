@@ -19,8 +19,36 @@ class GrepCommand(BaseCommand):
             return False
         return True
     
+    def show_help(self):
+        """显示grep命令帮助信息"""
+        print("GDS Grep Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS grep <pattern> <file>           # Search for pattern in file")
+        print("  GDS grep <file>                     # Display file contents (no pattern)")
+        print("  GDS grep --help                     # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Search for text patterns in files in the remote environment.")
+        print("  Without a pattern, displays the entire file (equivalent to read/cat).")
+        print()
+        print("EXAMPLES:")
+        print("  GDS grep 'import' script.py         # Find lines with 'import'")
+        print("  GDS grep 'TODO' *.py                # Search in multiple files")
+        print("  GDS grep script.py                  # Display entire file")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS find --help                     # Search for files")
+        print("  GDS cat --help                      # Display file contents")
+        print("  GDS read --help                     # Read file contents")
+    
     def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute grep command."""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
 
         # 处理参数解析
         if len(args) == 1:

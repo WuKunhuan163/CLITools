@@ -87,7 +87,6 @@ class CommandGenerator:
         Returns:
             tuple: (远端命令字符串, 结果文件名, 命令hash)
         """
-
         import time
         cmd_hash = self.calculate_command_hash(cmd)
         
@@ -171,18 +170,17 @@ class CommandGenerator:
         # 使用统一的路径解析接口
         remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(current_path, current_shell)
         
+        # 预计算所有需要的值，避免f-string中的复杂表达式
+        timestamp = str(int(time.time()))
+        
         # 生成结果文件名（如果未提供）
         if not result_filename:
             if is_background:
                 result_filename = f"cmd_main_{bg_pid}.result.json"
             else: 
-                timestamp = str(int(time.time()))
-                result_filename = f"cmd_{timestamp}_{cmd_hash}.json"
+                result_filename = f"cmd_result_{timestamp}_{cmd_hash}.json"
         
         result_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
-        
-        # 预计算所有需要的值，避免f-string中的复杂表达式
-        timestamp = str(int(time.time()))
         
         # 根据是否为background模式生成不同的远程命令脚本
         # 检查是否为背景任务
@@ -210,6 +208,9 @@ mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
 cat > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" << 'SCRIPT_EOF'
 #!/bin/bash
 set -e
+
+# 立即创建空的log文件，确保文件在任务开始时就存在
+touch "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
 
 # 首先创建初始的result.json文件，状态为running
 # 将command作为环境变量传递，避免在Python代码中处理复杂的引号转义
@@ -250,7 +251,7 @@ LOG_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
 
 # 使用tee将输出同时写入临时文件和log文件
 # 使用heredoc避免复杂的引号转义问题
-bash << 'USER_COMMAND_EOF' 2>&1 | tee "$LOG_FILE" > "$STDOUT_FILE"
+bash << 'USER_COMMAND_EOF' 2>&1 | tee -a "$LOG_FILE" > "$STDOUT_FILE"
 {bg_original_cmd[1:-1] if bg_original_cmd.startswith('"') and bg_original_cmd.endswith('"') else bg_original_cmd}
 USER_COMMAND_EOF
 EXIT_CODE=${{PIPESTATUS[0]}}
@@ -500,7 +501,7 @@ if result_dir:
     os.makedirs(result_dir, exist_ok=True)
 
 with open(result_file, "w", encoding="utf-8") as f:
-    json.dump(result, f, indent=2, ensure_ascii=False)
+json.dump(result, f, indent=2, ensure_ascii=False)
 
 
 JSON_SCRIPT_EOF

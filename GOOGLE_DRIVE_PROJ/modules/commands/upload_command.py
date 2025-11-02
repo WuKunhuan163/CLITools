@@ -26,6 +26,14 @@ class UploadCommand(BaseCommand):
     
     def execute(self, cmd, args, **kwargs):
         """执行上传命令（BaseCommand要求的方法）"""
+        # 检查是否请求帮助
+        if args and (args[0] == '--help' or args[0] == '-h'):
+            if cmd == 'upload_folder':
+                self.show_upload_folder_help()
+            else:
+                self.show_upload_help()
+            return 0
+        
         # 检查是否是 upload_folder 命令
         if cmd == 'upload_folder':
             return self.execute_upload_folder(args)
@@ -65,6 +73,85 @@ class UploadCommand(BaseCommand):
             error_msg = result.get("error", "Upload failed")
             print(error_msg)
             return 1
+    
+    def show_upload_help(self):
+        """显示upload命令的帮助信息"""
+        help_text = """
+GDS Upload Command - Upload files to Google Drive
+
+Usage:
+    GDS upload [OPTIONS] <file1> [file2 ...]
+    GDS upload --help
+
+Arguments:
+    <files>          One or more local files to upload
+
+Options:
+    --target-dir <dir>    Target directory in Google Drive (default: current directory)
+    --force               Force overwrite if file already exists
+    --help, -h            Show this help message
+
+Examples:
+    # Upload a single file to current directory
+    GDS upload myfile.txt
+
+    # Upload multiple files
+    GDS upload file1.txt file2.txt file3.txt
+
+    # Upload to a specific directory
+    GDS upload --target-dir ~/documents myfile.txt
+
+    # Force overwrite existing files
+    GDS upload --force myfile.txt
+
+    # Upload to a specific directory with force
+    GDS upload --target-dir ~/documents --force myfile.txt
+
+Notes:
+    - Large files (>100MB) will trigger a confirmation prompt
+    - Files are uploaded to the remote Google Drive environment
+    - Use 'upload-folder' command to upload entire directories
+"""
+        print(help_text)
+    
+    def show_upload_folder_help(self):
+        """显示upload-folder命令的帮助信息"""
+        help_text = """
+GDS Upload-Folder Command - Upload entire directories to Google Drive
+
+Usage:
+    GDS upload-folder [OPTIONS] <folder>
+    GDS upload-folder --help
+
+Arguments:
+    <folder>         Local folder to upload
+
+Options:
+    --target-dir <dir>    Target directory in Google Drive (default: current directory)
+    --keep-zip            Keep the temporary zip file after upload
+    --force               Force overwrite if folder already exists
+    --help, -h            Show this help message
+
+Examples:
+    # Upload a folder to current directory
+    GDS upload-folder my_folder
+
+    # Upload to a specific directory
+    GDS upload-folder --target-dir ~/documents my_folder
+
+    # Keep the zip file after upload
+    GDS upload-folder --keep-zip my_folder
+
+    # Force overwrite existing folder
+    GDS upload-folder --force my_folder
+
+Notes:
+    - The folder is automatically zipped before upload
+    - The zip file is extracted on the remote side
+    - Use --keep-zip to preserve the temporary zip file
+    - Large folders may take time to zip and upload
+"""
+        print(help_text)
     
     def execute_upload_folder(self, args):
         """执行upload_folder命令"""
@@ -391,7 +478,7 @@ class UploadCommand(BaseCommand):
             
             for source_file in source_files:
                 debug_print(f"Processing file: {source_file}")
-                move_result = self.main_instance.sync_manager.move_to_local_equivalent(source_file)
+                move_result = self.main_instance.sync_manager.move_to_local_equivalent(source_file, target_path)
                 debug_print(f"Move result: {move_result}")
                 
                 if move_result["success"]:
@@ -501,6 +588,10 @@ class UploadCommand(BaseCommand):
             else:
                 # 普通文件上传：使用ls-based验证
                 expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
+                
+                print(f"DEBUG [cmd_upload]: 调用verify_upload_with_progress前:")
+                print(f"  expected_for_verification = {expected_for_verification}")
+                print(f"  target_path = {target_path}")
 
                 # 使用带进度的验证机制
                 verify_result = self.verify_upload_with_progress(
@@ -893,19 +984,49 @@ class UploadCommand(BaseCommand):
                 first_three = ", ".join(expected_files[:3])
                 file_display = f"{first_three}, ... ({len(expected_files)} files)"
             
-            # 定义验证函数
+            # 定义验证函数，支持最后一次尝试时使用强制刷新
+            attempt_count = 0
+            max_attempts = 60
+            
             def validate_all_files():
-                validation_result = self.main_instance.validation.verify_upload_success_by_ls(
-                    expected_files=expected_files,
-                    target_path=target_path,
-                    current_shell=current_shell
-                )
-                found_count = len(validation_result.get("found_files", []))
+                nonlocal attempt_count
+                attempt_count += 1
+                
+                # 为每个文件使用verify_with_ls进行验证
+                found_count = 0
+                for expected_file in expected_files:
+                    # 构建文件的完整路径
+                    if target_path == "." or target_path == "":
+                        file_path = expected_file
+                    else:
+                        # 确保正确处理@路径和~路径
+                        # 对于@和~等特殊前缀，需要添加/
+                        if target_path in ["@", "~"]:
+                            file_path = f"{target_path}/{expected_file}"
+                        elif target_path.startswith("@/") or target_path.startswith("~/"):
+                            # 目标路径已经包含子路径
+                            file_path = f"{target_path}/{expected_file}"
+                        else:
+                            file_path = f"{target_path}/{expected_file}"
+                    
+                    print(f"DEBUG [verify_upload_with_progress]: target_path={target_path}, expected_file={expected_file}, file_path={file_path}")
+                    
+                    # 使用verify_with_ls验证单个文件
+                    verify_result = self.main_instance.validation.verify_with_ls(
+                        path=file_path,
+                        current_shell=current_shell,
+                        creation_type="file",
+                        max_attempts=1  # 只尝试一次，因为外层已有重试机制
+                    )
+                    
+                    if verify_result.get("success", False):
+                        found_count += 1
+                
                 return found_count == len(expected_files)
             
             # 直接使用统一的验证接口，它会正确处理进度显示的切换
             from ..progress_manager import validate_creation
-            result = validate_creation(validate_all_files, file_display, 60, "upload")
+            result = validate_creation(validate_all_files, file_display, max_attempts, "upload")
             
             # 转换返回格式
             all_found = result["success"]
@@ -914,12 +1035,25 @@ class UploadCommand(BaseCommand):
                 missing_files = []
             else:
                 # 如果验证失败，需要重新检查哪些文件缺失
-                final_validation = self.main_instance.validation.verify_upload_success_by_ls(
-                    expected_files=expected_files,
-                    target_path=target_path,
-                    current_shell=current_shell
-                )
-                found_files = final_validation.get("found_files", [])
+                found_files = []
+                for expected_file in expected_files:
+                    # 构建文件的完整路径
+                    if target_path == "." or target_path == "":
+                        file_path = expected_file
+                    else:
+                        file_path = f"{target_path}/{expected_file}"
+                    
+                    # 使用verify_with_ls验证单个文件
+                    verify_result = self.main_instance.validation.verify_with_ls(
+                        path=file_path,
+                        current_shell=current_shell,
+                        creation_type="file",
+                        max_attempts=1
+                    )
+                    
+                    if verify_result.get("success", False):
+                        found_files.append(expected_file)
+                
                 missing_files = [f for f in expected_files if f not in found_files]
             
             return {

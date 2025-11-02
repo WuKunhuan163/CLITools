@@ -6,47 +6,25 @@ FAIL: test_24_background (test_gds.GDSTest)
 测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3498, in test_24_background
-    self.assertNotIn("Second echo: Task completed at", first_status.stdout, "第一次检查不应该包含第二个echo输出（partial输出验证）")
-AssertionError: 'Second echo: Task completed at' unexpectedly found in 'Status: running\nPID: 1762016314_1538\nCommand: "python3 -c "\nimport time\nimport sys\nprint(\'First echo: Task started at\', time.strftime(\'%H:%M:%S\'))\nsys.stdout.flush()\nprint(\'About to sleep for 60 seconds...\')\nsys.stdout.flush()\ntime.sleep(60)\nprint(\'Second echo: Task completed at\', time.strftime(\'%H:%M:%S\'))\nsys.stdout.flush()\n""\nStart time: 2025-11-02T00:58:34.141890\nLog size: 0 bytes\n' : 第一次检查不应该包含第二个echo输出（partial输出验证）
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3612, in test_24_background
+    self.assertEqual(result.returncode, 0, "错误命令任务创建应该成功")
+AssertionError: 1 != 0 : 错误命令任务创建应该成功
 
 ----------------------------------------------------------------------
-Ran 1 test in 502.686s
+Ran 1 test in 316.020s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251102_005109_732157_7ee63a3b
-正在创建远端测试目录: ~/tmp/gds_test_20251102_005109_732157_7ee63a3b
+远端测试目录: ~/tmp/gds_test_20251102_153710_575753_850414ef
+正在创建远端测试目录: ~/tmp/gds_test_20251102_153710_575753_850414ef
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251102_005109_732157_7ee63a3b
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_kv3_ao5c
+已切换到远端测试目录: ~/tmp/gds_test_20251102_153710_575753_850414ef
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_y4fqoexz
 测试环境设置完成
 测试GDS --bg后台任务功能 - 优先队列验证
 测试1: 基础echo命令
-任务ID: 1762015919_7180
+任务ID: 1762069070_6826
 基础echo命令测试通过
 测试2: 包含引号的复杂命令
 复杂命令测试通过
 测试3: 错误命令处理
-错误命令处理测试通过
-测试4: 长时间运行任务的partial输出验证
-启动长时间运行的后台任务（sleep 60秒）...
-长时间任务ID: 1762016314_1538
-等待10秒后进行第一次status检查（使用优先队列）...
-第一次status查询结果: returncode=0
-第一次status输出: Status: running
-PID: 1762016314_1538
-Command: "python3 -c "
-import time
-import sys
-print('First echo: Task started at', time.strftime('%H:%M:%S'))
-sys.stdout.flush()
-print('About to sleep for 60 seconds...')
-sys.stdout.flush()
-time.sleep(60)
-print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
-sys.stdout.flush()
-""
-Start time: 2025-11-02T00:58:34.141890
-Log size: 0 bytes
-

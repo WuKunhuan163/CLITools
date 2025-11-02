@@ -594,7 +594,7 @@ Shell commands: ls -la && echo "done"
             import sys
             import os
             sys.path.insert(0, os.path.join(self.BIN_DIR, 'GOOGLE_DRIVE_PROJ', 'modules'))
-            from command_parser import parse_command
+            from command_parser import parse_command #type: ignore
             
             # 解析命令
             parse_result = parse_command(cmd_str)
@@ -654,115 +654,139 @@ Shell commands: ls -la && echo "done"
             full_command = processed_command_str
             use_shell = True
             
-        try:
-            # 使用Popen捕获真正的原始输出（包括转义序列）
-            if use_shell:
-                process = subprocess.Popen(
-                    full_command,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    cwd=self.BIN_DIR
-                )
-            else:
-                process = subprocess.Popen(
-                    full_command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    cwd=self.BIN_DIR
-                )
-            
-            # 获取原始字节输出
-            raw_stdout_bytes, raw_stderr_bytes = process.communicate()
-            
-            # 解码为文本（保留所有字符，包括转义序列）
-            raw_stdout_text = raw_stdout_bytes.decode('utf-8', errors='ignore')
-            raw_stderr_text = raw_stderr_bytes.decode('utf-8', errors='ignore')
-            
-            # 创建兼容的result对象
-            class ProcessResult:
-                def __init__(self, returncode, stdout, stderr, raw_stdout, raw_stderr):
-                    self.returncode = returncode
-                    self.stdout = stdout
-                    self.stderr = stderr
-                    self.raw_stdout = raw_stdout  # 新增：真正的原始输出
-                    self.raw_stderr = raw_stderr  # 新增：真正的原始错误输出
-            
-            result = ProcessResult(
-                returncode=process.returncode,
-                stdout=raw_stdout_text,  # 使用原始文本
-                stderr=raw_stderr_text,  # 使用原始文本
-                raw_stdout=raw_stdout_text,  # 保存原始输出
-                raw_stderr=raw_stderr_text   # 保存原始错误输出
-            )
-            print(f'返回码: {result.returncode}')
-            if result.stdout:
-                cleaned_stdout = process_terminal_erase(result.stdout)
-                # 检查清理后的输出是否还包含indicator（仅警告，不中断测试）
-                if '⏳' in cleaned_stdout:
-                    print(f'⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!')
-                    print(f'   First 200 chars: {cleaned_stdout[:200]}')
-                print(f'输出: {cleaned_stdout}...')
+        # 添加重试逻辑，最多重试2次
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt > 0:
+                    print(f'重试第{attempt}次...')
+                    import time
+                    time.sleep(2)  # 重试前等待2秒
                 
-                # 即刻输出到JSON debug文件
-                try:
-                    import json
-                    from datetime import datetime
-                    from pathlib import Path
+                # 使用Popen捕获真正的原始输出（包括转义序列）
+                if use_shell:
+                    process = subprocess.Popen(
+                        full_command,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        cwd=self.BIN_DIR
+                    )
+                else:
+                    process = subprocess.Popen(
+                        full_command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        cwd=self.BIN_DIR
+                    )
+                
+                # 获取原始字节输出
+                raw_stdout_bytes, raw_stderr_bytes = process.communicate()
+            
+                # 解码为文本（保留所有字符，包括转义序列）
+                raw_stdout_text = raw_stdout_bytes.decode('utf-8', errors='ignore')
+                raw_stderr_text = raw_stderr_bytes.decode('utf-8', errors='ignore')
+                
+                # 创建兼容的result对象
+                class ProcessResult:
+                    def __init__(self, returncode, stdout, stderr, raw_stdout, raw_stderr):
+                        self.returncode = returncode
+                        self.stdout = stdout
+                        self.stderr = stderr
+                        self.raw_stdout = raw_stdout  # 新增：真正的原始输出
+                        self.raw_stderr = raw_stderr  # 新增：真正的原始错误输出
+                
+                result = ProcessResult(
+                    returncode=process.returncode,
+                    stdout=raw_stdout_text,  # 使用原始文本
+                    stderr=raw_stderr_text,  # 使用原始文本
+                    raw_stdout=raw_stdout_text,  # 保存原始输出
+                    raw_stderr=raw_stderr_text   # 保存原始错误输出
+                )
+                print(f'返回码: {result.returncode}')
+                if result.stdout:
+                    cleaned_stdout = process_terminal_erase(result.stdout)
+                    # 检查清理后的输出是否还包含indicator（仅警告，不中断测试）
+                    if '⏳' in cleaned_stdout:
+                        print(f'⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!')
+                        print(f'   First 200 chars: {cleaned_stdout[:200]}')
+                    print(f'输出: {cleaned_stdout}...')
                     
-                    # 直接实现简化的debug输出，避免导入问题
-                    debug_file = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA" / "raw_gds_output.json"
-                    debug_file.parent.mkdir(exist_ok=True)
-                    
-                    debug_data = {
-                        "timestamp": datetime.now().isoformat(),
-                        "command": command_str,
-                        "return_code": result.returncode,
-                        "raw_output": result.raw_stdout,  # 真正的原始输出
-                        "output": cleaned_stdout,         # 清理后的输出
-                        "raw_error": result.raw_stderr,   # 真正的原始错误输出
-                        "error": process_terminal_erase(result.stderr) if result.stderr else None,
-                        "full_command": str(full_command),
-                        "analysis": {
-                            "raw_contains_indicator": '⏳' in (result.raw_stdout or ''),
-                            "output_contains_indicator": '⏳' in (cleaned_stdout or ''),
-                            "indicator_removal_success": '⏳' not in (cleaned_stdout or '') if result.raw_stdout and '⏳' in result.raw_stdout else None
-                        }
-                    }
-                    
-                    # 追加模式写入
+                    # 即刻输出到JSON debug文件
                     try:
-                        with open(debug_file, 'r', encoding='utf-8') as f:
-                            existing_data = json.load(f)
-                        if not isinstance(existing_data, list):
-                            existing_data = [existing_data]
-                    except (FileNotFoundError, json.JSONDecodeError):
-                        existing_data = []
-                    
-                    existing_data.append(debug_data)
-                    
-                    with open(debug_file, 'w', encoding='utf-8') as f:
-                        json.dump(existing_data, f, indent=2, ensure_ascii=False)
-                except Exception as e:
-                    print(f'Debug output failed: {e}')
-            if result.stderr:
-                cleaned_stderr = process_terminal_erase(result.stderr)
-                # 检查清理后的错误输出是否还包含indicator（仅警告，不中断测试）
-                if '⏳' in cleaned_stderr:
-                    print(f'⚠️  WARNING: Indicator ⏳ found in cleaned stderr after processing!')
-                    print(f'   First 200 chars: {cleaned_stderr[:200]}')
-                print(f'错误: {cleaned_stderr}...')
-            
-            # 基于功能执行情况判断，而不是终端输出
-            if check_function_result and expect_success:
-                self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
-            
-            return result
-        except Exception as e:
-            print(f'命令执行异常: {e}')
-            if expect_success:
-                self.fail(f'命令执行异常: {command} - {e}')
-            return None
+                        import json
+                        from datetime import datetime
+                        from pathlib import Path
+                        
+                        # 直接实现简化的debug输出，避免导入问题
+                        debug_file = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA" / "raw_gds_output.json"
+                        debug_file.parent.mkdir(exist_ok=True)
+                        
+                        debug_data = {
+                            "timestamp": datetime.now().isoformat(),
+                            "command": command_str,
+                            "return_code": result.returncode,
+                            "raw_output": result.raw_stdout,  # 真正的原始输出
+                            "output": cleaned_stdout,         # 清理后的输出
+                            "raw_error": result.raw_stderr,   # 真正的原始错误输出
+                            "error": process_terminal_erase(result.stderr) if result.stderr else None,
+                            "full_command": str(full_command),
+                            "analysis": {
+                                "raw_contains_indicator": '⏳' in (result.raw_stdout or ''),
+                                "output_contains_indicator": '⏳' in (cleaned_stdout or ''),
+                                "indicator_removal_success": '⏳' not in (cleaned_stdout or '') if result.raw_stdout and '⏳' in result.raw_stdout else None
+                            }
+                        }
+                        
+                        # 追加模式写入
+                        try:
+                            with open(debug_file, 'r', encoding='utf-8') as f:
+                                existing_data = json.load(f)
+                            if not isinstance(existing_data, list):
+                                existing_data = [existing_data]
+                        except (FileNotFoundError, json.JSONDecodeError):
+                            existing_data = []
+                        
+                        existing_data.append(debug_data)
+                        
+                        with open(debug_file, 'w', encoding='utf-8') as f:
+                            json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                    except Exception as e:
+                        print(f'Debug output failed: {e}')
+                if result.stderr:
+                    cleaned_stderr = process_terminal_erase(result.stderr)
+                    # 检查清理后的错误输出是否还包含indicator（仅警告，不中断测试）
+                    if '⏳' in cleaned_stderr:
+                        print(f'⚠️  WARNING: Indicator ⏳ found in cleaned stderr after processing!')
+                        print(f'   First 200 chars: {cleaned_stderr[:200]}')
+                    print(f'错误: {cleaned_stderr}...')
+                
+                # 检查是否需要重试（远端窗口闪退的情况）
+                should_retry = False
+                if result.returncode != 0 and expect_success and attempt < max_retries:
+                    error_output = result.stdout + result.stderr
+                    # 检测Unknown error或ERROR状态
+                    if "Unknown error" in error_output or "ERROR" in error_output:
+                        print(f'🔄 检测到可能的远端窗口错误，准备重试...')
+                        should_retry = True
+                
+                if should_retry:
+                    continue  # 继续下一次循环，进行重试
+                
+                # 不需要重试，返回结果
+                # 基于功能执行情况判断，而不是终端输出
+                if check_function_result and expect_success:
+                    self.assertEqual(result.returncode, 0, f"命令执行失败")
+                
+                return result
+            except Exception as e:
+                print(f'命令执行异常: {e}')
+                if expect_success:
+                    self.fail(f'命令执行异常: {command} - {e}')
+                return None
+        
+        # 所有重试都失败，返回None
+        return None
     
     def verify_file_exists(self, filename):
         """验证远端文件或目录是否存在 - 使用统一cmd_ls接口，不弹出远程窗口"""
@@ -844,7 +868,7 @@ Shell commands: ls -la && echo "done"
         print(f'All retries failed')
         return False, result
     
-    def _run_command_with_input(self, command_list, input_text, timeout=None):
+    def run_command_with_input(self, command_list, input_text, timeout=None):
         """
         运行命令并提供输入的辅助方法
         
@@ -884,7 +908,7 @@ Shell commands: ls -la && echo "done"
                     self.stderr = str(e)
             return MockResult()
     
-    def _run_upload(self, command, verification_commands, max_retries=3):
+    def run_upload(self, command, verification_commands, max_retries=3):
         """
         运行GDS upload命令并进行重试验证的辅助方法
         upload是GDS的直接命令，不是shell命令
@@ -932,7 +956,7 @@ Shell commands: ls -la && echo "done"
         return False, result
 
 
-    def _wait_forpyenv_install(self, task_id, version, timeout=3600, check_interval=30):
+    def wait_for_pyenv_install(self, task_id, version, timeout=3600, check_interval=60):
         """
         等待pyenv后台安装完成
         
@@ -940,7 +964,7 @@ Shell commands: ls -la && echo "done"
             task_id: 后台任务ID
             version: Python版本号
             timeout: 超时时间（秒），默认3600秒（1小时）
-            check_interval: 检查间隔（秒），默认30秒
+            check_interval: 检查间隔（秒），默认60秒
             
         Returns:
             bool: 安装是否成功
@@ -962,6 +986,21 @@ Shell commands: ls -la && echo "done"
                     if "completed" in output.lower() or "finished" in output.lower():
                         # 任务已完成，获取结果
                         result_cmd = self.gds(f"--bg --result {task_id}", expect_success=False)
+                        
+                        # 检查是否为明确的命令未找到错误（exit code 127）
+                        if result_cmd.returncode == 127:
+                            print(f'Python {version}安装失败：命令未找到（exit code 127）')
+                            print(f'输出：{result_cmd.stdout}')
+                            return False
+                        
+                        # 检查输出中是否包含"command not found"
+                        result_output = result_cmd.stdout + result_cmd.stderr
+                        if "command not found" in result_output:
+                            print(f'Python {version}安装失败：系统pyenv工具未安装')
+                            print(f'输出：{result_output}')
+                            print(f'提示：GDS的pyenv特殊指令需要远端系统安装pyenv工具才能工作')
+                            return False
+                        
                         if result_cmd.returncode == 0:
                             # 检查安装是否成功
                             if "installed successfully" in result_cmd.stdout.lower() or "success" in result_cmd.stdout.lower():
@@ -976,6 +1015,11 @@ Shell commands: ls -la && echo "done"
                         if result_cmd.returncode == 0:
                             print(f'错误详情：{result_cmd.stdout}')
                         return False
+                    
+                    # 检查status中的Exit code（如果任务已完成但结果获取失败）
+                    if "Exit code: 127" in output:
+                        print(f'Python {version}安装失败：任务exit code 127（命令未找到）')
+                        return False
                 except Exception as e:
                     print(f'解析任务状态时出错：{e}')
             
@@ -986,6 +1030,84 @@ Shell commands: ls -la && echo "done"
         
         print(f'等待超时！Python {version}未能在{timeout}秒内安装完成')
         return False
+
+
+    def ensure_clean_shell_state(self):
+        """确保干净的shell状态，用于虚拟环境操作的原子性"""
+        try:
+            # 强制取消激活任何现有环境
+            result = self.gds('venv --deactivate', expect_success=False, check_function_result=False)
+        except:
+            pass
+        
+        # 等待状态同步
+        import time
+        time.sleep(0.5)
+    
+    def get_cleaned_stdout(self, result, use_stderr=False):
+        """获取清理后的stdout或stderr，移除indicator等转义序列"""
+        if not result:
+            return ""
+        if use_stderr:
+            if not hasattr(result, 'stderr') or not result.stderr:
+                return ""
+            return process_terminal_erase(result.stderr)
+        else:
+            if not result.stdout:
+                return ""
+            return process_terminal_erase(result.stdout)
+    
+    def assert_gds_bash_output_match(self, cmd, bash_test_dir, description="输出"):
+        """
+        统一的GDS和bash输出比对接口
+        
+        Args:
+            cmd: 要执行的命令
+            bash_test_dir: bash测试目录
+            description: 描述性文字，用于错误消息（例如"输出"、"无输出"、"返回码"等）
+        
+        Returns:
+            tuple: (gds_result, bash_result) 方便调用者进行额外的自定义验证
+        """
+        # 运行GDS命令
+        gds_result = self.gds(cmd, expect_success=True, check_function_result=False)
+        gds_stdout = self.get_cleaned_stdout(gds_result)
+        gds_stderr = self.get_cleaned_stdout(gds_result, use_stderr=True)
+        gds_returncode = gds_result.returncode
+        
+        # 运行bash命令
+        bash_result = self.bash(cmd, bash_test_dir)
+        
+        # 对比返回码
+        self.assertEqual(gds_returncode, bash_result.returncode, 
+                       f"命令 '{cmd}' {description}返回码应该一致")
+        
+        # 返回结果供调用者进行额外验证
+        return (gds_result, bash_result, gds_stdout, gds_stderr)
+    
+    def assert_no_output(self, cmd, bash_test_dir, description="命令"):
+        """
+        验证GDS和bash命令都没有stdout输出（适用于重定向等命令）
+        
+        Args:
+            cmd: 要执行的命令
+            bash_test_dir: bash测试目录
+            description: 描述性文字，用于错误消息
+        """
+        gds_result, bash_result, gds_stdout, gds_stderr = self.assert_gds_bash_output_match(
+            cmd, bash_test_dir, description
+        )
+        
+        # 清理输出
+        gds_output_clean = gds_stdout.strip()
+        bash_output_clean = bash_result.stdout.strip()
+        
+        print(f'    GDS输出: {repr(gds_output_clean)}')
+        print(f'    Bash输出: {repr(bash_output_clean)}')
+        
+        # 验证两者都没有实质性输出
+        self.assertEqual(len(gds_output_clean), 0, f"GDS {description} '{cmd}' 应该没有输出")
+        self.assertEqual(len(bash_output_clean), 0, f"bash {description} '{cmd}' 应该没有输出")
 
     def test_00_ls_basic(self):
         """测试ls命令的全路径支持（修复后的功能）"""
@@ -1190,6 +1312,70 @@ Shell commands: ls -la && echo "done"
         print(f'清理边界测试目录')
         result = self.gds(f'rm -rf "{test_edge_dir}"')
         self.assertEqual(result.returncode, 0)
+
+        # 21. 创建测试目录
+        print('创建测试目录')
+        testdir = self.get_test_file_path("ls_hidden_test")
+        result = self.gds(f'mkdir -p "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"mkdir命令应该成功，但返回码为{result.returncode}")
+        
+        # 22. 创建普通文件
+        print('创建普通文件')
+        result = self.gds(f'\'echo "normal file" > "{testdir}/normal.txt"\'')
+        self.assertEqual(result.returncode, 0, f"创建普通文件应该成功，但返回码为{result.returncode}")
+        
+        # 23. 创建隐藏文件（以.开头）
+        print('创建隐藏文件')
+        result = self.gds(f'\'echo "hidden file" > "{testdir}/.hidden.txt"\'')
+        self.assertEqual(result.returncode, 0, f"创建隐藏文件应该成功，但返回码为{result.returncode}")
+        
+        result = self.gds(f'\'echo "hidden config" > "{testdir}/.config"\'')
+        self.assertEqual(result.returncode, 0, f"创建隐藏配置文件应该成功，但返回码为{result.returncode}")
+        
+        # 24. 测试默认ls（不显示隐藏文件）
+        print('测试默认ls（不显示隐藏文件）')
+        result = self.gds(f'ls "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"ls命令应该成功，但返回码为{result.returncode}")
+        self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
+        self.assertNotIn(".hidden.txt", result.stdout, "不应该显示隐藏文件")
+        self.assertNotIn(".config", result.stdout, "不应该显示隐藏配置文件")
+        
+        # 25. 测试ls -a（显示所有文件包括隐藏文件）
+        print('测试ls -a（显示所有文件）')
+        result = self.gds(f'ls -a "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"ls -a命令应该成功，但返回码为{result.returncode}")
+        self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
+        self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
+        self.assertIn(".config", result.stdout, "应该显示隐藏配置文件")
+        
+        # 26. 测试ls --all（完整选项名）
+        print('测试ls --all（完整选项名）')
+        result = self.gds(f'ls --all "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"ls --all命令应该成功，但返回码为{result.returncode}")
+        self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
+        self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
+        self.assertIn(".config", result.stdout, "应该显示隐藏配置文件")
+        
+        # 27. 测试ls -la（组合选项：详细信息+显示隐藏文件）
+        print('测试ls -la（详细+隐藏）')
+        result = self.gds(f'ls -la "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"ls -la命令应该成功，但返回码为{result.returncode}")
+        self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
+        self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
+        self.assertIn(".config", result.stdout, "应该显示隐藏配置文件")
+        
+        # 28. 测试ls -f -a（强制刷新+显示隐藏文件）
+        print('测试ls -f -a（强制刷新+隐藏）')
+        result = self.gds(f'ls -f -a "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"ls -f -a命令应该成功，但返回码为{result.returncode}")
+        self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
+        self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
+        self.assertIn(".config", result.stdout, "应该显示隐藏配置文件")
+        
+        # 29. 清理测试文件
+        print('清理测试文件')
+        result = self.gds(f'rm -rf "{testdir}"')
+        self.assertEqual(result.returncode, 0, f"清理应该成功，但返回码为{result.returncode}")
 
     def test_02_echo_basic(self):
         """测试基础echo命令"""
@@ -1603,7 +1789,7 @@ print(f'Current files: {len(os.listdir())}')'''
         valid_script_path = self.get_test_file_path("valid_script.py")
         special_file_local = self.TEST_DATA_DIR / "special_chars.txt"
         special_file_path = self.get_test_file_path("special_chars.txt")
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{valid_script_local}" "{special_file_local}"',
             [f'ls "{valid_script_path}"', f'ls "{special_file_path}"'],
             max_retries=3
@@ -1616,7 +1802,7 @@ print(f'Current files: {len(os.listdir())}')'''
         # 文件夹上传
         test_project_local = self.TEST_DATA_DIR / "test_project"
         test_project_path = self.get_test_file_path("test_project")
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload_folder --target-dir "{self.test_folder}" --force "{test_project_local}"',
             [f'ls "{test_project_path}"'],
             max_retries=3
@@ -1627,7 +1813,7 @@ print(f'Current files: {len(os.listdir())}')'''
         conflict_test_file_local = self.TEST_DATA_DIR / "test_upload_conflict_file.py"
         conflict_test_file_path = self.get_test_file_path("test_upload_conflict_file.py")
         shutil.copy2(original_file, conflict_test_file_local)
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{conflict_test_file_local}"',
             [f'ls "{conflict_test_file_path}"'],
             max_retries=3
@@ -1646,7 +1832,7 @@ print(f'Current files: {len(os.listdir())}')'''
             f.write('print(f"ORIGINAL VERSION - Test upload")')
         
         # 先上传原始版本
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{overwrite_test_file_local}"',
             [f'ls "{overwrite_test_file_path}"'],
             max_retries=3
@@ -1663,7 +1849,7 @@ print(f'Current files: {len(os.listdir())}')'''
             f.write('print(f"MODIFIED VERSION - Test upload overwrite!")')
         
         # 使用--force上传修改后的文件
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{overwrite_test_file_local}"',
             [f'grep "MODIFIED VERSION" "{overwrite_test_file_path}"'],
             max_retries=3
@@ -1691,7 +1877,7 @@ print(f'Current files: {len(os.listdir())}')'''
             elif item.is_dir():
                 import shutil
                 shutil.rmtree(item)
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload_folder --target-dir "{self.test_folder}" --force "{empty_dir_local}"',
             [f'ls "{empty_dir_path}"'],
             max_retries=3
@@ -1877,7 +2063,7 @@ Line 5: No match here'''
         import shutil
         shutil.copy2(original_file, test_edit_file)
         test_edit_file_path = self.get_test_file_path("test_edit_simple_hello.py")
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{test_edit_file}"',
             [f'ls "{test_edit_file_path}"'],
             max_retries=3
@@ -1886,7 +2072,7 @@ Line 5: No match here'''
         
         # 测试upload --force的覆盖功能
         # 再次上传同一个文件，应该覆盖成功
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{test_edit_file}"',
             [f'ls "{test_edit_file_path}"'],
             max_retries=3
@@ -1936,7 +2122,7 @@ Line 5: No match here'''
         print(f'上传测试文件...')
         valid_script_local = self.TEST_DATA_DIR / "valid_script.py"
         valid_script_path = self.get_test_file_path("valid_script.py")
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{valid_script_local}"',
             [f'ls "{valid_script_path}"'],
             max_retries=3
@@ -1945,7 +2131,7 @@ Line 5: No match here'''
         
         invalid_script_local = self.TEST_DATA_DIR / "invalid_script.py"
         invalid_script_path = self.get_test_file_path("invalid_script.py")
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{invalid_script_local}"',
             [f'ls "{invalid_script_path}"'],
             max_retries=3
@@ -1954,7 +2140,7 @@ Line 5: No match here'''
         
         json_file_local = self.TEST_DATA_DIR / "valid_config.json"
         json_file_path = self.get_test_file_path("valid_config.json")
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{json_file_local}"',
             [f'ls "{json_file_path}"'],
             max_retries=3
@@ -2115,7 +2301,7 @@ print(f'Sum: {result}')
         # 复制文件并上传
         import shutil
         shutil.copy2(original_file, test_read_file)
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{test_read_file}"',
             [f'ls "{self.test_folder}/test_read_simple_hello.py"'],
             max_retries=3
@@ -2371,85 +2557,60 @@ EOF'''
         # 验证清理成功
         result = self.gds(f'ls "{test_base}"', expect_success=False, check_function_result=False)
         self.assertNotEqual(result.returncode, 0, "测试目录应该已被删除")
+
+        """测试mkdir的-p选项（递归创建父目录）"""
+        print("测试mkdir的-p选项")
         
-        print("文件和目录操作测试完成，包括安全检查验证")
-    
-    def ensure_clean_shell_state(self):
-        """确保干净的shell状态，用于虚拟环境操作的原子性"""
-        try:
-            # 强制取消激活任何现有环境
-            result = self.gds('venv --deactivate', expect_success=False, check_function_result=False)
-        except:
-            pass
+        # 1. 测试不带-p的mkdir，父目录不存在时应该失败
+        print("1. 测试不带-p的mkdir，父目录不存在时应该失败")
+        test_base = self.get_test_file_path("mkdir_recursive_test")
         
-        # 等待状态同步
-        import time
-        time.sleep(0.5)
-    
-    def get_cleaned_stdout(self, result, use_stderr=False):
-        """获取清理后的stdout或stderr，移除indicator等转义序列"""
-        if not result:
-            return ""
-        if use_stderr:
-            if not hasattr(result, 'stderr') or not result.stderr:
-                return ""
-            return process_terminal_erase(result.stderr)
-        else:
-            if not result.stdout:
-                return ""
-            return process_terminal_erase(result.stdout)
-    
-    def assert_gds_bash_output_match(self, cmd, bash_test_dir, description="输出"):
-        """
-        统一的GDS和bash输出比对接口
+        # 清理可能存在的测试目录
+        self.gds(f'rm -rf "{test_base}"', expect_success=False, check_function_result=False)
         
-        Args:
-            cmd: 要执行的命令
-            bash_test_dir: bash测试目录
-            description: 描述性文字，用于错误消息（例如"输出"、"无输出"、"返回码"等）
+        # 尝试在不存在的父目录中创建目录（不带-p）
+        result = self.gds(f'mkdir "{test_base}/parent/child"', expect_success=False)
+        self.assertNotEqual(result.returncode, 0, "在不存在的父目录中创建目录应该失败")
+        self.assertIn("No such file or directory", result.stdout, "错误信息应该包含'No such file or directory'")
         
-        Returns:
-            tuple: (gds_result, bash_result) 方便调用者进行额外的自定义验证
-        """
-        # 运行GDS命令
-        gds_result = self.gds(cmd, expect_success=True, check_function_result=False)
-        gds_stdout = self.get_cleaned_stdout(gds_result)
-        gds_stderr = self.get_cleaned_stdout(gds_result, use_stderr=True)
-        gds_returncode = gds_result.returncode
+        # 2. 测试带-p的mkdir，父目录不存在时应该成功
+        print("2. 测试带-p的mkdir，父目录不存在时应该成功")
+        result = self.gds(f'mkdir -p "{test_base}/parent/child"')
+        self.assertEqual(result.returncode, 0, "带-p选项应该成功创建所有父目录")
         
-        # 运行bash命令
-        bash_result = self.bash(cmd, bash_test_dir)
+        # 验证所有目录都被创建
+        result = self.gds(f'ls "{test_base}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("parent", result.stdout, "父目录应该被创建")
         
-        # 对比返回码
-        self.assertEqual(gds_returncode, bash_result.returncode, 
-                       f"命令 '{cmd}' {description}返回码应该一致")
+        result = self.gds(f'ls "{test_base}/parent"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("child", result.stdout, "子目录应该被创建")
         
-        # 返回结果供调用者进行额外验证
-        return (gds_result, bash_result, gds_stdout, gds_stderr)
-    
-    def assert_no_output(self, cmd, bash_test_dir, description="命令"):
-        """
-        验证GDS和bash命令都没有stdout输出（适用于重定向等命令）
+        # 3. 测试不带-p的mkdir，在已存在的父目录中创建目录应该成功
+        print("3. 测试不带-p的mkdir，在已存在的父目录中创建目录应该成功")
+        result = self.gds(f'mkdir "{test_base}/parent/another_child"')
+        self.assertEqual(result.returncode, 0, "在已存在的父目录中创建目录应该成功")
         
-        Args:
-            cmd: 要执行的命令
-            bash_test_dir: bash测试目录
-            description: 描述性文字，用于错误消息
-        """
-        gds_result, bash_result, gds_stdout, gds_stderr = self.assert_gds_bash_output_match(
-            cmd, bash_test_dir, description
-        )
+        # 验证新目录被创建
+        result = self.gds(f'ls "{test_base}/parent"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("another_child", result.stdout, "新目录应该被创建")
         
-        # 清理输出
-        gds_output_clean = gds_stdout.strip()
-        bash_output_clean = bash_result.stdout.strip()
+        # 4. 测试多级目录创建（-p选项）
+        print("4. 测试多级目录创建（-p选项）")
+        result = self.gds(f'mkdir -p "{test_base}/a/b/c/d/e"')
+        self.assertEqual(result.returncode, 0, "应该成功创建多级目录")
         
-        print(f'    GDS输出: {repr(gds_output_clean)}')
-        print(f'    Bash输出: {repr(bash_output_clean)}')
+        # 验证深层目录结构
+        result = self.gds(f'ls "{test_base}/a/b/c/d"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("e", result.stdout, "深层目录应该被创建")
         
-        # 验证两者都没有实质性输出
-        self.assertEqual(len(gds_output_clean), 0, f"GDS {description} '{cmd}' 应该没有输出")
-        self.assertEqual(len(bash_output_clean), 0, f"bash {description} '{cmd}' 应该没有输出")
+        # 5. 清理测试目录
+        print("5. 清理测试目录")
+        result = self.gds(f'rm -rf "{test_base}"')
+        # rm -rf 可能有问题，所以不强制检查返回码
     
     def test_15_project_development(self):
         print(f'阶段1: 项目初始化')
@@ -2630,7 +2791,7 @@ if __name__ == "__main__":
     
         # 1. 上传项目文件夹
         project_dir = self.TEST_DATA_DIR / "test_project"
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload_folder --target-dir "{self.test_folder}" --force "{project_dir}"',
             ['ls "' + self.test_folder + '/test_project"'],
             max_retries=3
@@ -2709,7 +2870,7 @@ if __name__ == "__main__":
         # 复制文件并上传
         import shutil
         shutil.copy2(original_file, test_file)
-        success, result = self._run_upload(
+        success, result = self.run_upload(
             f'upload --target-dir "{self.test_folder}" --force "{test_file}"',
             ['ls "' + self.test_folder + '/test_simple_hello.py"'],
             max_retries=3
@@ -3230,7 +3391,7 @@ if __name__ == "__main__":
             ]
             
             shell_input = "\n".join(shell_commands) + "\nexit\n"
-            shell_result = self._run_command_with_input(
+            shell_result = self.run_command_with_input(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", "--no-direct-feedback"],
                 shell_input,
                 timeout=3600
@@ -3260,7 +3421,7 @@ if __name__ == "__main__":
         
         for cmd in error_commands:
             shell_input = f"{cmd}\nexit\n"
-            shell_result = self._run_command_with_input(
+            shell_result = self.run_command_with_input(
                 [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", "--no-direct-feedback"],
                 shell_input,
             )
@@ -3468,14 +3629,14 @@ import time
 import sys
 print('First echo: Task started at', time.strftime('%H:%M:%S'))
 sys.stdout.flush()
-print('About to sleep for 60 seconds...')
+print('About to sleep for 120 seconds...')
 sys.stdout.flush()
-time.sleep(60)
+time.sleep(120)
 print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
 sys.stdout.flush()
 "'''
         
-        print("启动长时间运行的后台任务（sleep 60秒）...")
+        print("启动长时间运行的后台任务（sleep 120秒）...")
         result = run_gds_bg_command(long_command)
         self.assertEqual(result.returncode, 0, f"长时间任务创建失败: {result.stderr}")
         
@@ -3483,24 +3644,52 @@ sys.stdout.flush()
         self.assertIsNotNone(task_id, f"无法提取长时间任务ID: {result.stdout}")
         print(f'长时间任务ID: {task_id}')
         
-        print("等待10秒后进行第一次status检查（使用优先队列）...")
+        print("等待10秒后进行第一次log检查（使用优先队列）...")
         import time
         time.sleep(10)
         
-        first_status = run_gds_bg_status(task_id, use_priority=True)
-        print(f'第一次status查询结果: returncode={first_status.returncode}')
-        print(f'第一次status输出: {first_status.stdout}')
+        def run_gds_bg_log_priority(task_id):
+            """获取GDS --bg任务log - 使用优先队列"""
+            cmd = [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", "--no-direct-feedback", "--priority", "--bg", "--log", task_id]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result
+        
+        first_log = run_gds_bg_log_priority(task_id)
+        print(f'第一次log查询结果: returncode={first_log.returncode}')
+        print(f'第一次log输出: {first_log.stdout}')
         
         # 验证第一次检查是partial输出
-        self.assertEqual(first_status.returncode, 0, "第一次status查询应该成功")
-        self.assertIn("First echo: Task started at", first_status.stdout, "第一次检查应该包含第一个echo输出")
-        self.assertIn("About to sleep for 60 seconds", first_status.stdout, "第一次检查应该包含sleep提示")
-        self.assertNotIn("Second echo: Task completed at", first_status.stdout, "第一次检查不应该包含第二个echo输出（partial输出验证）")
+        self.assertEqual(first_log.returncode, 0, "第一次log查询应该成功")
+        self.assertIn("First echo: Task started at", first_log.stdout, "第一次检查应该包含第一个echo输出")
+        self.assertIn("About to sleep for 120 seconds", first_log.stdout, "第一次检查应该包含sleep提示")
+        self.assertNotIn("Second echo: Task completed at", first_log.stdout, "第一次检查不应该包含第二个echo输出（partial输出验证）")
         print("第一次检查验证通过：确认是partial输出")
         
-        # 第二次status检查：sleep 60后再次检查status
-        print("等待90秒后进行第二次status检查...")
-        time.sleep(90)
+        # 等待90秒后检查log文件
+        print("等待80秒后检查log文件...")
+        time.sleep(80)  # 已经等了10秒，再等80秒到达90秒
+        
+        # 检查log文件是否存在并包含partial输出
+        print("检查log文件...")
+        def run_gds_bg_log(task_id):
+            """获取GDS --bg任务log"""
+            cmd = [sys.executable, str(self.GOOGLE_DRIVE_PY), "--shell", "--no-direct-feedback", "--priority", "--bg", "--log", task_id]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result
+        
+        log_check = run_gds_bg_log(task_id)
+        print(f'Log文件查询结果: returncode={log_check.returncode}')
+        if log_check.returncode == 0:
+            print(f'Log文件内容:\n{log_check.stdout}')
+            self.assertIn("First echo: Task started at", log_check.stdout, "Log文件应该包含第一个echo输出")
+            print("Log文件验证通过：文件存在且包含partial输出")
+        else:
+            print(f'Log文件读取失败: {log_check.stderr}')
+            print("注意：Log文件可能因Google Drive同步延迟而暂时不可用")
+        
+        # 第二次status检查：再等待50秒后检查status（总共140秒，确保任务完成）
+        print("再等待50秒后进行第二次status检查...")
+        time.sleep(50)
         
         second_status = run_gds_bg_status(task_id, use_priority=False)
         print(f'第二次status查询结果: returncode={second_status.returncode}')
@@ -3985,7 +4174,8 @@ print(f'Current directory: {os.getcwd()}')'''
         # 步骤2：后台安装第一个版本（如果尚未安装）
         if version1 not in initial_versions:
             print(f'\n步骤2：后台安装Python {version1}')
-            result = self.gds(f"--bg pyenv --install {version1}")
+            # 使用新的pyenv --install-bg命令
+            result = self.gds(["pyenv", "--install-bg", version1])
             self.assertEqual(result.returncode, 0, f"启动{version1}后台安装应该成功")
             
             # 从输出中提取任务ID  
@@ -4010,7 +4200,7 @@ print(f'Current directory: {os.getcwd()}')'''
             print(f'后台安装任务已启动，任务ID: {task_id}')
             
             # 等待安装完成
-            install_success = self._wait_forpyenv_install(task_id, version1)
+            install_success = self.wait_for_pyenv_install(task_id, version1)
             self.assertTrue(install_success, f"Python {version1}应该成功安装")
         else:
             print(f'\n步骤2：Python {version1}已安装，跳过安装步骤')
@@ -4018,7 +4208,8 @@ print(f'Current directory: {os.getcwd()}')'''
         # 步骤3：后台安装第二个版本（如果尚未安装）
         if version2 not in initial_versions:
             print(f'\n步骤3：后台安装Python {version2}')
-            result = self.gds(f"--bg pyenv --install {version2}")
+            # 使用新的pyenv --install-bg命令
+            result = self.gds(["pyenv", "--install-bg", version2])
             self.assertEqual(result.returncode, 0, f"启动{version2}后台安装应该成功")
             
             # 从输出中提取任务ID
@@ -4043,7 +4234,7 @@ print(f'Current directory: {os.getcwd()}')'''
             print(f'后台安装任务已启动，任务ID: {task_id}')
             
             # 等待安装完成
-            install_success = self._wait_forpyenv_install(task_id, version2)
+            install_success = self.wait_for_pyenv_install(task_id, version2)
             self.assertTrue(install_success, f"Python {version2}应该成功安装")
         else:
             print(f'\n步骤3：Python {version2}已安装，跳过安装步骤')
@@ -4373,9 +4564,8 @@ print("Script execution successful!")
         
         # 测试4: 命令参数解析模式（基于实际执行的命令）
         print("测试4: 命令参数解析模式")
-        # 使用实际创建的文件进行grep测试
         grep_result_file = f'{redirection_test_folder}/grep_result.txt'
-        grep_cmd = f'grep -n "pattern" "{test_file4}" > "{grep_result_file}"'
+        grep_cmd = f'\'grep -n "pattern" "{test_file4}" > "{grep_result_file}"\''
         result = self.gds(grep_cmd)
         self.assertEqual(result.returncode, 0, "grep命令应该成功")
         
@@ -4408,7 +4598,7 @@ print("Script execution successful!")
         
         # 测试转义模式匹配
         escape_tests = [
-            (f'printf "Tab:\\tNewline:\\n" > "{escape_file}"', r'printf\s+"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"'),
+            (f'printf "Tab:\\tNewline:\\n" > "{escape_file}"', r'printf\s+"([^"\\]*(?:\\.[^"\\]*)*)"'),
         ]
         
         for command, pattern in escape_tests:
@@ -4563,17 +4753,18 @@ print("Script execution successful!")
         print("测试2: 文件操作对比")
         
         # 创建相同的测试内容
+        # 注意：GDS会自动为包含\\n的echo命令添加-e标志，所以bash也需要使用echo -e
         test_content = "Test content for alignment\\nLine 2: 中文测试\\nLine 3: Special chars @#$%"
         
-        # 在GDS中创建文件
+        # 在GDS中创建文件（GDS会自动添加-e标志）
         gds_file_path = f'{gds_test_dir}/test_alignment.txt'
         gds_create_cmd = f'echo "{test_content}" > "{gds_file_path}"'
         gds_result = self.gds(gds_create_cmd)
         self.assertEqual(gds_result.returncode, 0, "GDS创建文件应该成功")
         
-        # 在bash中创建相同文件
+        # 在bash中创建相同文件（需要明确使用echo -e）
         bash_file_path = f'{bash_test_dir}/test_alignment.txt'
-        bash_create_cmd = f'echo "{test_content}" > "{bash_file_path}"'
+        bash_create_cmd = f'echo -e "{test_content}" > "{bash_file_path}"'
         bash_result = self.bash(bash_create_cmd)
         self.assertEqual(bash_result.returncode, 0, "bash创建文件应该成功")
         

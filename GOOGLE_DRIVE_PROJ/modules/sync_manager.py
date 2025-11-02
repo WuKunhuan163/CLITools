@@ -19,12 +19,13 @@ class SyncManager:
         self.drive_service = drive_service
         self.main_instance = main_instance
 
-    def move_to_local_equivalent(self, file_path):
+    def move_to_local_equivalent(self, file_path, target_path="."):
         """
         将文件移动到 LOCAL_EQUIVALENT 目录，如果有同名文件则重命名
         
         Args:
             file_path (str): 要移动的文件路径
+            target_path (str): 目标路径（用于检查远程文件冲突）
             
         Returns:
             dict: 包含成功状态和移动后文件路径的字典
@@ -45,19 +46,29 @@ class SyncManager:
             ext_part = source_path.suffix
             
             # 检查目标目录中是否已存在同名文件
-            target_path = local_equiv_path / filename
+            local_target_path = local_equiv_path / filename
             final_filename = filename
             renamed = False
             
             # 首先检查远端是否有同名文件和缓存建议
             debug_print(f"Checking conflicts for: {filename}")
-            remote_check_result = self.main_instance.check_remote_file_exists(filename)
-            remote_has_same_file = remote_check_result.get("exists", False)
+            # 构建完整的远程路径进行验证
+            if target_path == "." or target_path == "":
+                remote_file_path = filename
+            else:
+                remote_file_path = f"{target_path}/{filename}"
+            
+            verify_result = self.main_instance.validation.verify_with_ls(
+                path=remote_file_path,
+                creation_type="file",
+                max_attempts=1
+            )
+            remote_has_same_file = verify_result.get("success", False)
             
             # 检查是否在删除时间缓存中（5分钟内删除过）
             cache_suggests_rename = self.main_instance.cache_manager.should_rename_file(filename)
             
-            debug_print(f"Conflict check: {filename} -> remote_exists={remote_has_same_file}, cache_suggests_rename={cache_suggests_rename}, local_exists={target_path.exists()}")
+            debug_print(f"Conflict check: {filename} -> remote_exists={remote_has_same_file}, cache_suggests_rename={cache_suggests_rename}, local_exists={local_target_path.exists()}")
             
             # 如果远端有同名文件或缓存建议重命名，使用重命名策略
             if remote_has_same_file or cache_suggests_rename:
@@ -67,13 +78,13 @@ class SyncManager:
                 counter = 1
                 while True:
                     new_filename = f"{name_part}_{counter}{ext_part}"
-                    new_target_path = local_equiv_path / new_filename
+                    new_local_target_path = local_equiv_path / new_filename
                     
                     # 检查新文件名是否在本地不冲突，并且不在缓存记录中
-                    if not new_target_path.exists():
+                    if not new_local_target_path.exists():
                         temp_cache_suggests_rename = self.main_instance.cache_manager.should_rename_file(new_filename)
                         if not temp_cache_suggests_rename:
-                            target_path = new_target_path
+                            local_target_path = new_local_target_path
                             final_filename = new_filename
                             renamed = True
                             debug_print(f"Found available temp filename: {new_filename}")
@@ -93,10 +104,10 @@ class SyncManager:
                 else:
                     debug_print(f"Renamed to avoid remote conflict: {filename} -> {final_filename}")
             
-            elif target_path.exists():
+            elif local_target_path.exists():
                 # 本地存在同名文件，但远端没有且缓存无风险，删除本地旧文件
                 try:
-                    target_path.unlink()
+                    local_target_path.unlink()
                     debug_print(f"Deleted old local file: {filename} (no remote conflict)")
                     
                     # 注意：不在这里添加删除记录，删除记录应该在文件成功上传后添加

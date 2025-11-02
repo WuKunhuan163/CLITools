@@ -26,8 +26,11 @@ class MkdirCommand(BaseCommand):
         if not absolute_path:
             return {"success": False, "error": f"Cannot resolve path: {target_path}"}
         
-        # 生成远端mkdir命令，添加清屏和成功/失败提示（总是使用-p确保父目录存在）
-        remote_command = f'mkdir -p "{absolute_path}"'
+        # 生成远端mkdir命令，根据recursive参数决定是否使用-p选项
+        if recursive:
+            remote_command = f'mkdir -p "{absolute_path}"'
+        else:
+            remote_command = f'mkdir "{absolute_path}"'
         execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
         
         if not execution_result.get("success"):
@@ -40,7 +43,7 @@ class MkdirCommand(BaseCommand):
             stderr = data.get("stderr", execution_result.get("stderr", ""))
             raise RuntimeError(f"mkdir command failed with exit code {exit_code}: {stderr}")
         
-        verification_result = self.main_instance.verify_creation_with_ls(target_path, current_shell, creation_type="dir")
+        verification_result = self.main_instance.verify_with_ls(target_path, current_shell, creation_type="dir")
         if not verification_result["success"]:
             # 验证失败
             return {
@@ -61,6 +64,11 @@ class MkdirCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行mkdir命令"""
+        # 检查是否请求帮助
+        if args and (args[0] == '--help' or args[0] == '-h'):
+            self.show_help()
+            return 0
+        
         if not args:
             print("Error: mkdir command needs a directory name")
             return 1
@@ -88,3 +96,30 @@ class MkdirCommand(BaseCommand):
                 return 1
         
         return 0
+    
+    def show_help(self):
+        """显示mkdir命令的帮助信息"""
+        help_text = """mkdir - create directories
+
+Usage:
+  mkdir [options] <directory> ...
+
+Arguments:
+  directory                Directory path(s) to create
+
+Options:
+  -p                       Create parent directories as needed
+  -h, --help               Show this help message
+
+Description:
+  Create directories in Google Drive.
+  Use -p flag to create intermediate parent directories if they don't exist.
+  Can create multiple directories at once.
+
+Examples:
+  mkdir newdir             Create a new directory
+  mkdir dir1 dir2 dir3     Create multiple directories
+  mkdir -p a/b/c           Create nested directories
+  mkdir ~/docs/notes       Create directory with absolute path
+"""
+        print(help_text)

@@ -1,33 +1,33 @@
 test_13_read (test_gds.GDSTest) ... 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251102_004545_167218_27846a36
-正在创建远端测试目录: ~/tmp/gds_test_20251102_004545_167218_27846a36
+远端测试目录: ~/tmp/gds_test_20251102_011351_510667_2ebbc717
+正在创建远端测试目录: ~/tmp/gds_test_20251102_011351_510667_2ebbc717
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251102_004545_167218_27846a36
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ecabx046
+已切换到远端测试目录: ~/tmp/gds_test_20251102_011351_510667_2ebbc717
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_qfeye08d
 测试环境设置完成
 
-执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
-验证命令: ['ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"']
+执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251102_011351_510667_2ebbc717" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
+验证命令: ['ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"']
 最大重试次数: 3
 
 尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251102_011351_510667_2ebbc717" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251102_011351_510667_2ebbc717" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
 返回码: 0
 输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
+Verification completed: {'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_011351_510667_2ebbc717'}
 Added deletion record for original: test_read_simple_hello.py
 Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_read_simple_hello.py'], 'sync_time': 8, 'base_sync_time': 8}
-target_folder_id='1eun4FtYAuyTkD9YB5Ls6ei3eIU_IUyD7'
-target_display_path='~/tmp/gds_test_20251102_004545_167218_27846a36'...
-验证命令 1: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
-命令转译成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+verify_result={'success': True, 'found_files': ['test_read_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_011351_510667_2ebbc717'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_read_simple_hello.py'], 'sync_time': 9, 'base_sync_time': 9}
+target_folder_id='1ld-YwYxoZYbtdPkUs43J5hcuP666iqw0'
+target_display_path='~/tmp/gds_test_20251102_011351_510667_2ebbc717'...
+验证命令 1: ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
+命令转译成功: ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" -> ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
 返回码: 0
 输出: test_read_simple_hello.py...
-验证成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+验证成功: ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
 所有验证通过!
-命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
 返回码: 0
 输出: """
 Simple Hello Script
@@ -36,7 +36,7 @@ print(f'Hello from remote project')
 print(f"Current working directory:", __import__("os").getcwd())
 import sys
 print(f"Python version:", sys.version)...
-命令转译成功: read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+命令转译成功: read "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" -> read "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
 返回码: 0
 输出: 1: """
 2: Simple Hello Script
@@ -46,7 +46,7 @@ print(f"Python version:", sys.version)...
 6: import sys
 7: print(f"Python version:", sys.version)
 8:...
-命令转译成功: read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" 1 3 -> read "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" 1 3
+命令转译成功: read "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" 1 3 -> read "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" 1 3
 返回码: 0
 输出: 1: """
 2: Simple Hello Script
@@ -56,15 +56,15 @@ print(f"Python version:", sys.version)...
 6: import sys
 7: print(f"Python version:", sys.version)
 8:...
-命令转译成功: grep "print" "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> grep "print" "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+命令转译成功: grep "print" "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" -> grep "print" "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
 返回码: 0
 输出: 4: print(f'Hello from remote project')
   5: print(f"Current working directory:", __import__("os").getcwd())
   7: print(f"Python version:", sys.version)...
-命令转译成功: find . -name "*.py" "~/tmp/gds_test_20251102_004545_167218_27846a36" -> find . -name "*.py" "~/tmp/gds_test_20251102_004545_167218_27846a36"
+命令转译成功: find . -name "*.py" "~/tmp/gds_test_20251102_011351_510667_2ebbc717" -> find . -name "*.py" "~/tmp/gds_test_20251102_011351_510667_2ebbc717"
 返回码: 0
 输出: No files found matching the pattern....
-命令转译成功: read --force "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py" -> read --force "~/tmp/gds_test_20251102_004545_167218_27846a36/test_read_simple_hello.py"
+命令转译成功: read --force "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py" -> read --force "~/tmp/gds_test_20251102_011351_510667_2ebbc717/test_read_simple_hello.py"
 返回码: 0
 输出: 1: """
 2: Simple Hello Script
@@ -75,45 +75,44 @@ print(f"Python version:", sys.version)...
 7: print(f"Python version:", sys.version)
 8:...
 测试cat不存在的文件
-命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt"
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt"
 返回码: 1
 输出: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
 测试read不存在的文件
-命令转译成功: read "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt" -> read "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt"
+命令转译成功: read "~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt" -> read "~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt"
 返回码: 1
 输出: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
 测试grep不存在的文件
-命令转译成功: grep "test" "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt" -> grep "test" "~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt"
+命令转译成功: grep "test" "~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt" -> grep "test" "~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt"
 返回码: 2
-输出: Error in BaseCommand: ~/tmp/gds_test_20251102_004545_167218_27846a36/nonexistent_file.txt: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
+输出: Error in BaseCommand: ~/tmp/gds_test_20251102_011351_510667_2ebbc717/nonexistent_file.txt: File 'nonexistent_file.txt' not found in folder. Available files: ['test_read_simple_hello.py']...
 测试特殊字符文件处理
-命令转译成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt" -> ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
+命令转译成功: ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt" -> ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt"
 返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt...
+输出: Path not found: ~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt...
 
-执行带重试的命令: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
-验证命令: ['ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"']
+执行带重试的命令: upload --target-dir "~/tmp/gds_test_20251102_011351_510667_2ebbc717" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+验证命令: ['ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt"']
 最大重试次数: 3
 
 尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt" -> upload --target-dir "~/tmp/gds_test_20251102_004545_167218_27846a36" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+命令转译成功: upload --target-dir "~/tmp/gds_test_20251102_011351_510667_2ebbc717" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt" -> upload --target-dir "~/tmp/gds_test_20251102_011351_510667_2ebbc717" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
 返回码: 0
 输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
-File already deleted: special_chars.txt (skipped)
+Verification completed: {'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_011351_510667_2ebbc717'}
 Added deletion record for original: special_chars.txt
 Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_004545_167218_27846a36'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['special_chars.txt'], 'sync_time': 6, 'base_sync_time': 6}
-target_folder_id='1eun4FtYAuyTkD9YB5Ls6ei3eIU_IUyD7'
-target_display_path='~/tmp/gds_test_20251102_004545_167218_27846a36'...
-Verify 1/1: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
-命令转译成功: ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt" -> ls "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
+verify_result={'success': True, 'found_files': ['special_chars.txt'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251102_011351_510667_2ebbc717'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['special_chars.txt'], 'sync_time': 8, 'base_sync_time': 8}
+target_folder_id='1ld-YwYxoZYbtdPkUs43J5hcuP666iqw0'
+target_display_path='~/tmp/gds_test_20251102_011351_510667_2ebbc717'...
+Verify 1/1: ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt"
+命令转译成功: ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt" -> ls "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt"
 返回码: 0
 输出: special_chars.txt...
 Verify successful
 All verifications passed, command executed successfully
-命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/special_chars.txt"
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/special_chars.txt"
 返回码: 0
 输出: 包含中文的文件
 Special characters: !@#$%^&*()
@@ -122,77 +121,55 @@ Backslashes: \path\to\file
 JSON: {"key": "value", "number": 123}
 Shell commands: ls -la && echo "done"...
 测试cat命令绝对路径支持
-FAIL
-
-======================================================================
-FAIL: test_13_read (test_gds.GDSTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 758, in gds
-    self.assertEqual(result.returncode, 0, f"命令执行失败: {command}")
-  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
-    assertion_func(first, second, msg=msg)
-AssertionError: 1 != 0 : 命令执行失败: cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/empty_heredoc.txt" << "EOF"
-EOF
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2256, in test_13_read
-    result = self.gds(empty_command)
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 764, in gds
-    self.fail(f'命令执行异常: {command} - {e}')
-AssertionError: 命令执行异常: cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/empty_heredoc.txt" << "EOF"
-EOF - 1 != 0 : 命令执行失败: cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/empty_heredoc.txt" << "EOF"
-EOF
+ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 553.713s
+Ran 1 test in 535.852s
 
-FAILED (failures=1)
-命令转译成功: echo -n "测试cat绝对路径支持" > "~/tmp/gds_test_20251102_004545_167218_27846a36/absolute_path_test.txt" -> echo -n "测试cat绝对路径支持" > "~/tmp/gds_test_20251102_004545_167218_27846a36/absolute_path_test.txt"
+OK
+命令转译成功: echo -n "测试cat绝对路径支持" > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/absolute_path_test.txt" -> echo -n "测试cat绝对路径支持" > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/absolute_path_test.txt"
 返回码: 0
 输出: ...
 测试使用~/路径格式cat文件
-命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/absolute_path_test.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/absolute_path_test.txt"
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/absolute_path_test.txt" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/absolute_path_test.txt"
 返回码: 0
 输出: 测试cat绝对路径支持...
-命令转译成功: rm -f "~/tmp/gds_test_20251102_004545_167218_27846a36/absolute_path_test.txt" -> rm -f "~/tmp/gds_test_20251102_004545_167218_27846a36/absolute_path_test.txt"
+命令转译成功: rm -f "~/tmp/gds_test_20251102_011351_510667_2ebbc717/absolute_path_test.txt" -> rm -f "~/tmp/gds_test_20251102_011351_510667_2ebbc717/absolute_path_test.txt"
 返回码: 0
 输出: ...
 cat命令绝对路径支持测试完成
 测试heredoc语法支持
 测试基本heredoc重定向
-命令转译成功: cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt" << "EOF"
+命令转译成功: cat > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" << "EOF"
 First line of heredoc
 Second line with "quotes"
 Third line with special chars @#$%
 Fourth line with spaces    
-EOF -> cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt" << "EOF"
+EOF -> cat > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" << "EOF"
 First line of heredoc
 Second line with "quotes"
 Third line with special chars @#$%
 Fourth line with spaces    
 EOF
 返回码: 0
-输出: Heredoc detected, translating to: echo -e 'First line of heredoc\nSecond line with "quotes"\nThird line with special chars @#$%\nFourth line with spaces    ' > "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt"...
-命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt"
+输出: Heredoc detected, translating to: echo -e 'First line of heredoc\nSecond line with "quotes"\nThird line with special chars @#$%\nFourth line with spaces    ' > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt"...
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt"
 返回码: 0
 输出: First line of heredoc
 Second line with "quotes"
 Third line with special chars @#$%
 Fourth line with spaces...
 测试heredoc追加模式
-命令转译成功: cat >> "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt" << "EOF"
+命令转译成功: cat >> "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" << "EOF"
 Fifth line appended
 Sixth line appended
-EOF -> cat >> "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt" << "EOF"
+EOF -> cat >> "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" << "EOF"
 Fifth line appended
 Sixth line appended
 EOF
 返回码: 0
-输出: Heredoc detected, translating to: echo -e 'Fifth line appended\nSixth line appended' >> "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt"...
-命令转译成功: cat "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt" -> cat "~/tmp/gds_test_20251102_004545_167218_27846a36/heredoc_test.txt"
+输出: Heredoc detected, translating to: echo -e 'Fifth line appended\nSixth line appended' >> "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt"...
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt"
 返回码: 0
 输出: First line of heredoc
 Second line with "quotes"
@@ -201,10 +178,15 @@ Fourth line with spaces
 Fifth line appended
 Sixth line appended...
 测试空heredoc
-命令转译成功: cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/empty_heredoc.txt" << "EOF"
-EOF -> cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/empty_heredoc.txt" << "EOF"
+命令转译成功: cat > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt" << "EOF"
+EOF -> cat > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt" << "EOF"
 EOF
-返回码: 1
-输出: File '>' not found in folder. Available files: []...
-命令执行异常: 1 != 0 : 命令执行失败: cat > "~/tmp/gds_test_20251102_004545_167218_27846a36/empty_heredoc.txt" << "EOF"
-EOF
+返回码: 0
+输出: Heredoc detected, translating to: echo "" > "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt"...
+命令转译成功: cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt" -> cat "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt"
+返回码: 0
+输出: ...
+命令转译成功: rm -f "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt" -> rm -f "~/tmp/gds_test_20251102_011351_510667_2ebbc717/heredoc_test.txt" "~/tmp/gds_test_20251102_011351_510667_2ebbc717/empty_heredoc.txt"
+返回码: 0
+输出: ...
+heredoc语法支持测试完成

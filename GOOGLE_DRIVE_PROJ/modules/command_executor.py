@@ -401,6 +401,14 @@ class CommandExecutor:
 
 
     def show_remote_command_window(self, cmd, timeout_seconds=3600, test_mode=False, is_priority=False, cmd_hash=None):
+        # 调试窗口弹出次数
+        if False:  # 设置为True可开启调试
+            import traceback
+            print("DEBUG: show_remote_command_window called!")
+            print("DEBUG: Call stack:")
+            traceback.print_stack()
+            print("DEBUG: ==================")
+        
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
 
@@ -431,7 +439,7 @@ except Exception:
     sys.exit(1)
 "
 if [ $? -ne 0 ]; then
-    clear && echo "Error: 当前session的GDS无法访问Google Drive文件结构。请使用python: GOOGLE_DRIVE --remount指令重新挂载，然后执行GDS的其他命令"
+    clear && echo "Error: 当前session的GDS无法访问Google Drive文件结构。请使用GOOGLE_DRIVE --remount指令重新挂载，然后执行GDS的其他命令"
     MOUNT_CHECK_FAILED=1
 fi
 
@@ -525,7 +533,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         if result_filename:
             try:
                 # 等待并读取结果文件
-                actual_result = self.wait_and_read_result_file(result_filename)
+                actual_result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
 
                 if actual_result.get("success", False):
                     actual_data = actual_result.get("data", {})
@@ -561,14 +569,18 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         增强：支持中文字符输入
         
         Args:
-            prompt (str): 输入提示（暂未使用，保留接口兼容性）
-            is_single_line (bool): 是否单行输入（暂未使用，保留接口兼容性）
+            prompt (str): 输入提示
+            is_single_line (bool): 是否单行输入
             timeout_seconds (int): 超时时间（秒），默认180秒
             
         Returns:
             str: 用户输入的多行内容
         """
         lines = []
+        
+        # 显示提示信息
+        if prompt:
+            print(prompt)
         
         # 定义超时异常
         class TimeoutException(Exception):
@@ -606,8 +618,15 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         try:
             while True:
                 try:
-                    line = input()
-                    lines.append(line)
+                    if is_single_line:
+                        # 单行输入模式
+                        line = input()
+                        lines.append(line)
+                        break  # 单行模式只读取一行就退出
+                    else:
+                        # 多行输入模式
+                        line = input()
+                        lines.append(line)
                 except EOFError:
                     # Ctrl+D结束输入
                     break

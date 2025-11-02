@@ -16,6 +16,11 @@ class DepsCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行deps命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         if not args:
             print("Error: deps command needs arguments")
             return 1
@@ -32,6 +37,33 @@ class DepsCommand(BaseCommand):
             error_msg = result.get("error", "Dependency analysis failed")
             print(error_msg)
             return 1
+    
+    def show_help(self):
+        """显示deps命令帮助信息"""
+        print("GDS Dependency Analysis Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS deps --check <package>          # Check package dependencies")
+        print("  GDS deps --analyze <package>        # Analyze dependency tree")
+        print("  GDS deps --tree <package>           # Show dependency tree")
+        print("  GDS deps --conflicts                # Check for dependency conflicts")
+        print("  GDS deps --outdated                 # List outdated packages")
+        print("  GDS deps --help                     # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Analyze and manage Python package dependencies.")
+        print("  Helps identify conflicts, outdated packages, and dependency trees.")
+        print()
+        print("EXAMPLES:")
+        print("  GDS deps --check numpy              # Check numpy dependencies")
+        print("  GDS deps --tree requests            # Show requests dependency tree")
+        print("  GDS deps --conflicts                # Find dependency conflicts")
+        print("  GDS deps --outdated                 # List packages that can be updated")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS pip --help                      # Package management")
+        print("  GDS python --help                   # Python execution")
     
     def cmd_deps(self, *args, **kwargs):
         """独立的依赖分析命令"""

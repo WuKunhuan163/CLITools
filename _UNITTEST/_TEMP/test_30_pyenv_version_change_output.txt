@@ -1,438 +1,91 @@
-test_30_pyenv_version_change (test_gds.GDSTest)
-测试pyenv版本切换 - 实际下载并切换多个Python版本 ... /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py:290: DeprecationWarning: invalid escape sequence \.
-  unified_command = f'''
-/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py:652: DeprecationWarning: invalid escape sequence \.
-  list_command = f'ls -1 "{self.get_python_base_path()}" 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" || echo ""'
+ERROR
+
+======================================================================
+ERROR: setUpClass (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 223, in setUpClass
+    cls._setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 247, in _setup_remote_test_directory
+    raise RuntimeError(error_msg)
+RuntimeError: 创建远端测试目录失败: 返回码=1, stderr=, stdout=
+[K⏳ Waiting for result ...............
+等待结果超时。可能的原因：
+  (1) 网络问题导致命令执行缓慢。请检查
+  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
+后台模式检测：自动返回超时错误
+
+[K
+Error Report - Shell command execution
+RuntimeError: mkdir command execution failed: Command execution failed
+Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py:38 in cmd_mkdir()
+Code Context:
+    35: 
+    36:         if not execution_result.get("success"):
+    37:             error_msg = execution_result.get('error', 'Command execution failed')
+>>> 38:             raise RuntimeError(f"mkdir command execution failed: {error_msg}")
+    39: 
+    40:         data = execution_result.get("data", {})
+    41:         exit_code = data.get("exit_code", execution_result.get("exit_code", -1))
+
+Complete Call Stack:
+   1. GOOGLE_DRIVE.py:51 in <module>()
+   2. GOOGLE_DRIVE.py:41 in main()
+   3. google_drive_shell.py:2228 in handle_command_line_args()
+   4. google_drive_shell.py:2283 in handle_shell_command_args()
+   5. google_drive_shell.py:1090 in execute_shell_command()
+   6. google_drive_shell.py:1028 in execute_shell_command()
+      >>> return self.command_executor.execute_special_command(cmd, args)
+   7. command_executor.py:400 in execute_special_command()
+      >>> return command.execute(name, args, **kwargs)
+   8. mkdir_command.py:92 in execute()
+      >>> result = self.cmd_mkdir(directory, recursive=create_parents)
+   9. mkdir_command.py:38 in cmd_mkdir()
+      >>> raise RuntimeError(f"mkdir command execution failed: {error_msg}")
+Google Drive Shell command execution failed with detailed traceback above. 
+
+
+----------------------------------------------------------------------
+Ran 0 tests in 136.562s
+
+FAILED (errors=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251102_002408_101941_e119002d
-正在创建远端测试目录: ~/tmp/gds_test_20251102_002408_101941_e119002d
+远端测试目录: ~/tmp/gds_test_20251102_154938_204596_98f6eff2
+正在创建远端测试目录: ~/tmp/gds_test_20251102_154938_204596_98f6eff2
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251102_002408_101941_e119002d
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_7f059x_d
-测试环境设置完成
-测试pyenv版本切换（实际下载和切换）
-将测试安装和切换Python 3.9.18和3.10.13
-步骤1：检查当前已安装的Python版本
-命令转译成功: ['pyenv', '--versions'] -> pyenv --versions
-返回码: 0
-输出: Warning: Unified command failed: Unknown error
-No Python versions installed...
-当前已安装版本:
-[K⏳ Waiting for result ....[K[KWarning: Unified command failed: Unknown error
-No Python versions installed
+Warning: 创建远端测试目录失败: 返回码=1, stderr=, stdout=
+[K⏳ Waiting for result ...............
+等待结果超时。可能的原因：
+  (1) 网络问题导致命令执行缓慢。请检查
+  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
+后台模式检测：自动返回超时错误
 
+[K
+Error Report - Shell command execution
+RuntimeError: mkdir command execution failed: Command execution failed
+Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py:38 in cmd_mkdir()
+Code Context:
+    35: 
+    36:         if not execution_result.get("success"):
+    37:             error_msg = execution_result.get('error', 'Command execution failed')
+>>> 38:             raise RuntimeError(f"mkdir command execution failed: {error_msg}")
+    39: 
+    40:         data = execution_result.get("data", {})
+    41:         exit_code = data.get("exit_code", execution_result.get("exit_code", -1))
 
-步骤2：后台安装Python 3.9.18
-命令转译成功: --bg pyenv --install 3.9.18 -> --bg pyenv --install 3.9.18
-返回码: 0
-输出: Background task started with ID: 1762014310_2177
-Command: pyenv --install 3.9.18
-Run the following commands to track the background task status:
-  GDS --bg --status 1762014310_2177    # Check task status
-  GDS --bg --result 1762014310_2177    # View task result
-  GDS --bg --log 1762014310_2177       # View task log
-  GDS --bg --cleanup 1762014310_2177   # Clean up task files...
-后台安装任务已启动，任务ID: 1762014310_2177
-等待Python 3.9.18后台安装完成（任务ID: 1762014310_2177，超时3600秒）...
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待47秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待92秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待139秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待183秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待228秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待273秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待317秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待363秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待408秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待454秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待498秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待545秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待592秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待638秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待684秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待728秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待772秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待819秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待867秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待912秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待958秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1005秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1051秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1096秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1141秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1190秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1235秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1281秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1327秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
-等待中... 已等待1372秒
-命令转译成功: --bg --status 1762014310_2177 -> --bg --status 1762014310_2177
-返回码: 0
-输出: Status: completed
-PID: 1762014310_2177 (finished)
-Command: pyenv --install 3.9.18
-Start time: 2025-11-02T00:25:10.711702
-End time: 2025-11-01T16:25:16.877546
-Exit code: 127
-Log size: 401 bytes...
-命令转译成功: --bg --result 1762014310_2177 -> --bg --result 1762014310_2177
-返回码: 127
-输出: bash: line 1: pyenv: command not found...
+Complete Call Stack:
+   1. GOOGLE_DRIVE.py:51 in <module>()
+   2. GOOGLE_DRIVE.py:41 in main()
+   3. google_drive_shell.py:2228 in handle_command_line_args()
+   4. google_drive_shell.py:2283 in handle_shell_command_args()
+   5. google_drive_shell.py:1090 in execute_shell_command()
+   6. google_drive_shell.py:1028 in execute_shell_command()
+      >>> return self.command_executor.execute_special_command(cmd, args)
+   7. command_executor.py:400 in execute_special_command()
+      >>> return command.execute(name, args, **kwargs)
+   8. mkdir_command.py:92 in execute()
+      >>> result = self.cmd_mkdir(directory, recursive=create_parents)
+   9. mkdir_command.py:38 in cmd_mkdir()
+      >>> raise RuntimeError(f"mkdir command execution failed: {error_msg}")
+Google Drive Shell command execution failed with detailed traceback above. 
+

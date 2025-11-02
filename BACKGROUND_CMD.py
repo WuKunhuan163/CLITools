@@ -170,7 +170,7 @@ class ProcessManager:
         
         # 创建日志文件
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-        log_filename = f"bg_cmd_{timestamp}.log"
+        log_filename = f"bg_cmd_result_{timestamp}.log"
         log_file = self.log_dir / log_filename
         
         try:

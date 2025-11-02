@@ -14,6 +14,11 @@ class VenvCommand(BaseCommand):
     
     def execute(self, cmd: str, args: List[str], **kwargs) -> int:
         """Execute venv command."""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         if not args:
             self.print_error("venv command needs arguments")
             return 1
@@ -26,6 +31,39 @@ class VenvCommand(BaseCommand):
             error_message = result.get("error", "Virtual environment operation failed")
             self.print_error(error_message)
             return 1
+
+    def show_help(self):
+        """显示venv命令帮助信息"""
+        print("GDS Virtual Environment Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS venv --create <env_name>        # Create virtual environment")
+        print("  GDS venv --delete <env_name>        # Delete virtual environment")
+        print("  GDS venv --activate <env_name>      # Activate virtual environment")
+        print("  GDS venv --deactivate               # Deactivate current environment")
+        print("  GDS venv --list                     # List all virtual environments")
+        print("  GDS venv --current                  # Show current active environment")
+        print("  GDS venv --protect <env_name>       # Protect environment from deletion")
+        print("  GDS venv --unprotect <env_name>     # Remove protection")
+        print("  GDS venv --help                     # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Manage Python virtual environments in the remote environment.")
+        print("  Provides isolation for different projects and their dependencies.")
+        print()
+        print("EXAMPLES:")
+        print("  GDS venv --create myproject         # Create 'myproject' environment")
+        print("  GDS venv --activate myproject       # Activate 'myproject'")
+        print("  GDS venv --list                     # List all environments")
+        print("  GDS venv --current                  # Check current environment")
+        print("  GDS venv --deactivate               # Deactivate current environment")
+        print("  GDS venv --delete myproject         # Delete 'myproject' environment")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS python --help                   # Python execution")
+        print("  GDS pip --help                      # Package management")
+        print("  GDS pyenv --help                    # Python version management")
 
     def cmd_venv(self, *args):
         """

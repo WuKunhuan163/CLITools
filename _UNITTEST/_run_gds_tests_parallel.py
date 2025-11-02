@@ -147,6 +147,15 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
                                     test_status = "fail"
                                 else:
                                     test_status = "unknown"
+                                
+                                # 在文件开头添加时间戳
+                                from datetime import datetime
+                                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                status_line = f"# Test completed at: {timestamp} - Status: {test_status.upper()}\n"
+                                separator_line = "# " + "=" * 76 + "\n"
+                                new_content = separator_line + status_line + separator_line + "\n" + test_content
+                                output_path.write_text(new_content, encoding='utf-8')
+                                test_content = new_content
                             else:
                                 test_content = "Output file not found"
                                 test_status = "fail"

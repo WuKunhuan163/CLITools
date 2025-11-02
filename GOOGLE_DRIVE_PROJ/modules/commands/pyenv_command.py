@@ -11,6 +11,11 @@ class PyenvCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行pyenv命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         if not args:
             print("Error: pyenv command needs arguments")
             return 1
@@ -27,6 +32,49 @@ class PyenvCommand(BaseCommand):
             error_msg = result.get("error", "Pyenv operation failed")
             print(error_msg)
             return 1
+    
+    def show_help(self):
+        """显示pyenv命令帮助信息"""
+        print("GDS Python Version Management (pyenv) Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS pyenv --install <version> [--force]      # Install Python version")
+        print("  GDS pyenv --install-bg <version> [--force]   # Install in background")
+        print("  GDS pyenv --install-local <version> [--force]# Download locally then install")
+        print("  GDS pyenv --uninstall <version>              # Uninstall Python version")
+        print("  GDS pyenv --list                    # List installed versions")
+        print("  GDS pyenv --list-available          # List available versions for installation")
+        print("  GDS pyenv --global <version>        # Set global default Python version")
+        print("  GDS pyenv --local <version>         # Set local Python version for current shell")
+        print("  GDS pyenv --version                 # Show current Python version")
+        print("  GDS pyenv --versions                # Show all installed versions")
+        print("  GDS pyenv --update-cache            # Update available versions cache")
+        print("  GDS pyenv --help                    # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Manage multiple Python versions in the remote environment.")
+        print("  Allows installation, switching, and management of different Python versions.")
+        print()
+        print("EXAMPLES:")
+        print("  GDS pyenv --install 3.9.18               # Install Python 3.9.18 (remote download)")
+        print("  GDS pyenv --install-local 3.10.13        # Download locally, then install (FASTER!)")
+        print("  GDS pyenv --install 3.9.18 --force       # Force reinstall existing version")
+        print("  GDS pyenv --install-bg 3.10.13           # Install in background")
+        print("  GDS pyenv --global 3.9.18           # Set 3.9.18 as global default")
+        print("  GDS pyenv --local 3.10.13           # Use 3.10.13 in current shell")
+        print("  GDS pyenv --versions                 # List all installed versions")
+        print("  GDS pyenv --list-available          # See available versions")
+        print()
+        print("BACKGROUND TASKS:")
+        print("  Use --install-bg for long installations. Track progress with:")
+        print("  GDS --bg --status <task_id>          # Check installation status")
+        print("  GDS --bg --log <task_id>             # View installation log")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS python --help                   # Python execution")
+        print("  GDS pip --help                      # Package management")
+        print("  GDS venv --help                     # Virtual environment management")
     
     def cmd_pyenv(self, *args):
         """
@@ -52,16 +100,25 @@ class PyenvCommand(BaseCommand):
             if not args:
                 return {
                     "success": False,
-                    "error": "Usage: pyenv --install|--uninstall|--list|--list-available|--global|--local|--version|--versions [version]"
+                    "error": "Usage: pyenv --install|--install-bg|--uninstall|--list|--list-available|--global|--local|--version|--versions [version]"
                 }
             
             action = args[0]
             version = args[1] if len(args) > 1 else None
+            force = "--force" in args
             
             if action == "--install":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install"}
-                return self.pyenv_install(version)
+                return self.pyenv_install(version, force=force)
+            elif action == "--install-bg":
+                if not version:
+                    return {"success": False, "error": "Please specify a Python version to install in background"}
+                return self.pyenv_install_bg(version, force=force)
+            elif action == "--install-local":
+                if not version:
+                    return {"success": False, "error": "Please specify a Python version to install from local download"}
+                return self.pyenv_install_local(version, force=force)
             elif action == "--uninstall":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to uninstall"}
@@ -90,22 +147,30 @@ class PyenvCommand(BaseCommand):
             else:
                 return {
                     "success": False,
-                    "error": f"Unknown pyenv command: {action}. Supported commands: --install, --uninstall, --list-available, --update-cache, --global, --local, --version, --versions"
+                    "error": f"Unknown pyenv command: {action}. Supported commands: --install, --install-bg, --uninstall, --list-available, --update-cache, --global, --local, --version, --versions"
                 }
                 
         except Exception as e:
             return {"success": False, "error": f"pyenv命令执行失败: {str(e)}"}
     
     def get_python_base_path(self):
-        """获取Python版本基础路径"""
-        return f"{self.shell.REMOTE_ENV}/python"
+        """获取Python版本基础路径
+        
+        使用@路径前缀来代表REMOTE_ENV
+        """
+        return "@/python"
     
     def get_python_state_file_path(self):
         """获取Python版本状态文件路径"""
         return f"{self.get_python_base_path()}/python_states.json"
     
-    def pyenv_install(self, version):
-        """安装指定Python版本"""
+    def pyenv_install(self, version, force=False):
+        """安装指定Python版本
+        
+        Args:
+            version: Python版本号
+            force: 是否强制覆盖已安装的版本
+        """
         if not self.validate_version(version):
             return {
                 "success": False, 
@@ -115,10 +180,20 @@ class PyenvCommand(BaseCommand):
         try:
             # 检查版本是否已安装
             if self.is_version_installed(version):
-                return {
-                    "success": False,
-                    "error": f"Python {version} is already installed"
-                }
+                if not force:
+                    return {
+                        "success": False,
+                        "error": f"Python {version} is already installed. Use --force to reinstall."
+                    }
+                else:
+                    print(f"Python {version} is already installed. Forcing reinstallation...")
+                    # 先卸载旧版本
+                    uninstall_result = self.pyenv_uninstall(version)
+                    if not uninstall_result.get("success"):
+                        return {
+                            "success": False,
+                            "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
+                        }
             
             # 构建安装路径
             install_path = f"{self.get_python_base_path()}/{version}"
@@ -222,6 +297,330 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error installing Python {version}: {str(e)}"}
     
+    def pyenv_install_bg(self, version, force=False):
+        """在后台安装指定Python版本
+        
+        Args:
+            version: Python版本号
+            force: 是否强制覆盖已安装的版本
+        """
+        if not self.validate_version(version):
+            return {
+                "success": False, 
+                "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'"
+            }
+        
+        try:
+            # 检查版本是否已安装
+            if self.is_version_installed(version):
+                if not force:
+                    return {
+                        "success": False,
+                        "error": f"Python {version} is already installed. Use --force to reinstall."
+                    }
+                else:
+                    print(f"Python {version} is already installed. Forcing reinstallation...")
+                    # 先卸载旧版本
+                    uninstall_result = self.pyenv_uninstall(version)
+                    if not uninstall_result.get("success"):
+                        return {
+                            "success": False,
+                            "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
+                        }
+            
+            # 构建安装路径
+            install_path = f"{self.get_python_base_path()}/{version}"
+            
+            # 构建Python安装bash脚本（与pyenv_install相同的脚本）
+            install_script = f'''
+# 创建安装目录
+mkdir -p "{install_path}"
+
+# 设置临时构建目录
+BUILD_DIR="/tmp/python_build_{version}"
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+
+# 下载Python源码
+echo "Downloading Python {version} source code..."
+wget -q https://www.python.org/ftp/python/{version}/Python-{version}.tgz
+
+if [ $? -ne 0 ]; then
+    echo "Failed to download Python {version}"
+    exit 1
+fi
+
+# 解压源码
+tar -xzf Python-{version}.tgz
+cd Python-{version}
+
+# 配置编译选项
+echo "Configuring Python {version}..."
+./configure --prefix="{install_path}" --enable-optimizations --with-ensurepip=install
+
+if [ $? -ne 0 ]; then
+    echo "Failed to configure Python {version}"
+    exit 1
+fi
+
+# 编译和安装
+echo "Compiling Python {version}..."
+make -j$(nproc)
+
+if [ $? -ne 0 ]; then
+    echo "Failed to compile Python {version}"
+    exit 1
+fi
+
+echo "Installing Python {version}..."
+make install
+
+if [ $? -ne 0 ]; then
+    echo "Failed to install Python {version}"
+    exit 1
+fi
+
+# 清理构建目录
+cd /
+rm -rf "$BUILD_DIR"
+
+# 设置执行权限
+echo "Setting executable permissions..."
+chmod -R 755 "{install_path}/bin/"
+
+# 验证安装
+if [ -f "{install_path}/bin/python3" ]; then
+    echo "Python {version} installed successfully"
+    echo "Location: {install_path}"
+    {install_path}/bin/python3 --version
+    
+    # 更新GDS的版本状态文件
+    # 调用GDS的pyenv --versions命令来刷新状态（这会自动检测新安装的版本）
+    # 这里不需要手动更新，因为安装成功后用户可以手动执行 GDS pyenv --versions
+else
+    echo "Installation verification failed"
+    exit 1
+fi
+'''
+            
+            # 使用GDS的后台任务系统执行脚本
+            # 调用execute_background_command
+            result = self.shell.execute_background_command(install_script, command_identifier=None)
+            
+            if result == 0:
+                # 后台任务启动成功
+                return {
+                    "success": True,
+                    "message": f"Started background installation of Python {version}",
+                    "stdout": f"Background task started. Use 'GDS --bg --status' to check progress."
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to start background installation of Python {version}"
+                }
+                
+        except Exception as e:
+            return {"success": False, "error": f"Error starting background installation of Python {version}: {str(e)}"}
+    
+    def pyenv_install_local(self, version, force=False):
+        """本地下载Python源码并上传到远程编译安装
+        
+        Args:
+            version: Python版本号
+            force: 是否强制覆盖已安装的版本
+            
+        Returns:
+            dict: 操作结果
+        """
+        if not self.validate_version(version):
+            return {
+                "success": False, 
+                "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18)"
+            }
+        
+        try:
+            import tempfile
+            import os
+            import subprocess
+            from pathlib import Path
+            
+            # 检查版本是否已安装
+            if self.is_version_installed(version):
+                if not force:
+                    return {
+                        "success": False,
+                        "error": f"Python {version} is already installed. Use --force to reinstall."
+                    }
+                else:
+                    print(f"Python {version} is already installed. Forcing reinstallation...")
+                    # 先卸载旧版本
+                    uninstall_result = self.pyenv_uninstall(version)
+                    if not uninstall_result.get("success"):
+                        return {
+                            "success": False,
+                            "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
+                        }
+            
+            print(f"Starting local download and remote installation of Python {version}...")
+            print(f"Step 1/4: Downloading Python {version} source code locally...")
+            
+            # 创建临时目录
+            temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
+            try:
+                # 下载Python源码到本地
+                tarball_name = f"Python-{version}.tgz"
+                tarball_path = os.path.join(temp_dir, tarball_name)
+                download_url = f"https://www.python.org/ftp/python/{version}/{tarball_name}"
+                
+                # 使用wget或curl下载
+                download_cmd = f"curl -L -o '{tarball_path}' '{download_url}'"
+                result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    # 尝试使用wget
+                    download_cmd = f"wget -q -O '{tarball_path}' '{download_url}'"
+                    result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
+                    
+                    if result.returncode != 0:
+                        return {
+                            "success": False,
+                            "error": f"Failed to download Python {version} source code. Please check your internet connection."
+                        }
+                
+                # 验证文件已下载
+                if not os.path.exists(tarball_path) or os.path.getsize(tarball_path) == 0:
+                    return {
+                        "success": False,
+                        "error": f"Downloaded file is empty or not found: {tarball_path}"
+                    }
+                
+                file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
+                print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
+                
+                print(f"Step 2/4: Uploading source code to remote...")
+                
+                # 上传到远程的tmp目录
+                remote_tmp_path = f"~/tmp/python_install_{version}"
+                
+                # 创建远程目录
+                mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
+                if not mkdir_result.get("success"):
+                    return {
+                        "success": False,
+                        "error": f"Failed to create remote directory: {mkdir_result.get('error', 'Unknown error')}"
+                    }
+                
+                # 上传tar.gz文件
+                remote_tarball_path = f"{remote_tmp_path}/{tarball_name}"
+                upload_result = self.shell.cmd_upload(tarball_path, remote_tarball_path)
+                
+                if not upload_result.get("success"):
+                    return {
+                        "success": False,
+                        "error": f"Failed to upload source code: {upload_result.get('error', 'Unknown error')}"
+                    }
+                
+                print(f"✓ Uploaded to {remote_tarball_path}")
+                
+                print(f"Step 3/4: Extracting and compiling (this may take 10-20 minutes)...")
+                
+                # 构建安装路径
+                install_path = f"{self.get_python_base_path()}/{version}"
+                
+                # 构建远程编译安装脚本
+                install_script = f'''
+# 创建安装目录
+mkdir -p "{install_path}"
+
+# 切换到临时目录
+cd "{self.shell.REMOTE_ROOT}/tmp/python_install_{version}"
+
+# 解压源码
+echo "Extracting source code..."
+tar -xzf Python-{version}.tgz
+cd Python-{version}
+
+# 配置编译选项
+echo "Configuring Python {version}..."
+./configure --prefix="{install_path}" --enable-optimizations --with-ensurepip=install
+
+if [ $? -ne 0 ]; then
+    echo "Failed to configure Python {version}"
+    exit 1
+fi
+
+# 编译（使用多核加速）
+echo "Compiling Python {version}..."
+make -j$(nproc)
+
+if [ $? -ne 0 ]; then
+    echo "Failed to compile Python {version}"
+    exit 1
+fi
+
+# 安装
+echo "Installing Python {version}..."
+make install
+
+if [ $? -ne 0 ]; then
+    echo "Failed to install Python {version}"
+    exit 1
+fi
+
+# 验证安装
+if [ -x "{install_path}/bin/python3" ]; then
+    echo "Python {version} installed successfully!"
+    {install_path}/bin/python3 --version
+    
+    # 清理临时文件
+    cd ..
+    rm -rf Python-{version} Python-{version}.tgz
+    
+    echo "Installation complete. Clean up done."
+    exit 0
+else
+    echo "Installation verification failed"
+    exit 1
+fi
+'''
+                
+                # 使用后台任务系统执行脚本
+                print(f"Step 4/4: Starting background compilation...")
+                result_code = self.shell.execute_background_command(install_script, command_identifier=None)
+                
+                if result_code == 0:
+                    print(f"✓ Background compilation started successfully!")
+                    print(f"")
+                    print(f"The compilation will continue in the background.")
+                    print(f"This typically takes 10-20 minutes depending on server performance.")
+                    print(f"")
+                    print(f"To check installation progress, use the background task commands shown above.")
+                    
+                    return {
+                        "success": True,
+                        "message": f"Started local-download installation of Python {version}",
+                        "stdout": f"Background compilation started. Use 'GDS --bg --status <task_id>' to check progress."
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"Failed to start background compilation"
+                    }
+                    
+            finally:
+                # 清理本地临时目录
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+                
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"Error in local installation: {str(e)}"}
+    
     def pyenv_uninstall(self, version):
         """卸载指定Python版本"""
         if not self.validate_version(version):
@@ -281,74 +680,100 @@ fi
             return {"success": False, "error": f"Error uninstalling Python {version}: {str(e)}"}
     
     def get_versions_and_current_unified(self):
-        """使用单个远程命令同时获取已安装版本、当前版本和版本来源信息"""
+        """使用单个远程命令同时获取已安装版本、当前版本和版本来源信息
+        
+        优化：通过Google Drive API直接列出目录，避免弹出远程窗口
+        """
         try:
-            # 构建统一的远程命令，同时获取版本列表和状态文件
-            python_base_path = self.get_python_base_path()
-            state_file = self.get_python_state_file_path()
+            import json
+            import re
             
-            unified_command = f'''
-# 获取已安装版本
-export INSTALLED_VERSIONS=$(ls -1 "{python_base_path}" 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" || echo "")
-
-# 获取状态文件内容
-export STATE_CONTENT=$(cat "{state_file}" 2>/dev/null || echo "{{}}")
-
-# 输出结果（JSON格式）
-python3 -c "
-import json
-import sys
-import os
-
-# 解析已安装版本
-versions_str = os.environ.get('INSTALLED_VERSIONS', '')
-installed_versions = [v.strip() for v in versions_str.split('\\n') if v.strip()]
-
-# 解析状态文件
-try:
-    states = json.loads(os.environ.get('STATE_CONTENT', '{{}}'))
-except:
-    states = {{}}
-
-# 获取当前shell ID（简化）
-shell_id = 'default_shell'
-
-# 确定当前版本和来源（优先级：local > global > None）
-current_version = None
-version_source = 'system'
-local_key = f'shell_{{shell_id}}'
-if local_key in states:
-    current_version = states[local_key]
-    version_source = f'local (shell {{shell_id}})'
-elif 'global' in states:
-    current_version = states['global']
-    version_source = 'global'
-
-# 输出结果
-result = {{
-    'installed_versions': installed_versions,
-    'current_version': current_version,
-    'version_source': version_source
-}}
-print(json.dumps(result))
-"
-'''
+            # 直接使用REMOTE_ENV_FOLDER_ID访问REMOTE_ENV目录
+            remote_env_folder_id = self.shell.REMOTE_ENV_FOLDER_ID
             
-            result = self.shell.execute_command_interface("bash", ["-c", unified_command])
-            
-            if result.get("success") and result.get("stdout"):
-                try:
-                    data = json.loads(result["stdout"])
-                    installed_versions = data.get("installed_versions", [])
-                    current_version = data.get("current_version")
-                    version_source = data.get("version_source", "system")
-                    return installed_versions, current_version, version_source
-                except json.JSONDecodeError as e:
-                    print(f"Warning: Failed to parse unified command result: {e}")
-                    return [], None, "system"
-            else:
-                print(f"Warning: Unified command failed: {result.get('error', 'Unknown error')}")
+            if not remote_env_folder_id:
+                print("Warning: REMOTE_ENV_FOLDER_ID not found")
                 return [], None, "system"
+            
+            # 首先列出REMOTE_ENV目录，找到python子目录
+            remote_env_files = self.shell.drive_service.list_files(folder_id=remote_env_folder_id, max_results=1000)
+            
+            if not remote_env_files.get("success"):
+                print(f"Warning: Failed to list REMOTE_ENV: {remote_env_files.get('error', 'Unknown error')}")
+                return [], None, "system"
+            
+            # 找到python目录的folder_id
+            python_folder_id = None
+            python_state_file_id = None
+            
+            for file_info in remote_env_files.get("files", []):
+                if file_info.get("name") == "python" and file_info.get("mimeType") == "application/vnd.google-apps.folder":
+                    python_folder_id = file_info.get("id")
+                    break
+            
+            if not python_folder_id:
+                # python目录不存在，返回空列表
+                return [], None, "system"
+            
+            # 列出python目录的内容
+            python_files_result = self.shell.drive_service.list_files(folder_id=python_folder_id, max_results=1000)
+            
+            if not python_files_result.get("success"):
+                print(f"Warning: Failed to list python directory: {python_files_result.get('error', 'Unknown error')}")
+                return [], None, "system"
+            
+            # 提取版本号和状态文件
+            installed_versions = []
+            for file_info in python_files_result.get("files", []):
+                name = file_info.get("name", "")
+                is_dir = file_info.get("mimeType") == "application/vnd.google-apps.folder"
+                
+                # 匹配版本号格式：x.y.z
+                if is_dir and re.match(r'^\d+\.\d+\.\d+$', name):
+                    installed_versions.append(name)
+                    
+                # 找到python_states.json文件
+                elif name == "python_states.json":
+                    python_state_file_id = file_info.get("id")
+            
+            # 读取状态文件获取当前版本
+            current_version = None
+            version_source = "system"
+            
+            if python_state_file_id:
+                # 直接通过Google Drive API读取文件内容（无需保存到本地）
+                try:
+                    import io
+                    from googleapiclient.http import MediaIoBaseDownload
+                    
+                    request = self.shell.drive_service.service.files().get_media(fileId=python_state_file_id)
+                    file_content = io.BytesIO()
+                    downloader = MediaIoBaseDownload(file_content, request)
+                    
+                    done = False
+                    while not done:
+                        status, done = downloader.next_chunk()
+                    
+                    # 解析JSON内容
+                    content_str = file_content.getvalue().decode('utf-8')
+                    states = json.loads(content_str)
+                    
+                    # 获取当前shell ID（简化）
+                    shell_id = 'default_shell'
+                    local_key = f'shell_{shell_id}'
+                    
+                    # 确定当前版本和来源（优先级：local > global > None）
+                    if local_key in states:
+                        current_version = states[local_key]
+                        version_source = f'local (shell {shell_id})'
+                    elif 'global' in states:
+                        current_version = states['global']
+                        version_source = 'global'
+                        
+                except (json.JSONDecodeError, Exception):
+                    pass  # 状态文件解析失败，使用默认值
+            
+            return installed_versions, current_version, version_source
                 
         except Exception as e:
             print(f"Warning: Error in unified version query: {e}")
