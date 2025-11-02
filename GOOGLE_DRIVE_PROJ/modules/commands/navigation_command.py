@@ -28,6 +28,11 @@ class NavigationCommand(BaseCommand):
     
     def execute_pwd(self, args):
         """执行pwd命令"""
+        # 检查是否请求帮助
+        if args and (args[0] == '--help' or args[0] == '-h'):
+            self.show_pwd_help()
+            return 0
+        
         # pwd命令不需要参数
         if args:
             print("pwd: too many arguments")
@@ -44,6 +49,11 @@ class NavigationCommand(BaseCommand):
     
     def execute_cd(self, args):
         """执行cd命令"""
+        # 检查是否请求帮助
+        if args and (args[0] == '--help' or args[0] == '-h'):
+            self.show_cd_help()
+            return 0
+        
         if not args:
             print("Error: cd command needs a directory path")
             return 1
@@ -101,14 +111,13 @@ class NavigationCommand(BaseCommand):
             
             if not ls_result.get('success'):
                 # 添加调试信息，显示路径计算过程
-                return {"success": False, "error": f"Directory does not exist: {path} (resolved to: {absolute_path})"}
+                return {"success": False, "error": f"bash: cd: {path}: No such file or directory"}
             
             # 如果ls成功，说明目录存在，使用resolve_drive_id获取目标ID和路径
             # 使用规范化后的绝对路径进行解析
             target_id, target_path = self.main_instance.resolve_drive_id(absolute_path, current_shell)
-            
             if not target_id:
-                return {"success": False, "error": f"Directory does not exist: {path} (resolved path failed)"}
+                return {"success": False, "error": f"bash: cd: {path}: No such file or directory"}
             
             # 更新shell状态
             shells_data = self.main_instance.load_shells()
@@ -130,3 +139,48 @@ class NavigationCommand(BaseCommand):
                 
         except Exception as e:
             return {"success": False, "error": f"Execute cd command failed: {e}"}
+    
+    def show_pwd_help(self):
+        """显示pwd命令的帮助信息"""
+        help_text = """pwd - print working directory
+
+Usage:
+  pwd [options]
+
+Options:
+  -h, --help               Show this help message
+
+Description:
+  Display the current working directory path in Google Drive.
+  Returns the logical path in the format ~/path/to/directory.
+
+Examples:
+  pwd                      Display current directory
+"""
+        print(help_text)
+    
+    def show_cd_help(self):
+        """显示cd命令的帮助信息"""
+        help_text = """cd - change directory
+
+Usage:
+  cd <directory> [options]
+
+Arguments:
+  directory                Target directory path (absolute or relative)
+
+Options:
+  -h, --help               Show this help message
+
+Description:
+  Change the current working directory to the specified path.
+  Supports both absolute paths (~/...) and relative paths (./..., ../).
+  The directory must exist in Google Drive.
+
+Examples:
+  cd ~/Documents           Change to Documents folder
+  cd ../                   Move up one directory level
+  cd ./subfolder           Change to subfolder in current directory
+  cd ~                     Change to home directory (REMOTE_ROOT)
+"""
+        print(help_text)

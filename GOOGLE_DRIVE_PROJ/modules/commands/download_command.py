@@ -8,6 +8,11 @@ class DownloadCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行download命令"""
+        # 检查是否请求帮助
+        if args and (args[0] == '--help' or args[0] == '-h'):
+            self.show_download_help()
+            return 0
+        
         if not args:
             print("Error: download command needs a file name")
             return 1
@@ -50,6 +55,44 @@ class DownloadCommand(BaseCommand):
             error_msg = result.get("error", "Download failed")
             print(error_msg)
             return 1
+    
+    def show_download_help(self):
+        """显示download命令的帮助信息"""
+        help_text = """
+GDS Download Command - Download files from Google Drive
+
+Usage:
+    GDS download [OPTIONS] <filename> [local_path]
+    GDS download --help
+
+Arguments:
+    <filename>       File or directory name in Google Drive to download
+    [local_path]     Optional local path to save the file (default: cache directory)
+
+Options:
+    --force          Force overwrite if local file already exists
+    --help, -h       Show this help message
+
+Examples:
+    # Download file to cache directory
+    GDS download myfile.txt
+
+    # Download file to specific local path
+    GDS download myfile.txt ~/Downloads/myfile.txt
+
+    # Download directory (will be compressed as zip)
+    GDS download my_folder
+
+    # Force overwrite existing local file
+    GDS download --force myfile.txt ~/Downloads/myfile.txt
+
+Notes:
+    - Files are first downloaded to a cache directory
+    - If local_path is specified, the file is copied from cache to that location
+    - Directories are automatically compressed as zip files before download
+    - Use --force to overwrite existing local files without confirmation
+"""
+        print(help_text)
 
 
     def cmd_download(self, filename, local_path=None, force=False):
@@ -281,7 +324,7 @@ class DownloadCommand(BaseCommand):
             
             # 步骤2：验证zip文件是否创建成功
             print(f"验证zip文件创建: {remote_zip_path}")
-            verification_result = self.main_instance.verify_creation_with_ls(
+            verification_result = self.main_instance.verify_with_ls(
                 remote_zip_path, 
                 self.main_instance.get_current_shell(), 
                 creation_type="file"

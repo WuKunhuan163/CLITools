@@ -86,6 +86,8 @@ class PathResolver:
                         current_id = found_folder['id']
                         if current_logical_path == "~":
                             current_logical_path = f"~/{part}"
+                        elif current_logical_path == "@":
+                            current_logical_path = f"@/{part}"
                         elif current_logical_path == "@drive_equivalent":
                             current_logical_path = f"@drive_equivalent/{part}"
                         else:
@@ -97,6 +99,18 @@ class PathResolver:
                     print(f"Error: Resolve ID by parts failed: {e}")
                     return None, None
 
+            # 处理@路径（代表REMOTE_ENV）
+            if logical_path == "@":
+                return self.main_instance.REMOTE_ENV_FOLDER_ID, "@"
+            elif logical_path.startswith("@/"):
+                relative_parts = logical_path[2:].split("/")
+                return _resolve_id_by_parts(
+                    relative_parts, 
+                    self.main_instance.REMOTE_ENV_FOLDER_ID, 
+                    "@"
+                )
+            
+            # 处理@drive_equivalent路径（向后兼容）
             if logical_path == "@drive_equivalent":
                 return self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID, "@drive_equivalent"
             elif logical_path.startswith("@drive_equivalent/"):
@@ -181,9 +195,12 @@ class PathResolver:
             return remote_path
     
     def get_parent_path(self, path):
-        """获取路径的父目录"""
+        """获取路径的父目录，支持~和@前缀"""
         if path == "~":
             return "~"  # 根目录没有父目录，返回自己
+        
+        if path == "@":
+            return "@"  # REMOTE_ENV根目录没有父目录，返回自己
         
         if path.startswith("~/"):
             parts = path.split("/")
@@ -192,25 +209,70 @@ class PathResolver:
             else:  # ~/a/b/c -> ~/a/b
                 return "/".join(parts[:-1])
         
+        if path.startswith("@/"):
+            parts = path.split("/")
+            if len(parts) <= 2:  # @/something -> @
+                return "@"
+            else:  # @/a/b/c -> @/a/b
+                return "/".join(parts[:-1])
+        
         return path
     
     def join_paths(self, base_path, relative_path):
-        """连接基础路径和相对路径"""
+        """连接基础路径和相对路径，支持~和@前缀"""
         if not relative_path:
             return base_path
         
         if base_path == "~":
             return f"~/{relative_path}"
+        elif base_path == "@":
+            return f"@/{relative_path}"
         else:
             return f"{base_path}/{relative_path}"
     
     def normalize_path_components(self, base_path, relative_path):
-        """规范化路径组件，处理路径中的 .. 和 ."""
+        """规范化路径组件，处理路径中的 .. 和 .
+        
+        支持~（REMOTE_ROOT）和@（REMOTE_ENV）前缀
+        """
         try:
             # 先连接路径
             combined_path = self.join_paths(base_path, relative_path)
             
-            # 分解路径为组件
+            # 处理@路径（REMOTE_ENV）
+            if combined_path == "@":
+                return "@"
+            
+            if combined_path.startswith("@/"):
+                # 移除 @/ 前缀
+                path_without_root = combined_path[2:]
+                if not path_without_root:
+                    return "@"
+                
+                # 分割路径组件
+                components = path_without_root.split("/")
+                normalized_components = []
+                
+                for component in components:
+                    if component == "." or component == "":
+                        # 跳过当前目录和空组件
+                        continue
+                    elif component == "..":
+                        # 父目录 - 移除上一个组件
+                        if normalized_components:
+                            normalized_components.pop()
+                        # 如果没有组件可移除，说明已经到根目录，忽略
+                    else:
+                        # 普通目录名
+                        normalized_components.append(component)
+                
+                # 重建路径
+                if not normalized_components:
+                    return "@"
+                else:
+                    return "@/" + "/".join(normalized_components)
+            
+            # 处理~路径（REMOTE_ROOT）
             if combined_path == "~":
                 return "~"
             
@@ -277,6 +339,7 @@ class PathResolver:
             # 获取当前路径
             current_path = current_shell.get("current_path", "~")
             remote_root_path = self.main_instance.REMOTE_ROOT
+            remote_env_path = self.main_instance.REMOTE_ENV
             
             # 如果仍然是绝对路径（以/开头），转换为~/xxx格式
             if path.startswith("/"):
@@ -292,6 +355,25 @@ class PathResolver:
                     return logical_path
                 else:
                     return f"{remote_root_path}/{relative_part}" if relative_part else remote_root_path
+            
+            # 处理@开头的路径（代表REMOTE_ENV）
+            if path.startswith("@"):
+                # @路径代表REMOTE_ENV
+                logical_path = path
+                if '../' in path or '/./' in path or path.endswith('/..') or path.endswith('/.'):
+                    logical_path = self.normalize_path_components("@", path[2:] if path.startswith("@/") else path[1:])
+                
+                # 根据return_logical决定返回格式
+                if return_logical:
+                    return logical_path
+                else:
+                    if logical_path == "@":
+                        return remote_env_path
+                    elif logical_path.startswith("@/"):
+                        relative_part = logical_path[2:]
+                        return f"{remote_env_path}/{relative_part}"
+                    else:
+                        return f"{remote_env_path}/{logical_path[1:]}"
             
             # 计算逻辑路径（~/xxx格式）
             if path.startswith("~"):

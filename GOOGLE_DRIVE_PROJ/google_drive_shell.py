@@ -192,7 +192,7 @@ class GoogleDriveShell:
         self.command_registry.register(DepsCommand(self))
         self.command_registry.register(PyenvCommand(self))
     
-    def _execute_command_via_registry(self, command_name, method_name, *args, **kwargs):
+    def execute_command_via_registry(self, command_name, method_name, *args, **kwargs):
         """通用的命令委托方法 - 通过command_registry执行命令"""
         command = self.command_registry.get_command(command_name)
         if command and hasattr(command, method_name):
@@ -201,10 +201,6 @@ class GoogleDriveShell:
         else:
             return {"success": False, "error": f"{command_name} command or method {method_name} not available"}
     
-    def check_remote_file_exists(self, file_path):
-        """检查远端文件是否存在"""
-        ls_command = self.command_registry.get_command('ls')
-        return ls_command.check_remote_file_exists(file_path)
     
     def calculate_timeout_from_file_sizes(self, *args, **kwargs):
         """委托到sync_manager管理器"""
@@ -220,90 +216,93 @@ class GoogleDriveShell:
     
     def cmd_cat(self, *args, **kwargs):
         """委托到command_registry - CatCommand"""
-        return self._execute_command_via_registry('cat', 'cmd_cat', *args, **kwargs)
+        return self.execute_command_via_registry('cat', 'cmd_cat', *args, **kwargs)
     
     def cmd_cd(self, *args, **kwargs):
         """委托到command_registry - CdCommand"""
-        return self._execute_command_via_registry('cd', 'cmd_cd', *args, **kwargs)
+        return self.execute_command_via_registry('cd', 'cmd_cd', *args, **kwargs)
     
     def cmd_deps(self, *args, **kwargs):
         """委托到command_registry - DepsCommand"""
-        return self._execute_command_via_registry('deps', 'cmd_deps', *args, **kwargs)
+        return self.execute_command_via_registry('deps', 'cmd_deps', *args, **kwargs)
     
     def cmd_download(self, *args, **kwargs):
         """委托到command_registry - DownloadCommand"""
-        return self._execute_command_via_registry('download', 'cmd_download', *args, **kwargs)
+        return self.execute_command_via_registry('download', 'cmd_download', *args, **kwargs)
     
     def cmd_edit(self, *args, **kwargs):
         """委托到command_registry - EditCommand"""
-        return self._execute_command_via_registry('edit', 'cmd_edit', *args, **kwargs)
+        return self.execute_command_via_registry('edit', 'cmd_edit', *args, **kwargs)
     
     
     def cmd_grep(self, *args, **kwargs):
         """委托到command_registry - GrepCommand"""
-        return self._execute_command_via_registry('grep', 'cmd_grep', *args, **kwargs)
+        return self.execute_command_via_registry('grep', 'cmd_grep', *args, **kwargs)
     
     def cmd_ls(self, *args, **kwargs):
         """委托到command_registry - LsCommand"""
-        return self._execute_command_via_registry('ls', 'cmd_ls', *args, **kwargs)
+        return self.execute_command_via_registry('ls', 'cmd_ls', *args, **kwargs)
+
+    def cmd_ls_remote(self, *args, **kwargs):
+        """委托到command_registry - LsCommand"""
+        return self.execute_command_via_registry('ls', 'cmd_ls_remote', *args, **kwargs)
     
     def cmd_mkdir(self, *args, **kwargs):
         """委托到command_registry - MkdirCommand"""
-        return self._execute_command_via_registry('mkdir', 'cmd_mkdir', *args, **kwargs)
+        return self.execute_command_via_registry('mkdir', 'cmd_mkdir', *args, **kwargs)
     
     def cmd_touch(self, *args, **kwargs):
         """委托到command_registry - TouchCommand"""
-        return self._execute_command_via_registry('touch', 'cmd_touch', *args, **kwargs)
+        return self.execute_command_via_registry('touch', 'cmd_touch', *args, **kwargs)
     
     def cmd_mv(self, *args, **kwargs):
         """委托到command_registry - MvCommand"""
-        return self._execute_command_via_registry('mv', 'cmd_mv', *args, **kwargs)
-    
+        return self.execute_command_via_registry('mv', 'cmd_mv', *args, **kwargs)
     
     def cmd_pwd(self, *args, **kwargs):
         """委托到command_registry - PwdCommand"""
-        return self._execute_command_via_registry('pwd', 'cmd_pwd', *args, **kwargs)
+        return self.execute_command_via_registry('pwd', 'cmd_pwd', *args, **kwargs)
     
     def cmd_python(self, *args, **kwargs):
         """委托到command_registry - PythonCommand"""
-        return self._execute_command_via_registry('python', 'cmd_python', *args, **kwargs)
+        return self.execute_command_via_registry('python', 'cmd_python', *args, **kwargs)
     
     def cmd_python_code(self, code, save_output=False):
         """委托到command_registry - PythonCommand"""
-        return self._execute_command_via_registry('python', 'cmd_python', code=code, save_output=save_output)
+        return self.execute_command_via_registry('python', 'cmd_python', code=code, save_output=save_output)
     
     def cmd_read(self, *args, **kwargs):
         """委托到command_registry - ReadCommand"""
-        return self._execute_command_via_registry('read', 'cmd_read', *args, **kwargs)
+        return self.execute_command_via_registry('read', 'cmd_read', *args, **kwargs)
     
     def cmd_rm(self, *args, **kwargs):
         """委托到command_registry - RmCommand"""
-        return self._execute_command_via_registry('rm', 'cmd_rm', *args, **kwargs)
+        return self.execute_command_via_registry('rm', 'cmd_rm', *args, **kwargs)
     
     def cmd_upload(self, *args, **kwargs):
         """委托到command_registry - UploadCommand"""
-        return self._execute_command_via_registry('upload', 'cmd_upload', *args, **kwargs)
+        return self.execute_command_via_registry('upload', 'cmd_upload', *args, **kwargs)
     
     def cmd_upload_folder(self, *args, **kwargs):
         """委托到command_registry - UploadCommand"""
-        return self._execute_command_via_registry('upload', 'cmd_upload_folder', *args, **kwargs)
+        return self.execute_command_via_registry('upload', 'cmd_upload_folder', *args, **kwargs)
     
     def cmd_linter(self, *args, **kwargs):
         """委托到command_registry - LinterCommand"""
-        return self._execute_command_via_registry('linter', 'cmd_linter', *args, **kwargs)
+        return self.execute_command_via_registry('linter', 'cmd_linter', *args, **kwargs)
     
     def cmd_venv(self, *args, **kwargs):
         """委托到command_registry - VenvCommand"""
-        return self._execute_command_via_registry('venv', 'cmd_venv', *args, **kwargs)
+        return self.execute_command_via_registry('venv', 'cmd_venv', *args, **kwargs)
     
     def cmd_pyenv(self, *args, **kwargs):
         """委托到command_registry - PyenvCommand"""
-        return self._execute_command_via_registry('pyenv', 'cmd_pyenv', *args, **kwargs)
+        return self.execute_command_via_registry('pyenv', 'cmd_pyenv', *args, **kwargs)
     
     
     def cmd_pip(self, *args, **kwargs):
         """委托到command_registry - PipCommand"""
-        return self._execute_command_via_registry('pip', 'cmd_pip', *args, **kwargs)
+        return self.execute_command_via_registry('pip', 'cmd_pip', *args, **kwargs)
     
     def create_shell(self, *args, **kwargs):
         """委托到shell_management管理器"""
@@ -314,9 +313,9 @@ class GoogleDriveShell:
         kwargs['_skip_queue_management'] = kwargs.get('_skip_queue_management', False)
         return self.command_executor.execute_command_interface(*args, **kwargs)
     
-    def verify_creation_with_ls(self, *args, **kwargs):
+    def verify_with_ls(self, *args, **kwargs):
         """委托到validation管理器"""
-        return self.validation.verify_creation_with_ls(*args, **kwargs)
+        return self.validation.verify_with_ls(*args, **kwargs)
     
     def process_json(self, echo_command):
         """处理echo命令中的转义字符"""
@@ -701,11 +700,13 @@ class GoogleDriveShell:
             cmd_parts.append("# Create execution script using echo (no heredoc)")
             cmd_parts.append(f"echo '#!/bin/bash' > {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'set -e' >> {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'echo {cmd_b64} | base64 -d > /tmp/bg_cmd_{bg_pid}.sh' >> {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'chmod +x /tmp/bg_cmd_{bg_pid}.sh' >> {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'bash /tmp/bg_cmd_{bg_pid}.sh > /tmp/bg_stdout_{bg_pid} 2> /tmp/bg_stderr_{bg_pid}' >> {tmp_path}/{script_file}")
+            # Immediately create log file to ensure it exists when task starts
+            cmd_parts.append(f"echo 'touch {tmp_path}/{log_file}' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo {cmd_b64} | base64 -d > /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'chmod +x /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'bash /tmp/bg_cmd_result_{bg_pid}.sh > /tmp/bg_stdout_{bg_pid} 2> /tmp/bg_stderr_{bg_pid}' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'EXIT_CODE=$?' >> {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'rm -f /tmp/bg_cmd_{bg_pid}.sh' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'rm -f /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
             
             # Add result generation using a separate Python script to avoid quote escaping
             cmd_parts.append(f"echo 'cat > {tmp_path}/create_result_{bg_pid}.py << \"RESULT_PYTHON_EOF\"' >> {tmp_path}/{script_file}")
@@ -952,6 +953,15 @@ class GoogleDriveShell:
                         has_multiple_ops = True
                         break
             
+            # 单独检查重定向符号，因为它们需要特殊处理
+            has_redirection = False
+            if not has_multiple_ops:  # 只有在没有多操作符时才检查重定向
+                for redir_op in [' > ', ' >> ', '>', '>>']:
+                    if redir_op in shell_cmd_clean:
+                        if self.is_operator_outside_quotes(shell_cmd_clean, redir_op):
+                            has_redirection = True
+                            break
+            
             if has_multiple_ops:
                 import os
                 import sys
@@ -966,6 +976,30 @@ class GoogleDriveShell:
             # 然后检查是否为特殊命令（导航命令等）
             first_word = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
 
+            # 如果命令包含重定向，跳过特殊命令处理，直接执行bash命令
+            if has_redirection:
+                # 检查是否包含特殊命令，如果是则给出警告
+                special_commands_list = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'pyenv', 
+                                        'linter', 'pip', 'deps', 'edit', 'read', 
+                                        'upload', 'upload-folder', 'download', 'mv', 'find', 'rm', 
+                                        'grep', 'python', 'venv']
+                first_word_for_check = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
+                if first_word_for_check in special_commands_list or self.command_registry.is_special_command(first_word_for_check):
+                    print(f"⚠️  Warning: Special command '{first_word_for_check}' detected with redirection. GDS special commands will be executed as standard remote bash commands. ")
+                
+                current_shell = self.get_current_shell()
+                if current_shell:
+                    result = self.execute_command_interface("bash", ["-c", shell_cmd_clean])
+                    if result.get("success"):
+                        return 0
+                    else:
+                        error_msg = result.get("error", "Command execution failed")
+                        print(error_msg)
+                        return 1
+                else:
+                    print("Error: No active remote shell")
+                    return 1
+
             # 首先检查新的命令注册系统
             if self.command_registry.is_special_command(first_word):
                 import shlex
@@ -974,6 +1008,17 @@ class GoogleDriveShell:
                     if cmd_parts:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
+                        
+                        # 统一处理所有参数的路径扩展
+                        processed_args = []
+                        for arg in args:
+                            if arg.startswith('/') and not arg.startswith('/content/'):
+                                # 这可能是被bash扩展的本地路径，需要转换
+                                converted_arg = self.path_resolver.undo_local_path_user_expansion(arg)
+                                processed_args.append(converted_arg)
+                            else:
+                                processed_args.append(arg)
+                        args = processed_args
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception as e:
@@ -993,6 +1038,17 @@ class GoogleDriveShell:
                     if cmd_parts:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
+                        
+                        # 统一处理所有参数的路径扩展
+                        processed_args = []
+                        for arg in args:
+                            if arg.startswith('/') and not arg.startswith('/content/'):
+                                # 这可能是被bash扩展的本地路径，需要转换
+                                converted_arg = self.path_resolver.undo_local_path_user_expansion(arg)
+                                processed_args.append(converted_arg)
+                            else:
+                                processed_args.append(arg)
+                        args = processed_args
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception as e:

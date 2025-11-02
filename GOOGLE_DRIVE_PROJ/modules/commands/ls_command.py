@@ -15,6 +15,8 @@ class LsCommand(BaseCommand):
         # 解析参数
         detailed = False
         recursive = False
+        force_remote = False  # -f标志，使用远程bash强制刷新
+        show_hidden = False  # -a标志，显示隐藏文件
         path = None
         has_bash_flags = False
         
@@ -23,6 +25,10 @@ class LsCommand(BaseCommand):
                 detailed = True
             elif arg == '-R':
                 recursive = True
+            elif arg == '-f' or arg == '--force':
+                force_remote = True
+            elif arg == '-a' or arg == '--all':
+                show_hidden = True
             elif arg.startswith('-'):
                 has_bash_flags = True
                 break
@@ -40,6 +46,7 @@ class LsCommand(BaseCommand):
                     print(stdout, end='')
                 return 0
             else:
+                data = result.get('data', {})
                 error = result.get('error', data.get('stderr', 'Command failed'))
                 print(error)
                 return 1
@@ -48,8 +55,12 @@ class LsCommand(BaseCommand):
         if path and ('*' in path or '?' in path or '[' in path):
             return self.shell.handle_wildcard_ls(path)
         
-        # 调用shell的ls方法
-        result = self.shell.cmd_ls(path, detailed=detailed, recursive=recursive)
+        # 如果有-f标志，直接调用cmd_ls_remote（远程bash）
+        if force_remote:
+            result = self.shell.cmd_ls_remote(path, detailed=detailed, recursive=recursive, show_hidden=show_hidden)
+        else:
+            # 调用shell的ls方法（使用Google Drive API）
+            result = self.shell.cmd_ls(path, detailed=detailed, recursive=recursive, show_hidden=show_hidden)
         
         if result.get("success", False):
             files = result.get("files", [])
@@ -66,7 +77,7 @@ class LsCommand(BaseCommand):
                 
                 if detailed:
                     # 详细模式：显示表格化信息，类似 ls -la
-                    self._print_detailed_listing(all_sorted_items)
+                    self.print_detailed_listing(all_sorted_items)
                 else:
                     # 简单的列表格式，类似bash ls
                     for item in all_sorted_items:
@@ -135,6 +146,7 @@ class LsCommand(BaseCommand):
     def cmd_ls(self, path=None, detailed=False, recursive=False, show_hidden=False):
         """列出目录内容，支持递归、详细模式和扩展信息模式，支持文件路径"""
         try:
+            print(f"DEBUG [cmd_ls]: 输入path = {path}")
             
             if not self.drive_service:
                 return {"success": False, "error": "Google Drive API服务未初始化"}
@@ -146,6 +158,7 @@ class LsCommand(BaseCommand):
             # 首先将可能的远端绝对路径转换为逻辑路径
             if path:
                 path = self._convert_absolute_to_logical(path)
+                print(f"DEBUG [cmd_ls]: 转换后path = {path}")
             
             if path is None or path == ".":
                 # 当前目录
@@ -156,9 +169,6 @@ class LsCommand(BaseCommand):
                 target_folder_id = self.main_instance.REMOTE_ROOT_FOLDER_ID
                 display_path = "~"
             else:
-                # 首先将本地路径转换为远程路径格式以便在错误消息中正确显示
-                converted_path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
-                
                 # 首先尝试作为目录解析
                 target_folder_id, display_path = self.main_instance.resolve_drive_id(path, current_shell)
                 
@@ -167,14 +177,14 @@ class LsCommand(BaseCommand):
                     if file_result:
                         return {
                             "success": True,
-                            "path": converted_path,
+                            "path": path,
                             "files": [file_result],
                             "folders": [],
                             "count": 1,
                             "mode": "single_file"
                         }
                     else:
-                        return {"success": False, "error": f"Path not found: {converted_path}"}
+                        return {"success": False, "error": f"ls: cannot access '{path}': No such file or directory"}
             
             if recursive:
                 return self.ls_recursive(target_folder_id, display_path, detailed, show_hidden)
@@ -184,6 +194,10 @@ class LsCommand(BaseCommand):
                 
                 if result['success']:
                     files = result['files']
+                    
+                    # 如果不显示隐藏文件，过滤掉以.开头的文件
+                    if not show_hidden:
+                        files = [f for f in files if not f['name'].startswith('.')]
                     
                     # 添加网页链接到每个文件
                     for file in files:
@@ -423,47 +437,8 @@ class LsCommand(BaseCommand):
         
         return None
 
-    def check_remote_file_exists(self, file_path):
-        """
-        检查远端文件是否存在
-
-        Args:
-            file_path (str): 文件路径（支持逻辑路径或远端绝对路径）
-
-        Returns:
-            dict: 检查结果
-        """
-        try:
-            # 首先将可能的远端绝对路径转换为逻辑路径
-            file_path = self._convert_absolute_to_logical(file_path)
-            
-            # 解析路径
-            if "/" in file_path:
-                dir_path, filename = file_path.rsplit("/", 1)
-            else:
-                dir_path = "~"
-                filename = file_path
-
-            # 列出目录内容
-            ls_result = self.main_instance.cmd_ls(dir_path)
-
-            if not ls_result.get("success"):
-                return {"exists": False, "error": f"Cannot access directory: {dir_path}"}
-
-            # 检查文件和文件夹是否在列表中
-            files = ls_result.get("files", [])
-            folders = ls_result.get("folders", [])
-            all_items = files + folders
-
-            # 检查文件或文件夹是否存在
-            file_exists = any(f.get("name") == filename for f in all_items)
-
-            return {"exists": file_exists}
-
-        except Exception as e:
-            return {"exists": False, "error": f"Check file existence failed: {str(e)}"}
     
-    def _print_detailed_listing(self, items):
+    def print_detailed_listing(self, items):
         """打印详细的列表信息，类似 ls -la 的表格格式
         
         Args:
@@ -543,6 +518,125 @@ class LsCommand(BaseCommand):
         except (ValueError, TypeError):
             return '-'
     
+    def cmd_ls_remote(self, path=None, detailed=False, recursive=False, show_hidden=False):
+        """使用远程bash命令强制刷新ls结果"""
+        try:
+            print(f"DEBUG [cmd_ls_remote]: 输入path = {path}")
+            
+            # 如果提供了path，需要将逻辑路径转换为远程绝对路径
+            if path:
+                # 首先将可能的远端绝对路径转换为逻辑路径
+                path = self._convert_absolute_to_logical(path)
+                print(f"DEBUG [cmd_ls_remote]: 转换为逻辑路径后 = {path}")
+                
+                # 获取当前shell信息
+                current_shell = self.main_instance.get_current_shell()
+                if not current_shell:
+                    return {"success": False, "error": "没有活跃的远程shell"}
+                
+                # 将逻辑路径转换为远程绝对路径
+                remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(path, current_shell, return_logical=False)
+                print(f"DEBUG [cmd_ls_remote]: 解析后的远程绝对路径 = {remote_path}")
+            else:
+                # 如果没有提供path，使用当前工作目录的远程绝对路径
+                current_shell = self.main_instance.get_current_shell()
+                if current_shell:
+                    remote_path = current_shell.get("remote_cwd", None)
+                else:
+                    remote_path = None
+            
+            # 构建bash ls命令
+            ls_args = []
+            if detailed:
+                ls_args.append('-la')
+            else:
+                ls_args.append('-l')
+            
+            if show_hidden and not detailed:  # -la已经包含了-a
+                ls_args.append('-a')
+            
+            if recursive:
+                ls_args.append('-R')
+            
+            # 构建完整命令
+            if remote_path:
+                full_command = f"ls {' '.join(ls_args)} {remote_path}"
+            else:
+                full_command = f"ls {' '.join(ls_args)}"
+            
+            # 通过远程bash执行
+            result = self.shell.execute_command_interface('bash', ['-c', full_command])
+            
+            if result.get('success'):
+                data = result.get('data', {})
+                exit_code = data.get('exit_code', 0)
+                stdout = data.get('stdout', '')
+                stderr = data.get('stderr', '')
+                
+                # 检查ls命令是否成功执行（exit_code为0）
+                if exit_code == 0:
+                    # 解析bash ls输出为GDS格式
+                    return self._parse_bash_ls_output(stdout, path or "~")
+                else:
+                    # ls命令失败（文件不存在等）
+                    return {"success": False, "error": stderr.strip()}
+            else:
+                data = result.get('data', {})
+                error = result.get('error', data.get('stderr', 'Command failed'))
+                return {"success": False, "error": f"Force refresh failed: {error}"}
+                
+        except Exception as e:
+            return {"success": False, "error": f"Force refresh error: {str(e)}"}
+    
+    def _parse_bash_ls_output(self, stdout, base_path):
+        """解析bash ls输出为GDS格式"""
+        try:
+            lines = stdout.strip().split('\n')
+            files = []
+            folders = []
+            
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith('total'):
+                    continue
+                
+                # 简单解析ls -l输出
+                parts = line.split()
+                if len(parts) < 9:
+                    continue
+                
+                permissions = parts[0]
+                name = ' '.join(parts[8:])  # 文件名可能包含空格
+                
+                # 跳过. 和 ..
+                if name in ['.', '..']:
+                    continue
+                
+                item = {
+                    'name': name,
+                    'id': f"bash_{name}",  # 临时ID
+                    'mimeType': 'application/vnd.google-apps.folder' if permissions.startswith('d') else 'text/plain',
+                    'size': parts[4] if not permissions.startswith('d') else None,
+                    'modifiedTime': f"{parts[5]} {parts[6]} {parts[7]}",
+                    'url': f"file://{base_path}/{name}"
+                }
+                
+                if permissions.startswith('d'):
+                    folders.append(item)
+                else:
+                    files.append(item)
+            
+            return {
+                "success": True,
+                "files": files,
+                "folders": folders,
+                "display_path": base_path,
+                "force_refreshed": True
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": f"Parse bash ls output error: {str(e)}"}
+
     def show_help(self):
         """显示ls命令的帮助信息"""
         help_text = """ls - list directory contents
@@ -556,7 +650,8 @@ Arguments:
 Options:
   --detailed               Show detailed file information (type, size, modified time, ID, name)
   -R                       Recursive listing
-  -f                       Force mode (bypass cache)
+  -a, --all                Show hidden files (files starting with .)
+  -f, --force              Force mode (use remote bash to bypass API cache)
   -d                       Directory mode
   -h, --help               Show this help message
 

@@ -12,6 +12,11 @@ class PipCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行pip命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         if not args:
             print("Error: pip command needs arguments")
             return 1
@@ -27,6 +32,37 @@ class PipCommand(BaseCommand):
             error_msg = result.get("error", "Pip operation failed")
             print(error_msg)
             return 1
+    
+    def show_help(self):
+        """显示pip命令帮助信息"""
+        print("GDS Pip Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS pip install <package>          # Install package")
+        print("  GDS pip uninstall <package>        # Uninstall package")
+        print("  GDS pip list                       # List installed packages")
+        print("  GDS pip show <package>             # Show package information")
+        print("  GDS pip freeze                     # Output installed packages in requirements format")
+        print("  GDS pip --help                     # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Manage Python packages in the remote environment.")
+        print("  Automatically handles virtual environments and package states.")
+        print()
+        print("EXAMPLES:")
+        print("  GDS pip install numpy              # Install numpy")
+        print("  GDS pip install -r requirements.txt # Install from requirements file")
+        print("  GDS pip uninstall numpy            # Uninstall numpy")
+        print("  GDS pip list                       # List all packages")
+        print("  GDS pip show numpy                 # Show numpy details")
+        print("  GDS pip freeze > requirements.txt  # Export requirements")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS python --help                  # Python execution")
+        print("  GDS pyenv --help                   # Python version management")
+        print("  GDS venv --help                    # Virtual environment management")
+        print("  GDS deps --help                    # Dependency analysis")
     
     def cmd_pip(self, *args, **kwargs):
         """执行pip命令（增强版 - 自动处理虚拟环境、包状态显示）"""

@@ -42,9 +42,47 @@ class LinterCommand(BaseCommand):
     
     def execute(self, cmd, args, command_identifier=None):
         """执行linter命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         if not args:
             print("Error: linter command needs a file name")
             return 1
+        
+    def show_help(self):
+        """显示linter命令帮助信息"""
+        print("GDS Linter Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS linter <file> [--language <lang>]  # Lint a file")
+        print("  GDS linter --help                       # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Perform code linting on files in the remote environment.")
+        print("  Automatically detects language from file extension.")
+        print()
+        print("SUPPORTED LANGUAGES:")
+        print("  Python      (.py)  - Uses pyflakes")
+        print("  JavaScript  (.js)  - Uses eslint")
+        print("  TypeScript  (.ts)  - Uses eslint")
+        print("  JSON        (.json)- Uses json")
+        print("  Shell       (.sh)  - Uses shellcheck")
+        print()
+        print("OPTIONS:")
+        print("  --language <lang>                      # Override language detection")
+        print()
+        print("EXAMPLES:")
+        print("  GDS linter script.py                   # Lint Python file")
+        print("  GDS linter app.js                      # Lint JavaScript file")
+        print("  GDS linter config.json                 # Validate JSON file")
+        print("  GDS linter script.sh                   # Lint shell script")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS python --help                      # Python execution")
+        print("  GDS cat --help                         # View file contents")
         
         # Parse arguments for --language option
         language = None

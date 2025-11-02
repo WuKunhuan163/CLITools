@@ -14,6 +14,11 @@ class FindCommand(BaseCommand):
     
     def execute(self, cmd, args, **kwargs):
         """执行find命令（BaseCommand要求的方法）"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
         result = self.cmd_find(*args)
         if result.get("success"):
             # 打印输出
@@ -26,6 +31,34 @@ class FindCommand(BaseCommand):
             print(error_msg)
             return 1
     
+    def show_help(self):
+        """显示find命令帮助信息"""
+        print("GDS Find Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS find [path] [options]           # Search for files")
+        print("  GDS find --help                     # Show this help")
+        print()
+        print("OPTIONS:")
+        print("  -name <pattern>                     # Case-sensitive name pattern")
+        print("  -iname <pattern>                    # Case-insensitive name pattern")
+        print("  -type f                             # Find files only")
+        print("  -type d                             # Find directories only")
+        print()
+        print("DESCRIPTION:")
+        print("  Search for files and directories in the remote environment.")
+        print("  Supports pattern matching and filtering by type.")
+        print()
+        print("EXAMPLES:")
+        print("  GDS find . -name '*.py'             # Find all Python files")
+        print("  GDS find . -iname 'readme*'         # Find README files (case-insensitive)")
+        print("  GDS find . -type d                  # Find all directories")
+        print("  GDS find ~/project -name 'test*.py' # Find test files in project")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS grep --help                     # Search file contents")
+        print("  GDS ls --help                       # List directory contents")
 
     def parse_find_args(self, args):
         """解析find命令参数"""

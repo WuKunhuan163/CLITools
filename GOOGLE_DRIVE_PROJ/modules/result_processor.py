@@ -10,20 +10,20 @@ class ResultProcessor:
         self.drive_service = drive_service
         self.main_instance = main_instance
 
-    def wait_and_read_result_file(self, result_filename, max_wait_time=15):
+    def wait_and_read_result_file(self, result_filename, max_attempts=12):
         """
-        等待并读取远端结果文件，最多等待60秒
+        等待并读取远端结果文件，最多等待12次
         
         Args:
             result_filename (str): 远端结果文件名（在tmp目录中）
-            
+            max_attempts (int): 最大尝试次数
         Returns:
             dict: 读取结果
         """
         try:
             import time
             
-            # 使用逻辑路径而不是远端绝对路径，因为check_remote_file_exists会传递给cmd_ls
+            # 使用逻辑路径而不是远端绝对路径，因为verify_with_ls会传递给cmd_ls
             logical_file_path = f"~/tmp/{result_filename}"
 
             # 使用进度缓冲输出等待指示器
@@ -43,15 +43,15 @@ class ResultProcessor:
             old_handler = signal.signal(signal.SIGINT, signal_handler)
             
             try:
-                for i in range(max_wait_time):
+                for i in range(max_attempts):
                     # 在每次循环开始时检查中断标志
                     if interrupted:
                         raise KeyboardInterrupt()
                     
-                    # 检查文件是否存在
-                    check_result = self.main_instance.check_remote_file_exists(logical_file_path)
+                    # 检查文件是否存在，使用简单的ls检查避免递归
+                    ls_result = self.main_instance.cmd_ls(logical_file_path, detailed=False, recursive=False)
                     
-                    if check_result.get("exists"):
+                    if ls_result.get("success"):
                         # 文件存在，读取内容
                         file_result = self.read_result_file_via_gds(result_filename)
                         
@@ -116,17 +116,13 @@ class ResultProcessor:
                     "timeout": True,
                     "background_mode": True
                 }
-            print(f"Please provide the execution result:")
-            print(f"- Enter multiple lines to describe the command execution")
-            print(f"- Press Ctrl+D to end input")
-            print(f"- Or press Enter directly to skip")
-            print()
             
-            # 获取用户手动输入
-            user_feedback = self.get_multiline_user_input(prompt="Please provide feedback (press Ctrl+D when done):")
-            
-            if user_feedback.strip():
-                # 用户提供了反馈
+            # 获取用户手动输入（通过main_instance的command_executor）
+            try: 
+                user_feedback = self.main_instance.command_executor.get_multiline_user_input(prompt="Please provide feedback (press Ctrl+D when done):")
+            except Exception as e: 
+                raise Exception(f"获取用户反馈失败: {str(e)}")
+            if user_feedback.strip(): 
                 return {
                     "success": True,
                     "data": {
@@ -141,15 +137,13 @@ class ResultProcessor:
                         "note": "用户手动输入的执行结果"
                     }
                 }
-            else:
-                # 用户跳过了输入
+            else: 
                 return {
                     "success": False, 
                     "error": f"等待远端结果文件超时，用户未提供反馈: {logical_file_path}"
                 }
             
-        except Exception as e:
-            print()  # 换行
+        except Exception as e: 
             return {
                 "success": False,
                 "error": f"等待结果文件时出错: {str(e)}"
@@ -202,9 +196,9 @@ class ResultProcessor:
             # 需要先cd到根目录，然后访问tmp目录
             remote_file_path = f"~/tmp/{result_filename}"
 
-            # 首先使用ls检查文件是否存在
-            check_result = self.main_instance.check_remote_file_exists(remote_file_path)
-            if not check_result.get("exists"):
+            # 首先使用简单的ls检查文件是否存在，避免递归
+            ls_result = self.main_instance.cmd_ls(remote_file_path, detailed=False, recursive=False)
+            if not ls_result.get("success"):
                 return {
                     "success": False,
                     "error": f"Remote result file does not exist: {remote_file_path}"

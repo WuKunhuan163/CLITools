@@ -23,7 +23,7 @@ def translate_heredoc(command):
     heredoc_pattern = r'^(.+?)\s*<<\s*["\']?(\w+)["\']?\s*$'
     
     lines = command.strip().split('\n')
-    if len(lines) < 3:  # 至少需要3行：命令行、内容行、结束标记
+    if len(lines) < 2:  # 至少需要2行：命令行和结束标记（空heredoc）
         return [command], False
     
     first_line = lines[0].strip()

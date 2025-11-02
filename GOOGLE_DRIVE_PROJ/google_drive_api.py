@@ -158,14 +158,19 @@ class GoogleDriveService:
             if folder_id:
                 query = f"'{folder_id}' in parents"
             
-            results = self.service.files().list(
-                q=query,
-                pageSize=max_results,
-                fields="nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)"
-            ).execute()
-            
+            # 构建API参数
+            params = {
+                'q': query,
+                'pageSize': max_results,
+                'fields': "nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)"
+            }
+
+            import uuid
+            params['quotaUser'] = f"refresh_{uuid.uuid4().hex[:8]}"
+            params['includeItemsFromAllDrives'] = True
+            params['supportsAllDrives'] = True
+            results = self.service.files().list(**params).execute()
             items = results.get('files', [])
-            
             return {
                 "success": True,
                 "files": items,
