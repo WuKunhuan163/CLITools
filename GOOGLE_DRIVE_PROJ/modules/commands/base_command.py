@@ -54,4 +54,4 @@ class BaseCommand(ABC):
     
     def print_error(self, message: str) -> None:
         """Print error message."""
-        print(f"Error in BaseCommand: {message}")
+        print(message)

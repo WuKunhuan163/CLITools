@@ -6,9 +6,7 @@
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Dict, Any
 
 
 class ConfigLoader:
@@ -94,10 +92,20 @@ def get_config() -> ConfigLoader:
     return _config_loader
 
 # Background任务文件名模板
+# Background task file templates
 BG_STATUS_FILE_TEMPLATE = "cmd_bg_{bg_pid}.status"
 BG_SCRIPT_FILE_TEMPLATE = "cmd_bg_{bg_pid}.sh"
 BG_LOG_FILE_TEMPLATE = "cmd_bg_{bg_pid}.log"
 BG_RESULT_FILE_TEMPLATE = "cmd_bg_{bg_pid}.result.json"
+
+# Upload configuration - 从config.json读取
+def get_large_file_threshold_mb():
+    """获取大文件阈值（MB）"""
+    try:
+        config = get_config_loader()
+        return config.config_data.get("upload_settings", {}).get("large_file_threshold_mb", 10)
+    except:
+        return 10  # 默认值
 
 # 生成具体文件名的辅助函数
 def get_bg_status_file(bg_pid):

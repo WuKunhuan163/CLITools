@@ -240,50 +240,27 @@ class CommandExecutor:
     def execute_command(self, remote_command, result_filename, cmd_hash, raw_command=None):
         """
         执行远程命令接口 - 只负责执行已生成的远程命令
-        
+
         Args:
             remote_command (str): 已生成的远程命令脚本
             result_filename (str): 结果文件名
             cmd_hash (str): 命令hash
             raw_command (str, optional): 原始用户命令（用于debug输出）
-            
+
         Returns:
             dict: 执行结果
         """
-        
         # 显示远程窗口
         window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
         
-        # write_debug_output(
-        #     command=raw_command or "Unknown",
-        #     result=window_result,
-        #     raw_output="(Will be updated after command execution)",
-        #     raw_error="(Will be updated after command execution)",
-        #     remote_command=remote_command
-        # )
-        
         # 处理窗口结果
-        if window_result["action"] == "success": 
+        if window_result["action"] == "success":
             from .progress_manager import start_progress_buffering, stop_progress_buffering
             start_progress_buffering("⏳ Waiting for result ...")
             try:
                 result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
-            finally: 
+            finally:
                 stop_progress_buffering()
-            
-            # 更新debug文件，记录实际的执行结果
-            if result.get("success", False):
-                data = result.get("data", {})
-                # write_debug_output(
-                #     command=raw_command or "Unknown",
-                #     result=result,
-                #     raw_output=data.get("stdout", ""),
-                #     output=data.get("stdout", ""),
-                #     raw_error=data.get("stderr", ""),
-                #     error=data.get("stderr", ""),
-                #     remote_command=remote_command,
-                #     return_code=data.get("exit_code", -1)
-                # )
             
             if result.get("success", False):
                 data = result.get("data", {})
@@ -304,7 +281,6 @@ class CommandExecutor:
                 }
                 
         elif window_result["action"] == "direct_feedback":
-            # 用户选择直接反馈，使用direct_feedback_interface
             print()  # 换行
             feedback_result = self.direct_feedback_interface(remote_command, result_filename)
             return feedback_result
@@ -338,6 +314,7 @@ class CommandExecutor:
         # 检查是否为特殊命令，如果是则不应该到这里
         if cmd in self.SPECIAL_COMMANDS:
             return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
+        
         cleaned_args = args
 
         # 调试日志已禁用
@@ -347,7 +324,7 @@ class CommandExecutor:
         # 设置时间戳基准点（如果还没有设置的话）
         if not hasattr(self, '_debug_start_time'):
             self._debug_start_time = time.time()
-        
+
         # 如果提供了原始用户命令，优先使用它（用于保持hash一致性）
         if _original_user_command:
             cmd = _original_user_command
@@ -361,8 +338,6 @@ class CommandExecutor:
             cmd = cmd
             
         current_shell = self.main_instance.get_current_shell()
-        
-        # 生成远程命令
         remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
             cmd, None, current_shell
         )
@@ -375,7 +350,6 @@ class CommandExecutor:
             raw_command=cmd
         )
         return result
-
 
     def execute_special_command(self, name: str, args: List[str], **kwargs) -> int:
         """
@@ -404,10 +378,12 @@ class CommandExecutor:
         # 调试窗口弹出次数
         if False:  # 设置为True可开启调试
             import traceback
-            print("DEBUG: show_remote_command_window called!")
+            print("\nDEBUG: show_remote_command_window called!")
             print("DEBUG: Call stack:")
-            traceback.print_stack()
-            print("DEBUG: ==================")
+            for line in traceback.format_stack()[:-1]:
+                if "/Users/wukunhuan/.local/bin" in line:
+                    print(line.strip())
+            print("DEBUG: ==================\n")
         
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
@@ -456,7 +432,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 使用传入的cmd_hash
         result = window_manager.request_window(enhanced_cmd, cmd_hash, timeout_seconds, no_direct_feedback=test_mode, is_priority=is_priority)
         return result
-            
+                
     def direct_feedback(self, remote_command, debug_info=None):
         """
         直接反馈功能 - 粘贴远端命令和用户反馈，用=分割
@@ -483,7 +459,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
 
         # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
         error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
-                            'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
+                         'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
 
         # 检查是否包含错误信息
         has_error = any(keyword in full_output for keyword in error_keywords)

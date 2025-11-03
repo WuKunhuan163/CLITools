@@ -196,9 +196,20 @@ class PyenvCommand(BaseCommand):
                         }
             
             # 构建安装路径
-            install_path = f"{self.get_python_base_path()}/{version}"
+            install_path_logical = f"{self.get_python_base_path()}/{version}"
+            
+            # 解析@路径为绝对路径
+            current_shell = self.main_instance.get_current_shell()
+            install_path = self.main_instance.path_resolver.resolve_remote_absolute_path(install_path_logical, current_shell)
+
+
+            print(f"\n\n\n{'=' * 100}")
+            print(f"DEBUG install_path_logical: {install_path_logical}")
+            print(f"DEBUG install_path: {install_path}")
+            print(f"{'=' * 100}\n\n\n")
             
             print(f"Installing Python {version}...")
+            print(f"Installation path: {install_path}")
             print(f"This may take several minutes...")
             
             # 构建远程安装命令
@@ -498,10 +509,10 @@ fi
                 file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
                 print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
                 
-                print(f"Step 2/4: Uploading source code to remote...")
+                print(f"Step 2/4: Uploading source code to remote REMOTE_ENV...")
                 
-                # 上传到远程的tmp目录
-                remote_tmp_path = f"~/tmp/python_install_{version}"
+                # 上传到REMOTE_ENV的临时目录
+                remote_tmp_path = f"@/python_install_{version}"
                 
                 # 创建远程目录
                 mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
@@ -511,9 +522,10 @@ fi
                         "error": f"Failed to create remote directory: {mkdir_result.get('error', 'Unknown error')}"
                     }
                 
-                # 上传tar.gz文件
-                remote_tarball_path = f"{remote_tmp_path}/{tarball_name}"
-                upload_result = self.shell.cmd_upload(tarball_path, remote_tarball_path)
+                # 上传tar.gz文件到@路径
+                from ..commands.upload_command import UploadCommand
+                upload_cmd = UploadCommand(self.shell)
+                upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path, force=True)
                 
                 if not upload_result.get("success"):
                     return {
@@ -525,8 +537,9 @@ fi
                 
                 print(f"Step 3/4: Extracting and compiling (this may take 10-20 minutes)...")
                 
-                # 构建安装路径
-                install_path = f"{self.get_python_base_path()}/{version}"
+                # 构建安装路径 (使用REMOTE_ENV)
+                install_path = f"{self.shell.REMOTE_ENV}/python/{version}"
+                work_dir = f"{self.shell.REMOTE_ENV}/python_install_{version}"
                 
                 # 构建远程编译安装脚本
                 install_script = f'''
@@ -534,7 +547,7 @@ fi
 mkdir -p "{install_path}"
 
 # 切换到临时目录
-cd "{self.shell.REMOTE_ROOT}/tmp/python_install_{version}"
+cd "{work_dir}"
 
 # 解压源码
 echo "Extracting source code..."
@@ -568,19 +581,43 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 验证安装
+# 添加执行权限
+echo "Setting executable permissions..."
+chmod +x "{install_path}/bin/python3"
+chmod +x "{install_path}/bin/python3.{version.rsplit('.', 1)[0]}"
+chmod +x "{install_path}/bin/pip3"
+
+# 验证安装 - 运行简单的Python代码
 if [ -x "{install_path}/bin/python3" ]; then
     echo "Python {version} installed successfully!"
     {install_path}/bin/python3 --version
+    
+    # 测试Python执行
+    echo "Running test script..."
+    {install_path}/bin/python3 -c "import sys; print(f'Python {{sys.version}} is working correctly!')"
+    
+    if [ $? -eq 0 ]; then
+        echo "✓ Python executable test passed"
+        
+        # 测试pip
+        {install_path}/bin/pip3 --version
+        if [ $? -eq 0 ]; then
+            echo "✓ pip is working correctly"
+        fi
+    else
+        echo "✗ Python executable test failed"
+        exit 1
+    fi
     
     # 清理临时文件
     cd ..
     rm -rf Python-{version} Python-{version}.tgz
     
     echo "Installation complete. Clean up done."
+    echo "Python {version} is now available at: {install_path}/bin/python3"
     exit 0
 else
-    echo "Installation verification failed"
+    echo "Installation verification failed - executable not found"
     exit 1
 fi
 '''
@@ -1071,15 +1108,12 @@ except:
             return False
     
     def get_installed_versions(self):
-        """获取所有已安装的Python版本"""
+        """获取所有已安装的Python版本 - 使用Google Drive API避免远端窗口"""
         try:
-            # 通过远程命令列出python目录下的版本
-            list_command = f'ls -1 "{self.get_python_base_path()}" 2>/dev/null | grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" || echo ""'
-            result = self.shell.execute_command_interface("bash", ["-c", list_command])
-            
-            if result.get("success") and result.get("stdout"):
-                versions = [v.strip() for v in result["stdout"].split('\n') if v.strip()]
-                return versions
+            # 使用统一的版本获取方法（通过Google Drive API）
+            versions_info = self.get_versions_and_current_unified()
+            if versions_info and "installed_versions" in versions_info:
+                return versions_info["installed_versions"]
             else:
                 return []
                 

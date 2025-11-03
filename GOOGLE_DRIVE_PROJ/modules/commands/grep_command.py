@@ -142,8 +142,8 @@ class GrepCommand(BaseCommand):
             result = {}
             
             for filename in filenames:
-                # 获取文件内容
-                cat_result = self.shell.cmd_cat(filename)
+                # 获取文件内容（使用grep作为命令名用于错误信息）
+                cat_result = self.shell.cmd_cat(filename, "grep")
                 if not cat_result["success"]:
                     result[filename] = {
                         "local_file": None,

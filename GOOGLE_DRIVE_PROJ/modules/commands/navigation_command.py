@@ -74,71 +74,75 @@ class NavigationCommand(BaseCommand):
 
     def cmd_pwd(self):
         """显示当前路径"""
-        try:
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
-            
-            return {
-                "success": True,
-                "current_path": current_shell.get("current_path", "~"),
-                "home_url": self.main_instance.HOME_URL,
-                "shell_id": current_shell["id"],
-                "shell_name": current_shell["name"]
-            }
-            
-        except Exception as e:
-            return {"success": False, "error": f"获取当前路径时出错: {e}"}
+        current_shell = self.main_instance.get_current_shell()
+        if not current_shell:
+            return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
+        
+        return {
+            "success": True,
+            "current_path": current_shell.get("current_path", "~"),
+            "home_url": self.main_instance.HOME_URL,
+            "shell_id": current_shell["id"],
+            "shell_name": current_shell["name"]
+        }
     
     def cmd_cd(self, path):
         """切换目录"""
-        try:
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
+        current_shell = self.main_instance.get_current_shell()
+        if not current_shell:
+            return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
+        
+        if not path:
+            path = "~"
             
-            if not path:
-                path = "~"
-            
-            # 转换bash扩展的本地路径为远程路径格式
-            path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
-            
-            # 使用新的路径解析器计算绝对路径（逻辑路径格式）
-            absolute_path = self.main_instance.path_resolver.resolve_remote_absolute_path(path, current_shell, return_logical=True)
-            
-            # 使用统一的cmd_ls接口检测目录是否存在
-            ls_result = self.main_instance.cmd_ls(absolute_path)
-            
-            if not ls_result.get('success'):
-                # 添加调试信息，显示路径计算过程
-                return {"success": False, "error": f"bash: cd: {path}: No such file or directory"}
-            
-            # 如果ls成功，说明目录存在，使用resolve_drive_id获取目标ID和路径
-            # 使用规范化后的绝对路径进行解析
-            target_id, target_path = self.main_instance.resolve_drive_id(absolute_path, current_shell)
-            if not target_id:
-                return {"success": False, "error": f"bash: cd: {path}: No such file or directory"}
-            
-            # 更新shell状态
-            shells_data = self.main_instance.load_shells()
-            shell_id = current_shell['id']
-            
-            shells_data["shells"][shell_id]["current_path"] = target_path
-            shells_data["shells"][shell_id]["current_folder_id"] = target_id
-            shells_data["shells"][shell_id]["last_accessed"] = time.strftime("%Y-%m-%d %H:%M:%S")
-            
-            if self.main_instance.save_shells(shells_data):
-                return {
-                    "success": True,
-                    "new_path": target_path,
-                    "folder_id": target_id,
-                    "message": f"Switched to directory: {target_path}"
-                }
-            else:
-                return {"success": False, "error": "Save shell state failed"}
-                
-        except Exception as e:
-            return {"success": False, "error": f"Execute cd command failed: {e}"}
+        # cd命令需要逻辑路径格式，需要将绝对路径转换回逻辑路径
+        # 但只对cd命令进行这种转换
+        if path.startswith('/content/drive/MyDrive/REMOTE_ROOT'):
+            # 转换绝对路径为逻辑路径
+            relative_part = path[len('/content/drive/MyDrive/REMOTE_ROOT'):]
+            if relative_part.startswith('/'):
+                relative_part = relative_part[1:]
+            absolute_path = f"~/{relative_part}" if relative_part else "~"
+        elif path.startswith('/content/drive/MyDrive/REMOTE_ENV'):
+            # @路径转换
+            relative_part = path[len('/content/drive/MyDrive/REMOTE_ENV'):]
+            if relative_part.startswith('/'):
+                relative_part = relative_part[1:]
+            absolute_path = f"@/{relative_part}" if relative_part else "@"
+        else:
+            # 其他情况直接使用
+            absolute_path = path
+        
+        # 使用统一的cmd_ls接口检测目录是否存在
+        ls_result = self.main_instance.cmd_ls(absolute_path)
+        
+        if not ls_result.get('success'):
+            # 目录不存在，直接返回底层错误
+            return ls_result
+        
+        # 如果ls成功，说明目录存在，使用resolve_drive_id获取目标ID和路径
+        # 使用规范化后的绝对路径进行解析
+        target_id, target_path = self.main_instance.resolve_drive_id(absolute_path, current_shell)
+        if not target_id:
+            return {"success": False, "error": f"bash: cd: {path}: No such file or directory"}
+        
+        # 更新shell状态
+        shells_data = self.main_instance.load_shells()
+        shell_id = current_shell['id']
+        
+        shells_data["shells"][shell_id]["current_path"] = target_path
+        shells_data["shells"][shell_id]["current_folder_id"] = target_id
+        shells_data["shells"][shell_id]["last_accessed"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if self.main_instance.save_shells(shells_data):
+            return {
+                "success": True,
+                "new_path": target_path,
+                "folder_id": target_id,
+                "message": f"Switched to directory: {target_path}"
+            }
+        else:
+            return {"success": False, "error": "Save shell state failed"}
     
     def show_pwd_help(self):
         """显示pwd命令的帮助信息"""

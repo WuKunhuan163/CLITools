@@ -92,8 +92,13 @@ class TextCommand(BaseCommand):
             return 1
 
 
-    def cmd_cat(self, filename):
-        """cat命令 - 显示文件内容"""
+    def cmd_cat(self, filename, command_name="cat"):
+        """cat命令 - 显示文件内容
+        
+        Args:
+            filename: 要显示的文件名
+            command_name: 命令名称（用于错误信息，默认"cat"）
+        """
         try:
             if not self.drive_service:
                 return {"success": False, "error": "Google Drive API service not initialized"}
@@ -125,7 +130,7 @@ class TextCommand(BaseCommand):
                 folder_id, _ = self.main_instance.resolve_drive_id(dir_path, current_shell)
                 
                 if not folder_id:
-                    return {"success": False, "error": f"Directory not found: {dir_path}"}
+                    return {"success": False, "error": f"{command_name}: {dir_path}: No such file or directory"}
             else:
                 # 简单文件名，使用当前目录
                 folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
@@ -137,7 +142,11 @@ class TextCommand(BaseCommand):
             if result.get('success'):
                 return {"success": True, "output": result['content'], "filename": filename}
             else:
-                return {"success": False, "error": result.get('error', 'Failed to read file')}
+                error_msg = result.get('error', 'Failed to read file')
+                # 如果是文件不存在的错误，添加命令名前缀
+                if 'No such file or directory' in error_msg or 'not found' in error_msg.lower():
+                    error_msg = f"{command_name}: {filename}: {error_msg}"
+                return {"success": False, "error": error_msg}
                 
         except Exception as e:
             return {"success": False, "error": f"执行cat命令时出错: {e}"}
