@@ -114,7 +114,6 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         verify_result = google_drive_shell.validation.verify_with_ls(
             path=fingerprint_path,
             creation_type="file",
-            max_attempts=3, 
             show_hidden=True  # 指纹文件以.开头，需要显示隐藏文件
         )
         

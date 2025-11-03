@@ -60,8 +60,7 @@ class SyncManager:
             
             verify_result = self.main_instance.validation.verify_with_ls(
                 path=remote_file_path,
-                creation_type="file",
-                max_attempts=1
+                creation_type="file"
             )
             remote_has_same_file = verify_result.get("success", False)
             
@@ -118,12 +117,12 @@ class SyncManager:
                     }
             
             # 复制文件而不是移动（保留原文件）
-            shutil.copy2(str(source_path), str(target_path))
+            shutil.copy2(str(source_path), str(local_target_path))
             
             return {
                 "success": True,
                 "original_path": str(source_path),
-                "new_path": str(target_path),
+                "new_path": str(local_target_path),
                 "filename": final_filename,
                 "original_filename": filename,
                 "renamed": renamed
@@ -216,7 +215,7 @@ class SyncManager:
             # 使用统一的可中断进度循环
             from .progress_manager import interruptible_progress_loop
             result = interruptible_progress_loop(
-                progress_message="⏳ Waiting for file sync ...",
+                progress_message=f"⏳ Waiting for file sync ({max_attempts})...",
                 loop_func=check_sync_status,
                 check_interval=1.0,
                 max_attempts=max_attempts

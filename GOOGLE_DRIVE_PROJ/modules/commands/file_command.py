@@ -120,8 +120,8 @@ class FileCommand(BaseCommand):
             if not filename:
                 return {"success": False, "error": "Please specify the file name to create"}
             
-            # 使用统一的路径解析接口
-            absolute_path = self.main_instance.path_resolver.resolve_remote_absolute_path(filename, current_shell)
+            # 路径已经在execute_shell_command中统一处理，直接使用
+            absolute_path = filename
             
             # 生成远端touch命令（创建空文件）
             remote_command = f'touch "{absolute_path}"'
@@ -161,16 +161,14 @@ class FileCommand(BaseCommand):
         if not path:
             return {"success": False, "error": "Please specify file or directory to delete"}
         
-        # 解析远程绝对路径
-        absolute_path = self.main_instance.resolve_remote_absolute_path(path, current_shell)
-        if not absolute_path:
-            return {"success": False, "error": f"Cannot resolve path: {path}"}
+        # 路径已经在execute_shell_command中统一处理，直接使用
+        absolute_path = path
         
         # 安全检查：如果是rm -rf，检查是否要删除当前目录或其上级目录
         if recursive and force:
             current_working_dir = current_shell.get("current_path", "")
             if current_working_dir:
-                current_absolute = self.main_instance.resolve_remote_absolute_path(".", current_shell)
+                current_absolute = current_working_dir  # 当前目录路径已经是绝对路径格式
                 target_absolute = absolute_path
                 
                 # 规范化目标路径，解析 ../
@@ -230,9 +228,9 @@ class FileCommand(BaseCommand):
         if not source or not destination:
             return {"success": False, "error": "Usage: mv <source> <destination>"}
         
-        # 构建远端mv命令 - 需要计算绝对路径并进行shell转义
-        source_absolute_path = self.main_instance.resolve_remote_absolute_path(source, current_shell)
-        destination_absolute_path = self.main_instance.resolve_remote_absolute_path(destination, current_shell)
+        # 路径已经在execute_shell_command中统一处理，直接使用
+        source_absolute_path = source
+        destination_absolute_path = destination
         
         # 使用shlex.quote对路径进行shell转义，处理空格和特殊字符
         import shlex

@@ -7,6 +7,7 @@ import os
 import json
 import time
 import subprocess
+import re
 from .config_loader import get_bg_status_file, get_bg_script_file, get_bg_log_file, get_bg_result_file
 
 class CommandGenerator:
@@ -73,7 +74,113 @@ class CommandGenerator:
         import hashlib
         window_hash = hashlib.md5(cmd.encode()).hexdigest()[:8]
         return window_hash
+    
+    def expand_paths_with_bash(self, cmd, placeholder, placeholder_value):
+        """
+        使用bash展开路径，支持自定义placeholder
+        利用bash的~展开机制来正确处理路径
+        
+        Args:
+            cmd: 原始命令字符串
+            placeholder: 要替换的占位符（如'@'）
+            placeholder_value: placeholder的目标值（如'/content/drive/MyDrive/REMOTE_ENV'）
+        
+        Returns:
+            展开后的命令字符串
+        """
+        import subprocess
+        import uuid
+        
+        # 特殊情况：如果placeholder就是~，跳过步骤1（不需要保护原始~）
+        if placeholder == '~':
+            tilde_placeholder = None
+            cmd_for_bash = cmd  # 直接使用原命令，不需要替换
+        else:
+            # 步骤1: 为原始~生成随机placeholder
+            tilde_placeholder = f"TILDE_PH_{uuid.uuid4().hex[:8].upper()}"
+            cmd_with_tilde_placeholder = cmd.replace('~', tilde_placeholder)
+            
+            # 步骤2: 将placeholder替换为~
+            cmd_for_bash = cmd_with_tilde_placeholder.replace(placeholder, '~')
+        
+        # 步骤3: 让bash展开（只展开~，不执行命令）
+        # 使用bash -x来获取展开后的命令主体，然后检测并保留重定向部分
+        try:
+            result = subprocess.run(
+                ['bash', '-x', '-c', cmd_for_bash],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            # bash -x 的输出在stderr中，格式为"+ command"
+            if result.stderr:
+                # 提取"+ "后面的命令
+                lines = result.stderr.strip().split('\n')
+                expanded_main = None
+                for line in lines:
+                    if line.startswith('+ '):
+                        expanded_main = line[2:]  # 去掉"+ "前缀
+                        break
+                
+                if not expanded_main:
+                    return cmd
+                
+                # 步骤3.5: 检测重定向部分
+                # 如果bash -x的输出比原命令短，说明有重定向被省略了
+                # 我们需要从原命令中提取重定向部分
+                # 策略：在原命令中找到expanded_main对应的部分，剩余的就是重定向
+                # 简单策略：检测常见的重定向操作符
+                redirect_operators = ['>', '>>', '<', '2>', '2>>', '&>', '&>>', '2>&1', '|']
+                redirect_part = ""
+                
+                # 遍历原命令（cmd_for_bash），寻找重定向操作符
+                for op in redirect_operators:
+                    if op in cmd_for_bash:
+                        # 找到操作符的位置，提取操作符及其后面的内容
+                        op_index = cmd_for_bash.find(op)
+                        redirect_part = cmd_for_bash[op_index:]
+                        
+                        # 对重定向部分也进行路径展开（递归调用bash -x）
+                        # 提取重定向符后的路径部分
+                        redirect_path_match = re.search(r'[><|&]\s*(.+?)(?:\s+[><|&]|$)', redirect_part)
+                        if redirect_path_match:
+                            redirect_path = redirect_path_match.group(1).strip()
+                            # 对redirect_path进行展开
+                            redirect_expand_result = subprocess.run(
+                                ['bash', '-x', '-c', f'echo {redirect_path}'],
+                                capture_output=True,
+                                text=True,
+                                timeout=2
+                            )
+                            if redirect_expand_result.stderr:
+                                redirect_lines = redirect_expand_result.stderr.strip().split('\n')
+                                for line in redirect_lines:
+                                    if line.startswith('+ echo '):
+                                        expanded_redirect_path = line[7:].strip()  # 去掉"+ echo "
+                                        # 替换原redirect_part中的路径
+                                        redirect_part = redirect_part.replace(redirect_path, expanded_redirect_path)
+                                        break
+                        break
+                
+                expanded_cmd = expanded_main + (' ' + redirect_part if redirect_part else '')
+            else:
+                return cmd
+        except Exception:
+            return cmd
+        
+        # 步骤4: 将展开的home目录替换为placeholder_value
+        import os
+        home_dir = os.path.expanduser('~')
+        expanded_cmd = expanded_cmd.replace(home_dir, placeholder_value)
 
+        # 步骤5: 将剩余的~（原本是placeholder）换回成placeholder
+        # 这些~没有被bash展开（在引号内），需要换回原始的placeholder
+        expanded_cmd = expanded_cmd.replace('~', placeholder)
+        
+        # 步骤6: 将tilde_placeholder换回原始~（如果placeholder不是~的话）
+        if tilde_placeholder:
+            expanded_cmd = expanded_cmd.replace(tilde_placeholder, '~')
+        return expanded_cmd
 
     def generate_command(self, cmd, result_filename=None, current_shell=None):
         """
@@ -142,17 +249,7 @@ class CommandGenerator:
                     cmd = safe_command
         
         
-        # 路径替换：将用户命令中的~替换为REMOTE_ROOT
-        if '~' in cmd:
-            cmd = cmd.replace('~', self.main_instance.REMOTE_ROOT)
-            import re
-            pattern = f"'({re.escape(self.main_instance.REMOTE_ROOT)}[^']*?)'"
-            def remove_quotes_if_safe(match):
-                path = match.group(1)
-                if ' ' not in path and not any(c in path for c in ['&', '|', ';', '(', ')', '<', '>', '$', '`']):
-                    return path
-                return match.group(0)  # 保持原样
-            cmd = re.sub(pattern, remove_quotes_if_safe, cmd)
+        # 路径展开已经在execute_shell_command中统一处理，无需重复处理
         
         # 获取当前路径
         if current_shell:
@@ -209,18 +306,22 @@ cat > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" << 'SCRIPT_EOF'
 #!/bin/bash
 set -e
 
-# 立即创建空的log文件，确保文件在任务开始时就存在
-touch "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
-
-# 首先创建初始的result.json文件，状态为running
+# 合并创建log文件和初始result.json文件，确保文件在任务开始时就存在
 # 将command作为环境变量传递，避免在Python代码中处理复杂的引号转义
 export BG_COMMAND={shlex.quote(bg_original_cmd)}
-python3 << 'INITIAL_RESULT_EOF'
+python3 << 'INITIAL_SETUP_EOF'
 import json
 import os
 import sys
 from datetime import datetime
 
+# 首先创建log文件
+log_file = "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
+with open(log_file, "w", encoding="utf-8") as f:
+    pass  # 创建空文件
+print(f"[DEBUG BG] Log file initialized", file=sys.stderr)
+
+# 然后创建初始result.json文件
 print(f"[DEBUG BG] Creating initial result file: {self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", file=sys.stderr)
 
 # 从环境变量读取command，避免在代码中直接插入包含换行符的字符串
@@ -242,16 +343,16 @@ with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding
     json.dump(result, f, indent=2, ensure_ascii=False)
     
 print(f"[DEBUG BG] Initial result file created successfully", file=sys.stderr)
-INITIAL_RESULT_EOF
+INITIAL_SETUP_EOF
 
 # 执行用户命令并捕获输出（同时写入log文件以便实时查看）
 STDOUT_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
 STDERR_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
 LOG_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
 
-# 使用tee将输出同时写入临时文件和log文件
-# 使用heredoc避免复杂的引号转义问题
-bash << 'USER_COMMAND_EOF' 2>&1 | tee -a "$LOG_FILE" > "$STDOUT_FILE"
+# 执行用户命令并捕获输出
+# 由于外层重定向，所有输出都会进入log文件，所以简化tee逻辑
+bash << 'USER_COMMAND_EOF' 2>&1 | tee "$STDOUT_FILE"
 {bg_original_cmd[1:-1] if bg_original_cmd.startswith('"') and bg_original_cmd.endswith('"') else bg_original_cmd}
 USER_COMMAND_EOF
 EXIT_CODE=${{PIPESTATUS[0]}}
@@ -332,6 +433,7 @@ SCRIPT_EOF
 
 # 给脚本执行权限并启动后台任务
 chmod +x "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}"
+# 回退到原始方案：将所有输出重定向到log文件，但修改脚本内部逻辑来避免tee冲突
 nohup "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" < /dev/null > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}" 2>&1 &
 REAL_PID=$!
 
@@ -501,7 +603,7 @@ if result_dir:
     os.makedirs(result_dir, exist_ok=True)
 
 with open(result_file, "w", encoding="utf-8") as f:
-json.dump(result, f, indent=2, ensure_ascii=False)
+    json.dump(result, f, indent=2, ensure_ascii=False)
 
 
 JSON_SCRIPT_EOF

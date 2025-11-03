@@ -333,8 +333,7 @@ class PathResolver:
                 if not current_shell:
                     raise ValueError("Current shell or default shell both not available for path resolution. ")
             
-            # 首先使用undo_local_path_user_expansion处理可能被bash扩展的本地路径
-            path = self.undo_local_path_user_expansion(path)
+            # 路径已经在execute_shell_command中统一处理，无需重复处理
             
             # 获取当前路径
             current_path = current_shell.get("current_path", "~")

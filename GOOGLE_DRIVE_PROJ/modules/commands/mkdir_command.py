@@ -21,10 +21,8 @@ class MkdirCommand(BaseCommand):
         if not current_shell:
             return {"success": False, "error": "No active remote shell"}
         
-        # 解析绝对路径
-        absolute_path = self.main_instance.resolve_remote_absolute_path(target_path, current_shell)
-        if not absolute_path:
-            return {"success": False, "error": f"Cannot resolve path: {target_path}"}
+        # 路径已经在execute_shell_command中统一处理，直接使用
+        absolute_path = target_path
         
         # 生成远端mkdir命令，根据recursive参数决定是否使用-p选项
         if recursive:
@@ -34,14 +32,19 @@ class MkdirCommand(BaseCommand):
         execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
         
         if not execution_result.get("success"):
-            error_msg = execution_result.get('error', 'Command execution failed')
-            raise RuntimeError(f"mkdir command execution failed: {error_msg}")
+            return execution_result
         
         data = execution_result.get("data", {})
         exit_code = data.get("exit_code", execution_result.get("exit_code", -1))
         if exit_code != 0:
+            # 返回错误信息，不throw exception
             stderr = data.get("stderr", execution_result.get("stderr", ""))
-            raise RuntimeError(f"mkdir command failed with exit code {exit_code}: {stderr}")
+            return {
+                "success": False,
+                "error": f"mkdir command failed with exit code {exit_code}: {stderr}",
+                "exit_code": exit_code,
+                "stderr": stderr
+            }
         
         verification_result = self.main_instance.verify_with_ls(target_path, current_shell, creation_type="dir")
         if not verification_result["success"]:

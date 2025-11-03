@@ -21,7 +21,7 @@ class LsCommand(BaseCommand):
         has_bash_flags = False
         
         for arg in args:
-            if arg == '--detailed':
+            if arg == '--detailed' or arg == '-l':
                 detailed = True
             elif arg == '-R':
                 recursive = True
@@ -93,7 +93,7 @@ class LsCommand(BaseCommand):
             return 1
 
 
-    def _convert_absolute_to_logical(self, path):
+    def convert_absolute_to_logical(self, path):
         """
         内部接口：将远端绝对路径转换为逻辑路径
         
@@ -114,9 +114,7 @@ class LsCommand(BaseCommand):
         if not path.startswith("/"):
             return path
         
-        # 首先尝试将本地扩展的路径转换回~/格式
-        # 例如 /Users/username/tmp/test -> ~/tmp/test
-        path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
+        # 路径已经在execute_shell_command中统一处理，无需重复处理
         
         # 如果转换后已经是~/格式，直接返回
         if path.startswith("~/") or path == "~":
@@ -135,6 +133,19 @@ class LsCommand(BaseCommand):
             else:
                 return "~"
         
+        # 检查是否是REMOTE_ENV路径
+        remote_env = self.main_instance.REMOTE_ENV
+        if path.startswith(remote_env):
+            # 去掉REMOTE_ENV前缀，转换为@/xxx格式
+            relative_part = path[len(remote_env):]
+            if relative_part.startswith("/"):
+                relative_part = relative_part[1:]
+            
+            if relative_part:
+                return f"@/{relative_part}"
+            else:
+                return "@"
+        
         # 如果是其他格式的绝对路径，假设它是REMOTE_ROOT的子路径
         # 例如 /tmp/file.txt -> ~/tmp/file.txt
         if path.startswith("/"):
@@ -146,8 +157,6 @@ class LsCommand(BaseCommand):
     def cmd_ls(self, path=None, detailed=False, recursive=False, show_hidden=False):
         """列出目录内容，支持递归、详细模式和扩展信息模式，支持文件路径"""
         try:
-            print(f"DEBUG [cmd_ls]: 输入path = {path}")
-            
             if not self.drive_service:
                 return {"success": False, "error": "Google Drive API服务未初始化"}
                 
@@ -157,8 +166,7 @@ class LsCommand(BaseCommand):
             
             # 首先将可能的远端绝对路径转换为逻辑路径
             if path:
-                path = self._convert_absolute_to_logical(path)
-                print(f"DEBUG [cmd_ls]: 转换后path = {path}")
+                path = self.convert_absolute_to_logical(path)
             
             if path is None or path == ".":
                 # 当前目录
@@ -521,22 +529,18 @@ class LsCommand(BaseCommand):
     def cmd_ls_remote(self, path=None, detailed=False, recursive=False, show_hidden=False):
         """使用远程bash命令强制刷新ls结果"""
         try:
-            print(f"DEBUG [cmd_ls_remote]: 输入path = {path}")
-            
             # 如果提供了path，需要将逻辑路径转换为远程绝对路径
             if path:
                 # 首先将可能的远端绝对路径转换为逻辑路径
-                path = self._convert_absolute_to_logical(path)
-                print(f"DEBUG [cmd_ls_remote]: 转换为逻辑路径后 = {path}")
+                path = self.convert_absolute_to_logical(path)
                 
                 # 获取当前shell信息
                 current_shell = self.main_instance.get_current_shell()
                 if not current_shell:
                     return {"success": False, "error": "没有活跃的远程shell"}
                 
-                # 将逻辑路径转换为远程绝对路径
-                remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(path, current_shell, return_logical=False)
-                print(f"DEBUG [cmd_ls_remote]: 解析后的远程绝对路径 = {remote_path}")
+                # 路径已经在execute_shell_command中统一处理，直接使用
+                remote_path = path
             else:
                 # 如果没有提供path，使用当前工作目录的远程绝对路径
                 current_shell = self.main_instance.get_current_shell()
@@ -560,7 +564,7 @@ class LsCommand(BaseCommand):
             
             # 构建完整命令
             if remote_path:
-                full_command = f"ls {' '.join(ls_args)} {remote_path}"
+                full_command = f"ls {' '.join(ls_args)} '{remote_path}'"
             else:
                 full_command = f"ls {' '.join(ls_args)}"
             

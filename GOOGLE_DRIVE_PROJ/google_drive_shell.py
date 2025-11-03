@@ -887,6 +887,19 @@ class GoogleDriveShell:
                 shell_cmd_clean = processed_commands[0]
                 shell_cmd = shell_cmd_clean
 
+            # 路径展开处理：在命令解析之前进行路径展开
+            # 1. Undo local path expansion (e.g., /Users/username -> ~)
+            shell_cmd_clean = self.path_resolver.undo_local_path_user_expansion(shell_cmd_clean)
+            
+            # 2. 调用expand_paths_with_bash展开~以及@路径placeholder
+            if '@' in shell_cmd_clean:
+                shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '@', self.REMOTE_ENV)
+            if '~' in shell_cmd_clean:
+                shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
+            
+            # 更新shell_cmd以保持一致性
+            shell_cmd = shell_cmd_clean
+
             # 首先检查特殊命令（不需要远程执行）
             if shell_cmd_clean in ['--help', '-h', 'help']:
                 from modules.help_system import show_unified_help
@@ -1009,16 +1022,7 @@ class GoogleDriveShell:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
                         
-                        # 统一处理所有参数的路径扩展
-                        processed_args = []
-                        for arg in args:
-                            if arg.startswith('/') and not arg.startswith('/content/'):
-                                # 这可能是被bash扩展的本地路径，需要转换
-                                converted_arg = self.path_resolver.undo_local_path_user_expansion(arg)
-                                processed_args.append(converted_arg)
-                            else:
-                                processed_args.append(arg)
-                        args = processed_args
+                        # 路径已经在前面统一展开，无需再次处理
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception as e:
@@ -1039,16 +1043,7 @@ class GoogleDriveShell:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
                         
-                        # 统一处理所有参数的路径扩展
-                        processed_args = []
-                        for arg in args:
-                            if arg.startswith('/') and not arg.startswith('/content/'):
-                                # 这可能是被bash扩展的本地路径，需要转换
-                                converted_arg = self.path_resolver.undo_local_path_user_expansion(arg)
-                                processed_args.append(converted_arg)
-                            else:
-                                processed_args.append(arg)
-                        args = processed_args
+                        # 路径已经在前面统一展开，无需再次处理
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception as e:
@@ -1603,9 +1598,12 @@ done
                 # 基本安全处理：转义反引号防止命令注入
                 safe_command = command_str.replace('`', '\\`')
                 
+                # 应用echo处理逻辑（与command_generator.py保持一致）
+                processed_command = self._apply_echo_processing(safe_command)
+                
                 return {
                     "success": True,
-                    "translated_command": safe_command,
+                    "translated_command": processed_command,
                     "original_format": "string"
                 }
                 
@@ -1614,6 +1612,31 @@ done
                 "success": False,
                 "error": f"Experimental translation failed: {e}"
             }
+    
+    def _apply_echo_processing(self, cmd):
+        """
+        应用echo命令处理逻辑，与command_generator.py保持一致
+        确保echo命令能正确处理\\n和\\t等转义序列
+        """
+        if cmd.strip().startswith('echo '):
+            import re
+            # 匹配echo命令的模式: echo "content" 或 echo 'content'
+            echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
+            match = re.match(echo_pattern, cmd.strip())
+            if match:
+                quote_char = match.group(1)
+                content = match.group(2)
+                rest_args = match.group(3).strip()  # 可能包含重定向等
+                
+                # 检查内容是否包含转义序列
+                if '\\n' in content or '\\t' in content:
+                    # 添加-e标志以启用转义序列解释
+                    safe_command = f'echo -e {quote_char}{content}{quote_char}'
+                    if rest_args:
+                        safe_command += f' {rest_args}'
+                    return safe_command
+        
+        return cmd
     
     def _cleanup_background_tasks(self, command_identifier=None):
         """清理所有已完成的background任务"""

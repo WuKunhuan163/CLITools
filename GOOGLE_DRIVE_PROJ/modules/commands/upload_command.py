@@ -194,42 +194,6 @@ Notes:
             print(error_msg)
             return 1
     
-    def check_large_files(self, source_files):
-        """检查大文件并分离处理（大于1G的文件）"""
-        normal_files = []
-        large_files = []
-        
-        for file_path in source_files:
-            try:
-                file_size = os.path.getsize(file_path)
-                # 1G = 1024 * 1024 * 1024 bytes
-                if file_size > 1024 * 1024 * 1024:
-                    large_files.append({
-                        "path": file_path,
-                        "size": file_size,
-                        "name": os.path.basename(file_path)
-                    })
-                else:
-                    normal_files.append(file_path)
-            except OSError:
-                # 文件不存在或无法访问，加入normal_files让后续处理报错
-                normal_files.append(file_path)
-        
-        return normal_files, large_files
-    
-    def handle_large_files(self, large_files, target_path, current_shell):
-        """处理大文件上传"""
-        print(f"\nDetected {len(large_files)} large files (>1GB):")
-        for file_info in large_files:
-            size_gb = file_info["size"] / (1024 * 1024 * 1024)
-            print(f"  - {file_info['name']} ({size_gb:.1f} GB)")
-        
-        print(f"\nLarge files need to be manually uploaded to Google Drive:")
-        print(f"  1. Open Google Drive web version")
-        print(f"  2. Manually drag and drop these large files")
-        print(f"  3. Wait for upload to complete")
-        
-        return {"success": True, "message": "Large files detected, manual upload required"}
     
     
     def check_remote_file_conflicts(self, source_files, target_path):
@@ -374,38 +338,19 @@ Notes:
         """
         progress_started = False
         try:
-            # 使用进度管理器显示上传进度
-            from ..progress_manager import start_progress_buffering
-            start_progress_buffering("⏳ Waiting for upload ...")
-            progress_started = True
-            debug_capture.start_capture()
-            
-            # 延迟启动debug信息捕获，让重命名信息能够显示
-            debug_print(f"cmd_upload called with source_files={source_files}, target_path='{target_path}', force={force}")
-            
-            # 0. 检查Google Drive Desktop是否运行
-            if not ensure_google_drive_desktop_running():
-                if progress_started:
-                    from ..progress_manager import stop_progress_buffering
-                    stop_progress_buffering()
-                return {"success": False, "error": "用户取消上传操作"}
-            
             # 1. 验证输入参数
             if not source_files:
-                if progress_started:
-                    from ..progress_manager import stop_progress_buffering
-                    stop_progress_buffering()
                 return {"success": False, "error": "请指定要上传的文件"}
             
             if isinstance(source_files, str):
                 source_files = [source_files]
             
-            # 2. 获取当前 shell (需要提前获取，因为大文件处理也需要)
+            # 2. 获取当前 shell (需要提前获取)
             current_shell = self.main_instance.get_current_shell()
             if not current_shell:
                 return {"success": False, "error": "No active remote shell, please create or switch to a shell"}
             
-            # 1.5. 检查大文件并分离处理
+            # 3. 提前检查大文件（在显示进度之前）
             normal_files, large_files = self.check_large_files(source_files)
             
             # 处理大文件
@@ -414,37 +359,76 @@ Notes:
                 if not large_file_result["success"]:
                     return large_file_result
             
-            # 如果没有正常大小的文件需要处理，但有大文件，需要等待手动上传完成
-            if not normal_files:
-                if large_files:
-                    # 等待大文件手动上传完成
-                    large_file_names = [Path(f["path"]).name for f in large_files]
-                    start_progress_buffering(f"⏳ Waiting for large files manual upload ...")
-                    
-                    # 创建虚拟file_moves用于计算超时时间
-                    virtual_file_moves = [{"new_path": f["path"]} for f in large_files]
-                    sync_result = self.main_instance.sync_manager.wait_for_file_sync(large_file_names, virtual_file_moves)
-                    
-                    if sync_result["success"]:
-                        return {
-                            "success": True,
-                            "message": f"\nLarge files manual upload completed: {len(large_files)} files",
-                            "large_files_handled": True,
-                            "sync_time": sync_result.get("sync_time", 0)
-                        }
-                    else:
-                        return {
-                            "success": False,
-                            "error": f"Manual upload failed: {sync_result.get('error', 'Unknown error')}",
-                            "large_files_handled": True
-                        }
+            # 如果只有大文件没有小文件，处理大文件并返回
+            if not normal_files and large_files:
+                # 大文件已经通过handle_large_files提示用户手动拖入DRIVE_EQUIVALENT
+                # 现在需要等待同步并移动到目标位置
+                
+                print(f"\nWaiting for manually uploaded files to be synchronized...")
+                from ..progress_manager import start_progress_buffering
+                start_progress_buffering("⏳ Waiting for large files sync ...")
+                
+                large_file_names = [Path(f["path"]).name for f in large_files]
+                
+                # 创建虚拟file_moves用于计算超时时间
+                virtual_file_moves = [{"new_path": f["path"]} for f in large_files]
+                sync_result = self.main_instance.sync_manager.wait_for_file_sync(large_file_names, virtual_file_moves)
+                
+                if not sync_result["success"]:
+                    return {
+                        "success": False,
+                        "error": f"Large files sync failed: {sync_result.get('error', 'Unknown error')}",
+                        "large_files_handled": True
+                    }
+                
+                # 同步成功后，执行mv命令移动到目标位置
+                target_display_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell, return_logical=True)
+                
+                print(f"\nMove manually uploaded files to the destination: {target_display_path}")
+                
+                mv_commands = []
+                for filename in large_file_names:
+                    mv_cmd = f"mv ~/tmp/{filename} {target_display_path}/"
+                    mv_commands.append(mv_cmd)
+                
+                # 批量执行mv命令
+                combined_cmd = " && ".join(mv_commands)
+                mv_result = self.main_instance.execute_command_interface("bash", ["-c", combined_cmd])
+                
+                if mv_result.get("success"):
+                    print(f"✓ Files moved successfully to {target_display_path}")
+                    return {
+                        "success": True,
+                        "message": f"\n✓ Large files uploaded and moved: {len(large_files)} files",
+                        "large_files_handled": True
+                    }
                 else:
-                    return {"success": False, "error": "Cannot find valid files"}
+                    return {
+                        "success": False,
+                        "error": f"Failed to move large files: {mv_result.get('error', 'Unknown error')}",
+                        "large_files_handled": True
+                    }
+            elif not normal_files and not large_files:
+                return {"success": False, "error": "No files to upload"}
             
             # 继续处理正常大小的文件
             source_files = normal_files
             
-            # 3. 解析目标路径（使用absolute path接口 + drive id接口）
+            # 4. 开始进度显示（在大文件检测之后）
+            from ..progress_manager import start_progress_buffering
+            start_progress_buffering("⏳ Waiting for upload ...")
+            progress_started = True
+            debug_capture.start_capture()
+            debug_print(f"cmd_upload called with source_files={source_files}, target_path='{target_path}', force={force}")
+            
+            # 5. 检查Google Drive Desktop是否运行
+            if not ensure_google_drive_desktop_running():
+                if progress_started:
+                    from ..progress_manager import stop_progress_buffering
+                    stop_progress_buffering()
+                return {"success": False, "error": "用户取消上传操作"}
+            
+            # 6. 解析目标路径（使用absolute path接口 + drive id接口）
             debug_print(f"Before resolve - target_path='{target_path}'")
             debug_print(f"current_shell={current_shell}")
             # 先获取逻辑路径
@@ -589,10 +573,6 @@ Notes:
                 # 普通文件上传：使用ls-based验证
                 expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
                 
-                print(f"DEBUG [cmd_upload]: 调用verify_upload_with_progress前:")
-                print(f"  expected_for_verification = {expected_for_verification}")
-                print(f"  target_path = {target_path}")
-
                 # 使用带进度的验证机制
                 verify_result = self.verify_upload_with_progress(
                     expected_for_verification, 
@@ -798,7 +778,7 @@ Notes:
 
     def check_large_files(self, source_files):
         """
-        检查大文件（>1GB）并提供手动上传方案
+        检查大文件（>10MB）并提供手动上传方案
         
         Args:
             source_files (list): 源文件路径列表
@@ -806,19 +786,22 @@ Notes:
         Returns:
             tuple: (normal_files, large_files) - 正常文件和大文件列表
         """
+        from ..config_loader import get_large_file_threshold_mb
         normal_files = []
         large_files = []
-        GB_SIZE = 1024 * 1024 * 1024  # 1GB in bytes
+        threshold_mb = get_large_file_threshold_mb()
+        threshold_bytes = threshold_mb * 1024 * 1024
         
         for file_path in source_files:
             expanded_path = self.main_instance.path_resolver.expand_path(file_path)
             if os.path.exists(expanded_path):
                 file_size = os.path.getsize(expanded_path)
-                if file_size > GB_SIZE:
+                if file_size > threshold_bytes:
                     large_files.append({
                         "path": expanded_path,
                         "original_path": file_path,
-                        "size_gb": file_size / GB_SIZE
+                        "size_mb": file_size / (1024 * 1024),
+                        "size": file_size
                     })
                 else:
                     normal_files.append(expanded_path)
@@ -833,143 +816,166 @@ Notes:
         return normal_files, large_files
 
     def handle_large_files(self, large_files, target_path=".", current_shell=None):
-        """处理大文件的手动上传，支持逐一跟进"""
+        """处理大文件的手动上传 - 打开DRIVE_EQUIVALENT让用户拖入"""
+        from ..config_loader import get_large_file_threshold_mb
+        import tempfile
+        import shutil
+        import platform
+        
         try:
             if not large_files:
                 return {"success": True, "message": "没有大文件需要手动处理"}
             
-            print(f"\n发现 {len(large_files)} 个大文件（>1GB），将逐一处理:")
+            threshold_mb = get_large_file_threshold_mb()
+            print(f"\n检测到 {len(large_files)} 个大文件（>{threshold_mb}MB），需要手动上传:")
+            for file_info in large_files:
+                print(f"  - {Path(file_info['original_path']).name} ({file_info['size_mb']:.1f} MB)")
             
-            successful_uploads = []
-            failed_uploads = []
+            print(f"\n目标位置：{target_path}")
             
-            for i, file_info in enumerate(large_files, 1):
-                print(f"\n{'='*60}")
-                print(f"处理第 {i}/{len(large_files)} 个大文件")
-                print(f"文件: {file_info['original_path']} ({file_info['size_gb']:.2f} GB)")
-                print(f"{'='*60}")
-                
-                # 为单个文件创建临时上传目录
-                single_upload_dir = Path(os.getcwd()) / f"_MANUAL_UPLOAD_{i}"
-                single_upload_dir.mkdir(exist_ok=True)
-                
-                file_path = Path(file_info["path"])
-                link_path = single_upload_dir / file_path.name
-                
-                # 删除已存在的链接
-                if link_path.exists():
-                    link_path.unlink()
-                
-                # 创建符号链接
-                try:
-                    link_path.symlink_to(file_path)
-                    print(f"Prepared file: {file_path.name}")
-                except Exception as e:
-                    print(f"Error: Create link failed: {file_path.name} - {e}")
-                    failed_uploads.append({
-                        "file": file_info["original_path"],
-                        "error": f"Create link failed: {e}"
-                    })
-                    continue
-                
-                # 确定目标文件夹URL
-                target_folder_id = None
-                target_url = None
-                
-                if current_shell and self.drive_service:
-                    try:
-                        # 尝试解析目标路径
-                        if target_path == ".":
-                            target_folder_id = self.get_current_folder_id(current_shell)
-                        else:
-                            target_folder_id, _ = self.main_instance.resolve_drive_id(target_path, current_shell)
-                        
-                        if target_folder_id:
-                            target_url = f"https://drive.google.com/drive/folders/{target_folder_id}"
-                        else:
-                            target_url = f"https://drive.google.com/drive/folders/{self.main_instance.REMOTE_ROOT_FOLDER_ID}"
-                    except:
-                        target_url = f"https://drive.google.com/drive/folders/{self.main_instance.REMOTE_ROOT_FOLDER_ID}"
-                else:
-                    target_url = f"https://drive.google.com/drive/folders/{self.main_instance.REMOTE_ROOT_FOLDER_ID}"
-                
-                # 打开文件夹和目标位置
-                try:
-                    import subprocess
-                    import webbrowser
+            # 创建本地临时文件夹
+            temp_upload_dir = Path(tempfile.mkdtemp(prefix="GDS_MANUAL_UPLOAD_"))
+            
+            try:
+                # 将大文件复制或链接到临时文件夹
+                for file_info in large_files:
+                    src_path = Path(file_info["path"])
+                    dst_path = temp_upload_dir / src_path.name
                     
+                    # 对于大文件，使用符号链接而不是复制（节省空间和时间）
+                    try:
+                        dst_path.symlink_to(src_path.absolute())
+                    except:
+                        # 如果符号链接失败（比如Windows），则使用硬链接或复制
+                        try:
+                            os.link(src_path, dst_path)
+                        except:
+                            shutil.copy2(src_path, dst_path)
+                
+                # 创建README文件
+                readme_path = temp_upload_dir / "___上传说明_README.txt"
+                drive_eq_path = self.main_instance.DRIVE_EQUIVALENT
+                readme_content = f"""GDS 大文件手动上传说明
+{'='*60}
+
+检测到以下大文件需要手动上传（每个文件 >{threshold_mb}MB）：
+
+"""
+                for file_info in large_files:
+                    readme_content += f"  - {Path(file_info['original_path']).name} ({file_info['size_mb']:.1f} MB)\n"
+                
+                readme_content += f"""
+目标位置：{target_path}
+
+上传步骤：
+  1. Finder/文件管理器已自动打开DRIVE_EQUIVALENT同步文件夹
+  2. 将本文件夹中的所有文件拖放到DRIVE_EQUIVALENT文件夹中
+  3. Google Drive Desktop将自动同步这些文件
+  4. 完成后回到终端，按Enter键继续
+  5. 系统将自动移动文件到目标位置
+
+DRIVE_EQUIVALENT路径：{drive_eq_path}
+
+注意：
+  - 本文件夹位置: {temp_upload_dir}
+  - 拖放完成并确认同步后按Enter即可
+  - 系统会自动等待同步完成并移动文件到目标位置
+  - 上传完成后本文件夹将被自动删除
+"""
+                
+                with open(readme_path, 'w', encoding='utf-8') as f:
+                    f.write(readme_content)
+                
+                print(f"本地临时文件夹: {temp_upload_dir}")
+                import subprocess
+                import webbrowser
+                try:
                     # 打开本地文件夹
                     if platform.system() == "Darwin":  # macOS
-                        subprocess.run(["open", str(single_upload_dir)])
+                        subprocess.run(["open", str(temp_upload_dir)])
                     elif platform.system() == "Windows":
-                        os.startfile(str(single_upload_dir))
+                        os.startfile(str(temp_upload_dir))
                     else:  # Linux
-                        subprocess.run(["xdg-open", str(single_upload_dir)])
+                        subprocess.run(["xdg-open", str(temp_upload_dir)])
                     
-                    # 打开目标Google Drive文件夹（不是DRIVE_EQUIVALENT）
-                    webbrowser.open(target_url)
-                    
-                    print(f"Opened local folder: {single_upload_dir}")
-                    print(f"Opened target Google Drive folder")
-                    print(f"Please drag the file to the Google Drive target folder")
-                    
+                    print(f"✓ 已打开本地文件夹")
                 except Exception as e:
-                    print(f"Warning: Open folder failed: {e}")
+                    print(f"警告: 无法打开本地文件夹: {e}")
                 
-                # 等待用户确认
+                
+                # 获取DRIVE_EQUIVALENT的Google Drive URL
+                drive_eq_folder_id = self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID
+                drive_eq_url = f"https://drive.google.com/drive/folders/{drive_eq_folder_id}"
+                print(f"\nDRIVE_EQUIVALENT URL: {drive_eq_url}")
                 try:
-                    print(f"\nPlease complete the file upload and press Enter to continue...")
-                    input("按Enter键继续...")  # 等待用户确认
-                    
-                    # 清理临时目录
-                    try:
-                        if link_path.exists():
-                            link_path.unlink()
-                        single_upload_dir.rmdir()
-                    except:
-                        pass
-                    
-                    successful_uploads.append({
-                        "file": file_info["original_path"],
-                        "size_gb": file_info["size_gb"]
-                    })
-                    
-                    print(f"File {i}/{len(large_files)} processed")
-                    
-                except KeyboardInterrupt:
-                    print(f"\nError: User interrupted the large file upload process")
-                    # 清理临时目录
-                    try:
-                        if link_path.exists():
-                            link_path.unlink()
-                        single_upload_dir.rmdir()
-                    except:
-                        pass
-                    break
+                    webbrowser.open(drive_eq_url)
+                    print(f"✓ 已在浏览器中打开DRIVE_EQUIVALENT文件夹")
                 except Exception as e:
-                    print(f"Error: Error processing file: {e}")
-                    failed_uploads.append({
-                        "file": file_info["original_path"],
-                        "error": str(e)
-                    })
+                    print(f"警告: 无法打开浏览器: {e}")
+                    print(f"请手动访问: {drive_eq_url}")
+                
+                print(f"\n{'='*60}")
+                print(f"\n请将临时文件夹中的文件拖放到DRIVE_EQUIVALENT文件夹")
+                print(f"Ctrl+L=重新打开本地文件夹, Ctrl+R=重新打开远端文件夹, Ctrl+D=完成")
+                
+                # 支持快捷键的输入循环
+                while True:
+                    try:
+                        line = input("按Ctrl+D完成: ")
+                        if line == "l" or "ctrl+l" in line:
+                            try:
+                                if platform.system() == "Darwin":
+                                    subprocess.run(["open", str(temp_upload_dir)])
+                                elif platform.system() == "Windows":
+                                    os.startfile(str(temp_upload_dir))
+                                else:
+                                    subprocess.run(["xdg-open", str(temp_upload_dir)])
+                                print(f"✓ 重新打开本地文件夹: {temp_upload_dir}")
+                            except Exception as e:
+                                print(f"✗ 无法打开本地文件夹: {e}")
+                        
+                        elif line == "r" or "ctrl+r" in line:
+                            try:
+                                webbrowser.open(drive_eq_url)
+                                print(f"✓ 重新打开DRIVE_EQUIVALENT: {drive_eq_url}")
+                            except Exception as e:
+                                print(f"✗ 无法打开浏览器: {e}")
+                        
+                        elif line == "":
+                            continue  # 空行继续等待
+                        else:
+                            print(f"未知命令: {line}")
+                            print(f"可用命令: l (本地文件夹), r (远端文件夹), Ctrl+D (完成)")
+                    
+                    except EOFError:
+                        # Ctrl+D 被按下
+                        print(f"\n✓ 用户确认完成上传")
+                        break
+                    except KeyboardInterrupt:
+                        # Ctrl+C 被按下
+                        print(f"\n用户中断上传")
+                        raise
+                
+                # 清理临时文件夹
+                try:
+                    shutil.rmtree(temp_upload_dir)
+                    print(f"✓ 已清理临时文件夹")
+                except Exception as e:
+                    print(f"警告: 清理临时文件夹失败: {e}")
+                
+            except KeyboardInterrupt:
+                # 用户中断，清理临时文件夹
+                try:
+                    shutil.rmtree(temp_upload_dir)
+                except:
+                    pass
+                raise
             
-            print(f"\n{'='*60}")
-            print(f"Large file processing completed:")
-            print(f"Successful: {len(successful_uploads)} files")
-            print(f"Error: Failed: {len(failed_uploads)} files")
-            print(f"{'='*60}")
-            
-            return {
-                "success": len(successful_uploads) > 0,
-                "large_files_count": len(large_files),
-                "successful_uploads": successful_uploads,
-                "failed_uploads": failed_uploads,
-                "message": f"Large file processing completed: {len(successful_uploads)}/{len(large_files)} files successful"
-            }
-            
+            return {"success": True, "message": "Large files moved to DRIVE_EQUIVALENT"}
+        except KeyboardInterrupt:
+            return {"success": False, "error": "用户中断大文件上传"}
         except Exception as e:
-            return {"success": False, "error": f"Error processing large file: {e}"}
-
+            return {"success": False, "error": f"Handle large files failed: {str(e)}"}
 
     def verify_upload_with_progress(self, expected_files, target_path, current_shell):
         """
@@ -1009,14 +1015,11 @@ Notes:
                         else:
                             file_path = f"{target_path}/{expected_file}"
                     
-                    print(f"DEBUG [verify_upload_with_progress]: target_path={target_path}, expected_file={expected_file}, file_path={file_path}")
-                    
                     # 使用verify_with_ls验证单个文件
                     verify_result = self.main_instance.validation.verify_with_ls(
                         path=file_path,
                         current_shell=current_shell,
-                        creation_type="file",
-                        max_attempts=1  # 只尝试一次，因为外层已有重试机制
+                        creation_type="file"
                     )
                     
                     if verify_result.get("success", False):
@@ -1047,8 +1050,7 @@ Notes:
                     verify_result = self.main_instance.validation.verify_with_ls(
                         path=file_path,
                         current_shell=current_shell,
-                        creation_type="file",
-                        max_attempts=1
+                        creation_type="file"
                     )
                     
                     if verify_result.get("success", False):

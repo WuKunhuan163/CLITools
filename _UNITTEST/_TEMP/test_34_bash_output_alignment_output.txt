@@ -1,29 +1,18 @@
+# ============================================================================
+# Test completed at: 2025-11-03 17:32:12 - Status: PASS
+# ============================================================================
+
 test_34_bash_output_alignment (test_gds.GDSTest)
-测试GDS shell输出与bash shell输出的对齐性 ... FAIL
-
-======================================================================
-FAIL: test_34_bash_output_alignment (test_gds.GDSTest)
-测试GDS shell输出与bash shell输出的对齐性
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4748, in test_34_bash_output_alignment
-    self.assertEqual(gds_result.returncode, 0, f"GDS命令应该成功: {gds_cmd}")
-AssertionError: 1 != 0 : GDS命令应该成功: rmdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
-
-----------------------------------------------------------------------
-Ran 1 test in 496.174s
-
-FAILED (failures=1)
-设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251102_153717_737138_ea7ccf2d
-正在创建远端测试目录: ~/tmp/gds_test_20251102_153717_737138_ea7ccf2d
+测试GDS shell输出与bash shell输出的对齐性 ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251103_171814_084146_8cd273e6
+正在创建远端测试目录: ~/tmp/gds_test_20251103_171814_084146_8cd273e6
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251102_153717_737138_ea7ccf2d
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_edq7o2qm
+已切换到远端测试目录: ~/tmp/gds_test_20251103_171814_084146_8cd273e6
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_gw3pt6dp
 测试环境设置完成
 测试GDS shell输出与bash shell输出的对齐性
-使用本地临时bash测试目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_77ex6plw/bash_test_dir
-命令转译成功: mkdir -p "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir" -> mkdir -p "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir"
+使用本地临时bash测试目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_wyahiicg/bash_test_dir
+命令转译成功: mkdir -p "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir" -> mkdir -p "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir"
 返回码: 0
 输出: ...
 测试1: 基本命令对比
@@ -32,23 +21,23 @@ FAILED (failures=1)
 返回码: 0
 输出: Hello World...
   测试简单命令: echo "Line1\nLine2"
-命令转译成功: echo "Line1\nLine2" -> echo "Line1\nLine2"
+命令转译成功: echo "Line1\nLine2" -> echo -e "Line1\nLine2"
 返回码: 0
 输出: Line1
 Line2...
   测试文件系统命令:
-    GDS: mkdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
-    Bash: mkdir "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_77ex6plw/bash_test_dir/test_basic_dir"
-命令转译成功: mkdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir" -> mkdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
+    GDS: mkdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir"
+    Bash: mkdir "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_wyahiicg/bash_test_dir/test_basic_dir"
+命令转译成功: mkdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir" -> mkdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir"
 返回码: 0
 输出: ...
-    GDS: ls "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
-    Bash: ls "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_77ex6plw/bash_test_dir/test_basic_dir"
-命令转译成功: ls "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir" -> ls "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
+    GDS: ls "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir"
+    Bash: ls "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_wyahiicg/bash_test_dir/test_basic_dir"
+命令转译成功: ls "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir" -> ls "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir"
 返回码: 0
-    GDS: rmdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
-    Bash: rmdir "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_77ex6plw/bash_test_dir/test_basic_dir"
-命令转译成功: rmdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir" -> rmdir "~/tmp/gds_test_20251102_153717_737138_ea7ccf2d/gds_test_dir/test_basic_dir"
+    GDS: rmdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir"
+    Bash: rmdir "/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_wyahiicg/bash_test_dir/test_basic_dir"
+命令转译成功: rmdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir" -> rmdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir"
 返回码: 1
 ⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!
    First 200 chars: ⏳ Waiting for result ...............
@@ -77,81 +66,92 @@ Code Context:
 Complete Call Stack:
    1. GOOGLE_DRIVE.py:51 in <module>()
    2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2228 in handle_command_line_args()
-   4. google_drive_shell.py:2283 in handle_shell_command_args()
+   3. google_drive_shell.py:2256 in handle_command_line_args()
+   4. google_drive_shell.py:2311 in handle_shell_command_args()
    5. google_drive_shell.py:1090 in execute_shell_command()
    6. google_drive_shell.py:1074 in execute_shell_command()
       >>> raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
 Google Drive Shell command execution failed with detailed traceback above....
 🔄 检测到可能的远端窗口错误，准备重试...
 重试第1次...
+返回码: 0
+输出: ...
+错误: rmdir: failed to remove '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_basic_dir': No such file or directory...
+测试2: 文件操作对比
+命令转译成功: echo "Test content for alignment\nLine 2: 中文测试\nLine 3: Special chars @#$%" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_alignment.txt" -> echo -e "Test content for alignment\nLine 2: 中文测试\nLine 3: Special chars @#$%" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_alignment.txt"
+返回码: 0
+输出: ...
+命令转译成功: cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_alignment.txt" -> cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_alignment.txt"
+返回码: 0
+输出: Test content for alignment
+Line 2: 中文测试
+Line 3: Special chars @#$%...
+测试3: 无输出命令对比
+  测试无输出命令: echo "redirect test" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_test.txt"
+命令转译成功: echo "redirect test" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_test.txt" -> echo "redirect test" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_test.txt"
+返回码: 0
+输出: ...
+  测试无输出命令: echo "append test" >> "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_test.txt"
+命令转译成功: echo "append test" >> "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_test.txt" -> echo "append test" >> "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_test.txt"
+返回码: 0
+输出: ...
+  测试无输出命令: mkdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/silent_dir"
+命令转译成功: mkdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/silent_dir" -> mkdir "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/silent_dir"
+返回码: 0
+输出: ...
+测试4: 边缘情况对比
+  测试边缘情况: echo "" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/empty_test.txt"
+命令转译成功: echo "" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/empty_test.txt" -> echo "" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/empty_test.txt"
+返回码: 0
+输出: ...
+  测试边缘情况: echo " " > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/space_test.txt"
+命令转译成功: echo " " > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/space_test.txt" -> echo " " > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/space_test.txt"
+返回码: 0
+输出: ...
+测试5: 组合命令和重定向对比
+  子测试5.1: echo重定向+cat组合
+命令转译成功: echo "test content for redirect" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_and_cat.txt" && cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_and_cat.txt" -> echo "test content for redirect" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_and_cat.txt" && cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/redirect_and_cat.txt"
+返回码: 0
+输出: test content for redirect...
+  子测试5.2: 多重重定向+cat组合
+命令转译成功: echo "line1" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/multi.txt" && echo "line2" >> "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/multi.txt" && cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/multi.txt" -> echo "line1" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/multi.txt" && echo "line2" >> "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/multi.txt" && cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/multi.txt"
+返回码: 0
+输出: line1
+line2...
+  子测试5.3: 管道+重定向+cat组合
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 836.855s
+
+OK
+命令转译成功: echo -e "test\nline\ndata" | grep "line" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/grep_output.txt" && cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/grep_output.txt" -> echo -e "test\nline\ndata" | grep "line" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/grep_output.txt" && cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/grep_output.txt"
+返回码: 0
+输出: line...
+测试4: 复杂命令对比
+命令转译成功: echo "Content of file 0" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_0.txt" -> echo "Content of file 0" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_0.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "Content of file 1" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_1.txt" -> echo "Content of file 1" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_1.txt"
+返回码: 0
+输出: ...
+命令转译成功: echo "Content of file 2" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_2.txt" -> echo "Content of file 2" > "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_2.txt"
+返回码: 0
+输出: ...
+命令转译成功: ls ~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_*.txt -> ls ~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/test_file_*.txt
+返回码: 0
+输出: test_file_0.txt
+test_file_1.txt
+test_file_2.txt...
+测试5: 错误情况对齐测试
+  测试grep不存在文件: nonexistent_file_for_test.txt
+命令转译成功: grep "pattern" "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt" -> grep "pattern" "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt"
+返回码: 2
+输出: ~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt: grep: ~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt: File 'nonexistent_file_for_test.txt' not found in folder. Available files: ['test_file_2.txt', 'test_file_1.txt', 'test_file_0.txt', 'grep_output.txt', 'multi.txt', 'redirect_and_cat.txt', 'space_test.txt', 'empty_test.txt', 'silent_dir', 'redirect_test.txt', 'test_alignment.txt']...
+  测试cat不存在文件: nonexistent_file_for_test.txt
+命令转译成功: cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt" -> cat "~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt"
 返回码: 1
-⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!
-   First 200 chars: ⏳ Waiting for result ...............
-等待结果超时。可能的原因：
-  (1) 网络问题导致命令执行缓慢。请检查
-  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
-后台模式检测：自动返回超时错误
-Error Report - Shell command execution
-Exceptio
-输出: ⏳ Waiting for result ...............
-等待结果超时。可能的原因：
-  (1) 网络问题导致命令执行缓慢。请检查
-  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
-后台模式检测：自动返回超时错误
-Error Report - Shell command execution
-Exception: Command execution returned failure: Unknown error
-Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py:1074 in execute_shell_command()
-Code Context:
-    1071: 
-    1072:             # 处理结果
-    1073:             if not result.get("success"):
->>> 1074:                 raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
-    1075: 
-    1076:             data = result.get("data", {})
-    1077:             stdout = data.get("stdout", "").strip()
-Complete Call Stack:
-   1. GOOGLE_DRIVE.py:51 in <module>()
-   2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2228 in handle_command_line_args()
-   4. google_drive_shell.py:2283 in handle_shell_command_args()
-   5. google_drive_shell.py:1090 in execute_shell_command()
-   6. google_drive_shell.py:1074 in execute_shell_command()
-      >>> raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
-Google Drive Shell command execution failed with detailed traceback above....
-🔄 检测到可能的远端窗口错误，准备重试...
-重试第2次...
-返回码: 1
-⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!
-   First 200 chars: ⏳ Waiting for result ...............
-等待结果超时。可能的原因：
-  (1) 网络问题导致命令执行缓慢。请检查
-  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
-后台模式检测：自动返回超时错误
-Error Report - Shell command execution
-Exceptio
-输出: ⏳ Waiting for result ...............
-等待结果超时。可能的原因：
-  (1) 网络问题导致命令执行缓慢。请检查
-  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载
-后台模式检测：自动返回超时错误
-Error Report - Shell command execution
-Exception: Command execution returned failure: Unknown error
-Root Cause: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py:1074 in execute_shell_command()
-Code Context:
-    1071: 
-    1072:             # 处理结果
-    1073:             if not result.get("success"):
->>> 1074:                 raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
-    1075: 
-    1076:             data = result.get("data", {})
-    1077:             stdout = data.get("stdout", "").strip()
-Complete Call Stack:
-   1. GOOGLE_DRIVE.py:51 in <module>()
-   2. GOOGLE_DRIVE.py:41 in main()
-   3. google_drive_shell.py:2228 in handle_command_line_args()
-   4. google_drive_shell.py:2283 in handle_shell_command_args()
-   5. google_drive_shell.py:1090 in execute_shell_command()
-   6. google_drive_shell.py:1074 in execute_shell_command()
-      >>> raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
-Google Drive Shell command execution failed with detailed traceback above....
+输出: cat: ~/tmp/gds_test_20251103_171814_084146_8cd273e6/gds_test_dir/nonexistent_file_for_test.txt: File 'nonexistent_file_for_test.txt' not found in folder. Available files: ['test_file_2.txt', 'test_file_1.txt', 'test_file_0.txt', 'grep_output.txt', 'multi.txt', 'redirect_and_cat.txt', 'space_test.txt', 'empty_test.txt', 'silent_dir', 'redirect_test.txt', 'test_alignment.txt']...
+bash输出对齐测试完成
+已清理本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_wyahiicg
+GDS与bash输出对齐性测试完成

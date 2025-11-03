@@ -1,3 +1,7 @@
+# ============================================================================
+# Test completed at: 2025-11-03 20:09:03 - Status: FAIL
+# ============================================================================
+
 test_24_background (test_gds.GDSTest)
 测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询 ... FAIL
 
@@ -6,25 +10,168 @@ FAIL: test_24_background (test_gds.GDSTest)
 测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3612, in test_24_background
-    self.assertEqual(result.returncode, 0, "错误命令任务创建应该成功")
-AssertionError: 1 != 0 : 错误命令任务创建应该成功
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3824, in test_24_background
+    self.assertEqual(final_status.returncode, 0, "最终status查询应该成功")
+AssertionError: 1 != 0 : 最终status查询应该成功
 
 ----------------------------------------------------------------------
-Ran 1 test in 316.020s
+Ran 1 test in 1139.856s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251102_153710_575753_850414ef
-正在创建远端测试目录: ~/tmp/gds_test_20251102_153710_575753_850414ef
+远端测试目录: ~/tmp/gds_test_20251103_195002_000685_fc2b832d
+正在创建远端测试目录: ~/tmp/gds_test_20251103_195002_000685_fc2b832d
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251102_153710_575753_850414ef
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_y4fqoexz
+已切换到远端测试目录: ~/tmp/gds_test_20251103_195002_000685_fc2b832d
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_8y4r_v3q
 测试环境设置完成
 测试GDS --bg后台任务功能 - 优先队列验证
 测试1: 基础echo命令
-任务ID: 1762069070_6826
+任务ID: 1762170705_7927
 基础echo命令测试通过
 测试2: 包含引号的复杂命令
 复杂命令测试通过
 测试3: 错误命令处理
+错误命令处理测试通过
+测试4: 长时间运行任务的时间敏感化partial输出验证
+启动长时间运行的后台任务（sleep 180秒）...
+测试开始时间: 2025-11-03 20:04:57
+长时间任务ID: 1762171498_5442
+开始重复查询，直到成功条件满足（最大测试时长: 360秒）...
+配置: 阶段1=180s, 阶段2=60s, 阶段3=60s, 查询间隔=10s
+
+=== 第1次查询 (时间: 2025-11-03 20:06:00, 已过时间: 0.0秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1762171498_5442
+Command: "python3 -c "
+import time
+import sys
+start_time = time.strftime('%Y-%m-%d %H:%M:%S')
+print('TASK_START_TIME:', start_time)
+print('First echo: Task started at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+print('About to sleep for 180 seconds...')
+sys.stdout.flush()
+time.sleep(180)
+print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+""
+Start time: 2025-11-03T20:04:58.470632
+Log size: 0 bytes
+✓ 任务状态：运行中
+=== 第1次查询完成 ===
+等待10秒后继续查询...
+
+=== 第2次查询 (时间: 2025-11-03 20:06:25, 已过时间: 24.4秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1762171498_5442
+Command: "python3 -c "
+import time
+import sys
+start_time = time.strftime('%Y-%m-%d %H:%M:%S')
+print('TASK_START_TIME:', start_time)
+print('First echo: Task started at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+print('About to sleep for 180 seconds...')
+sys.stdout.flush()
+time.sleep(180)
+print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+""
+Start time: 2025-11-03T20:04:58.470632
+Log size: 0 bytes
+✓ 任务状态：运行中
+=== 第2次查询完成 ===
+等待10秒后继续查询...
+
+=== 第3次查询 (时间: 2025-11-03 20:07:17, 已过时间: 76.4秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1762171498_5442
+Command: "python3 -c "
+import time
+import sys
+start_time = time.strftime('%Y-%m-%d %H:%M:%S')
+print('TASK_START_TIME:', start_time)
+print('First echo: Task started at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+print('About to sleep for 180 seconds...')
+sys.stdout.flush()
+time.sleep(180)
+print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+""
+Start time: 2025-11-03T20:04:58.470632
+Log size: 0 bytes
+✓ 任务状态：运行中
+=== 第3次查询完成 ===
+等待10秒后继续查询...
+
+=== 第4次查询 (时间: 2025-11-03 20:07:52, 已过时间: 111.4秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1762171498_5442
+Command: "python3 -c "
+import time
+import sys
+start_time = time.strftime('%Y-%m-%d %H:%M:%S')
+print('TASK_START_TIME:', start_time)
+print('First echo: Task started at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+print('About to sleep for 180 seconds...')
+sys.stdout.flush()
+time.sleep(180)
+print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+""
+Start time: 2025-11-03T20:04:58.470632
+Log size: 0 bytes
+✓ 任务状态：运行中
+=== 第4次查询完成 ===
+等待10秒后继续查询...
+
+=== 第5次查询 (时间: 2025-11-03 20:08:29, 已过时间: 148.5秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+Status查询结果: returncode=0
+Status内容: Status: completed
+PID: 1762171498_5442 (finished)
+Command: "python3 -c "
+import time
+import sys
+start_time = time.strftime('%Y-%m-%d %H:%M:%S')
+print('TASK_START_TIME:', start_time)
+print('First echo: Task started at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+print('About to sleep for 180 seconds...')
+sys.stdout.flush()
+time.sleep(180)
+print('Second echo: Task completed at', time.strftime('%H:%M:%S'))
+sys.stdout.flush()
+""
+Start time: 2025-11-03T20:04:58.470632
+End time: 2025-11-03T12:08:15.307278
+Exit code: 0
+Log size: 579 bytes
+✓ 任务状态：已完成
+=== 第5次查询完成 ===
+进行最终验证...
+最终验证时间: 2025-11-03 20:08:51
+最终status查询结果: returncode=1
+最终status输出: Error: Background task 1762171498_5442 not found
+

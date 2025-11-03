@@ -72,22 +72,17 @@ class Validation:
         Returns:
             dict: 验证结果
         """
-        print(f"DEBUG [verify_with_ls]: 输入path = {path}")
         attempt_count = 0
         
         def validate():
             nonlocal attempt_count
             attempt_count += 1
             
-            print(f"DEBUG [validate]: attempt_count={attempt_count}, max_attempts={max_attempts}, path={path}")
-            
             # 在最后一次尝试时使用远程bash强制刷新（会弹出窗口）
             if attempt_count >= max_attempts:
-                print(f"DEBUG [validate]: 调用cmd_ls_remote, path={path}")
                 ls_result = self.main_instance.cmd_ls_remote(path, detailed=False, recursive=False, show_hidden=show_hidden)
             else:
                 # 使用标准API调用
-                print(f"DEBUG [validate]: 调用cmd_ls, path={path}")
                 ls_result = self.main_instance.cmd_ls(path, detailed=False, recursive=False, show_hidden=show_hidden)
             
             return ls_result["success"]

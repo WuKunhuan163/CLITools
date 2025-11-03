@@ -1,0 +1,63 @@
+# ============================================================================
+# Test completed at: 2025-11-03 19:23:17 - Status: FAIL
+# ============================================================================
+
+test_36_at_path_operations (test_gds.GDSTest)
+测试@路径相关的文件操作和导航 ... FAIL
+
+======================================================================
+FAIL: test_36_at_path_operations (test_gds.GDSTest)
+测试@路径相关的文件操作和导航
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 780, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 5237, in test_36_at_path_operations
+    result = self.gds(f'cat @/{test_file}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 786, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: cat @/test_at_path_file.txt - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 228.699s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251103_191928_519986_fb79f8bf
+正在创建远端测试目录: ~/tmp/gds_test_20251103_191928_519986_fb79f8bf
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251103_191928_519986_fb79f8bf
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0ur8jj2u
+测试环境设置完成
+测试@路径相关的文件操作和导航
+测试1: 导航到@路径（REMOTE_ENV）
+命令转译成功: cd @ -> cd @
+返回码: 0
+命令转译成功: pwd -> pwd
+返回码: 0
+输出: @...
+测试2: ls @路径
+命令转译成功: ls @ -> ls @
+返回码: 0
+输出: python/
+python_install_3.11.0/
+python_install_3.11.2/
+python_install_test/
+venv/
+test_upload_fixed.txt
+test_upload_verify.txt...
+测试3: 在@路径下创建测试文件
+命令转译成功: echo "Test content for @ path" > @/test_at_path_file.txt -> echo "Test content for @ path" > @/test_at_path_file.txt
+返回码: 0
+输出: ...
+命令转译成功: cat @/test_at_path_file.txt -> cat @/test_at_path_file.txt
+返回码: 1
+输出: cat: @/test_at_path_file.txt: File 'test_at_path_file.txt' not found in folder. Available files: ['python_install_test', 'python_install_3.11.2', 'python_install_3.11.0', 'test_upload_verify.txt', 'test_upload_fixed.txt', 'python', 'venv']...
+命令执行异常: 1 != 0 : 命令执行失败
