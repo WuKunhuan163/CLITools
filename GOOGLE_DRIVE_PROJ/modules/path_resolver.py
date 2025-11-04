@@ -140,39 +140,76 @@ class PathResolver:
             print(f"Error: Resolve drive ID failed: {e}")
             return None, None
     
-    def undo_local_path_user_expansion(self, path):
+    def undo_local_path_user_expansion(self, command_or_path):
         """
         将bash shell扩展的本地路径转换回远程路径格式
         
         当用户输入 'GDS cd ~/tmp/test' 时，bash会将 ~/tmp/test 扩展为 /Users/username/tmp/test
         这个函数将其转换回 ~/tmp/test 格式，以便正确解析为远程路径
+        
+        Args:
+            command_or_path: 可以是完整的命令字符串或单个路径
+        
+        Returns:
+            转换后的命令字符串或路径
         """
         try:
             import os
+            import shlex
             
             # 获取用户的home目录
             home_dir = os.path.expanduser("~")
             
-            # 如果路径以用户home目录开头，将其转换为~/格式
-            if path.startswith(home_dir + "/"):
-                relative_path = path[len(home_dir + "/"):]
-                return f"~/{relative_path}"
-            elif path == home_dir:
-                return "~"
-            elif path.startswith(home_dir):
-                # 处理形如 /Users/username.. 的情况
-                relative_path = path[len(home_dir):]
-                if relative_path.startswith("/"):
-                    return f"~{relative_path}"
-                else:
+            def convert_single_path(path):
+                """转换单个路径"""
+                # 如果路径以用户home目录开头，将其转换为~/格式
+                if path.startswith(home_dir + "/"):
+                    relative_path = path[len(home_dir + "/"):]
                     return f"~/{relative_path}"
+                elif path == home_dir:
+                    return "~"
+                elif path.startswith(home_dir):
+                    # 处理形如 /Users/username.. 的情况
+                    relative_path = path[len(home_dir):]
+                    if relative_path.startswith("/"):
+                        return f"~{relative_path}"
+                    else:
+                        return f"~/{relative_path}"
+                else:
+                    # 不是home目录下的路径，保持原样
+                    # 这包括：相对路径、绝对的远程路径（如/content/drive/...）等
+                    return path
+            
+            # 如果输入看起来像一个命令（包含空格），则解析命令参数
+            if ' ' in command_or_path.strip():
+                try:
+                    # 使用shlex解析命令，保持引号
+                    parts = shlex.split(command_or_path)
+                    converted_parts = []
+                    
+                    for part in parts:
+                        # 对每个参数尝试路径转换
+                        converted_part = convert_single_path(part)
+                        converted_parts.append(converted_part)
+                    
+                    # 重新组合命令，对包含空格的参数加引号
+                    final_parts = []
+                    for part in converted_parts:
+                        if ' ' in part:
+                            final_parts.append(f'"{part}"')
+                        else:
+                            final_parts.append(part)
+                    
+                    return ' '.join(final_parts)
+                except ValueError:
+                    # shlex解析失败，回退到简单的字符串替换
+                    return command_or_path.replace(home_dir, "~")
             else:
-                # 不是home目录下的路径，保持原样
-                # 这包括：相对路径、绝对的远程路径（如/content/drive/...）等
-                return path
+                # 单个路径，直接转换
+                return convert_single_path(command_or_path)
         except Exception as e:
             # 如果转换失败，返回原路径，避免破坏用户输入
-            return path
+            return command_or_path
     
     def convert_remote_path_to_logical(self, remote_path):
         """

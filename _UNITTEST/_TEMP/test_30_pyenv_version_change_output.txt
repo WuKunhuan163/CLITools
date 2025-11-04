@@ -1,0 +1,133 @@
+# ============================================================================
+# Test completed at: 2025-11-05 06:17:3FAIL
+
+======================================================================
+FAIL: test_30_pyenv_version_change (test_gds.GDSTest)
+测试pyenv版本切换 - 实际下载并切换多个Python版本
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 795, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4451, in test_30_pyenv_version_change
+    self.assertIn("Script execution successful!", result.stdout, "应该显示脚本执行成功")
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 801, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: python test_version_script.py - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 406.413s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251105_061052_257701_b1959fed
+正在创建远端测试目录: ~/tmp/gds_test_20251105_061052_257701_b1959fed
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251105_061052_257701_b1959fed
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_hxjt9r1k
+测试环境设置完成
+测试pyenv版本切换（实际下载和切换）
+将测试安装和切换Python 3.9.18和3.10.13
+步骤1：检查当前已安装的Python版本
+命令转译成功: ['pyenv', '--versions'] -> pyenv --versions
+返回码: 0
+输出: Installed Python versions (4 total):
+* 3.10.13
+  3.7.17
+  3.8.18
+  3.9.18
+Current: 3.10.13 (local shell 99a62b9064feac53)...
+当前已安装版本:
+Installed Python versions (4 total):
+* 3.10.13
+  3.7.17
+  3.8.18
+  3.9.18
+Current: 3.10.13 (local shell 99a62b9064feac53)
+
+
+步骤2：Python 3.9.18已安装，跳过安装步骤
+
+步骤3：Python 3.10.13已安装，跳过安装步骤
+
+步骤4：切换到Python 3.9.18并验证
+命令转译成功: ['pyenv', '--local', '3.9.18'] -> pyenv --local 3.9.18
+返回码: 0
+输出: Local Python version set to 3.9.18 for shell 99a62b9064feac53...
+命令转译成功: ['python', '-c', 'import sys; print(sys.version)'] -> python -c "import sys; print(sys.version)"
+返回码: 0
+输出: 3.9.18 (main, Nov  2 2025, 07:47:01) 
+[GCC 11.4.0]...
+当前Python版本输出: [K⏳ Waiting for result .......[K[K3.9.18 (main, Nov  2 2025, 07:47:01) 
+[GCC 11.4.0]
+
+
+步骤5：切换到Python 3.10.13并验证
+命令转译成功: ['pyenv', '--local', '3.10.13'] -> pyenv --local 3.10.13
+返回码: 0
+输出: Local Python version set to 3.10.13 for shell 99a62b9064feac53...
+命令转译成功: ['python', '-c', 'import sys; print(sys.version)'] -> python -c "import sys; print(sys.version)"
+返回码: 0
+输出: 3.10.13 (main, Nov  4 2025, 15:22:21) [GCC 11.4.0]...
+当前Python版本输出: [K⏳ Waiting for result .....[K[K3.10.13 (main, Nov  4 2025, 15:22:21) [GCC 11.4.0]
+
+
+步骤6：再次切换回Python 3.9.18并验证
+命令转译成功: ['pyenv', '--local', '3.9.18'] -> pyenv --local 3.9.18
+返回码: 0
+输出: Local Python version set to 3.9.18 for shell 99a62b9064feac53...
+命令转译成功: ['python', '-c', 'import sys; print(sys.version)'] -> python -c "import sys; print(sys.version)"
+返回码: 0
+输出: 3.9.18 (main, Nov  2 2025, 07:47:01) 
+[GCC 11.4.0]...
+当前Python版本输出: [K⏳ Waiting for result .......[K[K3.9.18 (main, Nov  2 2025, 07:47:01) 
+[GCC 11.4.0]
+
+
+步骤7：测试Python脚本执行
+Warning: Could not load REMOTE_ROOT from config: [Errno 2] No such file or directory: '/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/config.json'
+命令转译成功: cat > "test_version_script.py" << "EOF"
+import sys
+import os
+
+# 设置远程根路径，用于路径解析
+REMOTE_ROOT = "/content/drive/MyDrive"
+# 切换到测试目录（相对于REMOTE_ROOT）
+test_dir = os.path.join(REMOTE_ROOT, "tmp", "gds_test_20251105_061052_257701_b1959fed")
+if os.path.exists(test_dir):
+    os.chdir(test_dir)
+
+print(f'Python version: {sys.version}')
+print(f'Version info: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
+print("Script execution successful!")
+print(f"Current working directory: {os.getcwd()}")
+
+EOF -> cat > "test_version_script.py" << "EOF"
+import sys
+import os
+
+# 设置远程根路径，用于路径解析
+REMOTE_ROOT = "/content/drive/MyDrive"
+# 切换到测试目录（相对于REMOTE_ROOT）
+test_dir = os.path.join(REMOTE_ROOT, "tmp", "gds_test_20251105_061052_257701_b1959fed")
+if os.path.exists(test_dir):
+    os.chdir(test_dir)
+
+print(f'Python version: {sys.version}')
+print(f'Version info: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
+print("Script execution successful!")
+print(f"Current working directory: {os.getcwd()}")
+
+EOF
+返回码: 0
+输出: Heredoc detected, translating to: echo -e 'import sys\nimport os\n\n# 设置远程根路径，用于路径解析\nREMOTE_ROOT = "/content/drive/MyDrive"\n# 切换到测试目录（相对于REMOTE_ROOT）\ntest_dir = os.path.join(REMOTE_ROOT, "tmp", "gds_test_20251105_061052_257701_b1959fed")\nif os.path.exists(test_dir):\n    os.chdir(test_dir)\n\nprint(f'"'"'Python version: {sys.version}'"'"')\nprint(f'"'"'Version info: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'"'"')\nprint("Script execution successful!")\nprint(f"Current working directory: {os.getcwd()}")\n' > "test_version_script.py"...
+命令转译成功: python test_version_script.py -> python test_version_script.py
+返回码: 1
+输出: Remote Python file execution failed:...
+命令执行异常: 1 != 0 : 命令执行失败

@@ -1,0 +1,100 @@
+# ============================================================================
+# Test completed at: 2025-11-05 06:17:59 - Status: FAIL
+# ============================================================================
+
+test_37_pyenv_install_local (test_gds.GDSTest)
+测试pyenv本地下载安装功能 - 本地下载Python源码再远程编译安装 ... FAIL
+
+======================================================================
+FAIL: test_37_pyenv_install_local (test_gds.GDSTest)
+测试pyenv本地下载安装功能 - 本地下载Python源码再远程编译安装
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 795, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 5398, in test_37_pyenv_install_local
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 801, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: ['pyenv', '--install-local', '3.8.19'] - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 227.732s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251105_061410_213089_639d8e52
+正在创建远端测试目录: ~/tmp/gds_test_20251105_061410_213089_639d8e52
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251105_061410_213089_639d8e52
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6x05gpgf
+测试环境设置完成
+测试pyenv本地下载安装功能
+将测试本地下载并安装Python 3.8.19
+步骤1：检查当前已安装的Python版本
+命令转译成功: ['pyenv', '--versions'] -> pyenv --versions
+返回码: 0
+输出: Installed Python versions (4 total):
+  3.10.13
+  3.7.17
+  3.8.18
+* 3.9.18
+Current: 3.9.18 (local shell 99a62b9064feac53)...
+当前已安装版本:
+Installed Python versions (4 total):
+  3.10.13
+  3.7.17
+  3.8.18
+* 3.9.18
+Current: 3.9.18 (local shell 99a62b9064feac53)
+
+
+步骤3：本地下载并安装Python 3.8.19
+注意：这个过程包括本地下载、上传、远程编译，可能需要10-20分钟
+命令转译成功: ['pyenv', '--install-local', '3.8.19'] -> pyenv --install-local 3.8.19
+返回码: 1
+输出: Starting local download and remote installation of Python 3.8.19...
+Step 1/4: Downloading Python 3.8.19 source code locally...
+✓ Downloaded Python-3.8.19.tgz (24.1 MB)
+Step 2/4: Uploading source code to remote REMOTE_ENV...
+检测到 1 个大文件（>10MB），需要手动上传:
+  - Python-3.8.19.tgz (24.1 MB)
+Target remote path: https://drive.google.com/drive/folders/1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY
+✓ Opened the target remote folder in browser
+Local temporary folder: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/GDS_MANUAL_UPLOAD_s6byqip8
+✓ Opened the local temporary folder
+============================================================
+Please drag the files from the opened local temporary folder to the target remote folder!
+✓ Cleaned up the local temporary folder
+Waiting for manually uploaded files to be synchronized...
+Move manually uploaded files to the destination: @/python_install_3.8.19
+DEBUG: Large-file-only mv command: 
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ENV/python_install_3.8.19"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/Python-3...
+Failed to upload source code: Failed to move large files: Unknown error...
+🔄 检测到可能的远端窗口错误，准备重试...
+重试第1次...
+返回码: 1
+输出: Starting local download and remote installation of Python 3.8.19...
+Step 1/4: Downloading Python 3.8.19 source code locally...
+✓ Downloaded Python-3.8.19.tgz (24.1 MB)
+Step 2/4: Uploading source code to remote REMOTE_ENV...
+Failed to create remote directory: Unknown error...
+🔄 检测到可能的远端窗口错误，准备重试...
+重试第2次...
+返回码: 1
+输出: Starting local download and remote installation of Python 3.8.19...
+Step 1/4: Downloading Python 3.8.19 source code locally...
+✓ Downloaded Python-3.8.19.tgz (24.1 MB)
+Step 2/4: Uploading source code to remote REMOTE_ENV...
+Failed to create remote directory: Unknown error...
+命令执行异常: 1 != 0 : 命令执行失败

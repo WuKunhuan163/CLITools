@@ -58,10 +58,8 @@ class SyncManager:
             else:
                 remote_file_path = f"{target_path}/{filename}"
             
-            verify_result = self.main_instance.validation.verify_with_ls(
-                path=remote_file_path,
-                creation_type="file"
-            )
+            # 静默检查远程文件是否存在（不显示进度消息）
+            verify_result = self.main_instance.cmd_ls(remote_file_path, detailed=False)
             remote_has_same_file = verify_result.get("success", False)
             
             # 检查是否在删除时间缓存中（5分钟内删除过）

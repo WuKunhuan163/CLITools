@@ -6,10 +6,9 @@ Base test class with timeout management
 
 import unittest
 import signal
-import sys
 import subprocess
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 
 
 class TimeoutError(Exception):

@@ -199,13 +199,13 @@ def validate_creation(validation_func, item_name, max_attempts=12, validation_ty
     """
     # 确定进度消息
     if validation_type == "file":
-        progress_message = f"⏳ Validating file creation ..."
+        progress_message = f"⏳ Validating file existence ..."
         success_msg = f"File {item_name} created successfully"
     elif validation_type == "dir":
-        progress_message = f"⏳ Validating directory creation ..."
+        progress_message = f"⏳ Validating directory existence ..."
         success_msg = f"Directory {item_name} created successfully"
     elif validation_type == "upload":
-        progress_message = f"⏳ Validating {item_name} ..."
+        progress_message = f"⏳ Validating {item_name} upload progress ..."
         success_msg = f"{item_name} uploaded successfully"
     else:
         progress_message = f"⏳ Validating {validation_type} ..."

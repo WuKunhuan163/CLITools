@@ -206,6 +206,8 @@ class GDSTest(unittest.TestCase):
         cls.TEST_DATA_DIR.mkdir(exist_ok=True)
         cls.TEST_TEMP_DIR.mkdir(exist_ok=True)
         
+        # 不需要清理shell状态，可以复用shell
+        
         # 创建测试文件
         cls._create_test_files()
         
@@ -483,6 +485,19 @@ Shell commands: ls -la && echo "done"
         
         # 如果都不存在，返回None
         return None
+    
+    def get_remote_root_path(self):
+        """从config.json获取远程根路径"""
+        try:
+            import json
+            import os
+            config_path = os.path.join(self.BIN_DIR, 'GOOGLE_DRIVE_PROJ', 'config.json')
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            return config.get('constants', {}).get('REMOTE_ROOT', '/content/drive/MyDrive')
+        except Exception as e:
+            print(f"Warning: Could not load REMOTE_ROOT from config: {e}")
+            return '/content/drive/MyDrive'  # 默认值
     
     def get_local_file_content(self, file_path):
         """
@@ -986,6 +1001,7 @@ Shell commands: ls -la && echo "done"
                     output = result.stdout.strip()
                     if "completed" in output.lower() or "finished" in output.lower():
                         # 任务已完成，获取结果
+                        print(f'任务已完成，获取结果...')
                         result_cmd = self.gds(f"--bg --result {task_id}", expect_success=False)
                         
                         # 检查是否为明确的命令未找到错误（exit code 127）
@@ -1010,6 +1026,12 @@ Shell commands: ls -la && echo "done"
                             else:
                                 print(f'Python {version}安装失败：{result_cmd.stdout}')
                                 return False
+                    elif "running" in output.lower() or "in progress" in output.lower():
+                        # 任务仍在运行，继续等待（不要尝试获取result）
+                        elapsed = int(time.time() - start_time)
+                        print(f'任务仍在运行... 已等待{elapsed}秒')
+                        time.sleep(check_interval)
+                        continue
                     elif "failed" in output.lower() or "error" in output.lower():
                         print(f'Python {version}安装任务失败')
                         result_cmd = self.gds(f"--bg --result {task_id}", expect_success=False)
@@ -4402,23 +4424,39 @@ print(f'Current directory: {os.getcwd()}')'''
         
         # 步骤7：测试Python脚本执行
         print(f'\n步骤7：测试Python脚本执行')
+        # 获取远程根路径，用于Python脚本中的路径解析
+        remote_root = self.get_remote_root_path()
+        
         test_script_content = '''import sys
+import os
+
+# 调试信息：显示当前工作目录和脚本位置
+print(f"DEBUG: Current working directory: {os.getcwd()}")
+print(f"DEBUG: Script file exists: {os.path.exists(__file__)}")
+print(f"DEBUG: Script file path: {os.path.abspath(__file__)}")
+
+# 显示Python版本信息
 print(f'Python version: {sys.version}')
 print(f'Version info: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')
 print("Script execution successful!")
 '''
         
-        test_script_path = f"{self.test_folder}/test_version_script.py"
-        result = self.gds(f'cat > "{test_script_path}" << \"EOF\"\n{test_script_content}\nEOF')
+        # 创建测试脚本，使用相对路径
+        result = self.gds(f'cat > "test_version_script.py" << \"EOF\"\n{test_script_content}\nEOF')
         self.assertEqual(result.returncode, 0, "创建测试脚本应该成功")
         
-        result = self.gds(["python", test_script_path])
+        # 首先检查脚本是否存在
+        result = self.gds("ls -la test_version_script.py")
+        self.assertEqual(result.returncode, 0, "测试脚本应该存在")
+        
+        # 使用绝对路径执行Python脚本
+        result = self.gds("python ./test_version_script.py")
         self.assertEqual(result.returncode, 0, "执行Python脚本应该成功")
         self.assertIn("Script execution successful!", result.stdout, "应该显示脚本执行成功")
         self.assertIn(version1, result.stdout, f"脚本应该使用Python {version1}")
         
         # 清理
-        result = self.gds(["rm", "-f", test_script_path])
+        result = self.gds("rm -f test_version_script.py")
         self.assertEqual(result.returncode, 0, "清理测试文件应该成功")
         
         print(f'\npyenv版本切换测试完成！成功测试了{version1}和{version2}的安装和切换')
@@ -5330,6 +5368,85 @@ print("Script execution successful!")
         self.gds(f'rm ~/tmp/{home_file}')
         
         print("@路径操作测试完成")
+
+    def test_37_pyenv_install_local(self):
+        """测试pyenv本地下载安装功能 - 本地下载Python源码再远程编译安装"""
+        print("测试pyenv本地下载安装功能")
+        
+        # 选择一个较小的Python版本进行测试
+        test_version = "3.8.19"
+        
+        print(f'将测试本地下载并安装Python {test_version}')
+        
+        # 步骤1：检查当前已安装的版本
+        print("步骤1：检查当前已安装的Python版本")
+        result = self.gds(["pyenv", "--versions"])
+        self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
+        initial_versions = result.stdout
+        print(f'当前已安装版本:\n{initial_versions}')
+        
+        # 步骤2：如果版本已存在，先卸载
+        if test_version in initial_versions:
+            print(f'\n步骤2：卸载已存在的Python {test_version}')
+            result = self.gds(["pyenv", "--uninstall", test_version])
+            self.assertEqual(result.returncode, 0, f"卸载Python {test_version}应该成功")
+            print(f'✓ Python {test_version}已卸载')
+        
+        # 步骤3：使用本地下载安装Python版本
+        print(f'\n步骤3：本地下载并安装Python {test_version}')
+        print("注意：这个过程包括本地下载、上传、远程编译，可能需要10-20分钟")
+        
+        # 使用pyenv --install-local命令（本地下载模式）
+        result = self.gds(["pyenv", "--install-local", test_version])
+        self.assertEqual(result.returncode, 0, f"本地下载安装Python {test_version}应该成功")
+        
+        # 验证安装成功的输出
+        self.assertIn("installed successfully", result.stdout, "应该显示安装成功信息")
+        print(f'✓ Python {test_version}本地下载安装成功')
+        
+        # 步骤4：验证版本已安装
+        print(f'\n步骤4：验证Python {test_version}已正确安装')
+        result = self.gds(["pyenv", "--versions"])
+        self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
+        updated_versions = result.stdout
+        self.assertIn(test_version, updated_versions, f"Python {test_version}应该出现在已安装版本列表中")
+        print(f'✓ Python {test_version}已出现在版本列表中')
+        
+        # 步骤5：切换到新安装的版本并验证
+        print(f'\n步骤5：切换到Python {test_version}并验证')
+        result = self.gds(["pyenv", "--local", test_version])
+        self.assertEqual(result.returncode, 0, f"切换到Python {test_version}应该成功")
+        
+        # 验证版本切换
+        result = self.gds(["pyenv", "--version"])
+        self.assertEqual(result.returncode, 0, "检查当前版本应该成功")
+        self.assertIn(test_version, result.stdout, f"当前版本应该是{test_version}")
+        print(f'✓ 成功切换到Python {test_version}')
+        
+        # 步骤6：测试Python可执行性
+        print(f'\n步骤6：测试Python {test_version}可执行性')
+        result = self.gds(["python", "--version"])
+        self.assertEqual(result.returncode, 0, "python --version应该成功")
+        self.assertIn(test_version, result.stdout, f"python --version应该显示{test_version}")
+        print(f'✓ Python {test_version}可执行性验证成功')
+        
+        # 步骤7：测试Python代码执行
+        print(f'\n步骤7：测试Python代码执行')
+        test_code = f'import sys; print(f"Python {{sys.version}} is working correctly!")'
+        result = self.gds(["python", "-c", test_code])
+        self.assertEqual(result.returncode, 0, "Python代码执行应该成功")
+        self.assertIn("is working correctly", result.stdout, "Python代码应该正确执行")
+        print(f'✓ Python {test_version}代码执行验证成功')
+        
+        # 步骤8：测试pip功能
+        print(f'\n步骤8：测试pip功能')
+        result = self.gds(["python", "-c", "import pip; print(f'pip version: {pip.__version__}')"])
+        self.assertEqual(result.returncode, 0, "pip导入应该成功")
+        self.assertIn("pip version:", result.stdout, "应该显示pip版本信息")
+        print(f'✓ pip功能验证成功')
+        
+        print(f'\npyenv本地下载安装测试完成')
+        print(f'✓ Python {test_version}通过本地下载模式成功安装并验证')
 
 
 class ParallelTestRunner:
