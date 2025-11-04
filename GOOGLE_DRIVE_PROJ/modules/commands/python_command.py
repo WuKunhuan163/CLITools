@@ -1,5 +1,38 @@
 """
-Python command handler for GDS
+Google Drive Shell - Python Command Module
+
+This module provides Python code execution functionality within the Google Drive Shell environment.
+It enables running Python scripts and commands on the remote system with proper version management
+and integration with the pyenv system.
+
+Key Features:
+- Remote Python script execution
+- Python version detection and reporting
+- Integration with pyenv for version management
+- Support for both file execution and inline code
+- Proper shell state management for Python environments
+- Error handling and output capture
+
+Commands:
+- python <script.py>: Execute Python script file
+- python -c "code": Execute inline Python code
+- python --version: Show current Python version
+
+Execution Flow:
+1. Validate Python command and arguments
+2. Resolve file paths if executing scripts
+3. Prepare remote execution environment
+4. Execute Python code/script on remote system
+5. Capture and return output/errors
+
+Classes:
+    PythonCommand: Main Python command handler
+
+Dependencies:
+    - Pyenv system for version management
+    - Remote shell management for execution context
+    - Path resolution for script file handling
+    - Command execution infrastructure
 """
 
 from typing import List

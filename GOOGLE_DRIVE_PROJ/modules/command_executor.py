@@ -1,6 +1,35 @@
 """
-Command Executor Module
-从 remote_commands.py 重构而来
+Google Drive Shell - Command Executor Module
+
+This module provides the core command execution functionality for the Google Drive Shell system.
+It handles remote command execution, debug information capture, and result processing.
+
+Key Features:
+- Unified command execution interface for all remote operations
+- Debug information capture and management
+- Thread-safe execution with proper error handling
+- Integration with remote shell management
+- Support for both synchronous and background command execution
+- Comprehensive logging and debugging capabilities
+
+Classes:
+    DebugCapture: Thread-safe debug information capture system
+    CommandExecutor: Main command execution engine
+
+Command Flow:
+1. Command validation and preprocessing
+2. Remote shell preparation and state management
+3. Command execution via remote interface
+4. Result processing and error handling
+5. Debug information capture and storage
+
+Dependencies:
+    - Remote shell management for execution context
+    - Window management for remote command display
+    - Error handling and validation systems
+    - Threading support for concurrent operations
+
+Migrated from: remote_commands.py (refactored for better modularity)
 """
 from typing import List
 import threading

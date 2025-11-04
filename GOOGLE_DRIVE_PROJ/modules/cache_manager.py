@@ -1,6 +1,24 @@
 #!/usr/bin/env python3
 """
-Google Drive Shell Cache Manager Module
+Google Drive Shell - Cache Manager Module
+
+This module provides comprehensive caching functionality for the Google Drive Shell system.
+It manages local file caches, metadata caching, and synchronization between local and remote states.
+
+Key Features:
+- Local file caching with automatic cleanup
+- Metadata caching for improved performance
+- Cache invalidation and refresh mechanisms
+- Integration with Google Drive API for cache validation
+- Support for both file content and directory structure caching
+
+Classes:
+    CacheManager: Main cache management class handling all caching operations
+
+Dependencies:
+    - Google Drive API service for remote validation
+    - Local filesystem for cache storage
+    - JSON for metadata serialization
 """
 
 import json
