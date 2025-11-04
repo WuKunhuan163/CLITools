@@ -1,6 +1,34 @@
 """
-Upload operations commands
-从file_core.py迁移而来
+Google Drive Shell - Upload Command Module
+
+This module handles all file and folder upload operations to Google Drive.
+It provides comprehensive upload functionality with support for both small and large files,
+automatic file type detection, and intelligent handling of mixed upload scenarios.
+
+Key Features:
+- Small file upload via LOCAL_EQUIVALENT synchronization
+- Large file upload via manual drag-and-drop interface
+- Mixed upload scenarios with unified file movement
+- Automatic file size detection and routing
+- Progress tracking and user feedback
+- Tkinter-based interactive windows for large file uploads
+- Comprehensive error handling and retry mechanisms
+- Support for folder uploads with structure preservation
+
+Classes:
+    UploadCommand: Main upload command handler with support for various upload scenarios
+
+Upload Flow:
+1. File analysis and size-based routing (small vs large files)
+2. Small files: Upload to LOCAL_EQUIVALENT → Sync → Move to target
+3. Large files: Manual upload to DRIVE_EQUIVALENT → Sync → Move to target
+4. Mixed uploads: Parallel processing with unified final move operation
+
+Dependencies:
+    - Google Drive Desktop for file synchronization
+    - Tkinter for large file upload interface
+    - Path resolution and validation systems
+    - Progress management and user feedback systems
 """
 
 import os

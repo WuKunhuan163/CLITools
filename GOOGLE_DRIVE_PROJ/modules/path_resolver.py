@@ -1,6 +1,30 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Path Resolver Module
+
+This module provides comprehensive path resolution and management functionality for the Google Drive Shell system.
+It handles the complex mapping between local paths, remote logical paths, and Google Drive folder IDs.
+
+Key Features:
+- Logical path resolution (~/path, @/path formats)
+- Remote absolute path calculation
+- Google Drive folder ID resolution
+- Path normalization and validation
+- Support for both user space (~) and environment space (@) paths
+- Integration with Google Drive API for folder ID lookup
+
+Path Formats:
+- Logical paths: ~/documents/file.txt (user space), @/python/script.py (environment space)
+- Remote absolute paths: /content/drive/MyDrive/documents/file.txt
+- Google Drive IDs: Folder and file IDs for API operations
+
+Classes:
+    PathResolver: Main path resolution class handling all path operations
+
+Dependencies:
+    - Google Drive API service for folder ID resolution
+    - Path constants for base directory definitions
+    - Shell state management for current directory tracking
 """
 
 import os

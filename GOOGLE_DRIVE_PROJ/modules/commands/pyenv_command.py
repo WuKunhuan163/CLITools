@@ -1,3 +1,46 @@
+"""
+Google Drive Shell - Pyenv Command Module
+
+This module provides comprehensive Python version management functionality similar to pyenv,
+but designed specifically for the Google Drive Shell remote environment.
+
+Key Features:
+- Python version installation from source (both remote and local download)
+- Version switching with persistent shell state management
+- Background installation support for long-running operations
+- Automatic verification of installed Python versions
+- Integration with remote environment management (@/python directory)
+- State persistence across shell sessions
+- Support for both global and local version settings
+
+Commands:
+- pyenv install <version>: Install Python version from remote source
+- pyenv install-local <version>: Download locally and install remotely
+- pyenv install-bg <version>: Background installation
+- pyenv local <version>: Set local Python version for current shell
+- pyenv global <version>: Set global Python version
+- pyenv versions: List installed versions
+- pyenv version: Show current version
+- pyenv uninstall <version>: Remove installed version
+
+Installation Process:
+1. Download Python source code (remote or local)
+2. Extract and configure build in temporary directory
+3. Compile with optimizations
+4. Verify installation by running python --version
+5. Move to final location only if verification succeeds
+6. Update state files and version tracking
+
+Classes:
+    PyenvCommand: Main pyenv command handler with comprehensive version management
+
+Dependencies:
+    - Remote compilation environment (gcc, make, etc.)
+    - Upload/download functionality for source distribution
+    - State management for version persistence
+    - Background task management for long installations
+"""
+
 from .base_command import BaseCommand
 
 class PyenvCommand(BaseCommand):

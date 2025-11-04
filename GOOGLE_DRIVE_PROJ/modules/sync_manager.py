@@ -1,6 +1,34 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Sync Manager Module
+
+This module manages file synchronization between local and remote Google Drive environments.
+It handles the complex process of ensuring files are properly synchronized across different
+storage locations and provides mechanisms for waiting and verifying sync completion.
+
+Key Features:
+- File movement to LOCAL_EQUIVALENT for Google Drive Desktop sync
+- Sync status monitoring and verification
+- Automatic file renaming to handle conflicts
+- Integration with Google Drive Desktop for seamless synchronization
+- Support for both individual files and batch operations
+- Comprehensive error handling and retry mechanisms
+
+Sync Flow:
+1. Move files to LOCAL_EQUIVALENT directory
+2. Monitor Google Drive Desktop sync process
+3. Verify files appear in DRIVE_EQUIVALENT
+4. Handle conflicts and renaming as needed
+5. Provide feedback on sync completion
+
+Classes:
+    SyncManager: Main synchronization management class
+
+Dependencies:
+    - Google Drive Desktop for actual file synchronization
+    - Path resolution for local/remote path mapping
+    - File system operations for local file management
+    - Drive API for verification and status checking
 """
 
 import os
