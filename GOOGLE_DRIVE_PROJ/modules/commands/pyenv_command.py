@@ -198,9 +198,13 @@ class PyenvCommand(BaseCommand):
             # 构建安装路径
             install_path_logical = f"{self.get_python_base_path()}/{version}"
             
-            # 解析@路径为绝对路径
-            current_shell = self.main_instance.get_current_shell()
-            install_path = self.main_instance.path_resolver.resolve_remote_absolute_path(install_path_logical, current_shell)
+            # 手动展开@路径为绝对路径（因为路径展开现在在execute_shell_command中统一处理）
+            if install_path_logical.startswith("@/"):
+                install_path = f"{self.main_instance.REMOTE_ENV}/{install_path_logical[2:]}"
+            elif install_path_logical.startswith("@"):
+                install_path = f"{self.main_instance.REMOTE_ENV}/{install_path_logical[1:]}"
+            else:
+                install_path = install_path_logical
 
 
             print(f"\n\n\n{'=' * 100}")
@@ -339,10 +343,8 @@ fi
                             "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
                         }
             
-            # 构建安装路径
-            install_path = f"{self.get_python_base_path()}/{version}"
-            
-            # 构建Python安装bash脚本（与pyenv_install相同的脚本）
+            # 构建Python安装bash脚本，直接在模板中使用REMOTE_ENV
+            install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             install_script = f'''
 # 创建安装目录
 mkdir -p "{install_path}"

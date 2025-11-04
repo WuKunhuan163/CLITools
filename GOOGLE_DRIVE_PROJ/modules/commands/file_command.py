@@ -168,16 +168,37 @@ class FileCommand(BaseCommand):
         if recursive and force:
             current_working_dir = current_shell.get("current_path", "")
             if current_working_dir:
-                current_absolute = current_working_dir  # 当前目录路径已经是绝对路径格式
+                # 将当前目录的逻辑路径转换为绝对路径进行比较
+                if current_working_dir.startswith("~/"):
+                    current_absolute = f"{self.main_instance.REMOTE_ROOT}/{current_working_dir[2:]}"
+                elif current_working_dir == "~":
+                    current_absolute = self.main_instance.REMOTE_ROOT
+                elif current_working_dir.startswith("@/"):
+                    current_absolute = f"{self.main_instance.REMOTE_ENV}/{current_working_dir[2:]}"
+                elif current_working_dir == "@":
+                    current_absolute = self.main_instance.REMOTE_ENV
+                else:
+                    current_absolute = current_working_dir
+                
                 target_absolute = absolute_path
                 
-                # 规范化目标路径，解析 ../
+                # 处理相对路径（如 . 和 ..）
                 import os
+                if target_absolute == ".":
+                    target_absolute = current_absolute
+                elif target_absolute.startswith("./"):
+                    target_absolute = os.path.join(current_absolute, target_absolute[2:])
+                elif target_absolute.startswith("../"):
+                    target_absolute = os.path.join(current_absolute, target_absolute)
+                
+                # 规范化路径，解析 ../
+                current_absolute_normalized = os.path.normpath(current_absolute)
                 target_absolute_normalized = os.path.normpath(target_absolute)
                 
-                if current_absolute and target_absolute_normalized:
-                    # 检测X是否包含Y作为开头的子串
-                    if current_absolute.startswith(target_absolute_normalized):
+                if current_absolute_normalized and target_absolute_normalized:
+                    # 检测当前目录是否在要删除的目录内（或就是要删除的目录）
+                    if (current_absolute_normalized == target_absolute_normalized or 
+                        current_absolute_normalized.startswith(target_absolute_normalized + "/")):
                         return {"success": False, "error": f"Cannot delete directory containing current working directory: {path}"}
         
         # 构建rm命令
@@ -201,14 +222,13 @@ class FileCommand(BaseCommand):
             else:
                 remote_command = f'rm "{absolute_path}"'
         
-        # 为了避免删除当前工作目录导致的问题，先切换到安全目录
-        # 构建安全的复合命令：先cd到根目录，然后执行rm
-        safe_command = f'cd "{self.main_instance.REMOTE_ROOT}" && {remote_command}'
+        # 直接执行rm命令，不改变工作目录
+        safe_command = remote_command
         
         # 执行远程命令
         result = self.main_instance.execute_command_interface("bash", ["-c", safe_command])
         
-        if result["success"]:
+        if result.get("success", False):
             return {
                 "success": True,
                 "path": path,

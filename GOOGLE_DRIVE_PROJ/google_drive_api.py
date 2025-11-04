@@ -179,7 +179,7 @@ class GoogleDriveService:
         except Exception as e:
             return {
                 "success": False,
-                "error": f"列出文件失败: {e}"
+                "error": e
             }
     
     def download_file(self, file_id, local_save_path):

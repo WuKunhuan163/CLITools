@@ -11,7 +11,7 @@ load_dotenv()
 
 # 导入工具函数
 from .system_utils import is_run_environment
-from .shell_commands import handle_multiple_commands
+# handle_multiple_commands 将在需要时延迟导入，避免循环导入
 
 def get_local_hf_token():
     """
@@ -269,7 +269,8 @@ echo "🏁 HuggingFace configuration test completed"
                 "instructions": "Execute the test_command in your remote terminal to verify HuggingFace setup"
             }
         else:
-            # 使用GDS执行测试命令
+            # 使用GDS执行测试命令（延迟导入避免循环导入）
+            from .shell_commands import handle_multiple_commands
             result = handle_multiple_commands(f'bash -c "{test_command}"', command_identifier)
             return result
             

@@ -342,7 +342,7 @@ class RemoteShellManager:
                 return 1
                 
         except Exception as e:
-            error_msg = f"Error: Execute exit-remote-shell command failed: {e}"
+            error_msg = f"Error: {e}"  # 简化错误消息，让上层error handler处理
             if is_run_environment(command_identifier):
                 write_to_json_output({"success": False, "error": error_msg}, command_identifier)
             else:
@@ -408,9 +408,58 @@ class RemoteShellManager:
         except Exception:
             pass  # 如果更新失败，不影响shell正常运行
 
+    def _initialize_default_path_ids(self):
+        """初始化默认的REMOTE_ROOT和REMOTE_ENV路径ID配置"""
+        try:
+            import json
+            import os
+            import time
+            
+            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            
+            # 加载或创建配置文件
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            else:
+                config = {"path_ids": {}, "last_updated": None}
+            
+            # 检查是否需要初始化默认ID
+            needs_update = False
+            
+            # 初始化REMOTE_ROOT的ID（~路径）
+            if "~" not in config["path_ids"]:
+                from ..google_drive_shell import GoogleDriveShell
+                shell = GoogleDriveShell()
+                config["path_ids"]["~"] = shell.REMOTE_ROOT_FOLDER_ID
+                needs_update = True
+                # print(f"Initialized default ~ path ID: {shell.REMOTE_ROOT_FOLDER_ID}")
+            
+            # 初始化REMOTE_ENV的ID（@路径）
+            if "@" not in config["path_ids"]:
+                from ..google_drive_shell import GoogleDriveShell
+                shell = GoogleDriveShell()
+                config["path_ids"]["@"] = shell.REMOTE_ENV_FOLDER_ID
+                needs_update = True
+                # print(f"Initialized default @ path ID: {shell.REMOTE_ENV_FOLDER_ID}")
+            
+            # 如果有更新，保存配置文件
+            if needs_update:
+                config["last_updated"] = time.time()
+                with open(config_path, 'w') as f:
+                    json.dump(config, f, indent=2)
+                # print(f"Default path IDs saved to {config_path}")
+                
+        except Exception as e:
+            # 初始化失败不影响shell正常运行
+            print(f"Warning: Failed to initialize default path IDs: {e}")
+
     def enter_shell_mode(self, command_identifier=None):
         """进入交互式shell模式"""
         try:
+            # 初始化默认路径ID配置
+            self._initialize_default_path_ids()
+            
             current_shell = self.get_current_shell()
             
             if not current_shell:
@@ -419,14 +468,14 @@ class RemoteShellManager:
                 create_result = self.create_shell("default_shell", None, None)
                 if create_result != 0:
                     error_msg = "Error: Failed to create default shell"
-                    if is_run_environment(self.command_identifier):
+                    if is_run_environment(command_identifier):
                         write_to_json_output({"success": False, "error": error_msg}, command_identifier)
                     else:
                         print(error_msg)
                     return 1
                 current_shell = self.get_current_shell()
             
-            if is_run_environment(self.command_identifier):
+            if is_run_environment(command_identifier):
                 # 在RUN环境下，返回shell信息
                 result_data = {
                     "success": True,
@@ -435,10 +484,24 @@ class RemoteShellManager:
                     "current_path": current_shell.get("current_path", "~"),
                     "available_commands": ["pwd", "ls", "mkdir", "cd", "rm", "help", "exit"]
                 }
-                write_to_json_output(result_data, self.command_identifier)
+                write_to_json_output(result_data, command_identifier)
                 return 0
             else:
                 # 在直接执行模式下，启动交互式shell
+                import sys
+                
+                # 检测是否是管道输入模式，如果是则禁用direct feedback
+                is_pipe_mode = not sys.stdin.isatty()
+                if is_pipe_mode:
+                    # 获取GoogleDriveShell实例来设置no_direct_feedback标志
+                    try:
+                        from ..google_drive_shell import GoogleDriveShell
+                        shell_instance = GoogleDriveShell()
+                        if hasattr(shell_instance, 'command_executor'):
+                            shell_instance.command_executor._no_direct_feedback = True
+                    except:
+                        pass  # 如果获取失败，不影响shell运行
+                
                 print(f"Enter 'help' to view available commands, enter 'exit' to exit")
                 
                 while True:
@@ -471,8 +534,14 @@ class RemoteShellManager:
                             path_parts = current_path.split('/')
                             display_path = path_parts[-1] if path_parts[-1] else path_parts[-2]
                         
-                        prompt = f"\n{venv_prefix}GDS:{display_path}$ "
-                        user_input = self.get_multiline_user_input(prompt, single_line=True)
+                        prompt = f"{venv_prefix}GDS:{display_path}$ "
+                        # 使用简单的input()来避免复杂性和潜在的循环问题
+                        try:
+                            user_input = input(prompt).strip()
+                        except (EOFError, KeyboardInterrupt):
+                            print("\nExit Google Drive Shell")
+                            return 0
+                        
                         if not user_input:
                             continue
                         
@@ -489,21 +558,14 @@ class RemoteShellManager:
                             break
                         else: 
                             try:
-                                import sys
-                                import os
-                                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-                                from main import Main
-                                shell_instance = Main()
+                                # 使用GoogleDriveShell执行命令
+                                from ..google_drive_shell import GoogleDriveShell
+                                shell_instance = GoogleDriveShell()
                                 
                                 # 执行完整的shell命令
-                                result_code = shell_instance.execute_command_interface(user_input)
-                                
-                                # 如果命令执行失败，显示帮助提示
-                                if result_code != 0:
-                                    print(f"Enter 'help' to view available commands")
+                                result_code = shell_instance.execute_shell_command(user_input)
                             except Exception as e:
                                 print(f"Error executing command '{cmd}': {e}")
-                                print(f"Enter 'help' to view available commands")
                         
                     except KeyboardInterrupt:
                         break
@@ -513,9 +575,9 @@ class RemoteShellManager:
                 return 0
             
         except Exception as e:
-            error_msg = f"Error: Error starting shell mode: {e}"
-            if is_run_environment(self.command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
+            error_msg = f"Error starting shell mode: {e}"
+            if is_run_environment(command_identifier):
+                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
             else:
                 print(error_msg)
             return 1

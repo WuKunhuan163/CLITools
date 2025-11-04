@@ -1,4 +1,6 @@
 from .base_command import BaseCommand
+import json
+import os
 
 class LsCommand(BaseCommand):
     @property
@@ -154,115 +156,291 @@ class LsCommand(BaseCommand):
         # 默认返回原路径
         return path
     
+    def get_configured_folder_id(self, logical_path):
+        """从配置文件获取指定逻辑路径的folder ID"""
+        try:
+            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                return config.get("path_ids", {}).get(logical_path)
+            return None
+        except Exception:
+            return None
+    
+    def find_nearest_parent_id(self, logical_path):
+        """找到最近的父目录ID，用于智能路径解析"""
+        try:
+            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            if not os.path.exists(config_path):
+                return None, None
+                
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            path_ids = config.get("path_ids", {})
+            
+            # 如果直接有这个路径的ID，返回它（精确匹配优先）
+            if logical_path in path_ids:
+                return path_ids[logical_path], logical_path
+            
+            # 找到最长匹配的父路径
+            best_match = None
+            best_match_path = None
+            
+            for config_path_key, folder_id in path_ids.items():
+                # 检查是否是父路径（必须是真正的父路径，不是自己）
+                if logical_path.startswith(config_path_key + "/"):
+                    # 找到更长的匹配（更接近的父目录）
+                    if best_match is None or len(config_path_key) > len(best_match_path):
+                        best_match = folder_id
+                        best_match_path = config_path_key
+            
+            return best_match, best_match_path
+            
+        except Exception as e:
+            print(f"Warning: Failed to find nearest parent ID: {e}")
+            return None, None
+    
+    def _resolve_from_parent_id(self, target_path, parent_id, parent_path):
+        """从配置的父目录ID解析到目标路径"""
+        try:
+            # 计算相对路径
+            if not target_path.startswith(parent_path + "/"):
+                return None, None
+            
+            relative_path = target_path[len(parent_path) + 1:]  # 去掉父路径和"/"
+            path_parts = relative_path.split("/")
+            
+            current_id = parent_id
+            current_path = parent_path
+            
+            # 逐级解析路径
+            for i, part in enumerate(path_parts):
+                if not part:  # 跳过空部分
+                    continue
+                
+                # 查找子文件夹
+                result = self.drive_service.list_files(folder_id=current_id, max_results=100)
+                if not result['success']:
+                    # API调用失败，返回错误信息
+                    return None, f"Unable to find the id for subfolder '{part}' from the current folder '{current_path}' (id: {current_id}). API error: {result.get('error', 'Unknown error')}"
+                
+                found_folder = None
+                found_file = None
+                
+                # 查找匹配的文件夹或文件
+                for file in result['files']:
+                    if file['name'] == part:
+                        if file['mimeType'] == 'application/vnd.google-apps.folder':
+                            found_folder = file
+                        else:
+                            found_file = file
+                        break
+                
+                # 如果这是最后一个路径组件，可能是文件
+                is_last_component = (i == len(path_parts) - 1)
+                
+                if found_folder:
+                    # 找到文件夹，继续解析
+                    current_id = found_folder['id']
+                    current_path = f"{current_path}/{part}"
+                elif found_file and is_last_component:
+                    # 最后一个组件是文件，返回父目录ID（用于ls文件）
+                    return current_id, current_path
+                else:
+                    # 没找到匹配项
+                    if is_last_component:
+                        return None, f"Unable to find the id for file or subfolder '{part}' from the current folder '{current_path}' (id: {current_id}). Please visit your Google Drive, verify the URL for path '{current_path}/{part}'."
+                    else:
+                        return None, f"Unable to find the id for subfolder '{part}' from the current folder '{current_path}' (id: {current_id}). Please visit your Google Drive, verify the URL for path '{current_path}/{part}'."
+            
+            return current_id, current_path
+            
+        except Exception as e:
+            return None, f"Error resolving path from parent: {e}"
+    
+    def _find_file_in_directory(self, folder_id, filename):
+        """在指定目录中查找文件"""
+        try:
+            result = self.drive_service.list_files(folder_id=folder_id, max_results=100)
+            if not result['success']:
+                return None
+            
+            for file in result['files']:
+                if file['name'] == filename:
+                    return file
+            
+            return None
+        except Exception as e:
+            return None
+    
     def cmd_ls(self, path=None, detailed=False, recursive=False, show_hidden=False):
         """列出目录内容，支持递归、详细模式和扩展信息模式，支持文件路径"""
-        try:
-            if not self.drive_service:
-                return {"success": False, "error": "Google Drive API服务未初始化"}
-                
-            current_shell = self.main_instance.get_current_shell()
-            if not current_shell:
-                return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
+        if not self.drive_service:
+            return {"success": False, "error": "Google Drive API服务未初始化"}
             
-            # 首先将可能的远端绝对路径转换为逻辑路径
-            if path:
-                path = self.convert_absolute_to_logical(path)
-            
-            if path is None or path == ".":
-                # 当前目录
-                target_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
-                display_path = current_shell.get("current_path", "~")
-            elif path == "~":
-                # 根目录
+        current_shell = self.main_instance.get_current_shell()
+        if not current_shell:
+            return {"success": False, "error": "没有活跃的远程shell，请先创建或切换到一个shell"}
+        
+        # 首先将可能的远端绝对路径转换为逻辑路径
+        if path:
+            path = self.convert_absolute_to_logical(path)
+        
+        # 智能路径解析：优先使用配置的ID
+        if path is None or path == ".":
+            # 当前目录
+            target_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
+            display_path = current_shell.get("current_path", "~")
+            used_config_id = None
+            used_config_path = None
+        elif path == "~":
+            # 根目录 - 使用智能路径解析
+            nearest_id, nearest_path = self.find_nearest_parent_id("~")
+            if nearest_id and nearest_path == "~":  # 只有完全匹配才使用
+                target_folder_id = nearest_id
+                used_config_id = nearest_id
+                used_config_path = nearest_path
+                # print(f"Using configured folder ID from '{nearest_path}': {nearest_id}")
+            else:
                 target_folder_id = self.main_instance.REMOTE_ROOT_FOLDER_ID
-                display_path = "~"
-            else:
-                # 首先尝试作为目录解析
-                target_folder_id, display_path = self.main_instance.resolve_drive_id(path, current_shell)
-                
-                if not target_folder_id:
-                    file_result = self.resolve_file_path(path, current_shell)
-                    if file_result:
-                        return {
-                            "success": True,
-                            "path": path,
-                            "files": [file_result],
-                            "folders": [],
-                            "count": 1,
-                            "mode": "single_file"
-                        }
-                    else:
-                        return {"success": False, "error": f"ls: cannot access '{path}': No such file or directory"}
-            
-            if recursive:
-                return self.ls_recursive(target_folder_id, display_path, detailed, show_hidden)
-            else:
-                # 内联_ls_single的逻辑
-                result = self.drive_service.list_files(folder_id=target_folder_id, max_results=None)
-                
-                if result['success']:
-                    files = result['files']
-                    
-                    # 如果不显示隐藏文件，过滤掉以.开头的文件
-                    if not show_hidden:
-                        files = [f for f in files if not f['name'].startswith('.')]
-                    
-                    # 添加网页链接到每个文件
-                    for file in files:
-                        file['url'] = self.generate_web_url(file)
-                    
-                    # 按名称排序，文件夹优先
-                    folders = sorted([f for f in files if f['mimeType'] == 'application/vnd.google-apps.folder'], 
-                                   key=lambda x: x['name'].lower())
-                    other_files = sorted([f for f in files if f['mimeType'] != 'application/vnd.google-apps.folder'], 
-                                       key=lambda x: x['name'].lower())
-                    
-                    # 去重处理
-                    seen_names = set()
-                    clean_folders = []
-                    clean_files = []
-                    
-                    # 处理文件夹
-                    for folder in folders:
-                        if folder["name"] not in seen_names:
-                            clean_folders.append(folder)
-                            seen_names.add(folder["name"])
-                    
-                    # 处理文件
-                    for file in other_files:
-                        if file["name"] not in seen_names:
-                            clean_files.append(file)
-                            seen_names.add(file["name"])
-                    
-                    if detailed:
-                        # 详细模式：返回完整JSON
-                        return {
-                            "success": True,
-                            "path": display_path,
-                            "folder_id": target_folder_id,
-                            "folder_url": self.generate_folder_url(target_folder_id),
-                            "files": clean_files,  # 只有非文件夹文件
-                            "folders": clean_folders,  # 只有文件夹
-                            "count": len(clean_folders) + len(clean_files),
-                            "mode": "detailed"
-                        }
-                    else:
-                        # bash风格：只返回文件名列表
-                        return {
-                            "success": True,
-                            "path": display_path,
-                            "folder_id": target_folder_id,
-                            "files": clean_files,  # 只有非文件夹文件
-                            "folders": clean_folders,  # 只有文件夹
-                            "count": len(clean_folders) + len(clean_files),
-                            "mode": "bash"
-                        }
+                used_config_id = None
+                used_config_path = None
+            display_path = "~"
+        else:
+            # 使用智能路径解析
+            nearest_id, nearest_path = self.find_nearest_parent_id(path)
+            if nearest_id and nearest_path:
+                # 检查是否是精确匹配还是父目录匹配
+                if nearest_path == path:
+                    # 精确匹配，直接使用
+                    target_folder_id = nearest_id
+                    used_config_id = nearest_id
+                    used_config_path = nearest_path
+                    # print(f"Using configured folder ID from '{path}': {nearest_id}")
                 else:
-                    return {"success": False, "error": f"列出文件失败: {result['error']}"}
+                    # 父目录匹配，需要从父目录开始解析子路径
+                    resolve_result = self._resolve_from_parent_id(path, nearest_id, nearest_path)
+                    if resolve_result[0]:  # 成功解析
+                        target_folder_id = resolve_result[0]
+                        used_config_id = nearest_id
+                        used_config_path = nearest_path
+                        # print(f"Using configured folder ID from '{nearest_path}': {nearest_id}")
+                        
+                        # 检查是否解析到的是文件的父目录（而不是目录本身）
+                        if resolve_result[1] != path:
+                            # 这意味着最后一个组件是文件，需要在父目录中查找该文件
+                            filename = path.split('/')[-1]
+                            file_result = self._find_file_in_directory(target_folder_id, filename)
+                            if file_result:
+                                return {
+                                    "success": True,
+                                    "path": path,
+                                    "files": [file_result],
+                                    "folders": [],
+                                    "count": 1,
+                                    "mode": "single_file"
+                                }
+                            else:
+                                return {"success": False, "error": f"ls: cannot access '{path}': No such file or directory"}
+                    else:
+                        # 从父目录解析失败，返回详细错误信息
+                        error_msg = resolve_result[1] if resolve_result[1] else "Failed to resolve path from parent"
+                        return {"success": False, "error": error_msg, "failed_path": path, "stuck_at_parent": nearest_path, "parent_id": nearest_id}
+            else:
+                # 回退到传统的路径解析
+                target_folder_id, display_path = self.main_instance.resolve_drive_id(path, current_shell)
+                used_config_id = None
+                used_config_path = None
+            
+            display_path = path  # 保持逻辑路径格式
+            
+            if not target_folder_id:
+                file_result = self.resolve_file_path(path, current_shell)
+                if file_result:
+                    return {
+                        "success": True,
+                        "path": path,
+                        "files": [file_result],
+                        "folders": [],
+                        "count": 1,
+                        "mode": "single_file"
+                    }
+                else:
+                    return {"success": False, "error": f"ls: cannot access '{path}': No such file or directory"}
+        
+        if recursive:
+            return self.ls_recursive(target_folder_id, display_path, detailed, show_hidden)
+        else:
+            # 内联_ls_single的逻辑
+            result = self.drive_service.list_files(folder_id=target_folder_id, max_results=None)
+            
+            if result['success']:
+                files = result['files']
                 
-        except Exception as e:
-
-            return {"success": False, "error": f"执行ls命令时出错: {e}"}
+                # 如果不显示隐藏文件，过滤掉以.开头的文件
+                if not show_hidden:
+                    files = [f for f in files if not f['name'].startswith('.')]
+                
+                # 添加网页链接到每个文件
+                for file in files:
+                    file['url'] = self.generate_web_url(file)
+                
+                # 按名称排序，文件夹优先
+                folders = sorted([f for f in files if f['mimeType'] == 'application/vnd.google-apps.folder'], 
+                                key=lambda x: x['name'].lower())
+                other_files = sorted([f for f in files if f['mimeType'] != 'application/vnd.google-apps.folder'], 
+                                    key=lambda x: x['name'].lower())
+                
+                # 去重处理
+                seen_names = set()
+                clean_folders = []
+                clean_files = []
+                
+                # 处理文件夹
+                for folder in folders:
+                    if folder["name"] not in seen_names:
+                        clean_folders.append(folder)
+                        seen_names.add(folder["name"])
+                
+                # 处理文件
+                for file in other_files:
+                    if file["name"] not in seen_names:
+                        clean_files.append(file)
+                        seen_names.add(file["name"])
+                
+                if detailed:
+                    # 详细模式：返回完整JSON
+                    return {
+                        "success": True,
+                        "path": display_path,
+                        "folder_id": target_folder_id,
+                        "folder_url": self.generate_folder_url(target_folder_id),
+                        "files": clean_files,  # 只有非文件夹文件
+                        "folders": clean_folders,  # 只有文件夹
+                        "count": len(clean_folders) + len(clean_files),
+                        "mode": "detailed"
+                    }
+                else:
+                    # bash风格：只返回文件名列表
+                    return {
+                        "success": True,
+                        "path": display_path,
+                        "folder_id": target_folder_id,
+                        "files": clean_files,  # 只有非文件夹文件
+                        "folders": clean_folders,  # 只有文件夹
+                        "count": len(clean_folders) + len(clean_files),
+                        "mode": "bash"
+                    }
+            else:
+                # 增强错误信息，包含访问的目录和ID，但不显示详细的HTTP错误
+                if used_config_id:
+                    clean_error = f"Unable to access '{display_path}' (ID: {used_config_id})"
+                else:
+                    clean_error = f"Unable to access '{display_path}'"
+                
+                return {"success": False, "error": clean_error, "failed_path": display_path, "failed_id": used_config_id or target_folder_id, "config_source": used_config_path}
 
     def ls_recursive(self, root_folder_id, root_path, detailed, show_hidden=False, max_depth=5):
         """递归列出目录内容"""
