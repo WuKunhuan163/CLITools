@@ -43,6 +43,8 @@ class ResultProcessor:
             old_handler = signal.signal(signal.SIGINT, signal_handler)
             
             try:
+                last_access_error = None  # 记录最后一次访问错误
+                
                 for i in range(max_attempts):
                     # 在每次循环开始时检查中断标志
                     if interrupted:
@@ -63,8 +65,28 @@ class ResultProcessor:
                         signal.signal(signal.SIGINT, old_handler)
                         
                         return file_result
+                    else:
+                        # 检查是否是访问错误（Unable to access 或 Unable to find the id for subfolder）
+                        error_msg = ls_result.get("error", "")
+                        if "Unable to access" in error_msg or "Unable to find the id for subfolder" in error_msg:
+                            last_access_error = ls_result
+                            # 如果是访问错误，在第8次尝试后才停止重试（给足够时间让Google Drive同步）
+                            if i >= 7:  # 8秒后才认为是真正的访问错误
+                                # 清除进度显示
+                                from .progress_manager import clear_progress
+                                clear_progress()
+                                # 恢复信号处理器
+                                signal.signal(signal.SIGINT, old_handler)
+                                # 直接返回访问错误，不再继续重试
+                                return {
+                                    "success": False,
+                                    "error": error_msg,
+                                    "access_error": True,
+                                    "failed_path": ls_result.get("failed_path"),
+                                    "failed_id": ls_result.get("failed_id")
+                                }
                     
-                    # 文件不存在，等待1秒并输出进度点
+                    # 文件不存在或其他错误，等待1秒并输出进度点
                     # 使用可中断的等待，每100ms检查一次中断标志
                     for j in range(10):  # 10 * 0.1s = 1s
                         if interrupted:
@@ -93,23 +115,40 @@ class ResultProcessor:
             
             # 超时处理，恢复信号处理器并显示超时信息
             signal.signal(signal.SIGINT, old_handler)
-            print()  # 换行
-            print(f"等待结果超时。可能的原因：")
-            print(f"  (1) 网络问题导致命令执行缓慢。请检查")
-            print(f"  (2) Google Drive挂载失效，需要使用 python: GOOGLE_DRIVE --remount重新挂载")
             
-            # 检查是否在后台模式或无交互环境
+            # 清除进度指示器
+            from .progress_manager import clear_progress
+            clear_progress()
+            print()  # 换行
+            
+            # 如果有记录的访问错误，优先显示
+            access_error_msg = last_access_error.get("error", "") if last_access_error else ""
+            
+            # 显示具体的访问错误
+            print(access_error_msg)
+            print()  # 空行分隔
+            
+            # 从错误信息中提取路径信息，访问失败则一定有访问不到的地方，否则报错！
+            # 规范化接口返回。
+            failed_path = last_access_error.get("failed_path", "")
+            if not failed_path:
+                raise Exception("Unable to return the failed path from the last access error. ")
+                
+            print(f"等待结果超时。可能的原因：")
+            print(f"  (1) 请使用 'GDS reset id {failed_path} <new_id>' 更新正确的文件夹ID")
+            print(f"  (2) Google Drive挂载失效，需要使用 'GOOGLE_DRIVE --remount' 重新挂载")
+            print(f"  (3) 网络问题导致命令执行缓慢。请检查网络连接")
+            
+            # 检查是否在真正的后台模式（更严格的检测）
             import sys
             import os
-            is_background_mode = (
-                not sys.stdin.isatty() or  # 非交互式终端
-                not sys.stdout.isatty() or  # 输出被重定向
+            is_real_background_mode = (
                 os.getenv('PYTEST_CURRENT_TEST') is not None or  # pytest环境
-                os.getenv('CI') is not None  # CI环境
+                os.getenv('CI') is not None or  # CI环境
+                (not sys.stdin.isatty() and not sys.stdout.isatty())  # 真正的后台：输入输出都被重定向
             )
             
-            if is_background_mode:
-                print(f"后台模式检测：自动返回超时错误")
+            if is_real_background_mode:
                 return {
                     "success": False,
                     "error": f"Result file timeout: {logical_file_path}",

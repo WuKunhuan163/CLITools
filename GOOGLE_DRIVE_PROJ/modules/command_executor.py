@@ -538,7 +538,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
         return feedback_result
 
-    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180):
+    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False):
         """
         获取用户的多行输入，支持Ctrl+D结束
         使用与USERINPUT完全相同的信号超时输入逻辑
@@ -548,6 +548,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             prompt (str): 输入提示
             is_single_line (bool): 是否单行输入
             timeout_seconds (int): 超时时间（秒），默认180秒
+            prompt_same_line (bool): 是否在同一行显示提示符，默认False
             
         Returns:
             str: 用户输入的多行内容
@@ -556,7 +557,10 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         
         # 显示提示信息
         if prompt:
-            print(prompt)
+            if prompt_same_line:
+                print(prompt, end="")
+            else:
+                print(prompt)
         
         # 定义超时异常
         class TimeoutException(Exception):

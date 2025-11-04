@@ -164,6 +164,10 @@ class GoogleDriveShell:
         self.command_registry.register(PythonCommand(self))
         self.command_registry.register(LsCommand(self))
         
+        # Reset command for debugging path issues
+        from GOOGLE_DRIVE_PROJ.modules.commands.reset_command import ResetCommand
+        self.command_registry.register(ResetCommand(self))
+        
         # Navigation commands (cd, pwd) - using merged NavigationCommand
         nav_cmd = NavigationCommand(self)
         self.command_registry.register_under_name(nav_cmd, "cd")
@@ -887,6 +891,21 @@ class GoogleDriveShell:
                 shell_cmd_clean = processed_commands[0]
                 shell_cmd = shell_cmd_clean
 
+            # 特殊处理：reset命令需要在路径展开之前处理，以保持逻辑路径格式
+            first_word_before_expansion = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
+            if first_word_before_expansion == "reset":
+                # reset命令需要逻辑路径，不进行路径展开
+                if self.command_registry.is_special_command("reset"):
+                    import shlex
+                    try:
+                        cmd_parts = shlex.split(shell_cmd_clean)
+                        if cmd_parts:
+                            cmd = cmd_parts[0]
+                            args = cmd_parts[1:]
+                            return self.command_executor.execute_special_command(cmd, args)
+                    except Exception as e:
+                        raise e  # 直接抛出原始异常，让上层error handler处理
+            
             # 路径展开处理：在命令解析之前进行路径展开
             # 1. Undo local path expansion (e.g., /Users/username -> ~)
             shell_cmd_clean = self.path_resolver.undo_local_path_user_expansion(shell_cmd_clean)
@@ -995,7 +1014,7 @@ class GoogleDriveShell:
                 special_commands_list = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'pyenv', 
                                         'linter', 'pip', 'deps', 'edit', 'read', 
                                         'upload', 'upload-folder', 'download', 'mv', 'find', 'rm', 
-                                        'grep', 'python', 'venv']
+                                        'grep', 'python', 'venv', 'reset']
                 first_word_for_check = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
                 if first_word_for_check in special_commands_list or self.command_registry.is_special_command(first_word_for_check):
                     print(f"⚠️  Warning: Special command '{first_word_for_check}' detected with redirection. GDS special commands will be executed as standard remote bash commands. ")
@@ -1006,8 +1025,8 @@ class GoogleDriveShell:
                     if result.get("success"):
                         return 0
                     else:
-                        error_msg = result.get("error", "Command execution failed")
-                        print(error_msg)
+                        error_msg = result.get("error", "Unknown error")
+                        print(f"Error: {error_msg}")
                         return 1
                 else:
                     print("Error: No active remote shell")
@@ -1026,7 +1045,7 @@ class GoogleDriveShell:
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception as e:
-                    raise Exception(f"Command parsing failed: {e}")
+                    raise e  # 直接抛出原始异常，让上层error handler处理
                 
                 # 使用命令注册系统执行命令
                 return self.command_executor.execute_special_command(cmd, args)
@@ -1047,7 +1066,7 @@ class GoogleDriveShell:
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception as e:
-                    raise Exception(f"Command parsing failed: {e}")
+                    raise e  # 直接抛出原始异常，让上层error handler处理
                 
                 # 所有特殊命令统一使用命令执行系统
                 return self.command_executor.execute_special_command(cmd, args)
@@ -1089,7 +1108,7 @@ class GoogleDriveShell:
                 print(f"Google Drive Shell command execution failed with detailed traceback above. ")
                 return 1
             except ImportError:
-                error_msg = f"Error: Error executing shell command: {e}"
+                error_msg = f"Error executing shell command: {e}"
                 print(error_msg)
                 import traceback
                 traceback.print_exc()
@@ -2241,11 +2260,12 @@ fi
             
             if not filtered_args:
                 # 没有命令参数，进入交互模式
-                from .modules.shell_commands import enter_shell_mode
                 # 设置flags
                 if has_no_direct_feedback and hasattr(self, 'command_executor'):
                     self.command_executor._no_direct_feedback = True
-                return enter_shell_mode(command_identifier)
+                
+                # 使用remote_shell_manager的交互式shell实现
+                return self.shell_management.enter_shell_mode(command_identifier)
             else:
                 # 执行指定的shell命令
                 return self.handle_shell_command_args(args[1:], command_identifier)

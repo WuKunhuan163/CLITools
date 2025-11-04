@@ -110,14 +110,22 @@ class TextCommand(BaseCommand):
             if not filename:
                 return {"success": False, "error": "Please specify the file to view"}
             
-            # 处理绝对远程路径（如 /content/drive/MyDrive/REMOTE_ROOT/...）
+            # 处理绝对远程路径，转换为逻辑路径格式
             remote_root_path = self.main_instance.REMOTE_ROOT
+            remote_env_path = self.main_instance.REMOTE_ENV
+            
             if filename.startswith(remote_root_path + "/"):
                 # 转换为逻辑路径格式 (~/...)
                 relative_part = filename[len(remote_root_path) + 1:]
                 filename = f"~/{relative_part}"
             elif filename == remote_root_path:
                 filename = "~"
+            elif filename.startswith(remote_env_path + "/"):
+                # 转换为逻辑路径格式 (@/...)
+                relative_part = filename[len(remote_env_path) + 1:]
+                filename = f"@/{relative_part}"
+            elif filename == remote_env_path:
+                filename = "@"
             
             # 分离目录路径和文件名
             import os

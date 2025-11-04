@@ -370,7 +370,7 @@ print('{success_message}')
                         return {"success": False, "error": f"Environment '{env_name}' does not exist"}
                     return {"success": False, "error": f"Failed to update field: {stderr}"}
             else:
-                return {"success": False, "error": f"Command execution failed: {result.get('error', 'Unknown error')}"}
+                return result  # 直接返回原始结果，让上层处理
                 
         except Exception as e:
             return {"success": False, "error": f"Error updating field: {str(e)}"}
@@ -850,7 +850,7 @@ PYEOF
                 except json.JSONDecodeError:
                     return {"success": False, "error": f"Failed to parse result: {stdout}"}
             else:
-                return {"success": False, "error": f"Command execution failed: {result.get('error', 'Unknown error')}"}
+                return result  # 直接返回原始结果，让上层处理
                 
         except Exception as e:
             return {"success": False, "error": f"Error protecting environments: {str(e)}"}

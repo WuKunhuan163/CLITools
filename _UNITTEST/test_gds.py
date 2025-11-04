@@ -5297,6 +5297,10 @@ print("Script execution successful!")
         
         # 测试9: rm操作（清理@/tmp路径中的测试文件和目录）
         print("测试9: 清理@/tmp路径中的测试数据")
+        # 先切换到安全目录，避免删除当前所在的目录
+        result = self.gds('cd @')
+        self.assertEqual(result.returncode, 0, "切换到@根目录应该成功")
+        
         result = self.gds(f'rm -rf @/tmp/{test_dir}')
         self.assertEqual(result.returncode, 0, "删除@/tmp路径测试目录应该成功")
         
