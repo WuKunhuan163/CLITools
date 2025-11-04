@@ -1,3 +1,48 @@
+"""
+Google Drive Shell - Edit Command Module
+
+This module provides comprehensive file editing functionality for the Google Drive Shell system.
+It enables in-place editing of remote files using various editing operations including
+search-and-replace, line-based editing, and batch modifications.
+
+Key Features:
+- Search and replace operations with regex support
+- Line-based editing with precise targeting
+- Batch editing operations for multiple changes
+- Preview mode for reviewing changes before applying
+- Backup creation for safety
+- Integration with remote file system
+- Support for various file formats and encodings
+
+Commands:
+- edit <file> <changes>: Apply editing changes to file
+- edit --preview <file> <changes>: Preview changes without applying
+- edit --backup <file> <changes>: Create backup before editing
+
+Change Formats:
+- JSON array: [["old_text", "new_text"], ["pattern", "replacement"]]
+- Single change: ["search", "replace"]
+- Line-based: Line numbers and content modifications
+
+Editing Flow:
+1. Validate file existence and accessibility
+2. Parse editing instructions from JSON format
+3. Apply changes with proper error handling
+4. Create backups if requested
+5. Verify changes and update file content
+6. Provide feedback on editing results
+
+Classes:
+    EditCommand: Main file editing command handler
+
+Dependencies:
+    - Remote file system access for file operations
+    - JSON parsing for editing instructions
+    - Regular expression support for pattern matching
+    - Backup and versioning systems
+    - Error handling and validation
+"""
+
 from .base_command import BaseCommand
 import re
 

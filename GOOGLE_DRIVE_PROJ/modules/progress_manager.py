@@ -1,8 +1,42 @@
 #!/usr/bin/env python3
 """
-Progress Manager - 管理GDS远程窗口的进度显示
-使用简单的ANSI转义序列实现进度显示和擦除功能
-基于test_progress_display.py的成功实现
+Google Drive Shell - Progress Manager Module
+
+This module provides comprehensive progress display and management functionality for the
+Google Drive Shell system. It handles visual feedback for long-running operations using
+ANSI escape sequences and thread-safe progress tracking.
+
+Key Features:
+- Real-time progress display with ANSI escape sequences
+- Thread-safe progress tracking for concurrent operations
+- Buffered progress messages to prevent output conflicts
+- Automatic progress cleanup and restoration
+- Integration with remote command execution
+- Support for various progress indicators (spinners, percentages, messages)
+
+Progress Types:
+- Spinner progress: Animated indicators for indeterminate operations
+- Message progress: Text-based status updates
+- Buffered progress: Queued messages for sequential display
+- Validation progress: File existence and operation verification
+
+Classes:
+    ProgressDisplay: Main progress display manager with ANSI support
+    ProgressManager: High-level progress coordination and management
+
+Display Features:
+- ANSI escape sequence support for terminal control
+- Progress message buffering and queuing
+- Automatic cleanup on completion or interruption
+- Thread-safe operations for concurrent progress updates
+
+Dependencies:
+    - Threading support for concurrent progress tracking
+    - ANSI terminal support for visual indicators
+    - System utilities for terminal control
+    - Integration with command execution pipeline
+
+Based on: test_progress_display.py successful implementation
 """
 
 import sys

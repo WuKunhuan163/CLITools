@@ -1,3 +1,40 @@
+"""
+Google Drive Shell - Ls Command Module
+
+This module provides directory listing functionality for the Google Drive Shell system.
+It implements the 'ls' command with support for various options and formats, similar to
+the traditional Unix ls command but adapted for the Google Drive environment.
+
+Key Features:
+- Directory and file listing with detailed information
+- Support for various ls options (-l, -a, -h, etc.)
+- Integration with Google Drive API for metadata
+- Path resolution for both logical and absolute paths
+- Formatted output with file sizes, permissions, and timestamps
+- Error handling for non-existent paths and access issues
+
+Commands:
+- ls: List current directory contents
+- ls <path>: List specified directory contents
+- ls -l: Long format with detailed information
+- ls -a: Show hidden files and directories
+- ls -h: Human-readable file sizes
+
+Output Formats:
+- Simple listing: filename per line
+- Long format: permissions, size, date, name
+- Detailed metadata: includes Google Drive specific information
+
+Classes:
+    LsCommand: Main ls command handler with comprehensive listing functionality
+
+Dependencies:
+    - Google Drive API for file metadata
+    - Path resolution for directory navigation
+    - Remote command execution for file system operations
+    - JSON processing for structured data handling
+"""
+
 from .base_command import BaseCommand
 import json
 import os

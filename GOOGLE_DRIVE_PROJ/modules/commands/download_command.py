@@ -1,3 +1,43 @@
+"""
+Google Drive Shell - Download Command Module
+
+This module provides comprehensive file and folder download functionality from the Google Drive
+remote environment to the local system. It supports various download scenarios including
+individual files, entire directories, and batch operations.
+
+Key Features:
+- Single file download with local path specification
+- Directory download with structure preservation
+- Batch download operations for multiple files
+- Automatic compression for directory downloads
+- Progress tracking and status reporting
+- Integration with Google Drive API for file access
+- Local path resolution and conflict handling
+
+Commands:
+- download <remote_file> [local_path]: Download single file
+- download <remote_dir> [local_path]: Download directory (compressed)
+- download --batch <file1> <file2> ...: Download multiple files
+
+Download Flow:
+1. Validate remote file/directory existence
+2. Resolve local destination path
+3. Handle conflicts and create directories as needed
+4. For directories: compress remotely, then download
+5. For files: direct download with metadata preservation
+6. Verify download completion and integrity
+
+Classes:
+    DownloadCommand: Main download command handler
+
+Dependencies:
+    - Google Drive API for file access and metadata
+    - Remote command execution for compression operations
+    - Local file system operations for destination handling
+    - Path resolution for both remote and local paths
+    - Progress management for user feedback
+"""
+
 from .base_command import BaseCommand
 import os
 
