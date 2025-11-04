@@ -1,6 +1,43 @@
 #!/usr/bin/env python3
 """
 Google Drive Shell - Validation Module
+
+This module provides comprehensive validation functionality for the Google Drive Shell system.
+It handles validation of files, directories, operations, and system states to ensure data
+integrity and proper operation of all shell commands.
+
+Key Features:
+- File and directory existence validation
+- Operation result validation and verification
+- Path validation and accessibility checking
+- Google Drive API response validation
+- Command execution result validation
+- Error message standardization and formatting
+
+Validation Types:
+- File operations: Existence, accessibility, permissions
+- Directory operations: Structure, navigation, creation
+- Command results: Success/failure status, output validation
+- API responses: Google Drive API call validation
+- Path validation: Logical and absolute path verification
+
+Validation Flow:
+1. Receive validation request with parameters
+2. Determine appropriate validation method
+3. Execute validation checks using relevant APIs
+4. Format and standardize validation results
+5. Return structured validation response
+6. Handle errors and edge cases appropriately
+
+Classes:
+    Validation: Main validation engine with comprehensive checking capabilities
+
+Dependencies:
+    - Google Drive API for remote file/folder validation
+    - File system operations for local validation
+    - Path resolution for path validation
+    - Error handling for validation failures
+    - Result formatting for consistent responses
 """
 
 class Validation:

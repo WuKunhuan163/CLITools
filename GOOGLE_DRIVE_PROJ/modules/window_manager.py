@@ -1,7 +1,47 @@
 """
-GDS窗口管理器 - 统一管理所有tkinter窗口
-解决多线程窗口创建和队列管理的复杂性问题
-支持跨进程队列管理，确保多个GDS进程只能有一个窗口
+Google Drive Shell - Window Manager Module
+
+This module provides comprehensive window management functionality for the Google Drive Shell system.
+It handles the creation, coordination, and lifecycle management of all GUI windows, particularly
+tkinter-based remote command windows, with support for cross-process synchronization.
+
+Key Features:
+- Unified management of all tkinter and GUI windows
+- Cross-process window queue management and synchronization
+- Thread-safe window creation and destruction
+- Process isolation for window stability
+- Automatic cleanup and resource management
+- Integration with remote command execution
+- Support for various window types (command, progress, interactive)
+
+Window Types:
+- Remote command windows: For executing shell commands
+- Progress windows: For long-running operation feedback
+- Interactive windows: For user input and confirmation
+- Background task windows: For monitoring background operations
+
+Management Features:
+- Process-level window locking to prevent conflicts
+- Queue-based window scheduling for sequential display
+- Automatic window cleanup on process termination
+- Cross-process communication for window coordination
+- Resource leak prevention and memory management
+
+Classes:
+    WindowManager: Main window coordination and management system
+    RemoteCommandWindow: Specialized remote command execution windows
+
+Dependencies:
+    - Tkinter for GUI window creation and management
+    - Threading for concurrent window operations
+    - Process management for cross-process coordination
+    - File locking for process synchronization
+    - Signal handling for cleanup operations
+
+Architecture:
+- Solves multi-threading window creation complexity
+- Ensures only one window per GDS process instance
+- Provides robust cleanup and error recovery
 """
 
 import threading
