@@ -1,6 +1,44 @@
 """
-Command Generator Module
-从 remote_commands.py 重构而来
+Google Drive Shell - Command Generator Module
+
+This module provides comprehensive command generation functionality for the Google Drive Shell system.
+It handles the creation, formatting, and optimization of remote shell commands with support for
+various command types, path expansion, and execution contexts.
+
+Key Features:
+- Remote shell command generation and formatting
+- Path expansion with bash integration for proper ~ and @ handling
+- Multi-file operation command generation (mv, mkdir, etc.)
+- Background task command generation and management
+- Command syntax validation and error checking
+- Integration with remote shell environments
+- Support for complex command chaining and piping
+
+Command Types:
+- File operations: mv, cp, mkdir, rm commands
+- Path operations: Path expansion and resolution
+- Background tasks: Long-running command management
+- Batch operations: Multi-file and multi-directory commands
+
+Generation Flow:
+1. Parse command requirements and parameters
+2. Apply path expansion and resolution
+3. Generate appropriate shell command syntax
+4. Validate command syntax and structure
+5. Optimize for remote execution environment
+6. Return formatted command ready for execution
+
+Classes:
+    CommandGenerator: Main command generation engine
+
+Dependencies:
+    - Bash shell integration for path expansion
+    - Remote shell management for execution context
+    - Path resolution for proper directory handling
+    - Background task management for long operations
+    - Syntax validation for command correctness
+
+Migrated from: remote_commands.py (refactored for better modularity)
 """
 
 import os
