@@ -1,7 +1,47 @@
 """
-Navigation commands (pwd, cd)
-从file_core.py迁移而来
-合并了cd_command和pwd_command
+Google Drive Shell - Navigation Command Module
+
+This module provides directory navigation functionality for the Google Drive Shell system.
+It implements the fundamental navigation commands 'cd' and 'pwd' with support for various
+path formats and shell state management.
+
+Key Features:
+- Directory changing with comprehensive path resolution
+- Current directory display with logical path formatting
+- Support for multiple path formats (~, @, relative, absolute)
+- Shell state persistence across navigation operations
+- Integration with Google Drive folder structure
+- Proper error handling for invalid paths and access issues
+
+Commands:
+- cd <path>: Change to specified directory
+- cd: Change to home directory (~)
+- cd ..: Change to parent directory
+- pwd: Display current working directory
+
+Path Support:
+- Logical paths: ~/documents, @/python
+- Relative paths: ../folder, ./file
+- Absolute paths: /full/path/to/directory
+- Special directories: ., .., ~, @
+
+Navigation Flow:
+1. Parse and validate target path
+2. Resolve path using path resolver
+3. Verify directory exists and is accessible
+4. Update shell state with new current directory
+5. Persist navigation state for future sessions
+
+Classes:
+    NavigationCommand: Main navigation command handler
+
+Dependencies:
+    - Path resolution for directory mapping
+    - Shell state management for current directory tracking
+    - Google Drive API for directory validation
+    - Remote command execution for path operations
+
+Migrated from: file_core.py (combined cd_command and pwd_command)
 """
 
 import time
