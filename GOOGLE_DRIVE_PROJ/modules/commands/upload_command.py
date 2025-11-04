@@ -353,8 +353,15 @@ Notes:
             # 3. 提前检查大文件（在显示进度之前）
             normal_files, large_files = self.check_large_files(source_files)
             
-            # 处理大文件
-            if large_files:
+            # 如果有混合文件（既有小文件又有大文件），优化处理顺序
+            if normal_files and large_files:
+                print(f"Mixed upload detected: {len(normal_files)} small files + {len(large_files)} large files")
+                
+                # 先处理小文件，移动到LOCAL_EQUIVALENT开始同步
+                source_files = normal_files  # 设置为只处理小文件
+                # 大文件将在小文件处理完成后处理
+            elif large_files and not normal_files:
+                # 只有大文件的情况，直接处理
                 large_file_result = self.handle_large_files(large_files, target_path, current_shell)
                 if not large_file_result["success"]:
                     return large_file_result
@@ -384,16 +391,28 @@ Notes:
                 # 同步成功后，执行mv命令移动到目标位置
                 target_display_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell, return_logical=True)
                 
-                print(f"\nMove manually uploaded files to the destination: {target_display_path}")
+                print(f"Move manually uploaded files to the destination: {target_display_path}")
                 
-                mv_commands = []
+                # Use the same mv command generation logic as small files
+                large_file_moves = []
                 for filename in large_file_names:
-                    mv_cmd = f"mv ~/tmp/{filename} {target_display_path}/"
-                    mv_commands.append(mv_cmd)
+                    large_file_moves.append({
+                        "filename": filename,
+                        "original_filename": filename,
+                        "renamed": False,
+                        "target_path": target_path
+                    })
                 
-                # 批量执行mv命令
-                combined_cmd = " && ".join(mv_commands)
-                mv_result = self.main_instance.execute_command_interface("bash", ["-c", combined_cmd])
+                # Generate mv commands using the same logic as small files
+                mv_command = self.main_instance.remote_commands.generate_mv_commands(large_file_moves, target_path)
+                debug_print(f"DEBUG: Large-file-only mv command: {mv_command[:200]}...")
+                
+                # Execute the mv command
+                if mv_command.strip():
+                    mv_result = self.main_instance.execute_command_interface("bash", ["-c", mv_command])
+                else:
+                    # No mv needed
+                    mv_result = {"success": True}
                 
                 if mv_result.get("success"):
                     print(f"✓ Files moved successfully to {target_display_path}")
@@ -414,19 +433,16 @@ Notes:
             # 继续处理正常大小的文件
             source_files = normal_files
             
-            # 4. 开始进度显示（在大文件检测之后）
+            # 4. 检查Google Drive Desktop是否运行（在开始进度显示之前）
+            if not ensure_google_drive_desktop_running():
+                return {"success": False, "error": "用户取消上传操作"}
+            
+            # 5. 开始进度显示（在Google Drive Desktop检查之后）
             from ..progress_manager import start_progress_buffering
             start_progress_buffering("⏳ Waiting for upload ...")
             progress_started = True
             debug_capture.start_capture()
             debug_print(f"cmd_upload called with source_files={source_files}, target_path='{target_path}', force={force}")
-            
-            # 5. 检查Google Drive Desktop是否运行
-            if not ensure_google_drive_desktop_running():
-                if progress_started:
-                    from ..progress_manager import stop_progress_buffering
-                    stop_progress_buffering()
-                return {"success": False, "error": "用户取消上传操作"}
             
             # 6. 解析目标路径（使用absolute path接口 + drive id接口）
             debug_print(f"Before resolve - target_path='{target_path}'")
@@ -493,7 +509,22 @@ Notes:
                     "failed_moves": failed_moves
                 }
             
-            # 6. 等待文件同步到 DRIVE_EQUIVALENT
+            # 6. 如果是混合上传，在小文件开始同步时启动大文件处理
+            if large_files:
+                print(f"\nSmall files are now syncing. Please start uploading large files...")
+                large_file_result = self.handle_large_files(large_files, target_path, current_shell)
+                if not large_file_result["success"]:
+                    print(f"Large file setup failed: {large_file_result.get('error', 'Unknown error')}")
+                    print(f"Continuing with small files only...")
+                    large_files = []  # Clear large files to avoid processing later
+            
+            # 7. 停止上传进度显示，开始同步等待
+            if progress_started:
+                from ..progress_manager import stop_progress_buffering
+                stop_progress_buffering()
+                progress_started = False
+            
+            # 8. 等待文件同步到 DRIVE_EQUIVALENT
             # 对于同步检测，使用重命名后的文件名（在DRIVE_EQUIVALENT中的实际文件名）
             expected_filenames = [fm["filename"] for fm in file_moves]
             
@@ -527,22 +558,26 @@ Notes:
                 base_time = (sync_result.get("base_sync_time") if "base_sync_time" in sync_result else sync_result.get("sync_time", 0))
                 sync_result["sync_time"] = base_time
             
-            # 7. 静默验证文件同步状态
+            # 9. 静默验证文件同步状态
             self.verify_files_available(file_moves)
             
-            # 8. 静默生成远端命令
+            # 10. 静默生成远端移动命令
             debug_print(f"Before generate_mv_commands - file_moves={file_moves}")
             debug_print(f"Before generate_mv_commands - target_path='{target_path}'")
             remote_command = self.main_instance.remote_commands.generate_mv_commands(file_moves, target_path, folder_upload_info)
             debug_print(f"After generate_mv_commands - remote_command preview: {remote_command[:200]}...")
             
-            # 7.5. 远端目录创建已经集成到generate_mv_commands中，无需额外处理
-            
-            # 8. 使用统一的远端命令执行接口
-            execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+            # 11. 如果有大文件，延迟小文件mv命令执行；否则立即执行
+            if large_files:
+                # 混合上传：延迟小文件mv命令，等大文件处理完成后统一执行
+                debug_print(f"Mixed upload: delaying small file mv command until large files are processed")
+                execution_result = {"success": True}  # 暂时标记为成功，实际mv在后面统一执行
+            else:
+                # 纯小文件上传：立即执行mv命令
+                execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
             
             # 如果执行失败，直接返回错误
-            if not execution_result["success"]:
+            if not execution_result.get("success", False):
                 # 明确处理错误信息的获取
                 if "error" in execution_result:
                     error = execution_result["error"]
@@ -569,8 +604,19 @@ Notes:
                     "total_found": 0,
                     "skip_verification": True
                 }
+            elif large_files:
+                # 混合上传：跳过小文件验证，因为mv命令还没有执行
+                debug_print(f"Mixed upload detected, skipping small file verification until all files are moved")
+                verify_result = {
+                    "success": True,
+                    "found_files": [fm.get("original_filename", fm["filename"]) for fm in file_moves],
+                    "missing_files": [],
+                    "total_expected": len(expected_filenames),
+                    "total_found": len(file_moves),
+                    "skip_verification": True
+                }
             else:
-                # 普通文件上传：使用ls-based验证
+                # 纯小文件上传：使用ls-based验证
                 expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
                 
                 # 使用带进度的验证机制
@@ -583,7 +629,67 @@ Notes:
                 debug_capture.start_capture()
                 debug_print(f"Verification completed: {verify_result}")
             
-            # 9. 上传和远端命令执行完成后，清理LOCAL_EQUIVALENT中的文件
+            # 12. 准备结果对象
+            result = {
+                "success": verify_result["success"],
+                "uploaded_files": verify_result.get("found_files", []),
+                "failed_files": verify_result.get("missing_files", []) + [fm["file"] for fm in failed_moves],
+                "target_path": target_display_path,
+                "target_folder_id": target_folder_id,
+                "total_attempted": len(file_moves) + len(failed_moves),
+                "total_succeeded": len(verify_result.get("found_files", [])),
+                "remote_command": remote_command,
+                "file_moves": file_moves,
+                "failed_moves": failed_moves,
+                "sync_time": sync_result.get("sync_time", 0),
+                "message": f"Upload completed: {len(verify_result.get('found_files', []))}/{len(file_moves)} files" if verify_result["success"] else f" ✗\nPartially uploaded: {len(verify_result.get('found_files', []))}/{len(file_moves)} files",
+                "api_available": self.drive_service is not None
+            }
+            
+            # 13. 处理混合上传中的大文件（如果有的话）
+            if verify_result["success"] and large_files:
+                print(f"\nSmall files uploaded successfully. ")
+                print(f"Waiting for manually uploaded large files. ")
+                
+                from ..progress_manager import start_progress_buffering
+                start_progress_buffering("⏳ Waiting for large files sync ...")
+                
+                large_file_names = [Path(f["path"]).name for f in large_files]
+                
+                # 创建虚拟file_moves用于计算超时时间
+                virtual_file_moves = [{"new_path": f["path"]} for f in large_files]
+                large_sync_result = self.main_instance.sync_manager.wait_for_file_sync(large_file_names, virtual_file_moves)
+                
+                if not large_sync_result["success"]:
+                    print(f"Warning: Large files sync failed: {large_sync_result.get('error', 'Unknown error')}")
+                    print(f"Small files were uploaded successfully, but large files may need manual verification")
+                else:
+                    # 同步成功后，合并执行小文件和大文件的mv命令
+                    print(f"Moving all files (small + large) to destination: {target_display_path}")
+                    
+                    # 生成大文件的mv命令
+                    large_file_moves = []
+                    for filename in large_file_names:
+                        large_file_moves.append({
+                            "filename": filename,
+                            "original_filename": filename,
+                            "renamed": False,
+                            "target_path": target_path
+                        })
+                    # 使用统一的文件移动方法（小文件还在LOCAL_EQUIVALENT，大文件在DRIVE_EQUIVALENT）
+                    debug_print(f"DEBUG: Using unified file move for small + large files")
+                    
+                    # 使用统一的文件移动方法处理所有文件
+                    unified_mv_result = self.unified_file_move(file_moves, large_file_moves, target_path, folder_upload_info)
+                    if unified_mv_result.get("success"):
+                        result["uploaded_files"].extend(large_file_names)
+                        result["total_succeeded"] += len(large_files)
+                        result["message"] = f"Mixed upload completed: {len(file_moves)} small + {len(large_files)} large files"
+                    else:
+                        print(f"Warning: Failed to move files: {unified_mv_result.get('error', 'Unknown error')}")
+                        print(f"Some files may still be in their temporary locations and need manual moving")
+            
+            # 14. 上传和远端命令执行完成后，清理LOCAL_EQUIVALENT中的文件
             if verify_result["success"]:
                 self.main_instance.cache_manager.cleanup_local_equivalent_files(file_moves)
                 
@@ -613,34 +719,19 @@ Notes:
                         except Exception as e:
                             failed_removals.append({"file": source_file, "error": str(e)})
             
-            result = {
-                "success": verify_result["success"],
-                "uploaded_files": verify_result.get("found_files", []),
-                "failed_files": verify_result.get("missing_files", []) + [fm["file"] for fm in failed_moves],
-                "target_path": target_display_path,
-                "target_folder_id": target_folder_id,
-                "total_attempted": len(file_moves) + len(failed_moves),
-                "total_succeeded": len(verify_result.get("found_files", [])),
-                "remote_command": remote_command,
-                "file_moves": file_moves,
-                "failed_moves": failed_moves,
-                "sync_time": sync_result.get("sync_time", 0),
-                "message": f"Upload completed: {len(verify_result.get('found_files', []))}/{len(file_moves)} files" if verify_result["success"] else f" ✗\n⚠️ Partially uploaded: {len(verify_result.get('found_files', []))}/{len(file_moves)} files",
-                "api_available": self.drive_service is not None
-            }
-            
-            # Add debug information for all uploads to diagnose verification issues
+            # Add debug information only for failed uploads or when user used direct feedback
             used_direct_feedback = verify_result.get("source") == "direct_feedback"
             upload_failed = not verify_result["success"]
             
-            # Always show debug information to diagnose verification problems
+            # Only show debug information for failures or direct feedback scenarios
             if used_direct_feedback:
                 debug_print(f"User used direct feedback, showing debug information:")
+                debug_print(f"verify_result={verify_result}")
+                debug_print(f"sync_result={sync_result}")
+                debug_print(f"target_folder_id='{target_folder_id}'")
+                debug_print(f"target_display_path='{target_display_path}'")
             elif upload_failed:
                 debug_print(f"Upload failed, showing debug information:")
-            else:
-                debug_print(f"Upload completed, showing verification debug information:")
-            
             debug_print(f"verify_result={verify_result}")
             debug_print(f"sync_result={sync_result}")
             debug_print(f"target_folder_id='{target_folder_id}'")
@@ -649,11 +740,12 @@ Notes:
             # 停止debug信息捕获
             debug_capture.stop_capture()
             
-            # Always print debug capture buffer
-            captured_debug = debug_capture.get_debug_info()
-            if captured_debug:
-                debug_print(f"Captured debug output:")
-                debug_print(captured_debug)
+            # Only print debug capture buffer for failures or direct feedback
+            if used_direct_feedback or upload_failed:
+                captured_debug = debug_capture.get_debug_info()
+                if captured_debug:
+                    debug_print(f"Captured debug output:")
+                    debug_print(captured_debug)
             
             # 添加本地文件删除信息
             if remove_local and verify_result["success"]:
@@ -831,10 +923,10 @@ Notes:
             for file_info in large_files:
                 print(f"  - {Path(file_info['original_path']).name} ({file_info['size_mb']:.1f} MB)")
             
-            print(f"\n目标位置：{target_path}")
             
-            # 创建本地临时文件夹
+            
             temp_upload_dir = Path(tempfile.mkdtemp(prefix="GDS_MANUAL_UPLOAD_"))
+            # 不使用resolve()以避免macOS上的"T"文件夹问题
             
             try:
                 # 将大文件复制或链接到临时文件夹
@@ -842,126 +934,82 @@ Notes:
                     src_path = Path(file_info["path"])
                     dst_path = temp_upload_dir / src_path.name
                     
-                    # 对于大文件，使用符号链接而不是复制（节省空间和时间）
+                    # 对于大文件，优先使用文件复制以便用户直观看到实际文件
                     try:
-                        dst_path.symlink_to(src_path.absolute())
-                    except:
-                        # 如果符号链接失败（比如Windows），则使用硬链接或复制
+                        shutil.copy2(src_path, dst_path)
+                    except Exception as e:
+                        # 如果复制失败（空间不足等），尝试硬链接
                         try:
                             os.link(src_path, dst_path)
                         except:
-                            shutil.copy2(src_path, dst_path)
+                            # 最后尝试符号链接
+                            dst_path.symlink_to(src_path.absolute())
                 
                 # 创建README文件
-                readme_path = temp_upload_dir / "___上传说明_README.txt"
+                readme_path = temp_upload_dir / "上传说明_README.txt"
                 drive_eq_path = self.main_instance.DRIVE_EQUIVALENT
                 readme_content = f"""GDS 大文件手动上传说明
 {'='*60}
 
 检测到以下大文件需要手动上传（每个文件 >{threshold_mb}MB）：
-
 """
                 for file_info in large_files:
                     readme_content += f"  - {Path(file_info['original_path']).name} ({file_info['size_mb']:.1f} MB)\n"
                 
                 readme_content += f"""
-目标位置：{target_path}
-
 上传步骤：
-  1. Finder/文件管理器已自动打开DRIVE_EQUIVALENT同步文件夹
-  2. 将本文件夹中的所有文件拖放到DRIVE_EQUIVALENT文件夹中
-  3. Google Drive Desktop将自动同步这些文件
-  4. 完成后回到终端，按Enter键继续
-  5. 系统将自动移动文件到目标位置
-
-DRIVE_EQUIVALENT路径：{drive_eq_path}
-
-注意：
-  - 本文件夹位置: {temp_upload_dir}
-  - 拖放完成并确认同步后按Enter即可
-  - 系统会自动等待同步完成并移动文件到目标位置
-  - 上传完成后本文件夹将被自动删除
+  1. Finder/文件管理器已自动打开本地文件夹 (该README所在的文件夹)
+  2. 将该本地文件夹中的所有文件拖放到网页自动打开的远端文件夹中  3. 完成后点击 "✅上传完成" 按键
 """
                 
                 with open(readme_path, 'w', encoding='utf-8') as f:
                     f.write(readme_content)
                 
-                print(f"本地临时文件夹: {temp_upload_dir}")
+                # 获取DRIVE_EQUIVALENT的Google Drive URL
+                drive_eq_folder_id = self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID
+                drive_eq_url = f"https://drive.google.com/drive/folders/{drive_eq_folder_id}"
+                print(f"\nTarget remote path: {drive_eq_url}")
+                
                 import subprocess
                 import webbrowser
+                
+                # 先打开远程文件夹（浏览器）
                 try:
-                    # 打开本地文件夹
+                    webbrowser.open(drive_eq_url)
+                    print(f"✓ Opened the target remote folder in browser")
+                except Exception as e:
+                    print(f"Warning: Failed to open browser: {e}")
+                    print(f"Please manually visit: {drive_eq_url}")
+                
+                # 然后打开本地文件夹（这样Navigator会在最顶层）
+                print(f"\nLocal temporary folder: {temp_upload_dir}")
+                try:
                     if platform.system() == "Darwin":  # macOS
+                        # 直接使用原始路径，避免macOS上的"T"文件夹问题
                         subprocess.run(["open", str(temp_upload_dir)])
                     elif platform.system() == "Windows":
                         os.startfile(str(temp_upload_dir))
                     else:  # Linux
                         subprocess.run(["xdg-open", str(temp_upload_dir)])
                     
-                    print(f"✓ 已打开本地文件夹")
+                    print(f"✓ Opened the local temporary folder")
                 except Exception as e:
-                    print(f"警告: 无法打开本地文件夹: {e}")
-                
-                
-                # 获取DRIVE_EQUIVALENT的Google Drive URL
-                drive_eq_folder_id = self.main_instance.DRIVE_EQUIVALENT_FOLDER_ID
-                drive_eq_url = f"https://drive.google.com/drive/folders/{drive_eq_folder_id}"
-                print(f"\nDRIVE_EQUIVALENT URL: {drive_eq_url}")
-                try:
-                    webbrowser.open(drive_eq_url)
-                    print(f"✓ 已在浏览器中打开DRIVE_EQUIVALENT文件夹")
-                except Exception as e:
-                    print(f"警告: 无法打开浏览器: {e}")
-                    print(f"请手动访问: {drive_eq_url}")
+                    print(f"Warning: Failed to open local temporary folder: {e}")
                 
                 print(f"\n{'='*60}")
-                print(f"\n请将临时文件夹中的文件拖放到DRIVE_EQUIVALENT文件夹")
-                print(f"Ctrl+L=重新打开本地文件夹, Ctrl+R=重新打开远端文件夹, Ctrl+D=完成")
+                print(f"Please drag the files from the opened local temporary folder to the target remote folder!")
                 
-                # 支持快捷键的输入循环
-                while True:
-                    try:
-                        line = input("按Ctrl+D完成: ")
-                        if line == "l" or "ctrl+l" in line:
-                            try:
-                                if platform.system() == "Darwin":
-                                    subprocess.run(["open", str(temp_upload_dir)])
-                                elif platform.system() == "Windows":
-                                    os.startfile(str(temp_upload_dir))
-                                else:
-                                    subprocess.run(["xdg-open", str(temp_upload_dir)])
-                                print(f"✓ 重新打开本地文件夹: {temp_upload_dir}")
-                            except Exception as e:
-                                print(f"✗ 无法打开本地文件夹: {e}")
-                        
-                        elif line == "r" or "ctrl+r" in line:
-                            try:
-                                webbrowser.open(drive_eq_url)
-                                print(f"✓ 重新打开DRIVE_EQUIVALENT: {drive_eq_url}")
-                            except Exception as e:
-                                print(f"✗ 无法打开浏览器: {e}")
-                        
-                        elif line == "":
-                            continue  # 空行继续等待
-                        else:
-                            print(f"未知命令: {line}")
-                            print(f"可用命令: l (本地文件夹), r (远端文件夹), Ctrl+D (完成)")
-                    
-                    except EOFError:
-                        # Ctrl+D 被按下
-                        print(f"\n✓ 用户确认完成上传")
-                        break
-                    except KeyboardInterrupt:
-                        # Ctrl+C 被按下
-                        print(f"\n用户中断上传")
-                        raise
+                # 使用tkinter窗口替代终端交互
+                upload_result = self.show_large_file_upload_window_subprocess(temp_upload_dir, drive_eq_url)
+                if not upload_result:
+                    return {"success": False, "error": "User cancelled the large file upload"}
                 
                 # 清理临时文件夹
                 try:
                     shutil.rmtree(temp_upload_dir)
-                    print(f"✓ 已清理临时文件夹")
+                    print(f"✓ Cleaned up the local temporary folder")
                 except Exception as e:
-                    print(f"警告: 清理临时文件夹失败: {e}")
+                    print(f"Warning: Failed to clean up the local temporary folder: {e}")
                 
             except KeyboardInterrupt:
                 # 用户中断，清理临时文件夹
@@ -973,9 +1021,9 @@ DRIVE_EQUIVALENT路径：{drive_eq_path}
             
             return {"success": True, "message": "Large files moved to DRIVE_EQUIVALENT"}
         except KeyboardInterrupt:
-            return {"success": False, "error": "用户中断大文件上传"}
+            return {"success": False, "error": "User interrupted the large file upload"}
         except Exception as e:
-            return {"success": False, "error": f"Handle large files failed: {str(e)}"}
+            return {"success": False, "error": f"Handling large files failed: {str(e)}"}
 
     def verify_upload_with_progress(self, expected_files, target_path, current_shell):
         """
@@ -992,7 +1040,7 @@ DRIVE_EQUIVALENT路径：{drive_eq_path}
             
             # 定义验证函数，支持最后一次尝试时使用强制刷新
             attempt_count = 0
-            max_attempts = 60
+            max_attempts = 15
             
             def validate_all_files():
                 nonlocal attempt_count
@@ -1076,5 +1124,297 @@ DRIVE_EQUIVALENT路径：{drive_eq_path}
                 "missing_files": expected_files,
                 "total_found": 0,
                 "total_expected": len(expected_files)
+            }
+
+    def show_large_file_upload_window_subprocess(self, temp_upload_dir, drive_eq_url):
+        """
+        显示大文件上传的Tkinter窗口（在subprocess中运行以抑制警告）
+        基于git历史中的标准窗口模板
+        
+        Args:
+            temp_upload_dir: 临时上传目录路径
+            drive_eq_url: Google Drive等效目录URL
+            
+        Returns:
+            bool: True表示用户完成上传，False表示用户取消
+        """
+        import subprocess
+        import base64
+        
+        # 获取音频文件路径
+        from ..path_constants import get_proj_dir
+        audio_file_path = str(get_proj_dir() / "tkinter_bell.mp3")
+        
+        # 创建subprocess脚本 - 基于历史模板的标准窗口设计
+        subprocess_script = f'''
+import sys
+import os
+import warnings
+
+# 抑制所有警告和IMK信息
+warnings.filterwarnings("ignore")
+os.environ["TK_SILENCE_DEPRECATION"] = "1"
+
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+    import subprocess
+    
+    result = False
+    
+    root = tk.Tk()
+    root.title("Large File Upload")
+    root.geometry("500x60")  # 使用标准的500x60尺寸
+    root.resizable(False, False)
+    root.attributes('-topmost', True)
+    
+    # 居中窗口
+    root.eval('tk::PlaceWindow . center')
+    
+    # 音频文件路径
+    audio_file_path = "{audio_file_path}"
+    
+    # 定义统一的聚焦函数
+    def force_focus():
+        try:
+            root.focus_force()
+            root.lift()
+            root.attributes('-topmost', True)
+        except:
+            pass
+    
+    # 播放提示音
+    def play_notification_sound():
+        try:
+            if os.path.exists(audio_file_path):
+                if sys.platform == "darwin":  # macOS
+                    subprocess.run(["afplay", audio_file_path], check=False, capture_output=True)
+                elif sys.platform.startswith("linux"):  # Linux
+                    subprocess.run(["aplay", audio_file_path], check=False, capture_output=True)
+                elif sys.platform == "win32":  # Windows
+                    import winsound
+                    winsound.PlaySound(audio_file_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        except:
+            pass
+    
+    # 打开本地文件夹
+    def open_local_folder():
+        try:
+            # 不使用resolve()以避免macOS上的"T"文件夹问题
+            temp_dir_path = "{temp_upload_dir}"
+            if sys.platform == "darwin":  # macOS
+                # 方案1: 直接使用原始路径（推荐）
+                subprocess.run(["open", temp_dir_path])
+            elif sys.platform == "win32":  # Windows
+                os.startfile(temp_dir_path)
+            else:  # Linux
+                subprocess.run(["xdg-open", temp_dir_path])
+        except Exception as e:
+            messagebox.showerror("错误", f"无法打开本地文件夹: {{e}}")
+    
+    # 打开远程文件夹
+    def open_remote_folder():
+        try:
+            import webbrowser
+            webbrowser.open("{drive_eq_url}")
+        except Exception as e:
+            messagebox.showerror("错误", f"无法打开远程文件夹: {{e}}")
+    
+    # 上传完成回调
+    def upload_completed():
+        global result
+        result = True
+        root.quit()
+    
+    # 取消上传回调
+    def upload_cancelled():
+        global result
+        result = False
+        root.quit()
+    
+    # 主框架 - 基于历史模板
+    main_frame = tk.Frame(root, padx=10, pady=10)
+    main_frame.pack(fill=tk.BOTH, expand=True)
+    
+    # 按钮框架 - 基于历史模板
+    button_frame = tk.Frame(main_frame)
+    button_frame.pack(fill=tk.X, expand=True)
+    
+    # 打开本地文件夹按钮 - 使用历史模板样式
+    open_local_btn = tk.Button(
+        button_frame, 
+        text="📁 本地文件夹", 
+        command=open_local_folder,
+        font=("Arial", 9),
+        bg="#2196F3",
+        fg="white",
+        padx=10,
+        pady=5,
+        relief=tk.RAISED,
+        bd=2
+    )
+    open_local_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
+    
+    # 打开远程文件夹按钮 - 使用历史模板样式
+    open_remote_btn = tk.Button(
+        button_frame, 
+        text="🌐 远程文件夹", 
+        command=open_remote_folder,
+        font=("Arial", 9),
+        bg="#FF9800",
+        fg="white",
+        padx=10,
+        pady=5,
+        relief=tk.RAISED,
+        bd=2
+    )
+    open_remote_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
+    
+    # 上传完成按钮 - 使用历史模板样式
+    complete_btn = tk.Button(
+        button_frame, 
+        text="✅ 上传完成", 
+        command=upload_completed,
+        font=("Arial", 9, "bold"),
+        bg="#4CAF50",
+        fg="white",
+        padx=10,
+        pady=5,
+        relief=tk.RAISED,
+        bd=2
+    )
+    complete_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
+    
+    # 取消按钮 - 使用历史模板样式
+    cancel_btn = tk.Button(
+        button_frame, 
+        text="❌ 取消", 
+        command=upload_cancelled,
+        font=("Arial", 9),
+        bg="#f44336",
+        fg="white",
+        padx=10,
+        pady=5,
+        relief=tk.RAISED,
+        bd=2
+    )
+    cancel_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    
+    # 设置焦点到完成按钮
+    complete_btn.focus_set()
+    
+    # 播放提示音并获取焦点
+    root.after(100, play_notification_sound)
+    root.after(200, force_focus)
+    
+    # 运行窗口
+    root.mainloop()
+    
+    # 返回结果
+    sys.exit(0 if result else 2)
+    
+except Exception as e:
+    print(f"Tkinter window error: {{e}}", file=sys.stderr)
+    sys.exit(1)
+'''
+        
+        try:
+            # 运行subprocess
+            process = subprocess.run([
+                "/usr/bin/python3", "-c", subprocess_script
+            ], capture_output=True, text=True, timeout=300)
+            
+            # 根据返回码判断结果
+            if process.returncode == 0:
+                return True  # 用户完成上传
+            elif process.returncode == 2:
+                return False  # 用户取消
+            else:
+                print(f"Tkinter window failed with code {process.returncode}")
+                return self.show_large_file_upload_window_fallback()
+                
+        except subprocess.TimeoutExpired:
+            print("Tkinter window timeout")
+            return self.show_large_file_upload_window_fallback()
+        except Exception as e:
+            print(f"Subprocess error: {e}")
+            return self.show_large_file_upload_window_fallback()
+    
+    def show_large_file_upload_window_fallback(self):
+        """
+        大文件上传窗口的终端回退方案
+        """
+        try:
+            print("\n" + "="*60)
+            print("请完成以下步骤:")
+            print("1. 将本地临时文件夹中的文件拖放到远程Google Drive文件夹")
+            print("2. 等待文件上传完成")
+            print("3. 按Enter继续...")
+            print("="*60)
+            
+            input("按Enter继续，或Ctrl+C取消...")
+            return True
+        except KeyboardInterrupt:
+            return False
+
+    def unified_file_move(self, small_file_moves, large_file_moves, target_path, folder_upload_info=None):
+        """
+        统一的文件移动函数（函数D）- 将所有文件移动到目标位置
+        
+        Args:
+            small_file_moves: 小文件移动信息列表
+            large_file_moves: 大文件移动信息列表  
+            target_path: 目标路径
+            folder_upload_info: 文件夹上传信息
+            
+        Returns:
+            dict: 移动结果
+        """
+        try:
+            all_file_moves = []
+            
+            # 合并小文件移动信息
+            if small_file_moves:
+                all_file_moves.extend(small_file_moves)
+            
+            # 合并大文件移动信息
+            if large_file_moves:
+                all_file_moves.extend(large_file_moves)
+            
+            if not all_file_moves:
+                return {"success": True, "message": "No files to move"}
+            
+            # 生成统一的mv命令
+            combined_mv_command = self.main_instance.remote_commands.generate_mv_commands(all_file_moves, target_path, folder_upload_info)
+            debug_print(f"DEBUG: Unified mv command (first 300 chars): {combined_mv_command[:300]}...")
+            
+            # 执行统一的mv命令
+            if combined_mv_command.strip():
+                mv_result = self.main_instance.execute_command_interface("bash", ["-c", combined_mv_command])
+            else:
+                mv_result = {"success": True}
+            
+            if mv_result.get("success"):
+                message = "✓ Files moved successfully"
+                
+                print(message)
+                return {
+                    "success": True,
+                    "message": message
+                }
+            else:
+                error_msg = mv_result.get("error", "Unknown error")
+                print(f"Warning: Failed to move files: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
+                
+        except Exception as e:
+            error_msg = f"Unified file move failed: {str(e)}"
+            print(f"Error: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg
             }
 

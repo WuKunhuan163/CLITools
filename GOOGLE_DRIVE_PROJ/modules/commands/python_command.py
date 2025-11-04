@@ -23,7 +23,20 @@ class PythonCommand(BaseCommand):
         if not args:
             self.print_error("python command needs a file name or code")
             return 1
-            
+        
+        if args[0] == '--version':
+            # 显示配置的Python版本 - 实际在远端执行Python
+            result = self.shell.cmd_python_code('import sys; print(f"Python {sys.version.split()[0]}")')
+            if result.get("success", False):
+                stdout = result.get("stdout", "").strip()
+                if stdout:
+                    print(stdout)
+                return 0
+            else:
+                error_msg = result.get('error', 'Unknown error')
+                print(f"Error getting Python version: {error_msg}")
+                return 1
+        
         if args[0] == '-c':
             # 执行Python代码
             if len(args) < 2:
@@ -126,6 +139,10 @@ class PythonCommand(BaseCommand):
             env_file = f"{self.main_instance.REMOTE_ENV}/venv/venv_pythonpath.sh"
             temp_file_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{temp_filename}"
             
+            # 获取当前shell ID（在模板外部）
+            current_shell = self.main_instance.get_current_shell()
+            shell_id = current_shell.get("id", "default") if current_shell else "default"
+            
             # 构建统一的远程命令：
             # 1. 确保tmp目录存在
             # 2. 将base64字符串写入临时文件
@@ -145,8 +162,8 @@ class PythonCommand(BaseCommand):
             PYTHON_BASE_PATH="{self.main_instance.REMOTE_ENV}/python"
             STATE_FILE="$PYTHON_BASE_PATH/python_states.json"
             
-            # 获取当前shell ID (简化版本)
-            SHELL_ID="default"
+            # 获取当前shell ID
+            SHELL_ID="{shell_id}"
             
             # 如果状态文件存在，尝试读取Python版本设置
             if [ -f "$STATE_FILE" ]; then

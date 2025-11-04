@@ -95,6 +95,9 @@ class NavigationCommand(BaseCommand):
         if not path:
             path = "~"
             
+        # 应用本地路径转换（将bash展开的本地路径转换回远程路径格式）
+        path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
+            
         # cd命令需要逻辑路径格式，需要将绝对路径转换回逻辑路径
         # 但只对cd命令进行这种转换
         if path.startswith('/content/drive/MyDrive/REMOTE_ROOT'):
