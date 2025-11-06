@@ -419,7 +419,7 @@ class LinterCommand(BaseCommand):
             if not cat_result.get("success"):
                 return {
                     "success": False,
-                    "error": f"Could not read file {filename}: {cat_result.get('error', 'Unknown error')}"
+                    "error": f"Could not read file {filename}: {cat_result.get('error', 'File reading failed without specific error message')}"
                 }
             
             content = cat_result.get("output", "")

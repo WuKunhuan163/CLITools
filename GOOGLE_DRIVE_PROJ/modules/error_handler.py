@@ -7,10 +7,10 @@
 """
 
 import traceback
-import sys
-import os
+import sys, json
+import os, re, inspect
 from typing import Optional, Dict, Any, List
-from pathlib import Path
+from datetime import datetime
 
 
 class EnhancedErrorHandler:
@@ -18,24 +18,41 @@ class EnhancedErrorHandler:
     
     def __init__(self, debug_mode: bool = True):
         self.debug_mode = debug_mode
-        self.error_log_file = None
-        self.setup_error_logging()
+    
+    @staticmethod
+    def convert_ls_error_to_command_format(ls_result, command_name):
+        """Convert ls error format to specific command format for bash alignment
+        
+        Args:
+            ls_result (dict): Result from ls command with error
+            command_name (str): Name of the command that called ls (e.g., 'cd', 'touch')
+            
+        Returns:
+            dict: Modified result with command-specific error format
+        """
+        if not ls_result.get('success'):
+            ls_error = ls_result.get('error', '')
+            if ls_error.startswith('ls:'):
+                # Extract the path from the ls error message
+                # Format: "ls: path: No such file or directory"
+                match = re.search(r"ls: ([^:]+): (.+)", ls_error)
+                if match:
+                    path = match.group(1)
+                    error_msg = match.group(2)
+                    # Format like bash: "command: no such file or directory: path"
+                    command_error = f"{command_name}: {error_msg.lower()}: {path}"
+                    ls_result['error'] = command_error
+                else:
+                    # Fallback to simple replacement
+                    command_error = ls_error.replace('ls:', f'{command_name}:', 1)
+                    ls_result['error'] = command_error
+        return ls_result
     
     def setup_error_logging(self):
         """设置错误日志"""
-        try:
-            # 使用统一路径常量
-            try:
-                from .path_constants import get_data_dir
-                log_dir = get_data_dir()
-                self.error_log_file = log_dir / "error_log.txt"
-            except ImportError:
-                log_dir = Path.home() / ".local/bin/GOOGLE_DRIVE_DATA"
-                log_dir.mkdir(parents=True, exist_ok=True)
-                self.error_log_file = log_dir / "error_log.txt"
-        except Exception:
-            # 如果无法创建日志文件，使用None
-            self.error_log_file = None
+        from .path_constants import get_data_dir
+        log_dir = get_data_dir()
+        self.error_log_file = log_dir / "error_log.txt"
     
     def capture_exception(self, 
             context: str = "Unknown", 
@@ -151,91 +168,71 @@ class EnhancedErrorHandler:
     
     def analyze_stack_frames(self, tb) -> List[Dict[str, Any]]:
         """分析所有栈帧，包括完整的调用栈"""
-        try:
-            frames = []
+        frames = []
             
-            # 首先获取完整的调用栈（从当前位置到顶层）
-            import inspect
-            current_stack = inspect.stack()
+        # 首先获取完整的调用栈（从当前位置到顶层）
+        current_stack = inspect.stack()
+        
+        # 过滤掉错误处理相关的栈帧，只保留用户代码的调用栈
+        filtered_stack = []
+        for frame_info in current_stack:
+            filename = frame_info.filename
+            function_name = frame_info.function
             
-            # 过滤掉错误处理相关的栈帧，只保留用户代码的调用栈
-            filtered_stack = []
-            for frame_info in current_stack:
-                filename = frame_info.filename
-                function_name = frame_info.function
-                
-                # 跳过错误处理系统本身的栈帧
-                if (function_name in ['capture_exception', 'analyze_stack_frames', 'print_debug_info', 
-                                    'capture_and_report_error'] or 
-                    'error_handler.py' in filename):
-                    continue
-                
-                filtered_stack.append({
-                    "filename": os.path.basename(filename),
-                    "full_path": filename,
-                    "function": function_name,
-                    "line_number": frame_info.lineno,
-                    "is_user_code": self.is_user_code(filename),
-                    "source": "current_stack"
-                })
+            # 跳过错误处理系统本身的栈帧
+            if (function_name in ['capture_exception', 'analyze_stack_frames', 'print_debug_info', 
+                                'capture_and_report_error'] or 
+                'error_handler.py' in filename):
+                continue
             
-            # 反转栈帧顺序，使其从顶层到底层
-            filtered_stack.reverse()
+            filtered_stack.append({
+                "filename": os.path.basename(filename),
+                "full_path": filename,
+                "function": function_name,
+                "line_number": frame_info.lineno,
+                "is_user_code": self.is_user_code(filename),
+                "source": "current_stack"
+            })
+        
+        # 反转栈帧顺序，使其从顶层到底层
+        filtered_stack.reverse()
+        
+        # 然后添加异常traceback中的栈帧
+        current_tb = tb
+        while current_tb is not None:
+            frame = current_tb.tb_frame
+            frame_info = {
+                "filename": os.path.basename(frame.f_code.co_filename),
+                "full_path": frame.f_code.co_filename,
+                "function": frame.f_code.co_name,
+                "line_number": current_tb.tb_lineno,
+                "is_user_code": self.is_user_code(frame.f_code.co_filename),
+                "source": "exception_traceback"
+            }
             
-            # 然后添加异常traceback中的栈帧
-            current_tb = tb
-            while current_tb is not None:
-                frame = current_tb.tb_frame
-                frame_info = {
-                    "filename": os.path.basename(frame.f_code.co_filename),
-                    "full_path": frame.f_code.co_filename,
-                    "function": frame.f_code.co_name,
-                    "line_number": current_tb.tb_lineno,
-                    "is_user_code": self.is_user_code(frame.f_code.co_filename),
-                    "source": "exception_traceback"
-                }
-                
-                # 只为用户代码添加详细信息
-                if frame_info["is_user_code"]:
-                    frame_info["code_context"] = self.get_code_context(
-                        frame.f_code.co_filename, current_tb.tb_lineno
-                    )
-                    frame_info["local_vars"] = self.safeget_locals(frame)
-                
-                frames.append(frame_info)
-                current_tb = current_tb.tb_next
+            # 只为用户代码添加详细信息
+            if frame_info["is_user_code"]:
+                frame_info["code_context"] = self.get_code_context(
+                    frame.f_code.co_filename, current_tb.tb_lineno
+                )
+                frame_info["local_vars"] = self.safeget_locals(frame)
             
-            # 合并调用栈和异常traceback，去重
-            all_frames = filtered_stack + frames
-            
-            # 去重：如果同一个函数在同一行出现多次，只保留一个
-            unique_frames = []
-            seen = set()
-            for frame in all_frames:
-                key = (frame["full_path"], frame["line_number"], frame["function"])
-                if key not in seen:
-                    seen.add(key)
-                    unique_frames.append(frame)
-            
-            return unique_frames
-            
-        except Exception as e:
-            # 如果获取完整栈失败，回退到只分析traceback
-            frames = []
-            current_tb = tb
-            while current_tb is not None:
-                frame = current_tb.tb_frame
-                frame_info = {
-                    "filename": os.path.basename(frame.f_code.co_filename),
-                    "full_path": frame.f_code.co_filename,
-                    "function": frame.f_code.co_name,
-                    "line_number": current_tb.tb_lineno,
-                    "is_user_code": self.is_user_code(frame.f_code.co_filename)
-                }
-                frames.append(frame_info)
-                current_tb = current_tb.tb_next
-            
-            return frames
+            frames.append(frame_info)
+            current_tb = current_tb.tb_next
+        
+        # 合并调用栈和异常traceback，去重
+        all_frames = filtered_stack + frames
+        
+        # 去重：如果同一个函数在同一行出现多次，只保留一个
+        unique_frames = []
+        seen = set()
+        for frame in all_frames:
+            key = (frame["full_path"], frame["line_number"], frame["function"])
+            if key not in seen:
+                seen.add(key)
+                unique_frames.append(frame)
+        
+        return unique_frames
     
     def safeget_locals(self, frame) -> Dict[str, str]:
         """安全地获取局部变量"""
@@ -325,7 +322,6 @@ class EnhancedErrorHandler:
     def get_timestamp(self) -> str:
         """获取时间戳"""
         try:
-            import datetime
             return datetime.datetime.now().isoformat()
         except Exception:
             return "Unknown"
@@ -336,7 +332,6 @@ class EnhancedErrorHandler:
             return
         
         try:
-            import json
             with open(self.error_log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(error_info, indent=2, ensure_ascii=False))
                 f.write("\n" + "="*80 + "\n")
@@ -346,7 +341,7 @@ class EnhancedErrorHandler:
     def print_debug_info(self, error_info: Dict[str, Any]):
         """打印调试信息"""
         try:
-            print(f"\nError Report - {error_info['context']}")
+            print(f"Error Report - {error_info['context']}")
             print(f"{error_info['exception_type']}: {error_info['exception_message']}")
             
             if "root_cause" in error_info and "location" in error_info["root_cause"]:

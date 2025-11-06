@@ -56,6 +56,7 @@ class NavigationCommand(BaseCommand):
         # 返回主命令名，但这个类会注册多个命令
         return "navigation"
     
+    
     def execute(self, cmd, args, command_identifier=None):
         """根据命令名分发到具体的处理方法"""
         if cmd == "pwd":
@@ -160,7 +161,9 @@ class NavigationCommand(BaseCommand):
         ls_result = self.main_instance.cmd_ls(absolute_path)
         
         if not ls_result.get('success'):
-            # 目录不存在，直接返回底层错误
+            # 目录不存在，将ls错误格式转换为cd格式
+            from ..error_handler import EnhancedErrorHandler
+            ls_result = EnhancedErrorHandler.convert_ls_error_to_command_format(ls_result, 'cd')
             return ls_result
         
         # 如果ls成功，说明目录存在，使用resolve_drive_id获取目标ID和路径

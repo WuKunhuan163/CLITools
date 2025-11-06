@@ -163,7 +163,7 @@ class FindCommand(BaseCommand):
             else:
                 return {
                     "success": False,
-                    "error": f"Remote find command failed: {result.get('error', 'Unknown error')}"
+                    "error": f"Remote find command failed: {result.get('error', 'Find operation failed without specific error message')}"
                 }
                 
         except Exception as e:

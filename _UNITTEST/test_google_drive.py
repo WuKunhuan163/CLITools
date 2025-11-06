@@ -285,18 +285,19 @@ def test_bash_command_generation():
     google_drive_path = os.path.join(parent_dir, 'GOOGLE_DRIVE.py')
     
     for cmd_parts in test_commands:
+        import traceback
         try:
             full_cmd = ['python', google_drive_path, '--shell'] + cmd_parts.split()
             result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=10)
-            
             # Should not crash - output may vary based on environment
             # Just check that it doesn't crash completely
-            
+        
+        # 输出call stack
         except subprocess.TimeoutExpired:
-            print(f"Warning:  Command timed out: {cmd_parts}")
+            print(f"Warning:  Command timed out: {cmd_parts}. Call stack: {traceback.format_exc()}")
         except Exception as e:
             print(f"Warning:  Command failed: {cmd_parts} - {e}")
-    
+            print(f"Call stack: {traceback.format_exc()}")
     print(f"test_bash_command_generation passed")
 
 def test_google_drive_help_command():

@@ -36,6 +36,7 @@ Dependencies:
 """
 
 from .base_command import BaseCommand
+from ..result_processor import ResultProcessor
 import json
 import os
 
@@ -57,9 +58,12 @@ class LsCommand(BaseCommand):
         force_remote = False  # -f标志，使用远程bash强制刷新
         show_hidden = False  # -a标志，显示隐藏文件
         path = None
+        folder_id = None  # --id参数指定的文件夹ID
         has_bash_flags = False
         
-        for arg in args:
+        i = 0
+        while i < len(args):
+            arg = args[i]
             if arg == '--detailed' or arg == '-l':
                 detailed = True
             elif arg == '-R':
@@ -68,16 +72,26 @@ class LsCommand(BaseCommand):
                 force_remote = True
             elif arg == '-a' or arg == '--all':
                 show_hidden = True
+            elif arg == '--id':
+                # 下一个参数应该是文件夹ID
+                if i + 1 < len(args):
+                    folder_id = args[i + 1]
+                    i += 1  # 跳过ID参数
+                else:
+                    print("Error: --id requires a folder ID argument")
+                    return 1
             elif arg.startswith('-'):
                 has_bash_flags = True
                 break
             else:
                 path = arg
+            i += 1
         
         # 如果有bash flags，作为远端命令执行
         if has_bash_flags:
             full_command = 'ls ' + ' '.join(args)
             result = self.shell.execute_command_interface('bash', ['-c', full_command])
+            import traceback
             if result.get('success'):
                 data = result.get('data', {})
                 stdout = data.get('stdout', '')
@@ -86,16 +100,28 @@ class LsCommand(BaseCommand):
                 return 0
             else:
                 data = result.get('data', {})
-                error = result.get('error', data.get('stderr', 'Command failed'))
+                error = result.get('error', data.get('stderr', f'Command failed. Call stack: {traceback.format_exc()}'))
                 print(error)
+                return 1
+        
+        # 如果指定了--id，验证参数冲突
+        if folder_id:
+            if path:
+                print("Error: Cannot specify both path and --id. Use either path or --id, not both.")
+                return 1
+            if force_remote:
+                print("Error: --id cannot be used with --force (-f). --id uses Google Drive API directly.")
                 return 1
         
         # 检查是否包含通配符
         if path and ('*' in path or '?' in path or '[' in path):
             return self.shell.handle_wildcard_ls(path)
         
-        # 如果有-f标志，直接调用cmd_ls_remote（远程bash）
-        if force_remote:
+        # 如果指定了--id，直接使用文件夹ID进行列表
+        if folder_id:
+            result = self.shell.cmd_ls_by_id(folder_id, detailed=detailed, recursive=recursive, show_hidden=show_hidden)
+        elif force_remote:
+            # 如果有-f标志，直接调用cmd_ls_remote（远程bash）
             result = self.shell.cmd_ls_remote(path, detailed=detailed, recursive=recursive, show_hidden=show_hidden)
         else:
             # 调用shell的ls方法（使用Google Drive API）
@@ -196,7 +222,9 @@ class LsCommand(BaseCommand):
     def get_configured_folder_id(self, logical_path):
         """从配置文件获取指定逻辑路径的folder ID"""
         try:
-            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            from ..path_constants import PathConstants
+            path_constants = PathConstants()
+            config_path = str(path_constants.GDS_PATH_IDS_FILE)
             if os.path.exists(config_path):
                 with open(config_path, 'r') as f:
                     config = json.load(f)
@@ -208,7 +236,13 @@ class LsCommand(BaseCommand):
     def find_nearest_parent_id(self, logical_path):
         """找到最近的父目录ID，用于智能路径解析"""
         try:
-            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            try:
+                from ..path_constants import PathConstants
+                path_constants = PathConstants()
+                config_path = str(path_constants.GDS_PATH_IDS_FILE)
+            except ImportError:
+                # 回退到旧路径（向后兼容）
+                config_path = os.path.expanduser("~/.gds_path_ids.json")
             if not os.path.exists(config_path):
                 return None, None
                 
@@ -259,9 +293,16 @@ class LsCommand(BaseCommand):
                 
                 # 查找子文件夹
                 result = self.drive_service.list_files(folder_id=current_id, max_results=100)
+                
                 if not result['success']:
-                    # API调用失败，返回错误信息
-                    return None, f"Unable to find the id for subfolder '{part}' from the current folder '{current_path}' (id: {current_id}). API error: {result.get('error', 'Unknown error')}"
+                    # 使用统一的错误信息模板
+                    result_processor = ResultProcessor(self.shell)
+                    base_error = f"Unable to find the id for subfolder '{part}' from the current folder '{current_path}' (id: {current_id})"
+                    api_error = result.get('error', 'API access failed')
+                    if api_error != 'API access failed':
+                        base_error += f". \n\nAPI error: {api_error}"
+                    error_msg = result_processor._format_timeout_error_with_solutions(base_error, f"{current_path}/{part}", current_id)
+                    return None, error_msg
                 
                 found_folder = None
                 found_file = None
@@ -286,11 +327,14 @@ class LsCommand(BaseCommand):
                     # 最后一个组件是文件，返回父目录ID（用于ls文件）
                     return current_id, current_path
                 else:
-                    # 没找到匹配项
+                    # 没找到匹配项 - 使用统一的错误信息模板
+                    result_processor = ResultProcessor(self.shell)
                     if is_last_component:
-                        return None, f"Unable to find the id for file or subfolder '{part}' from the current folder '{current_path}' (id: {current_id}). Please visit your Google Drive, verify the URL for path '{current_path}/{part}'."
+                        base_error = f"Unknown error: Unable to find the id for file or subfolder '{part}' from the current folder '{current_path}' (id: {current_id})"
                     else:
-                        return None, f"Unable to find the id for subfolder '{part}' from the current folder '{current_path}' (id: {current_id}). Please visit your Google Drive, verify the URL for path '{current_path}/{part}'."
+                        base_error = f"Unknown error: Unable to find the id for subfolder '{part}' from the current folder '{current_path}' (id: {current_id})"
+                    error_msg = result_processor._format_timeout_error_with_solutions(base_error, f"{current_path}/{part}", current_id)
+                    return None, error_msg
             
             return current_id, current_path
             
@@ -302,7 +346,8 @@ class LsCommand(BaseCommand):
         try:
             result = self.drive_service.list_files(folder_id=folder_id, max_results=100)
             if not result['success']:
-                return None
+                # 如果是API错误，向上传递错误信息
+                return {"_api_error": True, "error": result.get('error', 'API access failed')}
             
             for file in result['files']:
                 if file['name'] == filename:
@@ -325,7 +370,6 @@ class LsCommand(BaseCommand):
         if path:
             path = self.convert_absolute_to_logical(path)
         
-        # 智能路径解析：优先使用配置的ID
         if path is None or path == ".":
             # 当前目录
             target_folder_id = current_shell.get("current_folder_id", self.main_instance.REMOTE_ROOT_FOLDER_ID)
@@ -339,7 +383,6 @@ class LsCommand(BaseCommand):
                 target_folder_id = nearest_id
                 used_config_id = nearest_id
                 used_config_path = nearest_path
-                # print(f"Using configured folder ID from '{nearest_path}': {nearest_id}")
             else:
                 target_folder_id = self.main_instance.REMOTE_ROOT_FOLDER_ID
                 used_config_id = None
@@ -355,7 +398,6 @@ class LsCommand(BaseCommand):
                     target_folder_id = nearest_id
                     used_config_id = nearest_id
                     used_config_path = nearest_path
-                    # print(f"Using configured folder ID from '{path}': {nearest_id}")
                 else:
                     # 父目录匹配，需要从父目录开始解析子路径
                     resolve_result = self._resolve_from_parent_id(path, nearest_id, nearest_path)
@@ -363,14 +405,34 @@ class LsCommand(BaseCommand):
                         target_folder_id = resolve_result[0]
                         used_config_id = nearest_id
                         used_config_path = nearest_path
-                        # print(f"Using configured folder ID from '{nearest_path}': {nearest_id}")
                         
                         # 检查是否解析到的是文件的父目录（而不是目录本身）
-                        if resolve_result[1] != path:
-                            # 这意味着最后一个组件是文件，需要在父目录中查找该文件
+                        if resolve_result[1] != path: 
                             filename = path.split('/')[-1]
                             file_result = self._find_file_in_directory(target_folder_id, filename)
-                            if file_result:
+                            
+                            # 检查是否是API错误 - 使用bash格式错误
+                            if isinstance(file_result, dict) and file_result.get("_api_error"):
+                                # Bash-aligned error message - strict alignment
+                                bash_error = f"ls: {path}: No such file or directory"
+                                
+                                # Detailed error information (for debugging)
+                                result_processor = ResultProcessor(self.shell)
+                                api_error = file_result.get("error", "API access failed")
+                                base_error = f"Unable to find the id for subfolder '{path.split('/')[-2]}' from the current folder '{nearest_path}' (id: {target_folder_id})"
+                                if api_error != "API access failed":
+                                    base_error += f". \n\nAPI error: {api_error}"
+                                detailed_error = result_processor._format_timeout_error_with_solutions(base_error, path, target_folder_id)
+                                
+                                # Debug print the detailed error (commented for production)
+                                return {
+                                    "success": False, 
+                                    "error": bash_error,  # Bash-like error for main output
+                                    "message": detailed_error,  # Detailed error for debugging
+                                    "failed_path": path, 
+                                    "failed_id": target_folder_id
+                                }
+                            elif file_result:
                                 return {
                                     "success": True,
                                     "path": path,
@@ -380,7 +442,7 @@ class LsCommand(BaseCommand):
                                     "mode": "single_file"
                                 }
                             else:
-                                return {"success": False, "error": f"ls: cannot access '{path}': No such file or directory"}
+                                return {"success": False, "error": f"ls: {path}: No such file or directory", "failed_path": path}
                     else:
                         # 从父目录解析失败，返回详细错误信息
                         error_msg = resolve_result[1] if resolve_result[1] else "Failed to resolve path from parent"
@@ -405,7 +467,7 @@ class LsCommand(BaseCommand):
                         "mode": "single_file"
                     }
                 else:
-                    return {"success": False, "error": f"ls: cannot access '{path}': No such file or directory"}
+                    return {"success": False, "error": f"ls: {path}: No such file or directory", "failed_path": path}
         
         if recursive:
             return self.ls_recursive(target_folder_id, display_path, detailed, show_hidden)
@@ -471,13 +533,123 @@ class LsCommand(BaseCommand):
                         "mode": "bash"
                     }
             else:
-                # 增强错误信息，包含访问的目录和ID，但不显示详细的HTTP错误
-                if used_config_id:
-                    clean_error = f"Unable to access '{display_path}' (ID: {used_config_id})"
-                else:
-                    clean_error = f"Unable to access '{display_path}'"
+                # Bash-aligned error message (primary output) - strict alignment
+                bash_error = f"ls: {display_path}: No such file or directory"
                 
-                return {"success": False, "error": clean_error, "failed_path": display_path, "failed_id": used_config_id or target_folder_id, "config_source": used_config_path}
+                # Detailed error information (for debugging)
+                result_processor = ResultProcessor(self.shell)
+                base_error = f"Unable to access '{display_path}'"
+                if used_config_id:
+                    base_error += f" (ID: {used_config_id})"
+                detailed_error = result_processor._format_timeout_error_with_solutions(base_error, display_path, used_config_id)
+                
+                # Debug print the detailed error (commented for production)
+                return {
+                    "success": False, 
+                    "error": bash_error,  # Bash-like error for main output
+                    "message": detailed_error,  # Detailed error for debugging
+                    "failed_path": display_path, 
+                    "failed_id": used_config_id or target_folder_id, 
+                    "config_source": used_config_path
+                }
+
+    def cmd_ls_by_id(self, folder_id, detailed=False, recursive=False, show_hidden=False):
+        """根据文件夹ID直接列出目录内容"""
+        if not self.drive_service:
+            return {"success": False, "error": "Google Drive API service not initialized"}
+        
+        if not folder_id:
+            return {"success": False, "error": "Folder ID cannot be empty"}
+        
+        # 验证文件夹ID格式（Google Drive ID通常是28个字符的字母数字组合）
+        if not isinstance(folder_id, str) or len(folder_id) < 20:
+            return {"success": False, "error": f"Invalid folder ID format: {folder_id}"}
+        
+        try:
+            # 首先验证文件夹是否存在且可访问
+            folder_info = self.drive_service.service.files().get(
+                fileId=folder_id,
+                fields='id,name,mimeType,trashed'
+            ).execute()
+            
+            # 检查是否是文件夹
+            if folder_info.get('mimeType') != 'application/vnd.google-apps.folder':
+                return {
+                    "success": False, 
+                    "error": f"ID {folder_id} is not a folder, but a file: {folder_info.get('name', 'Unknown')}"
+                }
+            
+            # 检查是否在回收站
+            if folder_info.get('trashed', False):
+                return {
+                    "success": False, 
+                    "error": f"Folder '{folder_info.get('name', 'Unknown')}' (ID: {folder_id}) is in the trash"
+                }
+            
+            folder_name = folder_info.get('name', 'Unknown')
+            
+            if recursive:
+                return self.ls_recursive(folder_id, f"[ID:{folder_id}]/{folder_name}", detailed, show_hidden)
+            else:
+                # 直接列出文件夹内容
+                result = self.drive_service.list_files(folder_id=folder_id, max_results=None)
+                if not result['success']:
+                    return {
+                        "success": False, 
+                        "error": f"Failed to list folder content (ID: {folder_id}): {result.get('error', 'Unknown error')}"
+                    }
+                
+                files = result['files']
+                
+                # 添加网页链接
+                for file in files:
+                    file['url'] = self.generate_web_url(file)
+                
+                # 过滤隐藏文件（如果需要）
+                if not show_hidden:
+                    files = [f for f in files if not f.get('name', '').startswith('.')]
+                
+                # 分离文件和文件夹
+                clean_files = []
+                clean_folders = []
+                
+                for file in files:
+                    if file.get('mimeType') == 'application/vnd.google-apps.folder':
+                        clean_folders.append(file)
+                    else:
+                        clean_files.append(file)
+                
+                return {
+                    "success": True,
+                    "path": f"[ID:{folder_id}]/{folder_name}",
+                    "folder_id": folder_id,
+                    "files": clean_files,
+                    "folders": clean_folders,
+                    "count": len(clean_folders) + len(clean_files),
+                    "mode": "by_id"
+                }
+                
+        except Exception as e:
+            import traceback
+            call_stack = ''.join(traceback.format_stack()[-3:])
+            error_msg = str(e)
+            
+            # 处理常见的Google Drive API错误
+            if "404" in error_msg or "not found" in error_msg.lower():
+                return {
+                    "success": False, 
+                    "error": f"Folder ID does not exist or is not accessible: {folder_id}"
+                }
+            elif "403" in error_msg or "permission" in error_msg.lower():
+                return {
+                    "success": False, 
+                    "error": f"No permission to access folder: {folder_id}"
+                }
+            else:
+                return {
+                    "success": False, 
+                    "error": f"Error accessing folder (ID: {folder_id}): {error_msg}. Call stack: {call_stack}"
+                }
 
     def ls_recursive(self, root_folder_id, root_path, detailed, show_hidden=False, max_depth=5):
         """递归列出目录内容"""
@@ -554,7 +726,7 @@ class LsCommand(BaseCommand):
                 }
                 
         except Exception as e:
-            return {"success": False, "error": f"递归列出目录时出错: {e}"}
+            return {"success": False, "error": f"Error listing directory recursively: {e}"}
 
     def build_nested_structure(self, all_items, root_path):
         """构建嵌套的文件夹结构，每个文件夹包含自己的files和folders"""
@@ -800,8 +972,9 @@ class LsCommand(BaseCommand):
                     # ls命令失败（文件不存在等）
                     return {"success": False, "error": stderr.strip()}
             else:
+                import traceback
                 data = result.get('data', {})
-                error = result.get('error', data.get('stderr', 'Command failed'))
+                error = result.get('error', data.get('stderr', f'Command failed. Call stack: {traceback.format_exc()}'))
                 return {"success": False, "error": f"Force refresh failed: {error}"}
                 
         except Exception as e:
@@ -862,12 +1035,14 @@ class LsCommand(BaseCommand):
 
 Usage:
   ls [path] [options]
+  ls --id <folder_id> [options]
 
 Arguments:
   path                     Directory path to list (default: current directory)
 
 Options:
   --detailed               Show detailed file information (type, size, modified time, ID, name)
+  --id <folder_id>         List directory by Google Drive folder ID (cannot be used with path)
   -R                       Recursive listing
   -a, --all                Show hidden files (files starting with .)
   -f, --force              Force mode (use remote bash to bypass API cache)
@@ -878,8 +1053,12 @@ Examples:
   ls                       List current directory
   ls /path/to/dir          List specific directory
   ls --detailed            Show detailed information with file IDs
+  ls --id 1GgaX0K7_QtZblGmj0fAK6E8CFZbC0P0B    List directory by ID
+  ls --id 1GgaX0K7_QtZblGmj0fAK6E8CFZbC0P0B --detailed    List by ID with details
   ls -R                    List recursively
   ls ~/Documents           List Documents folder
+
+Note: Use 'ls --detailed' to get folder IDs for use with --id option.
 """
         print(help_text)
 

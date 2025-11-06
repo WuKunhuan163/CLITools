@@ -98,15 +98,29 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        print(f"✓ 已预先更新config.json: MOUNT_HASH={mount_hash}")
+        print(f"✓ config.json updated: MOUNT_HASH={mount_hash}")
         
         # 同时更新GoogleDriveShell实例的MOUNT_HASH属性（如果实例存在）
         if google_drive_shell:
             google_drive_shell.MOUNT_HASH = mount_hash
             google_drive_shell.MOUNT_TIMESTAMP = timestamp
-            print(f"✓ 已预先更新当前shell实例的MOUNT_HASH")
+            print(f"✓ current shell instance updated: MOUNT_HASH={mount_hash}")
     except Exception as e:
-        print(f"Warning: 无法预先更新config.json: {e}")
+        print(f"Warning: failed to update config.json: {e}")
+    
+    # Reset all path IDs and restore defaults (before verification, to avoid errors)
+    try:
+        reset_command = google_drive_shell.command_registry.get_command("reset")
+        if reset_command:
+            clear_result = reset_command.cmd_reset_clear_all()
+            if clear_result.get("success"):
+                print(f"✓ {clear_result.get('message', 'Path IDs cleared and defaults restored')}")
+            else:
+                print(f"Warning: Failed to clear path IDs: {clear_result.get('error', 'Unknown error')}")
+        else:
+            print("Warning: Reset command not found")
+    except Exception as e:
+        print(f"Warning: Failed to clear path IDs: {e}")
     
     # 使用verify_with_ls检查文件是否存在
     try:
@@ -119,6 +133,14 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         
         if verify_result and verify_result.get("success"):
             print("✓ 远端指纹文件验证成功")
+            
+            # Clear remount required flag after successful remount
+            try:
+                if google_drive_shell and hasattr(google_drive_shell, 'command_executor'):
+                    google_drive_shell.command_executor._clear_remount_required_flag()
+            except Exception as e:
+                print(f"Warning: Failed to clear remount flag: {e}")
+            
             print("Remount成功")
             return 0
         else:

@@ -33,6 +33,9 @@ Migrated from: remote_commands.py (refactored for better modularity)
 """
 from typing import List
 import threading
+import json
+import os
+from .connection_check import create_connection_check_instance
 
 class DebugCapture:
     """Debug信息捕获和存储系统"""
@@ -266,6 +269,334 @@ class CommandExecutor:
         
         return cleaned_stdout
 
+    def _ensure_tmp_id_cached(self):
+        """确保~/tmp的ID已被解析和缓存"""
+        try:
+            # 检查是否已有~/tmp的缓存ID
+            tmp_logical_path = "~/tmp"
+            cached_id = self._get_cached_path_id(tmp_logical_path)
+            
+            if cached_id:
+                # 已有缓存，无需重新解析
+                return cached_id
+            
+            # 没有缓存，需要解析~/tmp的ID
+            resolved_id = self._resolve_tmp_folder_id()
+            
+            if resolved_id:
+                # 将解析的ID添加到缓存
+                self._cache_path_id(tmp_logical_path, resolved_id)
+                return resolved_id
+            else:
+                # 解析失败，但不影响命令执行
+                return None
+                
+        except Exception as e:
+            # 解析失败不应该影响命令执行
+            print(f"Warning: Failed to resolve ~/tmp ID: {e}")
+            return None
+    
+    def _get_cached_path_id(self, logical_path):
+        """从缓存中获取路径ID"""
+        try:
+            from .path_constants import PathConstants
+            path_constants = PathConstants()
+            config_path = str(path_constants.GDS_PATH_IDS_FILE)
+            
+            if not os.path.exists(config_path):
+                return None
+                
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            return config.get("path_ids", {}).get(logical_path)
+        except Exception:
+            return None
+    
+    def _cache_path_id(self, logical_path, folder_id):
+        """将路径ID添加到缓存"""
+        try:
+            import json
+            import os
+            import time
+            from .path_constants import PathConstants
+            
+            path_constants = PathConstants()
+            config_path = str(path_constants.GDS_PATH_IDS_FILE)
+            
+            # 加载现有配置
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            else:
+                config = {"path_ids": {}, "last_updated": None}
+            
+            # 添加新的路径ID
+            config["path_ids"][logical_path] = folder_id
+            config["last_updated"] = time.time()
+            
+            # 保存配置
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+                
+        except Exception as e:
+            print(f"Warning: Failed to cache path ID: {e}")
+    
+    def _resolve_tmp_folder_id(self):
+        """解析~/tmp文件夹的Google Drive ID"""
+        try:
+            if not self.main_instance.drive_service:
+                return None
+            
+            # 获取REMOTE_ROOT文件夹ID
+            root_folder_id = getattr(self.main_instance, 'REMOTE_ROOT_FOLDER_ID', None)
+            if not root_folder_id:
+                return None
+            
+            # 在REMOTE_ROOT中查找tmp文件夹
+            result = self.main_instance.drive_service.list_files(
+                folder_id=root_folder_id, 
+                max_results=100
+            )
+            
+            if not result.get('success') or not result.get('files'):
+                return None
+            
+            # 查找名为'tmp'的文件夹
+            for item in result['files']:
+                if (item.get('name') == 'tmp' and 
+                    item.get('mimeType') == 'application/vnd.google-apps.folder'):
+                    return item['id']
+            
+            return None
+            
+        except Exception as e:
+            print(f"Warning: Failed to resolve tmp folder ID: {e}")
+            return None
+    
+    def _should_add_connection_check(self, estimated_duration_seconds=None):
+        """
+        Determine if Connection Check should be added to the current command
+        
+        Args:
+            estimated_duration_seconds (float, optional): Estimated command duration
+            
+        Returns:
+            bool: True if Connection Check should be added
+        """
+        try:
+            # Load or initialize counter
+            counter_info = self._get_execution_counter()
+            
+            # Get frequency settings (configurable for testing vs production)
+            window_threshold = self._get_template_t_window_threshold()
+            duration_threshold = self._get_template_t_duration_threshold()
+            
+            # Check condition 1: Every X remote windows (trigger on Xth window, not X+1th)
+            if counter_info['count'] >= (window_threshold - 1):
+                self._reset_execution_counter()
+                return True
+            
+            # Check condition 2: Commands taking >T seconds
+            if estimated_duration_seconds and estimated_duration_seconds > duration_threshold:
+                self._reset_execution_counter()
+                return True
+            
+            # Increment counter for next time
+            self._increment_execution_counter()
+            return False
+            
+        except Exception as e:
+            print(f"Warning: Failed to check Connection Check condition: {e}")
+            return False
+    
+    def _get_execution_counter(self):
+        """Get current execution counter from persistent storage"""
+        try:
+            from .path_constants import PathConstants
+            path_constants = PathConstants()
+            counter_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "connection_check_counter.json"
+            
+            if counter_file.exists():
+                with open(counter_file, 'r') as f:
+                    return json.load(f)
+            else:
+                return {"count": 0, "last_reset": None}
+        except Exception:
+            return {"count": 0, "last_reset": None}
+    
+    def _increment_execution_counter(self):
+        """Increment the execution counter"""
+        try:
+            import time
+            from .path_constants import PathConstants
+            
+            path_constants = PathConstants()
+            counter_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "connection_check_counter.json"
+            
+            counter_info = self._get_execution_counter()
+            counter_info['count'] += 1
+            counter_info['last_updated'] = time.time()
+            
+            os.makedirs(counter_file.parent, exist_ok=True)
+            with open(counter_file, 'w') as f:
+                json.dump(counter_info, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Failed to increment execution counter: {e}")
+    
+    def _reset_execution_counter(self):
+        """Reset the execution counter to 0"""
+        try:
+            import time
+            from .path_constants import PathConstants
+            
+            path_constants = PathConstants()
+            counter_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "connection_check_counter.json"
+            
+            counter_info = {"count": 0, "last_reset": time.time()}
+            
+            os.makedirs(counter_file.parent, exist_ok=True)
+            with open(counter_file, 'w') as f:
+                json.dump(counter_info, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Failed to reset execution counter: {e}")
+    
+    def _get_template_t_window_threshold(self):
+        """Get window threshold for Connection Check (configurable for testing vs production)"""
+        from .path_constants import PathConstants
+        path_constants = PathConstants()
+        config_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "connection_check_config.json"
+        if config_file.exists():
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+            return config.get("window_threshold", 50)  # Default for testing
+        else:
+            return 50  # Default for testing (user can change to 50 for production)
+    
+    def _get_template_t_duration_threshold(self):
+        """Get duration threshold for Connection Check (configurable for testing vs production)"""
+        from .path_constants import PathConstants
+        path_constants = PathConstants()
+        config_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "connection_check_config.json"
+        if config_file.exists():
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+            return config.get("duration_threshold", 20)
+        else:
+            return 20  # Default for testing (user can change to 20 for production)
+    
+    def _should_wait_for_remount(self):
+        """Check if we should wait for remount before executing commands"""
+        try:
+            from .path_constants import PathConstants
+            path_constants = PathConstants()
+            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+            
+            return flag_file.exists()
+        except Exception:
+            return False
+    
+    def _set_remount_required_flag(self):
+        """Set flag indicating remount is required before next command"""
+        try:
+            import time
+            from .path_constants import PathConstants
+            
+            path_constants = PathConstants()
+            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+            
+            flag_data = {
+                "created": time.time(),
+                "reason": "Unknown error detected in previous command execution"
+            }
+            
+            os.makedirs(flag_file.parent, exist_ok=True)
+            with open(flag_file, 'w') as f:
+                json.dump(flag_data, f, indent=2)
+                
+        except Exception as e:
+            print(f"Warning: Failed to set remount required flag: {e}")
+    
+    def _clear_remount_required_flag(self):
+        """Clear the remount required flag (called after successful remount)"""
+        try:
+            from .path_constants import PathConstants
+            path_constants = PathConstants()
+            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+            
+            if flag_file.exists():
+                flag_file.unlink()
+        except Exception as e:
+            print(f"Warning: Failed to clear remount required flag: {e}")
+    
+    def auto_remount_and_wait(self):
+        """Automatically trigger remount and wait for completion"""
+        try:
+            from .remount_manager import remount_google_drive
+            
+            print("Triggering automatic remount...")
+            
+            # 调用remount功能
+            exit_code = remount_google_drive(
+                command_identifier="auto_remount", 
+                google_drive_shell=self.main_instance
+            )
+            
+            if exit_code == 0:
+                print("Automatic remount completed successfully")
+                return True
+            else:
+                print("Automatic remount failed")
+                return False
+                
+        except Exception as e:
+            print(f"Automatic remount failed with error: {e}")
+            return False
+    
+    def add_connection_check_to_command(self, remote_command, result_filename, cmd_hash=None):
+        """
+        Add Connection Check to the end of a remote command
+        
+        Args:
+            remote_command (str): Original remote command
+            result_filename (str): Expected result filename
+            cmd_hash (str, optional): Command hash to display in Connection Check
+            
+        Returns:
+            str: Command with Connection Check appended
+        """
+        try:
+            # Get cached tmp ID
+            tmp_id = self._get_cached_path_id("~/tmp")
+            if not tmp_id:
+                return remote_command
+            
+            # Create Connection Check instance
+            connection_check = create_connection_check_instance(self.main_instance)
+            
+            # Generate Connection Check code
+            template_code = connection_check.generate_template(
+                result_filename=result_filename,
+                tmp_folder_id=tmp_id,
+                max_attempts=12,
+                interval_seconds=1,
+                command_hash=cmd_hash
+            )
+            
+            if not template_code:
+                # If template generation failed, return original command
+                return remote_command
+            
+            # Append Connection Check to the command
+            enhanced_command = f"{remote_command}\n\n{template_code}"
+            
+            return enhanced_command
+            
+        except Exception as e:
+            print(f"Warning: Failed to add Connection Check: {e}")
+            return remote_command
+
     def execute_command(self, remote_command, result_filename, cmd_hash, raw_command=None):
         """
         执行远程命令接口 - 只负责执行已生成的远程命令
@@ -279,6 +610,35 @@ class CommandExecutor:
         Returns:
             dict: 执行结果
         """
+        # 在显示远程窗口之前，检查是否需要等待remount
+        if self._should_wait_for_remount(): 
+            print("Previous Unknown error detected. Automatically triggering remount...")
+            remount_success = False
+            import time
+            for i in range(3):
+                remount_success = self.auto_remount_and_wait()
+                if remount_success:
+                    break
+                else:
+                    time.sleep(1)
+            
+            if not remount_success:
+                return {
+                    "success": False,
+                    "action": "remount_failed",
+                    "error": "Automatic remount failed. Please run 'GOOGLE_DRIVE --remount' manually."
+                }
+            
+            # Remount成功，继续执行原命令
+            print("Remount completed successfully. Continuing with original command...")
+        
+        # 确保~/tmp的ID已被解析和缓存
+        self._ensure_tmp_id_cached()
+        
+        # 检查是否需要添加Connection Check
+        if self._should_add_connection_check():
+            remote_command = self.add_connection_check_to_command(remote_command, result_filename, cmd_hash)
+        
         # 显示远程窗口
         window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
         
@@ -300,13 +660,21 @@ class CommandExecutor:
                     "source": "unified_command"
                 }
             else:
+                # 尝试从多个位置获取错误信息
+                error_msg = result.get("error", "")
+                if not error_msg:
+                    # 尝试从data.error获取
+                    data = result.get('data', {})
+                    error_msg = data.get('error', '')
+                
                 return {
                     "success": False,
                     "action": "execution_failed",
                     "data": {
-                        "error": result.get("error", ""),
+                        "error": error_msg,
                         "source": "unified_command"
-                    }
+                    },
+                    "error": error_msg  # 保持顶级error字段，确保google_drive_shell.py能获取到
                 }
                 
         elif window_result["action"] == "direct_feedback":
@@ -340,6 +708,7 @@ class CommandExecutor:
         Returns:
             dict: 执行结果，包含stdout、stderr、path等字段
         """
+        # 调试代码已移除
         # 检查是否为特殊命令，如果是则不应该到这里
         if cmd in self.SPECIAL_COMMANDS:
             return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
@@ -405,15 +774,6 @@ class CommandExecutor:
 
     def show_remote_command_window(self, cmd, timeout_seconds=3600, test_mode=False, is_priority=False, cmd_hash=None):
         # 调试窗口弹出次数
-        if False:  # 设置为True可开启调试
-            import traceback
-            print("\nDEBUG: show_remote_command_window called!")
-            print("DEBUG: Call stack:")
-            for line in traceback.format_stack()[:-1]:
-                if "/Users/wukunhuan/.local/bin" in line:
-                    print(line.strip())
-            print("DEBUG: ==================\n")
-        
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
 

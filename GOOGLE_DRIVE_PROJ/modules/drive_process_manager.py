@@ -3,8 +3,6 @@
 Google Drive - Drive Process Manager Module
 """
 
-import os
-import json
 import subprocess
 import time
 import warnings
@@ -15,18 +13,7 @@ load_dotenv()
 # 导入工具函数
 from .system_utils import is_run_environment, write_to_json_output
 
-# 添加缺失的工具函数
-
-
-# 导入Google Drive Shell管理类 - 注释掉避免循环导入
-# try:
-#     from google_drive_shell import GoogleDriveShell
-# except ImportError as e:
-#     print(f"Error: Load Google Drive Shell failed: {e}")
-#     GoogleDriveShell = None
-
 # 全局常量
-
 def is_google_drive_running():
     """检查Google Drive Desktop是否正在运行"""
     try:

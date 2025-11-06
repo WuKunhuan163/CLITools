@@ -410,9 +410,11 @@ Notes:
                 sync_result = self.main_instance.sync_manager.wait_for_file_sync(large_file_names, virtual_file_moves)
                 
                 if not sync_result["success"]:
+                    import traceback
+                    call_stack = ''.join(traceback.format_stack()[-3:])
                     return {
                         "success": False,
-                        "error": f"Large files sync failed: {sync_result.get('error', 'Unknown error')}",
+                        "error": f"Large files sync failed: {sync_result.get('error', f'Sync operation failed without specific error message. Call stack: {call_stack}')}",
                         "large_files_handled": True
                     }
                 
@@ -433,7 +435,6 @@ Notes:
                 
                 # Generate mv commands using the same logic as small files
                 mv_command = self.main_instance.remote_commands.generate_mv_commands(large_file_moves, target_path)
-                debug_print(f"DEBUG: Large-file-only mv command: {mv_command[:200]}...")
                 
                 # Execute the mv command
                 if mv_command.strip():
@@ -450,9 +451,11 @@ Notes:
                         "large_files_handled": True
                     }
                 else:
+                    import traceback
+                    call_stack = ''.join(traceback.format_stack()[-3:])
                     return {
                         "success": False,
-                        "error": f"Failed to move large files: {mv_result.get('error', 'Unknown error')}",
+                        "error": f"Failed to move large files: {mv_result.get('error', f'Move operation failed without specific error message. Call stack: {call_stack}')}",
                         "large_files_handled": True
                     }
             elif not normal_files and not large_files:
@@ -465,7 +468,14 @@ Notes:
             if not ensure_google_drive_desktop_running():
                 return {"success": False, "error": "用户取消上传操作"}
             
-            # 5. 开始进度显示（在Google Drive Desktop检查之后）
+            # 4.5. 检查目标文件是否已存在，避免冲突（除非使用--force）
+            # 重要：在显示进度指示器之前检查冲突
+            if not force:
+                conflict_check_result = self.check_remote_file_conflicts(source_files, target_path)
+                if not conflict_check_result["success"]:
+                    return conflict_check_result
+            
+            # 5. 开始进度显示（在Google Drive Desktop检查和冲突检查之后）
             from ..progress_manager import start_progress_buffering
             start_progress_buffering("⏳ Waiting for upload ...")
             progress_started = True
@@ -478,19 +488,13 @@ Notes:
             # 先获取逻辑路径
             target_display_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell, return_logical=True)
             # 再获取drive ID
-            target_folder_id, _ = self.main_instance.path_resolver.resolve_drive_id(target_path, current_shell)
+            target_folder_id, _ = self.main_instance.resolve_drive_id(target_path, current_shell)
             debug_print(f"After resolve - target_folder_id='{target_folder_id}', target_display_path='{target_display_path}'")
             if target_folder_id is None and self.drive_service:
                 target_folder_id = None  # 标记为需要创建
                 target_display_path = target_path
             elif not self.drive_service:
                 print(f"Warning: Google Drive API service not initialized, using mock mode")
-            
-            # 3.5. 检查目标文件是否已存在，避免冲突（除非使用--force）
-            if not force:
-                conflict_check_result = self.check_remote_file_conflicts(source_files, target_path)
-                if not conflict_check_result["success"]:
-                    return conflict_check_result
             
             # 4. 检查是否有文件夹，提示正确语法
             for source_file in source_files:
@@ -524,9 +528,15 @@ Notes:
                     else:
                         debug_print(f"File processed without renaming: {move_result['filename']}")
                 else:
+                    import traceback
+                    call_stack = ''.join(traceback.format_stack()[-3:])
+                    error_msg = move_result.get("error", "")
+                    if not error_msg:
+                        error_msg = f"Unknown error. Call stack: {call_stack}"
+                    
                     failed_moves.append({
                         "file": source_file,
-                        "error": move_result.get("error", "Unknown error")
+                        "error": error_msg
                     })
                     print(f"\n✗ {move_result['error']}")
             
@@ -542,7 +552,7 @@ Notes:
                 print(f"\nSmall files are now syncing. Please start uploading large files...")
                 large_file_result = self.handle_large_files(large_files, target_path, current_shell)
                 if not large_file_result["success"]:
-                    print(f"Large file setup failed: {large_file_result.get('error', 'Unknown error')}")
+                    print(f"Large file setup failed: {large_file_result.get('error', 'Large file processing failed without specific error message')}")
                     print(f"Continuing with small files only...")
                     large_files = []  # Clear large files to avoid processing later
             
@@ -569,14 +579,14 @@ Notes:
                 }
             elif not sync_result["success"]:
                 # 同步检测失败，但继续执行
-                print(f"Warning: File sync check failed: {sync_result.get('error', 'Unknown error')}")
+                print(f"Warning: File sync check failed: {sync_result.get('error', 'Sync verification failed without specific error message')}")
                 print(f"Upload may have succeeded, please manually verify files have been uploaded")
                 print(f"You can retry upload if needed")
                 
                 # 返回失败结果，让用户决定是否重试
                 return {
                     "success": False,
-                    "error": f"Upload sync verification failed: {sync_result.get('error', 'Unknown error')}",
+                    "error": f"Upload sync verification failed: {sync_result.get('error', 'Sync verification failed without specific error message')}",
                     "file_moves": file_moves,
                     "sync_time": sync_result.get("sync_time", 0),
                     "suggestion": "Files may have been uploaded successfully. Please check manually and retry if needed."
@@ -593,7 +603,11 @@ Notes:
             debug_print(f"Before generate_mv_commands - file_moves={file_moves}")
             debug_print(f"Before generate_mv_commands - target_path='{target_path}'")
             remote_command = self.main_instance.remote_commands.generate_mv_commands(file_moves, target_path, folder_upload_info)
-            debug_print(f"After generate_mv_commands - remote_command preview: {remote_command[:200]}...")
+            # 在长时间运行的操作中减少调试输出
+            if len(remote_command) > 500:
+                debug_print(f"After generate_mv_commands - remote_command length: {len(remote_command)} chars")
+            else:
+                debug_print(f"After generate_mv_commands - remote_command preview: {remote_command[:200]}...")
             
             # 11. 如果有大文件，延迟小文件mv命令执行；否则立即执行
             if large_files:
@@ -607,12 +621,10 @@ Notes:
             # 如果执行失败，直接返回错误
             if not execution_result.get("success", False):
                 # 明确处理错误信息的获取
-                if "error" in execution_result:
-                    error = execution_result["error"]
-                elif "data" in execution_result and isinstance(execution_result["data"], dict):
-                    error = execution_result["data"].get("error", "Unknown error")
-                else:
-                    error = "Unknown error"
+                error = execution_result["data"].get("error", "Command execution failed without specific error message")
+                import traceback
+                call_stack = ''.join(traceback.format_stack()[-3:])  # 获取最近3层调用栈
+                error = f"Unknown error in upload: {error}. Call stack: {call_stack}"
                 
                 return {
                     "success": False,
@@ -689,7 +701,7 @@ Notes:
                 large_sync_result = self.main_instance.sync_manager.wait_for_file_sync(large_file_names, virtual_file_moves)
                 
                 if not large_sync_result["success"]:
-                    print(f"Warning: Large files sync failed: {large_sync_result.get('error', 'Unknown error')}")
+                    print(f"Warning: Large files sync failed: {large_sync_result.get('error', 'Large file sync failed without specific error message')}")
                     print(f"Small files were uploaded successfully, but large files may need manual verification")
                 else:
                     # 同步成功后，合并执行小文件和大文件的mv命令
@@ -714,7 +726,7 @@ Notes:
                         result["total_succeeded"] += len(large_files)
                         result["message"] = f"Mixed upload completed: {len(file_moves)} small + {len(large_files)} large files"
                     else:
-                        print(f"Warning: Failed to move files: {unified_mv_result.get('error', 'Unknown error')}")
+                        print(f"Warning: Failed to move files: {unified_mv_result.get('error', 'File move operation failed without specific error message')}")
                         print(f"Some files may still be in their temporary locations and need manual moving")
             
             # 14. 上传和远端命令执行完成后，清理LOCAL_EQUIVALENT中的文件
@@ -1431,7 +1443,7 @@ except Exception as e:
                     "message": message
                 }
             else:
-                error_msg = mv_result.get("error", "Unknown error")
+                error_msg = mv_result.get("error", "File move operation failed without specific error message")
                 print(f"Warning: Failed to move files: {error_msg}")
                 return {
                     "success": False,

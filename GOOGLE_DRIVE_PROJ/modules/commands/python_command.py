@@ -66,7 +66,9 @@ class PythonCommand(BaseCommand):
                     print(stdout)
                 return 0
             else:
-                error_msg = result.get('error', 'Unknown error')
+                import traceback
+                call_stack = ''.join(traceback.format_stack()[-3:])
+                error_msg = result.get('error', f'Python command execution failed without specific error message. Call stack: {call_stack}')
                 print(f"Error getting Python version: {error_msg}")
                 return 1
         

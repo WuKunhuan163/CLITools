@@ -360,7 +360,12 @@ Notes:
             compress_result = self.main_instance.execute_command_interface("bash", ["-c", compress_command])
             
             if not compress_result.get("success", False):
-                return {"success": False, "error": f"Failed to compress directory: {compress_result.get('error', 'Unknown error')}"}
+                import traceback
+                call_stack = ''.join(traceback.format_stack()[-3:])
+                error_msg = compress_result.get('error', '')
+                if not error_msg:
+                    error_msg = f"Unknown error. Call stack: {call_stack}"
+                return {"success": False, "error": f"Failed to compress directory: {error_msg}"}
             
             # 步骤2：验证zip文件是否创建成功
             print(f"验证zip文件创建: {remote_zip_path}")
@@ -414,7 +419,7 @@ Notes:
                     "zip_filename": zip_filename
                 }
             else:
-                return {"success": False, "error": f"Failed to download zip file: {download_result.get('error', 'Unknown error')}"}
+                return {"success": False, "error": f"Failed to download zip file: {download_result.get('error', 'Download operation failed without specific error message')}"}
                 
         except Exception as e:
             return {"success": False, "error": f"Directory download failed: {e}"}

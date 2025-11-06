@@ -24,9 +24,10 @@ class GoogleDriveService:
         self.credentials = None
         self.key_path = None
         self.key_data = None
+
         # 路径解析缓存，减少重复API调用
         self._path_cache = {}
-        self._cache_max_size = 100  # 最大缓存条目数
+        self._cache_max_size = 999999
         
         # 优先尝试从环境变量加载密钥信息
         if self.load_from_environment():
@@ -249,10 +250,9 @@ class GoogleDriveService:
                     break
             
             if not target_file:
-                available_files = [f['name'] for f in files_result['files']]
                 return {
                     "success": False,
-                    "error": f"File '{filename}' not found in folder. Available files: {available_files}"
+                    "error": f"No such file or directory"
                 }
             
             # 3. 下载文件到临时位置

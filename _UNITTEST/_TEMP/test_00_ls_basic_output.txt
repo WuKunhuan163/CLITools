@@ -1,83 +1,45 @@
+# ============================================================================
+# Test completed at: 2025-11-05 16:21:11 - Status: PASS
+# ============================================================================
+
 test_00_ls_basic (test_gds.GDSTest)
 测试ls命令的全路径支持（修复后的功能） ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 129.905s
+Ran 1 test in 88.953s
 
 OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251030_164229_598623_7f0d9853
-正在创建远端测试目录: ~/tmp/gds_test_20251030_164229_598623_7f0d9853
+远端测试目录: ~/tmp/gds_test_20251105_161937_454401_231cc67a
+正在创建远端测试目录: ~/tmp/gds_test_20251105_161937_454401_231cc67a
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251030_164229_598623_7f0d9853
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_nhkm5xdr
+已切换到远端测试目录: ~/tmp/gds_test_20251105_161937_454401_231cc67a
+✓ 验证测试目录存在: ~/tmp/gds_test_20251105_161937_454401_231cc67a
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_gy_pbssr
 测试环境设置完成
-命令转译成功: mkdir -p "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir" -> mkdir -p "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir"
+命令转译成功: mkdir -p "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir" -> mkdir -p "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir"
 返回码: 0
-输出: ⏳ Waiting for result ...
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 49 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = False
-.
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 49 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = False
-.
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 50 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = True
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813785_d9bec862.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 50 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = True
-...
-命令转译成功: 'echo "test content" > "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/testfile.txt"' -> __QUOTED_COMMAND__echo 'test content' > "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/testfile.txt"
+输出: ...
+命令转译成功: 'echo "test content" > "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir/testfile.txt"' -> __QUOTED_COMMAND__echo "test content" > "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir/testfile.txt"
 返回码: 0
-输出: ⏳ Waiting for result ...
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813824_64eed0a2.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813824_64eed0a2.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 51 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = False
-.
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813824_64eed0a2.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813824_64eed0a2.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 52 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = True
-[DEBUG] check_remote_file_exists: file_path = ~/tmp/cmd_1761813824_64eed0a2.json
-[DEBUG] check_remote_file_exists: dir_path = ~/tmp, filename = cmd_1761813824_64eed0a2.json
-[DEBUG] check_remote_file_exists: cmd_ls(~/tmp) returned success=True
-[DEBUG] check_remote_file_exists: found 52 items in ~/tmp
-[DEBUG] check_remote_file_exists: items = ['.gds_mount_fingerprint_72005bbe', '.gds_mount_fingerprint_726e6410', '.gds_mount_fingerprint_8463fac8', '.gds_mount_fingerprint_e61df53e', 'cmd_1761807753_39e44cb5.json', 'cmd_1761811873_67838820.json', 'cmd_1761812035_b80dfb47.json', 'cmd_1761812205_45f24f33.json', 'cmd_1761812346_83195e46.json', 'cmd_1761812388_6cd6e171.json']
-[DEBUG] check_remote_file_exists: file_exists = True
-...
-命令转译成功: ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir" -> ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir"
+输出: ...
+命令转译成功: ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir" -> ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir"
 返回码: 0
-输出: testfile.txt
-...
-命令转译成功: ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/testfile.txt" -> ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/testfile.txt"
+输出: testfile.txt...
+命令转译成功: ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir/testfile.txt" -> ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir/testfile.txt"
 返回码: 0
-输出: testfile.txt
-...
-命令转译成功: ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/nonexistent.txt" -> ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/nonexistent.txt"
+输出: testfile.txt...
+命令转译成功: ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir/nonexistent.txt" -> ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir/nonexistent.txt"
 返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251030_164229_598623_7f0d9853/testdir/nonexistent.txt
-...
-命令转译成功: ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/nonexistent_dir/file.txt" -> ls "~/tmp/gds_test_20251030_164229_598623_7f0d9853/nonexistent_dir/file.txt"
+输出: Unknown error: Unable to find the id for file or subfolder 'nonexistent.txt' from the current folder '~/tmp/gds_test_20251105_161937_454401_231cc67a/testdir' (id: 18ox3BswbfposiiZXyaFUFRzRZXd_62HZ)
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID（当前路径ID: 18ox3BswbfposiiZXyaFUFRzRZXd_62HZ）- 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问...
+命令转译成功: ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/nonexistent_dir/file.txt" -> ls "~/tmp/gds_test_20251105_161937_454401_231cc67a/nonexistent_dir/file.txt"
 返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251030_164229_598623_7f0d9853/nonexistent_dir/file.txt
-...
+输出: Unknown error: Unable to find the id for subfolder 'nonexistent_dir' from the current folder '~/tmp/gds_test_20251105_161937_454401_231cc67a' (id: 1iYsMtk6a-NCIhmJeDMkRW4Mdp7IzIj8s)
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID（当前路径ID: 1iYsMtk6a-NCIhmJeDMkRW4Mdp7IzIj8s）- 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问...

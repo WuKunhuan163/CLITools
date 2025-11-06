@@ -37,11 +37,10 @@ class MkdirCommand(BaseCommand):
         data = execution_result.get("data", {})
         exit_code = data.get("exit_code", execution_result.get("exit_code", -1))
         if exit_code != 0:
-            # 返回错误信息，不throw exception
             stderr = data.get("stderr", execution_result.get("stderr", ""))
             return {
                 "success": False,
-                "error": f"mkdir command failed with exit code {exit_code}: {stderr}",
+                "error": stderr.strip(),
                 "exit_code": exit_code,
                 "stderr": stderr
             }

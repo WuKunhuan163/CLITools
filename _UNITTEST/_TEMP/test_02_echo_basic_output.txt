@@ -1,74 +1,88 @@
+# ============================================================================
+# Test completed at: 2025-11-05 16:24:13 - Status: FAIL
+# ============================================================================
+
 test_02_echo_basic (test_gds.GDSTest)
-测试基础echo命令 ... ok
+测试基础echo命令 ... FAIL
+
+======================================================================
+FAIL: test_02_echo_basic (test_gds.GDSTest)
+测试基础echo命令
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 854, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 824, in _baseAssertEqual
+    raise self.failureException(msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1525, in test_02_echo_basic
+    self.assertTrue(self.verify_file_content_contains(complex_echo_file, content, terminal_erase = True))
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 918, in verify_file_content_contains
+    result = self.gds(f'cat "{filename}"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 860, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: cat "~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt" - 1 != 0 : 命令执行失败
 
 ----------------------------------------------------------------------
-Ran 1 test in 281.320s
+Ran 1 test in 272.198s
 
-OK
+FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251030_165340_312537_744672d6
-正在创建远端测试目录: ~/tmp/gds_test_20251030_165340_312537_744672d6
+远端测试目录: ~/tmp/gds_test_20251105_161937_884214_da9bd690
+正在创建远端测试目录: ~/tmp/gds_test_20251105_161937_884214_da9bd690
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251030_165340_312537_744672d6
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_5jbmxpay
+已切换到远端测试目录: ~/tmp/gds_test_20251105_161937_884214_da9bd690
+✓ 验证测试目录存在: ~/tmp/gds_test_20251105_161937_884214_da9bd690
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_x3tfmyqr
 测试环境设置完成
 命令转译成功: echo "Hello World" -> echo "Hello World"
 返回码: 0
-输出: ⏳ Waiting for result ......
-Hello World
-...
+输出: Hello World...
 命令转译成功: echo "Complex: @#$%^&*() \"quotes\" 中文字符" -> echo "Complex: @#$%^&*() \"quotes\" 中文字符"
 返回码: 0
-输出: ⏳ Waiting for result ......
-Complex: @#$%^&*() "quotes" 中文字符
-...
-命令转译成功: 'echo "Test content" > "~/tmp/gds_test_20251030_165340_312537_744672d6/test_echo.txt"' -> __QUOTED_COMMAND__echo 'Test content' > "~/tmp/gds_test_20251030_165340_312537_744672d6/test_echo.txt"
+输出: Complex: @#$%^&*() quotes 中文字符...
+命令转译成功: 'echo "Test content" > "~/tmp/gds_test_20251105_161937_884214_da9bd690/test_echo.txt"' -> __QUOTED_COMMAND__echo "Test content" > "~/tmp/gds_test_20251105_161937_884214_da9bd690/test_echo.txt"
 返回码: 0
-输出: ⏳ Waiting for result ......
-...
-命令转译成功: cat "~/tmp/gds_test_20251030_165340_312537_744672d6/test_echo.txt" -> cat "~/tmp/gds_test_20251030_165340_312537_744672d6/test_echo.txt"
+输出: ...
+命令转译成功: cat "~/tmp/gds_test_20251105_161937_884214_da9bd690/test_echo.txt" -> cat "~/tmp/gds_test_20251105_161937_884214_da9bd690/test_echo.txt"
 返回码: 0
-输出: Test content
-...
+输出: Test content...
 命令转译成功: 'echo "Line 1
-Line 2	Tabbed\Backslash" > "~/tmp/gds_test_20251030_165340_312537_744672d6/complex_echo.txt"' -> __QUOTED_COMMAND__echo 'Line 1
-Line 2	Tabbed\Backslash' > "~/tmp/gds_test_20251030_165340_312537_744672d6/complex_echo.txt"
+Line 2	Tabbed\Backslash" > "~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt"' -> __QUOTED_COMMAND__echo "Line 1
+Line 2	Tabbed\\Backslash" > "~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt"
 返回码: 0
-输出: ⏳ Waiting for result ....
-...
-命令转译成功: cat "~/tmp/gds_test_20251030_165340_312537_744672d6/complex_echo.txt" -> cat "~/tmp/gds_test_20251030_165340_312537_744672d6/complex_echo.txt"
-返回码: 0
-输出: Line 1
-Line 2	Tabbed\Backslash
-...
-命令转译成功: 'echo "{'name': 'test', 'value': 123}" > "~/tmp/gds_test_20251030_165340_312537_744672d6/json_echo.txt"' -> __QUOTED_COMMAND__echo '{'\''name'\'': '\''test'\'', '\''value'\'': 123}' > "~/tmp/gds_test_20251030_165340_312537_744672d6/json_echo.txt"
-返回码: 0
-输出: ⏳ Waiting for result .....
-...
-命令转译成功: cat "~/tmp/gds_test_20251030_165340_312537_744672d6/json_echo.txt" -> cat "~/tmp/gds_test_20251030_165340_312537_744672d6/json_echo.txt"
-返回码: 0
-输出: {'name': 'test', 'value': 123}
-...
-执行的命令: echo "'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'" > "'~/tmp/gds_test_20251030_165340_312537_744672d6/chinese_echo.txt'"
-命令转译成功: echo "'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'" > "'~/tmp/gds_test_20251030_165340_312537_744672d6/chinese_echo.txt'" -> echo "'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'" > "'~/tmp/gds_test_20251030_165340_312537_744672d6/chinese_echo.txt'"
-返回码: 0
-输出: ⏳ Waiting for result .....
-...
-命令转译成功: cat "~/tmp/gds_test_20251030_165340_312537_744672d6/chinese_echo.txt" -> cat "~/tmp/gds_test_20251030_165340_312537_744672d6/chinese_echo.txt"
-返回码: 0
-输出: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'
-...
-命令转译成功: 'echo -e "line1
-line2
-line3" > "~/tmp/gds_test_20251030_165340_312537_744672d6/echo_multiline.txt"' -> __QUOTED_COMMAND__echo 'line1
-line2
-line3' > "~/tmp/gds_test_20251030_165340_312537_744672d6/echo_multiline.txt"
-返回码: 0
-输出: ⏳ Waiting for result .....
-...
-命令转译成功: cat "~/tmp/gds_test_20251030_165340_312537_744672d6/echo_multiline.txt" -> cat "~/tmp/gds_test_20251030_165340_312537_744672d6/echo_multiline.txt"
-返回码: 0
-输出: line1
-line2
-line3
-...
+输出: ...
+错误: bash: line 1: unexpected EOF while looking for matching `''
+bash: line 2: syntax error: unexpected end of file...
+命令转译成功: cat "~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt" -> cat "~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt"
+返回码: 1
+输出: cat: ~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt: No such file or directory...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+📡 检测到Unknown error，自动执行 GOOGLE_DRIVE --remount...
+📡 GOOGLE_DRIVE --remount 执行完成，返回码: 0
+📡 Remount输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_5bd5bea6
+✓ config.json updated: MOUNT_HASH=5bd5bea6
+✓ current shell instance updated: MOUNT_HASH=5bd5bea6
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv0...
+📝 Remount操作已记录到: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/auto_remount_log.json
+重试第1次...
+返回码: 1
+输出: cat: ~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt: No such file or directory...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+📡 检测到Unknown error，自动执行 GOOGLE_DRIVE --remount...
+📡 GOOGLE_DRIVE --remount 执行完成，返回码: 0
+📡 Remount输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_930d72a0
+✓ config.json updated: MOUNT_HASH=930d72a0
+✓ current shell instance updated: MOUNT_HASH=930d72a0
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv0...
+📝 Remount操作已记录到: /Users/wukunhuan/.local/bin/GOOGLE_DRIVE_DATA/auto_remount_log.json
+重试第2次...
+返回码: 1
+输出: cat: ~/tmp/gds_test_20251105_161937_884214_da9bd690/complex_echo.txt: No such file or directory...
+命令执行异常: 1 != 0 : 命令执行失败
