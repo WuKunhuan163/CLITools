@@ -531,27 +531,23 @@ class CommandExecutor:
             print(f"Warning: Failed to clear remount required flag: {e}")
     
     def auto_remount_and_wait(self):
-        """Automatically trigger remount and wait for completion"""
+        """Automatically trigger remount and wait for completion using subprocess"""
         try:
-            from .remount_manager import remount_google_drive
+            import subprocess
+            import sys
             
-            print("Triggering automatic remount...")
-            
-            # 调用remount功能
-            exit_code = remount_google_drive(
-                command_identifier="auto_remount", 
-                google_drive_shell=self.main_instance
+            # 使用subprocess调用GOOGLE_DRIVE --remount，只关心返回码
+            result = subprocess.run(
+                [sys.executable, "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", "--remount"],
+                capture_output=True,
+                text=True,
+                timeout=60  # 60秒超时
             )
             
-            if exit_code == 0:
-                print("Automatic remount completed successfully")
-                return True
-            else:
-                print("Automatic remount failed")
-                return False
+            # 只检查返回码，不输出任何信息
+            return result.returncode == 0
                 
         except Exception as e:
-            print(f"Automatic remount failed with error: {e}")
             return False
     
     def add_connection_check_to_command(self, remote_command, result_filename, cmd_hash=None):
@@ -579,7 +575,6 @@ class CommandExecutor:
             template_code = connection_check.generate_template(
                 result_filename=result_filename,
                 tmp_folder_id=tmp_id,
-                max_attempts=12,
                 interval_seconds=1,
                 command_hash=cmd_hash
             )
@@ -612,7 +607,6 @@ class CommandExecutor:
         """
         # 在显示远程窗口之前，检查是否需要等待remount
         if self._should_wait_for_remount(): 
-            print("Previous Unknown error detected. Automatically triggering remount...")
             remount_success = False
             import time
             for i in range(3):
@@ -628,9 +622,6 @@ class CommandExecutor:
                     "action": "remount_failed",
                     "error": "Automatic remount failed. Please run 'GOOGLE_DRIVE --remount' manually."
                 }
-            
-            # Remount成功，继续执行原命令
-            print("Remount completed successfully. Continuing with original command...")
         
         # 确保~/tmp的ID已被解析和缓存
         self._ensure_tmp_id_cached()

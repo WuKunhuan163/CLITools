@@ -869,13 +869,8 @@ class GoogleDriveShell:
             # 如果检测到heredoc（无论是否多命令）
             if needs_sequential:
                 if len(processed_commands) > 1:
-                    # print(f"Heredoc detected, translating to {len(processed_commands)} commands:")
-                    # for i, cmd in enumerate(processed_commands, 1):
-                    #     print(f"  {i}. {cmd}")
-                    
                     last_result = 0
                     for cmd in processed_commands:
-                        # 递归调用，但使用翻译后的单个命令
                         result = self.execute_shell_command(cmd, command_identifier)
                         if isinstance(result, int):
                             last_result = result
@@ -885,9 +880,7 @@ class GoogleDriveShell:
                             last_result = 0
                     return last_result
                 else:
-                    # 单个命令的heredoc翻译
                     print(f"Heredoc detected, translating to: {processed_commands[0]}")
-                    # 继续使用翻译后的命令
             
             # 如果是翻译后的命令，使用翻译结果
             if needs_sequential:
@@ -895,10 +888,8 @@ class GoogleDriveShell:
                 shell_cmd = shell_cmd_clean
 
             # 路径展开处理：在命令解析之前进行路径展开
-            # 1. Undo local path expansion (e.g., /Users/username -> ~)
             shell_cmd_clean = self.path_resolver.undo_local_path_user_expansion(shell_cmd_clean)
             
-            # 2. 调用expand_paths_with_bash展开~以及@路径placeholder
             if '@' in shell_cmd_clean:
                 shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '@', self.REMOTE_ENV)
             if '~' in shell_cmd_clean:

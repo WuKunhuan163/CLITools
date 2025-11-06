@@ -76,8 +76,6 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
             from google_drive_shell import GoogleDriveShell
             google_drive_shell = GoogleDriveShell()
         except Exception as e:
-            print(f"Warning: 无法创建GoogleDriveShell实例进行验证: {e}")
-            print("Remount完成（未验证）")
             return 0
     
     # 先更新local cache hash，这样可能有助于API同步
@@ -139,18 +137,12 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
                 if google_drive_shell and hasattr(google_drive_shell, 'command_executor'):
                     google_drive_shell.command_executor._clear_remount_required_flag()
             except Exception as e:
-                print(f"Warning: Failed to clear remount flag: {e}")
+                pass
             
-            print("Remount成功")
             return 0
         else:
-            print("✗ 远端指纹文件未找到")
-            print(f"  提示: 请确认远端脚本已正确执行并创建了 {fingerprint_path}")
-            print("Remount完成（验证失败，但hash已更新）")
             return 1
     except Exception as e:
-        print(f"Warning: 验证远端指纹文件时出错: {e}")
-        print("Remount完成（验证异常，但hash已更新）")
         return 1
 
 
