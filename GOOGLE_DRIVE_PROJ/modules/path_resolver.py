@@ -177,63 +177,75 @@ class PathResolver:
         Returns:
             转换后的命令字符串或路径
         """
+        import os
+        import uuid
+        import subprocess
+        
+        # 获取用户的home目录
+        home_dir = os.path.expanduser("~")
+        
+        # 用户建议的完整方案：
+        # 步骤1: 用hash保护原始的~，避免被误替换
+        tilde_placeholder = f"TILDE_PLACEHOLDER_{uuid.uuid4().hex[:8].upper()}"
+        protected_command = command_or_path.replace('~', tilde_placeholder)
+        
+        # 步骤2: 将已展开的home目录路径替换回~
+        # 这些~是"可疑的"，可能是被错误展开的路径
+        suspicious_command = protected_command.replace(home_dir, '~')
+        
+        # 步骤3: 用bash -c -x测试，分块处理重定向
+        # 如果这些~被bash展开了，说明它们确实是被错误展开的路径
         try:
-            import os
-            import shlex
+            # 检测重定向并分块处理
+            redirect_operators = ['>', '>>', '<', '2>', '2>>', '&>', '&>>', '2>&1', '|']
+            main_command = suspicious_command
+            redirect_part = ""
             
-            # 获取用户的home目录
-            home_dir = os.path.expanduser("~")
+            # 找到重定向操作符，分离主命令和重定向部分
+            for op in redirect_operators:
+                if op in suspicious_command:
+                    op_index = suspicious_command.find(op)
+                    main_command = suspicious_command[:op_index].strip()
+                    redirect_part = suspicious_command[op_index:].strip()
+                    break
             
-            def convert_single_path(path):
-                """转换单个路径"""
-                # 如果路径以用户home目录开头，将其转换为~/格式
-                if path.startswith(home_dir + "/"):
-                    relative_path = path[len(home_dir + "/"):]
-                    return f"~/{relative_path}"
-                elif path == home_dir:
-                    return "~"
-                elif path.startswith(home_dir):
-                    # 处理形如 /Users/username.. 的情况
-                    relative_path = path[len(home_dir):]
-                    if relative_path.startswith("/"):
-                        return f"~{relative_path}"
-                    else:
-                        return f"~/{relative_path}"
-                else:
-                    # 不是home目录下的路径，保持原样
-                    # 这包括：相对路径、绝对的远程路径（如/content/drive/...）等
-                    return path
             
-            # 如果输入看起来像一个命令（包含空格），则解析命令参数
-            if ' ' in command_or_path.strip():
-                try:
-                    # 使用shlex解析命令，保持引号
-                    parts = shlex.split(command_or_path)
-                    converted_parts = []
-                    
-                    for part in parts:
-                        # 对每个参数尝试路径转换
-                        converted_part = convert_single_path(part)
-                        converted_parts.append(converted_part)
-                    
-                    # 重新组合命令，对包含空格的参数加引号
-                    final_parts = []
-                    for part in converted_parts:
-                        if ' ' in part:
-                            final_parts.append(f'"{part}"')
-                        else:
-                            final_parts.append(part)
-                    
-                    return ' '.join(final_parts)
-                except ValueError:
-                    # shlex解析失败，回退到简单的字符串替换
-                    return command_or_path.replace(home_dir, "~")
-            else:
-                # 单个路径，直接转换
-                return convert_single_path(command_or_path)
+            # 对主命令用bash -c -x测试
+            if main_command:
+                result = subprocess.run(
+                    ['bash', '-c', '-x', main_command],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    cwd=os.path.expanduser('~/tmp')
+                )
+                
+                if result.stderr:
+                    lines = result.stderr.strip().split('\n')
+                    for line in lines:
+                        if line.startswith('+ '):
+                            expanded_main = line[2:]  # 去掉"+ "前缀
+                            
+                            # 将展开的home_dir替换回~，将placeholder恢复为~
+                            final_main = expanded_main.replace(home_dir, '~')
+                            final_main = final_main.replace(tilde_placeholder, '~')
+                            
+                            # 处理重定向部分的路径
+                            if redirect_part:
+                                final_redirect = redirect_part.replace(home_dir, '~')
+                                final_redirect = final_redirect.replace(tilde_placeholder, '~')
+                                final_command = final_main + ' ' + final_redirect
+                            else:
+                                final_command = final_main
+                            
+                            return final_command
+                            
         except Exception as e:
-            # 如果转换失败，返回原路径，避免破坏用户输入
-            return command_or_path
+            pass
+        
+        # 回退方案：简单替换
+        result = suspicious_command.replace(tilde_placeholder, '~')
+        return result
     
     def get_parent_path(self, path):
         """获取路径的父目录，支持~和@前缀"""
