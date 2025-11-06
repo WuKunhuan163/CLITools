@@ -558,9 +558,15 @@ class WindowManager:
                 for i in range(3):
                     remount_success = self._auto_remount_and_wait()
                     if remount_success:
+                        # remount成功后立即清理flag，避免其他窗口重复触发
+                        self._clear_remount_flag()
                         break
                     else:
                         time.sleep(1)
+                
+                # 如果remount失败，也清理flag，避免无限重试
+                if not remount_success:
+                    self._clear_remount_flag()
                 
                 # 无论remount是否成功，都继续显示窗口
                 # 这样用户可以看到原命令的实际执行结果
@@ -726,6 +732,19 @@ class WindowManager:
             
         except Exception as e:
             pass  # 静默处理log错误，不影响主流程
+    
+    def _clear_remount_flag(self):
+        """清理remount required flag"""
+        try:
+            from .path_constants import PathConstants
+            path_constants = PathConstants()
+            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+            
+            if flag_file.exists():
+                flag_file.unlink()
+                
+        except Exception as e:
+            pass  # 静默处理错误
     
     def request_window(self, cmd, command_hash, timeout_seconds=3600, no_direct_feedback=False, is_priority=False):
         """

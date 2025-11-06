@@ -818,6 +818,12 @@ Shell commands: ls -la && echo "done"
                         should_remount = any(trigger in error_output for trigger in remount_triggers)
                         
                         if should_remount:
+                            # 检查是否已经有remount flag，避免重复remount
+                            flag_file = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA" / "remount_required.flag"
+                            if flag_file.exists():
+                                print(f'📡 检测到remount flag已存在，跳过重复remount')
+                                continue  # 跳过remount，直接重试
+                            
                             print(f'📡 检测到Unknown error，自动执行 GOOGLE_DRIVE --remount...')
                             try:
                                 remount_cmd = ["python3", str(self.GOOGLE_DRIVE_PY), "--remount"]
