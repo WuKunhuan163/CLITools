@@ -874,6 +874,34 @@ Shell commands: ls -la && echo "done"
             remount_log_file = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA" / "auto_remount_log.json"
             remount_log_file.parent.mkdir(exist_ok=True)
             
+            # 获取调用栈信息
+            import traceback
+            import inspect
+            
+            # 获取调用栈，排除当前方法
+            call_stack = traceback.format_stack()[:-1]
+            
+            # 获取直接调用者信息
+            caller_frame = inspect.currentframe().f_back
+            caller_info = {
+                "function": caller_frame.f_code.co_name,
+                "filename": caller_frame.f_code.co_filename,
+                "line_number": caller_frame.f_lineno
+            }
+            
+            # 获取调用链（最近的5层）
+            call_chain = []
+            frame = caller_frame
+            for i in range(5):
+                if frame is None:
+                    break
+                call_chain.append({
+                    "function": frame.f_code.co_name,
+                    "filename": frame.f_code.co_filename.split('/')[-1],  # 只保留文件名
+                    "line_number": frame.f_lineno
+                })
+                frame = frame.f_back
+            
             remount_record = {
                 "timestamp": datetime.now().isoformat(),
                 "test_method": self._testMethodName if hasattr(self, '_testMethodName') else "unknown",
@@ -882,7 +910,10 @@ Shell commands: ls -la && echo "done"
                 "remount_returncode": remount_returncode,
                 "remount_output": remount_output[:500] if remount_output else None,
                 "remount_error": remount_error[:500] if remount_error else None,
-                "remount_success": remount_returncode == 0
+                "remount_success": remount_returncode == 0,
+                "caller_info": caller_info,
+                "call_chain": call_chain,
+                "call_stack_summary": [line.strip() for line in call_stack[-3:]]  # 最近3层调用栈
             }
             
             # 追加到日志文件

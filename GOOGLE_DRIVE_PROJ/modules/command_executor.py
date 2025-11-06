@@ -488,19 +488,32 @@ class CommandExecutor:
     
     def _should_wait_for_remount(self):
         """Check if we should wait for remount before executing commands"""
-        try:
-            from .path_constants import PathConstants
-            path_constants = PathConstants()
-            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
-            
-            return flag_file.exists()
-        except Exception:
-            return False
+        import json
+        from .path_constants import PathConstants
+        path_constants = PathConstants()
+        flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+        
+        if flag_file.exists():
+            # 读取并输出remount原因
+            try:
+                with open(flag_file, 'r') as f:
+                    flag_data = json.load(f)
+                reason = flag_data.get('reason', 'Unknown reason')
+                set_at = flag_data.get('set_at', 'Unknown time')
+                # 将信息记录到log中，而不是print到终端
+                self._log_remount_trigger(reason, set_at)
+            except Exception:
+                self._log_remount_trigger("Flag file exists but unreadable", "Unknown")
+            return True
+        
+        return False
     
-    def _set_remount_required_flag(self):
+    def _set_remount_required_flag(self, reason="Unknown error detected in previous command execution"):
         """Set flag indicating remount is required before next command"""
         try:
             import time
+            import json
+            import os
             from .path_constants import PathConstants
             
             path_constants = PathConstants()
@@ -508,7 +521,8 @@ class CommandExecutor:
             
             flag_data = {
                 "created": time.time(),
-                "reason": "Unknown error detected in previous command execution"
+                "reason": reason,
+                "set_at": time.strftime("%Y-%m-%d %H:%M:%S")
             }
             
             os.makedirs(flag_file.parent, exist_ok=True)
@@ -536,6 +550,9 @@ class CommandExecutor:
             import subprocess
             import sys
             
+            # 记录remount调用的上下文信息
+            self._log_remount_call("auto_remount_and_wait", "Automatic remount triggered")
+            
             # 使用subprocess调用GOOGLE_DRIVE --remount，只关心返回码
             result = subprocess.run(
                 [sys.executable, "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", "--remount"],
@@ -544,11 +561,147 @@ class CommandExecutor:
                 timeout=60  # 60秒超时
             )
             
+            # 记录remount结果
+            self._log_remount_result(result.returncode, result.stdout, result.stderr)
+            
             # 只检查返回码，不输出任何信息
             return result.returncode == 0
                 
         except Exception as e:
+            self._log_remount_result(-1, "", str(e))
             return False
+    
+    def _log_remount_call(self, trigger_function, reason):
+        """记录remount调用的上下文信息"""
+        try:
+            import json
+            import traceback
+            import inspect
+            from datetime import datetime
+            from pathlib import Path
+            
+            # 获取调用栈信息
+            call_stack = traceback.format_stack()[:-1]  # 排除当前方法
+            
+            # 获取直接调用者信息
+            caller_frame = inspect.currentframe().f_back.f_back  # 跳过auto_remount_and_wait
+            caller_info = {
+                "function": caller_frame.f_code.co_name,
+                "filename": caller_frame.f_code.co_filename.split('/')[-1],
+                "line_number": caller_frame.f_lineno
+            }
+            
+            # 获取调用链（最近的5层）
+            call_chain = []
+            frame = caller_frame
+            for i in range(5):
+                if frame is None:
+                    break
+                call_chain.append({
+                    "function": frame.f_code.co_name,
+                    "filename": frame.f_code.co_filename.split('/')[-1],
+                    "line_number": frame.f_lineno
+                })
+                frame = frame.f_back
+            
+            # 创建log记录
+            log_record = {
+                "timestamp": datetime.now().isoformat(),
+                "trigger_function": trigger_function,
+                "reason": reason,
+                "caller_info": caller_info,
+                "call_chain": call_chain,
+                "call_stack_summary": [line.strip() for line in call_stack[-3:]],
+                "source": "CommandExecutor"
+            }
+            
+            # 保存到临时变量，等待结果后一起写入
+            self._pending_remount_log = log_record
+            
+        except Exception as e:
+            pass  # 静默处理log错误，不影响主流程
+    
+    def _log_remount_result(self, returncode, stdout, stderr):
+        """记录remount结果"""
+        try:
+            from pathlib import Path
+            import json
+            
+            if not hasattr(self, '_pending_remount_log'):
+                return
+            
+            # 添加结果信息
+            self._pending_remount_log.update({
+                "remount_returncode": returncode,
+                "remount_output": stdout[:500] if stdout else None,
+                "remount_error": stderr[:500] if stderr else None,
+                "remount_success": returncode == 0
+            })
+            
+            # 写入log文件
+            log_file = Path.home() / ".local/bin/GOOGLE_DRIVE_DATA/auto_remount_log.json"
+            log_file.parent.mkdir(exist_ok=True)
+            
+            # 读取现有log
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    existing_logs = json.load(f)
+                if not isinstance(existing_logs, list):
+                    existing_logs = [existing_logs]
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_logs = []
+            
+            # 添加新记录
+            existing_logs.append(self._pending_remount_log)
+            
+            # 写入文件
+            with open(log_file, 'w', encoding='utf-8') as f:
+                json.dump(existing_logs, f, indent=2, ensure_ascii=False)
+            
+            # 清理临时变量
+            delattr(self, '_pending_remount_log')
+            
+        except Exception as e:
+            pass  # 静默处理log错误，不影响主流程
+    
+    def _log_remount_trigger(self, reason, set_at):
+        """记录remount触发信息到log文件"""
+        try:
+            from pathlib import Path
+            import json
+            from datetime import datetime
+            
+            # 写入log文件
+            log_file = Path.home() / ".local/bin/GOOGLE_DRIVE_DATA/auto_remount_log.json"
+            log_file.parent.mkdir(exist_ok=True)
+            
+            # 创建触发记录
+            trigger_record = {
+                "timestamp": datetime.now().isoformat(),
+                "event_type": "remount_triggered",
+                "reason": reason,
+                "flag_set_at": set_at,
+                "source": "CommandExecutor._should_wait_for_remount"
+            }
+            
+            # 读取现有log
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    existing_logs = json.load(f)
+                if not isinstance(existing_logs, list):
+                    existing_logs = [existing_logs]
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_logs = []
+            
+            # 添加新记录
+            existing_logs.append(trigger_record)
+            
+            # 写入文件
+            with open(log_file, 'w', encoding='utf-8') as f:
+                json.dump(existing_logs, f, indent=2, ensure_ascii=False)
+            
+        except Exception as e:
+            pass  # 静默处理log错误，不影响主流程
     
     def add_connection_check_to_command(self, remote_command, result_filename, cmd_hash=None):
         """
@@ -605,24 +758,6 @@ class CommandExecutor:
         Returns:
             dict: 执行结果
         """
-        # 在显示远程窗口之前，检查是否需要等待remount
-        if self._should_wait_for_remount(): 
-            remount_success = False
-            import time
-            for i in range(3):
-                remount_success = self.auto_remount_and_wait()
-                if remount_success:
-                    break
-                else:
-                    time.sleep(1)
-            
-            if not remount_success:
-                return {
-                    "success": False,
-                    "action": "remount_failed",
-                    "error": "Automatic remount failed. Please run 'GOOGLE_DRIVE --remount' manually."
-                }
-        
         # 确保~/tmp的ID已被解析和缓存
         self._ensure_tmp_id_cached()
         
