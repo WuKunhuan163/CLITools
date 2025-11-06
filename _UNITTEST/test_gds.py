@@ -818,36 +818,32 @@ Shell commands: ls -la && echo "done"
                         should_remount = any(trigger in error_output for trigger in remount_triggers)
                         
                         if should_remount:
-                            # 检查是否已经有remount flag，避免重复remount
+                            # 检查是否已经有remount flag，避免重复设置
                             flag_file = Path(__file__).parent.parent / "GOOGLE_DRIVE_DATA" / "remount_required.flag"
                             if flag_file.exists():
-                                print(f'📡 检测到remount flag已存在，跳过重复remount')
-                                continue  # 跳过remount，直接重试
-                            
-                            print(f'📡 检测到Unknown error，自动执行 GOOGLE_DRIVE --remount...')
-                            try:
-                                remount_cmd = ["python3", str(self.GOOGLE_DRIVE_PY), "--remount"]
-                                remount_process = subprocess.Popen(
-                                    remount_cmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    cwd=self.BIN_DIR
-                                )
-                                remount_stdout, remount_stderr = remount_process.communicate()
-                                remount_output = remount_stdout.decode('utf-8', errors='ignore')
-                                remount_error = remount_stderr.decode('utf-8', errors='ignore')
-                                
-                                print(f'📡 GOOGLE_DRIVE --remount 执行完成，返回码: {remount_process.returncode}')
-                                if remount_output:
-                                    print(f'📡 Remount输出: {remount_output[:200]}...')
-                                if remount_error:
-                                    print(f'📡 Remount错误: {remount_error[:200]}...')
-                                
-                                # 记录到测试结果文件
-                                self._record_remount_action(command_str, error_output, remount_process.returncode, remount_output, remount_error)
-                                
-                            except Exception as remount_e:
-                                print(f'📡 GOOGLE_DRIVE --remount 执行失败: {remount_e}')
+                                print(f'检测到remount flag已存在，跳过重复设置')
+                            else:
+                                # 设置remount flag，让WindowManager在下一个窗口显示时处理remount
+                                print(f'检测到Unknown error，设置remount flag，下一个窗口将自动remount')
+                                try:
+                                    import json
+                                    import time
+                                    
+                                    flag_data = {
+                                        "created": time.time(),
+                                        "reason": f"Test detected error in command: {command_str}. Error: {error_output[:200]}",
+                                        "set_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                        "set_by": "test_gds.py"
+                                    }
+                                    
+                                    flag_file.parent.mkdir(exist_ok=True)
+                                    with open(flag_file, 'w') as f:
+                                        json.dump(flag_data, f, indent=2)
+                                    
+                                    print(f'Remount flag已设置，下一个窗口将自动处理remount')
+                                    
+                                except Exception as flag_e:
+                                    print(f'设置remount flag失败: {flag_e}')
                     
                     should_retry = True
                 
