@@ -1082,9 +1082,14 @@ class GoogleDriveShell:
                     import traceback
                     call_stack = ''.join(traceback.format_stack()[-3:])
                     error_msg = f'Unknown error. Call stack: {call_stack}'
+                    
+                    # 记录remount触发原因到测试log
+                    remount_reason = f"Unknown error detected for command: {shell_cmd}. No specific error message available."
+                    # 不输出到终端，只记录到log
+                    
                     try:
                         if hasattr(self, 'command_executor'):
-                            self.command_executor._set_remount_required_flag()
+                            self.command_executor._set_remount_required_flag(reason=remount_reason)
                     except Exception as flag_error:
                         print(f"Warning: Failed to set remount flag: {flag_error}")
                 
