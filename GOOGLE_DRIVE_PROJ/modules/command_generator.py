@@ -41,12 +41,10 @@ Dependencies:
 Migrated from: remote_commands.py (refactored for better modularity)
 """
 
-import os
-import json
-import time
-import subprocess
-import re
-from .config_loader import get_bg_status_file, get_bg_script_file, get_bg_log_file, get_bg_result_file
+import re, os, subprocess, hashlib, tempfile, uuid
+import base64, time, re, shlex
+from datetime import datetime
+from .config_loader import get_bg_script_file, get_bg_log_file, get_bg_result_file
 
 class CommandGenerator:
     """重构后的command_generator功能"""
@@ -66,10 +64,6 @@ class CommandGenerator:
             tuple: (is_valid, error_message)
         """
         try:
-            import subprocess
-            import tempfile
-            import os
-            
             # 创建临时文件
             with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as temp_file:
                 temp_file.write(script_content)
@@ -109,7 +103,6 @@ class CommandGenerator:
         Returns:
             str: 8字符的hash值（小写）
         """
-        import hashlib
         window_hash = hashlib.md5(cmd.encode()).hexdigest()[:8]
         return window_hash
     
@@ -126,8 +119,6 @@ class CommandGenerator:
         Returns:
             展开后的命令字符串
         """
-        import subprocess
-        import uuid
         
         # 特殊情况：如果placeholder就是~，跳过步骤1（不需要保护原始~）
         if placeholder == '~':
@@ -143,71 +134,67 @@ class CommandGenerator:
         
         # 步骤3: 让bash展开（只展开~，不执行命令）
         # 使用bash -x来获取展开后的命令主体，然后检测并保留重定向部分
-        try:
-            result = subprocess.run(
-                ['bash', '-x', '-c', cmd_for_bash],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            # bash -x 的输出在stderr中，格式为"+ command"
-            if result.stderr:
-                # 提取"+ "后面的命令
-                lines = result.stderr.strip().split('\n')
-                expanded_main = None
-                for line in lines:
-                    if line.startswith('+ '):
-                        expanded_main = line[2:]  # 去掉"+ "前缀
-                        break
-                
-                if not expanded_main:
-                    return cmd
-                
-                # 步骤3.5: 检测重定向部分
-                # 如果bash -x的输出比原命令短，说明有重定向被省略了
-                # 我们需要从原命令中提取重定向部分
-                # 策略：在原命令中找到expanded_main对应的部分，剩余的就是重定向
-                # 简单策略：检测常见的重定向操作符
-                redirect_operators = ['>', '>>', '<', '2>', '2>>', '&>', '&>>', '2>&1', '|']
-                redirect_part = ""
-                
-                # 遍历原命令（cmd_for_bash），寻找重定向操作符
-                for op in redirect_operators:
-                    if op in cmd_for_bash:
-                        # 找到操作符的位置，提取操作符及其后面的内容
-                        op_index = cmd_for_bash.find(op)
-                        redirect_part = cmd_for_bash[op_index:]
-                        
-                        # 对重定向部分也进行路径展开（递归调用bash -x）
-                        # 提取重定向符后的路径部分
-                        redirect_path_match = re.search(r'[><|&]\s*(.+?)(?:\s+[><|&]|$)', redirect_part)
-                        if redirect_path_match:
-                            redirect_path = redirect_path_match.group(1).strip()
-                            # 对redirect_path进行展开
-                            redirect_expand_result = subprocess.run(
-                                ['bash', '-x', '-c', f'echo {redirect_path}'],
-                                capture_output=True,
-                                text=True,
-                                timeout=2
-                            )
-                            if redirect_expand_result.stderr:
-                                redirect_lines = redirect_expand_result.stderr.strip().split('\n')
-                                for line in redirect_lines:
-                                    if line.startswith('+ echo '):
-                                        expanded_redirect_path = line[7:].strip()  # 去掉"+ echo "
-                                        # 替换原redirect_part中的路径
-                                        redirect_part = redirect_part.replace(redirect_path, expanded_redirect_path)
-                                        break
-                        break
-                
-                expanded_cmd = expanded_main + (' ' + redirect_part if redirect_part else '')
-            else:
+        # 注意：在执行前会将本地工作目录改到~/tmp，避免意外创建本地文件
+        result = subprocess.run(
+            ['bash', '-x', '-c', cmd_for_bash],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=os.path.expanduser('~/tmp')  # 在~/tmp中执行，避免在项目目录创建文件
+        )
+        # bash -x 的输出在stderr中，格式为"+ command"
+        if result.stderr:
+            lines = result.stderr.strip().split('\n')
+            expanded_main = None
+            for line in lines:
+                if line.startswith('+ '):
+                    expanded_main = line[2:]
+                    break
+            
+            if not expanded_main:
                 return cmd
-        except Exception:
+            
+            # 步骤3.5: 检测重定向部分
+            # 如果bash -x的输出比原命令短，说明有重定向被省略了
+            # 我们需要从原命令中提取重定向部分
+            # 策略：在原命令中找到expanded_main对应的部分，剩余的就是重定向
+            # 简单策略：检测常见的重定向操作符
+            redirect_operators = ['>', '>>', '<', '2>', '2>>', '&>', '&>>', '2>&1', '|']
+            redirect_part = ""
+            
+            # 遍历原命令（cmd_for_bash），寻找重定向操作符
+            for op in redirect_operators:
+                if op in cmd_for_bash:
+                    op_index = cmd_for_bash.find(op)
+                    redirect_part = cmd_for_bash[op_index:]
+                    
+                    # 对重定向部分也进行路径展开（递归调用bash -x）
+                    # 提取重定向符后的路径部分
+                    redirect_path_match = re.search(r'[><|&]\s*(.+?)(?:\s+[><|&]|$)', redirect_part)
+                    if redirect_path_match:
+                        redirect_path = redirect_path_match.group(1).strip()
+                        # 对redirect_path进行展开
+                        redirect_expand_result = subprocess.run(
+                            ['bash', '-x', '-c', f'echo {redirect_path}'],
+                            capture_output=True,
+                            text=True,
+                            timeout=2
+                        )
+                        if redirect_expand_result.stderr:
+                            redirect_lines = redirect_expand_result.stderr.strip().split('\n')
+                            for line in redirect_lines:
+                                if line.startswith('+ echo '):
+                                    expanded_redirect_path = line[7:].strip()  # 去掉"+ echo "
+                                    # 替换原redirect_part中的路径
+                                    redirect_part = redirect_part.replace(redirect_path, expanded_redirect_path)
+                                    break
+                    break
+            
+            expanded_cmd = expanded_main + (' ' + redirect_part if redirect_part else '')
+        else:
             return cmd
         
         # 步骤4: 将展开的home目录替换为placeholder_value
-        import os
         home_dir = os.path.expanduser('~')
         expanded_cmd = expanded_cmd.replace(home_dir, placeholder_value)
 
@@ -218,6 +205,7 @@ class CommandGenerator:
         # 步骤6: 将tilde_placeholder换回原始~（如果placeholder不是~的话）
         if tilde_placeholder:
             expanded_cmd = expanded_cmd.replace(tilde_placeholder, '~')
+        
         return expanded_cmd
 
     def generate_command(self, cmd, result_filename=None, current_shell=None):
@@ -232,12 +220,9 @@ class CommandGenerator:
         Returns:
             tuple: (远端命令字符串, 结果文件名, 命令hash)
         """
-        import time
         cmd_hash = self.calculate_command_hash(cmd)
         
         # 生成统一JSON命令
-        import shlex
-        from datetime import datetime
         if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
             print(f"Warning: Command contains exclamation marks which may cause shell history expansion issues.")
             print(f"Original command: {cmd}")
@@ -249,8 +234,6 @@ class CommandGenerator:
         # 检测和处理printf格式字符问题
         # 如果命令以printf开头且包含%字符，需要特殊处理避免格式指令错误
         if cmd.strip().startswith('printf '):
-            import re
-            # 匹配printf命令的模式: printf "content" 或 printf 'content'
             printf_pattern = r'^printf\s+(["\'])(.*?)\1(.*)$'
             match = re.match(printf_pattern, cmd.strip())
             if match:
@@ -269,8 +252,6 @@ class CommandGenerator:
         # 检测和处理echo命令中的转义序列问题
         # 确保echo命令能正确处理\n和\t等转义序列
         if cmd.strip().startswith('echo '):
-            import re
-            # 匹配echo命令的模式: echo "content" 或 echo 'content'
             echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
             match = re.match(echo_pattern, cmd.strip())
             if match:
@@ -320,7 +301,6 @@ class CommandGenerator:
         # 根据是否为background模式生成不同的远程命令脚本
         # 检查是否为背景任务
         if is_background:
-            import shlex
             start_time = datetime.now().isoformat()
             
             # 使用常量定义background文件名
@@ -412,7 +392,6 @@ print(f"[DEBUG BG] Starting final result file generation", file=sys.stderr)
 
 try:
     exit_code = int(os.environ.get('EXIT_CODE', '0'))
-    print(f"[DEBUG BG] EXIT_CODE={{exit_code}}", file=sys.stderr)
 
     # 从环境变量读取command
     bg_command = os.environ.get("BG_COMMAND", "")
@@ -726,25 +705,20 @@ JSON_SCRIPT_EOF
         if args:
             # 处理特殊命令格式
             if cmd == "bash" and len(args) >= 2 and args[0] == "-c":
-                import shlex
                 safe_command = shlex.quote(args[1])
                 cmd = f'bash -c {safe_command}'
             elif cmd == "sh" and len(args) >= 2 and args[0] == "-c":
                 cmd = f'sh -c "{args[1]}"'
             elif cmd in ["python", "python3"] and len(args) >= 2 and args[0] == "-c":
-                import base64
                 python_code = args[1]
                 python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
                 cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
             elif cmd in ["python", "python3"] and len(args) == 1:
-                # 对于直接的python代码执行（如测试中的格式），转换为python -c格式
-                import base64
                 python_code = args[0]
                 python_code_b64 = base64.b64encode(python_code.encode('utf-8')).decode('ascii')
                 cmd = f'{cmd} -c "import base64; exec(base64.b64decode(\'{python_code_b64}\').decode(\'utf-8\'))"'
             else:
                 # 处理重定向和其他参数
-                import shlex
                 if '>' in args:
                     # 处理重定向：将参数分为命令部分和重定向部分
                     redirect_index = args.index('>')
@@ -834,22 +808,24 @@ JSON_SCRIPT_EOF
                 original_filename = file_info.get("original_filename", filename)  # 原始文件名（目标文件名）
                 target_path = file_info["target_path"]
 
-                # 计算目标绝对路径 - 使用original_filename作为最终文件名
+                # 计算目标绝对路径 - mv命令应该移动到目录，不是完整文件路径
                 target_filename = original_filename
                 current_shell = self.main_instance.get_current_shell()
                 target_absolute = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
-                dest_absolute = f"{target_absolute.rstrip('/')}/{target_filename}"
+                # 修复：mv命令的目标应该是目录路径，不包含文件名
+                dest_directory = target_absolute.rstrip('/')
                 source_absolute = f"{self.main_instance.DRIVE_EQUIVALENT}/{filename}"
                 file_info_list.append({
                     'source': source_absolute,
-                    'dest': dest_absolute,
+                    'dest': dest_directory,  # 使用目录路径而不是完整文件路径
                     'original_filename': original_filename
                 })
 
             # 收集所有需要创建的目录
             target_dirs = set()
             for file_info in file_info_list:
-                dest_dir = '/'.join(file_info['dest'].split('/')[:-1])
+                # 现在dest已经是目录路径，直接使用
+                dest_dir = file_info['dest']
                 target_dirs.add(dest_dir)
 
             # 生成简化的命令 - 按照用户要求的格式
@@ -869,7 +845,6 @@ JSON_SCRIPT_EOF
             # 生成重试命令
             retry_commands = []
             for cmd in mv_commands:
-                # 提取文件名用于显示
                 try:
                     filename = cmd.split('"')[3].split('/')[-1] if len(cmd.split('"')) > 3 else 'file'
                 except:

@@ -30,6 +30,9 @@ class ResetCommand(BaseCommand):
         elif subcommand == "remove" or subcommand == "rm":
             # reset remove <path>
             return self.execute_reset_remove(args[1:])
+        elif subcommand == "clear-all":
+            # reset clear-all
+            return self.execute_reset_clear_all(args[1:])
         else:
             return self.show_help()
     
@@ -62,26 +65,27 @@ class ResetCommand(BaseCommand):
             import os
             import time
             
-            # 解析目标路径
-            if target_path == "~":
-                logical_path = "~"
+            # 将路径转换为逻辑路径（使用path_resolver的统一方法）
+            logical_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, return_logical=True)
+            
+            # 根据逻辑路径计算绝对路径
+            if logical_path == "~":
                 absolute_path = self.main_instance.REMOTE_ROOT
-            elif target_path.startswith("~/"):
-                logical_path = target_path
-                relative_part = target_path[2:]
+            elif logical_path.startswith("~/"):
+                relative_part = logical_path[2:]
                 absolute_path = f"{self.main_instance.REMOTE_ROOT}/{relative_part}"
-            elif target_path == "@":
-                logical_path = "@"
+            elif logical_path == "@":
                 absolute_path = self.main_instance.REMOTE_ENV
-            elif target_path.startswith("@/"):
-                logical_path = target_path
-                relative_part = target_path[2:]
+            elif logical_path.startswith("@/"):
+                relative_part = logical_path[2:]
                 absolute_path = f"{self.main_instance.REMOTE_ENV}/{relative_part}"
             else:
                 return {"success": False, "error": f"Invalid path format: {target_path}"}
             
             # 加载或创建配置文件
-            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            from ..path_constants import PathConstants
+            path_constants = PathConstants()
+            config_path = str(path_constants.GDS_PATH_IDS_FILE)
             if os.path.exists(config_path):
                 with open(config_path, 'r') as f:
                     config = json.load(f)
@@ -180,8 +184,17 @@ class ResetCommand(BaseCommand):
             import os
             import time
             
+            # 将绝对路径转换为逻辑路径（配置文件中使用逻辑路径作为键）
+            logical_path = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, return_logical=True)
+            
             # 加载配置文件
-            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            try:
+                from ..path_constants import PathConstants
+                path_constants = PathConstants()
+                config_path = str(path_constants.GDS_PATH_IDS_FILE)
+            except ImportError:
+                # 回退到旧路径（向后兼容）
+                config_path = os.path.expanduser("~/.gds_path_ids.json")
             if not os.path.exists(config_path):
                 return {"success": False, "error": "No path ID configuration found"}
             
@@ -189,12 +202,12 @@ class ResetCommand(BaseCommand):
                 config = json.load(f)
             
             # 检查路径是否存在
-            if target_path not in config["path_ids"]:
-                return {"success": False, "error": f"Path ID not found: {target_path}"}
+            if logical_path not in config["path_ids"]:
+                return {"success": False, "error": f"Path ID not found: {logical_path}"}
             
             # 移除路径ID
-            old_id = config["path_ids"][target_path]
-            del config["path_ids"][target_path]
+            old_id = config["path_ids"][logical_path]
+            del config["path_ids"][logical_path]
             config["last_updated"] = time.time()
             
             # 保存配置文件
@@ -203,8 +216,8 @@ class ResetCommand(BaseCommand):
             
             return {
                 "success": True,
-                "message": f"Path ID removed: {target_path} (was: {old_id})",
-                "removed_path": target_path,
+                "message": f"Path ID removed: {logical_path} (was: {old_id})",
+                "removed_path": logical_path,
                 "removed_id": old_id,
                 "config_path": config_path
             }
@@ -212,11 +225,115 @@ class ResetCommand(BaseCommand):
         except Exception as e:
             return {"success": False, "error": f"Remove failed: {str(e)}"}
     
+    def execute_reset_clear_all(self, args):
+        """执行reset clear-all命令"""
+        if args and args[0] in ["-h", "--help"]:
+            print("Usage: reset clear-all")
+            print("Clear all path ID configurations and restore defaults")
+            print("")
+            print("This command will:")
+            print("  1. Remove all existing path ID mappings")
+            print("  2. Restore default IDs for ~ and @ paths")
+            print("")
+            print("Note: This is typically called automatically during GOOGLE_DRIVE --remount")
+            return 0
+        
+        result = self.cmd_reset_clear_all()
+        
+        if result.get("success", False):
+            print(result.get("message", "All path IDs cleared and defaults restored"))
+            return 0
+        else:
+            print(f"Error: {result.get('error', 'Clear all failed')}")
+            return 1
+    
+    def cmd_reset_clear_all(self):
+        """清空所有路径ID配置并恢复默认值"""
+        try:
+            import json
+            import os
+            import time
+            
+            # 加载配置文件
+            try:
+                from ..path_constants import PathConstants
+                path_constants = PathConstants()
+                config_path = str(path_constants.GDS_PATH_IDS_FILE)
+            except ImportError:
+                # 回退到旧路径（向后兼容）
+                config_path = os.path.expanduser("~/.gds_path_ids.json")
+            
+            # 记录清理前的状态
+            old_config = {}
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, 'r') as f:
+                        old_config = json.load(f)
+                except Exception:
+                    pass
+            
+            old_path_count = len(old_config.get("path_ids", {}))
+            
+            # 创建新的配置，只包含基础结构
+            new_config = {
+                "path_ids": {},
+                "last_updated": time.time(),
+                "created": old_config.get("created", time.time()),
+                "version": "2.0"
+            }
+            
+            # 恢复默认的路径ID（如果可以获取的话）
+            try:
+                # 尝试获取当前的REMOTE_ROOT和REMOTE_ENV的ID
+                current_shell = self.main_instance.get_current_shell()
+                if current_shell:
+                    # 尝试解析 ~ 路径的ID
+                    try:
+                        home_id, _ = self.main_instance.resolve_drive_id("~", current_shell)
+                        if home_id:
+                            new_config["path_ids"]["~"] = home_id
+                            print(f"Restored default ID for ~: {home_id}")
+                    except Exception as e:
+                        print(f"Warning: Could not restore ~ ID: {e}")
+                    
+                    # 尝试解析 @ 路径的ID
+                    try:
+                        env_id, _ = self.main_instance.resolve_drive_id("@", current_shell)
+                        if env_id:
+                            new_config["path_ids"]["@"] = env_id
+                            print(f"Restored default ID for @: {env_id}")
+                    except Exception as e:
+                        print(f"Warning: Could not restore @ ID: {e}")
+            except Exception as e:
+                print(f"Warning: Could not restore default IDs: {e}")
+            
+            # 确保配置目录存在
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            
+            # 保存新配置
+            with open(config_path, 'w') as f:
+                json.dump(new_config, f, indent=2)
+            
+            restored_count = len(new_config["path_ids"])
+            
+            return {
+                "success": True,
+                "message": f"Cleared {old_path_count} path IDs and restored {restored_count} default IDs",
+                "cleared_count": old_path_count,
+                "restored_count": restored_count,
+                "config_path": config_path,
+                "restored_paths": list(new_config["path_ids"].keys())
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": f"Clear all failed: {str(e)}"}
+    
     def show_help(self):
         """显示帮助信息"""
         print("Reset Command Usage:")
         print("  reset id <path> <remote_id>     - Reset shell ID for specified path")
         print("  reset remove <path>             - Remove path ID configuration")
+        print("  reset clear-all                 - Clear all path IDs and restore defaults")
         print("")
         print("Examples:")
         print("  reset id ~ gds_test_20251104_193903_358412_4831496d")
@@ -227,7 +344,7 @@ class ResetCommand(BaseCommand):
         print("")
         print("This command helps diagnose path detection issues by:")
         print("- Setting a specific remote shell ID for a logical path")
-        print("- Saving the mapping to ~/.gds_path_ids.json")
+        print("- Saving the mapping to GOOGLE_DRIVE_DATA/gds_path_ids.json")
         print("- Removing child path IDs to maintain hierarchy")
         print("- Updating current shell state")
         print("- Removing path ID configurations to use parent resolution")

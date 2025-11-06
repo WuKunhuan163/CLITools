@@ -3,11 +3,10 @@
 Google Drive Drive Api Service Module
 """
 
-import os
 import sys
-import webbrowser
 import subprocess
 import warnings
+import re
 from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
@@ -16,13 +15,9 @@ load_dotenv()
 # 导入工具函数
 from .system_utils import is_run_environment, write_to_json_output
 
-
 def extract_folder_id_from_url(url):
     """从Google Drive文件夹URL中提取文件夹ID"""
     try:
-        import re
-        
-        # 匹配各种可能的Google Drive文件夹URL格式
         patterns = [
             r'/folders/([a-zA-Z0-9_-]+)',
             r'id=([a-zA-Z0-9_-]+)',
@@ -109,7 +104,6 @@ def list_drive_files(command_identifier=None, max_results=10):
     """列出Google Drive文件"""
     try:
         # 导入并使用API服务
-        import sys
         api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
         if not api_service_path.exists():
             error_msg = "Error: API service file not found, please run GOOGLE_DRIVE --console-setup"

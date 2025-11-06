@@ -251,6 +251,10 @@ class GoogleDriveShell:
         """委托到command_registry - LsCommand"""
         return self.execute_command_via_registry('ls', 'cmd_ls_remote', *args, **kwargs)
     
+    def cmd_ls_by_id(self, *args, **kwargs):
+        """委托到command_registry - LsCommand"""
+        return self.execute_command_via_registry('ls', 'cmd_ls_by_id', *args, **kwargs)
+    
     def cmd_mkdir(self, *args, **kwargs):
         """委托到command_registry - MkdirCommand"""
         return self.execute_command_via_registry('mkdir', 'cmd_mkdir', *args, **kwargs)
@@ -507,7 +511,7 @@ class GoogleDriveShell:
             # 直接调用Google Drive API
             api_result = self.drive_service.list_files(folder_id=folder_id, max_results=100)
             if not api_result.get('success'):
-                print(f"Error: Failed to list directory: {api_result.get('error', 'Unknown error')}")
+                print(f"Error: Failed to list directory: {api_result.get('error', 'Directory listing failed without specific error message')}")
                 return 1
             
             result = {
@@ -803,7 +807,6 @@ class GoogleDriveShell:
                 
                 # 显示后台任务信息
                 print(f"Background task started with ID: {bg_pid}")
-                print(f"Command: {shell_cmd}")
                 print("")
                 print("Run the following commands to track the background task status:")
                 print(f"  GDS --bg --status {bg_pid}    # Check task status")
@@ -891,21 +894,6 @@ class GoogleDriveShell:
                 shell_cmd_clean = processed_commands[0]
                 shell_cmd = shell_cmd_clean
 
-            # 特殊处理：reset命令需要在路径展开之前处理，以保持逻辑路径格式
-            first_word_before_expansion = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
-            if first_word_before_expansion == "reset":
-                # reset命令需要逻辑路径，不进行路径展开
-                if self.command_registry.is_special_command("reset"):
-                    import shlex
-                    try:
-                        cmd_parts = shlex.split(shell_cmd_clean)
-                        if cmd_parts:
-                            cmd = cmd_parts[0]
-                            args = cmd_parts[1:]
-                            return self.command_executor.execute_special_command(cmd, args)
-                    except Exception as e:
-                        raise e  # 直接抛出原始异常，让上层error handler处理
-            
             # 路径展开处理：在命令解析之前进行路径展开
             # 1. Undo local path expansion (e.g., /Users/username -> ~)
             shell_cmd_clean = self.path_resolver.undo_local_path_user_expansion(shell_cmd_clean)
@@ -1017,7 +1005,7 @@ class GoogleDriveShell:
                                         'grep', 'python', 'venv', 'reset']
                 first_word_for_check = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
                 if first_word_for_check in special_commands_list or self.command_registry.is_special_command(first_word_for_check):
-                    print(f"⚠️  Warning: Special command '{first_word_for_check}' detected with redirection. GDS special commands will be executed as standard remote bash commands. ")
+                    print(f"Warning: Special command '{first_word_for_check}' detected with redirection. GDS special commands will be executed as standard remote bash commands. ")
                 
                 current_shell = self.get_current_shell()
                 if current_shell:
@@ -1025,7 +1013,13 @@ class GoogleDriveShell:
                     if result.get("success"):
                         return 0
                     else:
-                        error_msg = result.get("error", "Unknown error")
+                        error_msg = result.get("error", "")
+                        if not error_msg:
+                            # 只有在没有错误信息时才添加call stack
+                            import traceback
+                            call_stack = ''.join(traceback.format_stack()[-3:])
+                            error_msg = f"Unknown error. Call stack: {call_stack}"
+                        
                         print(f"Error: {error_msg}")
                         return 1
                 else:
@@ -1083,9 +1077,28 @@ class GoogleDriveShell:
             # 使用execute_command_interface统一接口
             result = self.execute_command_interface("bash", ["-c", translated_cmd], _original_user_command=translated_cmd)
             
-            # 处理结果
+            # 处理结果 - 不包装错误，直接向上传递
             if not result.get("success"): 
-                raise Exception(f"Command execution returned failure: {result.get('error', 'Unknown error')}")
+                # 尝试从多个位置获取错误信息
+                error_msg = result.get('error', '')
+                if not error_msg:
+                    # 尝试从data.error获取
+                    data = result.get('data', {})
+                    error_msg = data.get('error', '')
+                
+                if not error_msg:
+                    # 只有在没有错误信息时才添加call stack
+                    import traceback
+                    call_stack = ''.join(traceback.format_stack()[-3:])
+                    error_msg = f'Unknown error. Call stack: {call_stack}'
+                    try:
+                        if hasattr(self, 'command_executor'):
+                            self.command_executor._set_remount_required_flag()
+                    except Exception as flag_error:
+                        print(f"Warning: Failed to set remount flag: {flag_error}")
+                
+                print(f"Command execution failed: {error_msg}")
+                return 1
             
             data = result.get("data", {})
             stdout = data.get("stdout", "").strip()
@@ -1125,7 +1138,6 @@ class GoogleDriveShell:
             status_data = self._read_background_file(bg_pid, 'status', command_identifier)
             
             if status_data.get("success", False):
-                # status文件存在，说明任务正在运行或刚启动
                 data = status_data.get("data", {})
                 status_content = data.get("stdout", "").strip()
                 
@@ -1135,7 +1147,6 @@ class GoogleDriveShell:
                         
                         # 提取状态信息
                         status = status_json.get("status", "unknown")
-                        command = status_json.get("command", "N/A")
                         start_time = status_json.get("start_time", "N/A")
                         end_time = status_json.get("end_time", "")
                         pid = status_json.get("pid", bg_pid)
@@ -1158,8 +1169,6 @@ class GoogleDriveShell:
                                 print(f"PID: {pid}")
                         else:
                             print(f"PID: {pid}")
-                        
-                        print(f"Command: {command}")
                         print(f"Start time: {start_time}")
                         
                         if end_time:
@@ -1199,8 +1208,6 @@ class GoogleDriveShell:
                     # 旧格式：平坦结构
                     exit_code = result_json.get("exit_code", None)
                     status = result_json.get("status", "unknown")
-                
-                command = result_json.get("command", "N/A")
                 start_time = result_json.get("start_time", "N/A")
                 end_time = result_json.get("end_time", "N/A")
                 pid = result_json.get("pid", bg_pid)
@@ -1219,8 +1226,6 @@ class GoogleDriveShell:
                     print(f"PID: {pid}")
                 else:
                     print(f"PID: {pid} (finished)")
-                
-                print(f"Command: {command}")
                 print(f"Start time: {start_time}")
                 
                 if status == "completed" and end_time and end_time != "N/A":
@@ -1430,7 +1435,7 @@ done
                     print(f"Error: {result_data.get('error', 'Wait failed')}")
                     return 1
             else:
-                print(f"Error: Failed to wait for task: {result.get('error', 'Unknown error')}")
+                print(f"Error: Failed to wait for task: {result.get('error', 'Background task wait failed without specific error message')}")
                 return 1
                 
         except Exception as e:

@@ -28,6 +28,7 @@ class PathConstants:
         self.SHELLS_FILE = self.GOOGLE_DRIVE_DATA_DIR / "shells.json"
         self.CACHE_CONFIG_FILE = self.GOOGLE_DRIVE_DATA_DIR / "cache_config.json"
         self.DELETION_CACHE_FILE = self.GOOGLE_DRIVE_DATA_DIR / "deletion_cache.json"
+        self.GDS_PATH_IDS_FILE = self.GOOGLE_DRIVE_DATA_DIR / "gds_path_ids.json"
         
         # 队列和锁文件
         self.PRIORITY_QUEUE_FILE = self.GOOGLE_DRIVE_DATA_DIR / "priority_queue.json"

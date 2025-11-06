@@ -281,7 +281,7 @@ class FileCommand(BaseCommand):
         else:
             # 优先使用用户提供的错误信息
             error_msg = (result.get('error_info') if 'error_info' in result 
-                        else result.get('error', 'Unknown error'))
+                        else result.get('error', 'File operation failed without specific error message'))
             return {
                 "success": False,
                 "error": f"mv command execution failed: {error_msg}"

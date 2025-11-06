@@ -142,7 +142,7 @@ class VenvCommand(BaseCommand):
         if all_success:
             return {"success": True, "message": f"Created {len(env_names)} virtual environment(s)"}
         else:
-            failed = [r.get("error", "Unknown error") for r in results if not r.get("success", False)]
+            failed = [r.get("error", "Virtual environment operation failed without specific error message") for r in results if not r.get("success", False)]
             return {"success": False, "error": failed}
     
     def get_venv_base_path(self):
@@ -209,7 +209,9 @@ class VenvCommand(BaseCommand):
                     error_message = f"Failed to create virtual environment: {'; '.join(error_details)}"
                     return {"success": False, "error": error_message}
             else:
-                error_msg = f"Failed to create virtual environment: {result.get('error', 'Unknown error')}"
+                import traceback
+                call_stack = ''.join(traceback.format_stack()[-3:])
+                error_msg = f"Failed to create virtual environment: {result.get('error', f'Virtual environment creation failed without specific error message. Call stack: {call_stack}')}"
                 return {"success": False, "error": error_msg}
                 
         except Exception as e:
@@ -265,9 +267,15 @@ fi
         if result.get("success"):
             return {"success": True, "message": "Batch delete completed successfully"}
         else:
+            import traceback
+            call_stack = ''.join(traceback.format_stack()[-3:])
+            error_msg = result.get('error', '')
+            if not error_msg:
+                error_msg = f"Unknown error. Call stack: {call_stack}"
+            
             return {
                 "success": False,
-                "error": f"Failed to execute delete operation: {result.get('error', 'Unknown error')}"
+                "error": f"Failed to execute delete operation: {error_msg}"
             }
     
     def update_venv_json_field(self, env_name, field_path, value, success_message="Field updated"):
@@ -527,7 +535,12 @@ fi
                         "error": error_msg
                     }
             else:
-                error_msg = f"Failed to activate virtual environment: {result.get('error', 'Unknown error')}"
+                import traceback
+                call_stack = ''.join(traceback.format_stack()[-3:])
+                error_msg = result.get('error', '')
+                if not error_msg:
+                    error_msg = f"Unknown error. Call stack: {call_stack}"
+                error_msg = f"Failed to activate virtual environment: {error_msg}"
                 return {
                     "success": False,
                     "error": error_msg
@@ -619,7 +632,7 @@ fi
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to deactivate virtual environment: {result.get('error', 'Unknown error')}"
+                    "error": f"Failed to deactivate virtual environment: {result.get('error', 'Virtual environment deactivation failed without specific error message')}"
                 }
                 
         except Exception as e:
@@ -924,7 +937,7 @@ fi
                 else:
                     return []
             else:
-                print(f"Warning: Failed to read venv states: {result.get('error', 'Unknown error')}")
+                print(f"Warning: Failed to read venv states: {result.get('error', 'Virtual environment state reading failed without specific error message')}")
                 return []
                 
         except Exception as e:

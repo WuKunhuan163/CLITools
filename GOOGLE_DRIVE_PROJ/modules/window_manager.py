@@ -718,8 +718,6 @@ try:
     # 测试模式标志
     no_direct_feedback = TEST_MODE_PLACEHOLDER
     
-    print(f"[DEBUG] 窗口进程启动: PID={os.getpid()}, 父进程PID={parent_pid}, 窗口ID=WINDOW_ID_PLACEHOLDER", file=sys.stderr)
-    
     root = tk.Tk()
     root.title("Google Drive Shell · Command hash: COMMAND_HASH_PLACEHOLDER")
     root.geometry("500x60")
@@ -743,7 +741,6 @@ try:
             import psutil
             # 检查父进程是否还存活
             if not psutil.pid_exists(parent_pid):
-                print(f"[DEBUG] 父进程{parent_pid}已退出，关闭窗口", file=sys.stderr)
                 try:
                     with open(debug_file, "a", encoding="utf-8") as f:
                         timestamp = time.time() - 1757413752.714440
@@ -757,7 +754,6 @@ try:
             # 每1秒检查一次
             root.after(1000, check_parent_alive)
         except Exception as e:
-            print(f"[DEBUG] 父进程监控错误: {e}", file=sys.stderr)
             # 出错时继续监控
             root.after(1000, check_parent_alive)
     

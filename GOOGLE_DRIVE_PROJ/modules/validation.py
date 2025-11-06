@@ -115,14 +115,19 @@ class Validation:
             nonlocal attempt_count
             attempt_count += 1
             
-            # 在最后一次尝试时使用远程bash强制刷新（会弹出窗口）
-            if attempt_count >= max_attempts:
-                ls_result = self.main_instance.cmd_ls_remote(path, detailed=False, recursive=False, show_hidden=show_hidden)
-            else:
-                # 使用标准API调用
-                ls_result = self.main_instance.cmd_ls(path, detailed=False, recursive=False, show_hidden=show_hidden)
+            # 使用标准API调用，避免弹出窗口
+            ls_result = self.main_instance.cmd_ls(path, detailed=False, recursive=False, show_hidden=show_hidden)
             
-            return ls_result["success"]
+            # 如果成功找到文件/目录，返回True
+            if ls_result["success"]:
+                return True
+            
+            # 如果达到最大尝试次数，返回None表示失败并退出循环
+            if attempt_count >= max_attempts:
+                return None
+            
+            # 否则返回False继续重试
+            return False
             
         from .progress_manager import validate_creation, clear_progress, is_progress_active
         if is_progress_active():

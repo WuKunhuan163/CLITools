@@ -235,26 +235,6 @@ class PathResolver:
             # 如果转换失败，返回原路径，避免破坏用户输入
             return command_or_path
     
-    def convert_remote_path_to_logical(self, remote_path):
-        """
-        将远端完整路径转换为逻辑路径（~/xxx格式）
-        
-        Args:
-            remote_path (str): 远端完整路径，如 "/content/drive/MyDrive/REMOTE_ROOT/tmp"
-            
-        Returns:
-            str: 逻辑路径，如 "~/tmp"
-        """
-        remote_root_path = self.main_instance.REMOTE_ROOT
-        if remote_path == remote_root_path:
-            return "~"
-        elif remote_path.startswith(f"{remote_root_path}/"):
-            relative_part = remote_path[len(remote_root_path) + 1:]
-            return f"~/{relative_part}"
-        else:
-            # 如果不是以REMOTE_ROOT开头，可能已经是逻辑路径或其他格式
-            return remote_path
-    
     def get_parent_path(self, path):
         """获取路径的父目录，支持~和@前缀"""
         if path == "~":
@@ -378,7 +358,6 @@ class PathResolver:
     def resolve_remote_absolute_path(self, path, current_shell=None, return_logical=False):
         """
         通用路径解析接口：将相对路径解析为远端绝对路径
-        整合了compute_absolute_path的功能，支持路径规范化（处理..和.）
         
         Args:
             path (str): 要解析的路径
@@ -394,15 +373,43 @@ class PathResolver:
                 if not current_shell:
                     raise ValueError("Current shell or default shell both not available for path resolution. ")
             
-            # 路径已经在execute_shell_command中统一处理，无需重复处理
-            
             # 获取当前路径
             current_path = current_shell.get("current_path", "~")
             remote_root_path = self.main_instance.REMOTE_ROOT
             remote_env_path = self.main_instance.REMOTE_ENV
             
+            #### Special Processing for REMOTE_ROOT and REMOTE_ENV ####
+            #### 正常来讲，用户不会输入绝对路径，而是输入~以及@开头的逻辑路径 ####
+            # 首先检查是否是完整的远程路径，需要转换回逻辑路径
+            if path.startswith(remote_root_path):
+                if path == remote_root_path:
+                    logical_path = "~"
+                elif path.startswith(f"{remote_root_path}/"):
+                    relative_part = path[len(remote_root_path) + 1:]
+                    logical_path = f"~/{relative_part}"
+                else:
+                    logical_path = path  # 不应该到这里，但保持原样
+                
+                if return_logical:
+                    return logical_path
+                else:
+                    return path  # 已经是绝对路径
+            elif path.startswith(remote_env_path):
+                if path == remote_env_path:
+                    logical_path = "@"
+                elif path.startswith(f"{remote_env_path}/"):
+                    relative_part = path[len(remote_env_path) + 1:]
+                    logical_path = f"@/{relative_part}"
+                else:
+                    logical_path = path  # 不应该到这里，但保持原样
+                
+                if return_logical:
+                    return logical_path
+                else:
+                    return path  # 已经是绝对路径
+            
             # 如果仍然是绝对路径（以/开头），转换为~/xxx格式
-            if path.startswith("/"):
+            elif path.startswith("/"):
                 # 真正的绝对路径，映射为逻辑路径
                 # 例如 /tmp/file.txt -> ~/tmp/file.txt
                 relative_part = path[1:]  # 去掉前导的 /
@@ -418,7 +425,6 @@ class PathResolver:
             
             # 处理@开头的路径（代表REMOTE_ENV）
             if path.startswith("@"):
-                # @路径代表REMOTE_ENV
                 logical_path = path
                 if '../' in path or '/./' in path or path.endswith('/..') or path.endswith('/.'):
                     logical_path = self.normalize_path_components("@", path[2:] if path.startswith("@/") else path[1:])
@@ -437,7 +443,6 @@ class PathResolver:
             
             # 计算逻辑路径（~/xxx格式）
             if path.startswith("~"):
-                # 绝对路径（以~开头）
                 logical_path = path
                 if '../' in path or '/./' in path or path.endswith('/..') or path.endswith('/.'):
                     logical_path = self.normalize_path_components("~", path[2:] if path.startswith("~/") else path[1:])

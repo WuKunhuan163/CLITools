@@ -168,7 +168,7 @@ class SyncManager:
         if result.get('success'):
             return self.create_success_result("Google Drive API connection is normal")
         else:
-            return {"success": False, "error": f"Google Drive API connection failed: {result.get('error', 'Unknown error')}"}
+            return {"success": False, "error": f"Google Drive API connection failed: {result.get('error', 'API connection failed without specific error message')}"}
             
     def calculate_timeout_from_file_sizes(self, file_moves):
         """

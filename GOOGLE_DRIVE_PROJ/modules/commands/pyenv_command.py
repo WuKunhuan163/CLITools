@@ -167,12 +167,8 @@ class PyenvCommand(BaseCommand):
                     return {"success": False, "error": "Please specify a Python version to uninstall"}
                 return self.pyenv_uninstall(version)
             elif action == "--list":
-                return {
-                    "success": False,
-                    "error": "pyenv: no such command `list'. Use 'pyenv --versions' to list installed versions."
-                }
-            elif action == "--list-available":
-                return self.pyenv_list_available()
+                force = "--force" in args
+                return self.pyenv_list(force=force)
             elif action == "--update-cache":
                 return self.pyenv_update_cache()
             elif action == "--global":
@@ -230,13 +226,7 @@ class PyenvCommand(BaseCommand):
                     }
                 else:
                     print(f"Python {version} is already installed. Forcing reinstallation...")
-                    # 先卸载旧版本
-                    uninstall_result = self.pyenv_uninstall(version)
-                    if not uninstall_result.get("success"):
-                        return {
-                            "success": False,
-                            "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
-                        }
+                    self.pyenv_uninstall(version)
             
             # 生成临时安装目录的hash名称
             import hashlib
@@ -349,7 +339,11 @@ fi
             # 执行远程安装命令
             result = self.shell.command_executor.execute_remote_script(install_command)
             
-            if result.get("success") and result.get("exit_code") == 0:
+            # 检查命令执行结果 - exit_code在data字段中
+            data = result.get("data", {})
+            exit_code = data.get("exit_code", 1)
+            
+            if result.get("success") and exit_code == 0:
                 # 更新状态文件
                 self.add_installed_version(version)
                 
@@ -396,13 +390,8 @@ fi
                     }
                 else:
                     print(f"Python {version} is already installed. Forcing reinstallation...")
-                    # 先卸载旧版本
-                    uninstall_result = self.pyenv_uninstall(version)
-                    if not uninstall_result.get("success"):
-                        return {
-                            "success": False,
-                            "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
-                        }
+                    # 直接使用pyenv_uninstall接口
+                    self.pyenv_uninstall(version)
             
             # 构建Python安装bash脚本，直接在模板中使用REMOTE_ENV
             # 生成临时安装目录的hash名称
@@ -559,13 +548,8 @@ fi
                     }
                 else:
                     print(f"Python {version} is already installed. Forcing reinstallation...")
-                    # 先卸载旧版本
-                    uninstall_result = self.pyenv_uninstall(version)
-                    if not uninstall_result.get("success"):
-                        return {
-                            "success": False,
-                            "error": f"Failed to uninstall existing version: {uninstall_result.get('error', 'Unknown error')}"
-                        }
+                    # 直接使用pyenv_uninstall接口
+                    self.pyenv_uninstall(version)
             
             print(f"Starting local download and remote installation of Python {version}...")
             print(f"Step 1/4: Downloading Python {version} source code locally...")
@@ -606,14 +590,17 @@ fi
                 print(f"Step 2/4: Uploading source code to remote REMOTE_ENV...")
                 
                 # 上传到REMOTE_ENV的临时目录
-                remote_tmp_path = f"@/python_install_{version}"
+                # 使用绝对路径避免在测试环境中的路径嵌套问题
+                remote_tmp_path = f"{self.shell.REMOTE_ENV}/python_install_{version}"
                 
                 # 创建远程目录
                 mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
                 if not mkdir_result.get("success"):
+                    import traceback
+                    call_stack = ''.join(traceback.format_stack()[-3:])
                     return {
                         "success": False,
-                        "error": f"Failed to create remote directory: {mkdir_result.get('error', 'Unknown error')}"
+                        "error": f"Failed to create remote directory: {mkdir_result.get('error', f'Directory creation failed without specific error message. Call stack: {call_stack}')}"
                     }
                 
                 # 上传tar.gz文件到@路径 - 移除force=True以启用大文件检测
@@ -622,9 +609,11 @@ fi
                 upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path)
                 
                 if not upload_result.get("success"):
+                    import traceback
+                    call_stack = ''.join(traceback.format_stack()[-3:])
                     return {
                         "success": False,
-                        "error": f"Failed to upload source code: {upload_result.get('error', 'Unknown error')}"
+                        "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
                     }
                 
                 # 构建远程tarball路径
@@ -792,58 +781,99 @@ fi
         if not self.validate_version(version):
             return {"success": False, "error": f"Invalid Python version format: {version}"}
         
-        try:
-            # 检查版本是否已安装
-            if not self.is_version_installed(version):
-                return {
-                    "success": False,
-                    "error": f"Python {version} is not installed"
-                }
-            
-            # 检查是否为当前使用的版本
-            current_version = self.get_current_python_version()
-            if current_version == version:
-                return {
-                    "success": False,
-                    "error": f"Cannot uninstall Python {version} because it is currently in use. Please switch to another version first."
-                }
-            
-            # 构建卸载路径
-            install_path = f"{self.get_python_base_path()}/{version}"
-            
-            print(f"Uninstalling Python {version}...")
-            
-            # 构建远程卸载命令
-            uninstall_command = f'''
+    # 检查版本是否已安装
+        if not self.is_version_installed(version):
+            return {
+                "success": False,
+                "error": f"Python {version} is not installed"
+            }
+        
+        # 检查是否为当前使用的版本
+        current_version = self.get_current_python_version()
+        if current_version == version:
+            return {
+                "success": False,
+                "error": f"Cannot uninstall Python {version} because it is currently in use. Please switch to another version first."
+            }
+        
+        # 构建卸载路径 - 转换为绝对路径
+        python_base_path = self.get_python_base_path()
+        absolute_python_base_path = python_base_path.replace("@", self.shell.REMOTE_ENV)
+        install_path = f"{absolute_python_base_path}/{version}"
+        
+        print(f"Uninstalling Python {version}...")
+        
+        # 构建远程卸载命令 - 在远程环境中先更新状态文件，再删除目录
+        state_file = f"{absolute_python_base_path}/python_states.json"
+        
+        uninstall_command = f'''
+# 先更新状态文件，移除版本记录
+if [ -f "{state_file}" ]; then
+    # 使用Python来更新JSON状态文件
+    python3 -c "
+import json
+import os
+try:
+    with open('{state_file}', 'r') as f:
+        states = json.load(f)
+    
+    # 移除版本记录
+    if 'installed_versions' in states and '{version}' in states['installed_versions']:
+        states['installed_versions'].remove('{version}')
+        print('Removed {version} from installed versions list')
+    
+    # 重置所有使用该版本的shell
+    for shell_id in list(states.get('shell_versions', {{}}).keys()):
+        if states['shell_versions'][shell_id] == '{version}':
+            states['shell_versions'][shell_id] = 'system'
+            print(f'Reset shell {{shell_id}} from {version} to system')
+    
+    # 如果全局版本是该版本，重置为system
+    if states.get('global_version') == '{version}':
+        states['global_version'] = 'system'
+        print('Reset global version from {version} to system')
+    
+    # 写回文件
+    with open('{state_file}', 'w') as f:
+        json.dump(states, f, indent=2)
+    
+    print('Python states updated successfully')
+except Exception as e:
+    print(f'Warning: Could not update states file: {{e}}')
+"
+fi
+
+# 然后删除安装目录
 if [ -d "{install_path}" ]; then
     rm -rf "{install_path}"
     echo "Python {version} uninstalled successfully"
 else
-    echo "Python {version} directory not found"
-    exit 1
+    echo "Python {version} directory not found (already removed)"
 fi
+echo "Python {version} uninstall completed"
 '''
+        
+        # 执行远程卸载命令
+        result = self.shell.execute_command_interface("bash", ["-c", uninstall_command])
+        
+        # 检查命令执行结果 - exit_code在data字段中
+        data = result.get("data", {})
+        exit_code = data.get("exit_code", 1)
+        
+        if result.get("success") and exit_code == 0:
+            # 状态文件更新已在远程命令中完成，不需要本地更新
+            return {
+                "success": True,
+                "message": f"Python {version} uninstalled successfully",
+                "version": version
+            }
+        else:
+            # 直接抛出异常，不包装错误
+            import traceback
+            call_stack = ''.join(traceback.format_stack()[-3:])  # 获取最近3层调用栈
+            error_msg = result.get('error', f'Python uninstall failed without specific error message. Call stack: {call_stack}. \n\nResult: {result}. \n\nFull command: \n{uninstall_command}')
+            raise RuntimeError(f"Failed to uninstall Python {version}: {error_msg}")
             
-            # 执行远程卸载命令
-            result = self.shell.execute_command_interface("bash", ["-c", uninstall_command])
-            
-            if result.get("success") and result.get("exit_code") == 0:
-                # 更新状态文件
-                self.remove_installed_version(version)
-                
-                return {
-                    "success": True,
-                    "message": f"Python {version} uninstalled successfully",
-                    "version": version
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Failed to uninstall Python {version}: {result.get('error', 'Unknown error')}"
-                }
-                
-        except Exception as e:
-            return {"success": False, "error": f"Error uninstalling Python {version}: {str(e)}"}
     
     def get_versions_and_current_unified(self):
         """使用单个远程命令同时获取已安装版本、当前版本和版本来源信息
@@ -865,7 +895,7 @@ fi
             remote_env_files = self.shell.drive_service.list_files(folder_id=remote_env_folder_id, max_results=1000)
             
             if not remote_env_files.get("success"):
-                print(f"Warning: Failed to list REMOTE_ENV: {remote_env_files.get('error', 'Unknown error')}")
+                print(f"Warning: Failed to list REMOTE_ENV: {remote_env_files.get('error', 'Directory listing failed without specific error message')}")
                 return [], None, "system"
             
             # 找到python目录的folder_id
@@ -885,7 +915,7 @@ fi
             python_files_result = self.shell.drive_service.list_files(folder_id=python_folder_id, max_results=1000)
             
             if not python_files_result.get("success"):
-                print(f"Warning: Failed to list python directory: {python_files_result.get('error', 'Unknown error')}")
+                print(f"Warning: Failed to list python directory: {python_files_result.get('error', 'Python directory listing failed without specific error message')}")
                 return [], None, "system"
             
             # 提取版本号和状态文件
@@ -946,9 +976,16 @@ fi
             print(f"Warning: Error in unified version query: {e}")
             return [], None, "system"
     
-    def pyenv_list_available(self):
+    def pyenv_list(self, force=False):
         """列出可下载的Python版本"""
         try:
+            if force:
+                # 强制更新缓存
+                print("Forcing cache update...")
+                update_result = self.pyenv_update_cache()
+                if not update_result.get("success"):
+                    return update_result
+            
             # 获取缓存的可用版本列表
             available_versions = self.get_cached_available_versions()
             
@@ -1237,11 +1274,14 @@ fi
     def get_python_state(self, key):
         """从状态文件获取Python版本信息"""
         try:
-            # 通过远程命令读取状态文件
+            # 通过特殊命令接口读取状态文件，避免弹出窗口
             import json
             state_file = self.get_python_state_file_path()
-            read_command = f'cat "{state_file}" 2>/dev/null || echo "{{}}"'
-            result = self.shell.execute_command_interface("bash", ["-c", read_command])
+            
+            # 使用特殊命令接口读取文件
+            from .text_command import TextCommand
+            text_cmd = TextCommand(self.shell)
+            result = text_cmd.cmd_cat(state_file)
             
             if result.get("success") and result.get("stdout"):
                 try:

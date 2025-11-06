@@ -415,7 +415,9 @@ class RemoteShellManager:
             import os
             import time
             
-            config_path = os.path.expanduser("~/.gds_path_ids.json")
+            from .path_constants import PathConstants
+            path_constants = PathConstants()
+            config_path = str(path_constants.GDS_PATH_IDS_FILE)
             
             # 加载或创建配置文件
             if os.path.exists(config_path):

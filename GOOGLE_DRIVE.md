@@ -249,6 +249,72 @@ GDS edit --backup production_config.py '[["old_setting", "new_setting"]]'
 - 📝 文本文件创建 (`echo`)
 - 🔗 与 Google Colab 集成
 - 🛠️ 调试和诊断工具
+- 🛡️ **Connection Check 远程健康监控**
+
+### 4. 🛡️ Connection Check 系统
+
+Connection Check 是 GDS 的智能远程健康监控系统，能够主动检测远程shell连接状态并自动恢复。
+
+#### 核心功能
+
+**智能频率控制**
+- 每3个远程窗口自动触发一次健康检查
+- 执行时间超过3秒的命令也会触发检查
+- 可通过配置文件调整检查频率
+
+**远程健康检查**
+- 使用Google Drive API验证结果文件访问
+- 12次重试机制，每次间隔1秒
+- 检测到问题时自动触发恢复流程
+
+**自动错误恢复**
+- 检测到"Unknown error"时自动触发remount
+- 支持最多3次重试机制
+- 清理错误的路径ID缓存
+
+**用户友好提示**
+- 远程shell崩溃时显示剪切板提醒
+- 提供详细的故障排除建议
+- 支持手动反馈模式
+
+#### 配置文件
+
+Connection Check 的行为可通过 `~/.local/bin/GOOGLE_DRIVE_DATA/template_t_config.json` 配置：
+
+```json
+{
+  "window_threshold": 3,        // 触发检查的窗口数量阈值
+  "duration_threshold": 3,      // 触发检查的命令执行时间阈值（秒）
+  "max_attempts": 12,           // 最大重试次数
+  "interval_seconds": 1,        // 重试间隔（秒）
+  "enabled": true,              // 是否启用Connection Check
+  "description": "Connection Check configuration for GDS system"
+}
+```
+
+#### 工作原理
+
+1. **触发条件检测**: 监控命令执行频率和时长
+2. **凭据注入**: 从本地GoogleDriveService获取API凭据
+3. **远程验证**: 在远程环境中验证Google Drive API访问
+4. **故障检测**: 检测结果文件访问失败
+5. **自动恢复**: 触发remount和路径ID清理
+6. **用户通知**: 提供详细的恢复指导
+
+#### 故障排除
+
+当Connection Check检测到问题时，会显示详细的故障排除建议：
+
+1. **使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页**
+2. **更新正确的文件夹/文件ID - 错误可能在直接父目录**
+3. **检查网络连接，Google Drive API可能缓慢或无法访问**
+
+#### 技术特性
+
+- **安全的凭据处理**: 从已认证的GoogleDriveService实例获取凭据
+- **优雅降级**: 无凭据时跳过验证，不影响正常功能
+- **强制runtime清理**: 使用`google.colab.runtime.unassign()`清理崩溃环境
+- **详细调试输出**: 完整的调试信息帮助问题诊断
 
 ## 安装和配置
 
@@ -570,7 +636,7 @@ REMOTE_ROOT/
 #### 查看可用版本
 ```bash
 # 查看所有可下载的Python版本
-GDS pyenv --list-available
+GDS pyenv --list
 ```
 输出示例：
 ```
@@ -594,7 +660,7 @@ GDS pyenv --install 3.10.12
 #### 查看已安装版本
 ```bash
 # 查看所有已安装的Python版本
-GDS pyenv --list
+GDS pyenv --versions
 ```
 输出示例：
 ```
@@ -678,6 +744,7 @@ GOOGLE_DRIVE --upload file.txt /content/drive/MyDrive/Projects
 ```bash
 pwd                         # 显示当前目录
 ls [path] [--detailed] [-R] # 列出目录内容 (递归使用 -R)
+ls --id <folder_id> [--detailed] [-R] # 根据Google Drive文件夹ID列出内容
 cd <path>                   # 切换目录
 ```
 
@@ -886,6 +953,46 @@ GDS cd test_folder
 # 返回上级目录
 GDS cd ..
 ```
+
+### 目录列表增强功能
+
+#### 根据文件夹ID列出内容
+
+**新功能**: `ls --id` 允许您直接使用 Google Drive 文件夹ID来列出目录内容，无需知道逻辑路径。
+
+```bash
+# 获取文件夹ID
+GDS ls --detailed ~
+
+# 使用ID列出目录内容
+GDS ls --id 1GgaX0K7_QtZblGmj0fAK6E8CFZbC0P0B
+
+# 使用ID的详细模式
+GDS ls --id 1GgaX0K7_QtZblGmj0fAK6E8CFZbC0P0B --detailed
+
+# 使用ID的递归模式
+GDS ls --id 1GgaX0K7_QtZblGmj0fAK6E8CFZbC0P0B -R
+
+# 显示隐藏文件
+GDS ls --id 1GgaX0K7_QtZblGmj0fAK6E8CFZbC0P0B -a
+```
+
+**使用场景**:
+- 🔗 **直接访问**: 通过分享的文件夹ID直接访问内容
+- 🚀 **快速导航**: 绕过复杂的路径结构直接访问目标文件夹
+- 🔧 **故障排除**: 当路径解析出现问题时的备用访问方式
+- 📋 **脚本自动化**: 在脚本中使用固定的文件夹ID而不依赖路径
+
+**错误处理**:
+- ✅ 自动验证文件夹ID格式
+- ✅ 检查文件夹是否存在且可访问
+- ✅ 区分文件和文件夹（只能对文件夹使用）
+- ✅ 检测回收站中的文件夹
+
+**注意事项**:
+- `--id` 不能与路径参数同时使用
+- `--id` 不能与 `--force` (-f) 同时使用（因为使用Google Drive API）
+- 使用 `ls --detailed` 获取文件夹ID以供后续使用
 
 ### 文件管理
 ```bash
