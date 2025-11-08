@@ -1,9 +1,92 @@
 # ============================================================================
-# Test completed at: 2025-11-08 19:14:59 - Status: FAIL
+# Test completed at: 2025-11-08 19:59:31 - Status: FAIL
 # ============================================================================
 
 test_03_echo_advanced (test_gds.GDSTest)
-测试echo的正确JSON语法（修复后的功能） ... FAIL
+测试echo的正确JSON语法（修复后的功能） ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251108_195755_894216_44a286cb
+正在创建远端测试目录: ~/tmp/gds_test_20251108_195755_894216_44a286cb
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251108_195755_894216_44a286cb
+✓ 验证测试目录存在: ~/tmp/gds_test_20251108_195755_894216_44a286cb
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2p2j6nsu
+测试环境设置完成
+命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251108_195755_894216_44a286cb/correct_json.txt'
+返回码: 0
+[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result .......\r\x1b[K\r\x1b[K'
+[DEBUG GDS] raw_stdout length: 40
+[DEBUG GDS] cleaned_stdout: ''
+[DEBUG GDS] cleaned_stdout length: 0
+输出: 
+错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603110_29964.json...
+[DEBUG] verify_file_content_contains called:
+  filename: ~/tmp/gds_test_20251108_195755_894216_44a286cb/correct_json.txt
+  expected_content: "{'name': 'test03_json_echo_01', 'value': 123}"
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251108_195755_894216_44a286cb/correct_json.txt'
+返回码: 0
+[DEBUG GDS] raw_stdout: "{'name': 'test03_json_echo_01', 'value': 123}\n"
+[DEBUG GDS] raw_stdout length: 46
+[DEBUG GDS] cleaned_stdout: "{'name': 'test03_json_echo_01', 'value': 123}"
+[DEBUG GDS] cleaned_stdout length: 45
+输出: {'name': 'test03_json_echo_01', 'value': 123}
+错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json...
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: "{'name': 'test03_json_echo_01', 'value': 123}\n"
+  stderr: '[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603134_30192.json\n'
+[DEBUG] after processing:
+  actual_content: "{'name': 'test03_json_echo_01', 'value': 123}\n"
+  actual_content length: 46
+命令: 'echo -e "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251108_195755_894216_44a286cb/multiline.txt'
+返回码: 0
+[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result ........\r\x1b[K\r\x1b[K'
+[DEBUG GDS] raw_stdout length: 41
+[DEBUG GDS] cleaned_stdout: ''
+[DEBUG GDS] cleaned_stdout length: 0
+输出: 
+FAIL
 
 ======================================================================
 FAIL: test_03_echo_advanced (test_gds.GDSTest)
@@ -15,69 +98,76 @@ Traceback (most recent call last):
 AssertionError: False is not true
 
 ----------------------------------------------------------------------
-Ran 1 test in 78.810s
+Ran 1 test in 93.490s
 
 FAILED (failures=1)
-设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251108_191338_998739_1451a8c9
-正在创建远端测试目录: ~/tmp/gds_test_20251108_191338_998739_1451a8c9
-使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251108_191338_998739_1451a8c9
-✓ 验证测试目录存在: ~/tmp/gds_test_20251108_191338_998739_1451a8c9
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_o7b2f1e4
-测试环境设置完成
-命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251108_191338_998739_1451a8c9/correct_json.txt'
-返回码: 0
-[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result .........\r\x1b[K\r\x1b[K'
-[DEBUG GDS] raw_stdout length: 42
-[DEBUG GDS] cleaned_stdout: ''
-[DEBUG GDS] cleaned_stdout length: 0
-输出: 
+错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603142_30215.json...
 [DEBUG] verify_file_content_contains called:
-  filename: ~/tmp/gds_test_20251108_191338_998739_1451a8c9/correct_json.txt
-  expected_content: "{'name': 'test03_json_echo_01', 'value': 123}"
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251108_191338_998739_1451a8c9/correct_json.txt'
-返回码: 0
-[DEBUG GDS] raw_stdout: "{'name': 'test03_json_echo_01', 'value': 123}\n"
-[DEBUG GDS] raw_stdout length: 46
-[DEBUG GDS] cleaned_stdout: "{'name': 'test03_json_echo_01', 'value': 123}"
-[DEBUG GDS] cleaned_stdout length: 45
-输出: {'name': 'test03_json_echo_01', 'value': 123}
-[DEBUG] cat command result:
-  returncode: 0
-  stdout: "{'name': 'test03_json_echo_01', 'value': 123}\n"
-  stderr: ''
-[DEBUG] after processing:
-  actual_content: "{'name': 'test03_json_echo_01', 'value': 123}\n"
-  actual_content length: 46
-命令: 'echo -e "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251108_191338_998739_1451a8c9/multiline.txt'
-返回码: 0
-[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result .......\r\x1b[K\r\x1b[K'
-[DEBUG GDS] raw_stdout length: 40
-[DEBUG GDS] cleaned_stdout: ''
-[DEBUG GDS] cleaned_stdout length: 0
-输出: 
-[DEBUG] verify_file_content_contains called:
-  filename: ~/tmp/gds_test_20251108_191338_998739_1451a8c9/multiline.txt
+  filename: ~/tmp/gds_test_20251108_195755_894216_44a286cb/multiline.txt
   expected_content: 'Line1\nLine2\nLine3'
   terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251108_191338_998739_1451a8c9/multiline.txt'
+命令: 'cat ~/tmp/gds_test_20251108_195755_894216_44a286cb/multiline.txt'
 返回码: 0
 [DEBUG GDS] raw_stdout: 'Line1\n'
 [DEBUG GDS] raw_stdout length: 6
 [DEBUG GDS] cleaned_stdout: 'Line1'
 [DEBUG GDS] cleaned_stdout length: 5
 输出: Line1
+错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json
+[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json...
 [DEBUG] cat command result:
   returncode: 0
   stdout: 'Line1\n'
-  stderr: ''
+  stderr: '[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603161_30285.json\n'
 [DEBUG] after processing:
   actual_content: 'Line1\n'
   actual_content length: 6
 文件内容验证失败:
-  文件: ~/tmp/gds_test_20251108_191338_998739_1451a8c9/multiline.txt
+  文件: ~/tmp/gds_test_20251108_195755_894216_44a286cb/multiline.txt
   期望包含: 'Line1\nLine2\nLine3'
   实际内容: 'Line1\n'
   内容长度: 期望=17, 实际=6

@@ -5887,6 +5887,127 @@ print('Script execution successful!')
         print(f'\npyenv本地下载安装测试完成')
         print(f'✓ Python {test_version}通过本地下载模式成功安装并验证')
 
+    def test_38_comprehensive_bash_alignment(self):
+        """全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等"""
+        print('测试全面bash alignment')
+        
+        import subprocess
+        
+        # 测试用例：(名称, 命令, 期望输出的生成函数)
+        test_cases = []
+        
+        # 分组1: 不同引号类型
+        print('\n分组1: 不同引号类型')
+        test_cases.extend([
+            ("双引号-字面量", 'echo "Line1\\nLine2"', lambda cmd: self._run_local_bash(cmd)),
+            ("单引号-字面量", "echo 'Line1\\nLine2'", lambda cmd: self._run_local_bash(cmd)),
+            ("无引号", "echo Line1", lambda cmd: self._run_local_bash(cmd)),
+            ("双引号-echo-e", 'echo -e "Line1\\nLine2"', lambda cmd: self._run_local_bash(cmd)),
+        ])
+        
+        # 分组2: 不同反斜杠数量
+        print('\n分组2: 不同反斜杠数量')
+        test_cases.extend([
+            ("1个反斜杠", 'echo "\\n"', lambda cmd: self._run_local_bash(cmd)),
+            ("2个反斜杠", 'echo "\\\\n"', lambda cmd: self._run_local_bash(cmd)),
+            ("4个反斜杠", 'echo "\\\\\\\\n"', lambda cmd: self._run_local_bash(cmd)),
+        ])
+        
+        # 分组3: 特殊符号
+        print('\n分组3: 特殊符号')
+        test_cases.extend([
+            ("Dollar符号", 'echo "Price: $100"', lambda cmd: self._run_local_bash(cmd)),
+            ("Backtick", 'echo "Command: `pwd`"', lambda cmd: self._run_local_bash(cmd)),
+            ("混合特殊符号", 'echo "Test: $VAR \\n `cmd`"', lambda cmd: self._run_local_bash(cmd)),
+        ])
+        
+        # 分组4: 重定向 vs 直接输出
+        print('\n分组4: 重定向测试')
+        test_file_base = self.get_test_remote_path("bash_alignment")
+        
+        # 执行所有测试
+        results = []
+        for i, (name, cmd, expect_fn) in enumerate(test_cases, 1):
+            print(f'\n测试{i}: {name}')
+            print(f'  命令: {repr(cmd)}')
+            
+            # GDS执行
+            result_gds = self.gds(cmd)
+            gds_output = result_gds.stdout.strip() if result_gds.returncode == 0 else ""
+            
+            # 本地bash执行
+            local_output = expect_fn(cmd)
+            
+            # 对比
+            if gds_output == local_output:
+                print(f'  ✅ 对齐 - GDS和本地bash输出一致')
+                results.append((name, True, None))
+            else:
+                print(f'  ❌ 不对齐')
+                print(f'     本地bash: {repr(local_output)}')
+                print(f'     GDS:      {repr(gds_output)}')
+                results.append((name, False, (local_output, gds_output)))
+        
+        # 测试重定向
+        print(f'\n\n重定向测试组')
+        redirect_cases = [
+            ("重定向-双引号-反斜杠", 'echo "Line1\\nLine2" > {file}', "Line1\\nLine2"),
+            ("重定向-echo-e", 'echo -e "Line1\\nLine2\\nLine3" > {file}', "Line1\nLine2\nLine3"),
+        ]
+        
+        for i, (name, cmd_template, expected) in enumerate(redirect_cases, 1):
+            test_file = f"{test_file_base}_{i}.txt"
+            cmd_write = cmd_template.format(file=test_file)
+            cmd_read = f"cat {test_file}"
+            
+            print(f'\n重定向测试{i}: {name}')
+            print(f'  写入命令: {repr(cmd_write)}')
+            
+            # 写入
+            result_write = self.gds(cmd_write)
+            self.assertEqual(result_write.returncode, 0)
+            
+            # 读取
+            result_read = self.gds(cmd_read)
+            actual = result_read.stdout.strip() if result_read.returncode == 0 else ""
+            
+            print(f'  期望: {repr(expected)}')
+            print(f'  实际: {repr(actual)}')
+            
+            if expected == actual:
+                print(f'  ✅ 匹配')
+                results.append((name, True, None))
+            else:
+                print(f'  ❌ 不匹配')
+                results.append((name, False, (expected, actual)))
+        
+        # 汇总报告
+        print('\n' + '='*80)
+        print('Bash Alignment 测试汇总')
+        print('='*80)
+        
+        passed = sum(1 for _, success, _ in results if success)
+        total = len(results)
+        
+        print(f'\n通过: {passed}/{total}')
+        
+        # 显示失败的测试
+        failures = [(name, diff) for name, success, diff in results if not success]
+        if failures:
+            print(f'\n失败的测试:')
+            for name, (expected, actual) in failures:
+                print(f'  - {name}')
+                print(f'      期望: {repr(expected)}')
+                print(f'      实际: {repr(actual)}')
+        
+        # 所有测试必须通过
+        self.assertEqual(passed, total, f'Bash alignment测试失败: {total-passed}/{total}个测试不通过')
+    
+    def _run_local_bash(self, cmd):
+        """在本地bash中执行命令并返回输出"""
+        result = subprocess.run(['/bin/bash', '-c', cmd], capture_output=True, text=True)
+        return result.stdout.strip()
+
     def test_reset_functionality(self):
         """测试GDS reset功能 - 设置错误ID验证找不到，并且报错当中有指出访问文件夹的问题"""
         print(f'测试GDS reset功能')
