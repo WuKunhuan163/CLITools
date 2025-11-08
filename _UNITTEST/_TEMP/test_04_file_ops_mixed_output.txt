@@ -1,71 +1,63 @@
 # ============================================================================
-# Test completed at: 2025-11-08 17:09:33 - Status: FAIL
+# Test completed at: 2025-11-09 00:35:53 - Status: PASS
 # ============================================================================
 
-test_04_file_ops_mixed (test_gds.GDSTest) ... FAIL
-
-======================================================================
-FAIL: test_04_file_ops_mixed (test_gds.GDSTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 836, in gds
-    self.assertEqual(result.returncode, 0, f"命令执行失败")
-  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
-    assertion_func(first, second, msg=msg)
-AssertionError: 1 != 0 : 命令执行失败
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1812, in test_04_file_ops_mixed
-    result = self.gds(f'echo "# Main module" > {advanced_project}/src/main.py')
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 842, in gds
-    self.fail(f'命令执行异常: {command} - {e}')
-AssertionError: 命令执行异常: echo "# Main module" > ~/tmp/gds_test_20251108_170705_589249_222f35d0/advanced_project/src/main.py - 1 != 0 : 命令执行失败
+test_04_file_ops_mixed (test_gds.GDSTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 146.337s
+Ran 1 test in 219.592s
 
-FAILED (failures=1)
+OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251108_170705_589249_222f35d0
-正在创建远端测试目录: ~/tmp/gds_test_20251108_170705_589249_222f35d0
+远端测试目录: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
+正在创建远端测试目录: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251108_170705_589249_222f35d0
-✓ 验证测试目录存在: ~/tmp/gds_test_20251108_170705_589249_222f35d0
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_1zvn1_ua
+已切换到远端测试目录: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_eqpgbk4f
 测试环境设置完成
-命令: 'mkdir -p ~/tmp/gds_test_20251108_170705_589249_222f35d0/advanced_project/src/utils'
+命令: 'mkdir -p ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils'
 返回码: 0
 输出: 
-命令: 'echo "# Main module" > ~/tmp/gds_test_20251108_170705_589249_222f35d0/advanced_project/src/main.py'
+命令: 'echo "# Main module" > ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py'
+返回码: 0
+输出: 
+命令: 'echo "# Utilities" > ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils/helpers.py'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils/helpers.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils/helpers.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls -R ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project'
+返回码: 0
+输出: src/
+utils/
+helpers.py
+main.py
+命令: 'mv ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py'
 返回码: 1
-输出: Error: Unknown error. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2214, in handle_command_line_args
-    return self.handle_shell_command_args(args[1:], command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2257, in handle_shell_command_args
-    return self.execute_shell_command(shell_cmd, command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 1049, in execute_shell_command
-    call_stack = ''.join(traceback.format_stack()[-3:])
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-检测到Unknown error，设置remount flag，下一个窗口将自动remount
-Remount flag已设置，下一个窗口将自动处理remount
-重试第1次...
+输出: ls: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py: No such file or directory
+命令: 'rm ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
 返回码: 1
-输出: Error: Unknown error. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2214, in handle_command_line_args
-    return self.handle_shell_command_args(args[1:], command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2257, in handle_shell_command_args
-    return self.execute_shell_command(shell_cmd, command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 1049, in execute_shell_command
-    call_stack = ''.join(traceback.format_stack()[-3:])
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-检测到Unknown error，设置remount flag，下一个窗口将自动remount
-Remount flag已设置，下一个窗口将自动处理remount
-重试第2次...
+输出: ls: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py: No such file or directory
+命令: 'rm -rf ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project'
 返回码: 1
-输出: Error: Unknown error. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2214, in handle_command_line_args
-    return self.handle_shell_command_args(args[1:], command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2257, in handle_shell_command_args
-    return self.execute_shell_command(shell_cmd, command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 1049, in execute_shell_command
-    call_stack = ''.join(traceback.format_stack()[-3:])
-命令执行异常: 1 != 0 : 命令执行失败
+输出: ls: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project: No such file or directory

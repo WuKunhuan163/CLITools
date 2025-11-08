@@ -31,11 +31,13 @@ class DebugLogger:
     
     def _get_log_directory(self):
         """获取日志目录路径"""
-        # 首先尝试使用GOOGLE_DRIVE_DATA环境变量
-        if 'GOOGLE_DRIVE_DATA' in os.environ:
-            base_dir = Path(os.environ['GOOGLE_DRIVE_DATA'])
-        else:
-            base_dir = Path.home() / 'GOOGLE_DRIVE_DATA'
+        # 使用当前项目的GOOGLE_DRIVE_DATA目录
+        # 当前文件: GOOGLE_DRIVE_PROJ/modules/debug_logger.py
+        # 项目根: GOOGLE_DRIVE_PROJ/..
+        # 目标目录: GOOGLE_DRIVE_PROJ/../GOOGLE_DRIVE_DATA/debug_logs
+        current_file = Path(__file__).resolve()  # .../GOOGLE_DRIVE_PROJ/modules/debug_logger.py
+        project_root = current_file.parent.parent.parent  # .../
+        base_dir = project_root / 'GOOGLE_DRIVE_DATA'
         
         return base_dir / 'debug_logs'
     
@@ -50,8 +52,8 @@ class DebugLogger:
         """
         # 添加debug print确认函数被调用
         # print(f"[DEBUG_LOGGER] {component}.{event} - {level}")
-        # 输出日志文件名（便于追踪）
-        print(f"[DEBUG_LOG] {self.log_file}", file=sys.stderr, flush=True)
+        # 输出日志文件名（便于追踪） - 禁用，输出太多
+        # print(f"[DEBUG_LOG] {self.log_file}", file=sys.stderr, flush=True)
         
         with self.lock:
             entry = {

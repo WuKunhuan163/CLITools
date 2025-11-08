@@ -63,9 +63,6 @@ def process_terminal_erase(stdout):
             result = result.replace('\a', '')
             result = result.replace('\x07', '')
             
-            # 3. 制表符转换为4个空格
-            result = result.replace('\t', '    ')
-            
             # 4. 处理退格符 \b
             # 从左到右处理退格符
             while '\b' in result:
@@ -720,11 +717,11 @@ Shell commands: ls -la && echo "done"
                 )
                 print(f'返回码: {result.returncode}')
                 if result.stdout:
-                    print(f'[DEBUG GDS] raw_stdout: {repr(result.stdout)}')
-                    print(f'[DEBUG GDS] raw_stdout length: {len(result.stdout)}')
+                    # print(f'[DEBUG GDS] raw_stdout: {repr(result.stdout)}')
+                    # print(f'[DEBUG GDS] raw_stdout length: {len(result.stdout)}')
                     cleaned_stdout = process_terminal_erase(result.stdout)
-                    print(f'[DEBUG GDS] cleaned_stdout: {repr(cleaned_stdout)}')
-                    print(f'[DEBUG GDS] cleaned_stdout length: {len(cleaned_stdout)}')
+                    # print(f'[DEBUG GDS] cleaned_stdout: {repr(cleaned_stdout)}')
+                    # print(f'[DEBUG GDS] cleaned_stdout length: {len(cleaned_stdout)}')
                     # 检查清理后的输出是否还包含indicator（仅警告，不中断测试）
                     if '⏳' in cleaned_stdout:
                         print(f'⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!')
@@ -1403,10 +1400,12 @@ Shell commands: ls -la && echo "done"
         
         # 10. 测试特殊字符路径
         print(f'测试特殊字符路径')
-        result = self.gds(f'mkdir -p {self.get_test_remote_path("test dir with spaces")}')
+        import shlex
+        space_dir_path = self.get_test_remote_path("test dir with spaces")
+        result = self.gds(f'mkdir -p {shlex.quote(space_dir_path)}')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds(f'ls {self.get_test_remote_path("test dir with spaces")}')
+        result = self.gds(f'ls {shlex.quote(space_dir_path)}')
         self.assertEqual(result.returncode, 0)
         
         # 11. 清理测试文件
@@ -1584,16 +1583,16 @@ Shell commands: ls -la && echo "done"
         # 更复杂的echo测试：包含转义字符和引号（bash默认echo不解释转义序列）
         complex_echo_file = self.get_test_remote_path("complex_echo.txt")
         content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # bash默认echo输出字面值
-        content_escaped = content.replace("'", "\'")
-        result = self.gds(f'echo "{content_escaped}" > {complex_echo_file}')
+        # 注意：此内容不包含单引号，在双引号内直接使用即可
+        result = self.gds(f'echo "{content}" > {complex_echo_file}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(complex_echo_file, content, terminal_erase = True))
         
         # 包含JSON格式的echo（检查实际的转义字符处理）
         json_echo_file = self.get_test_remote_path("json_echo.txt")
         json_content = "{'name': 'test02_json_echo_01', 'value': 123}"
-        json_content_escaped = json_content.replace("'", "\'")
-        result = self.gds(f'echo "{json_content_escaped}" > {json_echo_file}')
+        # 在双引号内，单引号不需要转义
+        result = self.gds(f'echo "{json_content}" > {json_echo_file}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(json_echo_file, json_content, terminal_erase = True))
         
@@ -1612,16 +1611,16 @@ Shell commands: ls -la && echo "done"
         # 测试echo -e处理换行符（重定向到文件）
         echo_multiline_path = self.get_test_remote_path("echo_multiline.txt")
         content = "line1\nline2\nline3"
-        content_escaped = content.replace("'", "\'")
-        result = self.gds(f'echo -e "{content_escaped}" > {echo_multiline_path}')
+        # 注意：此内容不包含单引号，在双引号内直接使用即可
+        result = self.gds(f'echo -e "{content}" > {echo_multiline_path}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(echo_multiline_path, content, terminal_erase = True))
         
         # 测试echo -e处理复杂转义序列（对比默认echo行为）
         echo_escape_path = self.get_test_remote_path("echo_escape.txt")
         escape_content = "Line 1\nLine 2\tTabbed\\Backslash"  # echo -e会解释转义序列
-        escape_content_escaped = escape_content.replace("'", "\'")
-        result = self.gds(f'echo -e "{escape_content_escaped}" > {echo_escape_path}')
+        # 注意：此内容不包含单引号，在双引号内直接使用即可
+        result = self.gds(f'echo -e "{escape_content}" > {echo_escape_path}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(echo_escape_path, escape_content, terminal_erase = True))
         
@@ -1639,8 +1638,8 @@ Shell commands: ls -la && echo "done"
         # 测试echo -e参数处理换行符（用引号包围整个命令，避免本地重定向）
         multiline_path = self.get_test_remote_path("multiline.txt")
         content = "Line1\nLine2\nLine3"
-        content_escaped = content.replace("'", "\'")
-        result = self.gds(f'echo -e "{content_escaped}" > {multiline_path}')
+        # 注意：此内容不包含单引号，在双引号内直接使用即可
+        result = self.gds(f'echo -e "{content}" > {multiline_path}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(multiline_path, content))
         
@@ -1661,8 +1660,9 @@ Shell commands: ls -la && echo "done"
         # 使用TEST_TEMP_DIR构造本地文件路径（文件在subprocess执行前不存在，所以不能用get_local_file_path）
         local_redirect_path = os.path.join(str(self.TEST_TEMP_DIR), "local_redirect.txt")
         json_content = "{'name': 'test03_json_echo_02', 'value': 123}"
-        json_content_escaped = json_content.replace("'", "\'")
-        full_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback echo "{json_content_escaped}" > {local_redirect_path}'
+        # 重要：必须用双引号包围整个shell命令，并转义内部的双引号
+        # 这样JSON内部的单引号能够正确传递到GDS
+        full_command = f'python3 {self.GOOGLE_DRIVE_PY} --shell --no-direct-feedback "echo \\"{json_content}\\"" > {local_redirect_path}'
         
         # 本地重定向应该直接使用subprocess.run，不通过gds的转译接口
         import subprocess
@@ -1717,8 +1717,8 @@ with open("test_config.json", "w") as f:
 print(f'Config created successfully')
 print(f'Current files: {len(os.listdir())}')'''
         test_script = self.get_test_remote_path("test_script.py")
-        escaped_python_code = python_code.replace('"', '\\"').replace('\n', '\\n')
-        result = self.gds(f'echo -e "{escaped_python_code}" > {test_script}')
+        # 使用heredoc创建Python脚本，避免复杂的转义问题
+        result = self.gds(f'cat > {test_script} << "EOF"\n{python_code}\nEOF')
         self.assertEqual(result.returncode, 0)
         
         # 验证Python脚本文件创建
@@ -5919,6 +5919,8 @@ print('Script execution successful!')
             ("Dollar符号", 'echo "Price: $100"', lambda cmd: self._run_local_bash(cmd)),
             ("Backtick", 'echo "Command: `pwd`"', lambda cmd: self._run_local_bash(cmd)),
             ("混合特殊符号", 'echo "Test: $VAR \\n `cmd`"', lambda cmd: self._run_local_bash(cmd)),
+            ("双引号内单引号-JSON格式", 'echo "{\'name\': \'test\', \'value\': 123}"', lambda cmd: self._run_local_bash(cmd)),
+            ("双引号内单引号-复杂", "echo \"Test's result: {'status': 'ok'}\"", lambda cmd: self._run_local_bash(cmd)),
         ])
         
         # 分组4: 重定向 vs 直接输出

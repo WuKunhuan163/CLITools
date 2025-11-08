@@ -1,37 +1,37 @@
 # ============================================================================
-# Test completed at: 2025-11-08 17:05:38 - Status: PASS
+# Test completed at: 2025-11-09 00:28:39 - Status: PASS
 # ============================================================================
 
 test_00_ls_basic (test_gds.GDSTest)
 测试ls命令的全路径支持（修复后的功能） ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 91.490s
+Ran 1 test in 87.486s
 
 OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251108_170404_026544_59c57fb0
-正在创建远端测试目录: ~/tmp/gds_test_20251108_170404_026544_59c57fb0
+远端测试目录: ~/tmp/gds_test_20251109_002705_117419_958a5272
+正在创建远端测试目录: ~/tmp/gds_test_20251109_002705_117419_958a5272
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251108_170404_026544_59c57fb0
-✓ 验证测试目录存在: ~/tmp/gds_test_20251108_170404_026544_59c57fb0
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_4rrxwy8i
+已切换到远端测试目录: ~/tmp/gds_test_20251109_002705_117419_958a5272
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_002705_117419_958a5272
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_hnzec2l7
 测试环境设置完成
-命令: 'mkdir -p ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir'
+命令: 'mkdir -p ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir'
 返回码: 0
 输出: 
-命令: 'echo "test content" > ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir/testfile.txt'
+命令: 'echo "test content" > ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir/testfile.txt'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir'
+命令: 'ls ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir'
 返回码: 0
 输出: testfile.txt
-命令: 'ls ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir/testfile.txt'
+命令: 'ls ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir/testfile.txt'
 返回码: 0
-输出: ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir/testfile.txt
-命令: 'ls ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir/nonexistent.txt'
+输出: ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir/testfile.txt
+命令: 'ls ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir/nonexistent.txt'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251108_170404_026544_59c57fb0/testdir/nonexistent.txt: No such file or directory
-命令: 'ls ~/tmp/gds_test_20251108_170404_026544_59c57fb0/nonexistent_dir/file.txt'
+输出: ls: ~/tmp/gds_test_20251109_002705_117419_958a5272/testdir/nonexistent.txt: No such file or directory
+命令: 'ls ~/tmp/gds_test_20251109_002705_117419_958a5272/nonexistent_dir/file.txt'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251108_170404_026544_59c57fb0/nonexistent_dir/file.txt: No such file or directory
+输出: ls: ~/tmp/gds_test_20251109_002705_117419_958a5272/nonexistent_dir/file.txt: No such file or directory

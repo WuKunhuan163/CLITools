@@ -886,14 +886,8 @@ class GoogleDriveShell:
             # 步骤2: 使用翻译后的命令（如果有）
             if needs_sequential:
                 shell_cmd_clean = processed_commands[0]
-                # print(f"[DEBUG] 步骤2 - 使用heredoc翻译后的命令: {repr(shell_cmd_clean)}")
             else:
                 shell_cmd_clean = shell_cmd.strip()
-                # print(f"[DEBUG] 步骤2 - 使用原始命令strip后: {repr(shell_cmd_clean)}")
-            
-            # print(f"  命令长度: {len(shell_cmd_clean)}")
-            # if '\n' in shell_cmd_clean:
-            #     print(f"  包含换行符，行数: {len(shell_cmd_clean.split(chr(10)))}")
             
             # 步骤3: 使用shlex解析参数，然后对每个参数分别处理undo_local_path_user_expansion
             import shlex
@@ -1096,8 +1090,6 @@ class GoogleDriveShell:
                     if cmd_parts:
                         cmd = cmd_parts[0]
                         args = cmd_parts[1:]
-                        
-                        # 路径已经在前面统一展开，无需再次处理
                     else:
                         raise Exception("Empty command after parsing")
                 except Exception:
@@ -1158,17 +1150,9 @@ class GoogleDriveShell:
         """
         import re
         
-        # # DEBUG: 显示输入
-        # print(f"    [DEBUG] universal_split_undo 输入: {repr(input_str)}")
-        
         # 找到所有\\(.)模式的位置
         escape_pattern = r'\\(.)'
         matches = list(re.finditer(escape_pattern, input_str))
-        
-        # print(f"    [DEBUG] 找到转义序列: {len(matches)} 个")
-        # for i, match in enumerate(matches):
-        #     print(f"      转义[{i}]: {repr(match.group(0))} -> 字符 {repr(match.group(1))}")
-        
         if not matches:
             result = self.path_resolver.undo_local_path_user_expansion(input_str)
             return result
@@ -2239,11 +2223,6 @@ fi
     
     def handle_shell_command_args(self, shell_cmd_parts, command_identifier=None):
         """处理--shell命令的参数"""
-        # print(f"[DEBUG] handle_shell_command_args 输入:")
-        # print(f"  shell_cmd_parts: {shell_cmd_parts}")
-        # for i, part in enumerate(shell_cmd_parts):
-        #     print(f"  shell_cmd_parts[{i}]: {repr(part)}")
-        
         no_direct_feedback = False
         is_priority = False
         filtered_shell_parts = []

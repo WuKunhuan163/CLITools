@@ -1,96 +1,131 @@
+# ============================================================================
+# Test completed at: 2025-11-09 00:32:05 - Status: PASS
+# ============================================================================
+
 test_02_echo_basic (test_gds.GDSTest)
-测试基础echo命令 ... 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251108_195755_818217_d846495e
-正在创建远端测试目录: ~/tmp/gds_test_20251108_195755_818217_d846495e
+测试基础echo命令 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 293.880s
+
+OK
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251109_002705_833036_183ef57f
+正在创建远端测试目录: ~/tmp/gds_test_20251109_002705_833036_183ef57f
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251108_195755_818217_d846495e
-✓ 验证测试目录存在: ~/tmp/gds_test_20251108_195755_818217_d846495e
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_qshmbsm1
+已切换到远端测试目录: ~/tmp/gds_test_20251109_002705_833036_183ef57f
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_002705_833036_183ef57f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_aqpjczyp
 测试环境设置完成
 命令: 'echo "Hello World"'
 返回码: 0
-[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result ........\r\x1b[K\r\x1b[KHello World\n'
-[DEBUG GDS] raw_stdout length: 53
-[DEBUG GDS] cleaned_stdout: 'Hello World'
-[DEBUG GDS] cleaned_stdout length: 11
 输出: Hello World
-错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603109_29942.json...
 命令: 'echo "Complex: @#$%^&*() \\"quotes\\" 中文字符"'
 返回码: 0
-[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result .........\r\x1b[K\r\x1b[KComplex: @#$%^&*() "quotes" 中文字符\n'
-[DEBUG GDS] raw_stdout length: 75
-[DEBUG GDS] cleaned_stdout: 'Complex: @#$%^&*() "quotes" 中文字符'
-[DEBUG GDS] cleaned_stdout length: 32
 输出: Complex: @#$%^&*() "quotes" 中文字符
-错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603133_30171.json...
-命令: 'echo "Test content" > ~/tmp/gds_test_20251108_195755_818217_d846495e/test_echo.txt'
+命令: 'echo "Test content" > ~/tmp/gds_test_20251109_002705_833036_183ef57f/test_echo.txt'
 返回码: 0
-[DEBUG GDS] raw_stdout: '\r\x1b[K⏳ Waiting for result .........\r\x1b[K\r\x1b[K'
-[DEBUG GDS] raw_stdout length: 42
-[DEBUG GDS] cleaned_stdout: ''
-[DEBUG GDS] cleaned_stdout length: 0
 输出: 
-错误: [DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json
-[DEBUG_LOG] /Users/wukunhuan/GOOGLE_DRIVE_DATA/debug_logs/gds_debug_session_1762603155_30254.json...
 [DEBUG] verify_file_content_contains called:
-  filename: ~/tmp/gds_test_20251108_195755_818217_d846495e/test_echo.txt
+  filename: ~/tmp/gds_test_20251109_002705_833036_183ef57f/test_echo.txt
   expected_content: 'Test content'
   terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251108_195755_818217_d846495e/test_echo.txt'
+命令: 'cat ~/tmp/gds_test_20251109_002705_833036_183ef57f/test_echo.txt'
 返回码: 0
-[DEBUG GDS] raw_stdout: 'Test content\n'
-[DEBUG GDS] raw_stdout length: 13
-[DEBUG GDS] cleaned_stdout: 'Test content'
-[DEBUG GDS] cleaned_stdout length: 12
 输出: Test content
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: 'Test content\n'
+  stderr: ''
+[DEBUG] after processing:
+  actual_content: 'Test content\n'
+  actual_content length: 13
+命令: 'echo "Line 1\\nLine 2\\tTabbed\\Backslash" > ~/tmp/gds_test_20251109_002705_833036_183ef57f/complex_echo.txt'
+返回码: 0
+输出: 
+[DEBUG] verify_file_content_contains called:
+  filename: ~/tmp/gds_test_20251109_002705_833036_183ef57f/complex_echo.txt
+  expected_content: 'Line 1\\nLine 2\\tTabbed\\Backslash'
+  terminal_erase: True
+命令: 'cat ~/tmp/gds_test_20251109_002705_833036_183ef57f/complex_echo.txt'
+返回码: 0
+输出: Line 1\nLine 2\tTabbed\Backslash
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: 'Line 1\\nLine 2\\tTabbed\\Backslash\n'
+  stderr: ''
+[DEBUG] after processing:
+  actual_content: 'Line 1\\nLine 2\\tTabbed\\Backslash'
+  actual_content length: 32
+命令: 'echo "{\'name\': \'test02_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251109_002705_833036_183ef57f/json_echo.txt'
+返回码: 0
+输出: 
+[DEBUG] verify_file_content_contains called:
+  filename: ~/tmp/gds_test_20251109_002705_833036_183ef57f/json_echo.txt
+  expected_content: "{'name': 'test02_json_echo_01', 'value': 123}"
+  terminal_erase: True
+命令: 'cat ~/tmp/gds_test_20251109_002705_833036_183ef57f/json_echo.txt'
+返回码: 0
+输出: {'name': 'test02_json_echo_01', 'value': 123}
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: "{'name': 'test02_json_echo_01', 'value': 123}\n"
+  stderr: ''
+[DEBUG] after processing:
+  actual_content: "{'name': 'test02_json_echo_01', 'value': 123}"
+  actual_content length: 45
+执行的命令: echo "'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'" > '~/tmp/gds_test_20251109_002705_833036_183ef57f/chinese_echo.txt'
+命令: 'echo "\'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\'" > \'~/tmp/gds_test_20251109_002705_833036_183ef57f/chinese_echo.txt\''
+返回码: 0
+输出: 
+[DEBUG] verify_file_content_contains called:
+  filename: ~/tmp/gds_test_20251109_002705_833036_183ef57f/chinese_echo.txt
+  expected_content: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'
+  terminal_erase: True
+命令: 'cat ~/tmp/gds_test_20251109_002705_833036_183ef57f/chinese_echo.txt'
+返回码: 0
+输出: 测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\n'
+  stderr: ''
+[DEBUG] after processing:
+  actual_content: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'
+  actual_content length: 50
+命令: 'echo -e "line1\nline2\nline3" > ~/tmp/gds_test_20251109_002705_833036_183ef57f/echo_multiline.txt'
+返回码: 0
+输出: 
+[DEBUG] verify_file_content_contains called:
+  filename: ~/tmp/gds_test_20251109_002705_833036_183ef57f/echo_multiline.txt
+  expected_content: 'line1\nline2\nline3'
+  terminal_erase: True
+命令: 'cat ~/tmp/gds_test_20251109_002705_833036_183ef57f/echo_multiline.txt'
+返回码: 0
+输出: line1
+line2
+line3
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: 'line1\nline2\nline3\n'
+  stderr: ''
+[DEBUG] after processing:
+  actual_content: 'line1\nline2\nline3'
+  actual_content length: 17
+命令: 'echo -e "Line 1\nLine 2\tTabbed\\Backslash" > ~/tmp/gds_test_20251109_002705_833036_183ef57f/echo_escape.txt'
+返回码: 0
+输出: 
+[DEBUG] verify_file_content_contains called:
+  filename: ~/tmp/gds_test_20251109_002705_833036_183ef57f/echo_escape.txt
+  expected_content: 'Line 1\nLine 2\tTabbed\\Backslash'
+  terminal_erase: True
+命令: 'cat ~/tmp/gds_test_20251109_002705_833036_183ef57f/echo_escape.txt'
+返回码: 0
+输出: Line 1
+Line 2	Tabbed\Backslash
+[DEBUG] cat command result:
+  returncode: 0
+  stdout: 'Line 1\nLine 2\tTabbed\\Backslash\n'
+  stderr: ''
+[DEBUG] after processing:
+  actual_content: 'Line 1\nLine 2\tTabbed\\Backslash'
+  actual_content length: 30

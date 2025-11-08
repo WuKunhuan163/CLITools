@@ -948,11 +948,8 @@ class LsCommand(BaseCommand):
     def cmd_ls_remote(self, path=None, detailed=False, recursive=False, show_hidden=False):
         """使用远程bash命令强制刷新ls结果"""
         try:
-            # 如果提供了path，需要将逻辑路径转换为远程绝对路径
+            # 如果提供了path，直接使用（已经在execute_shell_command中展开）
             if path:
-                # 首先将可能的远端绝对路径转换为逻辑路径
-                path = self.convert_absolute_to_logical(path)
-                
                 # 获取当前shell信息
                 current_shell = self.main_instance.get_current_shell()
                 if not current_shell:
