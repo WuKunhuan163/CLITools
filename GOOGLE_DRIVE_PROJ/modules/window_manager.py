@@ -168,7 +168,7 @@ class WindowManager:
                 
         except Exception as e:
             self.debug_log(f"[WINDOW_MANAGER] 添加到{queue_type}队列失败: {e}")
-            raise Exception(f"添加到{queue_type}队列失败: {e}")
+            raise
     
     def clean_stale_requests(self, queue, timeout_seconds=3600):
         """
@@ -534,46 +534,74 @@ class WindowManager:
     def _check_and_handle_remount(self):
         """在显示窗口前检查是否需要remount"""
         try:
-            # 检查remount flag
-            from .path_constants import PathConstants
-            import json
+            from .remount_lock_manager import get_remount_lock_manager
             
-            path_constants = PathConstants()
-            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+            lock_manager = get_remount_lock_manager()
             
-            if flag_file.exists():
-                # 读取remount原因并记录到log
+            # 尝试获取remount锁
+            if lock_manager.acquire_remount_lock("WindowManager._check_and_handle_remount"):
                 try:
-                    with open(flag_file, 'r') as f:
-                        flag_data = json.load(f)
-                    reason = flag_data.get('reason', 'Unknown reason')
-                    set_at = flag_data.get('set_at', 'Unknown time')
-                    self._log_remount_trigger(reason, set_at)
-                except Exception:
-                    self._log_remount_trigger("Flag file exists but unreadable", "Unknown")
-                
-                # 执行remount
-                remount_success = False
-                import time
-                for i in range(3):
-                    remount_success = self._auto_remount_and_wait()
-                    if remount_success:
-                        # remount成功后立即清理flag，避免其他窗口重复触发
-                        self._clear_remount_flag()
-                        break
-                    else:
-                        time.sleep(1)
-                
-                # 如果remount失败，也清理flag，避免无限重试
-                if not remount_success:
-                    self._clear_remount_flag()
-                
-                # 无论remount是否成功，都继续显示窗口
-                # 这样用户可以看到原命令的实际执行结果
+                    # 成功获取锁，执行remount
+                    remount_result = self._perform_remount_with_lock()
+                    if remount_result is False:
+                        # remount失败，系统无法继续工作
+                        print("Error: 连续三次remount失败，Google Drive无法访问，程序退出")
+                        import sys
+                        sys.exit(1)
+                finally:
+                    # 无论remount是否成功，都释放锁
+                    lock_manager.release_remount_lock("WindowManager._check_and_handle_remount")
+            else:
+                # 无法获取锁，可能是：
+                # 1. 没有remount flag（无需remount）
+                # 2. 已有其他进程在执行remount
+                # 等待remount完成
+                lock_manager.wait_for_remount_completion(max_wait_seconds=60)
                 
         except Exception as e:
             # 静默处理remount错误，不影响窗口显示
             pass
+    
+    def _perform_remount_with_lock(self):
+        """在持有锁的情况下执行remount"""
+        # 再次检查remount flag（双重检查）
+        from .path_constants import PathConstants
+        import json
+        
+        path_constants = PathConstants()
+        flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+        
+        if not flag_file.exists():
+            return
+        
+        # 读取remount原因并记录到log
+        try:
+            with open(flag_file, 'r') as f:
+                flag_data = json.load(f)
+            reason = flag_data.get('reason', 'Unknown reason')
+            set_at = flag_data.get('set_at', 'Unknown time')
+            self._log_remount_trigger(reason, set_at)
+        except Exception:
+            self._log_remount_trigger("Flag file exists but unreadable", "Unknown")
+        
+        # 执行remount
+        remount_success = False
+        import time
+        for i in range(3):
+            remount_success = self._auto_remount_and_wait()
+            if remount_success:
+                self._clear_remount_flag()
+                break
+            else:
+                time.sleep(1)
+        
+        # 如果remount失败，也清理flag，避免无限重试
+        if not remount_success:
+            self._clear_remount_flag()
+            # 连续三次remount失败，系统无法继续工作，直接退出
+            print("Error: 连续三次remount失败，Google Drive无法访问，程序退出")
+            # 注意：不在这里直接exit，让调用者处理锁的释放
+            return False
     
     def _auto_remount_and_wait(self):
         """执行自动remount"""
@@ -588,8 +616,7 @@ class WindowManager:
             result = subprocess.run(
                 [sys.executable, "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", "--remount"],
                 capture_output=True,
-                text=True,
-                timeout=60  # 60秒超时
+                text=True
             )
             
             # 记录remount结果
@@ -1164,9 +1191,9 @@ try:
         button_frame, 
         text="📋复制指令", 
         command=copy_command,
-        font=("Arial", 9),
+        font=("Arial", 12),
         bg="#2196F3",
-        fg="white",
+        fg="#666666",
         padx=10,
         pady=5,
         relief=tk.RAISED,
@@ -1180,7 +1207,7 @@ try:
             button_frame, 
             text="⏳按Cmd激活", 
             command=direct_feedback,
-            font=("Arial", 9),
+            font=("Arial", 12),
             bg="#CCCCCC",  # 灰色表示禁用
             fg="#666666",
             padx=10,
@@ -1198,7 +1225,7 @@ try:
         button_frame, 
         text="⏳按Cmd激活", 
         command=execution_completed,
-        font=("Arial", 9, "bold"),
+        font=("Arial", 12, "bold"),
         bg="#CCCCCC",  # 灰色表示禁用
         fg="#666666",
         padx=10,
@@ -1228,7 +1255,7 @@ try:
             feedback_btn.config(
                 text="💬直接反馈",
                 bg="#FF9800",
-                fg="white",
+                fg="#666666",
                 state=tk.NORMAL
             )
         
@@ -1236,7 +1263,7 @@ try:
         complete_btn.config(
             text="✅执行完成",
             bg="#4CAF50",
-            fg="white",
+            fg="#666666",
             state=tk.NORMAL
         )
         

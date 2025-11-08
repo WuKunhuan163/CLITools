@@ -288,12 +288,12 @@ class GoogleDriveService:
                     "file_id": target_file['id'],
                     "filename": filename
                 }
-            except Exception as e:
+            except Exception:
                 # 清理临时文件
                 import os
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
-                raise e
+                raise
             
         except Exception as e:
             return {

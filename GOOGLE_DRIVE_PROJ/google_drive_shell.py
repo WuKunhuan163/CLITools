@@ -33,6 +33,7 @@ from GOOGLE_DRIVE_PROJ.modules.commands.linter_command import LinterCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
+from GOOGLE_DRIVE_PROJ.modules.debug_logger import debug_log
 
 class GoogleDriveShell:
     """Google Drive Shell管理类 (重构版本)"""
@@ -844,29 +845,29 @@ class GoogleDriveShell:
             return 1
 
     def execute_shell_command(self, shell_cmd, command_identifier=None):
-        """执行shell命令 - 使用WindowManager的新架构入口点"""
+        """执行shell命令"""
+        # 暂时不输出调用栈
+        # import traceback
+        # call_stack = traceback.format_stack()
+        # print(f"[DEBUG] execute_shell_command 调用栈:")
+        # for i, frame in enumerate(call_stack[-4:]):  # 显示最近4层调用栈
+        #     print(f"  {i}: {frame.strip()}")
         
-        # 保存原始用户命令，用于后续的文件验证分析
+        # 保存原始用户命令
         self._original_user_command = shell_cmd.strip()
+        
         try:
-            is_quoted_command = shell_cmd.startswith("__QUOTED_COMMAND__")
-            if is_quoted_command:
-                shell_cmd = shell_cmd[len("__QUOTED_COMMAND__"):]
-            
-            # 首先检测引号包围的完整命令（在命令解析之前）
-            shell_cmd_clean = shell_cmd.strip()
-            
-            if ((shell_cmd_clean.startswith("'") and shell_cmd_clean.endswith("'")) or 
-                (shell_cmd_clean.startswith('"') and shell_cmd_clean.endswith('"'))):
-                shell_cmd_clean = shell_cmd_clean[1:-1]
-                shell_cmd = shell_cmd_clean
-                is_quoted_command = True
-            
-            # 预处理命令：检测并翻译heredoc语法
+            # 步骤1: 预处理heredoc语法（保留原有逻辑）
             from modules.heredoc_translator import preprocess_command
-            processed_commands, needs_sequential = preprocess_command(shell_cmd_clean)
+            processed_commands, needs_sequential = preprocess_command(shell_cmd)
             
-            # 如果检测到heredoc（无论是否多命令）
+            # print(f"[DEBUG] 步骤1后 - heredoc处理:")
+            # print(f"  processed_commands: {processed_commands}")
+            # print(f"  needs_sequential: {needs_sequential}")
+            # if processed_commands:
+            #     for i, cmd in enumerate(processed_commands):
+            #         print(f"  processed_commands[{i}]: {repr(cmd)}")
+            
             if needs_sequential:
                 if len(processed_commands) > 1:
                     last_result = 0
@@ -875,21 +876,58 @@ class GoogleDriveShell:
                         if isinstance(result, int):
                             last_result = result
                             if result != 0:
-                                return result  # 如果任何命令失败，立即返回
+                                return result
                         else:
                             last_result = 0
                     return last_result
                 else:
                     print(f"Heredoc detected, translating to: {processed_commands[0]}")
             
-            # 如果是翻译后的命令，使用翻译结果
+            # 步骤2: 使用翻译后的命令（如果有）
             if needs_sequential:
                 shell_cmd_clean = processed_commands[0]
-                shell_cmd = shell_cmd_clean
-
-            # 路径展开处理：在命令解析之前进行路径展开
-            shell_cmd_clean = self.path_resolver.undo_local_path_user_expansion(shell_cmd_clean)
+                # print(f"[DEBUG] 步骤2 - 使用heredoc翻译后的命令: {repr(shell_cmd_clean)}")
+            else:
+                shell_cmd_clean = shell_cmd.strip()
+                # print(f"[DEBUG] 步骤2 - 使用原始命令strip后: {repr(shell_cmd_clean)}")
             
+            # print(f"  命令长度: {len(shell_cmd_clean)}")
+            # if '\n' in shell_cmd_clean:
+            #     print(f"  包含换行符，行数: {len(shell_cmd_clean.split(chr(10)))}")
+            
+            # 步骤3: 使用shlex解析参数，然后对每个参数分别处理undo_local_path_user_expansion
+            import shlex
+            cmd_parts = shlex.split(shell_cmd_clean)
+            debug_log('execute_shell_command', 'shlex_parse_arguments', {
+                'original_command': shell_cmd_clean,
+                'cmd_parts': cmd_parts
+            })
+            
+            # 对每个参数分别调用undo_local_path_user_expansion
+            processed_parts = []
+            for i, part in enumerate(cmd_parts):
+                debug_log('execute_shell_command', 'process_argument', {
+                    'index': i,
+                    'original_part': part
+                })
+                
+                # 通用分治方案处理所有特殊字符
+                processed_part = self.universal_split_undo(part)
+                processed_parts.append(processed_part)
+                debug_log('execute_shell_command', 'argument_processed', {
+                    'index': i,
+                    'original_part': part,
+                    'processed_part': processed_part
+                })
+            
+            # 重新组合命令，使用repr()确保正确的引号处理
+            shell_cmd_clean = ' '.join(repr(part) if ' ' in part or '\n' in part else part for part in processed_parts)
+            debug_log('execute_shell_command', 'command_reassembled', {
+                'processed_parts': processed_parts,
+                'final_command': shell_cmd_clean
+            })
+            
+            # 路径展开处理
             if '@' in shell_cmd_clean:
                 shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '@', self.REMOTE_ENV)
             if '~' in shell_cmd_clean:
@@ -954,7 +992,6 @@ class GoogleDriveShell:
                     else:
                         # 执行background命令
                         return self.execute_background_command(remaining_cmd, command_identifier)
-                    break
             
             # 解析命令
             has_multiple_ops = False
@@ -988,8 +1025,7 @@ class GoogleDriveShell:
             first_word = shell_cmd_clean.split()[0] if shell_cmd_clean.split() else ""
 
             # 如果命令包含重定向，跳过特殊命令处理，直接执行bash命令
-            if has_redirection:
-                # 检查是否包含特殊命令，如果是则给出警告
+            if has_redirection: 
                 special_commands_list = ['pwd', 'ls', 'cd', 'cat', 'mkdir', 'touch', 'pyenv', 
                                         'linter', 'pip', 'deps', 'edit', 'read', 
                                         'upload', 'upload-folder', 'download', 'mv', 'find', 'rm', 
@@ -1000,6 +1036,8 @@ class GoogleDriveShell:
                 
                 current_shell = self.get_current_shell()
                 if current_shell:
+                    # print(f"[DEBUG] execute_shell_command 调用 execute_command_interface:")
+                    # print(f"  shell_cmd_clean: {repr(shell_cmd_clean)}")
                     result = self.execute_command_interface("bash", ["-c", shell_cmd_clean])
                     if result.get("success"):
                         return 0
@@ -1020,17 +1058,12 @@ class GoogleDriveShell:
             # 首先检查新的命令注册系统
             if self.command_registry.is_special_command(first_word):
                 import shlex
-                try:
-                    cmd_parts = shlex.split(shell_cmd_clean)
-                    if cmd_parts:
-                        cmd = cmd_parts[0]
-                        args = cmd_parts[1:]
-                        
-                        # 路径已经在前面统一展开，无需再次处理
-                    else:
-                        raise Exception("Empty command after parsing")
-                except Exception as e:
-                    raise e  # 直接抛出原始异常，让上层error handler处理
+                cmd_parts = shlex.split(shell_cmd_clean)
+                if cmd_parts:
+                    cmd = cmd_parts[0]
+                    args = cmd_parts[1:]
+                else:
+                    raise Exception("Empty command after parsing")
                 
                 # 使用命令注册系统执行命令
                 return self.command_executor.execute_special_command(cmd, args)
@@ -1050,43 +1083,29 @@ class GoogleDriveShell:
                         # 路径已经在前面统一展开，无需再次处理
                     else:
                         raise Exception("Empty command after parsing")
-                except Exception as e:
-                    raise e  # 直接抛出原始异常，让上层error handler处理
+                except Exception:
+                    raise  # 直接抛出原始异常，让上层error handler处理
                 
                 # 所有特殊命令统一使用命令执行系统
                 return self.command_executor.execute_special_command(cmd, args)
              
-            # 如果不是特殊命令，使用统一的命令解析和转译接口
-            if is_quoted_command:
-                translated_cmd = shell_cmd_clean
-            else:
-                translation_result = self.execute_generic_command(shell_cmd_clean)
-                if not translation_result["success"]:
-                    raise Exception(f"Error: {translation_result['error']}")
-                translated_cmd = translation_result["translated_command"]
-            
-            # 使用execute_command_interface统一接口
-            result = self.execute_command_interface("bash", ["-c", translated_cmd], _original_user_command=translated_cmd)
+            # 简化：直接使用bash执行命令
+            result = self.execute_command_interface("bash", ["-c", shell_cmd_clean], _original_user_command=shell_cmd_clean)
             
             # 处理结果 - 不包装错误，直接向上传递
             if not result.get("success"): 
-                # 尝试从多个位置获取错误信息
                 error_msg = result.get('error', '')
                 if not error_msg:
-                    # 尝试从data.error获取
                     data = result.get('data', {})
                     error_msg = data.get('error', '')
                 
                 if not error_msg:
-                    # 只有在没有错误信息时才添加call stack
                     import traceback
                     call_stack = ''.join(traceback.format_stack()[-3:])
                     error_msg = f'Unknown error. Call stack: {call_stack}'
                     
                     # 记录remount触发原因到测试log
                     remount_reason = f"Unknown error detected for command: {shell_cmd}. No specific error message available."
-                    # 不输出到终端，只记录到log
-                    
                     try:
                         if hasattr(self, 'command_executor'):
                             self.command_executor._set_remount_required_flag(reason=remount_reason)
@@ -1107,23 +1126,76 @@ class GoogleDriveShell:
             return 0
                 
         except Exception as e:
-            # 使用增强的错误处理系统显示完整traceback
-            try:
-                from GOOGLE_DRIVE_PROJ.modules.error_handler import capture_and_report_error
-                capture_and_report_error("Shell command execution", e, {
-                    "command": shell_cmd,
-                    "command_identifier": command_identifier
-                })
-                print(f"Google Drive Shell command execution failed with detailed traceback above. ")
-                return 1
-            except ImportError:
-                error_msg = f"Error executing shell command: {e}"
-                print(error_msg)
-                import traceback
-                traceback.print_exc()
-                return 1
-        finally: 
-            pass
+            from GOOGLE_DRIVE_PROJ.modules.error_handler import capture_and_report_error
+            print (capture_and_report_error("Shell command execution", e, {
+                "command": shell_cmd,
+                "command_identifier": command_identifier
+            }))
+            print(f"Google Drive Shell command execution failed with detailed traceback above. ")
+            return 1
+
+
+    def universal_split_undo(self, input_str):
+        """
+        通用分治方案：识别\\(.)的同时进行切分，一体化处理
+        """
+        import re
+        
+        # # DEBUG: 显示输入
+        # print(f"    [DEBUG] universal_split_undo 输入: {repr(input_str)}")
+        
+        # 找到所有\\(.)模式的位置
+        escape_pattern = r'\\(.)'
+        matches = list(re.finditer(escape_pattern, input_str))
+        
+        # print(f"    [DEBUG] 找到转义序列: {len(matches)} 个")
+        # for i, match in enumerate(matches):
+        #     print(f"      转义[{i}]: {repr(match.group(0))} -> 字符 {repr(match.group(1))}")
+        
+        if not matches:
+            result = self.path_resolver.undo_local_path_user_expansion(input_str)
+            return result
+        
+        # 按转义序列位置切分
+        parts = []
+        separators = []
+        last_end = 0
+        
+        for match in matches:
+            start, end = match.span()
+            escaped_char = match.group(1)
+            
+            # 添加转义序列之前的部分
+            if start > last_end:
+                parts.append(input_str[last_end:start])
+            
+            # 统一处理：直接构造\x字符串，不用eval
+            real_char = rf'\{escaped_char}'
+            separators.append(real_char)
+            
+            last_end = end
+        
+        # 添加最后一部分
+        if last_end < len(input_str):
+            parts.append(input_str[last_end:])
+        
+        # 对每个部分分别调用undo
+        processed_parts = []
+        for part in parts:
+            if part:  # 跳过空字符串
+                processed_part = self.path_resolver.undo_local_path_user_expansion(part)
+                processed_parts.append(processed_part)
+            else:
+                processed_parts.append('')
+        
+        # 重新组合
+        result = processed_parts[0] if processed_parts else ""
+        for i in range(len(separators)):
+            result += separators[i]
+            if i + 1 < len(processed_parts):
+                result += processed_parts[i + 1]
+        
+        return result
 
     def show_background_status(self, bg_pid, command_identifier=None):
         """显示background任务状态 - 优先从status文件读取，如果不存在则从result文件读取"""
@@ -1136,7 +1208,6 @@ class GoogleDriveShell:
             if status_data.get("success", False):
                 data = status_data.get("data", {})
                 status_content = data.get("stdout", "").strip()
-                
                 if status_content:
                     try:
                         status_json = json.loads(status_content)
@@ -1171,7 +1242,6 @@ class GoogleDriveShell:
                             print(f"End time: {end_time}")
                         
                         print(f"Log size: {log_size} bytes")
-                        
                         return 0
                         
                     except json.JSONDecodeError as e:
@@ -1532,132 +1602,6 @@ done
         
         return False
 
-    def execute_generic_command(self, input_command):
-        """
-        统一的命令解析和转译接口
-        
-        Args:
-            input_command: 输入命令，可以是字符串或列表格式
-            
-        Returns:
-            dict: 转译结果
-                - success (bool): 是否转译成功
-                - translated_command (str): 转译后的命令字符串
-                - original_format (str): 原始格式类型 ("string" 或 "list")
-                - error (str): 错误信息（如果失败）
-        """
-        
-        try:
-            if isinstance(input_command, list): 
-                import shlex
-                if not input_command:
-                    return {
-                        "success": False,
-                        "error": "Empty command list"
-                    }
-                
-                quoted_parts = []
-                for i, part in enumerate(input_command):
-                    part_str = str(part)
-                    if part_str in ['>', '>>', '<', '|', '&', '&&', '||', ';']:
-                        quoted_parts.append(part_str)
-                    else:
-                        needs_quotes = any(char in part_str for char in [' ', '\t', '\n', '"', "'", '\\', '&', '|', ';', 
-                            '(', ')', '<', '>', '$', '`', '*', '?', '[', ']', 
-                            '{', '}', '~', '#'])
-                        
-                        if not needs_quotes: 
-                            quoted_parts.append(part_str)
-                        else: 
-                            if '"' not in part_str:
-                                quoted_parts.append(f'"{part_str}"')
-                            elif "'" not in part_str:
-                                quoted_parts.append(f"'{part_str}'")
-                            else:
-                                # 如果同时包含单引号和双引号，使用shlex.quote
-                                quoted_parts.append(shlex.quote(part_str))
-                translated_command = ' '.join(quoted_parts)
-                return {
-                    "success": True,
-                    "translated_command": translated_command,
-                    "original_format": "list"
-                }
-            else:
-                # 字符串格式：检查是否是引号包围的重定向命令
-                if not input_command.strip():
-                    return {
-                        "success": False,
-                        "error": "Empty command"
-                    }
-                
-                command_str = input_command.strip()
-                
-                # 检查是否是引号包围的重定向命令（如 'echo "content" > file.txt'）
-                if ((command_str.startswith("'") and command_str.endswith("'")) or 
-                    (command_str.startswith('"') and command_str.endswith('"'))):
-                    
-                    # 去掉外层引号
-                    inner_command = command_str[1:-1]
-                    
-                    # 使用智能重定向检测
-                    if self.detect_redirection(inner_command):
-                        processed_command = inner_command
-
-                        # 处理json内容
-                        processed_command = self.process_json(processed_command)
-                        marked_command = f"__QUOTED_COMMAND__{processed_command}"
-                        
-                        
-                        return {
-                            "success": True,
-                            "translated_command": marked_command,
-                            "original_format": "string",
-                            "is_quoted_redirect": True
-                        }
-                
-                # 基本安全处理：转义反引号防止命令注入
-                safe_command = command_str.replace('`', '\\`')
-                
-                # 应用echo处理逻辑（与command_generator.py保持一致）
-                processed_command = self._apply_echo_processing(safe_command)
-                
-                return {
-                    "success": True,
-                    "translated_command": processed_command,
-                    "original_format": "string"
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Experimental translation failed: {e}"
-            }
-    
-    def _apply_echo_processing(self, cmd):
-        """
-        应用echo命令处理逻辑，与command_generator.py保持一致
-        确保echo命令能正确处理\\n和\\t等转义序列
-        """
-        if cmd.strip().startswith('echo '):
-            import re
-            # 匹配echo命令的模式: echo "content" 或 echo 'content'
-            echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
-            match = re.match(echo_pattern, cmd.strip())
-            if match:
-                quote_char = match.group(1)
-                content = match.group(2)
-                rest_args = match.group(3).strip()  # 可能包含重定向等
-                
-                # 检查内容是否包含转义序列
-                if '\\n' in content or '\\t' in content:
-                    # 添加-e标志以启用转义序列解释
-                    safe_command = f'echo -e {quote_char}{content}{quote_char}'
-                    if rest_args:
-                        safe_command += f' {rest_args}'
-                    return safe_command
-        
-        return cmd
-    
     def _cleanup_background_tasks(self, command_identifier=None):
         """清理所有已完成的background任务"""
         try:
@@ -2252,10 +2196,8 @@ fi
             shell_id = args[1]
             return self.terminate_shell(shell_id, command_identifier)
         elif args[0] == '--remount':
-            # 处理重新挂载命令
             return self.handle_remount_command(command_identifier)
         elif args[0] == '--shell':
-            # 检查是否有flags
             has_no_direct_feedback = '--no-direct-feedback' in args
             filtered_args = [arg for arg in args[1:] if arg not in ['--no-direct-feedback', '--priority']]
             
@@ -2280,6 +2222,11 @@ fi
     
     def handle_shell_command_args(self, shell_cmd_parts, command_identifier=None):
         """处理--shell命令的参数"""
+        # print(f"[DEBUG] handle_shell_command_args 输入:")
+        # print(f"  shell_cmd_parts: {shell_cmd_parts}")
+        # for i, part in enumerate(shell_cmd_parts):
+        #     print(f"  shell_cmd_parts[{i}]: {repr(part)}")
+        
         no_direct_feedback = False
         is_priority = False
         filtered_shell_parts = []
@@ -2293,28 +2240,11 @@ fi
                 filtered_shell_parts.append(part)
         
         shell_cmd_parts = filtered_shell_parts
-        
-        # 如果没有命令参数，说明是空命令，返回0（成功）
         if not shell_cmd_parts:
             return 0
         
-        # 检测引号包围的完整命令（用于远端重定向等）
-        if len(shell_cmd_parts) == 1 and (' > ' in shell_cmd_parts[0] or ' && ' in shell_cmd_parts[0] or ' || ' in shell_cmd_parts[0] or ' | ' in shell_cmd_parts[0]):
-            # 这是一个引号包围的完整命令，直接使用
-            shell_cmd = shell_cmd_parts[0]
-            # 只有在没有标记的情况下才添加标记，避免重复添加
-            if not shell_cmd.startswith("__QUOTED_COMMAND__"):
-                shell_cmd = f"__QUOTED_COMMAND__{shell_cmd}"
-        else:
-            # 正常的多参数命令，需要正确处理带空格的参数
-            # 对包含空格的参数添加引号
-            shell_cmd_parts_quoted = []
-            for part in shell_cmd_parts:
-                if ' ' in part:
-                    shell_cmd_parts_quoted.append(f'"{part}"')
-                else:
-                    shell_cmd_parts_quoted.append(part)
-            shell_cmd = ' '.join(shell_cmd_parts_quoted)
+        # 重新组合完整的命令字符串
+        shell_cmd = ' '.join(shell_cmd_parts)
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):
@@ -2361,6 +2291,29 @@ fi
     
     def handle_remount_command(self, command_identifier=None):
         """处理python: GOOGLE_DRIVE --remount命令"""
-        from modules.remount_manager import remount_google_drive
-        return remount_google_drive(command_identifier)
-    
+        try:
+            from modules.remount_lock_manager import get_remount_lock_manager
+            
+            lock_manager = get_remount_lock_manager()
+            
+            # 尝试获取remount锁
+            if lock_manager.acquire_remount_lock("GoogleDriveShell.handle_remount_command"):
+                try:
+                    # 成功获取锁，执行remount
+                    from modules.remount_manager import remount_google_drive
+                    return remount_google_drive(command_identifier, self)
+                finally:
+                    # 无论remount是否成功，都释放锁
+                    lock_manager.release_remount_lock("GoogleDriveShell.handle_remount_command")
+            else:
+                # 无法获取锁，可能是：
+                # 1. 没有remount flag（无需remount）
+                # 2. 已有其他进程在执行remount
+                print("Remount is already in progress or not required")
+                return 0
+                
+        except Exception as e:
+            # 静默处理remount错误
+            print(f"Error during remount: {e}")
+            return 1
+

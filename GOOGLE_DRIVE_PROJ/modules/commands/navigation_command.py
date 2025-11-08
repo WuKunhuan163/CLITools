@@ -74,6 +74,11 @@ class NavigationCommand(BaseCommand):
             self.show_pwd_help()
             return 0
         
+        # 检查是否有-id参数
+        if args and len(args) >= 2 and args[0] == '-id':
+            folder_id = args[1]
+            return self.resolve_id_to_path(folder_id)
+        
         # pwd命令不需要参数
         if args:
             print("pwd: too many arguments")
@@ -96,10 +101,14 @@ class NavigationCommand(BaseCommand):
             return 0
         
         if not args:
-            print("Error: cd command needs a directory path")
-            return 1
-        
-        path = args[0]
+            # cd without arguments should go to home directory
+            path = "~"
+        else:
+            path = args[0]
+            # If path is empty string, let remote bash handle it
+            if path == "":
+                # Pass empty string to remote for bash to handle
+                return self.main_instance.execute_remote_command(f'cd ""')
         
         # 调用shell的cd方法
         result = self.cmd_cd(path)
@@ -138,24 +147,31 @@ class NavigationCommand(BaseCommand):
             
         # 应用本地路径转换（将bash展开的本地路径转换回远程路径格式）
         path = self.main_instance.path_resolver.undo_local_path_user_expansion(path)
+        
+        # 规范化路径，处理../等相对路径组件
+        normalized_path = self.main_instance.path_resolver.resolve_remote_absolute_path(path, current_shell, return_logical=True)
+        
+        # 检查路径是否有效
+        if normalized_path is None:
+            return {"success": False, "error": f"bash: cd: {path}: No such file or directory"}
             
         # cd命令需要逻辑路径格式，需要将绝对路径转换回逻辑路径
         # 但只对cd命令进行这种转换
-        if path.startswith('/content/drive/MyDrive/REMOTE_ROOT'):
+        if normalized_path.startswith('/content/drive/MyDrive/REMOTE_ROOT'):
             # 转换绝对路径为逻辑路径
-            relative_part = path[len('/content/drive/MyDrive/REMOTE_ROOT'):]
+            relative_part = normalized_path[len('/content/drive/MyDrive/REMOTE_ROOT'):]
             if relative_part.startswith('/'):
                 relative_part = relative_part[1:]
             absolute_path = f"~/{relative_part}" if relative_part else "~"
-        elif path.startswith('/content/drive/MyDrive/REMOTE_ENV'):
+        elif normalized_path.startswith('/content/drive/MyDrive/REMOTE_ENV'):
             # @路径转换
-            relative_part = path[len('/content/drive/MyDrive/REMOTE_ENV'):]
+            relative_part = normalized_path[len('/content/drive/MyDrive/REMOTE_ENV'):]
             if relative_part.startswith('/'):
                 relative_part = relative_part[1:]
             absolute_path = f"@/{relative_part}" if relative_part else "@"
         else:
-            # 其他情况直接使用
-            absolute_path = path
+            # 其他情况直接使用规范化后的路径
+            absolute_path = normalized_path
         
         # 使用统一的cmd_ls接口检测目录是否存在
         ls_result = self.main_instance.cmd_ls(absolute_path)
@@ -234,3 +250,89 @@ Examples:
   cd ~                     Change to home directory (REMOTE_ROOT)
 """
         print(help_text)
+    
+    def resolve_id_to_path(self, folder_id):
+        """
+        将Google Drive ID解析为逻辑路径
+        使用cached id file逐层逆推直到遇到第一个已知parent
+        """
+        try:
+            # 获取drive service
+            drive_service = self.main_instance.drive_service
+            if not drive_service:
+                print("Error: Google Drive service not available")
+                return 1
+            
+            # 构建路径的递归函数
+            def build_path_from_id(file_id, visited=None):
+                if visited is None:
+                    visited = set()
+                
+                # 防止循环引用
+                if file_id in visited:
+                    return None, "Circular reference detected"
+                visited.add(file_id)
+                
+                try:
+                    # 获取文件/文件夹信息
+                    file_info = drive_service.service.files().get(
+                        fileId=file_id, 
+                        fields='id,name,parents,mimeType'
+                    ).execute()
+                    
+                    file_name = file_info.get('name', '')
+                    parents = file_info.get('parents', [])
+                    mime_type = file_info.get('mimeType', '')
+                    
+                    # 检查是否是文件夹
+                    if mime_type != 'application/vnd.google-apps.folder':
+                        return None, f"ID {file_id} is not a folder"
+                    
+                    # 如果没有父文件夹，说明是根目录
+                    if not parents:
+                        return file_name, None
+                    
+                    parent_id = parents[0]
+                    
+                    # 检查是否是已知的根目录
+                    if parent_id == self.main_instance.REMOTE_ROOT_FOLDER_ID:
+                        return f"~/{file_name}", None
+                    elif parent_id == self.main_instance.REMOTE_ENV_FOLDER_ID:
+                        return f"@/{file_name}", None
+                    
+                    # 递归获取父路径
+                    parent_path, error = build_path_from_id(parent_id, visited.copy())
+                    if error:
+                        return None, error
+                    
+                    if parent_path is None:
+                        return None, f"Cannot resolve parent path for ID {parent_id}"
+                    
+                    # 构建完整路径
+                    if parent_path == "~":
+                        return f"~/{file_name}", None
+                    elif parent_path == "@":
+                        return f"@/{file_name}", None
+                    else:
+                        return f"{parent_path}/{file_name}", None
+                        
+                except Exception as e:
+                    return None, f"Failed to get info for ID {file_id}: {str(e)}"
+            
+            # 开始解析
+            path, error = build_path_from_id(folder_id)
+            
+            if error:
+                print(f"Error: {error}")
+                return 1
+            
+            if path is None:
+                print(f"Error: Unknown path for ID {folder_id}")
+                return 1
+            
+            print(path)
+            return 0
+            
+        except Exception as e:
+            print(f"Error: Failed to resolve ID {folder_id}: {str(e)}")
+            return 1

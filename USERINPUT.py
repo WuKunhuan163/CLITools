@@ -207,8 +207,8 @@ try:
         padx=20,
         pady=10,
         bg="#4CAF50",
-        fg="white",
-        font=("Arial", 10, "bold")
+        fg="#666666",
+        font=("Arial", 9, "bold")
     )
     btn.pack(expand=True)
     

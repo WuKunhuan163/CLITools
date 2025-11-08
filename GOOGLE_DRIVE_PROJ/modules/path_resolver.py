@@ -184,19 +184,34 @@ class PathResolver:
         # 获取用户的home目录
         home_dir = os.path.expanduser("~")
         
-        # 用户建议的完整方案：
-        # 步骤1: 用hash保护原始的~，避免被误替换
-        tilde_placeholder = f"TILDE_PLACEHOLDER_{uuid.uuid4().hex[:8].upper()}"
-        protected_command = command_or_path.replace('~', tilde_placeholder)
+        # 用户建议的简化方案：
+        # 步骤1: 保护原始的~、引号、花括号、$、反引号，用placeholder替换
+        tilde_placeholder = f"__TILDE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        single_quote_placeholder = f"__SINGLE_QUOTE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        double_quote_placeholder = f"__DOUBLE_QUOTE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        left_brace_placeholder = f"__LEFT_BRACE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        right_brace_placeholder = f"__RIGHT_BRACE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        dollar_placeholder = f"__DOLLAR_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        backtick_placeholder = f"__BACKTICK_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        backslash_placeholder = f"__BACKSLASH_PLACEHOLDER_{hash(command_or_path) % 10000}__"
         
-        # 步骤2: 将已展开的home目录路径替换回~
-        # 这些~是"可疑的"，可能是被错误展开的路径
+        protected_command = command_or_path.replace('\\', backslash_placeholder)
+        protected_command = protected_command.replace('~', tilde_placeholder)
+        protected_command = protected_command.replace("'", single_quote_placeholder)
+        protected_command = protected_command.replace('"', double_quote_placeholder)
+        protected_command = protected_command.replace('{', left_brace_placeholder)
+        protected_command = protected_command.replace('}', right_brace_placeholder)
+        protected_command = protected_command.replace('$', dollar_placeholder)
+        protected_command = protected_command.replace('`', backtick_placeholder)
+        
+        # 步骤2: 将已展开的home_dir替换回~
         suspicious_command = protected_command.replace(home_dir, '~')
         
-        # 步骤3: 用bash -c -x测试，分块处理重定向
-        # 如果这些~被bash展开了，说明它们确实是被错误展开的路径
+        # 步骤3: 用bash -c -x测试整个命令，不分离重定向
+        # 如果这些~会被bash展开，说明它们确实是被错误展开的路径
+        final_command = suspicious_command  # 默认使用suspicious_command
+        
         try:
-            # 检测重定向并分块处理
             redirect_operators = ['>', '>>', '<', '2>', '2>>', '&>', '&>>', '2>&1', '|']
             main_command = suspicious_command
             redirect_part = ""
@@ -208,7 +223,6 @@ class PathResolver:
                     main_command = suspicious_command[:op_index].strip()
                     redirect_part = suspicious_command[op_index:].strip()
                     break
-            
             
             # 对主命令用bash -c -x测试
             if main_command:
@@ -227,33 +241,39 @@ class PathResolver:
                             expanded_main = line[2:]  # 去掉"+ "前缀
                             
                             # 将展开的home_dir替换回~，将placeholder恢复为~
-                            final_main = expanded_main.replace(home_dir, '~')
-                            final_main = final_main.replace(tilde_placeholder, '~')
+                            processed_main = expanded_main.replace(home_dir, '~')
+                            processed_main = processed_main.replace(tilde_placeholder, '~')
                             
                             # 处理重定向部分的路径
                             if redirect_part:
-                                final_redirect = redirect_part.replace(home_dir, '~')
-                                final_redirect = final_redirect.replace(tilde_placeholder, '~')
-                                final_command = final_main + ' ' + final_redirect
+                                processed_redirect = redirect_part.replace(home_dir, '~')
+                                processed_redirect = processed_redirect.replace(tilde_placeholder, '~')
+                                final_command = processed_main + ' ' + processed_redirect
                             else:
-                                final_command = final_main
+                                final_command = processed_main
                             
-                            return final_command
+                            break
                             
         except Exception as e:
             pass
         
-        # 回退方案：简单替换
-        result = suspicious_command.replace(tilde_placeholder, '~')
+        # 步骤4: 统一恢复所有placeholder
+        result = final_command.replace(tilde_placeholder, '~')
+        result = result.replace(single_quote_placeholder, "'")
+        result = result.replace(double_quote_placeholder, '"')
+        result = result.replace(left_brace_placeholder, '{')
+        result = result.replace(right_brace_placeholder, '}')
+        result = result.replace(dollar_placeholder, '$')
+        result = result.replace(backtick_placeholder, '`')
         return result
     
     def get_parent_path(self, path):
         """获取路径的父目录，支持~和@前缀"""
         if path == "~":
-            return "~"  # 根目录没有父目录，返回自己
+            return None  # 根目录没有父目录，返回None表示无效
         
         if path == "@":
-            return "@"  # REMOTE_ENV根目录没有父目录，返回自己
+            return None  # REMOTE_ENV根目录没有父目录，返回None表示无效
         
         if path.startswith("~/"):
             parts = path.split("/")
@@ -367,6 +387,79 @@ class PathResolver:
             # 如果规范化失败，返回原始连接的路径
             return self.join_paths(base_path, relative_path)
 
+    def normalize_logical_path(self, logical_path):
+        """简化的逻辑路径规范化：使用堆栈方法处理../和.
+        
+        Args:
+            logical_path (str): 逻辑路径，如 ~/test/level1/../level2
+            
+        Returns:
+            str: 规范化后的逻辑路径，如果路径无效返回None
+        """
+        if not logical_path:
+            return logical_path
+            
+        # 处理~路径
+        if logical_path == "~":
+            return "~"
+        elif logical_path.startswith("~/"):
+            path_part = logical_path[2:]  # 去掉~/
+            if not path_part:
+                return "~"
+            
+            # 分割并规范化
+            components = path_part.split("/")
+            stack = []
+            
+            for component in components:
+                if component == "" or component == ".":
+                    continue
+                elif component == "..":
+                    if stack:
+                        stack.pop()
+                    else:
+                        # 尝试在根目录上级，这是无效的
+                        return None  # 返回None表示路径无效
+                else:
+                    stack.append(component)
+            
+            if not stack:
+                return "~"
+            else:
+                return "~/" + "/".join(stack)
+        
+        # 处理@路径
+        elif logical_path == "@":
+            return "@"
+        elif logical_path.startswith("@/"):
+            path_part = logical_path[2:]  # 去掉@/
+            if not path_part:
+                return "@"
+            
+            # 分割并规范化
+            components = path_part.split("/")
+            stack = []
+            
+            for component in components:
+                if component == "" or component == ".":
+                    continue
+                elif component == "..":
+                    if stack:
+                        stack.pop()
+                    else:
+                        # 尝试在根目录上级，这是无效的
+                        return None  # 返回None表示路径无效
+                else:
+                    stack.append(component)
+            
+            if not stack:
+                return "@"
+            else:
+                return "@/" + "/".join(stack)
+        
+        # 其他情况直接返回
+        return logical_path
+
     def resolve_remote_absolute_path(self, path, current_shell=None, return_logical=False):
         """
         通用路径解析接口：将相对路径解析为远端绝对路径
@@ -387,8 +480,8 @@ class PathResolver:
             
             # 获取当前路径
             current_path = current_shell.get("current_path", "~")
-            remote_root_path = self.main_instance.REMOTE_ROOT
-            remote_env_path = self.main_instance.REMOTE_ENV
+            remote_root_path = self.main_instance.REMOTE_ROOT if self.main_instance else "/content/drive/MyDrive/REMOTE_ROOT"
+            remote_env_path = self.main_instance.REMOTE_ENV if self.main_instance else "/content/drive/MyDrive/REMOTE_ENV"
             
             #### Special Processing for REMOTE_ROOT and REMOTE_ENV ####
             #### 正常来讲，用户不会输入绝对路径，而是输入~以及@开头的逻辑路径 ####
@@ -455,9 +548,11 @@ class PathResolver:
             
             # 计算逻辑路径（~/xxx格式）
             if path.startswith("~"):
-                logical_path = path
-                if '../' in path or '/./' in path or path.endswith('/..') or path.endswith('/.'):
-                    logical_path = self.normalize_path_components("~", path[2:] if path.startswith("~/") else path[1:])
+                # 使用简化的规范化方法
+                logical_path = self.normalize_logical_path(path)
+                if logical_path is None:
+                    # 路径无效（如在根目录尝试..）
+                    return None
             elif path == "." or path == "":
                 # 当前目录
                 logical_path = current_path
@@ -469,9 +564,15 @@ class PathResolver:
                 # 处理父目录路径
                 if path == "..":
                     logical_path = self.get_parent_path(current_path)
+                    if logical_path is None:
+                        # 在根目录尝试..，无效路径
+                        return None
                 elif path.startswith("../"):
                     # 递归处理父目录路径
                     parent_path = self.get_parent_path(current_path)
+                    if parent_path is None:
+                        # 在根目录尝试../，无效路径
+                        return None
                     remaining_path = path[3:]  # 移除../
                     # 递归调用，传入parent_path作为current_path，同时传递return_logical参数
                     return self.resolve_remote_absolute_path(remaining_path, {"current_path": parent_path}, return_logical=return_logical)
