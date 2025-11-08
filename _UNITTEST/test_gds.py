@@ -930,20 +930,20 @@ Shell commands: ls -la && echo "done"
         if (filename == None):
             raise ValueError("filename is None")
         
-        print(f'[DEBUG] verify_file_content_contains called:')
+        # print(f'[DEBUG] verify_file_content_contains called:')
         print(f'  filename: {filename}')
         print(f'  expected_content: {repr(expected_content)}')
         print(f'  terminal_erase: {terminal_erase}')
         
         result = self.gds(f'cat {filename}')
-        print(f'[DEBUG] cat command result:')
+        # print(f'[DEBUG] cat command result:')
         print(f'  returncode: {result.returncode}')
         print(f'  stdout: {repr(result.stdout)}')
         print(f'  stderr: {repr(result.stderr)}')
         
         if result.returncode == 0:
             actual_content = process_terminal_erase(result.stdout) if terminal_erase else result.stdout
-            print(f'[DEBUG] after processing:')
+            # print(f'[DEBUG] after processing:')
             print(f'  actual_content: {repr(actual_content)}')
             print(f'  actual_content length: {len(actual_content)}')
             

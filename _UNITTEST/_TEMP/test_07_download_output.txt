@@ -1,0 +1,36 @@
+# ============================================================================
+# Test completed at: 2025-11-09 01:36:23 - Status: FAIL
+# ============================================================================
+
+test_07_download (test_gds.GDSTest)
+测试GDS download功能 ... ERROR
+
+======================================================================
+ERROR: test_07_download (test_gds.GDSTest)
+测试GDS download功能
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2107, in test_07_download
+    os.chdir("~/tmp")
+FileNotFoundError: [Errno 2] No such file or directory: '~/tmp'
+
+----------------------------------------------------------------------
+Ran 1 test in 66.865s
+
+FAILED (errors=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251109_013513_829262_a814f14c
+正在创建远端测试目录: ~/tmp/gds_test_20251109_013513_829262_a814f14c
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251109_013513_829262_a814f14c
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_013513_829262_a814f14c
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_jd2h3xyo
+测试环境设置完成
+测试GDS download功能
+命令: 'echo "This is a test file for download functionality.\nLine 2: 测试中文内容\nLine 3: Special chars: @#$%^&*()" > ~/tmp/gds_test_20251109_013513_829262_a814f14c/download_file_remote.txt'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_013513_829262_a814f14c/download_file_remote.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_013513_829262_a814f14c/download_file_remote.txt
+测试1: 基本下载功能

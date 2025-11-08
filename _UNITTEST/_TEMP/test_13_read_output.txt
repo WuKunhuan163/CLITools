@@ -1,0 +1,169 @@
+test_13_read (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_13_read (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 837, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2585, in test_13_read
+    result = self.gds(f'rm -f {abs_test_filename}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 843, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: rm -f ~/tmp/gds_test_20251109_014108_784578_d569f960/absolute_path_test.txt - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 365.916s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251109_014108_784578_d569f960
+正在创建远端测试目录: ~/tmp/gds_test_20251109_014108_784578_d569f960
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251109_014108_784578_d569f960
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_014108_784578_d569f960
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_8wxlwfnj
+测试环境设置完成
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_014108_784578_d569f960 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_014108_784578_d569f960 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py
+命令: 'ls ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py
+所有验证通过!
+命令: 'cat ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py'
+返回码: 0
+输出: """
+Simple Hello Script
+"""
+print(f'Hello from remote project')
+print(f"Current working directory:", __import__("os").getcwd())
+import sys
+print(f"Python version:", sys.version)
+命令: 'read ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py'
+返回码: 0
+输出: 1: """
+2: Simple Hello Script
+3: """
+4: print(f'Hello from remote project')
+5: print(f"Current working directory:", __import__("os").getcwd())
+6: import sys
+7: print(f"Python version:", sys.version)
+8:
+命令: 'read ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py 1 3'
+返回码: 0
+输出: 1: """
+2: Simple Hello Script
+3: """
+4: print(f'Hello from remote project')
+5: print(f"Current working directory:", __import__("os").getcwd())
+6: import sys
+7: print(f"Python version:", sys.version)
+8:
+命令: 'grep "print" ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py'
+返回码: 0
+输出: 4: print(f'Hello from remote project')
+  5: print(f"Current working directory:", __import__("os").getcwd())
+  7: print(f"Python version:", sys.version)
+命令: 'find . -name "*.py" ~/tmp/gds_test_20251109_014108_784578_d569f960'
+返回码: 0
+输出: No files found matching the pattern.
+命令: 'read --force ~/tmp/gds_test_20251109_014108_784578_d569f960/test_read_simple_hello.py'
+返回码: 0
+输出: 1: """
+2: Simple Hello Script
+3: """
+4: print(f'Hello from remote project')
+5: print(f"Current working directory:", __import__("os").getcwd())
+6: import sys
+7: print(f"Python version:", sys.version)
+8:
+测试cat不存在的文件
+命令: 'cat ~/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt'
+返回码: 1
+输出: cat: ~/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt: No such file or directory
+测试read不存在的文件
+命令: 'read ~/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt'
+返回码: 1
+输出: cat: ~/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt: No such file or directory
+测试grep不存在的文件
+命令: 'grep "test" ~/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt'
+返回码: 2
+输出: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt: grep: ~/tmp/gds_test_20251109_014108_784578_d569f960/nonexistent_file.txt: No such file or directory
+测试特殊字符文件处理
+命令: 'ls ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt: No such file or directory
+
+执行带重试的命令: upload --target-dir ~/tmp/gds_test_20251109_014108_784578_d569f960 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+验证命令: ['ls ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_014108_784578_d569f960 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"'
+返回码: 0
+输出: 
+Verify 1/1: ls ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt
+命令: 'ls ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+Verify successful
+All verifications passed, command executed successfully
+命令: 'cat ~/tmp/gds_test_20251109_014108_784578_d569f960/special_chars.txt'
+返回码: 0
+输出: 包含中文的文件
+Special characters: !@#$%^&*()
+Quotes: "Hello" and 'World'
+Backslashes: \path\to\file
+JSON: {"key": "value", "number": 123}
+Shell commands: ls -la && echo "done"
+测试cat命令绝对路径支持
+命令: 'echo -n "测试cat绝对路径支持" > ~/tmp/gds_test_20251109_014108_784578_d569f960/absolute_path_test.txt'
+返回码: 0
+输出: 
+测试使用~/路径格式cat文件
+命令: 'cat ~/tmp/gds_test_20251109_014108_784578_d569f960/absolute_path_test.txt'
+返回码: 0
+输出: 测试cat绝对路径支持
+命令: 'rm -f ~/tmp/gds_test_20251109_014108_784578_d569f960/absolute_path_test.txt'
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002000f3240 (most recent call first):
+  <no Python frame>...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002000f3240 (most recent call first):
+  <no Python frame>...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002000f3240 (most recent call first):
+  <no Python frame>...
+命令执行异常: 1 != 0 : 命令执行失败

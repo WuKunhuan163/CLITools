@@ -1,0 +1,73 @@
+test_11_linter (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_11_linter (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2333, in test_11_linter
+    self.assertTrue(success, f"valid_script.py上传失败: {result.stderr if result else 'Unknown error'}")
+AssertionError: False is not true : valid_script.py上传失败: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000002000f3240 (most recent call first):
+  <no Python frame>
+
+
+----------------------------------------------------------------------
+Ran 1 test in 579.978s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251109_013756_046515_12b95e76
+正在创建远端测试目录: ~/tmp/gds_test_20251109_013756_046515_12b95e76
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251109_013756_046515_12b95e76
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_013756_046515_12b95e76
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_3ptj4q8h
+测试环境设置完成
+上传测试文件...
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_013756_046515_12b95e76 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py"
+验证命令: ['ls ~/tmp/gds_test_20251109_013756_046515_12b95e76/valid_script.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_013756_046515_12b95e76 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py"'
+返回码: 1
+输出: Captured debug output:
+Verification completed: {'success': False, 'found_files': [], 'missing_files': ['valid_script.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_013756_046515_12b95e76'}
+Upload failed, showing debug information:
+verify_result={'success': False, 'found_files': [], 'missing_files': ['valid_script.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_013756_046515_12b95e76'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['valid_script_1.py'], 'sync_time': 8, 'base_sync_time': 8}
+target_folder_id='1R1wKgyJssEyrPxEeN3aa0UA_QP7Mmlxk'
+target_display_path='~/tmp/gds_test_20251109_013756_046515_12b95e76'
+Upload failed
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 2/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_013756_046515_12b95e76 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251109_013756_046515_12b95e76/valid_script.py
+命令: 'ls ~/tmp/gds_test_20251109_013756_046515_12b95e76/valid_script.py'
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002000f3240 (most recent call first):
+  <no Python frame>...
+验证失败: ls ~/tmp/gds_test_20251109_013756_046515_12b95e76/valid_script.py (返回码: 1)
+验证失败，等待1秒后重试...
+
+尝试 3/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_013756_046515_12b95e76 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py"'
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002000f3240 (most recent call first):
+  <no Python frame>...
+Error: Upload command failed, return code: 1

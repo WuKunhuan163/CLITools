@@ -73,6 +73,24 @@ class DownloadCommand(BaseCommand):
             print("Error: download command needs a file name")
             return 1
         
+        # Undo remote expansion for local_path - convert remote paths back to local paths
+        # This is needed because general argument processing may have converted local paths to remote format
+        if local_path:
+            if local_path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
+                # Remove the remote root prefix - this should be a local path
+                # Convert back to original local path by removing the prefix
+                local_path = local_path.replace('/content/drive/MyDrive/REMOTE_ROOT', '', 1)
+                # If path is now empty or just /, set to current local directory
+                if not local_path or local_path == '/':
+                    local_path = '.'
+                # If path starts with /tmp, it's likely a local temp path that got wrongly expanded
+                # Keep it as is for now - the path expansion logic should handle this better
+            elif local_path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
+                # Similar for @ paths - though download local_path shouldn't use remote env paths
+                local_path = local_path.replace('/content/drive/MyDrive/REMOTE_ENV', '', 1)
+                if not local_path or local_path == '/':
+                    local_path = '.'
+        
         # 调用shell的download方法
         result = self.shell.cmd_download(filename, local_path=local_path, force=force)
         
