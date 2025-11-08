@@ -1,63 +1,73 @@
 # ============================================================================
-# Test completed at: 2025-11-09 00:35:53 - Status: PASS
+# Test completed at: 2025-11-09 01:25:34 - Status: PASS
 # ============================================================================
 
 test_04_file_ops_mixed (test_gds.GDSTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 219.592s
+Ran 1 test in 230.674s
 
 OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
-正在创建远端测试目录: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
+远端测试目录: ~/tmp/gds_test_20251109_012140_660846_eb387753
+正在创建远端测试目录: ~/tmp/gds_test_20251109_012140_660846_eb387753
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_eqpgbk4f
+已切换到远端测试目录: ~/tmp/gds_test_20251109_012140_660846_eb387753
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_012140_660846_eb387753
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_o_t8uyob
 测试环境设置完成
-命令: 'mkdir -p ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils'
+命令: 'mkdir -p ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/utils'
 返回码: 0
 输出: 
-命令: 'echo "# Main module" > ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py'
+命令: 'echo "# Main module" > ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/main.py'
 返回码: 0
 输出: 
-命令: 'echo "# Utilities" > ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils/helpers.py'
+命令: 'echo "# Utilities" > ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/utils/helpers.py'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py'
+命令: 'ls ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/main.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py
+输出: ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/main.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils/helpers.py'
+命令: 'ls ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/utils/helpers.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/utils/helpers.py
+输出: ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/utils/helpers.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'ls -R ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project'
+命令: 'ls -R ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project'
 返回码: 0
 输出: src/
 utils/
 helpers.py
 main.py
-命令: 'mv ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+命令: 'mv ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/main.py ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/main.py'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+命令: 'ls ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/main.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py
+输出: ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/main.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py'
+命令: 'ls ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/main.py'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/src/main.py: No such file or directory
-命令: 'rm ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+输出: ls: ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/src/main.py: No such file or directory
+命令: 'rm ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/main.py'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py'
+命令: 'ls ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/main.py'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project/main.py: No such file or directory
-命令: 'rm -rf ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project'
+输出: ls: ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project/main.py: No such file or directory
+命令: 'rm -rf ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project'
+返回码: 1
+输出: ls: ~/tmp/cmd_result_1762622681_e609918a.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第1次...
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project'
+命令: 'ls ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251109_003210_525964_b1ebcfc5/advanced_project: No such file or directory
+输出: ls: ~/tmp/gds_test_20251109_012140_660846_eb387753/advanced_project: No such file or directory

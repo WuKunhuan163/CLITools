@@ -90,17 +90,18 @@ def _translate_heredoc_redirect(base_command, content_lines):
     else:
         return [base_command], False
     
-    # 生成单个echo命令，使用\n连接多行
+    # 生成单个echo命令，使用实际换行符连接多行
     if not content_lines:
         # 空内容
         commands = [f'echo "" {redirect_op} {target_file}']
     else:
-        # 将所有行用\n连接
-        combined_content = '\\n'.join(content_lines)
-        # 转义特殊字符
-        escaped_content = shlex.quote(combined_content)
-        # 使用echo -e来解释转义序列
-        commands = [f'echo -e {escaped_content} {redirect_op} {target_file}']
+        # 将所有行用实际换行符连接（而不是\n转义序列）
+        combined_content = '\n'.join(content_lines)
+        # 使用单引号包围，单引号内的内容完全按字面处理
+        # 唯一需要特殊处理的是单引号本身：将 ' 替换为 '\''
+        escaped_content = combined_content.replace("'", "'\\''")
+        # 使用echo和单引号，内容完全按字面保存
+        commands = [f"echo '{escaped_content}' {redirect_op} {target_file}"]
     
     return commands, True
 
