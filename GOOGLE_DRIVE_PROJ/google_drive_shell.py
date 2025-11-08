@@ -920,8 +920,25 @@ class GoogleDriveShell:
                     'processed_part': processed_part
                 })
             
-            # 重新组合命令，使用repr()确保正确的引号处理
-            shell_cmd_clean = ' '.join(repr(part) if ' ' in part or '\n' in part else part for part in processed_parts)
+            # 重新组合命令，智能处理引号
+            # 对于包含反斜杠的part，使用双引号（让template的doubling能够被bash减半）
+            # 对于其他包含空格或换行的part，使用shlex.quote()
+            import shlex
+            def quote_part(part):
+                if ' ' in part or '\n' in part:
+                    # 检查是否包含反斜杠
+                    if '\\' in part:
+                        # 使用双引号，但不doubling反斜杠（template会做doubling）
+                        # 只转义必要的字符（$, ", `）
+                        escaped = part.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
+                        return f'"{escaped}"'
+                    else:
+                        # 没有反斜杠，使用shlex.quote()
+                        return shlex.quote(part)
+                else:
+                    return part
+            
+            shell_cmd_clean = ' '.join(quote_part(part) for part in processed_parts)
             debug_log('execute_shell_command', 'command_reassembled', {
                 'processed_parts': processed_parts,
                 'final_command': shell_cmd_clean
