@@ -181,6 +181,18 @@ class PathResolver:
         import uuid
         import subprocess
         
+        # 特殊处理：如果输入包含实际的换行符，直接返回
+        # 因为这些不是路径，而是多行字符串参数（如echo -e的内容）
+        # 使用bash -c -x测试会导致换行符被误解释为多个命令
+        if '\n' in command_or_path:
+            # 仍然需要替换可能已展开的home目录
+            home_dir = os.path.expanduser("~")
+            # print(f"[DEBUG] undo_local_path_user_expansion: 检测到换行符，跳过bash -c -x测试")
+            # print(f"[DEBUG]   输入长度: {len(command_or_path)}, 换行符数量: {command_or_path.count(chr(10))}")
+            result = command_or_path.replace(home_dir, '~')
+            # print(f"[DEBUG]   输出长度: {len(result)}")
+            return result
+        
         # 获取用户的home目录
         home_dir = os.path.expanduser("~")
         

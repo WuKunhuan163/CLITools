@@ -781,8 +781,10 @@ echo -e "Line1\nLine2\nLine3"        # 显示多行文本（处理\n）
 echo -e "Tab\tSeparated\tText"       # 处理制表符（\t）
 
 # JSON文件创建（推荐语法）
-echo "{'name': 'test', 'value': 123}" > config.json    # 单引号包围，无需转义
-echo '{"debug": true, "items": [1,2,3]}' > settings.json
+# 重要：包含单引号的内容必须用双引号（"）或单引号（'）包围整个字符串
+echo "{'name': 'test', 'value': 123}" > config.json    # 双引号包围JSON，内部单引号被保留
+echo '{"debug": true, "items": [1,2,3]}' > settings.json  # 单引号包围JSON，内部双引号被保留
+# 错误示例：echo {'name': 'test'}  # 没有外层引号，单引号会被shell解释
 
 # Python脚本创建
 echo -e 'import json\nprint(f"Hello Python")' > script.py

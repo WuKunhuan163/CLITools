@@ -135,6 +135,8 @@ def get_unified_help_data():
                 ("GOOGLE_DRIVE --shell upload file1.txt file2.txt", "Upload multiple files to current directory"),
                 ("GOOGLE_DRIVE --shell upload --target-dir docs file.txt", "Upload file to docs directory"),
                 ('GOOGLE_DRIVE --shell "ls && cd test && pwd"', "Chain commands"),
+                ('GOOGLE_DRIVE --shell "echo \\"{\'name\': \'test\', \'value\': 123}\\"" > config.json', "Create JSON with single quotes (escape double quotes!)"),
+                ('GOOGLE_DRIVE --shell "echo \'{\\"name\\": \\"test\\", \\"value\\": 123}\'"', "Create JSON with double quotes (wrap in single quotes)"),
                 ("GDS pwd", "Using alias (same as above)")
             ],
             "upload": [

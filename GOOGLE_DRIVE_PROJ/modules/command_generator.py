@@ -174,7 +174,23 @@ class CommandGenerator:
                 expanded_parts.append(part)
         
         # 重新组合命令，使用智能引号处理
-        final_cmd = ' '.join(shlex.quote(part) if ' ' in part or '\n' in part else part for part in expanded_parts)
+        # 对于包含反斜杠的part，使用双引号（让template的doubling能够被bash减半）
+        # 对于其他包含空格或换行的part，使用shlex.quote()
+        def quote_part(part):
+            if ' ' in part or '\n' in part:
+                # 检查是否包含反斜杠
+                if '\\' in part:
+                    # 使用双引号，但不doubling反斜杠（template会做doubling）
+                    # 只转义必要的字符（$, ", `）
+                    escaped = part.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
+                    return f'"{escaped}"'
+                else:
+                    # 没有反斜杠，使用shlex.quote()
+                    return shlex.quote(part)
+            else:
+                return part
+        
+        final_cmd = ' '.join(quote_part(part) for part in expanded_parts)
         debug_log('command_generator', 'final_command_assembled', {
             'final_cmd': final_cmd,
             'expanded_parts': expanded_parts
