@@ -1,0 +1,140 @@
+# ============================================================================
+# Test completed at: 2025-11-08 15:09:50 - Status: FAIL
+# ============================================================================
+
+test_13_read (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_13_read (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2495, in test_13_read
+    self.assertTrue(success, f'文件上传失败: {result.stderr if result else "Unknown error"}')
+AssertionError: False is not true : 文件上传失败: 
+
+----------------------------------------------------------------------
+Ran 1 test in 61.800s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7
+正在创建远端测试目录: ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7
+✓ 验证测试目录存在: ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_y4u1ivqm
+测试环境设置完成
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7/test_read_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"'
+返回码: 1
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'upload'
+  cmd_parts[1]: '--target-dir'
+  cmd_parts[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+  cmd_parts[3]: '--force'
+  cmd_parts[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] 处理参数[0]: 'upload'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'upload'
+  输出[0]: 'upload'
+[DEBUG] 处理参数[1]: '--target-dir'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '--target-dir'
+  输出[1]: '--target-dir'
+[DEBUG] 处理参数[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+[DEBUG] undo_local_expansion处理:
+  输入[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+  输出[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+[DEBUG] 处理参数[3]: '--force'
+[DEBUG] undo_local_expansion处理:
+  输入[3]: '--force'
+  输出[3]: '--force'
+[DEBUG] 处理参数[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] undo_local_expansion处理:
+  输入[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+  输出[4]: '~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'upload'", "'--target-dir'", "'~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'", "'--force'", "'~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'"]
+  拼接后shell_cmd_clean: 'upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force ~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+File does not exist: /content/drive/MyDrive/REMOTE_ROOT/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py
+No files to upload
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 2/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"'
+返回码: 1
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'upload'
+  cmd_parts[1]: '--target-dir'
+  cmd_parts[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+  cmd_parts[3]: '--force'
+  cmd_parts[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] 处理参数[0]: 'upload'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'upload'
+  输出[0]: 'upload'
+[DEBUG] 处理参数[1]: '--target-dir'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '--target-dir'
+  输出[1]: '--target-dir'
+[DEBUG] 处理参数[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+[DEBUG] undo_local_expansion处理:
+  输入[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+  输出[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+[DEBUG] 处理参数[3]: '--force'
+[DEBUG] undo_local_expansion处理:
+  输入[3]: '--force'
+  输出[3]: '--force'
+[DEBUG] 处理参数[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] undo_local_expansion处理:
+  输入[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+  输出[4]: '~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'upload'", "'--target-dir'", "'~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'", "'--force'", "'~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'"]
+  拼接后shell_cmd_clean: 'upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force ~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+File does not exist: /content/drive/MyDrive/REMOTE_ROOT/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py
+No files to upload
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 3/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py"'
+返回码: 1
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'upload'
+  cmd_parts[1]: '--target-dir'
+  cmd_parts[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+  cmd_parts[3]: '--force'
+  cmd_parts[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] 处理参数[0]: 'upload'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'upload'
+  输出[0]: 'upload'
+[DEBUG] 处理参数[1]: '--target-dir'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '--target-dir'
+  输出[1]: '--target-dir'
+[DEBUG] 处理参数[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+[DEBUG] undo_local_expansion处理:
+  输入[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+  输出[2]: '~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'
+[DEBUG] 处理参数[3]: '--force'
+[DEBUG] undo_local_expansion处理:
+  输入[3]: '--force'
+  输出[3]: '--force'
+[DEBUG] 处理参数[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] undo_local_expansion处理:
+  输入[4]: '/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+  输出[4]: '~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'upload'", "'--target-dir'", "'~/tmp/gds_test_20251108_150847_886043_2bb3eeb7'", "'--force'", "'~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'"]
+  拼接后shell_cmd_clean: 'upload --target-dir ~/tmp/gds_test_20251108_150847_886043_2bb3eeb7 --force ~/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py'
+File does not exist: /content/drive/MyDrive/REMOTE_ROOT/.local/bin/_UNITTEST/_DATA/test_read_simple_hello.py
+No files to upload
+Error: Upload command failed, return code: 1

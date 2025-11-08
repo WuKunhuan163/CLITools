@@ -1,0 +1,50 @@
+test_05_navigation_mix (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_05_navigation_mix (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 836, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1864, in test_05_navigation_mix
+    result = self.gds(f'mkdir {test_dir}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 842, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: mkdir ~/tmp/gds_test_20251108_170740_853864_9a2a010f/test_dir - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 113.282s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251108_170740_853864_9a2a010f
+正在创建远端测试目录: ~/tmp/gds_test_20251108_170740_853864_9a2a010f
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251108_170740_853864_9a2a010f
+✓ 验证测试目录存在: ~/tmp/gds_test_20251108_170740_853864_9a2a010f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_sgx4_n0u
+测试环境设置完成
+命令: 'pwd'
+返回码: 0
+输出: ~/tmp/gds_test_20251108_170740_853864_9a2a010f
+命令: 'ls'
+返回码: 0
+命令: 'mkdir ~/tmp/gds_test_20251108_170740_853864_9a2a010f/test_dir'
+返回码: 1
+输出: Failed to create directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_170740_853864_9a2a010f/test_dir
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: Failed to create directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_170740_853864_9a2a010f/test_dir
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: Failed to create directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_170740_853864_9a2a010f/test_dir
+命令执行异常: 1 != 0 : 命令执行失败

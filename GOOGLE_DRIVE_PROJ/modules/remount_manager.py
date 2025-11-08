@@ -495,13 +495,13 @@ try:
     
     # 复制Python代码按钮（使用与远端指令窗口一致的风格）
     copy_btn = tk.Button(button_frame, text="📋 复制指令", command=copy_script,
-                       bg="#2196F3", fg="white", font=("Arial", 9),
+                       bg="#2196F3", fg="red", font=("Arial", 12),
                        padx=10, pady=5, relief=tk.RAISED, bd=2)
     copy_btn.pack(side=tk.LEFT, padx=(0, 5), fill=tk.X, expand=True)
     
     # 执行完成按钮（使用与远端指令窗口一致的风格）
     complete_btn = tk.Button(button_frame, text="✅执行完成", command=execution_completed,
-                           bg="#4CAF50", fg="white", font=("Arial", 9, "bold"),
+                           bg="#4CAF50", fg="red", font=("Arial", 12, "bold"),
                            padx=10, pady=5, relief=tk.RAISED, bd=2)
     complete_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
     

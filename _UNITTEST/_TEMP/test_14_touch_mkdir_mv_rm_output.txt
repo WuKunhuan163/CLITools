@@ -1,0 +1,441 @@
+# ============================================================================
+# Test completed at: 2025-11-08 15:17:02 - Status: FAIL
+# ============================================================================
+
+test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
+测试文件和目录的创建、移动、删除操作，包括安全检查 ... 设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251108_150957_145508_bc4d7681
+正在创建远端测试目录: ~/tmp/gds_test_20251108_150957_145508_bc4d7681
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251108_150957_145508_bc4d7681
+✓ 验证测试目录存在: ~/tmp/gds_test_20251108_150957_145508_bc4d7681
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_w5vasbuh
+测试环境设置完成
+测试文件和目录的创建、移动、删除操作
+1. 创建测试目录结构
+命令: 'mkdir -p ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'mkdir'
+  cmd_parts[1]: '-p'
+  cmd_parts[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'
+[DEBUG] 处理参数[0]: 'mkdir'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'mkdir'
+  输出[0]: 'mkdir'
+[DEBUG] 处理参数[1]: '-p'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '-p'
+  输出[1]: '-p'
+[DEBUG] 处理参数[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'
+[DEBUG] undo_local_expansion处理:
+  输入[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'
+  输出[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'mkdir'", "'-p'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'"]
+  拼接后shell_cmd_clean: 'mkdir -p ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child'
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: 'bash -c \'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child"\''
+[DEBUG] generate_command 输入: 'bash -c \'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/child"\''
+  命令长度: 127
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py", line 32, in cmd_mkdir
+    execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 236, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681" &'...
+2. 测试touch创建文件
+命令: 'touch ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'touch'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+[DEBUG] 处理参数[0]: 'touch'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'touch'
+  输出[0]: 'touch'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'touch'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'"]
+  拼接后shell_cmd_clean: 'touch ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: 'bash -c \'touch "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt"\''
+[DEBUG] generate_command 输入: 'bash -c \'touch "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt"\''
+  命令长度: 126
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/file_command.py", line 130, in cmd_touch
+    execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 236, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681" &'...
+命令: 'touch ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'touch'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 处理参数[0]: 'touch'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'touch'
+  输出[0]: 'touch'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'touch'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'"]
+  拼接后shell_cmd_clean: 'touch ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: 'bash -c \'touch "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt"\''
+[DEBUG] generate_command 输入: 'bash -c \'touch "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt"\''
+  命令长度: 133
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/file_command.py", line 130, in cmd_touch
+    execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 236, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681" &'...
+命令: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'ls'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 处理参数[0]: 'ls'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'ls'
+  输出[0]: 'ls'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'"]
+  拼接后shell_cmd_clean: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] expand_paths_with_bash 输入: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+  输入长度: 63
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] 调用bash -x -c处理: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] bash -x结果:
+  stderr: '+ ls /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test\n'
+  stdout: 'parent\ntest_file1.txt\n'
+parent
+test_file1.txt
+命令: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'ls'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 处理参数[0]: 'ls'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'ls'
+  输出[0]: 'ls'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'"]
+  拼接后shell_cmd_clean: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] expand_paths_with_bash 输入: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+  输入长度: 70
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] 调用bash -x -c处理: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] bash -x结果:
+  stderr: '+ ls /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\n'
+  stdout: 'child\ntest_file2.txt\n'
+child
+test_file2.txt
+3. 测试mkdir创建更多目录
+命令: 'mkdir ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1 ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'mkdir'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+  cmd_parts[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+[DEBUG] 处理参数[0]: 'mkdir'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'mkdir'
+  输出[0]: 'mkdir'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] 处理参数[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+[DEBUG] undo_local_expansion处理:
+  输入[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+  输出[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'mkdir'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'"]
+  拼接后shell_cmd_clean: 'mkdir ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1 ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+[DEBUG] expand_paths_with_bash 输入: 'mkdir ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1 ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+  输入长度: 145
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] 调用bash -x -c处理: 'mkdir ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1 ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2'
+[DEBUG] bash -x结果:
+  stderr: '+ mkdir /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1 /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2\n'
+  stdout: ''
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: 'bash -c \'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1"\''
+[DEBUG] generate_command 输入: 'bash -c \'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1"\''
+  命令长度: 120
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py", line 32, in cmd_mkdir
+    execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 240, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d" &'...
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: 'bash -c \'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2"\''
+[DEBUG] generate_command 输入: 'bash -c \'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir2"\''
+  命令长度: 120
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/mkdir_command.py", line 32, in cmd_mkdir
+    execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 240, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d" &'...
+命令: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'ls'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 处理参数[0]: 'ls'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'ls'
+  输出[0]: 'ls'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'"]
+  拼接后shell_cmd_clean: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] expand_paths_with_bash 输入: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+  输入长度: 63
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] 调用bash -x -c处理: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] bash -x结果:
+  stderr: '+ ls /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test\n'
+  stdout: 'new_dir1\nnew_dir2\nparent\ntest_file1.txt\n'
+new_dir1
+new_dir2
+parent
+test_file1.txt
+4. 测试mv移动文件
+命令: 'mv ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'mv'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+  cmd_parts[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+[DEBUG] 处理参数[0]: 'mv'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'mv'
+  输出[0]: 'mv'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'
+[DEBUG] 处理参数[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+[DEBUG] undo_local_expansion处理:
+  输入[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+  输出[2]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'mv'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'"]
+  拼接后shell_cmd_clean: 'mv ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+[DEBUG] expand_paths_with_bash 输入: 'mv ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+  输入长度: 149
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] 调用bash -x -c处理: 'mv ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/'
+[DEBUG] bash -x结果:
+  stderr: '+ mv /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt /Users/wukunhuan/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/\n'
+  stdout: ''
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: "bash -c '(mv /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/)'"
+[DEBUG] generate_command 输入: "bash -c '(mv /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/test_file1.txt /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1/)'"
+  命令长度: 227
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/file_command.py", line 265, in cmd_mv
+    result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 240, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d" &'...
+命令: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'ls'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] 处理参数[0]: 'ls'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'ls'
+  输出[0]: 'ls'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'"]
+  拼接后shell_cmd_clean: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] expand_paths_with_bash 输入: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+  输入长度: 72
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] shlex分段结果: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'"]
+[DEBUG] 处理部分[0]: 'ls'
+[DEBUG] 跳过展开[0]: 'ls'
+[DEBUG] 处理部分[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] 单个路径展开: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] bash展开结果: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] 展开结果[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+[DEBUG] 最终组合结果: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/new_dir1'
+test_file1.txt
+命令: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'ls'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 处理参数[0]: 'ls'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'ls'
+  输出[0]: 'ls'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'"]
+  拼接后shell_cmd_clean: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] expand_paths_with_bash 输入: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+  输入长度: 63
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] shlex分段结果: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'"]
+[DEBUG] 处理部分[0]: 'ls'
+[DEBUG] 跳过展开[0]: 'ls'
+[DEBUG] 处理部分[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 单个路径展开: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] bash展开结果: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 展开结果[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+[DEBUG] 最终组合结果: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test'
+new_dir1
+new_dir2
+parent
+5. 测试rm删除文件
+命令: 'rm ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+返回码: 0
+FAIL
+
+======================================================================
+FAIL: test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
+测试文件和目录的创建、移动、删除操作，包括安全检查
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2708, in test_14_touch_mkdir_mv_rm
+    self.assertNotIn("test_file2.txt", result.stdout)
+AssertionError: 'test_file2.txt' unexpectedly found in '[DEBUG] 步骤3 - bash解析到的参数列表:\n  cmd_parts[0]: \'ls\'\n  cmd_parts[1]: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] 处理参数[0]: \'ls\'\n[DEBUG] undo_local_expansion处理:\n  输入[0]: \'ls\'\n  输出[0]: \'ls\'\n[DEBUG] 处理参数[1]: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] undo_local_expansion处理:\n  输入[1]: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n  输出[1]: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] 重新拼接的最终命令:\n  拼接前processed_parts: ["\'ls\'", "\'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'"]\n  拼接后shell_cmd_clean: \'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] expand_paths_with_bash 输入: \'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n  输入长度: 70\n  placeholder: \'~\', placeholder_value: \'/content/drive/MyDrive/REMOTE_ROOT\'\n[DEBUG] 保护反斜杠后: \'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] shlex分段结果: ["\'ls\'", "\'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'"]\n[DEBUG] 恢复反斜杠后: ["\'ls\'", "\'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'"]\n[DEBUG] 处理部分[0]: \'ls\'\n[DEBUG] 跳过展开[0]: \'ls\'\n[DEBUG] 处理部分[1]: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] 单个路径展开: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] bash展开结果: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] 展开结果[1]: \'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\n[DEBUG] 最终组合结果: \'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent\'\nchild\ntest_file2.txt\n'
+
+----------------------------------------------------------------------
+Ran 1 test in 421.998s
+
+FAILED (failures=1)
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'rm'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 处理参数[0]: 'rm'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'rm'
+  输出[0]: 'rm'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'rm'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'"]
+  拼接后shell_cmd_clean: 'rm ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] expand_paths_with_bash 输入: 'rm ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+  输入长度: 85
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] shlex分段结果: ["'rm'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'"]
+[DEBUG] 处理部分[0]: 'rm'
+[DEBUG] 跳过展开[0]: 'rm'
+[DEBUG] 处理部分[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 单个路径展开: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] bash展开结果: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 展开结果[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] 最终组合结果: 'rm ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt'
+[DEBUG] execute_command_interface 调用 generate_command:
+  输入cmd: 'bash -c \'rm "~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt"\''
+[DEBUG] generate_command 输入: 'bash -c \'rm "~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent/test_file2.txt"\''
+  命令长度: 97
+[DEBUG] generate_command 调用栈:
+  0: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/file_command.py", line 229, in cmd_rm
+    result = self.main_instance.execute_command_interface("bash", ["-c", safe_command])
+  1: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 322, in execute_command_interface
+    return self.command_executor.execute_command_interface(*args, **kwargs)
+  2: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 896, in execute_command_interface
+    remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
+  3: File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_generator.py", line 325, in generate_command
+    call_stack = traceback.format_stack()
+[DEBUG] generate_command 返回:
+  remote_command: '\n# 确保工作目录存在并切换到正确的基础目录\nmkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d"\ncd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251108_151135_358149_a7c50d1d" &'...
+命令: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+返回码: 0
+输出: [DEBUG] 步骤3 - bash解析到的参数列表:
+  cmd_parts[0]: 'ls'
+  cmd_parts[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 处理参数[0]: 'ls'
+[DEBUG] undo_local_expansion处理:
+  输入[0]: 'ls'
+  输出[0]: 'ls'
+[DEBUG] 处理参数[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] undo_local_expansion处理:
+  输入[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+  输出[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 重新拼接的最终命令:
+  拼接前processed_parts: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'"]
+  拼接后shell_cmd_clean: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] expand_paths_with_bash 输入: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+  输入长度: 70
+  placeholder: '~', placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+[DEBUG] 保护反斜杠后: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] shlex分段结果: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'"]
+[DEBUG] 恢复反斜杠后: ["'ls'", "'~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'"]
+[DEBUG] 处理部分[0]: 'ls'
+[DEBUG] 跳过展开[0]: 'ls'
+[DEBUG] 处理部分[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 单个路径展开: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] bash展开结果: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 展开结果[1]: '~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+[DEBUG] 最终组合结果: 'ls ~/tmp/gds_test_20251108_150957_145508_bc4d7681/file_ops_test/parent'
+child
+test_file2.txt

@@ -291,9 +291,22 @@ class ResultProcessor:
             # 尝试解析JSON
             try:
                 import json
+                from .debug_logger import debug_log
+                
                 # 预处理JSON内容以修复格式问题
                 cleaned_content = self.preprocess_json_content(content)
                 result_data = json.loads(cleaned_content)
+                
+                # Debug log记录结果处理过程
+                debug_log('result_processor', 'result_file_processed', {
+                    'result_filename': result_filename,
+                    'raw_content_length': len(content),
+                    'cleaned_content_length': len(cleaned_content),
+                    'result_data_keys': list(result_data.keys()) if isinstance(result_data, dict) else 'not_dict',
+                    'stdout_content': result_data.get('stdout', '') if isinstance(result_data, dict) else '',
+                    'stdout_length': len(result_data.get('stdout', '')) if isinstance(result_data, dict) else 0,
+                    'exit_code': result_data.get('exit_code', 'not_found') if isinstance(result_data, dict) else 'not_dict'
+                })
 
                 return {
                     "success": True,

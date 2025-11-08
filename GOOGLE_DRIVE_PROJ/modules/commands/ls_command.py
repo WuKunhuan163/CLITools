@@ -145,12 +145,19 @@ class LsCommand(BaseCommand):
                     self.print_detailed_listing(all_sorted_items)
                 else:
                     # 简单的列表格式，类似bash ls
-                    for item in all_sorted_items:
-                        name = item.get('name', 'Unknown')
-                        if item.get('mimeType') == 'application/vnd.google-apps.folder':
-                            print(f"{name}/")
-                        else:
-                            print(name)
+                    # 优先使用格式化的output字段，如果没有则回退到原来的逻辑
+                    output = result.get("output")
+                    if output is not None:
+                        if output:  # 如果output不为空
+                            print(output)
+                    else:
+                        # 回退到原来的逻辑（用于兼容性）
+                        for item in all_sorted_items:
+                            name = item.get('name', 'Unknown')
+                            if item.get('mimeType') == 'application/vnd.google-apps.folder':
+                                print(f"{name}/")
+                            else:
+                                print(name)
             
             return 0
         else:
@@ -369,6 +376,15 @@ class LsCommand(BaseCommand):
         # 首先将可能的远端绝对路径转换为逻辑路径
         if path:
             path = self.convert_absolute_to_logical(path)
+            # 规范化路径，处理../等相对路径组件
+            path = self.main_instance.path_resolver.normalize_logical_path(path)
+        
+        # 保存转换后的逻辑路径（用于输出格式化）
+        original_logical_path = path
+        
+        # 处理尾部斜杠 - 除了根目录"~"，其他路径都去掉尾部斜杠
+        if path and path != "~" and path.endswith("/"):
+            path = path.rstrip("/")
         
         if path is None or path == ".":
             # 当前目录
@@ -439,14 +455,16 @@ class LsCommand(BaseCommand):
                                     "files": [file_result],
                                     "folders": [],
                                     "count": 1,
-                                    "mode": "single_file"
+                                    "mode": "single_file",
+                                    "output": original_logical_path if original_logical_path else file_result['name']
                                 }
                             else:
                                 return {"success": False, "error": f"ls: {path}: No such file or directory", "failed_path": path}
                     else:
                         # 从父目录解析失败，返回详细错误信息
-                        error_msg = resolve_result[1] if resolve_result[1] else "Failed to resolve path from parent"
-                        return {"success": False, "error": error_msg, "failed_path": path, "stuck_at_parent": nearest_path, "parent_id": nearest_id}
+                        detailed_error = resolve_result[1] if resolve_result[1] else "Failed to resolve path from parent"
+                        bash_error = f"ls: {path}: No such file or directory"
+                        return {"success": False, "error": bash_error, "message": detailed_error, "failed_path": path, "stuck_at_parent": nearest_path, "parent_id": nearest_id}
             else:
                 # 回退到传统的路径解析
                 target_folder_id, display_path = self.main_instance.resolve_drive_id(path, current_shell)
@@ -464,7 +482,8 @@ class LsCommand(BaseCommand):
                         "files": [file_result],
                         "folders": [],
                         "count": 1,
-                        "mode": "single_file"
+                        "mode": "single_file",
+                        "output": original_logical_path if original_logical_path else file_result['name']
                     }
                 else:
                     return {"success": False, "error": f"ls: {path}: No such file or directory", "failed_path": path}
@@ -523,6 +542,18 @@ class LsCommand(BaseCommand):
                     }
                 else:
                     # bash风格：只返回文件名列表
+                    # 格式化输出 - 文件名应该以提供的路径为前缀
+                    output_lines = []
+                    
+                    # 对于目录列表，只显示文件名（bash标准行为）
+                    # 添加文件夹（按bash惯例，文件夹在前）
+                    for folder in clean_folders:
+                        output_lines.append(folder['name'])
+                    
+                    # 添加文件
+                    for file in clean_files:
+                        output_lines.append(file['name'])
+                    
                     return {
                         "success": True,
                         "path": display_path,
@@ -530,7 +561,8 @@ class LsCommand(BaseCommand):
                         "files": clean_files,  # 只有非文件夹文件
                         "folders": clean_folders,  # 只有文件夹
                         "count": len(clean_folders) + len(clean_files),
-                        "mode": "bash"
+                        "mode": "dir",
+                        "output": "\n".join(output_lines) if output_lines else ""
                     }
             else:
                 # Bash-aligned error message (primary output) - strict alignment

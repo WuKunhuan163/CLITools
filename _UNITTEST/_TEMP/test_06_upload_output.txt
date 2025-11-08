@@ -1,296 +1,52 @@
-test_06_upload (test_gds.GDSTest) ... 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251101_123614_404799_280d6f76
-正在创建远端测试目录: ~/tmp/gds_test_20251101_123614_404799_280d6f76
-使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251101_123614_404799_280d6f76
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_29n5h6cw
-测试环境设置完成
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py" -> upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"
-返回码: 0
-输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['test_upload_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-File already deleted: test_upload_simple_hello.py (skipped)
-Added deletion record for original: test_upload_simple_hello.py
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['test_upload_simple_hello.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_simple_hello.py'], 'sync_time': 9, 'base_sync_time': 9}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_simple_hello.py" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_simple_hello.py"
-返回码: 0
-输出: test_upload_simple_hello.py...
+# ============================================================================
+# Test completed at: 2025-11-08 16:37:32 - Status: FAIL
+# ============================================================================
 
-执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
-验证命令: ['ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/valid_script.py"', 'ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/special_chars.txt"']
-最大重试次数: 3
+test_06_upload (test_gds.GDSTest) ... FAIL
 
-尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt" -> upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
-返回码: 0
-输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['valid_script.py', 'special_chars.txt'], 'missing_files': [], 'total_found': 2, 'total_expected': 2, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-File already deleted: valid_script.py (skipped)
-File already deleted: special_chars.txt (skipped)
-Added deletion record for original: valid_script.py
-Added deletion record for original: special_chars.txt
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['valid_script.py', 'special_chars.txt'], 'missing_files': [], 'total_found': 2, 'total_expected': 2, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['valid_script.py', 'special_chars.txt'], 'sync_time': 6, 'base_sync_time': 6}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/valid_script.py"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/valid_script.py" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/valid_script.py"
-返回码: 0
-输出: valid_script.py...
-验证成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/valid_script.py"
-验证命令 2: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/special_chars.txt"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/special_chars.txt" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/special_chars.txt"
-返回码: 0
-输出: special_chars.txt...
-验证成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/special_chars.txt"
-所有验证通过!
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_simple_hello.py" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_simple_hello.py"
-返回码: 0
-输出: test_upload_simple_hello.py...
+======================================================================
+FAIL: test_06_upload (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 836, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
 
-执行带重试的upload命令: upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-验证命令: ['ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_project"']
-最大重试次数: 3
+During handling of the above exception, another exception occurred:
 
-尝试 1/3
-命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project" -> upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-返回码: 0
-输出: Captured debug output:
-cmd_upload called with source_files=['/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip'], target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76', force=True
-Before resolve - target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-current_shell={'id': 'default_shell', 'name': 'default', 'current_path': '~/tmp/gds_test_20251101_123807_678703_f6e1c194', 'current_folder_id': '14cX2iocjL5waYM9iOMVk5-WANIX_wQOt', 'created_time': '2025-10-29 11:35:40', 'last_accessed': '2025-11-01 12:39:17', 'venv_state': {'active_env': 'test_env_1761971662', 'pythonpath': '/env/python'}}
-After resolve - target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L', target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-Processing file: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip
-Checking conflicts for: test_project.zip
-Checking rename for test_project.zip: found 6 deletion records
-Record: test_simple_hello.py, age: 237.2s
-Record: test_simple_hello.py, age: 237.2s
-Record: test_simple_hello_1.py, age: 237.2s
-Record: test_upload_simple_hello.py, age: 87.2s
-Record: valid_script.py, age: 28.9s
-Record: special_chars.txt, age: 28.9s
-No need to rename test_project.zip (not in recent deletion cache)
-Conflict check: test_project.zip -> remote_exists=False, cache_suggests_rename=False, local_exists=False
-Move result: {'success': True, 'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/test_project.zip', 'filename': 'test_project.zip', 'original_filename': 'test_project.zip', 'renamed': False}
-File processed without renaming: test_project.zip
-Before generate_mv_commands - file_moves=[{'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/test_project.zip', 'filename': 'test_project.zip', 'original_filename': 'test_project.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/test_project.zip', 'renamed': False}]
-Before generate_mv_commands - target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-After generate_mv_commands - remote_command preview: 
-# 创建目录
-mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251101_123614_404799_280d6f76"
-# 移动文件（带重试机制）
-for attempt in $(seq 1 30); do
-    if mv "/content/drive/Othercomputers/我的 MacBook A...
-Folder upload detected, skipping file verification
-Added deletion record for original: test_project.zip
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': [], 'missing_files': [], 'total_expected': 1, 'total_found': 0, 'skip_verification': True}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_project.zip'], 'sync_time': 6, 'base_sync_time': 6}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_project"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_project" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_project"
-返回码: 0
-输出: config.json
-core.py
-main.py...
-验证成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_project"
-所有验证通过!
-
-执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"
-验证命令: ['ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_conflict_file.py"']
-最大重试次数: 3
-
-尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py" -> upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"
-返回码: 0
-输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['test_upload_conflict_file.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-File already deleted: test_upload_conflict_file.py (skipped)
-Added deletion record for original: test_upload_conflict_file.py
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['test_upload_conflict_file.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_conflict_file.py'], 'sync_time': 6, 'base_sync_time': 6}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_conflict_file.py"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_conflict_file.py" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_conflict_file.py"
-返回码: 0
-输出: test_upload_conflict_file.py...
-验证成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_conflict_file.py"
-所有验证通过!
-命令转译成功: upload  "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py" -> upload  "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"
-返回码: 1
-输出: Captured debug output:
-Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
-Upload failed, showing debug information:
-verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_conflict_file_1.py'], 'sync_time': 8, 'base_sync_time': 8}
-target_folder_id='14cX2iocjL5waYM9iOMVk5-WANIX_wQOt'
-target_display_path='~/tmp/gds_test_20251101_123807_678703_f6e1c194'
-Upload failed...
-
-执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
-验证命令: ['ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"']
-最大重试次数: 3
-
-尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py" -> upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
-返回码: 0
-输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['test_upload_overwrite_file.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-Added deletion record for original: test_upload_overwrite_file.py
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['test_upload_overwrite_file.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_overwrite_file.py'], 'sync_time': 8, 'base_sync_time': 8}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-返回码: 0
-输出: test_upload_overwrite_file.py...
-验证成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-所有验证通过!
-命令转译成功: cat "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py" -> cat "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-返回码: 0
-输出: print(f"ORIGINAL VERSION - Test upload")...
-
-执行带重试的upload命令: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
-验证命令: ['grep "MODIFIED VERSION" "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"']
-最大重试次数: 3
-
-尝试 1/3
-命令转译成功: upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py" -> upload --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
-返回码: 0
-输出: Captured debug output:
-Verification completed: {'success': True, 'found_files': ['test_upload_overwrite_file.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-Added deletion record for original: test_upload_overwrite_file.py
-Added deletion record for temp: test_upload_overwrite_file_1.py
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': ['test_upload_overwrite_file.py'], 'missing_files': [], 'total_found': 1, 'total_expected': 1, 'search_path': '~/tmp/gds_test_20251101_123614_404799_280d6f76'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_overwrite_file_1.py'], 'sync_time': 6, 'base_sync_time': 6}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: grep "MODIFIED VERSION" "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-命令转译成功: grep "MODIFIED VERSION" "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py" -> grep "MODIFIED VERSION" "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-返回码: 0
-输出: 1: print(f"MODIFIED VERSION - Test upload overwrite!")...
-验证成功: grep "MODIFIED VERSION" "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-所有验证通过!
-命令转译成功: cat "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py" -> cat "~/tmp/gds_test_20251101_123614_404799_280d6f76/test_upload_overwrite_file.py"
-返回码: 0
-输出: print(f"MODIFIED VERSION - Test upload overwrite!")...
-
-执行带重试的upload命令: upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"
-验证命令: ['ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir"']
-最大重试次数: 3
-
-尝试 1/3
-命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir" -> upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"
-返回码: 0
-输出: Captured debug output:
-cmd_upload called with source_files=['/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip'], target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76', force=True
-Before resolve - target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-current_shell={'id': 'default_shell', 'name': 'default', 'current_path': '~/tmp/gds_test_20251101_124128_967991_d27341d6/test_project', 'current_folder_id': '1QCw-v6sfAFDvjqe43dDcgreiZyp63_bY', 'created_time': '2025-10-29 11:35:40', 'last_accessed': '2025-11-01 12:47:01', 'venv_state': {'active_env': 'test_env_1761972307', 'pythonpath': '/env/python'}}
-After resolve - target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L', target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-Processing file: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip
-Checking conflicts for: empty_test_dir.zip
-Checking rename for empty_test_dir.zip: found 7 deletion records
-Record: test_simple_hello.py, age: 265.0s
-Record: test_simple_hello.py, age: 265.0s
-Record: test_upload_overwrite_file.py, age: 82.9s
-Record: test_upload_overwrite_file.py, age: 82.9s
-Record: test_upload_overwrite_file.py, age: 20.6s
-Record: test_upload_overwrite_file.py, age: 20.6s
-Record: test_upload_overwrite_file_1.py, age: 20.6s
-No need to rename empty_test_dir.zip (not in recent deletion cache)
-Conflict check: empty_test_dir.zip -> remote_exists=False, cache_suggests_rename=False, local_exists=False
-Move result: {'success': True, 'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/empty_test_dir.zip', 'filename': 'empty_test_dir.zip', 'original_filename': 'empty_test_dir.zip', 'renamed': False}
-File processed without renaming: empty_test_dir.zip
-Before generate_mv_commands - file_moves=[{'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip', 'filename': 'empty_test_dir.zip', 'original_filename': 'empty_test_dir.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/empty_test_dir.zip', 'renamed': False}]
-Before generate_mv_commands - target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-After generate_mv_commands - remote_command preview: 
-# 创建目录
-mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251101_123614_404799_280d6f76"
-# 移动文件（带重试机制）
-for attempt in $(seq 1 30); do
-    if mv "/content/drive/Othercomputers/我的 MacBook A...
-Folder upload detected, skipping file verification
-Added deletion record for original: empty_test_dir.zip
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': [], 'missing_files': [], 'total_expected': 1, 'total_found': 0, 'skip_verification': True}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['empty_test_dir.zip'], 'sync_time': 5, 'base_sync_time': 5}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir"
-返回码: 1
-输出: Path not found: ~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir...
-验证失败: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir" (返回码: 1)
-验证失败，等待1秒后重试...
-
-尝试 2/3
-命令转译成功: upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir" -> upload_folder --target-dir "~/tmp/gds_test_20251101_123614_404799_280d6f76" --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"
-返回码: 0
-ok
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1958, in test_06_upload
+    result = self.gds(f'upload --target-dir {self.test_folder} --force "{unique_file}"')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 842, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: upload --target-dir ~/tmp/gds_test_20251108_163649_756087_29df8c44 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py" - 1 != 0 : 命令执行失败
 
 ----------------------------------------------------------------------
-Ran 1 test in 999.082s
+Ran 1 test in 38.198s
 
-OK
-输出: Captured debug output:
-cmd_upload called with source_files=['/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip'], target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76', force=True
-Before resolve - target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-current_shell={'id': 'default_shell', 'name': 'default', 'current_path': '~/tmp/gds_test_20251101_124128_967991_d27341d6/test_project', 'current_folder_id': '1QCw-v6sfAFDvjqe43dDcgreiZyp63_bY', 'created_time': '2025-10-29 11:35:40', 'last_accessed': '2025-11-01 12:49:53', 'venv_state': {'active_env': None, 'pythonpath': '/env/python'}}
-After resolve - target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L', target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-Processing file: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip
-Checking conflicts for: empty_test_dir.zip
-Checking rename for empty_test_dir.zip: found 7 deletion records
-Record: test_upload_overwrite_file.py, age: 153.5s
-Record: test_upload_overwrite_file.py, age: 153.5s
-Record: test_upload_overwrite_file.py, age: 91.2s
-Record: test_upload_overwrite_file.py, age: 91.2s
-Record: test_upload_overwrite_file_1.py, age: 91.2s
-Record: empty_test_dir.zip, age: 13.9s
-Should rename empty_test_dir.zip (found in deletion cache, age: 13.9s)
-Conflict check: empty_test_dir.zip -> remote_exists=False, cache_suggests_rename=True, local_exists=False
-Need to rename empty_test_dir.zip to avoid conflict
-Checking rename for empty_test_dir_1.zip: found 7 deletion records
-Record: test_upload_overwrite_file.py, age: 153.5s
-Record: test_upload_overwrite_file.py, age: 153.5s
-Record: test_upload_overwrite_file.py, age: 91.2s
-Record: test_upload_overwrite_file.py, age: 91.2s
-Record: test_upload_overwrite_file_1.py, age: 91.2s
-Record: empty_test_dir.zip, age: 13.9s
-Record: empty_test_dir.zip, age: 13.9s
-No need to rename empty_test_dir_1.zip (not in recent deletion cache)
-Found available temp filename: empty_test_dir_1.zip
-Renamed based on deletion cache: empty_test_dir.zip -> empty_test_dir_1.zip
-Move result: {'success': True, 'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/empty_test_dir_1.zip', 'filename': 'empty_test_dir_1.zip', 'original_filename': 'empty_test_dir.zip', 'renamed': True}
-File renamed: empty_test_dir.zip -> empty_test_dir_1.zip
-Before generate_mv_commands - file_moves=[{'original_path': '/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/empty_test_dir.zip', 'filename': 'empty_test_dir_1.zip', 'original_filename': 'empty_test_dir.zip', 'new_path': '/Users/wukunhuan/Applications/Google Drive/empty_test_dir_1.zip', 'renamed': True}]
-Before generate_mv_commands - target_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'
-After generate_mv_commands - remote_command preview: 
-# 创建目录
-mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251101_123614_404799_280d6f76"
-# 移动文件（带重试机制）
-for attempt in $(seq 1 30); do
-    if mv "/content/drive/Othercomputers/我的 MacBook A...
-Folder upload detected, skipping file verification
-Added deletion record for original: empty_test_dir.zip
-Added deletion record for temp: empty_test_dir_1.zip
-Upload completed, showing verification debug information:
-verify_result={'success': True, 'found_files': [], 'missing_files': [], 'total_expected': 1, 'total_found': 0, 'skip_verification': True}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['empty_test_dir_1.zip'], 'sync_time': 8, 'base_sync_time': 8}
-target_folder_id='1agVGFcdXMYsCBVC6ITqCkNQs1c3JP85L'
-target_display_path='~/tmp/gds_test_20251101_123614_404799_280d6f76'...
-验证命令 1: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir"
-命令转译成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir" -> ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir"
-返回码: 0
-验证成功: ls "~/tmp/gds_test_20251101_123614_404799_280d6f76/empty_test_dir"
-所有验证通过!
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251108_163649_756087_29df8c44
+正在创建远端测试目录: ~/tmp/gds_test_20251108_163649_756087_29df8c44
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251108_163649_756087_29df8c44
+✓ 验证测试目录存在: ~/tmp/gds_test_20251108_163649_756087_29df8c44
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_t34o4khc
+测试环境设置完成
+命令: 'upload --target-dir ~/tmp/gds_test_20251108_163649_756087_29df8c44 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"'
+返回码: 1
+输出: File does not exist: /content/drive/MyDrive/REMOTE_ROOT/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py
+No files to upload
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: File does not exist: /content/drive/MyDrive/REMOTE_ROOT/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py
+No files to upload
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: File does not exist: /content/drive/MyDrive/REMOTE_ROOT/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py
+No files to upload
+命令执行异常: 1 != 0 : 命令执行失败

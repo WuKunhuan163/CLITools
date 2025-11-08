@@ -92,8 +92,27 @@ class UploadCommand(BaseCommand):
             print("Error: No source files specified")
             return 1
         
+        # Undo remote expansion for source files - convert remote paths back to local paths
+        # This is needed because general argument processing may have converted local paths to remote format
+        corrected_source_files = []
+        for file_path in source_files:
+            # If path was converted to remote format, convert it back to local format
+            if file_path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
+                # Remove the remote root prefix and add ~ prefix
+                relative_part = file_path[len('/content/drive/MyDrive/REMOTE_ROOT/'):]
+                corrected_path = f"~/{relative_part}"
+                corrected_source_files.append(corrected_path)
+            elif file_path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
+                # Remove the remote env prefix and add @ prefix  
+                relative_part = file_path[len('/content/drive/MyDrive/REMOTE_ENV/'):]
+                corrected_path = f"@/{relative_part}"
+                corrected_source_files.append(corrected_path)
+            else:
+                # Path is already in correct format
+                corrected_source_files.append(file_path)
+        
         # 调用cmd_upload
-        result = self.cmd_upload(source_files, target_path=target_path, force=force)
+        result = self.cmd_upload(corrected_source_files, target_path=target_path, force=force)
         
         if result.get("success"):
             return 0
@@ -1285,9 +1304,9 @@ try:
         button_frame, 
         text="📁 本地文件夹", 
         command=open_local_folder,
-        font=("Arial", 9),
+        font=("Arial", 12),
         bg="#2196F3",
-        fg="white",
+        fg="#666666",
         padx=10,
         pady=5,
         relief=tk.RAISED,
@@ -1300,9 +1319,9 @@ try:
         button_frame, 
         text="🌐 远程文件夹", 
         command=open_remote_folder,
-        font=("Arial", 9),
+        font=("Arial", 12),
         bg="#FF9800",
-        fg="white",
+        fg="#666666",
         padx=10,
         pady=5,
         relief=tk.RAISED,
@@ -1315,9 +1334,9 @@ try:
         button_frame, 
         text="✅ 上传完成", 
         command=upload_completed,
-        font=("Arial", 9, "bold"),
+        font=("Arial", 12, "bold"),
         bg="#4CAF50",
-        fg="white",
+        fg="#666666",
         padx=10,
         pady=5,
         relief=tk.RAISED,
@@ -1330,9 +1349,9 @@ try:
         button_frame, 
         text="❌ 取消", 
         command=upload_cancelled,
-        font=("Arial", 9),
+        font=("Arial", 12),
         bg="#f44336",
-        fg="white",
+        fg="#666666",
         padx=10,
         pady=5,
         relief=tk.RAISED,
