@@ -187,10 +187,7 @@ class PathResolver:
         if '\n' in command_or_path:
             # 仍然需要替换可能已展开的home目录
             home_dir = os.path.expanduser("~")
-            # print(f"[DEBUG] undo_local_path_user_expansion: 检测到换行符，跳过bash -c -x测试")
-            # print(f"[DEBUG]   输入长度: {len(command_or_path)}, 换行符数量: {command_or_path.count(chr(10))}")
             result = command_or_path.replace(home_dir, '~')
-            # print(f"[DEBUG]   输出长度: {len(result)}")
             return result
         
         # 获取用户的home目录

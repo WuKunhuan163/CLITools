@@ -120,6 +120,32 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     except Exception as e:
         print(f"Warning: Failed to clear path IDs: {e}")
     
+    # Reset shell pwd to ~ and reset current_folder_id to default (REMOTE_ROOT)
+    try:
+        shells_data = google_drive_shell.load_shells()
+        if shells_data and "active_shell" in shells_data:
+            active_shell_id = shells_data["active_shell"]
+            if active_shell_id in shells_data.get("shells", {}):
+                # 获取REMOTE_ROOT的默认ID
+                default_id = None
+                try:
+                    from .path_constants import PathConstants
+                    path_constants = PathConstants()
+                    gds_path_ids_file = path_constants.GDS_PATH_IDS_FILE
+                    if gds_path_ids_file.exists():
+                        with open(gds_path_ids_file, 'r') as f:
+                            path_ids_data = json.load(f)
+                            default_id = path_ids_data.get("path_ids", {}).get("~")
+                except Exception:
+                    pass
+                
+                shells_data["shells"][active_shell_id]["current_path"] = "~"
+                shells_data["shells"][active_shell_id]["current_folder_id"] = default_id
+                google_drive_shell.save_shells(shells_data)
+                print(f"✓ Shell pwd reset to ~ (folder_id: {default_id})")
+    except Exception as e:
+        print(f"Warning: Failed to reset shell pwd: {e}")
+    
     # 使用verify_with_ls检查文件是否存在
     try:
         # 使用验证系统检查指纹文件（show_hidden=True因为文件名以.开头）

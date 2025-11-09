@@ -39,12 +39,13 @@ class RemountLockManager:
             from pathlib import Path
             return Path.home() / ".local/bin/GOOGLE_DRIVE_DATA/remount_required.flag"
     
-    def acquire_remount_lock(self, caller_info="Unknown"):
+    def acquire_remount_lock(self, caller_info="Unknown", force=False):
         """
         尝试获取remount锁
         
         Args:
             caller_info: 调用者信息，用于调试
+            force: 是否强制获取锁（不检查flag文件）。用于手动remount命令。
             
         Returns:
             bool: True表示成功获取锁，False表示锁已被占用或无需remount
@@ -54,8 +55,8 @@ class RemountLockManager:
                 lock_file = self._get_lock_file_path()
                 flag_file = self._get_flag_file_path()
                 
-                # 首先检查是否有remount flag
-                if not flag_file.exists():
+                # 首先检查是否有remount flag（除非force=True）
+                if not force and not flag_file.exists():
                     # 没有flag，无需remount
                     return False
                 

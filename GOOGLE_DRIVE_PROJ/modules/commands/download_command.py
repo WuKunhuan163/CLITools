@@ -60,39 +60,18 @@ class DownloadCommand(BaseCommand):
         filename = args[0]
         local_path = args[1] if len(args) > 1 else None
         
-        # 检查是否有--force参数
-        force = False
-        if "--force" in args:
-            force = True
-            # 从args中移除--force参数
-            args = [arg for arg in args if arg != "--force"]
-            filename = args[0] if args else None
-            local_path = args[1] if len(args) > 1 else None
-        
         if not filename:
             print("Error: download command needs a file name")
             return 1
         
-        # Undo remote expansion for local_path - convert remote paths back to local paths
-        # This is needed because general argument processing may have converted local paths to remote format
-        if local_path:
-            if local_path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
-                # Remove the remote root prefix - this should be a local path
-                # Convert back to original local path by removing the prefix
-                local_path = local_path.replace('/content/drive/MyDrive/REMOTE_ROOT', '', 1)
-                # If path is now empty or just /, set to current local directory
-                if not local_path or local_path == '/':
-                    local_path = '.'
-                # If path starts with /tmp, it's likely a local temp path that got wrongly expanded
-                # Keep it as is for now - the path expansion logic should handle this better
-            elif local_path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
-                # Similar for @ paths - though download local_path shouldn't use remote env paths
-                local_path = local_path.replace('/content/drive/MyDrive/REMOTE_ENV', '', 1)
-                if not local_path or local_path == '/':
-                    local_path = '.'
+        # Translate remote path format back to local path format
+        # The local_path parameter is a local path, but general argument processing
+        # may have converted it to remote format (e.g., /content/drive/MyDrive/REMOTE_ROOT/...)
+        from ..command_generator import CommandGenerator
+        local_path = CommandGenerator.translate_remote_to_local(local_path)
         
-        # 调用shell的download方法
-        result = self.shell.cmd_download(filename, local_path=local_path, force=force)
+        # 调用shell的download方法（不再支持force参数）
+        result = self.shell.cmd_download(filename, local_path=local_path)
         
         if result.get("success", False):
             message = result.get("message", "Downloaded successfully")
@@ -128,7 +107,6 @@ Arguments:
     [local_path]     Optional local path to save the file (default: cache directory)
 
 Options:
-    --force          Force overwrite if local file already exists
     --help, -h       Show this help message
 
 Examples:
@@ -141,25 +119,20 @@ Examples:
     # Download directory (will be compressed as zip)
     GDS download my_folder
 
-    # Force overwrite existing local file
-    GDS download --force myfile.txt ~/Downloads/myfile.txt
-
 Notes:
     - Files are first downloaded to a cache directory
     - If local_path is specified, the file is copied from cache to that location
     - Directories are automatically compressed as zip files before download
-    - Use --force to overwrite existing local files without confirmation
 """
         print(help_text)
 
 
-    def cmd_download(self, filename, local_path=None, force=False):
+    def cmd_download(self, filename, local_path=None):
         """
         download命令 - 从Google Drive下载文件并缓存
         用法：
         - download A: 下载到缓存目录，显示哈希文件名
         - download A B: 下载到缓存目录，然后复制到指定位置（类似cp操作）
-        - download --force A: 强制重新下载，替换缓存
         """
         try:
             # 导入缓存管理器
@@ -173,8 +146,8 @@ Notes:
             # 构建远端绝对路径
             remote_absolute_path = self.main_instance.resolve_remote_absolute_path(filename, current_shell)
             
-            # 检查是否已经缓存（如果force=True则跳过缓存检查）
-            if not force and cache_manager.is_file_cached(remote_absolute_path):
+            # 检查是否已经缓存
+            if cache_manager.is_file_cached(remote_absolute_path):
                 cached_info = cache_manager.get_cached_file(remote_absolute_path)
                 cached_path = cache_manager.get_cached_file(remote_absolute_path, return_path_only=True)
                 
@@ -213,22 +186,7 @@ Notes:
                         "cache_status": cached_info["status"]
                     }
             
-            # 文件未缓存或强制重新下载
-            # 如果是强制模式且文件已缓存，先删除旧缓存
-            if force and cache_manager.is_file_cached(remote_absolute_path):
-                old_cached_info = cache_manager.get_cached_file(remote_absolute_path)
-                old_cache_file = old_cached_info.get("cache_file")
-                
-                # 删除旧的缓存文件
-                cleanup_result = cache_manager.cleanup_cache(remote_absolute_path)
-                force_info = {
-                    "force_mode": True,
-                    "removed_old_cache": cleanup_result.get("success", False),
-                    "old_cache_file": old_cache_file
-                }
-            else:
-                force_info = {"force_mode": False}
-            
+            # 文件未缓存，需要下载
             # 解析路径以获取目标文件夹和文件名
             file_info = None
             target_folder_id = None
@@ -315,7 +273,6 @@ Notes:
                             "cache_path": cache_result["cache_path"],
                             "local_path": target_path
                         }
-                        result.update(force_info)
                         return result
                     else:
                         # 只显示缓存信息
@@ -327,7 +284,6 @@ Notes:
                             "cache_file": cache_result["cache_file"],
                             "cache_path": cache_result["cache_path"]
                         }
-                        result.update(force_info)
                         return result
                 else:
                     return {"success": False, "error": f"Download failed: {cache_result.get('error')}"}
