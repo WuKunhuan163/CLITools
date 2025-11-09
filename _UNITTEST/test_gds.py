@@ -1501,26 +1501,26 @@ Shell commands: ls -la && echo "done"
 
         # 21. 创建测试目录
         print('创建测试目录')
-        testdir = self.get_test_remote_path("ls_hidden_test")
-        result = self.gds(f'mkdir -p {testdir}')
+        testdir_hidden = self.get_test_remote_path("ls_hidden_test")
+        result = self.gds(f'mkdir -p {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"mkdir命令应该成功，但返回码为{result.returncode}")
         
         # 22. 创建普通文件
         print('创建普通文件')
-        result = self.gds(f'echo "normal file" > {testdir}/normal.txt')
+        result = self.gds(f'echo "normal file" > {testdir_hidden}/normal.txt')
         self.assertEqual(result.returncode, 0, f"创建普通文件应该成功，但返回码为{result.returncode}")
         
         # 23. 创建隐藏文件（以.开头）
         print('创建隐藏文件')
-        result = self.gds(f'echo "hidden file" > {testdir}/.hidden.txt')
+        result = self.gds(f'echo "hidden file" > {testdir_hidden}/.hidden.txt')
         self.assertEqual(result.returncode, 0, f"创建隐藏文件应该成功，但返回码为{result.returncode}")
         
-        result = self.gds(f'echo "hidden config" > {testdir}/.config')
+        result = self.gds(f'echo "hidden config" > {testdir_hidden}/.config')
         self.assertEqual(result.returncode, 0, f"创建隐藏配置文件应该成功，但返回码为{result.returncode}")
         
         # 24. 测试默认ls（不显示隐藏文件）
         print('测试默认ls（不显示隐藏文件）')
-        result = self.gds(f'ls {testdir}')
+        result = self.gds(f'ls {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"ls命令应该成功，但返回码为{result.returncode}")
         self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
         self.assertNotIn(".hidden.txt", result.stdout, "不应该显示隐藏文件")
@@ -1528,7 +1528,7 @@ Shell commands: ls -la && echo "done"
         
         # 25. 测试ls -a（显示所有文件包括隐藏文件）
         print('测试ls -a（显示所有文件）')
-        result = self.gds(f'ls -a {testdir}')
+        result = self.gds(f'ls -a {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"ls -a命令应该成功，但返回码为{result.returncode}")
         self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
         self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
@@ -1536,7 +1536,7 @@ Shell commands: ls -la && echo "done"
         
         # 26. 测试ls --all（完整选项名）
         print('测试ls --all（完整选项名）')
-        result = self.gds(f'ls --all {testdir}')
+        result = self.gds(f'ls --all {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"ls --all命令应该成功，但返回码为{result.returncode}")
         self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
         self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
@@ -1544,7 +1544,7 @@ Shell commands: ls -la && echo "done"
         
         # 27. 测试ls -la（组合选项：详细信息+显示隐藏文件）
         print('测试ls -la（详细+隐藏）')
-        result = self.gds(f'ls -la {testdir}')
+        result = self.gds(f'ls -la {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"ls -la命令应该成功，但返回码为{result.returncode}")
         self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
         self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
@@ -1552,7 +1552,7 @@ Shell commands: ls -la && echo "done"
         
         # 28. 测试ls -f -a（强制刷新+显示隐藏文件）
         print('测试ls -f -a（强制刷新+隐藏）')
-        result = self.gds(f'ls -f -a {testdir}')
+        result = self.gds(f'ls -f -a {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"ls -f -a命令应该成功，但返回码为{result.returncode}")
         self.assertIn("normal.txt", result.stdout, "应该显示普通文件")
         self.assertIn(".hidden.txt", result.stdout, "应该显示隐藏文件")
@@ -1560,7 +1560,7 @@ Shell commands: ls -la && echo "done"
         
         # 29. 清理测试文件
         print('清理测试文件')
-        result = self.gds(f'rm -rf {testdir}')
+        result = self.gds(f'rm -rf {testdir_hidden}')
         self.assertEqual(result.returncode, 0, f"清理应该成功，但返回码为{result.returncode}")
 
     def test_02_echo_basic(self):
@@ -2104,7 +2104,7 @@ print(f'Current files: {len(os.listdir())}')'''
         
         # 测试1: 基本下载功能（下载到缓存）
         print("测试1: 基本下载功能")
-        os.chdir("~/tmp")
+        os.chdir(os.path.expanduser("~/tmp"))
         result = self.gds(f'download {download_file_remote}')
         self.assertEqual(result.returncode, 0, "基本下载应该成功")
         self.assertIn("Downloaded successfully", result.stdout, "应该显示下载成功信息")
@@ -2127,11 +2127,11 @@ print(f'Current files: {len(os.listdir())}')'''
         else:
             self.fail(f'下载的文件不存在于本地路径: {local_target_file}')
         
-        # 测试3: 强制重新下载
-        print("测试3: 强制重新下载")
-        result = self.gds(f'download --force {download_file_remote}')
-        self.assertEqual(result.returncode, 0, "强制下载应该成功")
-        self.assertIn("Downloaded successfully", result.stdout, "强制下载应该显示成功信息")
+        # 测试3: 强制重新下载（已删除，不再支持--force参数）
+        # print("测试3: 强制重新下载")
+        # result = self.gds(f'download {download_file_remote}')
+        # self.assertEqual(result.returncode, 0, "强制下载应该成功")
+        # self.assertIn("Downloaded successfully", result.stdout, "强制下载应该显示成功信息")
         
         # 测试4: 下载不存在的文件（错误处理）
         print("测试4: 下载不存在的文件")
@@ -2435,7 +2435,10 @@ print(f'Sum: {result}')
         
         # 尝试编辑文件，这应该触发linter并显示错误
         print(f'执行edit命令，应该触发linter检查...')
-        result = self.gds(f'edit {syntax_error_test_path} \'[["Missing closing parenthesis", "Fixed syntax error"]]\'')
+        # 使用shlex.quote来正确引用JSON参数
+        import shlex
+        json_edit_arg = '[["Missing closing parenthesis", "Fixed syntax error"]]'
+        result = self.gds(f'edit {syntax_error_test_path} {shlex.quote(json_edit_arg)}')
         
         # 检查edit命令的输出格式
         print(f'检查edit命令输出格式...')
@@ -2830,10 +2833,10 @@ EOF'''
         self.assertTrue(self.verify_file_exists(self.test_folder + "/myproject/docs"), "myproject/docs目录应该存在")
         
         # 创建项目基础文件
-        result = self.gds('\'echo "# My Project\\nA sample Python project for testing" > ' + self.test_folder + '/myproject/README.md\'')
+        result = self.gds('echo -e "# My Project\\nA sample Python project for testing" > ' + self.test_folder + '/myproject/README.md')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds('\'echo "requests>=2.25.0\\nnumpy>=1.20.0\\npandas>=1.3.0" > ' + self.test_folder + '/myproject/requirements.txt\'')
+        result = self.gds('echo -e "requests>=2.25.0\\nnumpy>=1.20.0\\npandas>=1.3.0" > ' + self.test_folder + '/myproject/requirements.txt')
         self.assertEqual(result.returncode, 0)
         
         # 创建主应用文件

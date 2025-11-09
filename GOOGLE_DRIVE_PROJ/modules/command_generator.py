@@ -54,6 +54,47 @@ class CommandGenerator:
         self.drive_service = drive_service
         self.main_instance = main_instance
     
+    @staticmethod
+    def translate_remote_to_local(path):
+        """
+        将远端路径格式转换回本地路径格式
+        
+        在通用路径处理中，所有的~路径会被假设为远端路径并展开为/content/drive/MyDrive/REMOTE_ROOT/...
+        但是对于某些命令（如upload、download），某些参数实际上是本地路径，需要转换回本地格式。
+        
+        转换规则：
+        1. /content/drive/MyDrive/REMOTE_ROOT/... -> ~/... -> /Users/xxx/...
+           (将REMOTE_ROOT替换为~，然后展开为绝对路径)
+        2. /content/drive/MyDrive/REMOTE_ENV/... -> @/...
+           
+        Args:
+            path (str): 可能是远端格式的路径
+            
+        Returns:
+            str: 本地格式的路径
+        """
+        if not path:
+            return path
+        
+        if path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
+            # 将 REMOTE_ROOT 替换为 ~
+            remaining_path = path[len('/content/drive/MyDrive/REMOTE_ROOT/'):]
+            if remaining_path:
+                tilde_path = '~/' + remaining_path
+            else:
+                tilde_path = '~'
+            
+            # 使用 os.path.expanduser 将 ~ 展开为绝对路径
+            return os.path.expanduser(tilde_path)
+                
+        elif path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
+            # Remote env paths: /content/.../REMOTE_ENV/xxx -> @/xxx
+            remaining_path = path[len('/content/drive/MyDrive/REMOTE_ENV/'):]
+            return '@/' + remaining_path if remaining_path else '.'
+        
+        # Path is already in local format
+        return path
+    
     def check_bash_syntax(self, script_content):
         """
         检查bash脚本语法
@@ -279,7 +320,6 @@ class CommandGenerator:
         # 步骤3: 让bash展开（只展开~，不执行命令）
         # 使用bash -x来获取展开后的命令主体，然后检测并保留重定向部分
         # 注意：在执行前会将本地工作目录改到~/tmp，避免意外创建本地文件
-        print(f"[DEBUG] 调用bash -x -c处理: {repr(cmd_for_bash)}")
         import subprocess
         import os
         result = subprocess.run(
@@ -289,7 +329,6 @@ class CommandGenerator:
             timeout=5,
             cwd=os.path.expanduser('~/tmp')  # 在~/tmp中执行，避免在项目目录创建文件
         )
-        print(f"[DEBUG] bash -x结果:")
         print(f"  stderr: {repr(result.stderr)}")
         print(f"  stdout: {repr(result.stdout)}")
         # bash -x 的输出在stderr中，格式为"+ command"
@@ -369,7 +408,7 @@ class CommandGenerator:
             
         Returns:
             tuple: (远端命令字符串, 结果文件名, 命令hash)
-        """ 
+        """
         debug_log('command_generator', 'generate_command_input', {
             'cmd': cmd,
             'cmd_length': len(cmd),
@@ -459,7 +498,7 @@ class CommandGenerator:
                 result_filename = f"cmd_main_{bg_pid}.result.json"
             else: 
                 result_filename = f"cmd_result_{timestamp}_{cmd_hash}.json"
-                
+        
         # 根据是否为background模式生成不同的远程命令脚本
         # 检查是否为背景任务
         if is_background:
@@ -513,6 +552,12 @@ class CommandGenerator:
         })
         result_path = f"{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
         remote_path = self.main_instance.REMOTE_ROOT
+        
+        # 获取当前shell路径用于相对路径解析
+        current_shell = self.main_instance.get_current_shell()
+        shell_path = current_shell.get("current_path", "~") if current_shell else "~"
+        shell_absolute_path = self.main_instance.resolve_remote_absolute_path(shell_path, current_shell) if current_shell else f"{self.main_instance.REMOTE_ROOT}"
+        
         remote_command = f'''
 # 确保工作目录存在并切换到正确的基础目录
 mkdir -p "{remote_path}"
@@ -527,20 +572,28 @@ cd "{remote_path}" && {{
     ERROR_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stderr_${{TIMESTAMP}}_${{HASH}}"
     EXITCODE_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_exitcode_${{TIMESTAMP}}_${{HASH}}"
     
-    # 直接执行用户命令，捕获输出和错误
-    set +e  # 允许命令失败
-    # 忽略SIGPIPE信号以避免broken pipe错误
-    trap '' PIPE
-    bash << 'USER_COMMAND_EOF' > "$OUTPUT_FILE" 2> "$ERROR_FILE"
+    # 尝试切换到当前shell路径以支持相对路径
+    # 检查shell路径是否存在，如果不存在则报错
+    if ! cd "{shell_absolute_path}" 2>"$ERROR_FILE"; then
+        echo "Error: Shell working directory does not exist: {shell_absolute_path}" > "$ERROR_FILE"
+        echo "1" > "$EXITCODE_FILE"
+        # 跳过用户命令执行
+    else
+        # 直接执行用户命令，捕获输出和错误
+        set +e  # 允许命令失败
+        # 忽略SIGPIPE信号以避免broken pipe错误
+        trap '' PIPE
+        bash << 'USER_COMMAND_EOF' > "$OUTPUT_FILE" 2> "$ERROR_FILE"
 {cmd.replace(chr(92), chr(92)+chr(92))}
 USER_COMMAND_EOF
-    EXIT_CODE=$?
-    echo "$EXIT_CODE" > "$EXITCODE_FILE"
-    set -e
-    
-    # 显示stderr内容（如果有）
-    if [ -s "$ERROR_FILE" ]; then
-        cat "$ERROR_FILE" >&2
+        EXIT_CODE=$?
+        echo "$EXIT_CODE" > "$EXITCODE_FILE"
+        set -e
+        
+        # 显示stderr内容（如果有）
+        if [ -s "$ERROR_FILE" ]; then
+            cat "$ERROR_FILE" >&2
+        fi
     fi
     
     # 统一的执行完成提示
@@ -548,7 +601,9 @@ USER_COMMAND_EOF
     echo "Command hash: {cmd_hash.upper()}"
     
     # 生成JSON结果文件
-    export EXIT_CODE=$EXIT_CODE
+    # 确保EXIT_CODE有值，如果为空则设为1（表示错误）
+    EXIT_CODE=${{EXIT_CODE:-1}}
+    export EXIT_CODE
     export TIMESTAMP=$TIMESTAMP
     export HASH=$HASH
     python3 << 'JSON_SCRIPT_EOF'
@@ -574,14 +629,10 @@ if os.path.exists(stdout_file):
     try:
         with open(stdout_file, "r", encoding="utf-8", errors="ignore") as f:
             stdout_content = f.read()
-        # print(f"[DEBUG JSON] stdout file read: {{repr(stdout_content)}}", file=sys.stderr)
-        # print(f"[DEBUG JSON] stdout length: {{len(stdout_content)}}", file=sys.stderr)
     except Exception as e:
         stdout_content = f"ERROR: 无法读取stdout文件: {{e}}"
-        # print(f"[DEBUG JSON] stdout read error: {{e}}", file=sys.stderr)
 else:
     stdout_content = ""
-    # print(f"[DEBUG JSON] stdout file not found: {{stdout_file}}", file=sys.stderr)
 
 if os.path.exists(stderr_file):
     try:
@@ -609,8 +660,6 @@ result = {{
 "stderr": stderr_content
 }}
 
-# print(f"[DEBUG JSON] result dict created: {{repr(result)}}", file=sys.stderr)
-
 # 写入结果文件
 result_file = "{result_path}"
 result_dir = os.path.dirname(result_file)
@@ -620,8 +669,6 @@ if result_dir:
 # print(f"[DEBUG JSON] writing to result file: {{result_file}}", file=sys.stderr)
 with open(result_file, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
-# print(f"[DEBUG JSON] result file written successfully", file=sys.stderr)
-
 
 JSON_SCRIPT_EOF
     
@@ -968,7 +1015,7 @@ MAIN_JSON_EOF'''
         
         return result
 
-    def generate_mv_commands(self, file_moves, target_path, folder_upload_info=None):
+    def generate_mv_commands(self, file_moves, target_path, folder_upload_info=None, force=False):
         """
         生成远程命令
 
@@ -976,6 +1023,7 @@ MAIN_JSON_EOF'''
             file_moves (list): 文件移动信息列表
             target_path (str): 目标路径
             folder_upload_info (dict, optional): 文件夹上传信息
+            force (bool): 是否强制覆盖现有文件
 
         Returns:
             str: 生成的远程命令
@@ -990,7 +1038,7 @@ MAIN_JSON_EOF'''
             })
 
         # 调用多文件远程命令生成方法
-        base_command = self.generate_multi_file_commands(all_file_moves)
+        base_command = self.generate_multi_file_commands(all_file_moves, force=force)
 
         # 如果是文件夹上传，需要添加解压和清理命令
         if folder_upload_info and folder_upload_info.get("is_folder_upload", False):
@@ -1030,8 +1078,6 @@ MAIN_JSON_EOF'''
         if args:
             # 处理特殊命令格式
             if cmd == "bash" and len(args) >= 2 and args[0] == "-c":
-                # print(f"[DEBUG] generate_command_interface bash -c 处理:")
-                # print(f"  原始args[1]: {repr(args[1])}")
                 safe_command = shlex.quote(args[1])
                 # print(f"  shlex.quote后: {repr(safe_command)}")
                 cmd = f'bash -c {safe_command}'
@@ -1069,13 +1115,13 @@ MAIN_JSON_EOF'''
                 else:
                     # 处理~路径展开和智能引号处理
                     processed_args = []
-                    for arg in args: 
-                        if '"' not in arg:
-                            processed_args.append(f'"{arg}"')
-                        elif "'" not in arg:
-                            processed_args.append(f"'{arg}'")
-                        else:
-                            processed_args.append(shlex.quote(arg))
+                    for arg in args:
+                            if '"' not in arg:
+                                processed_args.append(f'"{arg}"')
+                            elif "'" not in arg:
+                                processed_args.append(f"'{arg}'")
+                            else:
+                                processed_args.append(shlex.quote(arg))
                     cmd = f"{cmd} {' '.join(processed_args)}"
         else:
             cmd = cmd
@@ -1117,8 +1163,13 @@ MAIN_JSON_EOF'''
 
 
 
-    def generate_multi_file_commands(self, all_file_moves):
-        """生成简化的多文件上传远端命令，只显示关键状态信息"""
+    def generate_multi_file_commands(self, all_file_moves, force=False):
+        """生成简化的多文件上传远端命令，只显示关键状态信息
+        
+        Args:
+            all_file_moves (list): 文件移动信息列表
+            force (bool): 是否强制覆盖现有文件
+        """
         try:
             # 生成文件信息数组 - 保留原有的路径解析逻辑
             file_info_list = []
@@ -1137,7 +1188,8 @@ MAIN_JSON_EOF'''
                 file_info_list.append({
                     'source': source_absolute,
                     'dest': dest_directory,  # 使用目录路径而不是完整文件路径
-                    'original_filename': original_filename
+                    'original_filename': original_filename,
+                    'renamed': filename != original_filename  # 文件是否被重命名
                 })
 
             # 收集所有需要创建的目录
@@ -1150,7 +1202,19 @@ MAIN_JSON_EOF'''
             # 生成简化的命令 - 按照用户要求的格式
             mv_commands = []
             for file_info in file_info_list:
-                mv_commands.append(f'mv "{file_info["source"]}" "{file_info["dest"]}"')
+                # 如果force=True且文件被重命名，需要特殊处理
+                if force and file_info['renamed']:
+                    # 1. 先删除目标位置的旧文件（如果存在）
+                    target_file_path = f"{file_info['dest']}/{file_info['original_filename']}"
+                    mv_commands.append(f'rm -f "{target_file_path}"')
+                    # 2. 移动文件到目标目录
+                    mv_commands.append(f'mv "{file_info["source"]}" "{file_info["dest"]}"')
+                    # 3. 在目标目录内重命名回原始文件名
+                    renamed_file_in_dest = f"{file_info['dest']}/{file_info['source'].split('/')[-1]}"
+                    mv_commands.append(f'mv "{renamed_file_in_dest}" "{target_file_path}"')
+                else:
+                    # 普通模式：直接移动
+                    mv_commands.append(f'mv "{file_info["source"]}" "{file_info["dest"]}"')
 
             # 创建目录命令
             mkdir_commands = [f'mkdir -p "{target_dir}"' for target_dir in sorted(target_dirs)]

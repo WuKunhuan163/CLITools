@@ -1,0 +1,50 @@
+# ============================================================================
+# Test completed at: 2025-11-09 17:23:29 - Status: FAIL
+# ============================================================================
+
+test_16_project_deployment (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_16_project_deployment (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3003, in test_16_project_deployment
+    self.assertTrue(success, f"项目文件夹上传失败: {result.stderr if result else 'Unknown error'}")
+AssertionError: False is not true : 项目文件夹上传失败: 
+
+----------------------------------------------------------------------
+Ran 1 test in 30.953s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
+正在创建远端测试目录: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_i26dgt4d
+测试环境设置完成
+
+执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls ~/tmp/gds_test_20251109_172254_503143_78a99f1e/test_project']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+返回码: 1
+输出: 打包失败: 文件夹不存在: /.local/bin/_UNITTEST/_DATA/test_project
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 2/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+返回码: 1
+输出: 打包失败: 文件夹不存在: /.local/bin/_UNITTEST/_DATA/test_project
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 3/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+返回码: 1
+输出: 打包失败: 文件夹不存在: /.local/bin/_UNITTEST/_DATA/test_project
+Error: Upload command failed, return code: 1

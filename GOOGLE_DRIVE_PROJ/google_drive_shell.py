@@ -2286,14 +2286,14 @@ fi
             return 1
     
     def handle_remount_command(self, command_identifier=None):
-        """处理python: GOOGLE_DRIVE --remount命令"""
+        """处理python: GOOGLE_DRIVE --remount命令（直接调用，force=True不检查flag）"""
         try:
             from modules.remount_lock_manager import get_remount_lock_manager
             
             lock_manager = get_remount_lock_manager()
             
-            # 尝试获取remount锁
-            if lock_manager.acquire_remount_lock("GoogleDriveShell.handle_remount_command"):
+            # 尝试获取remount锁（force=True，不检查flag文件）
+            if lock_manager.acquire_remount_lock("GoogleDriveShell.handle_remount_command", force=True):
                 try:
                     # 成功获取锁，执行remount
                     from modules.remount_manager import remount_google_drive
@@ -2302,10 +2302,8 @@ fi
                     # 无论remount是否成功，都释放锁
                     lock_manager.release_remount_lock("GoogleDriveShell.handle_remount_command")
             else:
-                # 无法获取锁，可能是：
-                # 1. 没有remount flag（无需remount）
-                # 2. 已有其他进程在执行remount
-                print("Remount is already in progress or not required")
+                # 无法获取锁，说明已有其他进程在执行remount
+                print("Remount is already in progress")
                 return 0
                 
         except Exception as e:

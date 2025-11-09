@@ -92,24 +92,11 @@ class UploadCommand(BaseCommand):
             print("Error: No source files specified")
             return 1
         
-        # Undo remote expansion for source files - convert remote paths back to local paths
-        # This is needed because general argument processing may have converted local paths to remote format
-        corrected_source_files = []
-        for file_path in source_files:
-            # If path was converted to remote format, convert it back to local format
-            if file_path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
-                # Remove the remote root prefix and add ~ prefix
-                relative_part = file_path[len('/content/drive/MyDrive/REMOTE_ROOT/'):]
-                corrected_path = f"~/{relative_part}"
-                corrected_source_files.append(corrected_path)
-            elif file_path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
-                # Remove the remote env prefix and add @ prefix  
-                relative_part = file_path[len('/content/drive/MyDrive/REMOTE_ENV/'):]
-                corrected_path = f"@/{relative_part}"
-                corrected_source_files.append(corrected_path)
-            else:
-                # Path is already in correct format
-                corrected_source_files.append(file_path)
+        # Translate remote path format back to local path format
+        # source_files are local paths, but general argument processing
+        # may have converted them to remote format (e.g., /content/drive/MyDrive/REMOTE_ROOT/...)
+        from ..command_generator import CommandGenerator
+        corrected_source_files = [CommandGenerator.translate_remote_to_local(file_path) for file_path in source_files]
         
         # 调用cmd_upload
         result = self.cmd_upload(corrected_source_files, target_path=target_path, force=force)
@@ -230,6 +217,12 @@ Notes:
         if not folder_path:
             print("Error: No folder path specified")
             return 1
+        
+        # Translate remote path format back to local path format
+        # folder_path is a local path, but general argument processing
+        # may have converted it to remote format (e.g., /content/drive/MyDrive/REMOTE_ROOT/...)
+        from ..command_generator import CommandGenerator
+        folder_path = CommandGenerator.translate_remote_to_local(folder_path)
         
         # 调用cmd_upload_folder
         result = self.cmd_upload_folder(folder_path, target_path=target_path, keep_zip=keep_zip, force=force)
@@ -621,7 +614,7 @@ Notes:
             # 10. 静默生成远端移动命令
             debug_print(f"Before generate_mv_commands - file_moves={file_moves}")
             debug_print(f"Before generate_mv_commands - target_path='{target_path}'")
-            remote_command = self.main_instance.remote_commands.generate_mv_commands(file_moves, target_path, folder_upload_info)
+            remote_command = self.main_instance.remote_commands.generate_mv_commands(file_moves, target_path, folder_upload_info, force=force)
             # 在长时间运行的操作中减少调试输出
             if len(remote_command) > 500:
                 debug_print(f"After generate_mv_commands - remote_command length: {len(remote_command)} chars")

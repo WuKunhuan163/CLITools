@@ -186,6 +186,9 @@ class FileCommand(BaseCommand):
                 import os
                 if target_absolute == ".":
                     target_absolute = current_absolute
+                elif target_absolute == "..":
+                    # 父目录
+                    target_absolute = os.path.join(current_absolute, "..")
                 elif target_absolute.startswith("./"):
                     target_absolute = os.path.join(current_absolute, target_absolute[2:])
                 elif target_absolute.startswith("../"):

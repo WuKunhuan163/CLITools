@@ -1,29 +1,39 @@
 # ============================================================================
-# Test completed at: 2025-11-09 01:37:50 - Status: PASS
+# Test completed at: 2025-11-09 17:21:26 - Status: PASS
 # ============================================================================
 
 test_09_grep (test_gds.GDSTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 78.228s
+Ran 1 test in 180.646s
 
 OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_013628_740791_0fa8fce8
-正在创建远端测试目录: ~/tmp/gds_test_20251109_013628_740791_0fa8fce8
+远端测试目录: ~/tmp/gds_test_20251109_171825_995098_3dab701e
+正在创建远端测试目录: ~/tmp/gds_test_20251109_171825_995098_3dab701e
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_013628_740791_0fa8fce8
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_013628_740791_0fa8fce8
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_9g3wjso8
+已切换到远端测试目录: ~/tmp/gds_test_20251109_171825_995098_3dab701e
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_171825_995098_3dab701e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_im5akiwp
 测试环境设置完成
-命令: 'echo "Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here" > ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt'
+命令: 'echo "Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here" > ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt'
+返回码: 1
+输出: Error: ls: ~/tmp/cmd_result_1762679941_b84eadaa.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第1次...
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt'
+命令: 'ls ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt
+输出: ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'grep ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt'
+命令: 'grep ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt'
 返回码: 0
 输出: 1: Line 1: Hello world
 2: Line 2: This is a test
@@ -31,13 +41,13 @@ OK
 4: Line 4: Multiple Hello Hello Hello
 5: Line 5: No match here
 6:
-命令: 'grep "Hello" ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt'
+命令: 'grep "Hello" ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt'
 返回码: 0
 输出: 1: Line 1: Hello world
   3: Line 3: Hello again
   4: Line 4: Multiple Hello Hello Hello
-命令: 'grep "is a" ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt'
+命令: 'grep "is a" ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt'
 返回码: 0
 输出: 2: Line 2: This is a test
-命令: 'grep "NotFound" ~/tmp/gds_test_20251109_013628_740791_0fa8fce8/grep_test.txt'
+命令: 'grep "NotFound" ~/tmp/gds_test_20251109_171825_995098_3dab701e/grep_test.txt'
 返回码: 1

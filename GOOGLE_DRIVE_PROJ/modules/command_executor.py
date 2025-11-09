@@ -494,13 +494,11 @@ class CommandExecutor:
         flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
         
         if flag_file.exists():
-            # 读取并输出remount原因
             try:
                 with open(flag_file, 'r') as f:
                     flag_data = json.load(f)
                 reason = flag_data.get('reason', 'Unknown reason')
                 set_at = flag_data.get('set_at', 'Unknown time')
-                # 将信息记录到log中，而不是print到终端
                 self._log_remount_trigger(reason, set_at)
             except Exception:
                 self._log_remount_trigger("Flag file exists but unreadable", "Unknown")
@@ -508,35 +506,6 @@ class CommandExecutor:
         
         return False
     
-    def _is_test_environment(self):
-        """检查是否在测试环境中"""
-        try:
-            import os
-            import sys
-            
-            # 检查多种测试环境指标
-            test_indicators = [
-                # 1. 命令行参数包含测试相关内容
-                any('test' in str(arg).lower() for arg in sys.argv if arg),
-                # 2. 环境变量指示测试
-                os.environ.get('GDS_TEST_MODE') == '1',
-                # 3. 当前工作目录包含测试相关路径
-                'test' in os.getcwd().lower() or '_unittest' in os.getcwd().lower(),
-            ]
-            
-            # 4. 调用栈中包含测试相关模块（安全检查）
-            try:
-                import inspect
-                stack_frames = inspect.stack()
-                test_in_stack = any('test' in frame.filename.lower() for frame in stack_frames if hasattr(frame, 'filename'))
-                test_indicators.append(test_in_stack)
-            except:
-                pass  # 如果检查调用栈失败，忽略这个指标
-            
-            return any(test_indicators)
-        except Exception:
-            # 如果检查失败，默认不是测试环境
-            return False
     
     def _set_remount_required_flag(self, reason="Unknown error detected in previous command execution"):
         """Set flag indicating remount is required before next command"""
@@ -856,8 +825,10 @@ class CommandExecutor:
         Returns:
             dict: 执行结果，包含stdout、stderr、path等字段
         """
-        # 检查是否需要remount（仅在测试环境中自动触发）
-        if self._should_wait_for_remount() and self._is_test_environment():
+        # 检查是否需要remount（基于flag文件）
+        should_wait = self._should_wait_for_remount()
+        
+        if should_wait:
             # 需要remount，触发窗口管理器处理
             try:
                 from .window_manager import get_window_manager
@@ -920,6 +891,19 @@ class CommandExecutor:
         Returns:
             int: Exit code (0 for success, non-zero for failure)
         """
+        # 检查是否需要remount（基于flag文件）
+        should_wait = self._should_wait_for_remount()
+        
+        if should_wait:
+            # 需要remount，触发窗口管理器处理
+            try:
+                from .window_manager import get_window_manager
+                window_manager = get_window_manager()
+                window_manager._check_and_handle_remount()
+            except Exception as e:
+                print(f"Error: Remount required but failed: {e}")
+                return 1
+        
         # 在执行特殊命令前检查是否需要等待remount完成
         self._wait_for_remount_completion()
         
@@ -955,6 +939,10 @@ import sys
 try:
     mount_hash = '{getattr(self.main_instance, "MOUNT_HASH", "")}'
     if mount_hash:
+        # 确保tmp目录存在（如果整个~/tmp被删除，需要重新创建）
+        tmp_dir = \\\"{self.main_instance.REMOTE_ROOT}/tmp\\\"
+        os.makedirs(tmp_dir, exist_ok=True)
+        
         fingerprint_file = \\\"{self.main_instance.REMOTE_ROOT}/tmp/.gds_mount_fingerprint_\\\" + mount_hash
         if os.path.exists(fingerprint_file):
             sys.exit(0)
@@ -979,7 +967,6 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # print(f"  原始cmd: {repr(cmd)}")
         # print(f"  enhanced_cmd长度: {len(enhanced_cmd)}")
         # print(f"  enhanced_cmd前100字符: {repr(enhanced_cmd[:100])}")
-        
         from .window_manager import get_window_manager
         
         # 获取窗口管理器并请求窗口

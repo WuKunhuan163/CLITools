@@ -606,23 +606,20 @@ class WindowManager:
     def _auto_remount_and_wait(self):
         """执行自动remount"""
         try:
-            import subprocess
-            import sys
-            
             # 记录remount调用的上下文信息
             self._log_remount_call("WindowManager._auto_remount_and_wait", "Remount before window display")
             
-            # 使用subprocess调用GOOGLE_DRIVE --remount
-            result = subprocess.run(
-                [sys.executable, "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", "--remount"],
-                capture_output=True,
-                text=True
-            )
+            # 直接调用remount_google_drive函数（不通过subprocess）
+            # 因为外层已经持有了remount锁，所以不能通过subprocess再次尝试获取锁
+            from .remount_manager import remount_google_drive
+            
+            # remount_google_drive返回0表示成功，非0表示失败
+            result_code = remount_google_drive(command_identifier=None, google_drive_shell=None)
             
             # 记录remount结果
-            self._log_remount_result(result.returncode, result.stdout, result.stderr)
+            self._log_remount_result(result_code, "Direct function call", "")
             
-            return result.returncode == 0
+            return result_code == 0
                 
         except Exception as e:
             self._log_remount_result(-1, "", str(e))
