@@ -813,23 +813,22 @@ class CommandExecutor:
         # 让上层处理错误并显示完整traceback
         return window_result
 
-    def execute_command_interface(self, cmd, args, _skip_queue_management=False, _original_user_command=None):
+    def execute_command_interface(self, cmd, args=None, _skip_queue_management=False, original_user_command=None):
         """
         统一远端命令执行接口 - 处理除特殊命令外的所有命令
 
         Args:
-            cmd (str): 命令名称
-            args (list): 命令参数
+            cmd (str): 命令名称或完整命令字符串
+            args (list, optional): 命令参数。如果为None，cmd被视为完整命令字符串
             _skip_queue_management (bool): 是否跳过队列管理（避免双重管理）
+            original_user_command (str, optional): 原始用户命令，用于保持hash一致性
 
         Returns:
             dict: 执行结果，包含stdout、stderr、path等字段
         """
         # 检查是否需要remount（基于flag文件）
         should_wait = self._should_wait_for_remount()
-        
-        if should_wait:
-            # 需要remount，触发窗口管理器处理
+        if should_wait: 
             try:
                 from .window_manager import get_window_manager
                 window_manager = get_window_manager()
@@ -842,7 +841,11 @@ class CommandExecutor:
         if cmd in self.SPECIAL_COMMANDS:
             return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
         
-        cleaned_args = args
+        # 如果args为None，说明cmd已经是完整命令字符串
+        if args is None:
+            cleaned_args = []
+        else:
+            cleaned_args = args
 
         # 调试日志已禁用
         # 导入正确的远程窗口队列管理器并生成唯一的窗口ID
@@ -853,8 +856,11 @@ class CommandExecutor:
             self._debug_start_time = time.time()
 
         # 如果提供了原始用户命令，优先使用它（用于保持hash一致性）
-        if _original_user_command:
-            cmd = _original_user_command
+        if original_user_command:
+            cmd = original_user_command
+        elif args is None:
+            # args为None时，cmd已经是完整命令字符串，直接使用
+            pass
         elif cleaned_args:
             import shlex
             cmd = f"{cmd} {' '.join(shlex.quote(str(arg)) for arg in cleaned_args)}"
@@ -862,14 +868,8 @@ class CommandExecutor:
             cmd = cmd
             
         current_shell = self.main_instance.get_current_shell()
-        # print(f"[DEBUG] execute_command_interface 调用 generate_command:")
-        # print(f"  输入cmd: {repr(cmd)}")
-        remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(
-            cmd, None, current_shell
-        )
-        # print(f"[DEBUG] generate_command 返回:")
-        # print(f"  remote_command: {repr(remote_command[:200])}...")  # 只显示前200个字符
-        
+        remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(cmd, None, current_shell)
+
         # 执行远程命令
         result = self.execute_command(
             remote_command=remote_command,

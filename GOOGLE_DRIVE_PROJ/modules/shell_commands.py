@@ -274,7 +274,7 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                         print(error_msg)
                     return 1
                 
-                result = shell.execute_command_interface("bash", ["-c", compound_cmd], _original_user_command=shell_cmd)
+                result = shell.execute_command_interface("bash", ["-c", compound_cmd], original_user_command=shell_cmd)
                 if isinstance(result, dict):
                     data = result.get("data", {})
                     stdout = data.get("stdout") if "stdout" in data else result.get("stdout", "")
