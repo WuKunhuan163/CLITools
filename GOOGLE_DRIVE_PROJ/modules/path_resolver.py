@@ -85,44 +85,15 @@ class PathResolver:
             result = result.replace('  ', double_space_placeholder, 1)
         
         # 步骤1.6: 保护bash和echo命令（避免bash -c 'echo/bash ...'时被误解析）
-        # 注意：这里保护的是"bash "和"echo "（带空格），而不是单独的"bash"或"echo"
-        if 'bash ' in result:
+        # 注意：这里保护的是"bash"和"echo"（不带空格），避免影响后面的 ~ 展开
+        if 'bash' in result:
             bash_cmd_placeholder = f"BASH_CMD_{uuid.uuid4().hex[:8].upper()}"
-            placeholders[bash_cmd_placeholder] = 'bash '
-            result = result.replace('bash ', bash_cmd_placeholder)
-        if 'echo ' in result:
+            placeholders[bash_cmd_placeholder] = 'bash'
+            result = result.replace('bash', bash_cmd_placeholder)
+        if 'echo' in result:
             echo_cmd_placeholder = f"ECHO_CMD_{uuid.uuid4().hex[:8].upper()}"
-            placeholders[echo_cmd_placeholder] = 'echo '
-            result = result.replace('echo ', echo_cmd_placeholder)
-        
-        # 步骤2: 先保护引号内的~ (在保护引号之前)
-        # 使用正则表达式找到所有引号内的内容
-        quote_pattern = r'"([^"]*)"'  # 双引号内的内容
-        quote_matches = list(re.finditer(quote_pattern, result))
-        # 从后往前替换，避免索引变化
-        for match in reversed(quote_matches):
-            quoted_content = match.group(1)
-            if '~' in quoted_content:
-                # 保护引号内的~
-                tilde_in_quote_placeholder = f"TILDE_IN_QUOTE_{uuid.uuid4().hex[:8].upper()}"
-                protected_content = quoted_content.replace('~', tilde_in_quote_placeholder)
-                placeholders[tilde_in_quote_placeholder] = '~'
-                # 替换整个引号内容（不包括引号本身）
-                result = result[:match.start(1)] + protected_content + result[match.end(1):]
-        
-        # 同样处理单引号
-        quote_pattern = r"'([^']*)'"  # 单引号内的内容
-        quote_matches = list(re.finditer(quote_pattern, result))
-        # 从后往前替换，避免索引变化
-        for match in reversed(quote_matches):
-            quoted_content = match.group(1)
-            if '~' in quoted_content:
-                # 保护引号内的~
-                tilde_in_quote_placeholder = f"TILDE_IN_QUOTE_{uuid.uuid4().hex[:8].upper()}"
-                protected_content = quoted_content.replace('~', tilde_in_quote_placeholder)
-                placeholders[tilde_in_quote_placeholder] = '~'
-                # 替换整个引号内容（不包括引号本身）
-                result = result[:match.start(1)] + protected_content + result[match.end(1):]
+            placeholders[echo_cmd_placeholder] = 'echo'
+            result = result.replace('echo', echo_cmd_placeholder)
         
         # 步骤3: 定义需要保护的符号（按长度从长到短排序，避免替换冲突）
         symbols_to_protect = [
@@ -135,7 +106,6 @@ class PathResolver:
             ('>', 'REDIR_GT'),
             ('<', 'REDIR_LT'),
             ('|', 'REDIR_PIPE'),
-            # 不保护 \，因为它用于转义序列（如 \n, \t），应该由bash来解释
             ('"', 'QUOTE_DOUBLE'),
             ("'", 'QUOTE_SINGLE'),
             ('{', 'LEFT_BRACE'),

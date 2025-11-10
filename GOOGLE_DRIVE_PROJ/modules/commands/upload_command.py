@@ -105,15 +105,12 @@ class UploadCommand(BaseCommand):
                 # 最后一个参数看起来像路径且不是本地文件，将其视为目标路径
                 target_path = last_arg
                 source_files = source_files[:-1]
-                print(f"[DEBUG] 检测到cp风格语法: source_files={source_files}, target_path={target_path}")
         
         # Translate remote path format back to local path format
         # source_files are local paths, but general argument processing
         # may have converted them to remote format (e.g., /content/drive/MyDrive/REMOTE_ROOT/...)
-        print(f"[DEBUG upload] 原始source_files: {source_files}")
         from ..command_generator import CommandGenerator
         corrected_source_files = [CommandGenerator.translate_remote_to_local(file_path) for file_path in source_files]
-        print(f"[DEBUG upload] 转换后corrected_source_files: {corrected_source_files}")
         
         # 调用cmd_upload
         result = self.cmd_upload(corrected_source_files, target_path=target_path, force=force)
