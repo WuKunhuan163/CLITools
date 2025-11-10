@@ -67,6 +67,7 @@ class UploadCommand(BaseCommand):
             return self.execute_upload_folder(args)
         
         # 解析参数: upload [--target-dir TARGET] [--force] <files...>
+        # 或者：upload [--force] <source> <target> （类似cp命令的语法）
         target_path = "."
         force = False
         source_files = []
@@ -84,7 +85,7 @@ class UploadCommand(BaseCommand):
                 force = True
                 i += 1
             else:
-                # 剩余的参数都是源文件
+                # 剩余的参数都是源文件或目标路径
                 source_files.append(args[i])
                 i += 1
         
@@ -92,11 +93,27 @@ class UploadCommand(BaseCommand):
             print("Error: No source files specified")
             return 1
         
+        # 检测是否使用了 cp 风格的语法：如果没有指定 --target-dir 且有多个参数，
+        # 最后一个参数可能是目标路径
+        if target_path == "." and len(source_files) >= 2:
+            # 检查最后一个参数是否看起来像目标路径
+            last_arg = source_files[-1]
+            # 如果最后一个参数包含斜杠或以 ~ 开头，可能是路径
+            # 但还需要检查它是否是实际存在的本地文件
+            import os
+            if ('/' in last_arg or last_arg.startswith('~')) and not os.path.exists(os.path.expanduser(last_arg)):
+                # 最后一个参数看起来像路径且不是本地文件，将其视为目标路径
+                target_path = last_arg
+                source_files = source_files[:-1]
+                print(f"[DEBUG] 检测到cp风格语法: source_files={source_files}, target_path={target_path}")
+        
         # Translate remote path format back to local path format
         # source_files are local paths, but general argument processing
         # may have converted them to remote format (e.g., /content/drive/MyDrive/REMOTE_ROOT/...)
+        print(f"[DEBUG upload] 原始source_files: {source_files}")
         from ..command_generator import CommandGenerator
         corrected_source_files = [CommandGenerator.translate_remote_to_local(file_path) for file_path in source_files]
+        print(f"[DEBUG upload] 转换后corrected_source_files: {corrected_source_files}")
         
         # 调用cmd_upload
         result = self.cmd_upload(corrected_source_files, target_path=target_path, force=force)
@@ -632,11 +649,16 @@ Notes:
             
             # 如果执行失败，直接返回错误
             if not execution_result.get("success", False):
-                # 明确处理错误信息的获取
-                error = execution_result["data"].get("error", "Command execution failed without specific error message")
+                # 明确处理错误信息的获取 - 错误可能在顶层或data层
+                error = execution_result.get("error", "")
+                if not error and "data" in execution_result:
+                    error = execution_result["data"].get("error", "")
+                if not error:
+                    error = "Command execution failed without specific error message"
+                
                 import traceback
                 call_stack = ''.join(traceback.format_stack()[-3:])  # 获取最近3层调用栈
-                error = f"Unknown error in upload: {error}. Call stack: {call_stack}"
+                error = f"Upload error: {error}. Call stack: {call_stack}"
                 
                 return {
                     "success": False,
