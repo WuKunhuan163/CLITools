@@ -41,6 +41,145 @@ class PathResolver:
         self.drive_service = drive_service
         self.main_instance = main_instance
 
+    @staticmethod
+    def protect_special_chars(text):
+        """
+        将字符串中的特殊符号和重定向符号替换为placeholder
+        
+        保护的符号包括：
+        - 重定向操作符：>, <, >>, <<, |, &>, 2>, 2>&1, &>>
+        - 引号：", '
+        - shell特殊字符：$, `, \, {, }
+        
+        Args:
+            text (str): 输入字符串
+        
+        Returns:
+            tuple: (转换后的字符串, placeholder字典)
+                placeholder字典的格式为 {placeholder: original_symbol}
+        """
+        import uuid
+        
+        placeholders = {}
+        result = text
+        
+        # 步骤1: 保护所有的转义序列 \x（将 \x 替换为 PHx）
+        import re
+        escape_pattern = r'\\(.)'
+        escape_matches = list(re.finditer(escape_pattern, result))
+        # 从后往前替换，避免索引变化
+        for match in reversed(escape_matches):
+            escaped_char = match.group(1)
+            # 生成唯一的placeholder，使用字符的ASCII码避免特殊字符
+            char_code = ord(escaped_char)
+            escape_placeholder = f"ESCAPE{char_code}PH{uuid.uuid4().hex[:8].upper()}"
+            placeholders[escape_placeholder] = f'\\{escaped_char}'
+            result = result[:match.start()] + escape_placeholder + result[match.end():]
+        
+        # 步骤1.5: 保护多个连续空格（每两个空格为一组）
+        # 循环替换，直到不再有两个连续空格
+        while '  ' in result:  # 两个空格
+            double_space_placeholder = f"DOUBLE_SPACE_{uuid.uuid4().hex[:8].upper()}"
+            placeholders[double_space_placeholder] = '  '
+            # 只替换第一个出现的两个连续空格
+            result = result.replace('  ', double_space_placeholder, 1)
+        
+        # 步骤1.6: 保护bash和echo命令（避免bash -c 'echo/bash ...'时被误解析）
+        # 注意：这里保护的是"bash "和"echo "（带空格），而不是单独的"bash"或"echo"
+        if 'bash ' in result:
+            bash_cmd_placeholder = f"BASH_CMD_{uuid.uuid4().hex[:8].upper()}"
+            placeholders[bash_cmd_placeholder] = 'bash '
+            result = result.replace('bash ', bash_cmd_placeholder)
+        if 'echo ' in result:
+            echo_cmd_placeholder = f"ECHO_CMD_{uuid.uuid4().hex[:8].upper()}"
+            placeholders[echo_cmd_placeholder] = 'echo '
+            result = result.replace('echo ', echo_cmd_placeholder)
+        
+        # 步骤2: 先保护引号内的~ (在保护引号之前)
+        # 使用正则表达式找到所有引号内的内容
+        quote_pattern = r'"([^"]*)"'  # 双引号内的内容
+        quote_matches = list(re.finditer(quote_pattern, result))
+        # 从后往前替换，避免索引变化
+        for match in reversed(quote_matches):
+            quoted_content = match.group(1)
+            if '~' in quoted_content:
+                # 保护引号内的~
+                tilde_in_quote_placeholder = f"TILDE_IN_QUOTE_{uuid.uuid4().hex[:8].upper()}"
+                protected_content = quoted_content.replace('~', tilde_in_quote_placeholder)
+                placeholders[tilde_in_quote_placeholder] = '~'
+                # 替换整个引号内容（不包括引号本身）
+                result = result[:match.start(1)] + protected_content + result[match.end(1):]
+        
+        # 同样处理单引号
+        quote_pattern = r"'([^']*)'"  # 单引号内的内容
+        quote_matches = list(re.finditer(quote_pattern, result))
+        # 从后往前替换，避免索引变化
+        for match in reversed(quote_matches):
+            quoted_content = match.group(1)
+            if '~' in quoted_content:
+                # 保护引号内的~
+                tilde_in_quote_placeholder = f"TILDE_IN_QUOTE_{uuid.uuid4().hex[:8].upper()}"
+                protected_content = quoted_content.replace('~', tilde_in_quote_placeholder)
+                placeholders[tilde_in_quote_placeholder] = '~'
+                # 替换整个引号内容（不包括引号本身）
+                result = result[:match.start(1)] + protected_content + result[match.end(1):]
+        
+        # 步骤3: 定义需要保护的符号（按长度从长到短排序，避免替换冲突）
+        symbols_to_protect = [
+            ('2>&1', 'REDIR_2GT_AMP_1'),
+            ('>>', 'REDIR_GTGT'),
+            ('<<', 'REDIR_LTLT'),
+            ('&>>', 'REDIR_AMP_GTGT'),
+            ('&>', 'REDIR_AMP_GT'),
+            ('2>', 'REDIR_2GT'),
+            ('>', 'REDIR_GT'),
+            ('<', 'REDIR_LT'),
+            ('|', 'REDIR_PIPE'),
+            # 不保护 \，因为它用于转义序列（如 \n, \t），应该由bash来解释
+            ('"', 'QUOTE_DOUBLE'),
+            ("'", 'QUOTE_SINGLE'),
+            ('{', 'LEFT_BRACE'),
+            ('}', 'RIGHT_BRACE'),
+            ('[', 'LEFT_BRACKET'),
+            (']', 'RIGHT_BRACKET'),
+            ('$', 'DOLLAR'),
+            ('`', 'BACKTICK'),
+            ('#', 'HASH'),
+            ('&', 'AMP'),
+            (';', 'SEMICOLON'),
+            ('*', 'ASTERISK'),
+            ('?', 'QUESTION'),
+            ('(', 'LEFT_PAREN'),
+            (')', 'RIGHT_PAREN'),
+        ]
+        
+        for symbol, base_name in symbols_to_protect:
+            if symbol in result:
+                # 为每个符号生成唯一的placeholder
+                placeholder = f"{base_name}_{uuid.uuid4().hex[:8].upper()}"
+                placeholders[placeholder] = symbol
+                result = result.replace(symbol, placeholder)
+        
+        return result, placeholders
+    
+    @staticmethod
+    def restore_special_chars(text, placeholders):
+        """
+        将placeholder恢复为原始特殊符号
+        
+        Args:
+            text (str): 包含placeholder的字符串
+            placeholders (dict): placeholder字典 {placeholder: original_symbol}
+        
+        Returns:
+            str: 恢复后的字符串
+        """
+        result = text
+        for placeholder, symbol in placeholders.items():
+            if placeholder in result:
+                result = result.replace(placeholder, symbol)
+        return result
+
     def expand_path(self, path):
         """展开路径，处理~等特殊字符"""
         try:
@@ -193,87 +332,25 @@ class PathResolver:
         # 获取用户的home目录
         home_dir = os.path.expanduser("~")
         
-        # 用户建议的简化方案：
-        # 步骤1: 保护原始的~、引号、花括号、$、反引号，用placeholder替换
-        tilde_placeholder = f"__TILDE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        single_quote_placeholder = f"__SINGLE_QUOTE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        double_quote_placeholder = f"__DOUBLE_QUOTE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        left_brace_placeholder = f"__LEFT_BRACE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        right_brace_placeholder = f"__RIGHT_BRACE_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        dollar_placeholder = f"__DOLLAR_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        backtick_placeholder = f"__BACKTICK_PLACEHOLDER_{hash(command_or_path) % 10000}__"
-        backslash_placeholder = f"__BACKSLASH_PLACEHOLDER_{hash(command_or_path) % 10000}__"
+        # 步骤1: 保护原始的~以及所有特殊符号（使用统一接口）
+        import uuid
+        tilde_placeholder = f"__TILDE_PLACEHOLDER_{uuid.uuid4().hex[:8].upper()}__"
+        protected_command = command_or_path.replace('~', tilde_placeholder)
         
-        protected_command = command_or_path.replace('\\', backslash_placeholder)
-        protected_command = protected_command.replace('~', tilde_placeholder)
-        protected_command = protected_command.replace("'", single_quote_placeholder)
-        protected_command = protected_command.replace('"', double_quote_placeholder)
-        protected_command = protected_command.replace('{', left_brace_placeholder)
-        protected_command = protected_command.replace('}', right_brace_placeholder)
-        protected_command = protected_command.replace('$', dollar_placeholder)
-        protected_command = protected_command.replace('`', backtick_placeholder)
+        # 保护所有其他特殊符号（包括引号、重定向等）
+        protected_command, special_placeholders = self.protect_special_chars(protected_command)
         
         # 步骤2: 将已展开的home_dir替换回~
         suspicious_command = protected_command.replace(home_dir, '~')
         
-        # 步骤3: 用bash -c -x测试整个命令，不分离重定向
-        # 如果这些~会被bash展开，说明它们确实是被错误展开的路径
-        final_command = suspicious_command  # 默认使用suspicious_command
-        
-        try:
-            redirect_operators = ['>', '>>', '<', '2>', '2>>', '&>', '&>>', '2>&1', '|']
-            main_command = suspicious_command
-            redirect_part = ""
-            
-            # 找到重定向操作符，分离主命令和重定向部分
-            for op in redirect_operators:
-                if op in suspicious_command:
-                    op_index = suspicious_command.find(op)
-                    main_command = suspicious_command[:op_index].strip()
-                    redirect_part = suspicious_command[op_index:].strip()
-                    break
-            
-            # 对主命令用bash -c -x测试
-            if main_command:
-                result = subprocess.run(
-                    ['bash', '-c', '-x', main_command],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                    cwd=os.path.expanduser('~/tmp')
-                )
-                
-                if result.stderr:
-                    lines = result.stderr.strip().split('\n')
-                    for line in lines:
-                        if line.startswith('+ '):
-                            expanded_main = line[2:]  # 去掉"+ "前缀
-                            
-                            # 将展开的home_dir替换回~，将placeholder恢复为~
-                            processed_main = expanded_main.replace(home_dir, '~')
-                            processed_main = processed_main.replace(tilde_placeholder, '~')
-                            
-                            # 处理重定向部分的路径
-                            if redirect_part:
-                                processed_redirect = redirect_part.replace(home_dir, '~')
-                                processed_redirect = processed_redirect.replace(tilde_placeholder, '~')
-                                final_command = processed_main + ' ' + processed_redirect
-                            else:
-                                final_command = processed_main
-                            
-                            break
-                            
-        except Exception as e:
-            pass
+        # 步骤3: 直接使用suspicious_command，不进行bash测试
+        # 原因：对于bash -c命令，placeholder已经破坏了bash语法，bash测试会产生错误的输出
+        # 而且bash -c命令本身就是要在远端执行的，不需要在本地测试
+        final_command = suspicious_command
         
         # 步骤4: 统一恢复所有placeholder
         result = final_command.replace(tilde_placeholder, '~')
-        result = result.replace(single_quote_placeholder, "'")
-        result = result.replace(double_quote_placeholder, '"')
-        result = result.replace(left_brace_placeholder, '{')
-        result = result.replace(right_brace_placeholder, '}')
-        result = result.replace(dollar_placeholder, '$')
-        result = result.replace(backtick_placeholder, '`')
+        result = self.restore_special_chars(result, special_placeholders)
         return result
     
     def get_parent_path(self, path):

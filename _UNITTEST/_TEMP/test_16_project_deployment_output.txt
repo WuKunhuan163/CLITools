@@ -1,50 +1,56 @@
 # ============================================================================
-# Test completed at: 2025-11-09 17:23:29 - Status: FAIL
+# Test completed at: 2025-11-09 23:00:23 - Status: PASS
 # ============================================================================
 
-test_16_project_deployment (test_gds.GDSTest) ... FAIL
-
-======================================================================
-FAIL: test_16_project_deployment (test_gds.GDSTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3003, in test_16_project_deployment
-    self.assertTrue(success, f"项目文件夹上传失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : 项目文件夹上传失败: 
+test_16_project_deployment (test_gds.GDSTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 30.953s
+Ran 1 test in 223.573s
 
-FAILED (failures=1)
+OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
-正在创建远端测试目录: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
+远端测试目录: ~/tmp/gds_test_20251109_225638_004704_4e518261
+正在创建远端测试目录: ~/tmp/gds_test_20251109_225638_004704_4e518261
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_172254_503143_78a99f1e
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_i26dgt4d
+已切换到远端测试目录: ~/tmp/gds_test_20251109_225638_004704_4e518261
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_225638_004704_4e518261
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_3ug5z81e
 测试环境设置完成
 
-执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-验证命令: ['ls ~/tmp/gds_test_20251109_172254_503143_78a99f1e/test_project']
+执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251109_225638_004704_4e518261 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
-返回码: 1
-输出: 打包失败: 文件夹不存在: /.local/bin/_UNITTEST/_DATA/test_project
-Error: Upload command failed, return code: 1
-Waiting 1 second before retrying...
-
-尝试 2/3
-命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
-返回码: 1
-输出: 打包失败: 文件夹不存在: /.local/bin/_UNITTEST/_DATA/test_project
-Error: Upload command failed, return code: 1
-Waiting 1 second before retrying...
-
-尝试 3/3
-命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_172254_503143_78a99f1e --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
-返回码: 1
-输出: 打包失败: 文件夹不存在: /.local/bin/_UNITTEST/_DATA/test_project
-Error: Upload command failed, return code: 1
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_225638_004704_4e518261 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project
+命令: 'ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project'
+返回码: 0
+输出: config.json
+core.py
+main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project
+所有验证通过!
+命令: 'cd ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project'
+返回码: 0
+命令: 'ls -la ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project'
+返回码: 0
+输出: total 2
+-rw------- 1 root root 249 Nov  9  2025 config.json
+-rw------- 1 root root 391 Nov  9  2025 core.py
+-rw------- 1 root root 686 Nov  9  2025 main.py
+命令: 'ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project/main.py
+命令: 'ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project/core.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project/core.py
+命令: 'ls ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project/config.json'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_225638_004704_4e518261/test_project/config.json
+命令: 'cd ~/tmp/gds_test_20251109_225638_004704_4e518261'
+返回码: 0

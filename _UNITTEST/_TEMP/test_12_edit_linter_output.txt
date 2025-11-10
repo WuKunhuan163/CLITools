@@ -1,5 +1,5 @@
 # ============================================================================
-# Test completed at: 2025-11-09 17:22:48 - Status: FAIL
+# Test completed at: 2025-11-09 22:40:19 - Status: FAIL
 # ============================================================================
 
 test_12_edit_linter (test_gds.GDSTest) ... FAIL
@@ -17,42 +17,42 @@ AssertionError: 1 != 0 : 命令执行失败
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2438, in test_12_edit_linter
-    result = self.gds(f'edit {syntax_error_test_path} \'[["Missing closing parenthesis", "Fixed syntax error"]]\'')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2441, in test_12_edit_linter
+    result = self.gds(f'edit {syntax_error_test_path} {shlex.quote(json_edit_arg)}')
   File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 843, in gds
     self.fail(f'命令执行异常: {command} - {e}')
-AssertionError: 命令执行异常: edit ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py '[["Missing closing parenthesis", "Fixed syntax error"]]' - 1 != 0 : 命令执行失败
+AssertionError: 命令执行异常: edit ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py '[["Missing closing parenthesis", "Fixed syntax error"]]' - 1 != 0 : 命令执行失败
 
 ----------------------------------------------------------------------
-Ran 1 test in 75.786s
+Ran 1 test in 95.439s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_172132_415493_9eae9d62
-正在创建远端测试目录: ~/tmp/gds_test_20251109_172132_415493_9eae9d62
+远端测试目录: ~/tmp/gds_test_20251109_223840_339824_f48b9493
+正在创建远端测试目录: ~/tmp/gds_test_20251109_223840_339824_f48b9493
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_172132_415493_9eae9d62
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_172132_415493_9eae9d62
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_os9qtrn0
+已切换到远端测试目录: ~/tmp/gds_test_20251109_223840_339824_f48b9493
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223840_339824_f48b9493
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_s84didcu
 测试环境设置完成
 
-执行带重试的命令: echo -e "def hello_world(\nprint(f'Missing closing parenthesis')\nreturn True\n\ndef calculate_sum(a, b:\nreturn a + b\n\nif __name__ == \"__main__\":\nhello_world()\nresult = calculate_sum(5, 3)\nprint(f'Sum: {result}')\n" > ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py
-验证命令: ['ls ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py']
+执行带重试的命令: echo -e "def hello_world(\nprint(f'Missing closing parenthesis')\nreturn True\n\ndef calculate_sum(a, b:\nreturn a + b\n\nif __name__ == \"__main__\":\nhello_world()\nresult = calculate_sum(5, 3)\nprint(f'Sum: {result}')\n" > ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py
+验证命令: ['ls ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'echo -e "def hello_world(\\nprint(f\'Missing closing parenthesis\')\\nreturn True\\n\\ndef calculate_sum(a, b:\\nreturn a + b\\n\\nif __name__ == \\"__main__\\":\\nhello_world()\\nresult = calculate_sum(5, 3)\\nprint(f\'Sum: {result}\')\\n" > ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py'
+命令: 'echo -e "def hello_world(\\nprint(f\'Missing closing parenthesis\')\\nreturn True\\n\\ndef calculate_sum(a, b:\\nreturn a + b\\n\\nif __name__ == \\"__main__\\":\\nhello_world()\\nresult = calculate_sum(5, 3)\\nprint(f\'Sum: {result}\')\\n" > ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py'
 返回码: 0
 输出: 
-Verify 1/1: ls ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py
-命令: 'ls ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py'
+Verify 1/1: ls ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py
+命令: 'ls ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py
+输出: ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
 Verify successful
 All verifications passed, command executed successfully
 执行edit命令，应该触发linter检查...
-命令: 'edit ~/tmp/gds_test_20251109_172132_415493_9eae9d62/syntax_error_test.py \'[["Missing closing parenthesis", "Fixed syntax error"]]\''
+命令: 'edit ~/tmp/gds_test_20251109_223840_339824_f48b9493/syntax_error_test.py \'[["Missing closing parenthesis", "Fixed syntax error"]]\''
 返回码: 1
 输出: JSON parsing failed: Expecting value: line 1 column 1 (char 0)
 🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...

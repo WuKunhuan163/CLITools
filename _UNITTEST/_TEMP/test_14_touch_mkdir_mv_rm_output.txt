@@ -1,96 +1,140 @@
 # ============================================================================
-# Test completed at: 2025-11-09 17:33:02 - Status: FAIL
+# Test completed at: 2025-11-09 22:56:32 - Status: PASS
 # ============================================================================
 
 test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
-测试文件和目录的创建、移动、删除操作，包括安全检查 ... FAIL
-
-======================================================================
-FAIL: test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
-测试文件和目录的创建、移动、删除操作，包括安全检查
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2754, in test_14_touch_mkdir_mv_rm
-    # 8. 测试安全检查：尝试删除当前目录的直接父目录
-AssertionError: 0 == 0 : 删除当前目录的父目录应该被阻止
+测试文件和目录的创建、移动、删除操作，包括安全检查 ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 625.176s
+Ran 1 test in 905.132s
 
-FAILED (failures=1)
+OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_172236_832370_62447d87
-正在创建远端测试目录: ~/tmp/gds_test_20251109_172236_832370_62447d87
+远端测试目录: ~/tmp/gds_test_20251109_224123_248506_43abc759
+正在创建远端测试目录: ~/tmp/gds_test_20251109_224123_248506_43abc759
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_172236_832370_62447d87
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_172236_832370_62447d87
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_juhjbg8n
+已切换到远端测试目录: ~/tmp/gds_test_20251109_224123_248506_43abc759
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_224123_248506_43abc759
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_11ltkdcs
 测试环境设置完成
 测试文件和目录的创建、移动、删除操作
 1. 创建测试目录结构
-命令: 'mkdir -p ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/parent/child'
+命令: 'mkdir -p ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/parent/child'
 返回码: 0
 输出: 
 2. 测试touch创建文件
-命令: 'touch ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/test_file1.txt'
+命令: 'touch ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/test_file1.txt'
 返回码: 0
 输出: 
-命令: 'touch ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/parent/test_file2.txt'
+命令: 'touch ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/parent/test_file2.txt'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
 返回码: 0
 输出: parent
 test_file1.txt
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/parent'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/parent'
 返回码: 0
 输出: child
 test_file2.txt
 3. 测试mkdir创建更多目录
-命令: 'mkdir ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/new_dir1 ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/new_dir2'
+命令: 'mkdir ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/new_dir1 ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/new_dir2'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
 返回码: 0
 输出: new_dir1
 new_dir2
 parent
 test_file1.txt
 4. 测试mv移动文件
-命令: 'mv ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/test_file1.txt ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/new_dir1/'
+命令: 'mv ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/test_file1.txt ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/new_dir1/'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/new_dir1'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/new_dir1'
 返回码: 0
 输出: test_file1.txt
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
 返回码: 0
 输出: new_dir1
 new_dir2
 parent
 5. 测试rm删除文件
-命令: 'rm ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/parent/test_file2.txt'
+命令: 'rm ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/parent/test_file2.txt'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/parent'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/parent'
 返回码: 0
 输出: child
 6. 测试rm -rf删除目录
-命令: 'rm -rf ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/new_dir2'
+命令: 'rm -rf ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/new_dir2'
 返回码: 0
 输出: 
-命令: 'ls ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test'
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
 返回码: 0
 输出: new_dir1
 parent
 7. 测试安全检查：尝试删除包含当前目录的父目录
-命令: 'cd ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test/parent/child'
+命令: 'cd ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test/parent/child'
 返回码: 0
-命令: 'rm -rf ~/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test'
+命令: 'rm -rf ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
 返回码: 1
-输出: Cannot delete directory containing current working directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_172236_832370_62447d87/file_ops_test
+输出: Cannot delete directory containing current working directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test
 8. 测试安全检查：尝试删除当前目录的直接父目录
 命令: 'rm -rf ..'
+返回码: 1
+输出: Cannot delete directory containing current working directory: ..
+9. 清理测试：先切换到安全目录再删除
+命令: 'cd ~ && rm -rf ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251109_224123_248506_43abc759/file_ops_test: No such file or directory
+测试mkdir的-p选项
+1. 测试不带-p的mkdir，父目录不存在时应该失败
+命令: 'rm -rf ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test'
 返回码: 0
 输出: 
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'mkdir ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/parent/child'
+返回码: 1
+输出: mkdir: cannot create directory ‘/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/parent/child’: No such file or directory
+2. 测试带-p的mkdir，父目录不存在时应该成功
+命令: 'mkdir -p ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/parent/child'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test'
+返回码: 0
+输出: parent
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/parent'
+返回码: 0
+输出: child
+3. 测试不带-p的mkdir，在已存在的父目录中创建目录应该成功
+命令: 'mkdir ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/parent/another_child'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/parent'
+返回码: 0
+输出: another_child
+child
+4. 测试多级目录创建（-p选项）
+命令: 'mkdir -p ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/a/b/c/d/e'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test/a/b/c/d'
+返回码: 0
+输出: e
+5. 清理测试目录
+命令: 'rm -rf ~/tmp/gds_test_20251109_224123_248506_43abc759/mkdir_recursive_test'
+返回码: 1
+输出: ls: ~/tmp/cmd_result_1762700046_a900a698.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到remount flag已存在，跳过重复设置
+重试第1次...
+返回码: 0
+输出: 

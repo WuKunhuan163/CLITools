@@ -43,7 +43,6 @@ Migrated from: remote_commands.py (refactored for better modularity)
 
 import re, os, subprocess, hashlib, tempfile
 import base64, time, re, shlex
-from datetime import datetime
 from .config_loader import get_bg_script_file, get_bg_log_file, get_bg_result_file
 from .debug_logger import debug_log
 
@@ -151,153 +150,124 @@ class CommandGenerator:
     def expand_paths_with_bash(self, cmd, placeholder, placeholder_value):
         """
         使用bash展开路径，支持自定义placeholder
-        利用bash的~展开机制来正确处理路径，同时保护非路径相关的特殊字符
+        不使用split，使用特殊字符保护系统来处理
         
         Args:
             cmd: 原始命令字符串
-            placeholder: 要替换的占位符（如'@'）
-            placeholder_value: placeholder的目标值（如'/content/drive/MyDrive/REMOTE_ENV'）
+            placeholder: 要替换的占位符（如'~'或'@'）
+            placeholder_value: placeholder的目标值（如'/Users/xxx/tmp'或'/content/drive/MyDrive/REMOTE_ENV'）
         
         Returns:
             展开后的命令字符串
         """
-        
-        # 使用debug日志系统替代print
-        debug_log('command_generator', 'expand_paths_with_bash_input', {
-            'cmd': cmd,
-            'cmd_length': len(cmd),
-            'has_newlines': '\n' in cmd,
-            'placeholder': placeholder,
-            'placeholder_value': placeholder_value
-        })
-        
-        # 使用universal_split分段处理，避免bash -x破坏非路径相关的特殊字符
-        # 首先保护反斜杠，避免shlex.split解释转义序列
-        import shlex
+        from modules.path_resolver import PathResolver
+        import subprocess
+        import os
         import uuid
-        backslash_placeholder = f"__BACKSLASH_PH_{uuid.uuid4().hex[:8].upper()}__"
-        protected_cmd = cmd.replace('\\', backslash_placeholder)
         
-        cmd_parts = shlex.split(protected_cmd)
-        debug_log('command_generator', 'shlex_split_result', {
-            'cmd_parts': cmd_parts
-        })
         
-        # 恢复反斜杠
-        cmd_parts = [part.replace(backslash_placeholder, '\\') for part in cmd_parts]
-        debug_log('command_generator', 'backslash_restored', {
-            'cmd_parts': cmd_parts
-        })
+        # 如果命令中不包含placeholder，直接返回
+        if placeholder not in cmd:
+            return cmd
         
-        # 对每个部分分别进行路径展开
-        expanded_parts = []
-        for i, part in enumerate(cmd_parts):
-            debug_log('command_generator', 'processing_part', {
-                'index': i,
-                'part': part,
-                'contains_placeholder': placeholder in part
-            })
-            
-            # 只对包含placeholder的部分进行展开
-            if placeholder in part:
-                expanded_part = self._expand_single_path_with_bash(part, placeholder, placeholder_value)
-                debug_log('command_generator', 'path_expanded', {
-                    'index': i,
-                    'original': part,
-                    'expanded': expanded_part
-                })
-                expanded_parts.append(expanded_part)
-            else:
-                debug_log('command_generator', 'path_skipped', {
-                    'index': i,
-                    'part': part
-                })
-                expanded_parts.append(part)
+        # 步骤1: 保护所有特殊字符（包括多个连续空格、引号、重定向符等）
+        protected_cmd, special_phs = PathResolver.protect_special_chars(cmd)
         
-        # 重新组合命令，使用智能引号处理
-        # 对于包含反斜杠的part，使用双引号（让template的doubling能够被bash减半）
-        # 对于其他包含空格或换行的part，使用shlex.quote()
-        def quote_part(part):
-            if ' ' in part or '\n' in part:
-                # 检查是否包含反斜杠
-                if '\\' in part:
-                    # 使用双引号，但不doubling反斜杠（template会做doubling）
-                    # 只转义必要的字符（$, ", `）
-                    escaped = part.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
-                    return f'"{escaped}"'
-                else:
-                    # 没有反斜杠，使用shlex.quote()
-                    return shlex.quote(part)
-            else:
-                return part
-        
-        final_cmd = ' '.join(quote_part(part) for part in expanded_parts)
-        debug_log('command_generator', 'final_command_assembled', {
-            'final_cmd': final_cmd,
-            'expanded_parts': expanded_parts
-        })
-        
-        return final_cmd
-    
-    def _expand_single_path_with_bash(self, path_part, placeholder, placeholder_value):
-        """
-        对单个路径部分进行bash展开，避免影响其他特殊字符
-        """
-        # 特殊情况：如果placeholder就是~，跳过步骤1（不需要保护原始~）
+        # 步骤2: 保护原始的~（如果placeholder不是~）
         if placeholder == '~':
             tilde_placeholder = None
-            path_for_bash = path_part  # 直接使用原路径，不需要替换
+            cmd_for_bash = protected_cmd
         else:
-            # 步骤1: 为原始~生成随机placeholder
-            import uuid
-            tilde_placeholder = f"TILDE_PH_{uuid.uuid4().hex[:8].upper()}"
-            path_with_tilde_placeholder = path_part.replace('~', tilde_placeholder)
-            
-            # 步骤2: 将placeholder替换为~
-            path_for_bash = path_with_tilde_placeholder.replace(placeholder, '~')
+            tilde_placeholder = f"__TILDE_PH_{uuid.uuid4().hex[:8].upper()}__"
+            cmd_for_bash = protected_cmd.replace('~', tilde_placeholder)
         
-        # 步骤3: 让bash展开路径（使用echo避免执行原命令）
-        debug_log('command_generator', 'single_path_expansion', {
-            'path_for_bash': path_for_bash
-        })
+        # 步骤3: 将placeholder替换成~，以便bash展开
+        cmd_for_bash = cmd_for_bash.replace(placeholder, '~')
         
-        import subprocess
-        # 对于路径展开，我们不能使用shlex.quote，因为它会阻止bash展开
-        # 我们需要直接使用路径，但要小心特殊字符
+        # 步骤4: 用bash展开路径
+        # 注意：不能用引号包裹cmd_for_bash，否则~不会被展开
+        # 因为特殊字符已经被placeholder保护了，所以不用担心空格等问题
+        bash_cmd = f"echo {cmd_for_bash}"
         result = subprocess.run(
-            ['bash', '-c', f'echo {path_for_bash}'],
+            ['bash', '-c', bash_cmd],
             capture_output=True,
             text=True,
             timeout=2
         )
+        expanded_cmd = result.stdout.strip()
         
-        if result.returncode == 0 and result.stdout.strip():
-            expanded_path = result.stdout.strip()
-            debug_log('command_generator', 'bash_expansion_success', {
-                'original': path_for_bash,
-                'expanded': expanded_path
-            })
-        else:
-            debug_log('command_generator', 'bash_expansion_failed', {
-                'original': path_for_bash,
-                'returncode': result.returncode,
-                'stderr': result.stderr
-            })
-            expanded_path = path_for_bash
+        # 步骤5: 将展开的home目录替换为placeholder_value
+        home_dir = os.path.expanduser('~')
+        expanded_cmd = expanded_cmd.replace(home_dir, placeholder_value)
         
-        # 步骤4: 将展开的home目录替换为placeholder_value
+        # 步骤6: 恢复tilde_placeholder
+        if tilde_placeholder:
+            expanded_cmd = expanded_cmd.replace('~', placeholder)
+            expanded_cmd = expanded_cmd.replace(tilde_placeholder, '~')
+        
+        # 步骤7: 恢复所有特殊字符
+        expanded_cmd = PathResolver.restore_special_chars(expanded_cmd, special_phs)
+        
+        return expanded_cmd
+    
+    def _expand_single_path_with_bash(self, path_part, placeholder, placeholder_value):
+        """
+        对单个路径部分进行bash展开，使用统一的placeholder系统保护特殊字符
+        
+        实现策略：
+        1. 保护所有特殊字符（引号、重定向、echo等）
+        2. 让bash展开路径
+        3. 恢复特殊字符
+        4. 严禁fallback - bash展开失败时使用空结果，暴露实际问题
+        """
+        # 如果不包含placeholder，直接返回
+        if placeholder not in path_part:
+            return path_part
+        
+        from modules.path_resolver import PathResolver
+        import subprocess
         import os
+        import uuid
+        
+        # 步骤1: 保护所有特殊字符
+        protected_part, special_phs = PathResolver.protect_special_chars(path_part)
+        
+        # 步骤2: 保护原始的~ (如果placeholder不是~)
+        if placeholder == '~':
+            tilde_placeholder = None
+            path_for_bash = protected_part
+        else:
+            tilde_placeholder = f"__TILDE_PH_{uuid.uuid4().hex[:8].upper()}__"
+            path_for_bash = protected_part.replace('~', tilde_placeholder)
+            path_for_bash = path_for_bash.replace(placeholder, '~')
+
+        # 步骤3: 用bash展开路径
+        # 使用单引号包裹path_for_bash，保护空格和特殊字符
+        # 但是在单引号内，~不会被展开，所以需要先将~替换出去
+        # 实际上，由于path_for_bash中的~已经被替换成了placeholder（如果placeholder不是~），
+        # 所以bash -c 'echo \'{content}\''应该可以正确展开路径
+        bash_cmd = f"echo '{path_for_bash}'"
+        result = subprocess.run(
+            ['bash', '-c', bash_cmd],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+
+        # 步骤4: 使用bash展开结果（即使为空也不fallback，暴露问题）
+        expanded_path = result.stdout.strip()
+        
+        # 步骤5: 将展开的home目录替换为placeholder_value
         home_dir = os.path.expanduser('~')
         expanded_path = expanded_path.replace(home_dir, placeholder_value)
         
-        # 步骤5: 将剩余的~（原本是placeholder）换回成placeholder
-        # 这些~没有被bash展开（在引号内），需要换回原始的placeholder
-        expanded_path = expanded_path.replace('~', placeholder)
-        
-        # 步骤6: 将tilde_placeholder换回原始~（如果placeholder不是~的话）
+        # 步骤6: 恢复tilde_placeholder
         if tilde_placeholder:
+            expanded_path = expanded_path.replace('~', placeholder)
             expanded_path = expanded_path.replace(tilde_placeholder, '~')
         
+        # 步骤7: 恢复所有特殊字符
+        expanded_path = PathResolver.restore_special_chars(expanded_path, special_phs)
         return expanded_path
     
     def _expand_paths_with_bash_legacy(self, cmd, placeholder, placeholder_value):
@@ -329,8 +299,6 @@ class CommandGenerator:
             timeout=5,
             cwd=os.path.expanduser('~/tmp')  # 在~/tmp中执行，避免在项目目录创建文件
         )
-        print(f"  stderr: {repr(result.stderr)}")
-        print(f"  stdout: {repr(result.stdout)}")
         # bash -x 的输出在stderr中，格式为"+ command"
         if result.stderr:
             lines = result.stderr.strip().split('\n')
@@ -415,23 +383,14 @@ class CommandGenerator:
             'has_newlines': '\n' in cmd,
             'newline_count': len(cmd.split('\n')) if '\n' in cmd else 0
         })
-        
-        # 输出调用栈
-        # import traceback
-        # call_stack = traceback.format_stack()
-        # print(f"[DEBUG] generate_command 调用栈:")
-        # for i, frame in enumerate(call_stack[-4:]):  # 显示最近4层调用栈
-        #     print(f"  {i}: {frame.strip()}")
-        
         cmd_hash = self.calculate_command_hash(cmd)
         
         # 生成统一JSON命令
         if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
-            print(f"Warning: Command contains exclamation marks which may cause shell history expansion issues.")
+            print(f"Warning: Command contains ! which may cause shell history expansion issues.")
             print(f"Original command: {cmd}")
             cleaned_command = cmd.replace('!', '')
             print(f"Cleaned command: {cleaned_command}")
-            print(f"Suggestion: Avoid using '!' in commands to prevent shell history expansion errors.")
             cmd = cleaned_command
         
         # 检测和处理printf格式字符问题
@@ -470,24 +429,13 @@ class CommandGenerator:
                         safe_command += f' {rest_args}'
                     cmd = safe_command
         
-        
-        # 路径展开已经在execute_shell_command中统一处理，无需重复处理
-        
         # 获取当前路径
         if current_shell:
-            current_path = current_shell.get("current_path", "~")
             is_background = current_shell.get("_background_mode", False)
             bg_pid = current_shell.get("_background_pid", "")
-            bg_original_cmd = current_shell.get("_background_original_cmd", "")
         else:
-            current_path = "~"
             is_background = False
             bg_pid = ""
-            bg_original_cmd = ""
-        
-        
-        # 使用统一的路径解析接口
-        remote_path = self.main_instance.path_resolver.resolve_remote_absolute_path(current_path, current_shell)
         
         # 预计算所有需要的值，避免f-string中的复杂表达式
         timestamp = str(int(time.time()))
@@ -526,7 +474,6 @@ class CommandGenerator:
             dict: {
                 'original_cmd': 原始命令,
                 'processed_cmd': 处理后的命令（传入模板前）,
-                'cmd_with_doubling': 应用了反斜杠doubling后的命令（如果适用）,
                 'remote_template': 完整的远端bash脚本模板,
                 'result_filename': 结果文件名,
                 'cmd_hash': 命令hash,
@@ -584,7 +531,7 @@ cd "{remote_path}" && {{
         # 忽略SIGPIPE信号以避免broken pipe错误
         trap '' PIPE
         bash << 'USER_COMMAND_EOF' > "$OUTPUT_FILE" 2> "$ERROR_FILE"
-{cmd.replace(chr(92), chr(92)+chr(92))}
+{cmd}
 USER_COMMAND_EOF
         EXIT_CODE=$?
         echo "$EXIT_CODE" > "$EXITCODE_FILE"
@@ -638,17 +585,13 @@ if os.path.exists(stderr_file):
     try:
         with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
             stderr_content = f.read()
-        # print(f"[DEBUG JSON] stderr file read: {{repr(stderr_content)}}", file=sys.stderr)
     except Exception as e:
         stderr_content = f"ERROR: 无法读取stderr文件: {{e}}"
-        # print(f"[DEBUG JSON] stderr read error: {{e}}", file=sys.stderr)
 else:
     stderr_content = ""
-    # print(f"[DEBUG JSON] stderr file not found: {{stderr_file}}", file=sys.stderr)
 
 # 读取退出码
 exit_code = int(os.environ.get('EXIT_CODE', '0'))
-# print(f"[DEBUG JSON] exit_code: {{exit_code}}", file=sys.stderr)
 
 # 构建统一的结果JSON格式
 result = {{
@@ -666,7 +609,6 @@ result_dir = os.path.dirname(result_file)
 if result_dir:
     os.makedirs(result_dir, exist_ok=True)
 
-# print(f"[DEBUG JSON] writing to result file: {{result_file}}", file=sys.stderr)
 with open(result_file, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
@@ -679,25 +621,17 @@ JSON_SCRIPT_EOF
         # 检查生成的完整脚本语法（包括wrapper部分）
         is_valid, error_msg = self.check_bash_syntax(remote_command)
         if not is_valid:
-            print(f"Error: Bash syntax error detected in generated remote script:")
-            print(f"Error: {error_msg}")
-            print(f"Script content preview:")
-            print(remote_command[:500] + "..." if len(remote_command) > 500 else remote_command)
-            print(f"Full script length: {len(remote_command)} characters")
+            print(f"Error: Bash syntax error detected in generated remote script. ")
             raise Exception(f"Generated remote script has syntax errors: {error_msg}")
         
         import re
         heredoc_match = re.search(r'bash << \'USER_COMMAND_EOF\'.*?USER_COMMAND_EOF', remote_command, re.DOTALL)
         template_snippet = heredoc_match.group(0) if heredoc_match else "未找到heredoc"
-
-        # 记录doubling后的cmd
-        cmd_with_doubling = cmd.replace(chr(92), chr(92)+chr(92))
         
         # 构建返回结果
         result = {
             'original_cmd': original_cmd,
             'processed_cmd': cmd,  # 将在填充代码后更新
-            'cmd_with_doubling': cmd_with_doubling, 
             'remote_template': remote_command,
             'result_filename': result_filename,
             'cmd_hash': cmd_hash,
@@ -707,7 +641,6 @@ JSON_SCRIPT_EOF
         
         # 如果需要执行
         if execute:
-            # 调用command_executor执行远端窗口
             execution_result = self.main_instance.command_executor.execute_command(
                 remote_command, 
                 result_filename, 
@@ -763,7 +696,7 @@ JSON_SCRIPT_EOF
         start_time = datetime.now().isoformat()
         remote_path = self.main_instance.REMOTE_ROOT
         bg_original_cmd = cmd  # 用于后台命令
-            
+        
         # 使用常量定义background文件名
         BG_SCRIPT_FILE = get_bg_script_file(bg_pid)
         BG_LOG_FILE = get_bg_log_file(bg_pid)
@@ -798,11 +731,8 @@ from datetime import datetime
 log_file = "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
 with open(log_file, "w", encoding="utf-8") as f:
     pass  # 创建空文件
-# print(f"[DEBUG BG] Log file initialized", file=sys.stderr)
 
 # 然后创建初始result.json文件
-# print(f"[DEBUG BG] Creating initial result file: {self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", file=sys.stderr)
-
 # 从环境变量读取command，避免在代码中直接插入包含换行符的字符串
 bg_command = os.environ.get("BG_COMMAND", "")
 
@@ -821,7 +751,6 @@ result = {{
 with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
     
-# print(f"[DEBUG BG] Initial result file created successfully", file=sys.stderr)
 INITIAL_SETUP_EOF
 
 # 执行用户命令并捕获输出（同时写入log文件以便实时查看）
@@ -848,8 +777,6 @@ import json
 import os
 import sys
 from datetime import datetime
-
-# print(f"[DEBUG BG] Starting final result file generation", file=sys.stderr)
 
 try:
     exit_code = int(os.environ.get('EXIT_CODE', '0'))
@@ -891,12 +818,9 @@ try:
         "timestamp": datetime.now().isoformat()
     }}
 
-    # print(f"[DEBUG BG] Writing final result to: {self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", file=sys.stderr)
     with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     
-    # print(f"[DEBUG BG] Final result file written successfully", file=sys.stderr)
-
     # 清理临时文件
     if os.path.exists(stdout_file):
         os.remove(stdout_file)
@@ -1079,9 +1003,7 @@ MAIN_JSON_EOF'''
             # 处理特殊命令格式
             if cmd == "bash" and len(args) >= 2 and args[0] == "-c":
                 safe_command = shlex.quote(args[1])
-                # print(f"  shlex.quote后: {repr(safe_command)}")
                 cmd = f'bash -c {safe_command}'
-                # print(f"  最终命令: {repr(cmd)}")
             elif cmd == "sh" and len(args) >= 2 and args[0] == "-c":
                 cmd = f'sh -c "{args[1]}"'
             elif cmd in ["python", "python3"] and len(args) >= 2 and args[0] == "-c":
@@ -1153,15 +1075,11 @@ MAIN_JSON_EOF'''
 
             # 生成 mkdir -p 命令来创建整个目录结构，添加清屏和成功/失败提示
             mkdir_command = f'mkdir -p "{full_target_path}"'
-
             return mkdir_command
 
         except Exception as e:
             print(f"Error: Generate mkdir command failed: {e}")
             return ""
-
-
-
 
     def generate_multi_file_commands(self, all_file_moves, force=False):
         """生成简化的多文件上传远端命令，只显示关键状态信息

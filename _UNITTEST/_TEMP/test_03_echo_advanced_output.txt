@@ -1,23 +1,53 @@
 # ============================================================================
-# Test completed at: 2025-11-09 17:36:50 - Status: PASS
+# Test completed at: 2025-11-10 17:03:45 - Status: FAIL
 # ============================================================================
 
 test_03_echo_advanced (test_gds.GDSTest)
-测试echo的正确JSON语法（修复后的功能） ... 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_171620_276688_9e87caba
-正在创建远端测试目录: ~/tmp/gds_test_20251109_171620_276688_9e87caba
+测试echo的正确JSON语法（修复后的功能） ... FAIL
+
+======================================================================
+FAIL: test_03_echo_advanced (test_gds.GDSTest)
+测试echo的正确JSON语法（修复后的功能）
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 837, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 824, in _baseAssertEqual
+    raise self.failureException(msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1639, in test_03_echo_advanced
+    self.assertEqual(result.returncode, 0)
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 938, in verify_file_content_contains
+    result = self.gds(f'cat {filename}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 843, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: cat ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 334.980s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251110_165808_207433_107da957
+正在创建远端测试目录: ~/tmp/gds_test_20251110_165808_207433_107da957
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_171620_276688_9e87caba
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_171620_276688_9e87caba
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_5owptw_w
+已切换到远端测试目录: ~/tmp/gds_test_20251110_165808_207433_107da957
+✓ 验证测试目录存在: ~/tmp/gds_test_20251110_165808_207433_107da957
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_o72ypysf
 测试环境设置完成
-命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/correct_json.txt'
+命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251110_165808_207433_107da957/correct_json.txt'
 返回码: 0
 输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/correct_json.txt
+  filename: ~/tmp/gds_test_20251110_165808_207433_107da957/correct_json.txt
   expected_content: "{'name': 'test03_json_echo_01', 'value': 123}"
   terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/correct_json.txt'
+命令: 'cat ~/tmp/gds_test_20251110_165808_207433_107da957/correct_json.txt'
 返回码: 0
 输出: {'name': 'test03_json_echo_01', 'value': 123}
   returncode: 0
@@ -25,290 +55,42 @@ test_03_echo_advanced (test_gds.GDSTest)
   stderr: ''
   actual_content: "{'name': 'test03_json_echo_01', 'value': 123}\n"
   actual_content length: 46
-命令: 'echo -e "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/multiline.txt'
+命令: 'echo -e "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt'
 返回码: 0
 输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/multiline.txt
+错误: bash: line 1: unexpected EOF while looking for matching `"'
+bash: line 2: syntax error: unexpected end of file...
+  filename: ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt
   expected_content: 'Line1\nLine2\nLine3'
   terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/multiline.txt'
-返回码: 0
-输出: Line1
-Line2
-Line3
-  returncode: 0
-  stdout: 'Line1\nLine2\nLine3\n'
-  stderr: ''
-  actual_content: 'Line1\nLine2\nLine3\n'
-  actual_content length: 18
-命令: 'echo "Echo stdout test content"'
-返回码: 0
-输出: Echo stdout test content
-命令: 'echo "Content for local redirect"'
-返回码: 0
-输出: Content for local redirect
-命令执行: python3 /Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py --shell --no-direct-feedback "echo \"{'name': 'test03_json_echo_02', 'value': 123}\"" > /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/local_redirect.txt
-返回码: 0
-本地重定向文件内容: 
-[K⏳ Waiting for result ..........
-[K
-[K{'name': 'test03_json_echo_02', 'value': 123}
-
-命令: 'ls ~/tmp/gds_test_20251109_171620_276688_9e87caba/local_redirect.txt'
+命令: 'cat ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251109_171620_276688_9e87caba/local_redirect.txt: No such file or directory
-已清理文件: /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/local_redirect.txt
-命令: 'cat > ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_script.py << "EOF"\nimport json\nimport os\n\n# 切换到脚本所在目录\nscript_dir = os.path.dirname(os.path.abspath(__file__))\nos.chdir(script_dir)\n\n# 创建配置文件\nconfig = {\n    "name": "test_project",\n    "version": "1.0.0",\n    "debug": True\n}\n\nwith open("test_config.json", "w") as f:\n    json.dump(config, f, indent=2)\n\nprint(f\'Config created successfully\')\nprint(f\'Current files: {len(os.listdir())}\')\nEOF'
-返回码: 0
-输出: Heredoc detected, translating to: echo 'import json
-import os
-# 切换到脚本所在目录
-script_dir = os.path.dirname(os.path.abspath(__file__))
-os.chdir(script_dir)
-# 创建配置文件
-config = {
-    "name": "test_project",
-    "version": "1.0.0",
-    "debug": True
-}
-with open("test_config.json", "w") as f:
-    json.dump(config, f, indent=2)
-print(f'\''Config created successfully'\'')
-print(f'\''Current files: {len(os.listdir())}'\'')' > ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_script.py
-命令: 'ls ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_script.py'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_script.py
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'python ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_script.py'
-返回码: 0
-输出: Config created successfully
-Current files: 4
-命令: 'ls ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_config.json'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_config.json
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_config.json
-  expected_content: '"name": "test_project"'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_config.json'
-返回码: 0
-输出: {
-  "name": "test_project",
-  "version": "1.0.0",
-  "debug": true
-}
-  returncode: 0
-  stdout: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
-  stderr: ''
-  actual_content: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
-  actual_content length: 67
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_config.json
-  expected_content: '"debug": true'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/test_config.json'
-返回码: 0
-输出: {
-  "name": "test_project",
-  "version": "1.0.0",
-  "debug": true
-}
-  returncode: 0
-  stdout: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
-  stderr: ''
-  actual_content: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
-  actual_content length: 67
-命令: 'echo "Content 1" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt'
-返回码: 0
-输出: 
-命令: 'echo "Content 2" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt'
-返回码: 0
-输出: 
-命令: 'echo "Content 3" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt'
-返回码: 0
-输出: 
-命令: 'ls ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt
-  expected_content: 'Content'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt'
-返回码: 0
-输出: Content 1
-  returncode: 0
-  stdout: 'Content 1\n'
-  stderr: ''
-  actual_content: 'Content 1\n'
-  actual_content length: 10
-命令: 'ls ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt
-  expected_content: 'Content'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt'
-返回码: 0
-输出: Content 2
-  returncode: 0
-  stdout: 'Content 2\n'
-  stderr: ''
-  actual_content: 'Content 2\n'
-  actual_content length: 10
-命令: 'ls ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt
-  expected_content: 'Content'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt'
-返回码: 0
-输出: Content 3
-  returncode: 0
-  stdout: 'Content 3\n'
-  stderr: ''
-  actual_content: 'Content 3\n'
-  actual_content length: 10
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt
-  expected_content: 'Content'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt'
-返回码: 0
-输出: Content 1
-  returncode: 0
-  stdout: 'Content 1\n'
-  stderr: ''
-  actual_content: 'Content 1\n'
-  actual_content length: 10
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt
-  expected_content: 'Content'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt'
-返回码: 0
-输出: Content 2
-  returncode: 0
-  stdout: 'Content 2\n'
-  stderr: ''
-  actual_content: 'Content 2\n'
-  actual_content length: 10
-ok
-
-----------------------------------------------------------------------
-Ran 1 test in 1228.702s
-
-OK
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt
-  expected_content: 'Content'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt'
-返回码: 0
-输出: Content 3
-  returncode: 0
-  stdout: 'Content 3\n'
-  stderr: ''
-  actual_content: 'Content 3\n'
-  actual_content length: 10
-命令: 'find ~/tmp/gds_test_20251109_171620_276688_9e87caba -name "batch_file*.txt"'
-返回码: 0
-输出: No files found matching the pattern.
-命令: 'rm ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file1.txt'
-返回码: 0
-输出: 
-命令: 'rm ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file2.txt'
-返回码: 0
-输出: 
-命令: 'rm ~/tmp/gds_test_20251109_171620_276688_9e87caba/batch_file3.txt'
-返回码: 0
-输出: 
-开始增强的echo测试
-测试JSON不同引号处理
-命令: 'echo \'{"name": "json_single_quote", "value": 123}\' > ~/tmp/gds_test_20251109_171620_276688_9e87caba/json_single_quote.txt'
-返回码: 0
-输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/json_single_quote.txt
-  expected_content: '{"name": "json_single_quote", "value": 123}'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/json_single_quote.txt'
-返回码: 0
-输出: {"name": "json_single_quote", "value": 123}
-  returncode: 0
-  stdout: '{"name": "json_single_quote", "value": 123}\n'
-  stderr: ''
-  actual_content: '{"name": "json_single_quote", "value": 123}\n'
-  actual_content length: 44
-命令: 'echo "{\\"name\\": \\"json_single_quote\\", \\"value\\": 123}" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/json_escaped_quote.txt'
-返回码: 0
-输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/json_escaped_quote.txt
-  expected_content: '{"name": "json_single_quote", "value": 123}'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/json_escaped_quote.txt'
-返回码: 0
-输出: {"name": "json_single_quote", "value": 123}
-  returncode: 0
-  stdout: '{"name": "json_single_quote", "value": 123}\n'
-  stderr: ''
-  actual_content: '{"name": "json_single_quote", "value": 123}\n'
-  actual_content length: 44
-测试引号内特殊字符
-命令: 'echo "This content has > symbol but no redirect"'
-返回码: 0
-输出: This content has > symbol but no redirect
-命令: 'echo "Special: @#$%^&*()_+-=[]{}|;:,.<>?" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/special_chars.txt'
-返回码: 0
-输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/special_chars.txt
-  expected_content: 'Special: @#$%^&*()_+-=[]{}|;:,.<>?'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/special_chars.txt'
-返回码: 0
-输出: Special: @#$%^&*()_+-=[]{}|;:,.<>?
-  returncode: 0
-  stdout: 'Special: @#$%^&*()_+-=[]{}|;:,.<>?\n'
-  stderr: ''
-  actual_content: 'Special: @#$%^&*()_+-=[]{}|;:,.<>?\n'
-  actual_content length: 35
-测试中文和特殊字符组合
-命令: 'echo "\'测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\'" > \'~/tmp/gds_test_20251109_171620_276688_9e87caba/chinese_special.txt\''
-返回码: 0
-输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/chinese_special.txt
-  expected_content: '你好世界'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/chinese_special.txt'
-返回码: 0
-输出: 测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?
-  returncode: 0
-  stdout: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\n'
-  stderr: ''
-  actual_content: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\n'
-  actual_content length: 51
-测试复杂JSON结构
-命令: 'echo "{\\"users\\": [{\\"name\\": \\"Alice\\", \\"age\\": 30}, {\\"name\\": \\"Bob\\", \\"age\\": 25}], \\"total\\": 2}" > ~/tmp/gds_test_20251109_171620_276688_9e87caba/complex_json.txt'
-返回码: 0
-输出: 
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/complex_json.txt
-  expected_content: '"users"'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/complex_json.txt'
-返回码: 0
-输出: {"users": '[{"name":' "Alice", "age": 30}, {"name": "Bob", "age": '25}],' "total": 2}
-  returncode: 0
-  stdout: '{"users": \'[{"name":\' "Alice", "age": 30}, {"name": "Bob", "age": \'25}],\' "total": 2}\n'
-  stderr: ''
-  actual_content: '{"users": \'[{"name":\' "Alice", "age": 30}, {"name": "Bob", "age": \'25}],\' "total": 2}\n'
-  actual_content length: 86
-  filename: ~/tmp/gds_test_20251109_171620_276688_9e87caba/complex_json.txt
-  expected_content: '"Alice"'
-  terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251109_171620_276688_9e87caba/complex_json.txt'
-返回码: 0
-输出: {"users": '[{"name":' "Alice", "age": 30}, {"name": "Bob", "age": '25}],' "total": 2}
-  returncode: 0
-  stdout: '{"users": \'[{"name":\' "Alice", "age": 30}, {"name": "Bob", "age": \'25}],\' "total": 2}\n'
-  stderr: ''
-  actual_content: '{"users": \'[{"name":\' "Alice", "age": 30}, {"name": "Bob", "age": \'25}],\' "total": 2}\n'
-  actual_content length: 86
-增强的echo测试完成
+输出: cat: ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt: No such file or directory
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第1次...
+返回码: 1
+输出: cat: ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt: No such file or directory
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第2次...
+返回码: 1
+输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_6960badb
+✓ config.json updated: MOUNT_HASH=6960badb
+✓ current shell instance updated: MOUNT_HASH=6960badb
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
+Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
+✓ Cleared 3 path IDs and restored 2 default IDs
+✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_8bc44f1f
+✓ config.json updated: MOUNT_HASH=8bc44f1f
+✓ current shell instance updated: MOUNT_HASH=8bc44f1f
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
+Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
+✓ Cleared 3 path IDs and restored 2 default IDs
+✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+✓ 远端指纹文件验证成功
+cat: ~/tmp/gds_test_20251110_165808_207433_107da957/multiline.txt: No such file or directory
+命令执行异常: 1 != 0 : 命令执行失败

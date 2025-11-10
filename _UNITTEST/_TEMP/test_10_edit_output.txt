@@ -1,5 +1,5 @@
 # ============================================================================
-# Test completed at: 2025-11-09 17:20:37 - Status: FAIL
+# Test completed at: 2025-11-09 22:38:34 - Status: FAIL
 # ============================================================================
 
 test_10_edit (test_gds.GDSTest) ... FAIL
@@ -8,46 +8,101 @@ test_10_edit (test_gds.GDSTest) ... FAIL
 FAIL: test_10_edit (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2274, in test_10_edit
-    self.assertTrue(success, f"test04文件上传失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : test04文件上传失败: 
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2294, in test_10_edit
+    self.assertTrue(success, f"基础文本替换编辑失败: {result.stderr if result else 'Unknown error'}")
+AssertionError: False is not true : 基础文本替换编辑失败: 
 
 ----------------------------------------------------------------------
-Ran 1 test in 94.198s
+Ran 1 test in 140.651s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_171858_683774_42365d1a
-正在创建远端测试目录: ~/tmp/gds_test_20251109_171858_683774_42365d1a
+远端测试目录: ~/tmp/gds_test_20251109_223608_266753_92e766c4
+正在创建远端测试目录: ~/tmp/gds_test_20251109_223608_266753_92e766c4
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_171858_683774_42365d1a
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_171858_683774_42365d1a
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ksolkt23
+已切换到远端测试目录: ~/tmp/gds_test_20251109_223608_266753_92e766c4
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223608_266753_92e766c4
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_cjfjrk6y
 测试环境设置完成
 
-执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_171858_683774_42365d1a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
-验证命令: ['ls ~/tmp/gds_test_20251109_171858_683774_42365d1a/test_edit_simple_hello.py']
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_171858_683774_42365d1a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+命令: 'ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+所有验证通过!
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+命令: 'ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+所有验证通过!
+
+执行带重试的命令: edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\"Hello from remote project\", \"Hello from MODIFIED remote project\"]]
+验证命令: ['grep "MODIFIED" ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\\"Hello from remote project\\", \\"Hello from MODIFIED remote project\\"]]'
 返回码: 1
-输出: File does not exist: /.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py
-No files to upload
-Error: Upload command failed, return code: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+Error: Main command failed, return code: 1
 Waiting 1 second before retrying...
 
 尝试 2/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_171858_683774_42365d1a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+命令: 'edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\\"Hello from remote project\\", \\"Hello from MODIFIED remote project\\"]]'
 返回码: 1
-输出: File does not exist: /.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py
-No files to upload
-Error: Upload command failed, return code: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+Error: Main command failed, return code: 1
 Waiting 1 second before retrying...
 
 尝试 3/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_171858_683774_42365d1a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+命令: 'edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\\"Hello from remote project\\", \\"Hello from MODIFIED remote project\\"]]'
 返回码: 1
-输出: File does not exist: /.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py
-No files to upload
-Error: Upload command failed, return code: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
+Error: Main command failed, return code: 1

@@ -222,7 +222,7 @@ Notes:
             
             # 检查是否为目录，如果是则使用目录下载功能
             if file_info['mimeType'] == 'application/vnd.google-apps.folder':
-                return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
+                return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path)
             
             # 使用Google Drive API直接下载文件
             import tempfile
@@ -299,7 +299,7 @@ Notes:
             return {"success": False, "error": f"Download file failed: {e}"}
 
 
-    def download_directory(self, dir_info, dir_name, remote_absolute_path, local_path, force):
+    def download_directory(self, dir_info, dir_name, remote_absolute_path, local_path):
         """
         下载目录：先在远程压缩为zip，然后下载zip包
         
@@ -308,7 +308,6 @@ Notes:
             dir_name: 目录名称
             remote_absolute_path: 远程绝对路径
             local_path: 本地目标路径
-            force: 是否强制下载
         """
         try:
             import hashlib

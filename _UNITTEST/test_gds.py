@@ -961,7 +961,7 @@ Shell commands: ls -la && echo "done"
         else:
             print(f'无法读取文件 {filename}: 返回码 {result.returncode}')
             print(f'错误输出: {result.stderr}')
-            return False
+        return False
     
     def gds_with_retry(self, command, verification_commands, max_retries=3, expect_success=True):
         """
@@ -1264,7 +1264,6 @@ Shell commands: ls -la && echo "done"
         # 清理输出
         gds_output_clean = gds_stdout.strip()
         bash_output_clean = bash_result.stdout.strip()
-        
         print(f'    GDS输出: {repr(gds_output_clean)}')
         print(f'    Bash输出: {repr(bash_output_clean)}')
         
@@ -1583,10 +1582,11 @@ Shell commands: ls -la && echo "done"
         # 更复杂的echo测试：包含转义字符和引号（bash默认echo不解释转义序列）
         complex_echo_file = self.get_test_remote_path("complex_echo.txt")
         content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # bash默认echo输出字面值
-        # 注意：此内容不包含单引号，在双引号内直接使用即可
+        # 注意：heredoc会将\\解释成\，所以期望值应该是单反斜杠
+        expected_content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # 所有反斜杠都是单个
         result = self.gds(f'echo "{content}" > {complex_echo_file}')
         self.assertEqual(result.returncode, 0)
-        self.assertTrue(self.verify_file_content_contains(complex_echo_file, content, terminal_erase = True))
+        self.assertTrue(self.verify_file_content_contains(complex_echo_file, expected_content, terminal_erase = True))
         
         # 包含JSON格式的echo（检查实际的转义字符处理）
         json_echo_file = self.get_test_remote_path("json_echo.txt")
@@ -1599,12 +1599,8 @@ Shell commands: ls -la && echo "done"
         # 包含中文和特殊字符的echo
         chinese_echo_file = self.get_test_remote_path("chinese_echo.txt")
         chinese_content = "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?"
-        import shlex
-        safe_content = shlex.quote(chinese_content)
-        safe_file = shlex.quote(chinese_echo_file)
-        command = f'echo "{safe_content}" > {safe_file}'
-        print(f'执行的命令: {command}')
-        result = self.gds(command)
+        # 注意：必须用双引号包围整个echo命令，防止本地shell解释重定向
+        result = self.gds(f'echo "{chinese_content}" > {chinese_echo_file}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(chinese_echo_file, chinese_content, terminal_erase = True))
         
@@ -1801,11 +1797,8 @@ print(f'Current files: {len(os.listdir())}')'''
         chinese_special = "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?"
         chinese_file = self.get_test_remote_path("chinese_special.txt")
         
-        # 使用shlex.quote安全处理
-        import shlex
-        safe_content = shlex.quote(chinese_special)
-        safe_file = shlex.quote(chinese_file)
-        result = self.gds(f'echo "{safe_content}" > {safe_file}')
+        # 直接使用双引号包围内容，防止本地shell解释重定向
+        result = self.gds(f'echo "{chinese_special}" > {chinese_file}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(chinese_file, "你好世界"))
         
@@ -1818,6 +1811,24 @@ print(f'Current files: {len(os.listdir())}')'''
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(complex_json_file, '"users"'))
         self.assertTrue(self.verify_file_content_contains(complex_json_file, '"Alice"'))
+
+        # 测试5: 多个连续空格的保留
+        print("测试多个连续空格的保留")
+        multi_space_file = self.get_test_remote_path("multi_space.txt")
+        multi_space_content = "Multiple     spaces     test"  # 5个空格 + 5个空格
+        result = self.gds(f'echo "{multi_space_content}" > {multi_space_file}')
+        self.assertEqual(result.returncode, 0)
+        # 验证文件中保留了多个空格
+        self.assertTrue(self.verify_file_content_contains(multi_space_file, multi_space_content))
+        
+        # 测试6: 多个空格与转义序列结合
+        print("测试多个空格与转义序列结合")
+        mixed_content_file = self.get_test_remote_path("mixed_content.txt")
+        mixed_content = "Line1\\nLine2     with     spaces\\tTabbed"  # \\n和\\t会被echo -e解释
+        result = self.gds(f'echo -e "{mixed_content}" > {mixed_content_file}')
+        self.assertEqual(result.returncode, 0)
+        # 验证文件包含多个空格（转义序列会被解释，但空格应保留）
+        self.assertTrue(self.verify_file_content_contains(mixed_content_file, "with     spaces"))
 
         print("增强的echo测试完成")
     
@@ -2284,8 +2295,9 @@ Line 5: No match here'''
         
         # 基础文本替换编辑
         import json
+        import shlex
         edit_data = [["Hello from remote project", "Hello from MODIFIED remote project"]]
-        edit_json = json.dumps(edit_data).replace('"', '\\"')
+        edit_json = shlex.quote(json.dumps(edit_data))
         success, result = self.gds_with_retry(
             f'edit {self.test_folder}/test_edit_simple_hello.py {edit_json}',
             ['grep "MODIFIED" ' + self.test_folder + '/test_edit_simple_hello.py'],
@@ -2435,10 +2447,9 @@ print(f'Sum: {result}')
         
         # 尝试编辑文件，这应该触发linter并显示错误
         print(f'执行edit命令，应该触发linter检查...')
-        # 使用shlex.quote来正确引用JSON参数
-        import shlex
+        # JSON参数直接传递，不使用shlex.quote（因为会添加单引号导致JSON解析失败）
         json_edit_arg = '[["Missing closing parenthesis", "Fixed syntax error"]]'
-        result = self.gds(f'edit {syntax_error_test_path} {shlex.quote(json_edit_arg)}')
+        result = self.gds(f'edit {syntax_error_test_path} {json_edit_arg}')
         
         # 检查edit命令的输出格式
         print(f'检查edit命令输出格式...')

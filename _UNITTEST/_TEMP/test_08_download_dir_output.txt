@@ -1,2 +1,82 @@
+# ============================================================================
+# Test completed at: 2025-11-09 22:36:02 - Status: FAIL
+# ============================================================================
+
 test_08_download_dir (test_gds.GDSTest)
-测试GDS目录下载功能 ... 
+测试GDS目录下载功能 ... FAIL
+
+======================================================================
+FAIL: test_08_download_dir (test_gds.GDSTest)
+测试GDS目录下载功能
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 837, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2182, in test_08_download_dir
+    result = self.gds(f'download {test_dir_path} {local_target_dir}/downloaded_dir.zip')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 843, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: download ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 267.192s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
+正在创建远端测试目录: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
+✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2o2_h8kz
+测试环境设置完成
+测试GDS目录下载功能
+命令: 'mkdir -p ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir'
+返回码: 0
+输出: 
+命令: 'echo "Directory download test content" > ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir/test_file.txt'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir'
+返回码: 0
+输出: test_file.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir/test_file.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir/test_file.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+测试目录下载功能
+命令: 'download ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip'
+返回码: 1
+输出: Download file failed: name 'force' is not defined
+错误: Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/download_command.py", line 225, in cmd_download
+    return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
+                                                                                                 ^^^^^
+NameError: name 'force' is not defined...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: Download file failed: name 'force' is not defined
+错误: Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/download_command.py", line 225, in cmd_download
+    return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
+                                                                                                 ^^^^^
+NameError: name 'force' is not defined...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: Download file failed: name 'force' is not defined
+错误: Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/download_command.py", line 225, in cmd_download
+    return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
+                                                                                                 ^^^^^
+NameError: name 'force' is not defined...
+命令执行异常: 1 != 0 : 命令执行失败
