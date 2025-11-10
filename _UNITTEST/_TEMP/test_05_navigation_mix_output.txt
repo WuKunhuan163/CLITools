@@ -1,0 +1,88 @@
+test_05_navigation_mix (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_05_navigation_mix (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1968, in test_05_navigation_mix
+    self.assertEqual(result.returncode, 0) # bash behaviour
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 1 test in 289.297s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251110_180217_103747_8359c748
+正在创建远端测试目录: ~/tmp/gds_test_20251110_180217_103747_8359c748
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251110_180217_103747_8359c748
+✓ 验证测试目录存在: ~/tmp/gds_test_20251110_180217_103747_8359c748
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_mwq48jp4
+测试环境设置完成
+命令: 'pwd'
+返回码: 0
+输出: ~/tmp/gds_test_20251110_180217_103747_8359c748
+命令: 'ls'
+返回码: 0
+命令: 'mkdir ~/tmp/gds_test_20251110_180217_103747_8359c748/test_dir'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251110_180217_103747_8359c748/test_dir'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+测试多目录创建
+命令: 'mkdir -p ~/tmp/gds_test_20251110_180217_103747_8359c748/multi_test/dir1 ~/tmp/gds_test_20251110_180217_103747_8359c748/multi_test/dir2 ~/tmp/gds_test_20251110_180217_103747_8359c748/multi_test/dir3'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251110_180217_103747_8359c748/multi_test/dir1'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251110_180217_103747_8359c748/multi_test/dir2'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251110_180217_103747_8359c748/multi_test/dir3'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_dir'
+返回码: 0
+命令: 'pwd'
+返回码: 0
+输出: ~/tmp/gds_test_20251110_180217_103747_8359c748/test_dir
+命令: 'cd ..'
+返回码: 0
+不同远端路径类型测试
+命令: 'mkdir -p ~/tmp/gds_test_20251110_180217_103747_8359c748/test_path/level1/level2'
+返回码: 0
+输出: 
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_path/level1'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_path/level1/level2'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_path/level1/level2/../..'
+返回码: 0
+命令: 'cd ~'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_path/level1/level2'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_path/level1/level2/../../..'
+返回码: 0
+Error:  错误路径类型测试
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/nonexistent_directory'
+返回码: 1
+输出: cd: no such file or directory: ~/tmp/gds_test_20251110_180217_103747_8359c748/nonexistent_directory
+命令: 'echo "test content" > ~/tmp/gds_test_20251110_180217_103747_8359c748/test_file.txt'
+返回码: 0
+输出: 
+命令: 'cd ~/tmp/gds_test_20251110_180217_103747_8359c748/test_file.txt'
+返回码: 1
+输出: bash: cd: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251110_180217_103747_8359c748/test_file.txt: No such file or directory
+命令: 'cd ""'
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000001eabff240 (most recent call first):
+  <no Python frame>...

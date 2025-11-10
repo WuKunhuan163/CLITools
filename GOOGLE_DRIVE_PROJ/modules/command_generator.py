@@ -75,6 +75,8 @@ class CommandGenerator:
         if not path:
             return path
         
+        print(f"[DEBUG translate_remote_to_local] 输入: {repr(path)}")
+        
         if path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
             # 将 REMOTE_ROOT 替换为 ~
             remaining_path = path[len('/content/drive/MyDrive/REMOTE_ROOT/'):]
@@ -84,14 +86,19 @@ class CommandGenerator:
                 tilde_path = '~'
             
             # 使用 os.path.expanduser 将 ~ 展开为绝对路径
-            return os.path.expanduser(tilde_path)
+            result = os.path.expanduser(tilde_path)
+            print(f"[DEBUG translate_remote_to_local] REMOTE_ROOT转换: {repr(tilde_path)} → {repr(result)}")
+            return result
                 
         elif path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
             # Remote env paths: /content/.../REMOTE_ENV/xxx -> @/xxx
             remaining_path = path[len('/content/drive/MyDrive/REMOTE_ENV/'):]
-            return '@/' + remaining_path if remaining_path else '.'
+            result = '@/' + remaining_path if remaining_path else '.'
+            print(f"[DEBUG translate_remote_to_local] REMOTE_ENV转换: {repr(result)}")
+            return result
         
         # Path is already in local format
+        print(f"[DEBUG translate_remote_to_local] 本地路径，无需转换: {repr(path)}")
         return path
     
     def check_bash_syntax(self, script_content):
@@ -407,24 +414,6 @@ class CommandGenerator:
                 if '%' in content:
                     # 转换为安全的printf "%s" "content"格式
                     safe_command = f'printf "%s" {quote_char}{content}{quote_char}'
-                    if rest_args:
-                        safe_command += f' {rest_args}'
-                    cmd = safe_command
-        
-        # 检测和处理echo命令中的转义序列问题
-        # 确保echo命令能正确处理\n和\t等转义序列
-        if cmd.strip().startswith('echo '):
-            echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
-            match = re.match(echo_pattern, cmd.strip(), re.DOTALL)
-            if match:
-                quote_char = match.group(1)
-                content = match.group(2)
-                rest_args = match.group(3).strip()  # 可能包含重定向等
-                
-                # 检查内容是否包含转义序列
-                if '\\n' in content or '\\t' in content:
-                    # 添加-e标志以启用转义序列解释
-                    safe_command = f'echo -e {quote_char}{content}{quote_char}'
                     if rest_args:
                         safe_command += f' {rest_args}'
                     cmd = safe_command
