@@ -853,17 +853,8 @@ class GoogleDriveShell:
             command_identifier: 命令标识符
             command_wrapper: 命令包装器（如 'bash -c', 'echo -e'），如果提供，将在路径展开后重新包装命令
         """
-        # 暂时不输出调用栈
-        # import traceback
-        # call_stack = traceback.format_stack()
-        # print(f"[DEBUG] execute_shell_command 调用栈:")
-        # for i, frame in enumerate(call_stack[-4:]):  # 显示最近4层调用栈
-        #     print(f"  {i}: {frame.strip()}")
-        
         # 保存原始用户命令
         self.original_user_command = shell_cmd.strip()
-        
-        # [DEBUG] 确认GDS最初的输入
         import sys
         
         try:
@@ -898,16 +889,89 @@ class GoogleDriveShell:
                 'final_command': shell_cmd_clean
             })
             
-            # 路径展开处理
-            if '@' in shell_cmd_clean:
-                shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '@', self.REMOTE_ENV)
-            if '~' in shell_cmd_clean:
-                shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
+            # Documentation: 路径展开处理
+            # 策略：先split成tokens，对带引号的包含空格的路径分离展开，让GDS能应对包含空格的路径的解析
+            # 
+            # 与bash的区别（以mkdir为例子，适用于ls等指令操作）：
+            # - bash: `mkdir -p "~/test space"` 中的 ~ 不会展开（在双引号内）
+            # - GDS: `mkdir -p "~/test space"` 中的 ~ 会展开为远程路径，不然ls等工具没办法访问有空格，且包含~的绝对路径
+            # 这是通过单独将带引号的包含空格的路径，例如`~/test space`分离展开，让GDS能应对包含空格的路径的解析
+            import shlex
+            try:
+                cmd_tokens = shlex.split(shell_cmd_clean)
+                
+                # 识别"包含空格的路径token"：
+                # 1. 以 ~/` 或 `@/` 开头（严格路径格式）
+                # 2. 包含空格
+                path_with_space_indices = []
+                for i, token in enumerate(cmd_tokens):
+                    is_path_prefix = (token.startswith('~/') or token.startswith('@/'))
+                    has_space = ' ' in token
+                    if is_path_prefix and has_space:
+                        path_with_space_indices.append(i)
+                
+                if not path_with_space_indices:
+                    # 没有包含空格的路径token，使用传统的整体展开方式
+                    if '@' in shell_cmd_clean:
+                        shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '@', self.REMOTE_ENV)
+                    if '~' in shell_cmd_clean:
+                        shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
+                else:
+                    # 分组：将非路径tokens合并，包含空格的路径tokens单独展开
+                    expanded_parts = []
+                    non_path_group = []
+                    
+                    for i, token in enumerate(cmd_tokens):
+                        if i in path_with_space_indices:
+                            # 先处理累积的其他token组（包括无空格的路径）
+                            if non_path_group:
+                                # 对其他token组进行整体展开（处理无空格的路径）
+                                non_path_str = ' '.join(non_path_group)
+                                if '@' in non_path_str:
+                                    non_path_str = self.command_generator.expand_paths_with_bash(non_path_str, '@', self.REMOTE_ENV)
+                                if '~' in non_path_str:
+                                    non_path_str = self.command_generator.expand_paths_with_bash(non_path_str, '~', self.REMOTE_ROOT)
+                                expanded_parts.append(non_path_str)
+                                non_path_group = []
+                            
+                            # 单独展开包含空格的路径token
+                            expanded_token = token
+                            if '@' in expanded_token:
+                                expanded_token = self.command_generator.expand_paths_with_bash(expanded_token, '@', self.REMOTE_ENV)
+                            if '~' in expanded_token:
+                                expanded_token = self.command_generator.expand_paths_with_bash(expanded_token, '~', self.REMOTE_ROOT)
+                            
+                            # 展开后仍包含空格，用shlex.quote保护
+                            if ' ' in expanded_token:
+                                expanded_token = shlex.quote(expanded_token)
+                            expanded_parts.append(expanded_token)
+                        else:
+                            # 非路径token或无空格的路径token，累积起来等待整体展开
+                            non_path_group.append(token)
+                    
+                    # 处理最后的非路径token组（包括其中的无空格路径）
+                    if non_path_group:
+                        non_path_str = ' '.join(non_path_group)
+                        # 对非路径组进行传统的整体展开（处理无空格的路径）
+                        if '@' in non_path_str:
+                            non_path_str = self.command_generator.expand_paths_with_bash(non_path_str, '@', self.REMOTE_ENV)
+                        if '~' in non_path_str:
+                            non_path_str = self.command_generator.expand_paths_with_bash(non_path_str, '~', self.REMOTE_ROOT)
+                        expanded_parts.append(non_path_str)
+                    
+                    shell_cmd_clean = ' '.join(expanded_parts)
+            except ValueError as e:
+                # shlex.split失败（如引号不配对），回退到整体展开
+                if '@' in shell_cmd_clean:
+                    shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '@', self.REMOTE_ENV)
+                if '~' in shell_cmd_clean:
+                    shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
             
             # 如果有command_wrapper，在路径展开后重新包装命令
             if command_wrapper:
                 import shlex
-                shell_cmd_clean = f"{command_wrapper} {shlex.quote(shell_cmd_clean)}"
+                quoted = shlex.quote(shell_cmd_clean)
+                shell_cmd_clean = f"{command_wrapper} {quoted}"
             
             # 更新shell_cmd以保持一致性
             shell_cmd = shell_cmd_clean
@@ -1012,15 +1076,12 @@ class GoogleDriveShell:
                 
                 current_shell = self.get_current_shell()
                 if current_shell:
-                    # print(f"[DEBUG] execute_shell_command 调用 execute_command_interface:")
-                    # print(f"  shell_cmd_clean: {repr(shell_cmd_clean)}")
                     result = self.execute_command_interface(shell_cmd_clean)
                     if result.get("success"):
                         return 0
                     else:
                         error_msg = result.get("error", "")
                         if not error_msg:
-                            # 只有在没有错误信息时才添加call stack
                             import traceback
                             call_stack = ''.join(traceback.format_stack()[-3:])
                             error_msg = f"Unknown error. Call stack: {call_stack}"
@@ -2122,6 +2183,18 @@ fi
         if not shell_cmd_parts:
             return 0
         
+        # 如果只有一个token，可能是用引号包裹的完整命令，尝试再次切分
+        if len(shell_cmd_parts) == 1:
+            import shlex
+            try:
+                re_split = shlex.split(shell_cmd_parts[0])
+                if len(re_split) > 1:
+                    # 成功切分，使用切分后的结果
+                    shell_cmd_parts = re_split
+            except ValueError:
+                # 切分失败，保持原样
+                pass
+        
         # 检测特殊命令包装（bash -c, echo -e等），提取命令内容并设置flag
         command_wrapper = None
         if len(shell_cmd_parts) >= 2:
@@ -2132,11 +2205,13 @@ fi
                 command_wrapper = 'echo -e'
                 shell_cmd = shell_cmd_parts[2] if len(shell_cmd_parts) == 3 else ' '.join(shell_cmd_parts[2:])
             else:
-                # 普通命令，直接用空格连接（bash会正确解释）
-                shell_cmd = ' '.join(shell_cmd_parts)
+                # 普通命令，使用shlex.join保留引号信息
+                import shlex
+                shell_cmd = shlex.join(shell_cmd_parts)
         else:
             # 单个命令或无参数命令
-            shell_cmd = ' '.join(shell_cmd_parts)
+            import shlex
+            shell_cmd = shlex.join(shell_cmd_parts)
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):
@@ -2157,11 +2232,11 @@ fi
         desktop_action = args[0]
         if desktop_action == '--status':
             try:
-                from .modules.sync_config_manager import get_google_drive_status
+                from .modules.sync_manager import get_google_drive_status
                 return get_google_drive_status(command_identifier)
             except ImportError:
                 try:
-                    from modules.sync_config_manager import get_google_drive_status
+                    from .modules.sync_manager import get_google_drive_status
                     return get_google_drive_status(command_identifier)
                 except ImportError:
                     print(f"Error: Unable to find get_google_drive_status function")
@@ -2172,7 +2247,7 @@ fi
                 return shutdown_google_drive(command_identifier)
             except ImportError:
                 try:
-                    from modules.drive_process_manager import shutdown_google_drive
+                    from .modules.drive_process_manager import shutdown_google_drive
                     return shutdown_google_drive(command_identifier)
                 except ImportError:
                     print(f"Error: Unable to find shutdown_google_drive function")
@@ -2184,7 +2259,7 @@ fi
     def handle_remount_command(self, command_identifier=None):
         """处理python: GOOGLE_DRIVE --remount命令（直接调用，force=True不检查flag）"""
         try:
-            from modules.remount_lock_manager import get_remount_lock_manager
+            from .modules.remount_lock_manager import get_remount_lock_manager
             
             lock_manager = get_remount_lock_manager()
             
@@ -2192,7 +2267,7 @@ fi
             if lock_manager.acquire_remount_lock("GoogleDriveShell.handle_remount_command", force=True):
                 try:
                     # 成功获取锁，执行remount
-                    from modules.remount_manager import remount_google_drive
+                    from .modules.remount_manager import remount_google_drive
                     return remount_google_drive(command_identifier, self)
                 finally:
                     # 无论remount是否成功，都释放锁

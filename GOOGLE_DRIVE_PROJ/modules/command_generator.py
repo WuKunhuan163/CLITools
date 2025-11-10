@@ -75,8 +75,6 @@ class CommandGenerator:
         if not path:
             return path
         
-        print(f"[DEBUG translate_remote_to_local] 输入: {repr(path)}")
-        
         if path.startswith('/content/drive/MyDrive/REMOTE_ROOT/'):
             # 将 REMOTE_ROOT 替换为 ~
             remaining_path = path[len('/content/drive/MyDrive/REMOTE_ROOT/'):]
@@ -86,19 +84,14 @@ class CommandGenerator:
                 tilde_path = '~'
             
             # 使用 os.path.expanduser 将 ~ 展开为绝对路径
-            result = os.path.expanduser(tilde_path)
-            print(f"[DEBUG translate_remote_to_local] REMOTE_ROOT转换: {repr(tilde_path)} → {repr(result)}")
-            return result
+            return os.path.expanduser(tilde_path)
                 
         elif path.startswith('/content/drive/MyDrive/REMOTE_ENV/'):
             # Remote env paths: /content/.../REMOTE_ENV/xxx -> @/xxx
             remaining_path = path[len('/content/drive/MyDrive/REMOTE_ENV/'):]
-            result = '@/' + remaining_path if remaining_path else '.'
-            print(f"[DEBUG translate_remote_to_local] REMOTE_ENV转换: {repr(result)}")
-            return result
+            return '@/' + remaining_path if remaining_path else '.'
         
         # Path is already in local format
-        print(f"[DEBUG translate_remote_to_local] 本地路径，无需转换: {repr(path)}")
         return path
     
     def check_bash_syntax(self, script_content):
@@ -249,11 +242,14 @@ class CommandGenerator:
             path_for_bash = path_for_bash.replace(placeholder, '~')
 
         # 步骤3: 用bash展开路径
-        # 使用单引号包裹path_for_bash，保护空格和特殊字符
-        # 但是在单引号内，~不会被展开，所以需要先将~替换出去
-        # 实际上，由于path_for_bash中的~已经被替换成了placeholder（如果placeholder不是~），
-        # 所以bash -c 'echo \'{content}\''应该可以正确展开路径
-        bash_cmd = f"echo '{path_for_bash}'"
+        # 在传给bash前，先恢复引号，让bash能看到真实的引号结构
+        # 这样bash才能正确处理引号内的~展开
+        # 只恢复引号placeholder，其他特殊字符（如重定向）仍然保护
+        quote_placeholders = {k: v for k, v in special_phs.items() if 'QUOTE' in k}
+        path_for_bash_with_quotes = PathResolver.restore_special_chars(path_for_bash, quote_placeholders)
+        
+        # 使用恢复引号后的命令让bash展开
+        bash_cmd = f"echo {path_for_bash_with_quotes}"
         result = subprocess.run(
             ['bash', '-c', bash_cmd],
             capture_output=True,
@@ -494,6 +490,14 @@ class CommandGenerator:
         shell_path = current_shell.get("current_path", "~") if current_shell else "~"
         shell_absolute_path = self.main_instance.resolve_remote_absolute_path(shell_path, current_shell) if current_shell else f"{self.main_instance.REMOTE_ROOT}"
         
+        print(f"User command preview [in f-string]: ")
+        print("=====================")
+        print(cmd)
+        print("=====================")
+        print("\nRemote real output: ")
+        print("=====================")
+        # exit(0)
+
         remote_command = f'''
 # 确保工作目录存在并切换到正确的基础目录
 mkdir -p "{remote_path}"

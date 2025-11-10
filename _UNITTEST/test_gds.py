@@ -229,7 +229,8 @@ class GDSTest(unittest.TestCase):
         
         # 然后创建测试目录 - 添加重试机制
         print(f'正在创建远端测试目录: {cls.test_folder}')
-        mkdir_command = f"python3 {cls.GOOGLE_DRIVE_PY} --shell --no-direct-feedback 'mkdir -p {cls.test_folder}'"
+        # 不使用引号括起来，因为测试目录路径没有空格，让GDS正确展开～
+        mkdir_command = f'python3 {cls.GOOGLE_DRIVE_PY} --shell --no-direct-feedback mkdir -p {cls.test_folder}'
         print("使用测试模式，窗口将只显示复制指令和执行完成按钮")
         
         # 重试机制：最多尝试3次
@@ -257,7 +258,8 @@ class GDSTest(unittest.TestCase):
                     time.sleep(2)  # 等待2秒后重试
         
         # 切换到测试目录 - 添加重试机制
-        cd_command = f"python3 {cls.GOOGLE_DRIVE_PY} --shell --no-direct-feedback 'cd {cls.test_folder}'"
+        # 不使用引号括起来，因为测试目录路径没有空格，让GDS正确展开～
+        cd_command = f'python3 {cls.GOOGLE_DRIVE_PY} --shell --no-direct-feedback cd {cls.test_folder}'
         
         # 重试机制：最多尝试3次
         for attempt in range(3):
@@ -1397,22 +1399,42 @@ Shell commands: ls -la && echo "done"
         result = self.gds(f'ls {nonexistent_dir}/', expect_success=False)
         self.assertNotEqual(result.returncode, 0)
         
-        # 10. 测试特殊字符路径
-        print(f'测试特殊字符路径')
-        import shlex
-        space_dir_path = self.get_test_remote_path("test dir with spaces")
-        result = self.gds(f'mkdir -p {shlex.quote(space_dir_path)}')
+        # 10. 测试带空格的路径（测试新的路径展开逻辑）
+        # 在bash当中，这样的路径不会被正确展开
+        # 但我们的GDS在路径解析阶段，对于这类双引号包裹的、~或者@开头的绝对路径，可以展开~或者@
+        
+        print(f'测试带空格的路径')
+        # 使用双引号保护空格路径，GDS会正确展开并处理
+        result = self.gds('mkdir -p "~/tmp/test dir with spaces"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds(f'ls {shlex.quote(space_dir_path)}')
+        result = self.gds('ls "~/tmp/test dir with spaces"')
         self.assertEqual(result.returncode, 0)
+        
+        # 测试在带空格的路径中创建文件
+        result = self.gds('touch "~/tmp/test dir with spaces/test_file.txt"')
+        self.assertEqual(result.returncode, 0)
+        
+        result = self.gds('ls "~/tmp/test dir with spaces/test_file.txt"')
+        self.assertEqual(result.returncode, 0)
+        
+        # 测试echo到带空格的路径
+        result = self.gds('echo "Hello World" > "~/tmp/test dir with spaces/hello.txt"')
+        self.assertEqual(result.returncode, 0)
+        
+        result = self.gds('cat "~/tmp/test dir with spaces/hello.txt"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Hello World", result.stdout)
         
         # 11. 清理测试文件
         print(f'清理测试文件')
+        # 清理带空格的目录
+        result = self.gds('rm -rf "~/tmp/test dir with spaces"', expect_success=False, check_function_result=False)
+        
+        # 清理其他测试文件
         cleanup_items = [
             ls_test_dir,
-            f'{ls_test_dir}/ls_test_root.txt', 
-            self.get_test_remote_path("test dir with spaces")
+            f'{ls_test_dir}/ls_test_root.txt'
         ]
         for item in cleanup_items:
             try:
@@ -1582,8 +1604,8 @@ Shell commands: ls -la && echo "done"
         # 更复杂的echo测试：包含转义字符和引号（bash默认echo不解释转义序列）
         complex_echo_file = self.get_test_remote_path("complex_echo.txt")
         content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # bash默认echo输出字面值
-        # 注意：heredoc会将\\解释成\，所以期望值应该是单反斜杠
-        expected_content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # 所有反斜杠都是单个
+        # 注意：heredoc（单引号）不解释反斜杠，echo输出的是字面值 Line 1\nLine 2\tTabbed\Backslash
+        expected_content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # 双反斜杠表示字面的单反斜杠
         result = self.gds(f'echo "{content}" > {complex_echo_file}')
         self.assertEqual(result.returncode, 0)
         self.assertTrue(self.verify_file_content_contains(complex_echo_file, expected_content, terminal_erase = True))

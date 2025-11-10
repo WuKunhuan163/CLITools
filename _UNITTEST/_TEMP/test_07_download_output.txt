@@ -1,44 +1,66 @@
 # ============================================================================
-# Test completed at: 2025-11-09 22:35:28 - Status: PASS
+# Test completed at: 2025-11-11 02:54:45 - Status: FAIL
 # ============================================================================
 
-test_07_download (test_gds.GDSTest)
-测试GDS download功能 ... ok
+ERROR
+
+======================================================================
+ERROR: setUpClass (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 221, in setUpClass
+    cls.setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 254, in setup_remote_test_directory
+    raise RuntimeError(error_msg)
+RuntimeError: 创建远端测试目录失败: 返回码=1, stderr=, stdout=User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "~/tmp/gds_test_20251111_025223_216103_c29ccf68"'
+=====================
+
+Remote real output: 
+=====================
+
+[K⏳ Waiting for result .........
+[K
+[K
+[K⏳ Validating directory existence ..............
+[KDirectory creation may have failed, verification timeout: ~/tmp/gds_test_20251111_025223_216103_c29ccf68
+. Call stack:   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/suite.py", line 163, in _handleClassSetUp
+    setUpClass()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 221, in setUpClass
+    cls.setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 251, in setup_remote_test_directory
+    call_stack = ''.join(traceback.format_stack()[-3:])
+
 
 ----------------------------------------------------------------------
-Ran 1 test in 234.984s
+Ran 0 tests in 138.929s
 
-OK
+FAILED (errors=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_223132_699031_0f8b096d
-正在创建远端测试目录: ~/tmp/gds_test_20251109_223132_699031_0f8b096d
+远端测试目录: ~/tmp/gds_test_20251111_025223_216103_c29ccf68
+正在创建远端测试目录: ~/tmp/gds_test_20251111_025223_216103_c29ccf68
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_223132_699031_0f8b096d
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223132_699031_0f8b096d
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_w2g36um6
-测试环境设置完成
-测试GDS download功能
-命令: 'echo "This is a test file for download functionality.\nLine 2: 测试中文内容\nLine 3: Special chars: @#$%^&*()" > ~/tmp/gds_test_20251109_223132_699031_0f8b096d/download_file_remote.txt'
-返回码: 0
-输出: 
-命令: 'ls ~/tmp/gds_test_20251109_223132_699031_0f8b096d/download_file_remote.txt'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_223132_699031_0f8b096d/download_file_remote.txt
-测试1: 基本下载功能
-命令: 'download ~/tmp/gds_test_20251109_223132_699031_0f8b096d/download_file_remote.txt'
-返回码: 0
-输出: Downloaded successfully to: 2a766bb031b27e1a
-测试2: 下载到指定位置
-命令: 'download ~/tmp/gds_test_20251109_223132_699031_0f8b096d/download_file_remote.txt /Users/wukunhuan/tmp/downloaded_copy.txt'
-返回码: 0
-输出: Using cached file: /Users/wukunhuan/tmp/downloaded_copy.txt
-Local path: /Users/wukunhuan/tmp/downloaded_copy.txt
-成功使用本地cat命令读取下载文件: /Users/wukunhuan/tmp/downloaded_copy.txt
-测试4: 下载不存在的文件
-命令: 'download nonexistent_file.txt'
-返回码: 1
-输出: Download failed: file not found: nonexistent_file.txt
-命令: 'rm -f ~/tmp/gds_test_20251109_223132_699031_0f8b096d/~/tmp/gds_test_20251109_223132_699031_0f8b096d/download_file_remote.txt'
-返回码: 0
-输出: 
-GDS download功能测试完成
+创建测试目录尝试 1/3 失败: 返回码=1
+创建测试目录尝试 2/3 失败: 返回码=1
+创建测试目录尝试 3/3 失败: 返回码=1
+Unknown error: 创建远端测试目录失败: 返回码=1, stderr=, stdout=User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "~/tmp/gds_test_20251111_025223_216103_c29ccf68"'
+=====================
+
+Remote real output: 
+=====================
+
+[K⏳ Waiting for result .........
+[K
+[K
+[K⏳ Validating directory existence ..............
+[KDirectory creation may have failed, verification timeout: ~/tmp/gds_test_20251111_025223_216103_c29ccf68
+. Call stack:   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/suite.py", line 163, in _handleClassSetUp
+    setUpClass()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 221, in setUpClass
+    cls.setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 251, in setup_remote_test_directory
+    call_stack = ''.join(traceback.format_stack()[-3:])
+

@@ -1,154 +1,66 @@
 # ============================================================================
-# Test completed at: 2025-11-09 23:02:39 - Status: FAIL
+# Test completed at: 2025-11-11 02:54:51 - Status: FAIL
 # ============================================================================
 
-test_06_upload (test_gds.GDSTest) ... 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_223132_423648_374dc4ac
-正在创建远端测试目录: ~/tmp/gds_test_20251109_223132_423648_374dc4ac
-使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_223132_423648_374dc4ac
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223132_423648_374dc4ac
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_sweadkxb
-测试环境设置完成
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"'
-返回码: 0
-输出: 
-命令: 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_simple_hello.py'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_simple_hello.py
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-
-执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
-验证命令: ['ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/valid_script.py', 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/special_chars.txt']
-最大重试次数: 3
-
-尝试 1/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"'
-返回码: 0
-输出: 
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证命令 1: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/valid_script.py
-命令: 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/valid_script.py'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_223132_423648_374dc4ac/valid_script.py
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/valid_script.py
-验证命令 2: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/special_chars.txt
-命令: 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/special_chars.txt'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_223132_423648_374dc4ac/special_chars.txt
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/special_chars.txt
-所有验证通过!
-命令: 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_simple_hello.py'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_simple_hello.py
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-
-执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-验证命令: ['ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_project']
-最大重试次数: 3
-
-尝试 1/3
-命令: 'upload_folder --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
-返回码: 0
-输出: 
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证命令 1: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_project
-命令: 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_project'
-返回码: 0
-输出: config.json
-core.py
-main.py
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_project
-所有验证通过!
-
-执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"
-验证命令: ['ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_conflict_file.py']
-最大重试次数: 3
-
-尝试 1/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"'
-返回码: 0
-输出: 
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证命令 1: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_conflict_file.py
-命令: 'ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_conflict_file.py'
-返回码: 0
-输出: ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_conflict_file.py
-🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_conflict_file.py
-所有验证通过!
-命令: 'upload /Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py'
-返回码: 1
-输出: Captured debug output:
-Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
-Upload failed, showing debug information:
-verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_conflict_file_1.py'], 'sync_time': 6, 'base_sync_time': 6}
-target_folder_id='1IFEhn6I0JcQ87houI4yipSQpR7WjgUbj'
-target_display_path='~/tmp/gds_test_20251109_223608_266753_92e766c4'
-Upload failed
-
-执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
-验证命令: ['ls ~/tmp/gds_test_20251109_223132_423648_374dc4ac/test_upload_overwrite_file.py']
-最大重试次数: 3
-
-尝试 1/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
-返回码: 1
-输出: Captured debug output:
-Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_overwrite_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_223132_423648_374dc4ac'}
-Upload failed, showing debug information:
-verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_overwrite_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_223132_423648_374dc4ac'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_overwrite_file.py'], 'sync_time': 1, 'base_sync_time': 1}
-target_folder_id='1Faz6W0WztR5fDTUSKGNvgbs2LnXAkfPD'
-target_display_path='~/tmp/gds_test_20251109_223132_423648_374dc4ac'
-Upload failed
-Error: Upload command failed, return code: 1
-Waiting 1 second before retrying...
-
-尝试 2/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
-返回码: 1
-输出: Captured debug output:
-Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_overwrite_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_223132_423648_374dc4ac'}
-Upload failed, showing debug information:
-verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_overwrite_file.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_223132_423648_374dc4ac'}
-sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_overwrite_file.py'], 'sync_time': 9, 'base_sync_time': 9}
-target_folder_id='None'
-target_display_path='/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251109_223132_423648_374dc4ac'
-Upload failed
-FAIL
+ERROR
 
 ======================================================================
-FAIL: test_06_upload (test_gds.GDSTest)
+ERROR: setUpClass (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2041, in test_06_upload
-    self.assertTrue(success, f"原始版本上传失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : 原始版本上传失败: Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py", line 636, in cmd_upload
-    error = execution_result["data"].get("error", "Command execution failed without specific error message")
-            ~~~~~~~~~~~~~~~~^^^^^^^^
-KeyError: 'data'
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 221, in setUpClass
+    cls.setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 254, in setup_remote_test_directory
+    raise RuntimeError(error_msg)
+RuntimeError: 创建远端测试目录失败: 返回码=1, stderr=, stdout=User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "~/tmp/gds_test_20251111_025223_209206_78092476"'
+=====================
+
+Remote real output: 
+=====================
+
+[K⏳ Waiting for result .......
+[K
+[K
+[K⏳ Validating directory existence ..............
+[KDirectory creation may have failed, verification timeout: ~/tmp/gds_test_20251111_025223_209206_78092476
+. Call stack:   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/suite.py", line 163, in _handleClassSetUp
+    setUpClass()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 221, in setUpClass
+    cls.setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 251, in setup_remote_test_directory
+    call_stack = ''.join(traceback.format_stack()[-3:])
 
 
 ----------------------------------------------------------------------
-Ran 1 test in 1863.910s
+Ran 0 tests in 144.989s
 
-FAILED (failures=1)
-Error: Upload command failed, return code: 1
-Waiting 1 second before retrying...
+FAILED (errors=1)
+设置GDS全面测试环境...
+远端测试目录: ~/tmp/gds_test_20251111_025223_209206_78092476
+正在创建远端测试目录: ~/tmp/gds_test_20251111_025223_209206_78092476
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+创建测试目录尝试 1/3 失败: 返回码=1
+创建测试目录尝试 2/3 失败: 返回码=1
+创建测试目录尝试 3/3 失败: 返回码=1
+Unknown error: 创建远端测试目录失败: 返回码=1, stderr=, stdout=User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "~/tmp/gds_test_20251111_025223_209206_78092476"'
+=====================
 
-尝试 3/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223132_423648_374dc4ac --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
-返回码: 1
-输出: Upload error: 'data'
-错误: Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py", line 636, in cmd_upload
-    error = execution_result["data"].get("error", "Command execution failed without specific error message")
-            ~~~~~~~~~~~~~~~~^^^^^^^^
-KeyError: 'data'...
-Error: Upload command failed, return code: 1
+Remote real output: 
+=====================
+
+[K⏳ Waiting for result .......
+[K
+[K
+[K⏳ Validating directory existence ..............
+[KDirectory creation may have failed, verification timeout: ~/tmp/gds_test_20251111_025223_209206_78092476
+. Call stack:   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/suite.py", line 163, in _handleClassSetUp
+    setUpClass()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 221, in setUpClass
+    cls.setup_remote_test_directory()
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 251, in setup_remote_test_directory
+    call_stack = ''.join(traceback.format_stack()[-3:])
+
