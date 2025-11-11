@@ -372,7 +372,7 @@ Notes:
             # 使用现有的文件下载逻辑下载zip文件
             # 将绝对路径转换为GDS路径格式
             gds_zip_path = f"~/tmp/{zip_filename}"
-            download_result = self.cmd_download(gds_zip_path, final_target, force)
+            download_result = self.cmd_download(gds_zip_path, final_target)
             
             if download_result.get("success", False):
                 # 步骤4：清理远程临时zip文件

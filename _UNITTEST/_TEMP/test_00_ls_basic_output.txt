@@ -1,55 +1,49 @@
 # ============================================================================
-# Test completed at: 2025-11-11 12:06:22 - Status: PASS
+# Test completed at: 2025-11-11 12:31:33 - Status: PASS
 # ============================================================================
 
 test_00_ls_basic (test_gds.GDSTest)
 测试ls命令的全路径支持（修复后的功能） ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 136.834s
+Ran 1 test in 131.802s
 
 OK
 设置GDS全面测试环境...
 清理Python缓存...
 Python缓存已清理
-远端测试目录: ~/tmp/gds_test_20251111_120402_768723_56878e44
-正在创建远端测试目录: ~/tmp/gds_test_20251111_120402_768723_56878e44
+远端测试目录: ~/tmp/gds_test_20251111_122918_329588_b14b5067
+正在创建远端测试目录: ~/tmp/gds_test_20251111_122918_329588_b14b5067
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251111_120402_768723_56878e44
-✓ 验证测试目录存在: ~/tmp/gds_test_20251111_120402_768723_56878e44
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_b9izd8d8
+已切换到远端测试目录: ~/tmp/gds_test_20251111_122918_329588_b14b5067
+✓ 验证测试目录存在: ~/tmp/gds_test_20251111_122918_329588_b14b5067
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_xlippne9
 测试环境设置完成
-命令: 'mkdir -p ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir'
+命令: 'mkdir -p ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir'
 返回码: 0
-输出: DEBUG 处理后的命令字符串: mkdir -p ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir
-User command preview [in f-string]: 
+输出: User command preview [in f-string]: 
 =====================
-bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120402_768723_56878e44/testdir"'
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_122918_329588_b14b5067/testdir"'
 =====================
 Remote real output: 
 =====================
-命令: 'echo "test content" > ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt'
+命令: 'echo "test content" > ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir/testfile.txt'
 返回码: 0
-输出: DEBUG 处理后的命令字符串: echo "test content" > ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
-User command preview [in f-string]: 
+输出: User command preview [in f-string]: 
 =====================
-echo "test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
+echo "test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_122918_329588_b14b5067/testdir/testfile.txt
 =====================
 Remote real output: 
 =====================
-命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir'
+命令: 'ls ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir'
 返回码: 0
-输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir
-testfile.txt
-命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt'
+输出: testfile.txt
+命令: 'ls ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir/testfile.txt'
 返回码: 0
-输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
-~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
-命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/nonexistent.txt'
+输出: ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir/testfile.txt
+命令: 'ls ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir/nonexistent.txt'
 返回码: 1
-输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/nonexistent.txt
-ls: ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/nonexistent.txt: No such file or directory
-命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/nonexistent_dir/file.txt'
+输出: ls: ~/tmp/gds_test_20251111_122918_329588_b14b5067/testdir/nonexistent.txt: No such file or directory
+命令: 'ls ~/tmp/gds_test_20251111_122918_329588_b14b5067/nonexistent_dir/file.txt'
 返回码: 1
-输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/nonexistent_dir/file.txt
-ls: ~/tmp/gds_test_20251111_120402_768723_56878e44/nonexistent_dir/file.txt: No such file or directory
+输出: ls: ~/tmp/gds_test_20251111_122918_329588_b14b5067/nonexistent_dir/file.txt: No such file or directory
