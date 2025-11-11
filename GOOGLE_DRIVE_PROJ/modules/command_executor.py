@@ -644,12 +644,8 @@ class CommandExecutor:
             
             lock_manager = get_remount_lock_manager()
             
-            # 使用锁管理器等待remount完成
-            success = lock_manager.wait_for_remount_completion(max_wait_seconds=60)
-            
-            if not success:
-                # 超时，记录警告但继续执行
-                self._log_remount_trigger("Timeout waiting for remount completion", "Unknown")
+            # 使用锁管理器等待remount完成（无超时限制）
+            lock_manager.wait_for_remount_completion(max_wait_seconds=None)
                 
         except Exception as e:
             # 静默处理等待错误，不影响命令执行
