@@ -2484,8 +2484,9 @@ print(f'Sum: {result}')
         
         # 尝试编辑文件，这应该触发linter并显示错误
         print(f'执行edit命令，应该触发linter检查...')
-        # JSON参数直接传递，不使用shlex.quote（因为会添加单引号导致JSON解析失败）
-        json_edit_arg = '[["Missing closing parenthesis", "Fixed syntax error"]]'
+        # JSON参数需要使用shlex.quote包装，确保作为单个参数传递
+        import shlex
+        json_edit_arg = shlex.quote('[["Missing closing parenthesis", "Fixed syntax error"]]')
         result = self.gds(f'edit {syntax_error_test_path} {json_edit_arg}')
         
         # 检查edit命令的输出格式
