@@ -2194,8 +2194,6 @@ fi
         if not shell_cmd:
             return 0
         
-        print(f"DEBUG 处理后的命令字符串: {shell_cmd}")
-        
         # 检测特殊命令包装（bash -c, echo -e等）
         command_wrapper = None
         if shell_cmd.startswith('bash -c '):
@@ -2207,7 +2205,6 @@ fi
                     shell_cmd = unwrapped[0]
             except:
                 pass
-            print(f"DEBUG 检测到bash -c包装，提取内部命令: {shell_cmd}")
         elif shell_cmd.startswith('echo -e '):
             command_wrapper = 'echo -e'
             shell_cmd = shell_cmd[len('echo -e '):].strip()
