@@ -2474,9 +2474,12 @@ print(f'Sum: {result}')
         
         # 使用echo创建有错误的文件
         syntax_error_test_path = self.get_test_remote_path("syntax_error_test.py")   
-        escaped_content = error_content.replace('"', '\\"').replace('\n', '\\n')
+        # 使用shlex.join代替手动转义，更简洁清晰
+        import shlex
+        content_for_echo = error_content.replace('\n', '\\n')  # 只需要转换换行符为\n字面值
+        echo_cmd = shlex.join(['echo', '-e', content_for_echo])
         success, result = self.gds_with_retry(
-            f'echo -e "{escaped_content}" > {syntax_error_test_path}',
+            f'{echo_cmd} > {syntax_error_test_path}',
             [f'ls {syntax_error_test_path}'],
             max_retries=3
         )
@@ -2939,10 +2942,11 @@ if __name__ == "__main__":
 '''
         
         # 使用echo创建main.py文件（长内容会自动使用base64编码）
-        # 转义特殊字符确保Python语法正确
+        # 使用shlex.join代替手动转义
         myproject_path = self.test_folder + '/myproject'
-        escaped_content = main_py_content.replace('"', '\\"')
-        result = self.gds(f'echo "{escaped_content}" > {myproject_path}/src/main.py')
+        import shlex
+        echo_cmd = shlex.join(['echo', main_py_content])
+        result = self.gds(f'{echo_cmd} > {myproject_path}/src/main.py')
         self.assertEqual(result.returncode, 0)
         
         # 验证项目结构创建成功
@@ -3109,9 +3113,10 @@ if __name__ == "__main__":
     main()
 '''
         
-        # 转义特殊字符确保Python语法正确
-        escaped_content = main_py_content.replace('"', '\\"')
-        result = self.gds(f'echo "{escaped_content}" > ' + test_project_path + '/main.py\'')
+        # 使用shlex.join代替手动转义
+        import shlex
+        echo_cmd = shlex.join(['echo', main_py_content])
+        result = self.gds(f'{echo_cmd} > {test_project_path}/main.py')
         self.assertEqual(result.returncode, 0)
         
         # 验证项目文件创建成功
