@@ -968,9 +968,9 @@ class GoogleDriveShell:
                     shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
             
             # 如果有command_wrapper，在路径展开后重新包装命令
+            # 注意：不使用shlex.quote，因为命令可能包含重定向等操作符不应被引号包裹
             if command_wrapper:
-                quoted = shlex.quote(shell_cmd_clean)
-                shell_cmd_clean = f"{command_wrapper} {quoted}"
+                shell_cmd_clean = f"{command_wrapper} {shell_cmd_clean}"
             
             # 更新shell_cmd以保持一致性
             shell_cmd = shell_cmd_clean
