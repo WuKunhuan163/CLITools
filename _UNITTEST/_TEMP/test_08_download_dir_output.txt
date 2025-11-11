@@ -1,5 +1,5 @@
 # ============================================================================
-# Test completed at: 2025-11-09 22:36:02 - Status: FAIL
+# Test completed at: 2025-11-11 12:07:28 - Status: FAIL
 # ============================================================================
 
 test_08_download_dir (test_gds.GDSTest)
@@ -10,7 +10,7 @@ FAIL: test_08_download_dir (test_gds.GDSTest)
 测试GDS目录下载功能
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 837, in gds
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 850, in gds
     self.assertEqual(result.returncode, 0, f"命令执行失败")
   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
     assertion_func(first, second, msg=msg)
@@ -19,64 +19,95 @@ AssertionError: 1 != 0 : 命令执行失败
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2182, in test_08_download_dir
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2230, in test_08_download_dir
     result = self.gds(f'download {test_dir_path} {local_target_dir}/downloaded_dir.zip')
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 843, in gds
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 856, in gds
     self.fail(f'命令执行异常: {command} - {e}')
-AssertionError: 命令执行异常: download ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip - 1 != 0 : 命令执行失败
+AssertionError: 命令执行异常: download ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip - 1 != 0 : 命令执行失败
 
 ----------------------------------------------------------------------
-Ran 1 test in 267.192s
+Ran 1 test in 236.533s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
-正在创建远端测试目录: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
+清理Python缓存...
+Python缓存已清理
+远端测试目录: ~/tmp/gds_test_20251111_120331_518816_9f36174c
+正在创建远端测试目录: ~/tmp/gds_test_20251111_120331_518816_9f36174c
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223133_484784_a5c2555d
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2o2_h8kz
+已切换到远端测试目录: ~/tmp/gds_test_20251111_120331_518816_9f36174c
+✓ 验证测试目录存在: ~/tmp/gds_test_20251111_120331_518816_9f36174c
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2ydj0bk5
 测试环境设置完成
 测试GDS目录下载功能
-命令: 'mkdir -p ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir'
+命令: 'mkdir -p ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir'
 返回码: 0
-输出: 
-命令: 'echo "Directory download test content" > ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir/test_file.txt'
+输出: DEBUG 处理后的命令字符串: mkdir -p ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir"'
+=====================
+Remote real output: 
+=====================
+命令: 'echo "Directory download test content" > ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir/test_file.txt'
 返回码: 0
-输出: 
-命令: 'ls ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir'
+输出: DEBUG 处理后的命令字符串: echo "Directory download test content" > ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir/test_file.txt
+User command preview [in f-string]: 
+=====================
+echo "Directory download test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir/test_file.txt
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir'
 返回码: 0
-输出: test_file.txt
+输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir
+test_file.txt
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'ls ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir/test_file.txt'
+命令: 'ls ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir/test_file.txt'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir/test_file.txt
+输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir/test_file.txt
+~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir/test_file.txt
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
 测试目录下载功能
-命令: 'download ~/tmp/gds_test_20251109_223133_484784_a5c2555d/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip'
+命令: 'download ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip'
 返回码: 1
-输出: Download file failed: name 'force' is not defined
-错误: Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/download_command.py", line 225, in cmd_download
-    return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
-                                                                                                 ^^^^^
-NameError: name 'force' is not defined...
+输出: DEBUG 处理后的命令字符串: download ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip
+正在压缩目录 test_download_dir 到 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833931_929c7792.zip...
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp'"'"' && cd '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120331_518816_9f36174c'"'"' && zip -r '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833931_929c7792.zip'"'"' '"'"'test_download_dir'"'"''
+=====================
+Remote real output: 
+=====================
+验证zip文件创建: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833931_929c7792.zip
+下载zip文件到本地...
+Directory download failed: name 'force' is not defined
 🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
 重试第1次...
 返回码: 1
-输出: Download file failed: name 'force' is not defined
-错误: Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/download_command.py", line 225, in cmd_download
-    return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
-                                                                                                 ^^^^^
-NameError: name 'force' is not defined...
+输出: DEBUG 处理后的命令字符串: download ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip
+正在压缩目录 test_download_dir 到 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833958_d2fa2f4c.zip...
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp'"'"' && cd '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120331_518816_9f36174c'"'"' && zip -r '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833958_d2fa2f4c.zip'"'"' '"'"'test_download_dir'"'"''
+=====================
+Remote real output: 
+=====================
+验证zip文件创建: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833958_d2fa2f4c.zip
+下载zip文件到本地...
+Directory download failed: name 'force' is not defined
 🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
 重试第2次...
 返回码: 1
-输出: Download file failed: name 'force' is not defined
-错误: Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/download_command.py", line 225, in cmd_download
-    return self.download_directory(file_info, actual_filename, remote_absolute_path, local_path, force)
-                                                                                                 ^^^^^
-NameError: name 'force' is not defined...
+输出: DEBUG 处理后的命令字符串: download ~/tmp/gds_test_20251111_120331_518816_9f36174c/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip
+正在压缩目录 test_download_dir 到 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833991_4ec1f7b8.zip...
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp'"'"' && cd '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120331_518816_9f36174c'"'"' && zip -r '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833991_4ec1f7b8.zip'"'"' '"'"'test_download_dir'"'"''
+=====================
+Remote real output: 
+=====================
+验证zip文件创建: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1762833991_4ec1f7b8.zip
+下载zip文件到本地...
+Directory download failed: name 'force' is not defined
 命令执行异常: 1 != 0 : 命令执行失败

@@ -1,108 +1,279 @@
 # ============================================================================
-# Test completed at: 2025-11-09 22:38:34 - Status: FAIL
+# Test completed at: 2025-11-11 11:51:29 - Status: PASS
 # ============================================================================
 
-test_10_edit (test_gds.GDSTest) ... FAIL
-
-======================================================================
-FAIL: test_10_edit (test_gds.GDSTest)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 2294, in test_10_edit
-    self.assertTrue(success, f"基础文本替换编辑失败: {result.stderr if result else 'Unknown error'}")
-AssertionError: False is not true : 基础文本替换编辑失败: 
-
-----------------------------------------------------------------------
-Ran 1 test in 140.651s
-
-FAILED (failures=1)
-设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251109_223608_266753_92e766c4
-正在创建远端测试目录: ~/tmp/gds_test_20251109_223608_266753_92e766c4
+test_10_edit (test_gds.GDSTest) ... 设置GDS全面测试环境...
+清理Python缓存...
+Python缓存已清理
+远端测试目录: ~/tmp/gds_test_20251111_114347_363564_d4c87cee
+正在创建远端测试目录: ~/tmp/gds_test_20251111_114347_363564_d4c87cee
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251109_223608_266753_92e766c4
-✓ 验证测试目录存在: ~/tmp/gds_test_20251109_223608_266753_92e766c4
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_cjfjrk6y
+已切换到远端测试目录: ~/tmp/gds_test_20251111_114347_363564_d4c87cee
+✓ 验证测试目录存在: ~/tmp/gds_test_20251111_114347_363564_d4c87cee
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_lgak314c
 测试环境设置完成
 
-执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
-验证命令: ['ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py']
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251111_114347_363564_d4c87cee --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+命令: 'upload --target-dir ~/tmp/gds_test_20251111_114347_363564_d4c87cee --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
 返回码: 0
-输出: 
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_edit_simple_hello.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251111_114347_363564_d4c87cee move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证命令 1: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
-命令: 'ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py'
+验证命令 1: ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+命令: 'ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+输出: ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+验证成功: ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
 所有验证通过!
 
-执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
-验证命令: ['ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py']
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251111_114347_363564_d4c87cee --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'upload --target-dir ~/tmp/gds_test_20251109_223608_266753_92e766c4 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
+命令: 'upload --target-dir ~/tmp/gds_test_20251111_114347_363564_d4c87cee --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_edit_simple_hello.py"'
 返回码: 0
-输出: 
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if rm -f "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: file move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_edit_simple_hello_1.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251111_114347_363564_d4c87cee move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello_1.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: test_edit_simple_hello.py move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证命令 1: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
-命令: 'ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py'
+验证命令 1: ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+命令: 'ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py
+验证成功: ls ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
 所有验证通过!
 
-执行带重试的命令: edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\"Hello from remote project\", \"Hello from MODIFIED remote project\"]]
-验证命令: ['grep "MODIFIED" ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py']
+执行带重试的命令: edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py '[["Hello from remote project", "Hello from MODIFIED remote project"]]'
+验证命令: ['grep "MODIFIED" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\\"Hello from remote project\\", \\"Hello from MODIFIED remote project\\"]]'
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-重试第1次...
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-重试第2次...
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-Error: Main command failed, return code: 1
-Waiting 1 second before retrying...
+命令: 'edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["Hello from remote project", "Hello from MODIFIED remote project"]]\''
+返回码: 0
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["Hello from remote project", "Hello from MODIFIED remote project"]]\'']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["Hello from remote project", "Hello from MODIFIED remote project"]]\''
+User command preview [in f-string]: 
+=====================
+python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCBqc29uCmltcG9ydCBvcwppbXBvcnQgc3lzCmZyb20gZGF0ZXRpbWUgaW1wb3J0IGRhdGV0aW1lCmltcG9ydCBkaWZmbGliCgpkZWYgbWFpbigpOgogICAgZmlsZW5hbWUgPSAiL2NvbnRlbnQvZHJpdmUvTXlEcml2ZS9SRU1PVEVfUk9PVC90bXAvZ2RzX3Rlc3RfMjAyNTExMTFfMTE0MzQ3XzM2MzU2NF9kNGM4N2NlZS90ZXN0X2VkaXRfc2ltcGxlX2hlbGxvLnB5IgogICAgcmVwbGFjZW1lbnRzID0gW1siSGVsbG8gZnJvbSByZW1vdGUgcHJvamVjdCIsICJIZWxsbyBmcm9tIE1PRElGSUVEIHJlbW90ZSBwcm9qZWN0Il1dCiAgICBwcmV2aWV3ID0gRmFsc2UKICAgIGJhY2t1cCA9IEZhbHNlCiAgICAKICAgIHRyeToKICAgICAgICAjIDEuIOivu+WPluaWh+S7tuWGheWuuQogICAgICAgIGlmIG5vdCBvcy5wYXRoLmV4aXN0cyhmaWxlbmFtZSk6CiAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiRmlsZSBub3QgZm91bmQ6IHtmaWxlbmFtZX0ifSkpCiAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgIAogICAgICAgIHdpdGggb3BlbihmaWxlbmFtZSwgJ3InLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICBvcmlnaW5hbF9saW5lcyA9IGYucmVhZGxpbmVzKCkKICAgICAgICAKICAgICAgICAjIDIuIOino+aekOWSjOaJp+ihjOabv+aNouaTjeS9nAogICAgICAgIG1vZGlmaWVkX2xpbmVzID0gb3JpZ2luYWxfbGluZXMuY29weSgpCiAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cyA9IFtdCiAgICAgICAgCiAgICAgICAgZm9yIGksIHJlcGxhY2VtZW50IGluIGVudW1lcmF0ZShyZXBsYWNlbWVudHMpOgogICAgICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShyZXBsYWNlbWVudCwgbGlzdCkgb3IgbGVuKHJlcGxhY2VtZW50KSAhPSAyOgogICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJSZXBsYWNlbWVudCB7aSsxfSBoYXMgaW5jb3JyZWN0IGZvcm1hdCJ9KSkKICAgICAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgICAgICAKICAgICAgICAgICAgc291cmNlLCB0YXJnZXQgPSByZXBsYWNlbWVudAogICAgICAgICAgICAKICAgICAgICAgICAgaWYgaXNpbnN0YW5jZShzb3VyY2UsIGxpc3QpIGFuZCBsZW4oc291cmNlKSA9PSAyOgogICAgICAgICAgICAgICAgc3RhcnRfbGluZSwgZW5kX2xpbmUgPSBzb3VyY2UKICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgaWYgaXNpbnN0YW5jZShzdGFydF9saW5lLCBpbnQpIGFuZCBpc2luc3RhbmNlKGVuZF9saW5lLCBpbnQpOgogICAgICAgICAgICAgICAgICAgICMg6KGM5Y+35pu/5o2iCiAgICAgICAgICAgICAgICAgICAgc3RhcnRfaWR4ID0gc3RhcnRfbGluZQogICAgICAgICAgICAgICAgICAgIGVuZF9pZHggPSBlbmRfbGluZQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgIGlmIHN0YXJ0X2lkeCA8IDAgb3Igc3RhcnRfaWR4ID49IGxlbihvcmlnaW5hbF9saW5lcykgb3IgZW5kX2lkeCA+PSBsZW4ob3JpZ2luYWxfbGluZXMpIG9yIHN0YXJ0X2lkeCA+IGVuZF9pZHg6CiAgICAgICAgICAgICAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiTGluZSByYW5nZSBlcnJvcjogW3tzdGFydF9saW5lfSwge2VuZF9saW5lfV0ifSkpCiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cy5hcHBlbmQoeyJ0eXBlIjogImxpbmVfcmFuZ2UiLCAic3RhcnRfaWR4Ijogc3RhcnRfaWR4LCAiZW5kX2lkeCI6IGVuZF9pZHgsICJ0YXJnZXQiOiB0YXJnZXR9KQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICMg5omn6KGM5pu/5o2iCiAgICAgICAgICAgICAgICAgICAgZm9yIGogaW4gcmFuZ2Uoc3RhcnRfaWR4LCBlbmRfaWR4ICsgMSk6CiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVkX2xpbmVzW2pdID0gdGFyZ2V0ICsgIlxuIiBpZiBub3QgdGFyZ2V0LmVuZHN3aXRoKCJcbiIpIGVsc2UgdGFyZ2V0CiAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIkludmFsaWQgbGluZSBudW1iZXJzOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAgICAgIyDlrZfnrKbkuLLmm7/mjaIKICAgICAgICAgICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKHNvdXJjZSwgc3RyKToKICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIlNvdXJjZSBtdXN0IGJlIHN0cmluZyBvciBbc3RhcnRfbGluZSwgZW5kX2xpbmVdOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgIyDmn6Xmib7lubbmm7/mjaLlrZfnrKbkuLIKICAgICAgICAgICAgICAgIGZvdW5kID0gRmFsc2UKICAgICAgICAgICAgICAgIGZvciBqLCBsaW5lIGluIGVudW1lcmF0ZShtb2RpZmllZF9saW5lcyk6CiAgICAgICAgICAgICAgICAgICAgaWYgc291cmNlIGluIGxpbmU6CiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVkX2xpbmVzW2pdID0gbGluZS5yZXBsYWNlKHNvdXJjZSwgdGFyZ2V0KQogICAgICAgICAgICAgICAgICAgICAgICBmb3VuZCA9IFRydWUKICAgICAgICAgICAgICAgICAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cy5hcHBlbmQoeyJ0eXBlIjogInN0cmluZyIsICJsaW5lX2lkeCI6IGosICJzb3VyY2UiOiBzb3VyY2UsICJ0YXJnZXQiOiB0YXJnZXR9KQogICAgICAgICAgICAgICAgICAgICAgICBicmVhawogICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICBpZiBub3QgZm91bmQ6CiAgICAgICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJTdHJpbmcgbm90IGZvdW5kOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgIAogICAgICAgICMgMy4g55Sf5oiQZGlmZgogICAgICAgIGRpZmZfbGluZXMgPSBbXQogICAgICAgIGZvciBsaW5lIGluIGRpZmZsaWIudW5pZmllZF9kaWZmKAogICAgICAgICAgICBbbGluZS5yc3RyaXAoJ1xuJykgZm9yIGxpbmUgaW4gb3JpZ2luYWxfbGluZXNdLAogICAgICAgICAgICBbbGluZS5yc3RyaXAoJ1xuJykgZm9yIGxpbmUgaW4gbW9kaWZpZWRfbGluZXNdLAogICAgICAgICAgICBmcm9tZmlsZT1mIntmaWxlbmFtZX0gKG9yaWdpbmFsKSIsCiAgICAgICAgICAgIHRvZmlsZT1mIntmaWxlbmFtZX0gKG1vZGlmaWVkKSIsCiAgICAgICAgICAgIGxpbmV0ZXJtPScnCiAgICAgICAgKToKICAgICAgICAgICAgZGlmZl9saW5lcy5hcHBlbmQobGluZSkKICAgICAgICAKICAgICAgICAjIDQuIOWIm+W7uuWkh+S7ve+8iOWmguaenOmcgOimgeS4lOS4jeaYr+mihOiniOaooeW8j++8iQogICAgICAgIGJhY2t1cF9maWxlID0gTm9uZQogICAgICAgIGlmIGJhY2t1cCBhbmQgbm90IHByZXZpZXc6CiAgICAgICAgICAgIGJhY2t1cF9maWxlID0gZiJ7ZmlsZW5hbWV9LmJhY2t1cC57ZGF0ZXRpbWUubm93KCkuc3RyZnRpbWUoJyVZJW0lZF8lSCVNJVMnKX0iCiAgICAgICAgICAgIHdpdGggb3BlbihiYWNrdXBfZmlsZSwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICAgICAgZi53cml0ZWxpbmVzKG9yaWdpbmFsX2xpbmVzKQogICAgICAgIAogICAgICAgICMgNS4g5YaZ5YWl5L+u5pS55ZCO55qE5YaF5a6577yI5aaC5p6c5LiN5piv6aKE6KeI5qih5byP77yJCiAgICAgICAgaWYgbm90IHByZXZpZXc6CiAgICAgICAgICAgIHdpdGggb3BlbihmaWxlbmFtZSwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICAgICAgZi53cml0ZWxpbmVzKG1vZGlmaWVkX2xpbmVzKQogICAgICAgIAogICAgICAgICMgNi4g6L+U5Zue57uT5p6cCiAgICAgICAgcmVzdWx0ID0geyJzdWNjZXNzIjogVHJ1ZSwgInJlcGxhY2VtZW50c19tYWRlIjogbGVuKHBhcnNlZF9yZXBsYWNlbWVudHMpLCAiZGlmZl9saW5lcyI6IGRpZmZfbGluZXMsICJiYWNrdXBfZmlsZSI6IGJhY2t1cF9maWxlLCAicHJldmlldyI6IHByZXZpZXcsICJtb2RlIjogInByZXZpZXciIGlmIHByZXZpZXcgZWxzZSAiZWRpdCJ9CiAgICAgICAgCiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyhyZXN1bHQpKQogICAgICAgIHJldHVybiAwCiAgICAgICAgCiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogc3RyKGUpfSkpCiAgICAgICAgcmV0dXJuIDEKCmlmIF9fbmFtZV9fID09ICJfX21haW5fXyI6CiAgICBzeXMuZXhpdChtYWluKCkpCg==').decode('utf-8'))"
+=====================
+Remote real output: 
+=====================
+Edit comparison: ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -print(f'Hello from remote project')
+4: +print(f'Hello from MODIFIED remote project')
+5:  print(f"Current working directory:", __import__("os").getcwd())
+6:  import sys
+7:  print(f"Python version:", sys.version)
+==================================================
+File edited successfully
+Verify 1/1: grep "MODIFIED" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+命令: 'grep "MODIFIED" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+返回码: 0
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'grep "MODIFIED" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'grep "MODIFIED" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+  4: print(f'Hello from MODIFIED remote project')
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+Verify successful
+All verifications passed, command executed successfully
 
-尝试 2/3
-命令: 'edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\\"Hello from remote project\\", \\"Hello from MODIFIED remote project\\"]]'
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-重试第1次...
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-重试第2次...
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-Error: Main command failed, return code: 1
-Waiting 1 second before retrying...
+执行带重试的命令: edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py '[[[3, 4], "# Modified line 3-4"]]'
+验证命令: ['grep "# Modified line 3-4" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+最大重试次数: 3
 
-尝试 3/3
-命令: 'edit ~/tmp/gds_test_20251109_223608_266753_92e766c4/test_edit_simple_hello.py [[\\"Hello from remote project\\", \\"Hello from MODIFIED remote project\\"]]'
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-重试第1次...
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-重试第2次...
-返回码: 1
-输出: JSON parsing failed: Expecting value: line 1 column 3 (char 2)
-Error: Main command failed, return code: 1
+尝试 1/3
+命令: 'edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[[[3, 4], "# Modified line 3-4"]]\''
+返回码: 0
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[[[3, 4], "# Modified line 3-4"]]\'']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'edit ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[[[3, 4], "# Modified line 3-4"]]\''
+User command preview [in f-string]: 
+=====================
+python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCBqc29uCmltcG9ydCBvcwppbXBvcnQgc3lzCmZyb20gZGF0ZXRpbWUgaW1wb3J0IGRhdGV0aW1lCmltcG9ydCBkaWZmbGliCgpkZWYgbWFpbigpOgogICAgZmlsZW5hbWUgPSAiL2NvbnRlbnQvZHJpdmUvTXlEcml2ZS9SRU1PVEVfUk9PVC90bXAvZ2RzX3Rlc3RfMjAyNTExMTFfMTE0MzQ3XzM2MzU2NF9kNGM4N2NlZS90ZXN0X2VkaXRfc2ltcGxlX2hlbGxvLnB5IgogICAgcmVwbGFjZW1lbnRzID0gW1tbMywgNF0sICIjIE1vZGlmaWVkIGxpbmUgMy00Il1dCiAgICBwcmV2aWV3ID0gRmFsc2UKICAgIGJhY2t1cCA9IEZhbHNlCiAgICAKICAgIHRyeToKICAgICAgICAjIDEuIOivu+WPluaWh+S7tuWGheWuuQogICAgICAgIGlmIG5vdCBvcy5wYXRoLmV4aXN0cyhmaWxlbmFtZSk6CiAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiRmlsZSBub3QgZm91bmQ6IHtmaWxlbmFtZX0ifSkpCiAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgIAogICAgICAgIHdpdGggb3BlbihmaWxlbmFtZSwgJ3InLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICBvcmlnaW5hbF9saW5lcyA9IGYucmVhZGxpbmVzKCkKICAgICAgICAKICAgICAgICAjIDIuIOino+aekOWSjOaJp+ihjOabv+aNouaTjeS9nAogICAgICAgIG1vZGlmaWVkX2xpbmVzID0gb3JpZ2luYWxfbGluZXMuY29weSgpCiAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cyA9IFtdCiAgICAgICAgCiAgICAgICAgZm9yIGksIHJlcGxhY2VtZW50IGluIGVudW1lcmF0ZShyZXBsYWNlbWVudHMpOgogICAgICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShyZXBsYWNlbWVudCwgbGlzdCkgb3IgbGVuKHJlcGxhY2VtZW50KSAhPSAyOgogICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJSZXBsYWNlbWVudCB7aSsxfSBoYXMgaW5jb3JyZWN0IGZvcm1hdCJ9KSkKICAgICAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgICAgICAKICAgICAgICAgICAgc291cmNlLCB0YXJnZXQgPSByZXBsYWNlbWVudAogICAgICAgICAgICAKICAgICAgICAgICAgaWYgaXNpbnN0YW5jZShzb3VyY2UsIGxpc3QpIGFuZCBsZW4oc291cmNlKSA9PSAyOgogICAgICAgICAgICAgICAgc3RhcnRfbGluZSwgZW5kX2xpbmUgPSBzb3VyY2UKICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgaWYgaXNpbnN0YW5jZShzdGFydF9saW5lLCBpbnQpIGFuZCBpc2luc3RhbmNlKGVuZF9saW5lLCBpbnQpOgogICAgICAgICAgICAgICAgICAgICMg6KGM5Y+35pu/5o2iCiAgICAgICAgICAgICAgICAgICAgc3RhcnRfaWR4ID0gc3RhcnRfbGluZQogICAgICAgICAgICAgICAgICAgIGVuZF9pZHggPSBlbmRfbGluZQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgIGlmIHN0YXJ0X2lkeCA8IDAgb3Igc3RhcnRfaWR4ID49IGxlbihvcmlnaW5hbF9saW5lcykgb3IgZW5kX2lkeCA+PSBsZW4ob3JpZ2luYWxfbGluZXMpIG9yIHN0YXJ0X2lkeCA+IGVuZF9pZHg6CiAgICAgICAgICAgICAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiTGluZSByYW5nZSBlcnJvcjogW3tzdGFydF9saW5lfSwge2VuZF9saW5lfV0ifSkpCiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cy5hcHBlbmQoeyJ0eXBlIjogImxpbmVfcmFuZ2UiLCAic3RhcnRfaWR4Ijogc3RhcnRfaWR4LCAiZW5kX2lkeCI6IGVuZF9pZHgsICJ0YXJnZXQiOiB0YXJnZXR9KQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICMg5omn6KGM5pu/5o2iCiAgICAgICAgICAgICAgICAgICAgZm9yIGogaW4gcmFuZ2Uoc3RhcnRfaWR4LCBlbmRfaWR4ICsgMSk6CiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVkX2xpbmVzW2pdID0gdGFyZ2V0ICsgIlxuIiBpZiBub3QgdGFyZ2V0LmVuZHN3aXRoKCJcbiIpIGVsc2UgdGFyZ2V0CiAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIkludmFsaWQgbGluZSBudW1iZXJzOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAgICAgIyDlrZfnrKbkuLLmm7/mjaIKICAgICAgICAgICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKHNvdXJjZSwgc3RyKToKICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIlNvdXJjZSBtdXN0IGJlIHN0cmluZyBvciBbc3RhcnRfbGluZSwgZW5kX2xpbmVdOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgIyDmn6Xmib7lubbmm7/mjaLlrZfnrKbkuLIKICAgICAgICAgICAgICAgIGZvdW5kID0gRmFsc2UKICAgICAgICAgICAgICAgIGZvciBqLCBsaW5lIGluIGVudW1lcmF0ZShtb2RpZmllZF9saW5lcyk6CiAgICAgICAgICAgICAgICAgICAgaWYgc291cmNlIGluIGxpbmU6CiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVkX2xpbmVzW2pdID0gbGluZS5yZXBsYWNlKHNvdXJjZSwgdGFyZ2V0KQogICAgICAgICAgICAgICAgICAgICAgICBmb3VuZCA9IFRydWUKICAgICAgICAgICAgICAgICAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cy5hcHBlbmQoeyJ0eXBlIjogInN0cmluZyIsICJsaW5lX2lkeCI6IGosICJzb3VyY2UiOiBzb3VyY2UsICJ0YXJnZXQiOiB0YXJnZXR9KQogICAgICAgICAgICAgICAgICAgICAgICBicmVhawogICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICBpZiBub3QgZm91bmQ6CiAgICAgICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJTdHJpbmcgbm90IGZvdW5kOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgIAogICAgICAgICMgMy4g55Sf5oiQZGlmZgogICAgICAgIGRpZmZfbGluZXMgPSBbXQogICAgICAgIGZvciBsaW5lIGluIGRpZmZsaWIudW5pZmllZF9kaWZmKAogICAgICAgICAgICBbbGluZS5yc3RyaXAoJ1xuJykgZm9yIGxpbmUgaW4gb3JpZ2luYWxfbGluZXNdLAogICAgICAgICAgICBbbGluZS5yc3RyaXAoJ1xuJykgZm9yIGxpbmUgaW4gbW9kaWZpZWRfbGluZXNdLAogICAgICAgICAgICBmcm9tZmlsZT1mIntmaWxlbmFtZX0gKG9yaWdpbmFsKSIsCiAgICAgICAgICAgIHRvZmlsZT1mIntmaWxlbmFtZX0gKG1vZGlmaWVkKSIsCiAgICAgICAgICAgIGxpbmV0ZXJtPScnCiAgICAgICAgKToKICAgICAgICAgICAgZGlmZl9saW5lcy5hcHBlbmQobGluZSkKICAgICAgICAKICAgICAgICAjIDQuIOWIm+W7uuWkh+S7ve+8iOWmguaenOmcgOimgeS4lOS4jeaYr+mihOiniOaooeW8j++8iQogICAgICAgIGJhY2t1cF9maWxlID0gTm9uZQogICAgICAgIGlmIGJhY2t1cCBhbmQgbm90IHByZXZpZXc6CiAgICAgICAgICAgIGJhY2t1cF9maWxlID0gZiJ7ZmlsZW5hbWV9LmJhY2t1cC57ZGF0ZXRpbWUubm93KCkuc3RyZnRpbWUoJyVZJW0lZF8lSCVNJVMnKX0iCiAgICAgICAgICAgIHdpdGggb3BlbihiYWNrdXBfZmlsZSwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICAgICAgZi53cml0ZWxpbmVzKG9yaWdpbmFsX2xpbmVzKQogICAgICAgIAogICAgICAgICMgNS4g5YaZ5YWl5L+u5pS55ZCO55qE5YaF5a6577yI5aaC5p6c5LiN5piv6aKE6KeI5qih5byP77yJCiAgICAgICAgaWYgbm90IHByZXZpZXc6CiAgICAgICAgICAgIHdpdGggb3BlbihmaWxlbmFtZSwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICAgICAgZi53cml0ZWxpbmVzKG1vZGlmaWVkX2xpbmVzKQogICAgICAgIAogICAgICAgICMgNi4g6L+U5Zue57uT5p6cCiAgICAgICAgcmVzdWx0ID0geyJzdWNjZXNzIjogVHJ1ZSwgInJlcGxhY2VtZW50c19tYWRlIjogbGVuKHBhcnNlZF9yZXBsYWNlbWVudHMpLCAiZGlmZl9saW5lcyI6IGRpZmZfbGluZXMsICJiYWNrdXBfZmlsZSI6IGJhY2t1cF9maWxlLCAicHJldmlldyI6IHByZXZpZXcsICJtb2RlIjogInByZXZpZXciIGlmIHByZXZpZXcgZWxzZSAiZWRpdCJ9CiAgICAgICAgCiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyhyZXN1bHQpKQogICAgICAgIHJldHVybiAwCiAgICAgICAgCiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogc3RyKGUpfSkpCiAgICAgICAgcmV0dXJuIDEKCmlmIF9fbmFtZV9fID09ICJfX21haW5fXyI6CiAgICBzeXMuZXhpdChtYWluKCkpCg==').decode('utf-8'))"
+=====================
+Remote real output: 
+=====================
+Edit comparison: ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -print(f'Hello from MODIFIED remote project')
+   -print(f"Current working directory:", __import__("os").getcwd())
+4: +# Modified line 3-4
+5: +# Modified line 3-4
+6:  import sys
+7:  print(f"Python version:", sys.version)
+==================================================
+File edited successfully
+Verify 1/1: grep "# Modified line 3-4" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+命令: 'grep "# Modified line 3-4" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+返回码: 0
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'grep "# Modified line 3-4" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'grep "# Modified line 3-4" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+DEBUG 重新切分结果: ['grep', '# Modified line 3-4', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG 使用切分后的结果，新的shell_cmd_parts = ['grep', '# Modified line 3-4', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+  4: # Modified line 3-4
+  5: # Modified line 3-4
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+Verify successful
+All verifications passed, command executed successfully
+命令: 'edit --preview ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["print", "# print"]]\''
+返回码: 0
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'edit --preview ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["print", "# print"]]\'']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'edit --preview ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["print", "# print"]]\''
+DEBUG 重新切分结果: ['edit', '--preview', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py', '[["print", "# print"]]']
+DEBUG 使用切分后的结果，新的shell_cmd_parts = ['edit', '--preview', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py', '[["print", "# print"]]']
+DEBUG 使用shlex.join合并：edit --preview '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py' '[["print", "# print"]]'
+User command preview [in f-string]: 
+=====================
+python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCBqc29uCmltcG9ydCBvcwppbXBvcnQgc3lzCmZyb20gZGF0ZXRpbWUgaW1wb3J0IGRhdGV0aW1lCmltcG9ydCBkaWZmbGliCgpkZWYgbWFpbigpOgogICAgZmlsZW5hbWUgPSAiL2NvbnRlbnQvZHJpdmUvTXlEcml2ZS9SRU1PVEVfUk9PVC90bXAvZ2RzX3Rlc3RfMjAyNTExMTFfMTE0MzQ3XzM2MzU2NF9kNGM4N2NlZS90ZXN0X2VkaXRfc2ltcGxlX2hlbGxvLnB5IgogICAgcmVwbGFjZW1lbnRzID0gW1sicHJpbnQiLCAiIyBwcmludCJdXQogICAgcHJldmlldyA9IFRydWUKICAgIGJhY2t1cCA9IEZhbHNlCiAgICAKICAgIHRyeToKICAgICAgICAjIDEuIOivu+WPluaWh+S7tuWGheWuuQogICAgICAgIGlmIG5vdCBvcy5wYXRoLmV4aXN0cyhmaWxlbmFtZSk6CiAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiRmlsZSBub3QgZm91bmQ6IHtmaWxlbmFtZX0ifSkpCiAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgIAogICAgICAgIHdpdGggb3BlbihmaWxlbmFtZSwgJ3InLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICBvcmlnaW5hbF9saW5lcyA9IGYucmVhZGxpbmVzKCkKICAgICAgICAKICAgICAgICAjIDIuIOino+aekOWSjOaJp+ihjOabv+aNouaTjeS9nAogICAgICAgIG1vZGlmaWVkX2xpbmVzID0gb3JpZ2luYWxfbGluZXMuY29weSgpCiAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cyA9IFtdCiAgICAgICAgCiAgICAgICAgZm9yIGksIHJlcGxhY2VtZW50IGluIGVudW1lcmF0ZShyZXBsYWNlbWVudHMpOgogICAgICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShyZXBsYWNlbWVudCwgbGlzdCkgb3IgbGVuKHJlcGxhY2VtZW50KSAhPSAyOgogICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJSZXBsYWNlbWVudCB7aSsxfSBoYXMgaW5jb3JyZWN0IGZvcm1hdCJ9KSkKICAgICAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgICAgICAKICAgICAgICAgICAgc291cmNlLCB0YXJnZXQgPSByZXBsYWNlbWVudAogICAgICAgICAgICAKICAgICAgICAgICAgaWYgaXNpbnN0YW5jZShzb3VyY2UsIGxpc3QpIGFuZCBsZW4oc291cmNlKSA9PSAyOgogICAgICAgICAgICAgICAgc3RhcnRfbGluZSwgZW5kX2xpbmUgPSBzb3VyY2UKICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgaWYgaXNpbnN0YW5jZShzdGFydF9saW5lLCBpbnQpIGFuZCBpc2luc3RhbmNlKGVuZF9saW5lLCBpbnQpOgogICAgICAgICAgICAgICAgICAgICMg6KGM5Y+35pu/5o2iCiAgICAgICAgICAgICAgICAgICAgc3RhcnRfaWR4ID0gc3RhcnRfbGluZQogICAgICAgICAgICAgICAgICAgIGVuZF9pZHggPSBlbmRfbGluZQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgIGlmIHN0YXJ0X2lkeCA8IDAgb3Igc3RhcnRfaWR4ID49IGxlbihvcmlnaW5hbF9saW5lcykgb3IgZW5kX2lkeCA+PSBsZW4ob3JpZ2luYWxfbGluZXMpIG9yIHN0YXJ0X2lkeCA+IGVuZF9pZHg6CiAgICAgICAgICAgICAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiTGluZSByYW5nZSBlcnJvcjogW3tzdGFydF9saW5lfSwge2VuZF9saW5lfV0ifSkpCiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cy5hcHBlbmQoeyJ0eXBlIjogImxpbmVfcmFuZ2UiLCAic3RhcnRfaWR4Ijogc3RhcnRfaWR4LCAiZW5kX2lkeCI6IGVuZF9pZHgsICJ0YXJnZXQiOiB0YXJnZXR9KQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgICMg5omn6KGM5pu/5o2iCiAgICAgICAgICAgICAgICAgICAgZm9yIGogaW4gcmFuZ2Uoc3RhcnRfaWR4LCBlbmRfaWR4ICsgMSk6CiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVkX2xpbmVzW2pdID0gdGFyZ2V0ICsgIlxuIiBpZiBub3QgdGFyZ2V0LmVuZHN3aXRoKCJcbiIpIGVsc2UgdGFyZ2V0CiAgICAgICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIkludmFsaWQgbGluZSBudW1iZXJzOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAgICAgIyDlrZfnrKbkuLLmm7/mjaIKICAgICAgICAgICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKHNvdXJjZSwgc3RyKToKICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIlNvdXJjZSBtdXN0IGJlIHN0cmluZyBvciBbc3RhcnRfbGluZSwgZW5kX2xpbmVdOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgIyDmn6Xmib7lubbmm7/mjaLlrZfnrKbkuLIKICAgICAgICAgICAgICAgIGZvdW5kID0gRmFsc2UKICAgICAgICAgICAgICAgIGZvciBqLCBsaW5lIGluIGVudW1lcmF0ZShtb2RpZmllZF9saW5lcyk6CiAgICAgICAgICAgICAgICAgICAgaWYgc291cmNlIGluIGxpbmU6CiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVkX2xpbmVzW2pdID0gbGluZS5yZXBsYWNlKHNvdXJjZSwgdGFyZ2V0KQogICAgICAgICAgICAgICAgICAgICAgICBmb3VuZCA9IFRydWUKICAgICAgICAgICAgICAgICAgICAgICAgcGFyc2VkX3JlcGxhY2VtZW50cy5hcHBlbmQoeyJ0eXBlIjogInN0cmluZyIsICJsaW5lX2lkeCI6IGosICJzb3VyY2UiOiBzb3VyY2UsICJ0YXJnZXQiOiB0YXJnZXR9KQogICAgICAgICAgICAgICAgICAgICAgICBicmVhawogICAgICAgICAgICAgICAgCiAgICAgICAgICAgICAgICBpZiBub3QgZm91bmQ6CiAgICAgICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJTdHJpbmcgbm90IGZvdW5kOiB7c291cmNlfSJ9KSkKICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgIAogICAgICAgICMgMy4g55Sf5oiQZGlmZgogICAgICAgIGRpZmZfbGluZXMgPSBbXQogICAgICAgIGZvciBsaW5lIGluIGRpZmZsaWIudW5pZmllZF9kaWZmKAogICAgICAgICAgICBbbGluZS5yc3RyaXAoJ1xuJykgZm9yIGxpbmUgaW4gb3JpZ2luYWxfbGluZXNdLAogICAgICAgICAgICBbbGluZS5yc3RyaXAoJ1xuJykgZm9yIGxpbmUgaW4gbW9kaWZpZWRfbGluZXNdLAogICAgICAgICAgICBmcm9tZmlsZT1mIntmaWxlbmFtZX0gKG9yaWdpbmFsKSIsCiAgICAgICAgICAgIHRvZmlsZT1mIntmaWxlbmFtZX0gKG1vZGlmaWVkKSIsCiAgICAgICAgICAgIGxpbmV0ZXJtPScnCiAgICAgICAgKToKICAgICAgICAgICAgZGlmZl9saW5lcy5hcHBlbmQobGluZSkKICAgICAgICAKICAgICAgICAjIDQuIOWIm+W7uuWkh+S7ve+8iOWmguaenOmcgOimgeS4lOS4jeaYr+mihOiniOaooeW8j++8iQogICAgICAgIGJhY2t1cF9maWxlID0gTm9uZQogICAgICAgIGlmIGJhY2t1cCBhbmQgbm90IHByZXZpZXc6CiAgICAgICAgICAgIGJhY2t1cF9maWxlID0gZiJ7ZmlsZW5hbWV9LmJhY2t1cC57ZGF0ZXRpbWUubm93KCkuc3RyZnRpbWUoJyVZJW0lZF8lSCVNJVMnKX0iCiAgICAgICAgICAgIHdpdGggb3BlbihiYWNrdXBfZmlsZSwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICAgICAgZi53cml0ZWxpbmVzKG9yaWdpbmFsX2xpbmVzKQogICAgICAgIAogICAgICAgICMgNS4g5YaZ5YWl5L+u5pS55ZCO55qE5YaF5a6577yI5aaC5p6c5LiN5piv6aKE6KeI5qih5byP77yJCiAgICAgICAgaWYgbm90IHByZXZpZXc6CiAgICAgICAgICAgIHdpdGggb3BlbihmaWxlbmFtZSwgJ3cnLCBlbmNvZGluZz0ndXRmLTgnKSBhcyBmOgogICAgICAgICAgICAgICAgZi53cml0ZWxpbmVzKG1vZGlmaWVkX2xpbmVzKQogICAgICAgIAogICAgICAgICMgNi4g6L+U5Zue57uT5p6cCiAgICAgICAgcmVzdWx0ID0geyJzdWNjZXNzIjogVHJ1ZSwgInJlcGxhY2VtZW50c19tYWRlIjogbGVuKHBhcnNlZF9yZXBsYWNlbWVudHMpLCAiZGlmZl9saW5lcyI6IGRpZmZfbGluZXMsICJiYWNrdXBfZmlsZSI6IGJhY2t1cF9maWxlLCAicHJldmlldyI6IHByZXZpZXcsICJtb2RlIjogInByZXZpZXciIGlmIHByZXZpZXcgZWxzZSAiZWRpdCJ9CiAgICAgICAgCiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyhyZXN1bHQpKQogICAgICAgIHJldHVybiAwCiAgICAgICAgCiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogc3RyKGUpfSkpCiAgICAgICAgcmV0dXJuIDEKCmlmIF9fbmFtZV9fID09ICJfX21haW5fXyI6CiAgICBzeXMuZXhpdChtYWluKCkpCg==').decode('utf-8'))"
+=====================
+Remote real output: 
+=====================
+Edit comparison: ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+==================================================
+@@ -4,4 +4,4 @@
+4:  # Modified line 3-4
+5:  # Modified line 3-4
+6:  import sys
+   -print(f"Python version:", sys.version)
+7: +# print(f"Python version:", sys.version)
+==================================================
+Edit preview completed
+
+执行带重试的命令: edit --backup ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py '[["Modified line", "Updated line"]]'
+验证命令: ['grep "Updated line" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'edit --backup ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["Modified line", "Updated line"]]\''
+返回码: 0
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'edit --backup ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["Modified line", "Updated line"]]\'']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'edit --backup ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py \'[["Modified line", "Updated line"]]\''
+DEBUG 重新切分结果: ['edit', '--backup', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py', '[["Modified line", "Updated line"]]']
+DEBUG 使用切分后的结果，新的shell_cmd_parts = ['edit', '--backup', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py', '[["Modified line", "Updated line"]]']
+DEBUG 使用shlex.join合并：edit --backup '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py' '[["Modified line", "Updated line"]]'
+User command preview [in f-string]: 
+=====================
+python3 -c "import base64; exec(base64.b64decode('CmltcG9ydCBqc29uCmltcG9ydCBvcwppbXBvcnQgc3lzCmZyb20gZGF0ZXRpbWUgaW1wb3J0IGRhdGV0aW1lCmltcG9ydCBkaWZmbGliCgpkZWYgbWFpbigpOgogICAgZmlsZW5hbWUgPSAiL2NvbnRlbnQvZHJpdmUvTXlEcml2ZS9SRU1PVEVfUk9PVC90bXAvZ2RzX3Rlc3RfMjAyNTExMTFfMTE0MzQ3XzM2MzU2NF9kNGM4N2NlZS90ZXN0X2VkaXRfc2ltcGxlX2hlbGxvLnB5IgogICAgcmVwbGFjZW1lbnRzID0gW1siTW9kaWZpZWQgbGluZSIsICJVcGRhdGVkIGxpbmUiXV0KICAgIHByZXZpZXcgPSBGYWxzZQogICAgYmFja3VwID0gVHJ1ZQogICAgCiAgICB0cnk6CiAgICAgICAgIyAxLiDor7vlj5bmlofku7blhoXlrrkKICAgICAgICBpZiBub3Qgb3MucGF0aC5leGlzdHMoZmlsZW5hbWUpOgogICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIkZpbGUgbm90IGZvdW5kOiB7ZmlsZW5hbWV9In0pKQogICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAKICAgICAgICB3aXRoIG9wZW4oZmlsZW5hbWUsICdyJywgZW5jb2Rpbmc9J3V0Zi04JykgYXMgZjoKICAgICAgICAgICAgb3JpZ2luYWxfbGluZXMgPSBmLnJlYWRsaW5lcygpCiAgICAgICAgCiAgICAgICAgIyAyLiDop6PmnpDlkozmiafooYzmm7/mjaLmk43kvZwKICAgICAgICBtb2RpZmllZF9saW5lcyA9IG9yaWdpbmFsX2xpbmVzLmNvcHkoKQogICAgICAgIHBhcnNlZF9yZXBsYWNlbWVudHMgPSBbXQogICAgICAgIAogICAgICAgIGZvciBpLCByZXBsYWNlbWVudCBpbiBlbnVtZXJhdGUocmVwbGFjZW1lbnRzKToKICAgICAgICAgICAgaWYgbm90IGlzaW5zdGFuY2UocmVwbGFjZW1lbnQsIGxpc3QpIG9yIGxlbihyZXBsYWNlbWVudCkgIT0gMjoKICAgICAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiUmVwbGFjZW1lbnQge2krMX0gaGFzIGluY29ycmVjdCBmb3JtYXQifSkpCiAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgCiAgICAgICAgICAgIHNvdXJjZSwgdGFyZ2V0ID0gcmVwbGFjZW1lbnQKICAgICAgICAgICAgCiAgICAgICAgICAgIGlmIGlzaW5zdGFuY2Uoc291cmNlLCBsaXN0KSBhbmQgbGVuKHNvdXJjZSkgPT0gMjoKICAgICAgICAgICAgICAgIHN0YXJ0X2xpbmUsIGVuZF9saW5lID0gc291cmNlCiAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgIGlmIGlzaW5zdGFuY2Uoc3RhcnRfbGluZSwgaW50KSBhbmQgaXNpbnN0YW5jZShlbmRfbGluZSwgaW50KToKICAgICAgICAgICAgICAgICAgICAjIOihjOWPt+abv+aNogogICAgICAgICAgICAgICAgICAgIHN0YXJ0X2lkeCA9IHN0YXJ0X2xpbmUKICAgICAgICAgICAgICAgICAgICBlbmRfaWR4ID0gZW5kX2xpbmUKICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICBpZiBzdGFydF9pZHggPCAwIG9yIHN0YXJ0X2lkeCA+PSBsZW4ob3JpZ2luYWxfbGluZXMpIG9yIGVuZF9pZHggPj0gbGVuKG9yaWdpbmFsX2xpbmVzKSBvciBzdGFydF9pZHggPiBlbmRfaWR4OgogICAgICAgICAgICAgICAgICAgICAgICBwcmludChqc29uLmR1bXBzKHsic3VjY2VzcyI6IEZhbHNlLCAiZXJyb3IiOiBmIkxpbmUgcmFuZ2UgZXJyb3I6IFt7c3RhcnRfbGluZX0sIHtlbmRfbGluZX1dIn0pKQogICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gMQogICAgICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgICAgIHBhcnNlZF9yZXBsYWNlbWVudHMuYXBwZW5kKHsidHlwZSI6ICJsaW5lX3JhbmdlIiwgInN0YXJ0X2lkeCI6IHN0YXJ0X2lkeCwgImVuZF9pZHgiOiBlbmRfaWR4LCAidGFyZ2V0IjogdGFyZ2V0fSkKICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICAgICAjIOaJp+ihjOabv+aNogogICAgICAgICAgICAgICAgICAgIGZvciBqIGluIHJhbmdlKHN0YXJ0X2lkeCwgZW5kX2lkeCArIDEpOgogICAgICAgICAgICAgICAgICAgICAgICBtb2RpZmllZF9saW5lc1tqXSA9IHRhcmdldCArICJcbiIgaWYgbm90IHRhcmdldC5lbmRzd2l0aCgiXG4iKSBlbHNlIHRhcmdldAogICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJJbnZhbGlkIGxpbmUgbnVtYmVyczoge3NvdXJjZX0ifSkpCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIDEKICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICMg5a2X56ym5Liy5pu/5o2iCiAgICAgICAgICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShzb3VyY2UsIHN0cik6CiAgICAgICAgICAgICAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7InN1Y2Nlc3MiOiBGYWxzZSwgImVycm9yIjogZiJTb3VyY2UgbXVzdCBiZSBzdHJpbmcgb3IgW3N0YXJ0X2xpbmUsIGVuZF9saW5lXToge3NvdXJjZX0ifSkpCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIDEKICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgICMg5p+l5om+5bm25pu/5o2i5a2X56ym5LiyCiAgICAgICAgICAgICAgICBmb3VuZCA9IEZhbHNlCiAgICAgICAgICAgICAgICBmb3IgaiwgbGluZSBpbiBlbnVtZXJhdGUobW9kaWZpZWRfbGluZXMpOgogICAgICAgICAgICAgICAgICAgIGlmIHNvdXJjZSBpbiBsaW5lOgogICAgICAgICAgICAgICAgICAgICAgICBtb2RpZmllZF9saW5lc1tqXSA9IGxpbmUucmVwbGFjZShzb3VyY2UsIHRhcmdldCkKICAgICAgICAgICAgICAgICAgICAgICAgZm91bmQgPSBUcnVlCiAgICAgICAgICAgICAgICAgICAgICAgIHBhcnNlZF9yZXBsYWNlbWVudHMuYXBwZW5kKHsidHlwZSI6ICJzdHJpbmciLCAibGluZV9pZHgiOiBqLCAic291cmNlIjogc291cmNlLCAidGFyZ2V0IjogdGFyZ2V0fSkKICAgICAgICAgICAgICAgICAgICAgICAgYnJlYWsKICAgICAgICAgICAgICAgIAogICAgICAgICAgICAgICAgaWYgbm90IGZvdW5kOgogICAgICAgICAgICAgICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IGYiU3RyaW5nIG5vdCBmb3VuZDoge3NvdXJjZX0ifSkpCiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIDEKICAgICAgICAKICAgICAgICAjIDMuIOeUn+aIkGRpZmYKICAgICAgICBkaWZmX2xpbmVzID0gW10KICAgICAgICBmb3IgbGluZSBpbiBkaWZmbGliLnVuaWZpZWRfZGlmZigKICAgICAgICAgICAgW2xpbmUucnN0cmlwKCdcbicpIGZvciBsaW5lIGluIG9yaWdpbmFsX2xpbmVzXSwKICAgICAgICAgICAgW2xpbmUucnN0cmlwKCdcbicpIGZvciBsaW5lIGluIG1vZGlmaWVkX2xpbmVzXSwKICAgICAgICAgICAgZnJvbWZpbGU9ZiJ7ZmlsZW5hbWV9IChvcmlnaW5hbCkiLAogICAgICAgICAgICB0b2ZpbGU9ZiJ7ZmlsZW5hbWV9IChtb2RpZmllZCkiLAogICAgICAgICAgICBsaW5ldGVybT0nJwogICAgICAgICk6CiAgICAgICAgICAgIGRpZmZfbGluZXMuYXBwZW5kKGxpbmUpCiAgICAgICAgCiAgICAgICAgIyA0LiDliJvlu7rlpIfku73vvIjlpoLmnpzpnIDopoHkuJTkuI3mmK/pooTop4jmqKHlvI/vvIkKICAgICAgICBiYWNrdXBfZmlsZSA9IE5vbmUKICAgICAgICBpZiBiYWNrdXAgYW5kIG5vdCBwcmV2aWV3OgogICAgICAgICAgICBiYWNrdXBfZmlsZSA9IGYie2ZpbGVuYW1lfS5iYWNrdXAue2RhdGV0aW1lLm5vdygpLnN0cmZ0aW1lKCclWSVtJWRfJUglTSVTJyl9IgogICAgICAgICAgICB3aXRoIG9wZW4oYmFja3VwX2ZpbGUsICd3JywgZW5jb2Rpbmc9J3V0Zi04JykgYXMgZjoKICAgICAgICAgICAgICAgIGYud3JpdGVsaW5lcyhvcmlnaW5hbF9saW5lcykKICAgICAgICAKICAgICAgICAjIDUuIOWGmeWFpeS/ruaUueWQjueahOWGheWuue+8iOWmguaenOS4jeaYr+mihOiniOaooeW8j++8iQogICAgICAgIGlmIG5vdCBwcmV2aWV3OgogICAgICAgICAgICB3aXRoIG9wZW4oZmlsZW5hbWUsICd3JywgZW5jb2Rpbmc9J3V0Zi04JykgYXMgZjoKICAgICAgICAgICAgICAgIGYud3JpdGVsaW5lcyhtb2RpZmllZF9saW5lcykKICAgICAgICAKICAgICAgICAjIDYuIOi/lOWbnue7k+aenAogICAgICAgIHJlc3VsdCA9IHsic3VjY2VzcyI6IFRydWUsICJyZXBsYWNlbWVudHNfbWFkZSI6IGxlbihwYXJzZWRfcmVwbGFjZW1lbnRzKSwgImRpZmZfbGluZXMiOiBkaWZmX2xpbmVzLCAiYmFja3VwX2ZpbGUiOiBiYWNrdXBfZmlsZSwgInByZXZpZXciOiBwcmV2aWV3LCAibW9kZSI6ICJwcmV2aWV3IiBpZiBwcmV2aWV3IGVsc2UgImVkaXQifQogICAgICAgIAogICAgICAgIHByaW50KGpzb24uZHVtcHMocmVzdWx0KSkKICAgICAgICByZXR1cm4gMAogICAgICAgIAogICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgIHByaW50KGpzb24uZHVtcHMoeyJzdWNjZXNzIjogRmFsc2UsICJlcnJvciI6IHN0cihlKX0pKQogICAgICAgIHJldHVybiAxCgppZiBfX25hbWVfXyA9PSAiX19tYWluX18iOgogICAgc3lzLmV4aXQobWFpbigpKQo=').decode('utf-8'))"
+=====================
+Remote real output: 
+=====================
+Edit comparison: ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+==================================================
+@@ -1,7 +1,7 @@
+1:  """
+2:  Simple Hello Script
+3:  """
+   -# Modified line 3-4
+4: +# Updated line 3-4
+5:  # Modified line 3-4
+6:  import sys
+7:  print(f"Python version:", sys.version)
+==================================================
+File edited successfully
+Verify 1/1: grep "Updated line" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py
+命令: 'grep "Updated line" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 459.087s
+
+OK
+输出: DEBUG handle_shell_command_args: 接收到的原始参数 = ['--no-direct-feedback', 'grep "Updated line" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG handle_shell_command_args: 参数类型 = <class 'list'>, 长度 = 2
+DEBUG   参数[0] = '--no-direct-feedback'
+DEBUG   参数[1] = 'grep "Updated line" ~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+DEBUG 重新切分结果: ['grep', 'Updated line', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG 使用切分后的结果，新的shell_cmd_parts = ['grep', 'Updated line', '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py']
+DEBUG 使用shlex.join合并：grep 'Updated line' '~/tmp/gds_test_20251111_114347_363564_d4c87cee/test_edit_simple_hello.py'
+  4: # Updated line 3-4
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+Verify successful
+All verifications passed, command executed successfully

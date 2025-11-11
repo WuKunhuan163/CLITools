@@ -969,7 +969,6 @@ class GoogleDriveShell:
             
             # 如果有command_wrapper，在路径展开后重新包装命令
             if command_wrapper:
-                import shlex
                 quoted = shlex.quote(shell_cmd_clean)
                 shell_cmd_clean = f"{command_wrapper} {quoted}"
             
@@ -1687,7 +1686,7 @@ fi
             print(f"Error: Cleanup failed: {e}")
             return 1
 
-    def _read_background_file(self, bg_pid, file_type, command_identifier=None):
+    def _read_background_file(self, bg_pid, file_type):
         """通用的后台任务文件读取接口
         
         Args:
@@ -2156,7 +2155,13 @@ fi
                 return self.shell_management.enter_shell_mode(command_identifier)
             else:
                 # 执行指定的shell命令
-                return self.handle_shell_command_args(args[1:], command_identifier)
+                # 将参数列表转换为字符串（使用第一个参数，如果多个参数则用空格连接）
+                shell_args = args[1:]
+                if len(shell_args) == 1:
+                    shell_cmd = shell_args[0]
+                else:
+                    shell_cmd = ' '.join(shell_args)
+                return self.handle_shell_command_args(shell_cmd, command_identifier)
         elif args[0] == '--desktop':
             return self.handle_desktop_command(args[1:], command_identifier)
         else:
@@ -2165,53 +2170,55 @@ fi
             print("Use --help for usage information")
             return 1
     
-    def handle_shell_command_args(self, shell_cmd_parts, command_identifier=None):
-        """处理--shell命令的参数"""
+    def handle_shell_command_args(self, shell_cmd, command_identifier=None):
+        """
+        处理--shell命令的参数
+        
+        Args:
+            shell_cmd: 命令字符串（不再接受列表）
+            command_identifier: 命令标识符
+        """
+        # 检测并移除flags
         no_direct_feedback = False
         is_priority = False
-        filtered_shell_parts = []
         
-        for part in shell_cmd_parts:
-            if part == '--no-direct-feedback':
-                no_direct_feedback = True
-            elif part == '--priority':
-                is_priority = True
-            else:
-                filtered_shell_parts.append(part)
+        # 简单的flag检测和移除
+        if '--no-direct-feedback' in shell_cmd:
+            no_direct_feedback = True
+            shell_cmd = shell_cmd.replace('--no-direct-feedback', '').strip()
+        if '--priority' in shell_cmd:
+            is_priority = True
+            shell_cmd = shell_cmd.replace('--priority', '').strip()
         
-        shell_cmd_parts = filtered_shell_parts
-        if not shell_cmd_parts:
+        shell_cmd = shell_cmd.strip()
+        if not shell_cmd:
             return 0
         
-        # 如果只有一个token，可能是用引号包裹的完整命令，尝试再次切分
-        if len(shell_cmd_parts) == 1:
+        print(f"DEBUG 处理后的命令字符串: {shell_cmd}")
+        
+        # 检测特殊命令包装（bash -c, echo -e等）
+        command_wrapper = None
+        if shell_cmd.startswith('bash -c '):
+            command_wrapper = 'bash -c'
+            shell_cmd = shell_cmd[len('bash -c '):].strip()
+            try:
+                unwrapped = shlex.split(shell_cmd)
+                if len(unwrapped) == 1:
+                    shell_cmd = unwrapped[0]
+            except:
+                pass
+            print(f"DEBUG 检测到bash -c包装，提取内部命令: {shell_cmd}")
+        elif shell_cmd.startswith('echo -e '):
+            command_wrapper = 'echo -e'
+            shell_cmd = shell_cmd[len('echo -e '):].strip()
             import shlex
             try:
-                re_split = shlex.split(shell_cmd_parts[0])
-                if len(re_split) > 1:
-                    # 成功切分，使用切分后的结果
-                    shell_cmd_parts = re_split
-            except ValueError:
-                # 切分失败，保持原样
+                unwrapped = shlex.split(shell_cmd)
+                if len(unwrapped) == 1:
+                    shell_cmd = unwrapped[0]
+            except:
                 pass
-        
-        # 检测特殊命令包装（bash -c, echo -e等），提取命令内容并设置flag
-        command_wrapper = None
-        if len(shell_cmd_parts) >= 2:
-            if shell_cmd_parts[0] == 'bash' and shell_cmd_parts[1] == '-c':
-                command_wrapper = 'bash -c'
-                shell_cmd = shell_cmd_parts[2] if len(shell_cmd_parts) == 3 else ' '.join(shell_cmd_parts[2:])
-            elif shell_cmd_parts[0] == 'echo' and shell_cmd_parts[1] == '-e':
-                command_wrapper = 'echo -e'
-                shell_cmd = shell_cmd_parts[2] if len(shell_cmd_parts) == 3 else ' '.join(shell_cmd_parts[2:])
-            else:
-                # 普通命令，使用shlex.join保留引号信息
-                import shlex
-                shell_cmd = shlex.join(shell_cmd_parts)
-        else:
-            # 单个命令或无参数命令
-            import shlex
-            shell_cmd = shlex.join(shell_cmd_parts)
+            print(f"DEBUG 检测到echo -e包装，提取内部命令: {shell_cmd}")
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):

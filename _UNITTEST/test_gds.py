@@ -198,6 +198,17 @@ class GDSTest(unittest.TestCase):
         cls.TEST_DATA_DIR = Path(__file__).parent / "_DATA"
         cls.TEST_TEMP_DIR = Path(__file__).parent / "_TEMP"
         
+        # 清理Python缓存，确保使用最新代码
+        print(f'清理Python缓存...')
+        import subprocess
+        subprocess.run(
+            f'find {cls.BIN_DIR}/GOOGLE_DRIVE_PROJ -type d -name "__pycache__" -exec rm -rf {{}} + 2>/dev/null; '
+            f'find {cls.BIN_DIR}/GOOGLE_DRIVE_PROJ -name "*.pyc" -delete 2>/dev/null',
+            shell=True,
+            capture_output=True
+        )
+        print(f'Python缓存已清理')
+        
         # 确保目录存在
         cls.TEST_DATA_DIR.mkdir(exist_ok=True)
         cls.TEST_TEMP_DIR.mkdir(exist_ok=True)
@@ -1628,19 +1639,21 @@ Shell commands: ls -la && echo "done"
         
         # 测试echo -e处理换行符（重定向到文件）
         echo_multiline_path = self.get_test_remote_path("echo_multiline.txt")
-        content = "line1\nline2\nline3"
+        content = "line1\\nline2\\nline3"  # 使用\\n作为字面的反斜杠-n字符串
+        expected_multiline = "line1\nline2\nline3"  # echo -e会将\n解释为实际换行
         # 注意：此内容不包含单引号，在双引号内直接使用即可
         result = self.gds(f'echo -e "{content}" > {echo_multiline_path}')
         self.assertEqual(result.returncode, 0)
-        self.assertTrue(self.verify_file_content_contains(echo_multiline_path, content, terminal_erase = True))
+        self.assertTrue(self.verify_file_content_contains(echo_multiline_path, expected_multiline, terminal_erase = True))
         
         # 测试echo -e处理复杂转义序列（对比默认echo行为）
         echo_escape_path = self.get_test_remote_path("echo_escape.txt")
-        escape_content = "Line 1\nLine 2\tTabbed\\Backslash"  # echo -e会解释转义序列
+        escape_content = "Line 1\\nLine 2\\tTabbed\\\\Backslash"  # 使用\\n \\t \\\\作为字面字符串
+        expected_escape = "Line 1\nLine 2\tTabbed\\Backslash"  # echo -e会解释\n和\t，\\会变成\
         # 注意：此内容不包含单引号，在双引号内直接使用即可
         result = self.gds(f'echo -e "{escape_content}" > {echo_escape_path}')
         self.assertEqual(result.returncode, 0)
-        self.assertTrue(self.verify_file_content_contains(echo_escape_path, escape_content, terminal_erase = True))
+        self.assertTrue(self.verify_file_content_contains(echo_escape_path, expected_escape, terminal_erase = True))
         
     def test_03_echo_advanced(self):
         """测试echo的正确JSON语法（修复后的功能）"""
@@ -1655,11 +1668,12 @@ Shell commands: ls -la && echo "done"
         
         # 测试echo -e参数处理换行符（用引号包围整个命令，避免本地重定向）
         multiline_path = self.get_test_remote_path("multiline.txt")
-        content = "Line1\nLine2\nLine3"
+        content = "Line1\\nLine2\\nLine3"  # 使用\\n作为字面的反斜杠-n字符串
+        expected_multiline = "Line1\nLine2\nLine3"  # echo -e会将\n解释为实际换行
         # 注意：此内容不包含单引号，在双引号内直接使用即可
         result = self.gds(f'echo -e "{content}" > {multiline_path}')
         self.assertEqual(result.returncode, 0)
-        self.assertTrue(self.verify_file_content_contains(multiline_path, content))
+        self.assertTrue(self.verify_file_content_contains(multiline_path, expected_multiline))
         
         # 测试echo命令输出到stdout
         echo_stdout_test = "Echo stdout test content"
@@ -2124,7 +2138,8 @@ print(f'Current files: {len(os.listdir())}')'''
         print(f'测试GDS download功能')
         
         # 首先创建一个测试文件用于下载测试
-        test_content = "This is a test file for download functionality.\nLine 2: 测试中文内容\nLine 3: Special chars: @#$%^&*()"
+        # 注意：使用 \\n 而不是 \n 来生成字面的反斜杠-n，避免实际换行导致命令解析错误
+        test_content = "This is a test file for download functionality.\\nLine 2: 测试中文内容\\nLine 3: Special chars: @#$%^&*()"
         download_file_remote = self.get_test_remote_path("download_file_remote.txt")
         
         # 创建测试文件
@@ -2329,7 +2344,7 @@ Line 5: No match here'''
         
         # 行号替换编辑（使用0-based索引，替换第3-4行）
         edit_data2 = [[[3, 4], "# Modified line 3-4"]]
-        edit_json2 = json.dumps(edit_data2).replace('"', '\\"')
+        edit_json2 = shlex.quote(json.dumps(edit_data2))
         success, result = self.gds_with_retry(
             f'edit {self.test_folder}/test_edit_simple_hello.py {edit_json2}',
             ['grep "# Modified line 3-4" ' + self.test_folder + '/test_edit_simple_hello.py'],
@@ -2340,13 +2355,13 @@ Line 5: No match here'''
         # 预览模式编辑（不实际修改文件）
         # 预览模式不修改文件，所以不需要验证文件内容变化
         edit_data3 = [["print", "# print"]]
-        edit_json3 = json.dumps(edit_data3).replace('"', '\\"')
+        edit_json3 = shlex.quote(json.dumps(edit_data3))
         result = self.gds(f'edit --preview {self.test_folder}/test_edit_simple_hello.py {edit_json3}')
         self.assertEqual(result.returncode, 0)
         
         # 备份模式编辑
         edit_data4 = [["Modified line", "Updated line"]]
-        edit_json4 = json.dumps(edit_data4).replace('"', '\\"')
+        edit_json4 = shlex.quote(json.dumps(edit_data4))
         success, result = self.gds_with_retry(
             f'edit --backup {self.test_folder}/test_edit_simple_hello.py {edit_json4}',
             ['grep "Updated line" ' + self.test_folder + '/test_edit_simple_hello.py'],
@@ -2857,7 +2872,7 @@ EOF'''
         print(f'阶段1: 项目初始化')
         
         # 创建项目目录
-        result = self.gds('mkdir -p ' + self.test_folder + '/myproject/src ' + self.test_folder + '/myproject/tests ' + self.test_folder + '/myproject/docs')
+        result = self.gds(f'mkdir -p ' + self.test_folder + '/myproject/src ' + self.test_folder + '/myproject/tests ' + self.test_folder + '/myproject/docs')
         self.assertEqual(result.returncode, 0)
         
         # 验证所有目录创建成功
@@ -2966,9 +2981,9 @@ if __name__ == "__main__":
         result = self.gds('python ' + myproject_path + '/src/main.py')
         self.assertEqual(result.returncode, 0)
         
-        # 创建配置文件
+        # 创建配置文件 - 使用单引号包围JSON内容，避免shell解释双引号
         config_content = '{"debug": true, "version": "1.0.0", "author": "developer"}'
-        result = self.gds(f'echo "{config_content}" > {myproject_path}/config.json')
+        result = self.gds(f"echo '{config_content}' > {myproject_path}/config.json")
         self.assertEqual(result.returncode, 0)
         
         # 再次运行程序（现在应该加载配置文件）

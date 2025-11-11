@@ -1,48 +1,55 @@
 # ============================================================================
-# Test completed at: 2025-11-10 17:56:00 - Status: PASS
+# Test completed at: 2025-11-11 12:06:22 - Status: PASS
 # ============================================================================
 
 test_00_ls_basic (test_gds.GDSTest)
 测试ls命令的全路径支持（修复后的功能） ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 164.211s
+Ran 1 test in 136.834s
 
 OK
 设置GDS全面测试环境...
-远端测试目录: ~/tmp/gds_test_20251110_175311_246343_340390a4
-正在创建远端测试目录: ~/tmp/gds_test_20251110_175311_246343_340390a4
+清理Python缓存...
+Python缓存已清理
+远端测试目录: ~/tmp/gds_test_20251111_120402_768723_56878e44
+正在创建远端测试目录: ~/tmp/gds_test_20251111_120402_768723_56878e44
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251110_175311_246343_340390a4
-✓ 验证测试目录存在: ~/tmp/gds_test_20251110_175311_246343_340390a4
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_rg0l5z5o
+已切换到远端测试目录: ~/tmp/gds_test_20251111_120402_768723_56878e44
+✓ 验证测试目录存在: ~/tmp/gds_test_20251111_120402_768723_56878e44
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_b9izd8d8
 测试环境设置完成
-命令: 'mkdir -p ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir'
+命令: 'mkdir -p ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir'
 返回码: 0
-输出: 
-命令: 'echo "test content" > ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir/testfile.txt'
+输出: DEBUG 处理后的命令字符串: mkdir -p ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120402_768723_56878e44/testdir"'
+=====================
+Remote real output: 
+=====================
+命令: 'echo "test content" > ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt'
+返回码: 0
+输出: DEBUG 处理后的命令字符串: echo "test content" > ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
+User command preview [in f-string]: 
+=====================
+echo "test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir'
+返回码: 0
+输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir
+testfile.txt
+命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt'
+返回码: 0
+输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
+~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/testfile.txt
+命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/nonexistent.txt'
 返回码: 1
-输出: Error: Unknown error. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2098, in handle_command_line_args
-    return self.handle_shell_command_args(args[1:], command_identifier)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2149, in handle_shell_command_args
-    return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 1025, in execute_shell_command
-    call_stack = ''.join(traceback.format_stack()[-3:])
-🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
-检测到Unknown error，设置remount flag，下一个窗口将自动remount
-Remount flag已设置，下一个窗口将自动处理remount
-重试第1次...
-返回码: 0
-输出: 
-命令: 'ls ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir'
-返回码: 0
-输出: testfile.txt
-命令: 'ls ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir/testfile.txt'
-返回码: 0
-输出: ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir/testfile.txt
-命令: 'ls ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir/nonexistent.txt'
+输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/nonexistent.txt
+ls: ~/tmp/gds_test_20251111_120402_768723_56878e44/testdir/nonexistent.txt: No such file or directory
+命令: 'ls ~/tmp/gds_test_20251111_120402_768723_56878e44/nonexistent_dir/file.txt'
 返回码: 1
-输出: ls: ~/tmp/gds_test_20251110_175311_246343_340390a4/testdir/nonexistent.txt: No such file or directory
-命令: 'ls ~/tmp/gds_test_20251110_175311_246343_340390a4/nonexistent_dir/file.txt'
-返回码: 1
-输出: ls: ~/tmp/gds_test_20251110_175311_246343_340390a4/nonexistent_dir/file.txt: No such file or directory
+输出: DEBUG 处理后的命令字符串: ls ~/tmp/gds_test_20251111_120402_768723_56878e44/nonexistent_dir/file.txt
+ls: ~/tmp/gds_test_20251111_120402_768723_56878e44/nonexistent_dir/file.txt: No such file or directory
