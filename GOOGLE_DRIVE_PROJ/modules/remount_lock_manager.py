@@ -192,19 +192,23 @@ class RemountLockManager:
         except Exception:
             return False
     
-    def wait_for_remount_completion(self, max_wait_seconds=60):
+    def wait_for_remount_completion(self, max_wait_seconds=None):
         """
         等待remount完成
         
         Args:
-            max_wait_seconds: 最大等待时间（秒）
+            max_wait_seconds: 最大等待时间（秒），None表示无超时限制
             
         Returns:
-            bool: True表示remount已完成，False表示超时
+            bool: True表示remount已完成，False表示超时（仅当max_wait_seconds不为None时）
         """
         start_time = time.time()
         
-        while (time.time() - start_time) < max_wait_seconds:
+        while True:
+            # 如果设置了超时，检查是否超时
+            if max_wait_seconds is not None and (time.time() - start_time) >= max_wait_seconds:
+                return False  # 超时
+            
             # 检查flag是否还存在
             flag_file = self._get_flag_file_path()
             if not flag_file.exists():
@@ -219,7 +223,7 @@ class RemountLockManager:
             
             time.sleep(0.5)  # 每0.5秒检查一次
         
-        return False  # 超时
+        return False  # flag存在但没有remount在进行
 
 
 # 全局锁管理器实例

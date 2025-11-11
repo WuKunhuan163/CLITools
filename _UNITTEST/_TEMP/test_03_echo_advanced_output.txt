@@ -1,2 +1,101 @@
+# ============================================================================
+# Test completed at: 2025-11-11 12:10:25 - Status: FAIL
+# ============================================================================
+
 test_03_echo_advanced (test_gds.GDSTest)
-测试echo的正确JSON语法（修复后的功能） ... 
+测试echo的正确JSON语法（修复后的功能） ... FAIL
+
+======================================================================
+FAIL: test_03_echo_advanced (test_gds.GDSTest)
+测试echo的正确JSON语法（修复后的功能）
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 850, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 824, in _baseAssertEqual
+    raise self.failureException(msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1676, in test_03_echo_advanced
+    self.assertTrue(self.verify_file_content_contains(multiline_path, expected_multiline))
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 951, in verify_file_content_contains
+    result = self.gds(f'cat {filename}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 856, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 236.265s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+清理Python缓存...
+Python缓存已清理
+远端测试目录: ~/tmp/gds_test_20251111_120627_913124_87a1dc05
+正在创建远端测试目录: ~/tmp/gds_test_20251111_120627_913124_87a1dc05
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251111_120627_913124_87a1dc05
+✓ 验证测试目录存在: ~/tmp/gds_test_20251111_120627_913124_87a1dc05
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_c1527aqk
+测试环境设置完成
+命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt'
+返回码: 0
+输出: DEBUG 处理后的命令字符串: echo "{'name': 'test03_json_echo_01', 'value': 123}" > ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt
+User command preview [in f-string]: 
+=====================
+echo "{'name': 'test03_json_echo_01', 'value': 123}" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt
+  expected_content: "{'name': 'test03_json_echo_01', 'value': 123}"
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt'
+返回码: 0
+输出: DEBUG 处理后的命令字符串: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt
+{'name': 'test03_json_echo_01', 'value': 123}
+  returncode: 0
+  stdout: "DEBUG 处理后的命令字符串: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt\n{'name': 'test03_json_echo_01', 'value': 123}\n"
+  stderr: ''
+  actual_content: "DEBUG 处理后的命令字符串: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/correct_json.txt\n{'name': 'test03_json_echo_01', 'value': 123}\n"
+  actual_content length: 131
+命令: 'echo -e "Line1\\nLine2\\nLine3" > ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt'
+返回码: 0
+输出: DEBUG 处理后的命令字符串: echo -e "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+DEBUG 检测到echo -e包装，提取内部命令: "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+User command preview [in f-string]: 
+=====================
+echo -e '"Line1\nLine2\nLine3" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt'
+=====================
+Remote real output: 
+=====================
+"Line1
+Line2
+Line3" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+  filename: ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+  expected_content: 'Line1\nLine2\nLine3'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt'
+返回码: 1
+输出: DEBUG 处理后的命令字符串: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+cat: ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt: No such file or directory
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第1次...
+返回码: 1
+输出: DEBUG 处理后的命令字符串: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+cat: ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt: No such file or directory
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第2次...
+返回码: 1
+输出: DEBUG 处理后的命令字符串: cat ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt
+cat: ~/tmp/gds_test_20251111_120627_913124_87a1dc05/multiline.txt: No such file or directory
+命令执行异常: 1 != 0 : 命令执行失败
