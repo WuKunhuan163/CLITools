@@ -90,18 +90,18 @@ def _translate_heredoc_redirect(base_command, content_lines):
     else:
         return [base_command], False
     
-    # 生成单个echo命令，使用实际换行符连接多行
+    # 生成echo命令，处理多行内容
     if not content_lines:
         # 空内容
         commands = [f'echo "" {redirect_op} {target_file}']
     else:
-        # 将所有行用实际换行符连接（而不是\n转义序列）
+        # 对于多行内容，使用base64编码避免引号和换行符问题
+        import base64
         combined_content = '\n'.join(content_lines)
-        # 使用单引号包围，单引号内的内容完全按字面处理
-        # 唯一需要特殊处理的是单引号本身：将 ' 替换为 '\''
-        escaped_content = combined_content.replace("'", "'\\''")
-        # 使用echo和单引号，内容完全按字面保存
-        commands = [f"echo '{escaped_content}' {redirect_op} {target_file}"]
+        # Base64编码内容
+        encoded_content = base64.b64encode(combined_content.encode('utf-8')).decode('ascii')
+        # 使用base64解码并写入文件，避免所有引号和换行符问题
+        commands = [f"echo '{encoded_content}' | base64 -d {redirect_op} {target_file}"]
     
     return commands, True
 

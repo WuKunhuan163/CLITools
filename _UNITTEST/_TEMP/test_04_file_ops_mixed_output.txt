@@ -1,68 +1,116 @@
-# ============================================================================
-# Test completed at: 2025-11-11 12:10:37 - Status: FAIL
-# ============================================================================
-
-ERROR
+test_04_file_ops_mixed (test_gds.GDSTest) ... FAIL
 
 ======================================================================
-ERROR: setUpClass (test_gds.GDSTest)
+FAIL: test_04_file_ops_mixed (test_gds.GDSTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 232, in setUpClass
-    cls.setup_remote_test_directory()
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 266, in setup_remote_test_directory
-    raise RuntimeError(error_msg)
-RuntimeError: 创建远端测试目录失败: 返回码=1, stderr=Error: name 'command_wrapper' is not defined
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", line 41, in main
-    exit_code = shell.handle_command_line_args()
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2164, in handle_command_line_args
-    return self.handle_shell_command_args(shell_cmd, command_identifier)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2207, in handle_shell_command_args
-    return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)
-                                                                                     ^^^^^^^^^^^^^^^
-NameError: name 'command_wrapper' is not defined
-, stdout=DEBUG 处理后的命令字符串: mkdir -p /Users/wukunhuan/tmp/gds_test_20251111_121030_874475_8d4fa150
-. Call stack:   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/suite.py", line 163, in _handleClassSetUp
-    setUpClass()
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 232, in setUpClass
-    cls.setup_remote_test_directory()
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 263, in setup_remote_test_directory
-    call_stack = ''.join(traceback.format_stack()[-3:])
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 850, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
 
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1904, in test_04_file_ops_mixed
+    result = self.gds(f'rm {advanced_project}/main.py')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 856, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+AssertionError: 命令执行异常: rm ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py - 1 != 0 : 命令执行失败
 
 ----------------------------------------------------------------------
-Ran 0 tests in 6.949s
+Ran 1 test in 347.961s
 
-FAILED (errors=1)
+FAILED (failures=1)
 设置GDS全面测试环境...
 清理Python缓存...
 Python缓存已清理
-远端测试目录: ~/tmp/gds_test_20251111_121030_874475_8d4fa150
-正在创建远端测试目录: ~/tmp/gds_test_20251111_121030_874475_8d4fa150
+远端测试目录: ~/tmp/gds_test_20251111_124214_616163_8f5f125b
+正在创建远端测试目录: ~/tmp/gds_test_20251111_124214_616163_8f5f125b
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-创建测试目录尝试 1/3 失败: 返回码=1
-创建测试目录尝试 2/3 失败: 返回码=1
-创建测试目录尝试 3/3 失败: 返回码=1
-Unknown error: 创建远端测试目录失败: 返回码=1, stderr=Error: name 'command_wrapper' is not defined
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", line 41, in main
-    exit_code = shell.handle_command_line_args()
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2164, in handle_command_line_args
-    return self.handle_shell_command_args(shell_cmd, command_identifier)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2207, in handle_shell_command_args
-    return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)
-                                                                                     ^^^^^^^^^^^^^^^
-NameError: name 'command_wrapper' is not defined
-, stdout=DEBUG 处理后的命令字符串: mkdir -p /Users/wukunhuan/tmp/gds_test_20251111_121030_874475_8d4fa150
-. Call stack:   File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/suite.py", line 163, in _handleClassSetUp
-    setUpClass()
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 232, in setUpClass
-    cls.setup_remote_test_directory()
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 263, in setup_remote_test_directory
-    call_stack = ''.join(traceback.format_stack()[-3:])
-
+已切换到远端测试目录: ~/tmp/gds_test_20251111_124214_616163_8f5f125b
+✓ 验证测试目录存在: ~/tmp/gds_test_20251111_124214_616163_8f5f125b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6keyv9d9
+测试环境设置完成
+命令: 'mkdir -p ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/utils'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/utils"'
+=====================
+Remote real output: 
+=====================
+命令: 'echo "# Main module" > ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "# Main module" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py
+=====================
+Remote real output: 
+=====================
+命令: 'echo "# Utilities" > ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/utils/helpers.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "# Utilities" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/utils/helpers.py
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/utils/helpers.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/utils/helpers.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls -R ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project'
+返回码: 0
+输出: src/
+utils/
+helpers.py
+main.py
+命令: 'mv ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '(mv /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py)'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/src/main.py: No such file or directory
+命令: 'rm ~/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py'
+返回码: 1
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py"'
+=====================
+Remote real output: 
+=====================
+Failed to remove: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py"'
+=====================
+Remote real output: 
+=====================
+Failed to remove: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251111_124214_616163_8f5f125b/advanced_project/main.py
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000001f9b93240 (most recent call first):
+  <no Python frame>...
+命令执行异常: 1 != 0 : 命令执行失败

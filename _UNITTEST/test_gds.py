@@ -1416,36 +1416,35 @@ Shell commands: ls -la && echo "done"
         
         print(f'测试带空格的路径')
         # 使用双引号保护空格路径，GDS会正确展开并处理
-        result = self.gds('mkdir -p "~/tmp/test dir with spaces"')
+        result = self.gds(f'mkdir -p "~/tmp/{self.test_folder}/test dir with spaces"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds('ls "~/tmp/test dir with spaces"')
+        result = self.gds(f'ls "~/tmp/{self.test_folder}/test dir with spaces"')
         self.assertEqual(result.returncode, 0)
         
         # 测试在带空格的路径中创建文件
-        result = self.gds('touch "~/tmp/test dir with spaces/test_file.txt"')
+        result = self.gds(f'touch "~/tmp/{self.test_folder}/test dir with spaces/test_file.txt"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds('ls "~/tmp/test dir with spaces/test_file.txt"')
+        result = self.gds(f'ls "~/tmp/{self.test_folder}/test dir with spaces/test_file.txt"')
         self.assertEqual(result.returncode, 0)
         
         # 测试echo到带空格的路径
-        result = self.gds('echo "Hello World" > "~/tmp/test dir with spaces/hello.txt"')
+        result = self.gds(f'echo "Hello World" > "~/tmp/{self.test_folder}/test dir with spaces/hello.txt"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds('cat "~/tmp/test dir with spaces/hello.txt"')
+        result = self.gds(f'cat "~/tmp/{self.test_folder}/test dir with spaces/hello.txt"')
         self.assertEqual(result.returncode, 0)
         self.assertIn("Hello World", result.stdout)
         
         # 11. 清理测试文件
         print(f'清理测试文件')
         # 清理带空格的目录
-        result = self.gds('rm -rf "~/tmp/test dir with spaces"', expect_success=False, check_function_result=False)
+        result = self.gds(f'rm -rf "~/tmp/{self.test_folder}/test dir with spaces"', expect_success=False, check_function_result=False)
         
         # 清理其他测试文件
         cleanup_items = [
-            ls_test_dir,
-            f'{ls_test_dir}/ls_test_root.txt'
+            ls_test_dir
         ]
         for item in cleanup_items:
             try:
