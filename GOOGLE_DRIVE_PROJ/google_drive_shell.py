@@ -1643,14 +1643,31 @@ if [ ! -f "{tmp_path}/cmd_bg_{bg_pid}.result.json" ]; then
     exit 1
 fi
 
-# 读取result文件并检查任务状态
+# 读取result文件并检查任务状态（支持两种格式）
 RESULT_DATA=$(cat "{tmp_path}/cmd_bg_{bg_pid}.result.json")
-END_TIME=$(echo "$RESULT_DATA" | python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('end_time', 'Unknown'))" 2>/dev/null || echo "Unknown")
+END_TIME=$(echo "$RESULT_DATA" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    # 支持两种格式：
+    # 格式1（旧）: {{'end_time': '...', 'status': 'completed', ...}}
+    # 格式2（新）: {{'success': true, 'data': {{'end_time': '...', ...}}}}
+    if 'data' in data and isinstance(data.get('data'), dict):
+        # 新格式：从data字段提取
+        end_time = data['data'].get('end_time', 'Unknown')
+    else:
+        # 旧格式：从顶层提取
+        end_time = data.get('end_time', 'Unknown')
+    print(end_time)
+except Exception as e:
+    print('Unknown', file=sys.stderr)
+    sys.exit(1)
+" || echo "Unknown")
 
 # 检查任务是否还在运行
 if [ "$END_TIME" = "Unknown" ] || [ "$END_TIME" = "null" ] || [ -z "$END_TIME" ]; then
     echo "Error: Cannot cleanup running task {bg_pid}"
-    echo "Wait for the task to complete first"
+    echo "Wait for the task to complete first, or check if the result file is corrupted"
     exit 1
 else
     echo "Cleaning up task: {bg_pid}"
