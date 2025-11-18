@@ -298,8 +298,8 @@ class LsCommand(BaseCommand):
                 if not part:  # 跳过空部分
                     continue
                 
-                # 查找子文件夹
-                result = self.drive_service.list_files(folder_id=current_id, max_results=100)
+                # 查找子文件夹 - 移除max_results限制，使用完整的分页逻辑
+                result = self.drive_service.list_files(folder_id=current_id)
                 
                 if not result['success']:
                     # 使用统一的错误信息模板
@@ -351,7 +351,8 @@ class LsCommand(BaseCommand):
     def _find_file_in_directory(self, folder_id, filename):
         """在指定目录中查找文件"""
         try:
-            result = self.drive_service.list_files(folder_id=folder_id, max_results=100)
+            # 移除max_results限制，使用完整的分页逻辑
+            result = self.drive_service.list_files(folder_id=folder_id)
             if not result['success']:
                 # 如果是API错误，向上传递错误信息
                 return {"_api_error": True, "error": result.get('error', 'API access failed')}
@@ -699,7 +700,8 @@ class LsCommand(BaseCommand):
                     return
                 visited_folders.add(folder_id)
                 
-                result = self.drive_service.list_files(folder_id=folder_id, max_results=100)
+                # 移除max_results限制，使用完整的分页逻辑
+                result = self.drive_service.list_files(folder_id=folder_id)
                 if not result['success']:
                     visited_folders.discard(folder_id)  # 失败时移除，允许重试
                     return
@@ -849,8 +851,8 @@ class LsCommand(BaseCommand):
             if not parent_folder_id:
                 return None
         
-        # 在父目录中查找文件
-        result = self.drive_service.list_files(folder_id=parent_folder_id, max_results=100)
+        # 在父目录中查找文件 - 移除max_results限制，使用完整的分页逻辑
+        result = self.drive_service.list_files(folder_id=parent_folder_id)
         
         if not result['success']:
             return None

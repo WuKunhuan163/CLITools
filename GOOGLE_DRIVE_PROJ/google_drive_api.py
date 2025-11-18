@@ -160,9 +160,11 @@ class GoogleDriveService:
                 query = f"'{folder_id}' in parents"
             
             # 构建API参数
+            # Google Drive API单次最多1000个，设置合理的pageSize
+            page_size = min(max_results if max_results else 1000, 1000)
             params = {
                 'q': query,
-                'pageSize': max_results,
+                'pageSize': page_size,
                 'fields': "nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime)"
             }
 
@@ -170,8 +172,27 @@ class GoogleDriveService:
             params['quotaUser'] = f"refresh_{uuid.uuid4().hex[:8]}"
             params['includeItemsFromAllDrives'] = True
             params['supportsAllDrives'] = True
-            results = self.service.files().list(**params).execute()
-            items = results.get('files', [])
+            
+            # 处理分页，获取所有结果
+            items = []
+            page_token = None
+            while True:
+                if page_token:
+                    params['pageToken'] = page_token
+                
+                results = self.service.files().list(**params).execute()
+                page_items = results.get('files', [])
+                items.extend(page_items)
+                
+                # 检查是否有下一页，以及是否已达到max_results
+                page_token = results.get('nextPageToken')
+                if not page_token or (max_results and len(items) >= max_results):
+                    break
+            
+            # 截断到max_results（如果指定了）
+            if max_results:
+                items = items[:max_results]
+            
             return {
                 "success": True,
                 "files": items,
@@ -234,8 +255,8 @@ class GoogleDriveService:
                 - error (str): 错误信息（失败时）
         """
         try:
-            # 1. 列出文件夹中的文件
-            files_result = self.list_files(folder_id=folder_id, max_results=100)
+            # 1. 列出文件夹中的文件（使用默认的max_results=9999，不限制）
+            files_result = self.list_files(folder_id=folder_id)
             if not files_result.get('success'):
                 return {
                     "success": False,

@@ -145,7 +145,15 @@ class GoogleDriveShell:
         self.cache_manager = CacheManager(self.drive_service, self)
         # 现在可以加载删除缓存了
         self.deletion_cache = self.cache_manager.load_deletion_cache()
+        
+        # 保留旧的_no_direct_feedback标志（如果之前设置过）
+        old_flag = getattr(self.command_executor, '_no_direct_feedback', None) if hasattr(self, 'command_executor') else None
+        
         self.command_executor = CommandExecutor(self.drive_service, self)
+        
+        # 恢复_no_direct_feedback标志（如果之前设置过）
+        if old_flag is not None:
+            self.command_executor._no_direct_feedback = old_flag
         self.command_generator = CommandGenerator(self.drive_service, self)
         self.result_processor = ResultProcessor(self.drive_service, self)
         self.remote_commands = type('RemoteCommandsWrapper', (), {
@@ -509,8 +517,8 @@ class GoogleDriveShell:
                     print(f"Path not found: {dir_path}")
                     return 1
             
-            # 直接调用Google Drive API
-            api_result = self.drive_service.list_files(folder_id=folder_id, max_results=100)
+            # 直接调用Google Drive API - 移除max_results限制，使用完整的分页逻辑
+            api_result = self.drive_service.list_files(folder_id=folder_id)
             if not api_result.get('success'):
                 print(f"Error: Failed to list directory: {api_result.get('error', 'Directory listing failed without specific error message')}")
                 return 1
@@ -751,6 +759,8 @@ class GoogleDriveShell:
             # Clean up and update status
             cmd_parts.append(f"echo 'rm -f /tmp/bg_stdout_{bg_pid} /tmp/bg_stderr_{bg_pid}' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'python3 {tmp_path}/status_helper_{bg_pid}.py {cmd_b64} {bg_pid} completed {start_time} {tmp_path}/{status_file} \"$(date -Iseconds 2>/dev/null || date)\" $EXIT_CODE {result_file}' >> {tmp_path}/{script_file}")
+            # Clean up status_helper after updating final status
+            cmd_parts.append(f"echo 'rm -f {tmp_path}/status_helper_{bg_pid}.py' >> {tmp_path}/{script_file}")
             cmd_parts.append("")
             
             # Part 5: Execute
@@ -765,9 +775,9 @@ class GoogleDriveShell:
             cmd_parts.append(f"python3 {tmp_path}/status_helper_{bg_pid}.py {cmd_b64} {bg_pid} running {start_time} {tmp_path}/{status_file} $REAL_PID {result_file}")
             cmd_parts.append("")
             
-            # Part 7: Clean up
-            cmd_parts.append("# Clean up helper script")
-            cmd_parts.append(f"rm -f {tmp_path}/status_helper_{bg_pid}.py")
+            # Part 7: Clean up helper script will be done by the background script after completion
+            # (status_helper is still needed to update final status to "completed")
+            cmd_parts.append("# Note: status_helper will be cleaned up by the background script")
             
             bg_create_cmd = '\n'.join(cmd_parts)
             
@@ -1686,7 +1696,7 @@ fi
             print(f"Error: Cleanup failed: {e}")
             return 1
 
-    def _read_background_file(self, bg_pid, file_type):
+    def _read_background_file(self, bg_pid, file_type, command_identifier=None):
         """通用的后台任务文件读取接口
         
         Args:
@@ -1754,22 +1764,43 @@ fi
                         # 解析result文件的JSON内容
                         result_json = json.loads(result_content)
                         
-                        status = result_json.get("status", "unknown")
-                        
-                        # 如果任务还在运行，提示用户
-                        if status == "running":
-                            print(f"Task {bg_pid} is still running.")
-                            print(f"Use 'GDS --bg --status {bg_pid}' to check current status")
-                            print(f"Use 'GDS --bg --log {bg_pid}' to view current output")
-                            return 1
-                        elif status != "completed":
-                            print(f"Task {bg_pid} has status: {status}")
-                            return 1
-                        
-                        # 任务已完成，显示输出
-                        stdout_content = result_json.get("stdout", "")
-                        stderr_content = result_json.get("stderr", "")
-                        exit_code = result_json.get("exit_code", 0)
+                        # 支持两种result文件格式
+                        # 格式1：{status: "...", stdout: "...", ...}
+                        # 格式2：{success: true, data: {exit_code: ..., stdout: "...", ...}}
+                        if "data" in result_json and isinstance(result_json.get("data"), dict):
+                            # 新格式：从data字段提取
+                            data_obj = result_json["data"]
+                            stdout_content = data_obj.get("stdout", "")
+                            stderr_content = data_obj.get("stderr", "")
+                            exit_code = data_obj.get("exit_code", 0)
+                            
+                            # 显示后台任务的输出
+                            if stdout_content:
+                                print(stdout_content, end="")
+                            
+                            if stderr_content:
+                                import sys
+                                print(stderr_content, file=sys.stderr, end="")
+                            
+                            return exit_code
+                        else:
+                            # 旧格式：检查status字段
+                            status = result_json.get("status", "unknown")
+                            
+                            # 如果任务还在运行，提示用户
+                            if status == "running":
+                                print(f"Task {bg_pid} is still running.")
+                                print(f"Use 'GDS --bg --status {bg_pid}' to check current status")
+                                print(f"Use 'GDS --bg --log {bg_pid}' to view current output")
+                                return 1
+                            elif status != "completed":
+                                print(f"Task {bg_pid} has status: {status}")
+                                return 1
+                            
+                            # 任务已完成，显示输出
+                            stdout_content = result_json.get("stdout", "")
+                            stderr_content = result_json.get("stderr", "")
+                            exit_code = result_json.get("exit_code", 0)
                         
                         # 显示后台任务的输出
                         if stdout_content:
@@ -1876,9 +1907,9 @@ fi
             
             # 首先获取tmp文件夹ID
             # 注意: list_files不支持query参数，需要手动过滤
+            # 移除max_results限制，使用完整的分页逻辑
             tmp_folder_result = self.drive_service.list_files(
-                folder_id=self.REMOTE_ROOT_FOLDER_ID, 
-                max_results=100  # 获取足够多的结果以便过滤
+                folder_id=self.REMOTE_ROOT_FOLDER_ID
             )
             
             if not tmp_folder_result.get('success') or not tmp_folder_result.get('files'):
@@ -1896,8 +1927,8 @@ fi
             
             tmp_folder_id = tmp_folder['id']
             
-            # 列出tmp文件夹中的所有文件
-            result = self.drive_service.list_files(folder_id=tmp_folder_id, max_results=100)
+            # 列出tmp文件夹中的所有文件 - 移除max_results限制，使用完整的分页逻辑
+            result = self.drive_service.list_files(folder_id=tmp_folder_id)
             if not result.get('success'):
                 if not silent:
                     print(f"Error: 无法访问tmp文件夹: {result.get('error', '未知错误')}")
@@ -2155,6 +2186,10 @@ fi
                 return self.shell_management.enter_shell_mode(command_identifier)
             else:
                 # 执行指定的shell命令
+                # 设置flags（命令模式也需要设置！）
+                if has_no_direct_feedback and hasattr(self, 'command_executor'):
+                    self.command_executor._no_direct_feedback = True
+                
                 # 将参数列表转换为字符串（使用第一个参数，如果多个参数则用空格连接）
                 shell_args = args[1:]
                 if len(shell_args) == 1:

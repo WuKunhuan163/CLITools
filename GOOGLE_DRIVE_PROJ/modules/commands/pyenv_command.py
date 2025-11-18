@@ -169,6 +169,8 @@ class PyenvCommand(BaseCommand):
             elif action == "--list":
                 force = "--force" in args
                 return self.pyenv_list(force=force)
+            elif action == "--list-available":
+                return self.pyenv_list_available()
             elif action == "--update-cache":
                 return self.pyenv_update_cache()
             elif action == "--global":
@@ -975,6 +977,10 @@ echo "Python {version} uninstall completed"
         except Exception as e:
             print(f"Warning: Error in unified version query: {e}")
             return [], None, "system"
+    
+    def pyenv_list_available(self):
+        """列出可下载的Python版本（--list-available的实现）"""
+        return self.pyenv_list(force=False)
     
     def pyenv_list(self, force=False):
         """列出可下载的Python版本"""

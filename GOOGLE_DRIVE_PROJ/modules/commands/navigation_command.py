@@ -108,7 +108,8 @@ class NavigationCommand(BaseCommand):
             # If path is empty string, let remote bash handle it
             if path == "":
                 # Pass empty string to remote for bash to handle
-                return self.main_instance.execute_remote_command(f'cd ""')
+                cmd_result = self.main_instance.execute_command_interface("bash", ["-c", 'cd ""'])
+                return 0 if cmd_result.get("success") else 1
         
         # 调用shell的cd方法
         result = self.cmd_cd(path)

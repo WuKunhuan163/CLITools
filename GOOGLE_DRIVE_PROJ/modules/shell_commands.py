@@ -108,7 +108,7 @@ def split_pipe_command(shell_cmd):
     
     return parts
 
-def handle_pipe_commands(shell_cmd, command_identifier=None):
+def handle_pipe_commands(shell_cmd, command_identifier=None, shell_instance=None):
     """处理用|连接的pipe命令 - 修复版本：直接在远程执行整个pipe命令"""
     try:
         # 解析pipe命令：支持 | 操作符，但要正确处理引号
@@ -118,20 +118,25 @@ def handle_pipe_commands(shell_cmd, command_identifier=None):
             return None
         
         # 获取GoogleDriveShell实例来执行命令
-        try:
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-            from google_drive_shell import GoogleDriveShell
-            
-            shell = GoogleDriveShell()
-        except Exception as e:
-            error_msg = f"Failed to get GoogleDriveShell instance: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
-            return 1
+        if shell_instance:
+            # 使用传入的shell实例（保留所有flags）
+            shell = shell_instance
+        else:
+            # 创建新的shell实例（兼容旧代码）
+            try:
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+                from google_drive_shell import GoogleDriveShell
+                
+                shell = GoogleDriveShell()
+            except Exception as e:
+                error_msg = f"Failed to get GoogleDriveShell instance: {e}"
+                if is_run_environment(command_identifier):
+                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
+                else:
+                    print(error_msg)
+                return 1
         
         # 修复：直接将整个pipe命令作为远程命令执行，而不是本地模拟
         # 这样可以确保pipe操作在远程shell中正确执行
@@ -206,7 +211,7 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
     try:
         # 首先检查是否包含pipe操作符（带空格或不带空格）
         if ' | ' in shell_cmd or '|' in shell_cmd:
-            pipe_result = handle_pipe_commands(shell_cmd, command_identifier)
+            pipe_result = handle_pipe_commands(shell_cmd, command_identifier, shell_instance=shell_instance)
             if pipe_result is not None:
                 return pipe_result
             # 如果handle_pipe_commands返回None，说明不是真正的管道命令，继续处理

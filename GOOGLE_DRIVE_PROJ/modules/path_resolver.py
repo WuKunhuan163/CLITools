@@ -43,13 +43,17 @@ class PathResolver:
 
     @staticmethod
     def protect_special_chars(text):
-        """
+        r"""
         将字符串中的特殊符号和重定向符号替换为placeholder
         
         保护的符号包括：
+        - 转义序列：\n, \t, \r, \\, \", \', 等所有 \x 形式的转义
+        - 真实控制字符：换行符(ASCII 10), 回车符(ASCII 13), 制表符(ASCII 9)
         - 重定向操作符：>, <, >>, <<, |, &>, 2>, 2>&1, &>>
         - 引号：", '
-        - shell特殊字符：$, `, \, {, }
+        - shell特殊字符：$, `, {, }, [, ], #, &, ;, *, ?, (, )
+        - bash/echo命令本身（避免被误解析）
+        - 多个连续空格
         
         Args:
             text (str): 输入字符串
@@ -75,6 +79,25 @@ class PathResolver:
             escape_placeholder = f"ESCAPE{char_code}PH{uuid.uuid4().hex[:8].upper()}"
             placeholders[escape_placeholder] = f'\\{escaped_char}'
             result = result[:match.start()] + escape_placeholder + result[match.end():]
+        
+        # 步骤1.2: 保护真实的控制字符（换行符、回车符、制表符等）
+        # 这些字符是实际的ASCII控制字符，不是转义序列
+        # 必须在步骤1之后处理，因为转义序列\n和真实换行符\n是不同的
+        control_chars_to_protect = [
+            ('\n', 'REAL_NEWLINE'),        # 真实换行符 (ASCII 10)
+            ('\r', 'REAL_CARRIAGE_RET'),  # 真实回车符 (ASCII 13)
+            ('\t', 'REAL_TAB'),            # 真实制表符 (ASCII 9)
+        ]
+        
+        for char, base_name in control_chars_to_protect:
+            if char in result:
+                # 为每个控制字符生成唯一的placeholder
+                # 注意：由于换行符可能出现多次，需要逐个替换
+                while char in result:
+                    control_char_placeholder = f"{base_name}_{uuid.uuid4().hex[:8].upper()}"
+                    placeholders[control_char_placeholder] = char
+                    # 只替换第一个出现的控制字符
+                    result = result.replace(char, control_char_placeholder, 1)
         
         # 步骤1.5: 保护多个连续空格（每两个空格为一组）
         # 循环替换，直到不再有两个连续空格
@@ -200,8 +223,8 @@ class PathResolver:
                         if not part:
                             continue
                         
-                        # 查找该部分对应的文件夹
-                        files_result = self.drive_service.list_files(folder_id=current_id, max_results=100)
+                        # 查找该部分对应的文件夹 - 移除max_results限制，使用完整的分页逻辑
+                        files_result = self.drive_service.list_files(folder_id=current_id)
                         if not files_result['success']:
                             return None, None
                         

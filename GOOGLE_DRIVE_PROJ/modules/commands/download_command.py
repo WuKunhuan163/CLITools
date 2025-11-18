@@ -208,8 +208,8 @@ Notes:
                 target_folder_id = current_shell.get("current_folder_id")
                 actual_filename = filename
             
-            # 在目标文件夹中查找文件
-            result = self.drive_service.list_files(folder_id=target_folder_id, max_results=100)
+            # 在目标文件夹中查找文件 - 移除max_results限制，使用完整的分页逻辑
+            result = self.drive_service.list_files(folder_id=target_folder_id)
             if result['success']:
                 files = result['files']
                 for file in files:

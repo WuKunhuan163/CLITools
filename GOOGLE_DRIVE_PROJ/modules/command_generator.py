@@ -832,21 +832,27 @@ chmod +x "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}"
 nohup "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" < /dev/null > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}" 2>&1 &
 REAL_PID=$!
 
-# 验证background任务文件是否被正确创建
-sleep 1  # 等待文件系统同步
-if [ -f "{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}" ]; then
-echo "Background task started with ID: {bg_pid}"
-echo "Command: {bg_original_cmd}"
-echo ""
-echo "Run the following commands to track the background task:"
-echo "  GDS --bg --status {bg_pid}    # Check task status"
-echo "  GDS --bg --result {bg_pid}    # View task result"
-echo "  GDS --bg --log {bg_pid}       # View task log"
-echo "  GDS --bg --cleanup {bg_pid}   # Clean up task files"
-else
-echo "Error: Background task creation failed - status file not found"
+# 验证background任务文件是否被正确创建（增加等待时间和重试逻辑）
+MAX_WAIT=10
+for i in $(seq 1 $MAX_WAIT); do
+    if [ -f "{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}" ]; then
+        echo "Background task started with ID: {bg_pid}"
+        echo "Command: {bg_original_cmd}"
+        echo ""
+        echo "Run the following commands to track the background task:"
+        echo "  GDS --bg --status {bg_pid}    # Check task status"
+        echo "  GDS --bg --result {bg_pid}    # View task result"
+        echo "  GDS --bg --log {bg_pid}       # View task log"
+        echo "  GDS --bg --cleanup {bg_pid}   # Clean up task files"
+        exit 0
+    fi
+    sleep 1
+done
+
+# 如果10秒后还没创建，报错
+echo "Error: Background task creation failed - result file not created after ${{MAX_WAIT}} seconds"
+echo "This may indicate a problem with the background task script execution"
 exit 1
-fi
 '''
 
         # 主程序：创建后台管理进程并立即返回，同时生成主程序的JSON结果
@@ -1088,11 +1094,12 @@ MAIN_JSON_EOF'''
                 filename = file_info["filename"]  # 重命名后的文件名（在DRIVE_EQUIVALENT中）
                 original_filename = file_info.get("original_filename", filename)  # 原始文件名（目标文件名）
                 target_path = file_info["target_path"]
-
-                # 计算目标绝对路径 - mv命令应该移动到目录，不是完整文件路径
-                target_filename = original_filename
                 current_shell = self.main_instance.get_current_shell()
-                target_absolute = self.main_instance.path_resolver.resolve_remote_absolute_path(target_path, current_shell)
+                
+                # target_path现在已经是调用方解析好的绝对路径，直接使用
+                # 不再进行二次解析（避免路径重复问题，如~/tmp/~/tmp/...）
+                target_absolute = target_path
+                
                 # 修复：mv命令的目标应该是目录路径，不包含文件名
                 dest_directory = target_absolute.rstrip('/')
                 source_absolute = f"{self.main_instance.DRIVE_EQUIVALENT}/{filename}"
@@ -1113,19 +1120,59 @@ MAIN_JSON_EOF'''
             # 生成简化的命令 - 按照用户要求的格式
             mv_commands = []
             for file_info in file_info_list:
+                source_file = file_info["source"]
+                dest_dir = file_info["dest"]
+                current_filename = source_file.split('/')[-1]  # 当前文件名（可能已重命名）
+                original_filename = file_info['original_filename']  # 原始文件名（期望的最终文件名）
+                renamed = file_info['renamed']  # 是否已被重命名
+                
                 # 如果force=True且文件被重命名，需要特殊处理
-                if force and file_info['renamed']:
+                if force and renamed:
                     # 1. 先删除目标位置的旧文件（如果存在）
-                    target_file_path = f"{file_info['dest']}/{file_info['original_filename']}"
+                    target_file_path = f"{dest_dir}/{original_filename}"
                     mv_commands.append(f'rm -f "{target_file_path}"')
                     # 2. 移动文件到目标目录
-                    mv_commands.append(f'mv "{file_info["source"]}" "{file_info["dest"]}"')
+                    mv_commands.append(f'mv "{source_file}" "{dest_dir}"')
                     # 3. 在目标目录内重命名回原始文件名
-                    renamed_file_in_dest = f"{file_info['dest']}/{file_info['source'].split('/')[-1]}"
+                    renamed_file_in_dest = f"{dest_dir}/{current_filename}"
                     mv_commands.append(f'mv "{renamed_file_in_dest}" "{target_file_path}"')
+                elif renamed:
+                    # 普通模式但文件已被重命名：智能处理
+                    # 1. 检查目标目录中是否存在原名文件
+                    # 2. 如果不存在，移动后改回原名
+                    # 3. 如果存在，检查是否存在当前重命名后的文件名，如果也存在则继续重命名
+                    target_original = f"{dest_dir}/{original_filename}"
+                    target_renamed = f"{dest_dir}/{current_filename}"
+                    
+                    # 解析文件名和扩展名
+                    if '.' in original_filename:
+                        base_name = original_filename.rsplit('.', 1)[0]
+                        ext = '.' + original_filename.rsplit('.', 1)[1]
+                    else:
+                        base_name = original_filename
+                        ext = ''
+                    
+                    # 生成智能重命名逻辑的bash脚本
+                    rename_logic = f'''
+# 智能重命名逻辑：先检查目标目录中的冲突，再决定最终文件名
+if [ ! -f "{target_original}" ]; then
+    # 情况1：目标目录中不存在原名文件，直接改回原名
+    mv "{source_file}" "{target_original}"
+elif [ ! -f "{target_renamed}" ]; then
+    # 情况2：目标目录中存在原名文件，但不存在当前重命名后的文件名，保持重命名后的名字
+    mv "{source_file}" "{target_renamed}"
+else
+    # 情况3：目标目录中既存在原名文件，又存在重命名后的文件名，需要继续重命名
+    counter=2
+    while [ -f "{dest_dir}/{base_name}_${{counter}}{ext}" ]; do
+        counter=$((counter + 1))
+    done
+    mv "{source_file}" "{dest_dir}/{base_name}_${{counter}}{ext}"
+fi'''
+                    mv_commands.append(rename_logic.strip())
                 else:
-                    # 普通模式：直接移动
-                    mv_commands.append(f'mv "{file_info["source"]}" "{file_info["dest"]}"')
+                    # 普通模式且文件未被重命名：直接移动
+                    mv_commands.append(f'mv "{source_file}" "{dest_dir}"')
 
             # 创建目录命令
             mkdir_commands = [f'mkdir -p "{target_dir}"' for target_dir in sorted(target_dirs)]
@@ -1138,13 +1185,23 @@ MAIN_JSON_EOF'''
 
             # 生成重试命令
             retry_commands = []
-            for cmd in mv_commands:
+            for i, cmd in enumerate(mv_commands):
                 try:
-                    filename = cmd.split('"')[3].split('/')[-1] if len(cmd.split('"')) > 3 else 'file'
+                    # 尝试从命令中提取文件名用于错误消息
+                    if '"' in cmd:
+                        filename = cmd.split('"')[3].split('/')[-1] if len(cmd.split('"')) > 3 else 'file'
+                    else:
+                        filename = f'file_{i}'
                 except:
-                    filename = 'file'
+                    filename = f'file_{i}'
 
-                retry_cmd = f'''
+                # 如果命令包含换行符（多行命令），直接执行不加重试（逻辑已经足够健壮）
+                if '\n' in cmd:
+                    # 多行命令：直接添加
+                    retry_commands.append(cmd)
+                else:
+                    # 单行命令：添加重试逻辑
+                    retry_cmd = f'''
 for attempt in $(seq 1 30); do
     if {cmd} 2>/dev/null; then
         break
@@ -1155,7 +1212,7 @@ for attempt in $(seq 1 30); do
         sleep 1
     fi
 done'''
-                retry_commands.append(retry_cmd)
+                    retry_commands.append(retry_cmd)
 
             # 生成简化的脚本，包含视觉分隔和实际命令显示
             script = f'''

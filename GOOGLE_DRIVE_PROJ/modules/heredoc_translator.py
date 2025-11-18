@@ -97,7 +97,8 @@ def _translate_heredoc_redirect(base_command, content_lines):
     else:
         # 对于多行内容，使用base64编码避免引号和换行符问题
         import base64
-        combined_content = '\n'.join(content_lines)
+        # 添加末尾换行符，确保heredoc追加时内容在新行
+        combined_content = '\n'.join(content_lines) + '\n'
         # Base64编码内容
         encoded_content = base64.b64encode(combined_content.encode('utf-8')).decode('ascii')
         # 使用base64解码并写入文件，避免所有引号和换行符问题

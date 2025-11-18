@@ -392,13 +392,17 @@ print('{success_message}')
             return {"success": False, "error": "Environment name cannot start with '.'"}
         
         try:
+            # 获取当前shell ID（从Python中获取，而不是依赖bash环境变量）
+            current_shell = self.shell.get_current_shell()
+            shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
+            
             venv_states_file = f"{self.get_venv_base_path()}/venv_states.json"
             env_path = f"{self.get_venv_base_path()}/{env_name}"
             
             remote_env_path = self.shell.REMOTE_ENV
             remote_command = f'''
-# 获取当前shell ID
-SHELL_ID="${{GDS_SHELL_ID:-default_shell}}"
+# 使用Python传递的shell ID（而不是从环境变量获取）
+SHELL_ID="{shell_id}"
 
 # 检查环境是否存在
 ENV_PATH="{env_path}"
@@ -552,11 +556,15 @@ fi
     def venv_deactivate(self):
         """取消激活虚拟环境（清除PYTHONPATH）"""
         try:
+            # 获取当前shell ID（从Python中获取，而不是依赖bash环境变量）
+            current_shell = self.shell.get_current_shell()
+            shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
+            
             venv_states_file = self.get_venv_state_file_path()
             
             remote_command = f'''
-# 获取当前shell ID
-SHELL_ID="${{GDS_SHELL_ID:-default_shell}}"
+# 使用Python传递的shell ID（而不是从环境变量获取）
+SHELL_ID="{shell_id}"
 
 # 从JSON文件中移除当前shell的状态
 VENV_STATES_FILE="{venv_states_file}"

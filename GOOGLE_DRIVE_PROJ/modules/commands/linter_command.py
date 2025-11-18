@@ -252,6 +252,11 @@ class LinterCommand(BaseCommand):
                 result = subprocess.run(['python3', '-m', 'py_compile', file_path], 
                                       capture_output=True, text=True)
             
+            # print(f"[DEBUG lint_python] Linter: {linter}")
+            # print(f"[DEBUG lint_python] Return code: {result.returncode}")
+            # print(f"[DEBUG lint_python] Stdout: {repr(result.stdout)}")
+            # print(f"[DEBUG lint_python] Stderr: {repr(result.stderr)}")
+            
             return self.parse_python_output(result, linter)
             
         except Exception as e:
@@ -352,14 +357,32 @@ class LinterCommand(BaseCommand):
         errors = []
         warnings = []
         
-        if result.returncode != 0 and result.stderr:
-            # Syntax errors
-            for line in result.stderr.strip().split('\n'):
-                if line.strip():
-                    errors.append(line.strip())
+        # Check both stdout and stderr for errors (py_compile and pyflakes may use either)
+        error_output = (result.stderr or "") + (result.stdout or "")
         
-        if result.stdout:
-            # Style warnings
+        # print(f"[DEBUG parse_python_output] Combined error_output: {repr(error_output)}")
+        # print(f"[DEBUG parse_python_output] Return code: {result.returncode}")
+        
+        if result.returncode != 0:
+            # Syntax errors - parse from combined output
+            for line in error_output.strip().split('\n'):
+                if line.strip():
+                    # print(f"[DEBUG parse_python_output] Processing line: {repr(line)}")
+                    # Skip empty lines and check for error indicators
+                    # Expanded to include pyflakes-style errors like "invalid syntax"
+                    if ('SyntaxError' in line or 'IndentationError' in line or 'Error:' in line or 
+                        'invalid syntax' in line or 'syntax error' in line.lower() or 
+                        line.startswith('  File ')):
+                        errors.append(line.strip())
+                        # print(f"[DEBUG parse_python_output]   -> Added to errors")
+                    elif any(code in line for code in ['E', 'F']):  # pylint/flake8 error codes
+                        errors.append(line.strip())
+                        # print(f"[DEBUG parse_python_output]   -> Added to errors (E/F code)")
+                    elif line.strip() and not line.startswith('>>>'):  # Other non-empty lines
+                        warnings.append(line.strip())
+                        # print(f"[DEBUG parse_python_output]   -> Added to warnings")
+        elif result.stdout:
+            # returncode == 0 but may have warnings in stdout (pyflakes)
             for line in result.stdout.strip().split('\n'):
                 if line.strip():
                     if any(code in line for code in ['E', 'F']):  # Errors
@@ -367,7 +390,7 @@ class LinterCommand(BaseCommand):
                     else:  # Warnings
                         warnings.append(line.strip())
         
-        return {
+        result_dict = {
             "success": len(errors) == 0,
             "language": "python",
             "message": f"Python linting completed with {linter}",
@@ -375,6 +398,8 @@ class LinterCommand(BaseCommand):
             "warnings": warnings,
             "info": []
         }
+        # print(f"[DEBUG parse_python_output] Final result: success={result_dict['success']}, errors count={len(errors)}, warnings count={len(warnings)}")
+        return result_dict
     
     def parse_javascript_output(self, result: subprocess.CompletedProcess, linter: str) -> Dict:
         """Parse JavaScript linter output"""
@@ -414,15 +439,31 @@ class LinterCommand(BaseCommand):
     def cmd_linter(self, filename, language=None, *args, **kwargs):
         """Lint file - delegate to linter functionality"""
         try:
-            # Get file content first
+            # Get file content using remote cat command instead of cmd_cat API
+            # This is more reliable for linter as it uses the same path resolution as other commands
+            current_shell = self.shell.get_current_shell()
+            if not current_shell:
+                return {"success": False, "error": "No active remote shell"}
+            
+            # Resolve the absolute path
+            absolute_path = self.shell.path_resolver.resolve_remote_absolute_path(
+                filename, current_shell, return_logical=False
+            )
+            if not absolute_path:
+                return {"success": False, "error": f"Could not resolve path: {filename}"}
+            
+            # Use cmd_cat to read file (it returns "output" field, not "stdout")
             cat_result = self.shell.cmd_cat(filename)
+            
             if not cat_result.get("success"):
                 return {
                     "success": False,
-                    "error": f"Could not read file {filename}: {cat_result.get('error', 'File reading failed without specific error message')}"
+                    "error": f"Could not read file {filename}: {cat_result.get('error', 'File reading failed')}"
                 }
             
-            content = cat_result.get("output", "")
+            content = cat_result.get("output", "")  # cmd_cat returns "output" field
+            # print(f"[DEBUG cmd_linter] File content length: {len(content)} chars")
+            # print(f"[DEBUG cmd_linter] File content preview: {repr(content[:200])}")
             
             # Run linter on content
             result = self.lint_content(content, filename, language=language)
