@@ -338,3 +338,212 @@ Log size: 0 bytes
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
 任务仍在运行... 已等待446秒
 命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待517秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待593秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待667秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待740秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待813秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待885秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待959秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1033秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1104秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1177秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1255秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1345秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1422秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1496秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1572秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1647秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1723秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1794秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1872秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1946秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2020秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2094秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2169秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2244秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2324秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
+输出: Status: running
+PID: 1763453947_4765 (Real PID: 32005)
+Start time: 2025-11-18T16:19:07.578481
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2400秒
+命令: '--bg --status 1763453947_4765'
+返回码: 0
