@@ -691,9 +691,18 @@ Notes:
                 }
             else:
                 # 纯小文件上传：使用ls-based验证
-                # 注意：使用filename（实际上传的文件名，可能已重命名）而不是original_filename（原始文件名）
-                # 因为如果存在同名文件冲突，文件会被重命名（例如 file.txt -> file_1.txt）
-                expected_for_verification = [fm["filename"] for fm in file_moves]
+                # 注意：当force=True时，如果文件被重命名（filename != original_filename），
+                # 命令生成器会删除旧文件、移动新文件、然后重命名回原始文件名
+                # 因此验证应该查找原始文件名
+                # 当force=False时，如果有冲突，文件会保持重命名状态（例如 file.txt -> file_1.txt）
+                expected_for_verification = []
+                for fm in file_moves:
+                    if force and fm.get("renamed", False) and fm.get("original_filename") != fm["filename"]:
+                        # force模式下文件被重命名：最终会重命名回原始文件名
+                        expected_for_verification.append(fm["original_filename"])
+                    else:
+                        # 非force模式或文件未被重命名：使用实际文件名
+                        expected_for_verification.append(fm["filename"])
                 
                 # 使用带进度的验证机制
                 verify_result = self.verify_upload_with_progress(
