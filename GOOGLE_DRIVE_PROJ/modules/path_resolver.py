@@ -346,23 +346,24 @@ class PathResolver:
         # 获取用户的home目录
         home_dir = os.path.expanduser("~")
         
-        # 步骤1: 保护原始的~以及所有特殊符号（使用统一接口）
+        # 步骤1: 先保护所有特殊符号（包括引号字符串、重定向等）
+        # 这样引号内的~就不会被后续步骤替换
+        protected_command, special_placeholders = self.protect_special_chars(command_or_path)
+        
+        # 步骤2: 保护原始的~（此时引号内的~已经被保护在引号字符串placeholder中）
         import uuid
         tilde_placeholder = f"__TILDE_PLACEHOLDER_{uuid.uuid4().hex[:8].upper()}__"
-        protected_command = command_or_path.replace('~', tilde_placeholder)
+        protected_command = protected_command.replace('~', tilde_placeholder)
         
-        # 保护所有其他特殊符号（包括引号、重定向等）
-        protected_command, special_placeholders = self.protect_special_chars(protected_command)
-        
-        # 步骤2: 将已展开的home_dir替换回~
+        # 步骤3: 将已展开的home_dir替换回~
         suspicious_command = protected_command.replace(home_dir, '~')
         
-        # 步骤3: 直接使用suspicious_command，不进行bash测试
+        # 步骤4: 直接使用suspicious_command，不进行bash测试
         # 原因：对于bash -c命令，placeholder已经破坏了bash语法，bash测试会产生错误的输出
         # 而且bash -c命令本身就是要在远端执行的，不需要在本地测试
         final_command = suspicious_command
         
-        # 步骤4: 统一恢复所有placeholder
+        # 步骤5: 统一恢复所有placeholder
         result = final_command.replace(tilde_placeholder, '~')
         result = self.restore_special_chars(result, special_placeholders)
         return result

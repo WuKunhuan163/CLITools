@@ -177,17 +177,21 @@ class CommandGenerator:
         if placeholder == '~':
             tilde_placeholder = None
             cmd_for_bash = protected_cmd
+            print(f"  步骤2 - placeholder是~，不需要保护")
         else:
             tilde_placeholder = f"__TILDE_PH_{uuid.uuid4().hex[:8].upper()}__"
             cmd_for_bash = protected_cmd.replace('~', tilde_placeholder)
+            print(f"  步骤2 - 保护~: {repr(cmd_for_bash)}")
         
         # 步骤3: 将placeholder替换成~，以便bash展开
         cmd_for_bash = cmd_for_bash.replace(placeholder, '~')
+        print(f"  步骤3 - 替换{repr(placeholder)}为~: {repr(cmd_for_bash)}")
         
         # 步骤4: 用bash展开路径
         # 注意：不能用引号包裹cmd_for_bash，否则~不会被展开
         # 因为特殊字符已经被placeholder保护了，所以不用担心空格等问题
         bash_cmd = f"echo {cmd_for_bash}"
+        print(f"  步骤4 - bash命令: {repr(bash_cmd)}")
         result = subprocess.run(
             ['bash', '-c', bash_cmd],
             capture_output=True,
@@ -195,18 +199,23 @@ class CommandGenerator:
             timeout=2
         )
         expanded_cmd = result.stdout.strip()
+        print(f"  步骤4 - bash展开后: {repr(expanded_cmd)}")
         
         # 步骤5: 将展开的home目录替换为placeholder_value
         home_dir = os.path.expanduser('~')
         expanded_cmd = expanded_cmd.replace(home_dir, placeholder_value)
+        print(f"  步骤5 - 替换home({repr(home_dir)})为target: {repr(expanded_cmd)}")
         
         # 步骤6: 恢复tilde_placeholder
         if tilde_placeholder:
             expanded_cmd = expanded_cmd.replace('~', placeholder)
             expanded_cmd = expanded_cmd.replace(tilde_placeholder, '~')
+            print(f"  步骤6 - 恢复~: {repr(expanded_cmd)}")
         
         # 步骤7: 恢复所有特殊字符
         expanded_cmd = PathResolver.restore_special_chars(expanded_cmd, special_phs)
+        print(f"  步骤7 - 最终结果: {repr(expanded_cmd)}")
+        print(f"{'='*80}\n")
         
         return expanded_cmd
     
