@@ -602,3 +602,212 @@ Log size: 0 bytes
 PID: 1763451335_3635 (Real PID: 11065)
 Start time: 2025-11-18T15:35:35.269959
 Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1674秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1750秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1822秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1898秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待1969秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2041秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2119秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2190秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2263秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2338秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2415秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2487秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2559秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2630秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2707秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2783秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2854秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待2926秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3000秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3078秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3153秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3226秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3298秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3370秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3442秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3517秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...

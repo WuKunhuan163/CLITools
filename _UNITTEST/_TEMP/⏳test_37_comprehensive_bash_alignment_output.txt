@@ -1,2 +1,185 @@
 test_37_comprehensive_bash_alignment (test_gds.GDSTest)
-全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等 ... 
+全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等 ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_161546_577361_34ae5dc0
+正在创建远端测试目录: ~/tmp/gds_test_20251118_161546_577361_34ae5dc0
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_161546_577361_34ae5dc0
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_161546_577361_34ae5dc0
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2al74vdq
+测试环境设置完成
+测试全面bash alignment
+
+分组1: 不同引号类型
+
+分组2: 不同反斜杠数量
+
+分组3: 特殊符号
+
+分组4: 重定向测试
+
+测试1: 双引号-字面量
+  命令: 'echo "Line1\\nLine2"'
+命令: 'echo "Line1\\nLine2"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Line1\nLine2"
+=====================
+Remote real output: 
+=====================
+Line1\nLine2
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo "Line1\\nLine2"'], returncode=0, stdout='Line1\\nLine2\n', stderr='')
+     GDS:      'User command preview [in f-string]: \n=====================\necho "Line1\\nLine2"\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result ....\r\x1b[K\r\x1b[KLine1\\nLine2'
+
+测试2: 单引号-字面量
+  命令: "echo 'Line1\\nLine2'"
+命令: "echo 'Line1\\nLine2'"
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo 'Line1\nLine2'
+=====================
+Remote real output: 
+=====================
+Line1\nLine2
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', "echo 'Line1\\nLine2'"], returncode=0, stdout='Line1\\nLine2\n', stderr='')
+     GDS:      "User command preview [in f-string]: \n=====================\necho 'Line1\\nLine2'\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result ....\r\x1b[K\r\x1b[KLine1\\nLine2"
+
+测试3: 无引号
+  命令: 'echo Line1'
+命令: 'echo Line1'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo Line1
+=====================
+Remote real output: 
+=====================
+Line1
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo Line1'], returncode=0, stdout='Line1\n', stderr='')
+     GDS:      'User command preview [in f-string]: \n=====================\necho Line1\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result ....\r\x1b[K\r\x1b[KLine1'
+
+测试4: 双引号-echo-e
+  命令: 'echo -e "Line1\\nLine2"'
+命令: 'echo -e "Line1\\nLine2"'
+返回码: 1
+输出: DEBUG 检测到echo -e包装，提取内部命令: Line1\nLine2
+User command preview [in f-string]: 
+=====================
+echo -e Line1\nLine2
+=====================
+Remote real output: 
+=====================
+Command execution failed: ls: ~/tmp/cmd_result_1763453993_5b323db2.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到remount flag已存在，跳过重复设置
+重试第1次...
+返回码: 1
+输出: DEBUG 检测到echo -e包装，提取内部命令: Line1\nLine2
+User command preview [in f-string]: 
+=====================
+echo -e Line1\nLine2
+=====================
+Remote real output: 
+=====================
+Command execution failed: Unknown error. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2199, in handle_command_line_args
+    return self.handle_shell_command_args(shell_cmd, command_identifier)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 2263, in handle_shell_command_args
+    return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 1129, in execute_shell_command
+    call_stack = ''.join(traceback.format_stack()[-3:])
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到remount flag已存在，跳过重复设置
+重试第2次...
+返回码: 0
+输出: DEBUG 检测到echo -e包装，提取内部命令: Line1\nLine2
+User command preview [in f-string]: 
+=====================
+echo -e Line1\nLine2
+=====================
+Remote real output: 
+=====================
+Line1nLine2
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo -e "Line1\\nLine2"'], returncode=0, stdout='Line1\nLine2\n', stderr='')
+     GDS:      'DEBUG 检测到echo -e包装，提取内部命令: Line1\\nLine2\nUser command preview [in f-string]: \n=====================\necho -e Line1\\nLine2\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result .....\r\x1b[K\r\x1b[KLine1nLine2'
+
+测试5: 1个反斜杠
+  命令: 'echo "\\n"'
+命令: 'echo "\\n"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "\n"
+=====================
+Remote real output: 
+=====================
+\n
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo "\\n"'], returncode=0, stdout='\\n\n', stderr='')
+     GDS:      'User command preview [in f-string]: \n=====================\necho "\\n"\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result .....\r\x1b[K\r\x1b[K\\n'
+
+测试6: 2个反斜杠
+  命令: 'echo "\\\\n"'
+命令: 'echo "\\\\n"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "\\n"
+=====================
+Remote real output: 
+=====================
+\n
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo "\\\\n"'], returncode=0, stdout='\\n\n', stderr='')
+     GDS:      'User command preview [in f-string]: \n=====================\necho "\\\\n"\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result .....\r\x1b[K\r\x1b[K\\n'
+
+测试7: 4个反斜杠
+  命令: 'echo "\\\\\\\\n"'
+命令: 'echo "\\\\\\\\n"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "\\\\n"
+=====================
+Remote real output: 
+=====================
+\\n
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo "\\\\\\\\n"'], returncode=0, stdout='\\\\n\n', stderr='')
+     GDS:      'User command preview [in f-string]: \n=====================\necho "\\\\\\\\n"\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result .....\r\x1b[K\r\x1b[K\\\\n'
+
+测试8: Dollar符号
+  命令: 'echo "Price: $100"'
+命令: 'echo "Price: $100"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Price: $100"
+=====================
+Remote real output: 
+=====================
+Price: 00
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo "Price: $100"'], returncode=0, stdout='Price: 00\n', stderr='')
+     GDS:      'User command preview [in f-string]: \n=====================\necho "Price: $100"\n=====================\n\nRemote real output: \n=====================\n\r\x1b[K⏳ Waiting for result .....\r\x1b[K\r\x1b[KPrice: 00'
+
+测试9: Backtick
+  命令: 'echo "Command: `pwd`"'
+命令: 'echo "Command: `pwd`"'
+返回码: 0
+输出: Command: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b
+  ❌ 不对齐
+     本地bash: CompletedProcess(args=['bash', '-c', 'echo "Command: `pwd`"'], returncode=0, stdout='Command: /private/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2al74vdq\n', stderr='')
+     GDS:      '\x1b[K⏳ Waiting for result ....\r\x1b[K\r\x1b[KCommand: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b'
+
+测试10: 混合特殊符号
