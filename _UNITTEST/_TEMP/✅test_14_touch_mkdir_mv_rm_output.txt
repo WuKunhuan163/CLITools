@@ -1,3 +1,7 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:42:24 - Status: PASS
+# ============================================================================
+
 test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
 测试文件和目录的创建、移动、删除操作，包括安全检查 ... 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
@@ -171,3 +175,91 @@ Remote real output:
 1. 测试不带-p的mkdir，父目录不存在时应该失败
 命令: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
 返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1985.450s
+
+OK
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm -rf "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test"'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'mkdir ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent/child'
+返回码: 1
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent/child"'
+=====================
+Remote real output: 
+=====================
+mkdir: cannot create directory ‘/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent/child’: No such file or directory
+2. 测试带-p的mkdir，父目录不存在时应该成功
+命令: 'mkdir -p ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent/child'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent/child"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+返回码: 0
+输出: parent
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent'
+返回码: 0
+输出: child
+3. 测试不带-p的mkdir，在已存在的父目录中创建目录应该成功
+命令: 'mkdir ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent/another_child'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/parent'
+返回码: 0
+输出: another_child
+child
+4. 测试多级目录创建（-p选项）
+命令: 'mkdir -p ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d/e'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test/a/b/c/d'
+================================================================================
+e
+5. 清理测试目录
+命令: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+  步骤4 - bash命令: 'echo rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+  步骤4 - bash展开后: 'rm -rf /Users/wukunhuan/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'rm -rf /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+  步骤7 - 最终结果: 'rm -rf /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+================================================================================
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

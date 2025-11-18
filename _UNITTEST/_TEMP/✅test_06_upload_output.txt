@@ -1,0 +1,383 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:57:24 - Status: PASS
+# ============================================================================
+
+test_06_upload (test_gds.GDSTest) ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_162851_860810_5115da4b
+正在创建远端测试目录: ~/tmp/gds_test_20251118_162851_860810_5115da4b
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_162851_860810_5115da4b
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_162851_860810_5115da4b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_aay2p2wx
+测试环境设置完成
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+验证命令: ['ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/valid_script.py', 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/special_chars.txt']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/valid_script.py
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/valid_script.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_162851_860810_5115da4b/valid_script.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/valid_script.py
+验证命令 2: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/special_chars.txt
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/special_chars.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_162851_860810_5115da4b/special_chars.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/special_chars.txt
+所有验证通过!
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+
+执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_project'
+================================================================================
+config.json
+core.py
+main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_project
+所有验证通过!
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"
+验证命令: ['ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_conflict_file.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_9CCB1084'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_9CCB1084 -> '"/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_9CCB1084'
+  步骤4 - bash命令: 'echo upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_9CCB1084'
+  步骤4 - bash展开后: 'upload --target-dir /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_9CCB1084'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_9CCB1084'
+  步骤7 - 最终结果: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_conflict_file.py
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_conflict_file.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_conflict_file.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_conflict_file.py
+所有验证通过!
+命令: 'upload /Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py'
+返回码: 1
+输出: Captured debug output:
+Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file_1.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
+Upload failed, showing debug information:
+verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file_1.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_conflict_file_1.py'], 'sync_time': 7, 'base_sync_time': 7}
+target_folder_id='1j5_Vb5I9V_QNTblvmIsr_kHUMsi_AQK2'
+target_display_path='~/tmp/gds_test_20251118_163156_142658_c7bc1be1'
+Upload failed
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
+验证命令: ['ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_FF9E5B13'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_FF9E5B13 -> '"/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_FF9E5B13'
+  步骤4 - bash命令: 'echo upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_FF9E5B13'
+  步骤4 - bash展开后: 'upload --target-dir /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_FF9E5B13'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_FF9E5B13'
+  步骤7 - 最终结果: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+================================================================================
+~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py
+所有验证通过!
+命令: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash命令: 'echo cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash展开后: 'cat /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'cat /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤7 - 最终结果: 'cat /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+================================================================================
+print(f"ORIGINAL VERSION - Test upload")
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
+验证命令: ['grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_A2C93630'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_A2C93630 -> '"/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_A2C93630'
+  步骤4 - bash命令: 'echo upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_A2C93630'
+  步骤4 - bash展开后: 'upload --target-dir /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_A2C93630'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_A2C93630'
+  步骤7 - 最终结果: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py
+命令: 'grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+返回码: 2
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'grep QUOTED_STR_5ED46C82 ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_5ED46C82 -> '"MODIFIED VERSION"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'grep QUOTED_STR_5ED46C82 ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash命令: 'echo grep QUOTED_STR_5ED46C82 ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash展开后: 'grep QUOTED_STR_5ED46C82 /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'grep QUOTED_STR_5ED46C82 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤7 - 最终结果: 'grep "MODIFIED VERSION" /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+================================================================================
+/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py: grep: ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py: No such file or directory
+验证失败: grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py (返回码: 2)
+验证失败，等待1秒后重试...
+
+尝试 2/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_8DAC8417'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_8DAC8417 -> '"/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_8DAC8417'
+  步骤4 - bash命令: 'echo upload --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_8DAC8417'
+  步骤4 - bash展开后: 'upload --target-dir /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_8DAC8417'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_8DAC8417'
+  步骤7 - 最终结果: 'upload --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py
+命令: 'grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'grep QUOTED_STR_3495FBB2 ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_3495FBB2 -> '"MODIFIED VERSION"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'grep QUOTED_STR_3495FBB2 ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash命令: 'echo grep QUOTED_STR_3495FBB2 ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash展开后: 'grep QUOTED_STR_3495FBB2 /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'grep QUOTED_STR_3495FBB2 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤7 - 最终结果: 'grep "MODIFIED VERSION" /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+================================================================================
+  1: print(f"MODIFIED VERSION - Test upload overwrite!")
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py
+所有验证通过!
+命令: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash命令: 'echo cat ~/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤4 - bash展开后: 'cat /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'cat /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+  步骤7 - 最终结果: 'cat /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/test_upload_overwrite_file.py'
+================================================================================
+print(f"MODIFIED VERSION - Test upload overwrite!")
+
+执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"
+验证命令: ['ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1711.585s
+
+OK
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_F6AD6197'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_F6AD6197 -> '"/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_F6AD6197'
+  步骤4 - bash命令: 'echo upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_F6AD6197'
+  步骤4 - bash展开后: 'upload_folder --target-dir /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_F6AD6197'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'upload_folder --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_F6AD6197'
+  步骤7 - 最终结果: 'upload_folder --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+返回码: 1
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+================================================================================
+ls: ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir: No such file or directory
+验证失败: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir (返回码: 1)
+验证失败，等待1秒后重试...
+
+尝试 2/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_E7530F3A'
+  步骤1 - placeholders数量: 1
+    QUOTED_STR_E7530F3A -> '"/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_E7530F3A'
+  步骤4 - bash命令: 'echo upload_folder --target-dir ~/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_E7530F3A'
+  步骤4 - bash展开后: 'upload_folder --target-dir /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_E7530F3A'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'upload_folder --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force QUOTED_STR_E7530F3A'
+  步骤7 - 最终结果: 'upload_folder --target-dir /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/empty_test_dir"'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir
+命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir'
+================================================================================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_162851_860810_5115da4b/empty_test_dir
+所有验证通过!
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+
