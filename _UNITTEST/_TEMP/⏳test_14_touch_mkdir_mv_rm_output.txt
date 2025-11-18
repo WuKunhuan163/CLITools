@@ -1,2 +1,173 @@
 test_14_touch_mkdir_mv_rm (test_gds.GDSTest)
-测试文件和目录的创建、移动、删除操作，包括安全检查 ... 
+测试文件和目录的创建、移动、删除操作，包括安全检查 ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_160916_865208_290c2cb5
+正在创建远端测试目录: ~/tmp/gds_test_20251118_160916_865208_290c2cb5
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_160916_865208_290c2cb5
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_160916_865208_290c2cb5
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_oq8gn9io
+测试环境设置完成
+测试文件和目录的创建、移动、删除操作
+1. 创建测试目录结构
+命令: 'mkdir -p ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/child'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/child"'
+=====================
+Remote real output: 
+=====================
+2. 测试touch创建文件
+命令: 'touch ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/test_file1.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'touch "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/test_file1.txt"'
+=====================
+Remote real output: 
+=====================
+命令: 'touch ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/test_file2.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'touch "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/test_file2.txt"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 0
+输出: parent
+test_file1.txt
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent'
+返回码: 0
+输出: child
+test_file2.txt
+3. 测试mkdir创建更多目录
+命令: 'mkdir ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir1 ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir2'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir1"'
+=====================
+Remote real output: 
+=====================
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir2"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 0
+输出: new_dir1
+new_dir2
+parent
+test_file1.txt
+4. 测试mv移动文件
+命令: 'mv ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/test_file1.txt ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir1/'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '(mv /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/test_file1.txt /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir1/)'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir1'
+返回码: 0
+输出: test_file1.txt
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 0
+输出: new_dir1
+new_dir2
+parent
+5. 测试rm删除文件
+命令: 'rm ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/test_file2.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/test_file2.txt"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent'
+返回码: 0
+输出: child
+6. 测试rm -rf删除目录
+命令: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir2'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm -rf "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/new_dir2"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 0
+输出: new_dir1
+parent
+7. 测试安全检查：尝试删除包含当前目录的父目录
+命令: 'cd ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test/parent/child'
+返回码: 0
+命令: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 1
+输出: Cannot delete directory containing current working directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test
+8. 测试安全检查：尝试删除当前目录的直接父目录
+命令: 'rm -rf ..'
+返回码: 1
+输出: Cannot delete directory containing current working directory: ..
+9. 清理测试：先切换到安全目录再删除
+命令: 'cd ~ && rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 1
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm -rf "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test"'
+=====================
+Remote real output: 
+=====================
+ls: ~/tmp/cmd_result_1763453960_6db6bc33.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第1次...
+返回码: 0
+输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_c9f94ad3
+✓ config.json updated: MOUNT_HASH=c9f94ad3
+✓ current shell instance updated: MOUNT_HASH=c9f94ad3
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
+Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
+✓ Cleared 3 path IDs and restored 2 default IDs
+✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_a1a1ce9e
+✓ config.json updated: MOUNT_HASH=a1a1ce9e
+✓ current shell instance updated: MOUNT_HASH=a1a1ce9e
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
+Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
+✓ Cleared 3 path IDs and restored 2 default IDs
+✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_eadb432b
+✓ config.json updated: MOUNT_HASH=eadb432b
+✓ current shell instance updated: MOUNT_HASH=eadb432b
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
+Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
+✓ Cleared 3 path IDs and restored 2 default IDs
+✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+✓ 远端指纹文件验证成功
+User command preview [in f-string]: 
+=====================
+bash -c 'rm -rf "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251118_160916_865208_290c2cb5/file_ops_test: No such file or directory
+测试mkdir的-p选项
+1. 测试不带-p的mkdir，父目录不存在时应该失败
+命令: 'rm -rf ~/tmp/gds_test_20251118_160916_865208_290c2cb5/mkdir_recursive_test'
+返回码: 0

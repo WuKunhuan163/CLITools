@@ -490,12 +490,12 @@ class CommandGenerator:
         shell_path = current_shell.get("current_path", "~") if current_shell else "~"
         shell_absolute_path = self.main_instance.resolve_remote_absolute_path(shell_path, current_shell) if current_shell else f"{self.main_instance.REMOTE_ROOT}"
         
-        print(f"User command preview [in f-string]: ")
-        print("=====================")
-        print(cmd)
-        print("=====================")
-        print("\nRemote real output: ")
-        print("=====================")
+        # print(f"User command preview [in f-string]: ")
+        # print("=====================")
+        # print(cmd)
+        # print("=====================")
+        # print("\nRemote real output: ")
+        # print("=====================")
         # exit(0)
 
         remote_command = f'''

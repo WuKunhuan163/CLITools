@@ -47,6 +47,7 @@ class PathResolver:
         将字符串中的特殊符号和重定向符号替换为placeholder
         
         保护的符号包括：
+        - 引号字符串：完整的双引号或单引号字符串（包括引号本身和内容）
         - 转义序列：\n, \t, \r, \\, \", \', 等所有 \x 形式的转义
         - 真实控制字符：换行符(ASCII 10), 回车符(ASCII 13), 制表符(ASCII 9)
         - 重定向操作符：>, <, >>, <<, |, &>, 2>, 2>&1, &>>
@@ -63,12 +64,32 @@ class PathResolver:
                 placeholder字典的格式为 {placeholder: original_symbol}
         """
         import uuid
+        import re
         
         placeholders = {}
         result = text
         
+        # 步骤0: 首先保护完整的引号字符串（包括引号和内容）
+        # 这样引号内的特殊字符（如@、~等）就不会被后续的路径展开逻辑处理
+        # 双引号字符串：匹配 "..." ，支持转义的引号 \"
+        double_quoted_pattern = r'"(?:[^"\\]|\\.)*"'
+        double_quoted_matches = list(re.finditer(double_quoted_pattern, result))
+        for match in reversed(double_quoted_matches):
+            quoted_str = match.group(0)
+            quoted_placeholder = f"QUOTED_STR_{uuid.uuid4().hex[:8].upper()}"
+            placeholders[quoted_placeholder] = quoted_str
+            result = result[:match.start()] + quoted_placeholder + result[match.end():]
+        
+        # 单引号字符串：匹配 '...' ，单引号内不支持转义
+        single_quoted_pattern = r"'[^']*'"
+        single_quoted_matches = list(re.finditer(single_quoted_pattern, result))
+        for match in reversed(single_quoted_matches):
+            quoted_str = match.group(0)
+            quoted_placeholder = f"QUOTED_STR_{uuid.uuid4().hex[:8].upper()}"
+            placeholders[quoted_placeholder] = quoted_str
+            result = result[:match.start()] + quoted_placeholder + result[match.end():]
+        
         # 步骤1: 保护所有的转义序列 \x（将 \x 替换为 PHx）
-        import re
         escape_pattern = r'\\(.)'
         escape_matches = list(re.finditer(escape_pattern, result))
         # 从后往前替换，避免索引变化
