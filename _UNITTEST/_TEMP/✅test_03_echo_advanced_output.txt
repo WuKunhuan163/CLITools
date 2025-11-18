@@ -1,0 +1,550 @@
+# ============================================================================
+# Test completed at: 2025-11-18 15:44:00 - Status: PASS
+# ============================================================================
+
+test_03_echo_advanced (test_gds.GDSTest)
+测试echo的正确JSON语法（修复后的功能） ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_151501_326417_974ca70f
+正在创建远端测试目录: ~/tmp/gds_test_20251118_151501_326417_974ca70f
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_151501_326417_974ca70f
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_151501_326417_974ca70f
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_84dfauyd
+测试环境设置完成
+命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/correct_json.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "{'name': 'test03_json_echo_01', 'value': 123}" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/correct_json.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/correct_json.txt
+  expected_content: "{'name': 'test03_json_echo_01', 'value': 123}"
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/correct_json.txt'
+返回码: 0
+输出: {'name': 'test03_json_echo_01', 'value': 123}
+  returncode: 0
+  stdout: "{'name': 'test03_json_echo_01', 'value': 123}\n"
+  stderr: ''
+  actual_content: "{'name': 'test03_json_echo_01', 'value': 123}\n"
+  actual_content length: 46
+命令: 'echo -e "Line1\\nLine2\\nLine3" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline.txt'
+返回码: 0
+输出: DEBUG 检测到echo -e包装，提取内部命令: "Line1\nLine2\nLine3" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline.txt
+User command preview [in f-string]: 
+=====================
+echo -e "Line1\nLine2\nLine3" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/multiline.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline.txt
+  expected_content: 'Line1\nLine2\nLine3'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline.txt'
+返回码: 0
+输出: Line1
+Line2
+Line3
+  returncode: 0
+  stdout: 'Line1\nLine2\nLine3\n'
+  stderr: ''
+  actual_content: 'Line1\nLine2\nLine3\n'
+  actual_content length: 18
+命令: 'echo "Echo stdout test content"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Echo stdout test content"
+=====================
+Remote real output: 
+=====================
+Echo stdout test content
+命令: 'echo "Content for local redirect"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Content for local redirect"
+=====================
+Remote real output: 
+=====================
+Content for local redirect
+命令执行: python3 /Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py --shell --no-direct-feedback "echo \"{'name': 'test03_json_echo_02', 'value': 123}\"" > /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/local_redirect.txt
+返回码: 0
+本地重定向文件内容: User command preview [in f-string]: 
+=====================
+echo "{'name': 'test03_json_echo_02', 'value': 123}"
+=====================
+
+Remote real output: 
+=====================
+
+[K⏳ Waiting for result ......
+[K
+[K{'name': 'test03_json_echo_02', 'value': 123}
+
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/local_redirect.txt'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251118_151501_326417_974ca70f/local_redirect.txt: No such file or directory
+已清理文件: /Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/local_redirect.txt
+命令: 'cat > ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py << "EOF"\nimport json\nimport os\n\n# 切换到脚本所在目录\nscript_dir = os.path.dirname(os.path.abspath(__file__))\nos.chdir(script_dir)\n\n# 创建配置文件\nconfig = {\n    "name": "test_project",\n    "version": "1.0.0",\n    "debug": True\n}\n\nwith open("test_config.json", "w") as f:\n    json.dump(config, f, indent=2)\n\nprint(f\'Config created successfully\')\nprint(f\'Current files: {len(os.listdir())}\')\nEOF'
+返回码: 0
+输出: Heredoc detected, translating to: echo 'aW1wb3J0IGpzb24KaW1wb3J0IG9zCgojIOWIh+aNouWIsOiEmuacrOaJgOWcqOebruW9lQpzY3JpcHRfZGlyID0gb3MucGF0aC5kaXJuYW1lKG9zLnBhdGguYWJzcGF0aChfX2ZpbGVfXykpCm9zLmNoZGlyKHNjcmlwdF9kaXIpCgojIOWIm+W7uumFjee9ruaWh+S7tgpjb25maWcgPSB7CiAgICAibmFtZSI6ICJ0ZXN0X3Byb2plY3QiLAogICAgInZlcnNpb24iOiAiMS4wLjAiLAogICAgImRlYnVnIjogVHJ1ZQp9Cgp3aXRoIG9wZW4oInRlc3RfY29uZmlnLmpzb24iLCAidyIpIGFzIGY6CiAgICBqc29uLmR1bXAoY29uZmlnLCBmLCBpbmRlbnQ9MikKCnByaW50KGYnQ29uZmlnIGNyZWF0ZWQgc3VjY2Vzc2Z1bGx5JykKcHJpbnQoZidDdXJyZW50IGZpbGVzOiB7bGVuKG9zLmxpc3RkaXIoKSl9JykK' | base64 -d > ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py
+User command preview [in f-string]: 
+=====================
+bash -c 'echo '"'"'aW1wb3J0IGpzb24KaW1wb3J0IG9zCgojIOWIh+aNouWIsOiEmuacrOaJgOWcqOebruW9lQpzY3JpcHRfZGlyID0gb3MucGF0aC5kaXJuYW1lKG9zLnBhdGguYWJzcGF0aChfX2ZpbGVfXykpCm9zLmNoZGlyKHNjcmlwdF9kaXIpCgojIOWIm+W7uumFjee9ruaWh+S7tgpjb25maWcgPSB7CiAgICAibmFtZSI6ICJ0ZXN0X3Byb2plY3QiLAogICAgInZlcnNpb24iOiAiMS4wLjAiLAogICAgImRlYnVnIjogVHJ1ZQp9Cgp3aXRoIG9wZW4oInRlc3RfY29uZmlnLmpzb24iLCAidyIpIGFzIGY6CiAgICBqc29uLmR1bXAoY29uZmlnLCBmLCBpbmRlbnQ9MikKCnByaW50KGYnQ29uZmlnIGNyZWF0ZWQgc3VjY2Vzc2Z1bGx5JykKcHJpbnQoZidDdXJyZW50IGZpbGVzOiB7bGVuKG9zLmxpc3RkaXIoKSl9JykK'"'"' | base64 -d > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'python ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'source /content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh 2>/dev/null || true && python3 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/test_script.py'
+=====================
+Remote real output: 
+=====================
+Config created successfully
+Current files: 4
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_config.json'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_config.json
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_config.json
+  expected_content: '"name": "test_project"'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_config.json'
+返回码: 0
+输出: {
+  "name": "test_project",
+  "version": "1.0.0",
+  "debug": true
+}
+  returncode: 0
+  stdout: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
+  stderr: ''
+  actual_content: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
+  actual_content length: 67
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_config.json
+  expected_content: '"debug": true'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/test_config.json'
+返回码: 0
+输出: {
+  "name": "test_project",
+  "version": "1.0.0",
+  "debug": true
+}
+  returncode: 0
+  stdout: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
+  stderr: ''
+  actual_content: '{\n  "name": "test_project",\n  "version": "1.0.0",\n  "debug": true\n}'
+  actual_content length: 67
+命令: 'echo "Content 1" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Content 1" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt
+=====================
+Remote real output: 
+=====================
+命令: 'echo "Content 2" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Content 2" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt
+=====================
+Remote real output: 
+=====================
+命令: 'echo "Content 3" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Content 3" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt
+  expected_content: 'Content'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt'
+返回码: 0
+输出: Content 1
+  returncode: 0
+  stdout: 'Content 1\n'
+  stderr: ''
+  actual_content: 'Content 1\n'
+  actual_content length: 10
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt
+  expected_content: 'Content'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt'
+返回码: 0
+输出: Content 2
+  returncode: 0
+  stdout: 'Content 2\n'
+  stderr: ''
+  actual_content: 'Content 2\n'
+  actual_content length: 10
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt
+  expected_content: 'Content'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt'
+返回码: 0
+输出: Content 3
+  returncode: 0
+  stdout: 'Content 3\n'
+  stderr: ''
+  actual_content: 'Content 3\n'
+  actual_content length: 10
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt
+  expected_content: 'Content'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt'
+返回码: 0
+输出: Content 1
+  returncode: 0
+  stdout: 'Content 1\n'
+  stderr: ''
+  actual_content: 'Content 1\n'
+  actual_content length: 10
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt
+  expected_content: 'Content'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt'
+返回码: 0
+输出: Content 2
+  returncode: 0
+  stdout: 'Content 2\n'
+  stderr: ''
+  actual_content: 'Content 2\n'
+  actual_content length: 10
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt
+  expected_content: 'Content'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt'
+返回码: 0
+输出: Content 3
+  returncode: 0
+  stdout: 'Content 3\n'
+  stderr: ''
+  actual_content: 'Content 3\n'
+  actual_content length: 10
+命令: 'find ~/tmp/gds_test_20251118_151501_326417_974ca70f -name "batch_file*.txt"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'find "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f" -name "batch_file*.txt"'
+=====================
+Remote real output: 
+=====================
+No files found matching the pattern.
+命令: 'rm ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file1.txt"'
+=====================
+Remote real output: 
+=====================
+命令: 'rm ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file2.txt"'
+=====================
+Remote real output: 
+=====================
+命令: 'rm ~/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/batch_file3.txt"'
+=====================
+Remote real output: 
+=====================
+开始增强的echo测试
+测试JSON不同引号处理
+命令: 'echo \'{"name": "json_single_quote", "value": 123}\' > ~/tmp/gds_test_20251118_151501_326417_974ca70f/json_single_quote.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo '{"name": "json_single_quote", "value": 123}' > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/json_single_quote.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/json_single_quote.txt
+  expected_content: '{"name": "json_single_quote", "value": 123}'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/json_single_quote.txt'
+返回码: 0
+输出: {"name": "json_single_quote", "value": 123}
+  returncode: 0
+  stdout: '{"name": "json_single_quote", "value": 123}\n'
+  stderr: ''
+  actual_content: '{"name": "json_single_quote", "value": 123}\n'
+  actual_content length: 44
+命令: 'echo "{\\"name\\": \\"json_single_quote\\", \\"value\\": 123}" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/json_escaped_quote.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "{\"name\": \"json_single_quote\", \"value\": 123}" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/json_escaped_quote.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/json_escaped_quote.txt
+  expected_content: '{"name": "json_single_quote", "value": 123}'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/json_escaped_quote.txt'
+返回码: 0
+输出: {"name": "json_single_quote", "value": 123}
+  returncode: 0
+  stdout: '{"name": "json_single_quote", "value": 123}\n'
+  stderr: ''
+  actual_content: '{"name": "json_single_quote", "value": 123}\n'
+  actual_content length: 44
+测试引号内特殊字符
+命令: 'echo "This content has > symbol but no redirect"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "This content has > symbol but no redirect"
+=====================
+Remote real output: 
+=====================
+This content has > symbol but no redirect
+命令: 'echo "Special: @#$%^&*()_+-=[]{}|;:,.<>?" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/special_chars.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Special: @#$%^&*()_+-=[]{}|;:,.<>?" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/special_chars.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/special_chars.txt
+  expected_content: 'Special: @#$%^&*()_+-=[]{}|;:,.<>?'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/special_chars.txt'
+返回码: 0
+输出: Special: @#$%^&*()_+-=[]{}|;:,.<>?
+  returncode: 0
+  stdout: 'Special: @#$%^&*()_+-=[]{}|;:,.<>?\n'
+  stderr: ''
+  actual_content: 'Special: @#$%^&*()_+-=[]{}|;:,.<>?\n'
+  actual_content length: 35
+测试中文和特殊字符组合
+命令: 'echo "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/chinese_special.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/chinese_special.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/chinese_special.txt
+  expected_content: '你好世界'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/chinese_special.txt'
+返回码: 0
+输出: 测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?
+  returncode: 0
+  stdout: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\n'
+  stderr: ''
+  actual_content: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?\n'
+  actual_content length: 51
+测试复杂JSON结构
+命令: 'echo "{\\"users\\": [{\\"name\\": \\"Alice\\", \\"age\\": 30}, {\\"name\\": \\"Bob\\", \\"age\\": 25}], \\"total\\": 2}" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/complex_json.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "{\"users\": [{\"name\": \"Alice\", \"age\": 30}, {\"name\": \"Bob\", \"age\": 25}], \"total\": 2}" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/complex_json.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/complex_json.txt
+  expected_content: '"users"'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/complex_json.txt'
+返回码: 0
+输出: {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}
+  returncode: 0
+  stdout: '{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}\n'
+  stderr: ''
+  actual_content: '{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}\n'
+  actual_content length: 82
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/complex_json.txt
+  expected_content: '"Alice"'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/complex_json.txt'
+返回码: 0
+输出: {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}
+  returncode: 0
+  stdout: '{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}\n'
+  stderr: ''
+  actual_content: '{"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}], "total": 2}\n'
+  actual_content length: 82
+测试多个连续空格的保留
+命令: 'echo "Multiple     spaces     test" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/multi_space.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Multiple     spaces     test" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/multi_space.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multi_space.txt
+  expected_content: 'Multiple     spaces     test'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multi_space.txt'
+返回码: 0
+输出: Multiple     spaces     test
+  returncode: 0
+  stdout: 'Multiple     spaces     test\n'
+  stderr: ''
+  actual_content: 'Multiple     spaces     test\n'
+  actual_content length: 29
+测试多个空格与转义序列结合
+命令: 'echo -e "Line1\\nLine2     with     spaces\\tTabbed" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/mixed_content.txt'
+返回码: 0
+输出: DEBUG 检测到echo -e包装，提取内部命令: "Line1\nLine2     with     spaces\tTabbed" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/mixed_content.txt
+User command preview [in f-string]: 
+=====================
+echo -e "Line1\nLine2     with     spaces\tTabbed" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/mixed_content.txt
+=====================
+Remote real output: 
+=====================
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/mixed_content.txt
+  expected_content: 'with     spaces'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/mixed_content.txt'
+返回码: 0
+输出: Line1
+Line2     with     spaces	Tabbed
+  returncode: 0
+  stdout: 'Line1\nLine2     with     spaces\tTabbed\n'
+  stderr: ''
+  actual_content: 'Line1\nLine2     with     spaces\tTabbed\n'
+  actual_content length: 39
+测试包含真实换行符的多行echo命令（修复前会失败）
+命令: 'echo "Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here" > ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+  expected_content: 'Line 1: Hello world'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here
+  returncode: 0
+  stdout: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  stderr: ''
+  actual_content: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  actual_content length: 120
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+  expected_content: 'Line 2: This is a test'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here
+  returncode: 0
+  stdout: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  stderr: ''
+  actual_content: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  actual_content length: 120
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+  expected_content: 'Line 3: Hello again'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here
+  returncode: 0
+  stdout: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  stderr: ''
+  actual_content: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  actual_content length: 120
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+  expected_content: 'Line 4: Multiple Hello Hello Hello'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here
+  returncode: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1738.208s
+
+OK
+  stdout: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  stderr: ''
+  actual_content: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  actual_content length: 120
+  filename: ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt
+  expected_content: 'Line 5: No match here'
+  terminal_erase: False
+命令: 'cat ~/tmp/gds_test_20251118_151501_326417_974ca70f/multiline_real_newline.txt'
+返回码: 0
+输出: Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here
+  returncode: 0
+  stdout: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  stderr: ''
+  actual_content: 'Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here\n'
+  actual_content length: 120
+增强的echo测试完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

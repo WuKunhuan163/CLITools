@@ -50,9 +50,13 @@ class EnhancedErrorHandler:
     
     def setup_error_logging(self):
         """设置错误日志"""
-        from .path_constants import get_data_dir
-        log_dir = get_data_dir()
-        self.error_log_file = log_dir / "error_log.txt"
+        try:
+            from .path_constants import get_data_dir
+            log_dir = get_data_dir()
+            self.error_log_file = log_dir / "error_log.txt"
+        except Exception:
+            # 如果设置失败，使用None
+            self.error_log_file = None
     
     def capture_exception(self, 
             context: str = "Unknown", 
@@ -328,7 +332,7 @@ class EnhancedErrorHandler:
     
     def log_error(self, error_info: Dict[str, Any]):
         """记录错误到日志文件"""
-        if not self.error_log_file:
+        if not hasattr(self, 'error_log_file') or not self.error_log_file:
             return
         
         try:

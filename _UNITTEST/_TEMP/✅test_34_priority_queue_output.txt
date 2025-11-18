@@ -1,0 +1,70 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:15:14 - Status: PASS
+# ============================================================================
+
+test_34_priority_queue (test_gds.GDSTest)
+测试优先队列的执行顺序 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 147.262s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_161245_918186_03dcafa2
+正在创建远端测试目录: ~/tmp/gds_test_20251118_161245_918186_03dcafa2
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_161245_918186_03dcafa2
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_161245_918186_03dcafa2
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_n_6nwlww
+测试环境设置完成
+启动3个并发任务...
+- Task1: 普通队列，立即启动
+- Task2: 普通队列，延迟2秒启动
+- Task3: 优先队列，延迟4秒启动
+预期执行顺序: Task1 -> Task3 -> Task2
+命令: 'echo "Task 1 completed"'
+命令: 'echo "Task 2 completed"'
+命令: 'echo "Task 3 completed"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Task 1 completed"
+=====================
+Remote real output: 
+=====================
+Task 1 completed
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Task 3 completed"
+=====================
+Remote real output: 
+=====================
+Task 3 completed
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "Task 2 completed"
+=====================
+Remote real output: 
+=====================
+Task 2 completed
+
+实际执行顺序:
+1. Task1_Normal (普通队列) - 16:14:48.841
+2. Task3_Priority (优先队列) - 16:15:03.059
+3. Task2_Normal (普通队列) - 16:15:13.110
+
+执行顺序验证:
+Task1位置: 1
+Task2位置: 3
+Task3位置: 2
+优先队列执行顺序测试完成
+验证通过：优先队列Task3在普通队列Task2之前完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

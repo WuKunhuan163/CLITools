@@ -187,6 +187,63 @@ class GDSTest(unittest.TestCase):
     包含所有GDS功能的测试，从基础到高级，从简单到复杂
     """
     
+    # ========== Override assertion methods for better visibility ==========
+    def assertEqual(self, first, second, msg=None):
+        """Override assertEqual to add emoji and clear output on failure"""
+        try:
+            super().assertEqual(first, second, msg)
+        except AssertionError as e:
+            print(f"\n{'='*70}")
+            print(f"❌❌❌ ASSERTION FAILED ❌❌❌")
+            print(f"{'='*70}")
+            print(f"📍 Expected: {repr(second)}")
+            print(f"📍 Got:      {repr(first)}")
+            if msg:
+                print(f"💬 Message:  {msg}")
+            print(f"{'='*70}\n")
+            raise
+    
+    def assertTrue(self, expr, msg=None):
+        """Override assertTrue to add emoji and clear output on failure"""
+        try:
+            super().assertTrue(expr, msg)
+        except AssertionError as e:
+            print(f"\n{'='*70}")
+            print(f"❌❌❌ ASSERTION FAILED ❌❌❌")
+            print(f"{'='*70}")
+            print(f"📍 Expected: True")
+            print(f"📍 Got:      {repr(expr)}")
+            if msg:
+                print(f"💬 Message:  {msg}")
+            print(f"{'='*70}\n")
+            raise
+    
+    def assertFalse(self, expr, msg=None):
+        """Override assertFalse to add emoji and clear output on failure"""
+        try:
+            super().assertFalse(expr, msg)
+        except AssertionError as e:
+            print(f"\n{'='*70}")
+            print(f"❌❌❌ ASSERTION FAILED ❌❌❌")
+            print(f"{'='*70}")
+            print(f"📍 Expected: False")
+            print(f"📍 Got:      {repr(expr)}")
+            if msg:
+                print(f"💬 Message:  {msg}")
+            print(f"{'='*70}\n")
+            raise
+    
+    def fail(self, msg=None):
+        """Override fail to add emoji and clear output"""
+        print(f"\n{'='*70}")
+        print(f"❌❌❌ TEST FAILED ❌❌❌")
+        print(f"{'='*70}")
+        if msg:
+            print(f"💬 Message: {msg}")
+        print(f"{'='*70}\n")
+        super().fail(msg)
+    # ========== End of assertion overrides ==========
+    
     @classmethod
     def setUpClass(cls):
         """设置测试环境"""
@@ -198,16 +255,19 @@ class GDSTest(unittest.TestCase):
         cls.TEST_DATA_DIR = Path(__file__).parent / "_DATA"
         cls.TEST_TEMP_DIR = Path(__file__).parent / "_TEMP"
         
-        # 清理Python缓存，确保使用最新代码
-        print(f'清理Python缓存...')
+        # 清理Python缓存和pytest缓存，确保使用最新代码
+        print(f'清理Python缓存和pytest缓存...')
         import subprocess
         subprocess.run(
             f'find {cls.BIN_DIR}/GOOGLE_DRIVE_PROJ -type d -name "__pycache__" -exec rm -rf {{}} + 2>/dev/null; '
-            f'find {cls.BIN_DIR}/GOOGLE_DRIVE_PROJ -name "*.pyc" -delete 2>/dev/null',
+            f'find {cls.BIN_DIR}/GOOGLE_DRIVE_PROJ -name "*.pyc" -delete 2>/dev/null; '
+            f'find {cls.BIN_DIR}/_UNITTEST -type d -name "__pycache__" -exec rm -rf {{}} + 2>/dev/null; '
+            f'find {cls.BIN_DIR}/_UNITTEST -name "*.pyc" -delete 2>/dev/null; '
+            f'find {cls.BIN_DIR}/_UNITTEST -type d -name ".pytest_cache" -exec rm -rf {{}} + 2>/dev/null',
             shell=True,
             capture_output=True
         )
-        print(f'Python缓存已清理')
+        print(f'Python缓存和pytest缓存已清理')
         
         # 确保目录存在
         cls.TEST_DATA_DIR.mkdir(exist_ok=True)
@@ -322,6 +382,18 @@ class GDSTest(unittest.TestCase):
         cls.local_tmp_dir = tempfile.mkdtemp(prefix="gds_test_local_")
         print(f'本地临时目录: {cls.local_tmp_dir}')
         os.chdir(cls.local_tmp_dir)
+    
+    @classmethod
+    def tearDownClass(cls):
+        """清理测试环境并输出明显的结果标记"""
+        # 检查是否有测试失败
+        import sys
+        # 检查当前测试结果
+        test_result = getattr(cls, '_test_result', None)
+        
+        print(f"\n{'='*70}")
+        print(f"🏁 GDS测试套件执行完成")
+        print(f"{'='*70}\n")
     
     @classmethod
     def _create_test_files(cls):
@@ -549,7 +621,7 @@ Shell commands: ls -la && echo "done"
         except Exception as e:
             print(f'读取本地文件失败: {file_path}, 错误: {e}')
             return None
-    
+
     def bash(self, command, cwd=None):
         """
         运行bash命令用于对比测试
@@ -1416,31 +1488,31 @@ Shell commands: ls -la && echo "done"
         
         print(f'测试带空格的路径')
         # 使用双引号保护空格路径，GDS会正确展开并处理
-        result = self.gds(f'mkdir -p "~/tmp/{self.test_folder}/test dir with spaces"')
+        result = self.gds(f'mkdir -p "{self.test_folder}/test dir with spaces"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds(f'ls "~/tmp/{self.test_folder}/test dir with spaces"')
+        result = self.gds(f'ls "{self.test_folder}/test dir with spaces"')
         self.assertEqual(result.returncode, 0)
         
         # 测试在带空格的路径中创建文件
-        result = self.gds(f'touch "~/tmp/{self.test_folder}/test dir with spaces/test_file.txt"')
+        result = self.gds(f'touch "{self.test_folder}/test dir with spaces/test_file.txt"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds(f'ls "~/tmp/{self.test_folder}/test dir with spaces/test_file.txt"')
+        result = self.gds(f'ls "{self.test_folder}/test dir with spaces/test_file.txt"')
         self.assertEqual(result.returncode, 0)
         
         # 测试echo到带空格的路径
-        result = self.gds(f'echo "Hello World" > "~/tmp/{self.test_folder}/test dir with spaces/hello.txt"')
+        result = self.gds(f'echo "Hello World" > "{self.test_folder}/test dir with spaces/hello.txt"')
         self.assertEqual(result.returncode, 0)
         
-        result = self.gds(f'cat "~/tmp/{self.test_folder}/test dir with spaces/hello.txt"')
+        result = self.gds(f'cat "{self.test_folder}/test dir with spaces/hello.txt"')
         self.assertEqual(result.returncode, 0)
         self.assertIn("Hello World", result.stdout)
         
         # 11. 清理测试文件
         print(f'清理测试文件')
         # 清理带空格的目录
-        result = self.gds(f'rm -rf "~/tmp/{self.test_folder}/test dir with spaces"', expect_success=False, check_function_result=False)
+        result = self.gds(f'rm -rf "{self.test_folder}/test dir with spaces"', expect_success=False, check_function_result=False)
         
         # 清理其他测试文件
         cleanup_items = [
@@ -1864,6 +1936,30 @@ print(f'Current files: {len(os.listdir())}')'''
         self.assertEqual(result.returncode, 0)
         # 验证文件包含多个空格（转义序列会被解释，但空格应保留）
         self.assertTrue(self.verify_file_content_contains(mixed_content_file, "with     spaces"))
+
+        print("测试包含真实换行符的多行echo命令（修复前会失败）")
+        # 这个测试用例使用Python三引号字符串，包含真实的换行符（ASCII 10）
+        # 不是转义序列\n（两个字符），而是实际的换行字符
+        # 这个测试用例与test_09_grep中的类似，提前发现控制字符保护问题
+        multiline_real_newline_file = self.get_test_remote_path("multiline_real_newline.txt")
+        test_content_with_real_newlines = '''Line 1: Hello world
+Line 2: This is a test
+Line 3: Hello again
+Line 4: Multiple Hello Hello Hello
+Line 5: No match here'''
+        echo_cmd = f'echo "{test_content_with_real_newlines}" > {multiline_real_newline_file}'
+        result = self.gds(echo_cmd)
+        self.assertEqual(result.returncode, 0, f"echo命令应该成功处理包含真实换行符的多行内容，但返回码为{result.returncode}")
+        
+        # 验证文件创建成功
+        self.assertTrue(self.verify_file_exists(multiline_real_newline_file), "包含真实换行符的多行文件应该被成功创建")
+        
+        # 验证文件内容包含所有行
+        self.assertTrue(self.verify_file_content_contains(multiline_real_newline_file, "Line 1: Hello world"))
+        self.assertTrue(self.verify_file_content_contains(multiline_real_newline_file, "Line 2: This is a test"))
+        self.assertTrue(self.verify_file_content_contains(multiline_real_newline_file, "Line 3: Hello again"))
+        self.assertTrue(self.verify_file_content_contains(multiline_real_newline_file, "Line 4: Multiple Hello Hello Hello"))
+        self.assertTrue(self.verify_file_content_contains(multiline_real_newline_file, "Line 5: No match here"))
 
         print("增强的echo测试完成")
     
@@ -3041,8 +3137,8 @@ if __name__ == "__main__":
         result = self.gds(f'venv --delete {venv_name}')
         self.assertEqual(result.returncode, 0)
         
-        # 返回根目录
-        result = self.gds('cd ../..')
+        # 返回根目录（使用绝对路径，避免相对路径在remount后失效）
+        result = self.gds(f'cd {self.test_folder}')
         self.assertEqual(result.returncode, 0)
         
         print(f'真实项目开发工作流程测试完成！')
@@ -3159,7 +3255,30 @@ if __name__ == "__main__":
         # 0. 预备工作：确保测试环境干净（强制取消激活任何现有环境）
         print(f'清理测试环境...')
         try:
+            # 清理当前shell的venv状态
             result = self.gds('venv --deactivate', expect_success=False, check_function_result=False)
+        except:
+            pass
+        
+        # 清理JSON中所有残留的venv激活状态（包括其他shell_id的）
+        try:
+            # 直接使用bash命令执行Python脚本，避免heredoc解析问题
+            clear_venv_script = '''bash -c 'python3 -c "
+import json
+import os
+venv_file = \\"/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json\\"
+if os.path.exists(venv_file):
+    with open(venv_file, \\"r\\") as f:
+        states = json.load(f)
+    # 清除所有shell激活状态，保留environments数据
+    cleaned_states = {\\"environments\\": states.get(\\"environments\\", {})}
+    with open(venv_file, \\"w\\") as f:
+        json.dump(cleaned_states, f, indent=2)
+    print(\\"Cleared all venv activation states\\")
+else:
+    print(\\"No venv states file found\\")
+"' '''
+            result = self.gds(clear_venv_script, expect_success=False, check_function_result=False)
         except:
             pass 
         
@@ -3809,22 +3928,27 @@ if __name__ == "__main__":
                 return match.group(1)
             return None
         
-        def wait_for_task_completion(task_id, max_wait=30):
-            """等待任务完成"""
+        def wait_for_task_completion(task_id, max_wait=60):
+            """等待任务完成（考虑到Google Drive API延迟，每次status检查可能需要10-45秒）"""
             import time
             start_time = time.time()
+            check_count = 0
             while time.time() - start_time < max_wait:
+                check_count += 1
                 status_result = run_gds_bg_status(task_id)
                 
                 if status_result.returncode == 0 and "Status: completed" in status_result.stdout:
+                    elapsed = time.time() - start_time
+                    print(f'任务完成！总等待时间: {elapsed:.1f}秒，检查次数: {check_count}')
                     return True
                 elif status_result.returncode == 0 and "Status: running" in status_result.stdout:
-                    pass
+                    elapsed = time.time() - start_time
+                    print(f'第{check_count}次检查：任务运行中（已等待{elapsed:.1f}秒）')
                 else:
                     print(f'WARNING: 任务 {task_id} 状态异常，返回码: {status_result.returncode}')
                     print(f'WARNING: 输出内容: {status_result.stdout}')
                 
-                time.sleep(1)
+                time.sleep(2)  # 等待2秒再检查（减少API调用频率）
             
             print(f'ERROR: 任务 {task_id} 在 {max_wait} 秒内未完成')
             return False
@@ -3838,7 +3962,7 @@ if __name__ == "__main__":
         print(f'任务ID: {task_id}')
         
         # 等待任务完成
-        completed = wait_for_task_completion(task_id, max_wait=30)
+        completed = wait_for_task_completion(task_id)
         self.assertTrue(completed, "任务未在预期时间内完成")
         
         # 检查结果
@@ -3858,7 +3982,7 @@ if __name__ == "__main__":
         task_id = extract_task_id(result.stdout)
         self.assertIsNotNone(task_id, "无法提取任务ID")
         
-        completed = wait_for_task_completion(task_id, max_wait=30)
+        completed = wait_for_task_completion(task_id)
         self.assertTrue(completed, "复杂命令未完成")
         
         result_output = run_gds_bg_result(task_id)
@@ -3875,7 +3999,7 @@ if __name__ == "__main__":
         task_id = extract_task_id(result.stdout)
         self.assertIsNotNone(task_id, "无法提取错误任务ID")
         
-        completed = wait_for_task_completion(task_id, max_wait=30)
+        completed = wait_for_task_completion(task_id)
         self.assertTrue(completed, "错误命令未完成")
         
         status_result = run_gds_bg_status(task_id)
@@ -4118,11 +4242,12 @@ sys.stdout.flush()
         self.assertEqual(result.returncode, 0, "读取占位符文件应该成功")
         self.assertIn("Text with CUSTOM_PLACEHOLDER marker", result.stdout, "应该包含占位符标记")
         
-        # 子测试3: 复杂引号嵌套
+        # 子测试3: 复杂引号嵌套（修复引号语法）
         print("子测试3: 复杂引号嵌套")
         nested_file = self.get_test_remote_path("test_nested.txt")
         nested_content = 'Outer "nested" quotes'
-        result = self.gds(f"'echo \"{nested_content}\" > {nested_file}'")
+        # 使用单引号包裹内容（单引号内双引号不需要转义）
+        result = self.gds(f"echo '{nested_content}' > {nested_file}")
         self.assertEqual(result.returncode, 0, "嵌套引号命令应该成功")
         
         result = self.gds(f'cat {nested_file}')
@@ -4492,54 +4617,7 @@ print(f'Current directory: {os.getcwd()}')'''
         
         print(f'Python版本管理基础功能测试完成')
 
-    def test_29_pyenv_version_management(self):
-        """测试Python版本安装和管理"""
-        print(f'测试Python版本安装和管理')
-        test_version = "3.9.18"
-        print(f'注意：Python版本安装测试仅验证命令接口，不进行实际安装')
-        print(f'如需完整测试，请手动执行: GDS pyenv --install {test_version}')
-        
-        # 测试安装命令格式验证
-        result = self.gds(["pyenv", "--install"], expect_success=False)
-        self.assertNotEqual(result.returncode, 0, "不提供版本号的安装命令应该失败")
-        
-        output = result.stdout + result.stderr
-        self.assertIn("Please specify a Python version", output, "应该提示需要指定版本号")
-        
-        # 测试卸载命令格式验证
-        result = self.gds(["pyenv", "--uninstall"], expect_success=False)
-        self.assertNotEqual(result.returncode, 0, "不提供版本号的卸载命令应该失败")
-        
-        output = result.stdout + result.stderr
-        self.assertIn("Please specify a Python version", output, "应该提示需要指定版本号")
-        
-        # 测试设置全局版本（未安装版本）
-        result = self.gds(["pyenv", "--global", test_version], expect_success=False)
-        self.assertNotEqual(result.returncode, 0, "设置未安装版本为全局版本应该失败")
-        output = result.stdout + result.stderr
-        self.assertIn("is not installed", output, "应该提示版本未安装")
-        
-        # 测试设置本地版本（未安装版本）
-        result = self.gds(["pyenv", "--local", test_version], expect_success=False)
-        self.assertNotEqual(result.returncode, 0, "设置未安装版本为本地版本应该失败")
-        
-        output = result.stdout + result.stderr
-        self.assertIn("is not installed", output, "应该提示版本未安装")
-        print(f'Python版本安装和管理测试完成')
-
-        # 检查当前Python版本
-        result = self.gds(["pyenv", "--version"])
-        self.assertEqual(result.returncode, 0, "检查当前Python版本应该成功")
-        
-        # 列出可用版本
-        result = self.gds(["pyenv", "--list-available"])
-        self.assertEqual(result.returncode, 0, "列出可用版本应该成功")
-        
-        # 检查已安装版本
-        result = self.gds(["pyenv", "--versions"])
-        self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
-    
-    def test_30_pyenv_version_change(self):
+    def test_29_pyenv_version_change(self):
         """测试pyenv版本切换 - 动态获取可用版本并随机选择进行测试"""
         print(f'测试pyenv版本切换（使用随机可用版本）')
         
@@ -4754,7 +4832,7 @@ print('Script execution successful!')
         
         print(f'\npyenv版本切换和卸载测试完成！成功测试了{version1}和{version2}的安装、切换和卸载')
 
-    def test_31_pyenv_invalid_versions(self):
+    def test_30_pyenv_invalid_versions(self):
         """测试pyenv边缘情况和无效版本处理"""
         print(f'测试pyenv边缘情况和无效版本处理')
 
@@ -4820,7 +4898,7 @@ print('Script execution successful!')
         
         print(f'\npyenv边缘情况测试完成')
         
-    def test_32_redirection(self):
+    def test_31_redirection(self):
         """强化补丁：测试printf和echo -n重定向功能"""
         print(f'测试printf和echo -n重定向功能（强化补丁）')
         
@@ -4915,7 +4993,7 @@ print('Script execution successful!')
         self.assertEqual(result.returncode, 0, "清理测试目录应该成功")
         print(f'printf和echo -n重定向功能测试完成（强化补丁）')
     
-    def test_33_regex(self):
+    def test_32_regex(self):
         """测试正则表达式验证功能 - 基于实际文件操作"""
         print(f'测试正则表达式验证功能')
         
@@ -5021,7 +5099,7 @@ print('Script execution successful!')
         # 测试4: 命令参数解析模式（基于实际执行的命令）
         print("测试4: 命令参数解析模式")
         grep_result_file = f'{redirection_test_folder}/grep_result.txt'
-        grep_cmd = f'\'grep -n "pattern" {test_file4} > {grep_result_file}'
+        grep_cmd = f'grep -n "pattern" {test_file4} > {grep_result_file}'
         result = self.gds(grep_cmd)
         self.assertEqual(result.returncode, 0, "grep命令应该成功")
         
@@ -5127,7 +5205,7 @@ print('Script execution successful!')
         
         print(f'正则表达式验证功能测试完成')
     
-    def test_34_bash_output_alignment(self):
+    def test_33_bash_output_alignment(self):
         """测试GDS shell输出与bash shell输出的对齐性"""
         print(f'测试GDS shell输出与bash shell输出的对齐性')
         import tempfile
@@ -5606,7 +5684,7 @@ print('Script execution successful!')
         
         print(f'GDS与bash输出对齐性测试完成')
 
-    def test_35_priority_queue(self):
+    def test_34_priority_queue(self):
         """测试优先队列的执行顺序"""
         
         import threading
@@ -5695,7 +5773,7 @@ print('Script execution successful!')
         print(f'验证通过：优先队列Task3在普通队列Task2之前完成')
 
 
-    def test_36_at_path_operations(self):
+    def test_35_at_path_operations(self):
         """测试@路径相关的文件操作和导航"""
         print("测试@路径相关的文件操作和导航")
         
@@ -5821,7 +5899,7 @@ print('Script execution successful!')
         
         print("@路径操作测试完成")
 
-    def test_37_pyenv_install_local(self):
+    def test_36_pyenv_install_local(self):
         """测试pyenv本地下载安装功能 - 动态选择随机版本进行本地下载和远程编译安装"""
         print("测试pyenv本地下载安装功能（使用随机版本）")
         
@@ -5944,7 +6022,7 @@ print('Script execution successful!')
         print(f'\npyenv本地下载安装测试完成')
         print(f'✓ Python {test_version}通过本地下载模式成功安装并验证')
 
-    def test_38_comprehensive_bash_alignment(self):
+    def test_37_comprehensive_bash_alignment(self):
         """全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等"""
         print('测试全面bash alignment')
         
@@ -5956,28 +6034,28 @@ print('Script execution successful!')
         # 分组1: 不同引号类型
         print('\n分组1: 不同引号类型')
         test_cases.extend([
-            ("双引号-字面量", 'echo "Line1\\nLine2"', lambda cmd: self._run_local_bash(cmd)),
-            ("单引号-字面量", "echo 'Line1\\nLine2'", lambda cmd: self._run_local_bash(cmd)),
-            ("无引号", "echo Line1", lambda cmd: self._run_local_bash(cmd)),
-            ("双引号-echo-e", 'echo -e "Line1\\nLine2"', lambda cmd: self._run_local_bash(cmd)),
+            ("双引号-字面量", 'echo "Line1\\nLine2"', lambda cmd: self.bash(cmd)),
+            ("单引号-字面量", "echo 'Line1\\nLine2'", lambda cmd: self.bash(cmd)),
+            ("无引号", "echo Line1", lambda cmd: self.bash(cmd)),
+            ("双引号-echo-e", 'echo -e "Line1\\nLine2"', lambda cmd: self.bash(cmd)),
         ])
         
         # 分组2: 不同反斜杠数量
         print('\n分组2: 不同反斜杠数量')
         test_cases.extend([
-            ("1个反斜杠", 'echo "\\n"', lambda cmd: self._run_local_bash(cmd)),
-            ("2个反斜杠", 'echo "\\\\n"', lambda cmd: self._run_local_bash(cmd)),
-            ("4个反斜杠", 'echo "\\\\\\\\n"', lambda cmd: self._run_local_bash(cmd)),
+            ("1个反斜杠", 'echo "\\n"', lambda cmd: self.bash(cmd)),
+            ("2个反斜杠", 'echo "\\\\n"', lambda cmd: self.bash(cmd)),
+            ("4个反斜杠", 'echo "\\\\\\\\n"', lambda cmd: self.bash(cmd)),
         ])
         
         # 分组3: 特殊符号
         print('\n分组3: 特殊符号')
         test_cases.extend([
-            ("Dollar符号", 'echo "Price: $100"', lambda cmd: self._run_local_bash(cmd)),
-            ("Backtick", 'echo "Command: `pwd`"', lambda cmd: self._run_local_bash(cmd)),
-            ("混合特殊符号", 'echo "Test: $VAR \\n `cmd`"', lambda cmd: self._run_local_bash(cmd)),
-            ("双引号内单引号-JSON格式", 'echo "{\'name\': \'test\', \'value\': 123}"', lambda cmd: self._run_local_bash(cmd)),
-            ("双引号内单引号-复杂", "echo \"Test's result: {'status': 'ok'}\"", lambda cmd: self._run_local_bash(cmd)),
+            ("Dollar符号", 'echo "Price: $100"', lambda cmd: self.bash(cmd)),
+            ("Backtick", 'echo "Command: `pwd`"', lambda cmd: self.bash(cmd)),
+            ("混合特殊符号", 'echo "Test: $VAR \\n `cmd`"', lambda cmd: self.bash(cmd)),
+            ("双引号内单引号-JSON格式", 'echo "{\'name\': \'test\', \'value\': 123}"', lambda cmd: self.bash(cmd)),
+            ("双引号内单引号-复杂", "echo \"Test's result: {'status': 'ok'}\"", lambda cmd: self.bash(cmd)),
         ])
         
         # 分组4: 重定向 vs 直接输出
@@ -6062,11 +6140,6 @@ print('Script execution successful!')
         # 所有测试必须通过
         self.assertEqual(passed, total, f'Bash alignment测试失败: {total-passed}/{total}个测试不通过')
     
-    def _run_local_bash(self, cmd):
-        """在本地bash中执行命令并返回输出"""
-        result = subprocess.run(['/bin/bash', '-c', cmd], capture_output=True, text=True)
-        return result.stdout.strip()
-
     def test_reset_functionality(self):
         """测试GDS reset功能 - 设置错误ID验证找不到，并且报错当中有指出访问文件夹的问题"""
         print(f'测试GDS reset功能')

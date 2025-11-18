@@ -52,7 +52,7 @@ class SyncManager:
         将文件移动到 LOCAL_EQUIVALENT 目录，如果有同名文件则重命名
         
         Args:
-            file_path (str): 要移动的文件路径
+            file_path (str): 要移动的文件路径（支持~展开）
             target_path (str): 目标路径（用于检查远程文件冲突）
             
         Returns:
@@ -64,7 +64,9 @@ class SyncManager:
             if not local_equiv_path.exists():
                 return {"success": False, "error": f"LOCAL_EQUIVALENT directory does not exist: {self.main_instance.LOCAL_EQUIVALENT}"}
             
-            source_path = Path(file_path)
+            # 展开~符号为用户home目录
+            import os
+            source_path = Path(os.path.expanduser(str(file_path)))
             if not source_path.exists():
                 return {"success": False, "error": f"File does not exist: {file_path}"}
             

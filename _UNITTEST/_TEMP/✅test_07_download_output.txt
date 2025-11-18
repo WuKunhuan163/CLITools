@@ -1,0 +1,61 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:03:25 - Status: PASS
+# ============================================================================
+
+test_07_download (test_gds.GDSTest)
+测试GDS download功能 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 293.329s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_155830_914506_f2f917db
+正在创建远端测试目录: ~/tmp/gds_test_20251118_155830_914506_f2f917db
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_155830_914506_f2f917db
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_155830_914506_f2f917db
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_lfrkkwzs
+测试环境设置完成
+测试GDS download功能
+命令: 'echo "This is a test file for download functionality.\\nLine 2: 测试中文内容\\nLine 3: Special chars: @#$%^&*()" > ~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "This is a test file for download functionality.\nLine 2: 测试中文内容\nLine 3: Special chars: @#$%^&*()" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt
+测试1: 基本下载功能
+命令: 'download ~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt'
+返回码: 0
+输出: Downloaded successfully to: 1b2cfefc095ebd7b
+测试2: 下载到指定位置
+命令: 'download ~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt /Users/wukunhuan/tmp/downloaded_copy.txt'
+返回码: 0
+输出: Using cached file: /Users/wukunhuan/tmp/downloaded_copy.txt
+Local path: /Users/wukunhuan/tmp/downloaded_copy.txt
+成功使用本地cat命令读取下载文件: /Users/wukunhuan/tmp/downloaded_copy.txt
+测试4: 下载不存在的文件
+命令: 'download nonexistent_file.txt'
+返回码: 1
+输出: Download failed: file not found: nonexistent_file.txt
+命令: 'rm -f ~/tmp/gds_test_20251118_155830_914506_f2f917db/~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm -f "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_914506_f2f917db/~/tmp/gds_test_20251118_155830_914506_f2f917db/download_file_remote.txt"'
+=====================
+Remote real output: 
+=====================
+GDS download功能测试完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

@@ -1,0 +1,130 @@
+# ============================================================================
+# Test completed at: 2025-11-18 15:37:07 - Status: PASS
+# ============================================================================
+
+test_05_navigation_mix (test_gds.GDSTest) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 581.309s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_152720_698585_4bec599e
+正在创建远端测试目录: ~/tmp/gds_test_20251118_152720_698585_4bec599e
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_152720_698585_4bec599e
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_152720_698585_4bec599e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0eqt00la
+测试环境设置完成
+命令: 'pwd'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_152720_698585_4bec599e
+命令: 'ls'
+返回码: 0
+命令: 'mkdir ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_dir'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/test_dir"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_dir'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+测试多目录创建
+命令: 'mkdir -p ~/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir1 ~/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir2 ~/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir3'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir1"'
+=====================
+Remote real output: 
+=====================
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir2"'
+=====================
+Remote real output: 
+=====================
+User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir3"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir1'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir2'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251118_152720_698585_4bec599e/multi_test/dir3'
+返回码: 0
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_dir'
+返回码: 0
+命令: 'pwd'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_dir
+命令: 'cd ..'
+返回码: 0
+不同远端路径类型测试
+命令: 'mkdir -p ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1/level2'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1/level2"'
+=====================
+Remote real output: 
+=====================
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1/level2'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1/level2/../..'
+返回码: 0
+命令: 'cd ~'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1/level2'
+返回码: 0
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_path/level1/level2/../../..'
+返回码: 0
+Error:  错误路径类型测试
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/nonexistent_directory'
+返回码: 1
+输出: cd: no such file or directory: ~/tmp/gds_test_20251118_152720_698585_4bec599e/nonexistent_directory
+命令: 'echo "test content" > ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_file.txt'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo "test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/test_file.txt
+=====================
+Remote real output: 
+=====================
+命令: 'cd ~/tmp/gds_test_20251118_152720_698585_4bec599e/test_file.txt'
+返回码: 1
+输出: bash: cd: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_152720_698585_4bec599e/test_file.txt: No such file or directory
+命令: 'cd ""'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'cd ""'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'cd ~/..'
+返回码: 1
+输出: Error: Resolve drive ID failed: 'NoneType' object has no attribute 'startswith'
+bash: cd: /content/drive/MyDrive/REMOTE_ROOT/..: No such file or directory
+导航命令和路径测试完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

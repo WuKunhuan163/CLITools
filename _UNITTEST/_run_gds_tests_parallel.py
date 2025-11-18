@@ -40,13 +40,17 @@ def get_running_background_processes():
 
 def start_test(test_name):
     """启动一个测试"""
-    # 创建输出文件名
+    # 创建输出文件名（使用⏳状态标记）
     test_short_name = test_name.split('.')[-1]
-    output_file = f"_TEMP/{test_short_name}_output.txt"
+    output_file = f"_TEMP/⏳{test_short_name}_output.txt"
     
     # 确保_TEMP目录存在
     _TEMP_dir = Path(__file__).parent / "_TEMP"
     _TEMP_dir.mkdir(exist_ok=True)
+    
+    # 创建初始状态文件
+    output_path = Path(__file__).parent / output_file
+    output_path.write_text(f"Test started: {test_name}\n", encoding='utf-8')
     
     # 修改命令以重定向输出到文件
     cmd = f'cd {Path(__file__).parent} && /usr/bin/python3 -m unittest {test_name} -v > {output_file} 2>&1'
@@ -91,6 +95,16 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
         return
     
     test_queue = ALL_GDS_TESTS[start_id:end_id+1]
+    
+    # 清理相应范围的旧输出文件（⏳, ✅, ❌三种状态）
+    _TEMP_dir = Path(__file__).parent / "_TEMP"
+    for test_name in test_queue:
+        test_short_name = test_name.split('.')[-1]
+        for status_emoji in ['⏳', '✅', '❌']:
+            old_output_file = _TEMP_dir / f"{status_emoji}{test_short_name}_output.txt"
+            if old_output_file.exists():
+                old_output_file.unlink()
+                print(f"🗑️  Removed old output: {old_output_file.name}")
     
     print(f"🚀 Running tests {start_id}-{end_id} ({len(test_queue)} tests)")
     print(f"⚡ Max concurrent: {max_concurrent}")
@@ -140,13 +154,29 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
                         try:
                             if output_path.exists():
                                 test_content = output_path.read_text(encoding='utf-8')
-                                # 简单判断测试是否通过
-                                if "OK" in test_content and "FAILED" not in test_content:
-                                    test_status = "pass"
-                                elif "FAILED" in test_content or "ERROR" in test_content:
-                                    test_status = "fail"
+                                # 使用unittest标准输出格式判断测试是否通过
+                                # 查找 "Ran N test" 后的状态行
+                                import re
+                                ran_match = re.search(r'Ran \d+ test', test_content)
+                                if ran_match:
+                                    # 找到"Ran N test"后的几行
+                                    after_ran = test_content[ran_match.end():]
+                                    # 检查接下来的100个字符内是否有OK或FAILED
+                                    status_section = after_ran[:100]
+                                    if re.search(r'\n\s*OK\s*\n', status_section) or status_section.strip().endswith('OK'):
+                                        test_status = "pass"
+                                    elif 'FAILED' in status_section:
+                                        test_status = "fail"
+                                    else:
+                                        test_status = "unknown"
                                 else:
-                                    test_status = "unknown"
+                                    # 没有找到"Ran N test"，使用fallback逻辑
+                                    if "OK" in test_content and ("FAILED (failures=" not in test_content and "FAILED (errors=" not in test_content):
+                                        test_status = "pass"
+                                    elif "FAILED (failures=" in test_content or "FAILED (errors=" in test_content:
+                                        test_status = "fail"
+                                    else:
+                                        test_status = "unknown"
                                 
                                 # 在文件开头添加时间戳
                                 from datetime import datetime
@@ -156,6 +186,14 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
                                 new_content = separator_line + status_line + separator_line + "\n" + test_content
                                 output_path.write_text(new_content, encoding='utf-8')
                                 test_content = new_content
+                                
+                                # 根据状态重命名文件
+                                status_emoji = "✅" if test_status == "pass" else "❌"
+                                new_output_file = f"_TEMP/{status_emoji}{test_short_name}_output.txt"
+                                new_output_path = Path(__file__).parent / new_output_file
+                                output_path.rename(new_output_path)
+                                # 更新output_file引用
+                                output_file = new_output_file
                             else:
                                 test_content = "Output file not found"
                                 test_status = "fail"
@@ -216,10 +254,8 @@ def run_tests_range(start_id, end_id, max_concurrent=3):
         print(f"\nFailed tests:")
         for test in all_failed:
             test_short = test.split('.')[-1]
-            print(f"  - {test_short}")
-            if test in test_results:
-                output_file = test_results[test]["output_file"]
-                print(f"    {output_file}")
+            output_file = test_results[test]["output_file"]
+            print(f"  - {test_short} ({output_file})")
     
     # 显示通过的测试
     if passed_tests:

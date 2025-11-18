@@ -1,0 +1,112 @@
+# ============================================================================
+# Test completed at: 2025-11-18 10:04:53 - Status: PASS
+# ============================================================================
+
+test_22_shell_mode (test_gds.GDSTest)
+测试Shell模式下的连续操作 - 分步骤调试版本 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 817.770s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_095109_828480_c1262e33
+正在创建远端测试目录: ~/tmp/gds_test_20251118_095109_828480_c1262e33
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_095109_828480_c1262e33
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_095109_828480_c1262e33
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_kdv4ylg3
+测试环境设置完成
+测试Shell模式连续操作 - 分步骤调试
+创建测试文件: /Users/wukunhuan/.local/bin/_UNITTEST/_DATA/shell_test.txt
+步骤1: 测试基础命令 (pwd, ls)
+执行命令: ['pwd', 'ls']
+命令: 'pwd && ls'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_095109_828480_c1262e33
+步骤1返回码: 0
+步骤1成功
+步骤2: 测试文件上传
+执行命令: ['pwd', 'upload --target-dir ~/tmp/gds_test_20251118_095109_828480_c1262e33 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/shell_test.txt"', 'ls']
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_095109_828480_c1262e33 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/shell_test.txt"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_095109_828480_c1262e33"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/shell_test.txt" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_095109_828480_c1262e33" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_095109_828480_c1262e33 move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+步骤2返回码: 0
+步骤2成功
+步骤3: 测试文件操作 (cat)
+执行命令: ['cat ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test.txt']
+命令: 'cat ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test.txt'
+返回码: 0
+输出: shell test content
+步骤3返回码: 0
+步骤3成功
+文件内容验证成功
+步骤4: 测试目录操作
+执行命令: ['mkdir ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir', 'cd ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir', 'pwd', 'cd ..']
+命令: 'mkdir ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir && cd ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir && pwd && cd ..'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir"'
+=====================
+Remote real output: 
+=====================
+~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir
+步骤4返回码: 0
+步骤4成功
+步骤5: 测试清理操作
+执行命令: ['rm ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test.txt', 'rm -rf ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir', 'ls']
+命令: 'rm ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test.txt && rm -rf ~/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir && ls'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'rm "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test.txt"'
+=====================
+Remote real output: 
+=====================
+User command preview [in f-string]: 
+=====================
+bash -c 'rm -rf "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_095109_828480_c1262e33/shell_test_dir"'
+=====================
+Remote real output: 
+=====================
+computer_vision
+Python-2.7.18
+tmp
+test_upload_conflict_file_1.py
+步骤5返回码: 0
+步骤5成功
+Shell模式连续操作分步骤测试完成 - 所有步骤都成功
+步骤6: 测试Shell切换和状态管理
+创建的Shell ID: 4434c118d8764ae8
+切换到新shell: 4434c118d8764ae8
+Shell切换和状态管理测试完成
+步骤7: 测试Shell模式错误处理
+所有Shell模式测试完成（包括连续操作、切换、错误处理）
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

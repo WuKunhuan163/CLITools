@@ -1,0 +1,284 @@
+test_06_upload (test_gds.GDSTest) ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_155830_797150_7310444a
+正在创建远端测试目录: ~/tmp/gds_test_20251118_155830_797150_7310444a
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_155830_797150_7310444a
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_155830_797150_7310444a
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_jwskvtpw
+测试环境设置完成
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_simple_hello.py"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_upload_simple_hello.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_155830_797150_7310444a move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"
+验证命令: ['ls ~/tmp/gds_test_20251118_155830_797150_7310444a/valid_script.py', 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/special_chars.txt']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py" "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/special_chars.txt"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/valid_script.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_155830_797150_7310444a move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/special_chars.txt" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_155830_797150_7310444a move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/valid_script.py
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/valid_script.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_797150_7310444a/valid_script.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/valid_script.py
+验证命令 2: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/special_chars.txt
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/special_chars.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_797150_7310444a/special_chars.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/special_chars.txt
+所有验证通过!
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+
+执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_project']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if rm -f "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a/test_project.zip" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: file move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_project_1.zip" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_155830_797150_7310444a move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a/test_project_1.zip" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a/test_project.zip" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: test_project.zip move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"
+# 解压和清理zip文件
+(cd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" && echo "Start decompressing test_project.zip" && (unzip -o "test_project.zip" 2>&1 | grep -v "zipfile is empty" || true) && echo "=== 删除zip ===" && rm "test_project.zip" && echo "Verifying decompression result ..." && ls -la)'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_project
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_project'
+返回码: 0
+输出: config.json
+core.py
+main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_project
+所有验证通过!
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"
+验证命令: ['ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_conflict_file.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py"'
+返回码: 0
+输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_1ab5f18c
+✓ config.json updated: MOUNT_HASH=1ab5f18c
+✓ current shell instance updated: MOUNT_HASH=1ab5f18c
+Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
+Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
+✓ Cleared 3 path IDs and restored 2 default IDs
+✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+✓ 远端指纹文件验证成功
+User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_upload_conflict_file.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_155830_797150_7310444a move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_conflict_file.py
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_conflict_file.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_conflict_file.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_conflict_file.py
+所有验证通过!
+命令: 'upload /Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_upload_conflict_file.py'
+返回码: 1
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "."
+# 移动文件（带重试机制）
+# 智能重命名逻辑：先检查目标目录中的冲突，再决定最终文件名
+if [ ! -f "./test_upload_conflict_file.py" ]; then
+    # 情况1：目标目录中不存在原名文件，直接改回原名
+    mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_upload_conflict_file_1.py" "./test_upload_conflict_file.py"
+elif [ ! -f "./test_upload_conflict_file_1.py" ]; then
+    # 情况2：目标目录中存在原名文件，但不存在当前重命名后的文件名，保持重命名后的名字
+    mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_upload_conflict_file_1.py" "./test_upload_conflict_file_1.py"
+else
+    # 情况3：目标目录中既存在原名文件，又存在重命名后的文件名，需要继续重命名
+    counter=2
+    while [ -f "./test_upload_conflict_file_${counter}.py" ]; do
+        counter=$((counter + 1))
+    done
+    mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_upload_conflict_file_1.py" "./test_upload_conflict_file_${counter}.py"
+fi
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+Captured debug output:
+Verification completed: {'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file_1.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
+Upload failed, showing debug information:
+verify_result={'success': False, 'found_files': [], 'missing_files': ['test_upload_conflict_file_1.py'], 'total_found': 0, 'total_expected': 1, 'search_path': '.'}
+sync_result={'success': True, 'cancelled': False, 'synced_files': ['test_upload_conflict_file_1.py'], 'sync_time': 8, 'base_sync_time': 8}
+target_folder_id='1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f'
+target_display_path='~'
+Upload failed
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
+验证命令: ['ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_upload_overwrite_file.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155830_797150_7310444a" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_155830_797150_7310444a move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py
+命令: 'ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py
+所有验证通过!
+命令: 'cat ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py'
+返回码: 0
+输出: print(f"ORIGINAL VERSION - Test upload")
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"
+验证命令: ['grep "MODIFIED VERSION" ~/tmp/gds_test_20251118_155830_797150_7310444a/test_upload_overwrite_file.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_155830_797150_7310444a --force "/Users/wukunhuan/.local/bin/_UNITTEST/_TEMP/test_upload_overwrite_file.py"'
+返回码: 1

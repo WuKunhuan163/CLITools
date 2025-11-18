@@ -1,0 +1,201 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:00:19 - Status: FAIL
+# ============================================================================
+
+test_18_pip_venv (test_gds.GDSTest) ... FAIL
+
+======================================================================
+FAIL: test_18_pip_venv (test_gds.GDSTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3289, in test_18_pip_venv
+    self.assertIn("No virtual environment", cleaned_output)
+AssertionError: 'No virtual environment' not found in 'Current virtual environment: myproject_env_1763452389\nEnvironment path: /content/drive/MyDrive/REMOTE_ENV/venv/myproject_env_1763452389\nActivated at: 2025-11-18T07:57:56.779696'
+
+----------------------------------------------------------------------
+Ran 1 test in 1570.109s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_153402_386452_afa37afe
+正在创建远端测试目录: ~/tmp/gds_test_20251118_153402_386452_afa37afe
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_153402_386452_afa37afe
+✓ 验证测试目录存在: ~/tmp/gds_test_20251118_153402_386452_afa37afe
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0a6tetdt
+测试环境设置完成
+虚拟环境名称: test_env_1763451325
+清理测试环境...
+命令: 'venv --deactivate'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 使用Python传递的shell ID（而不是从环境变量获取）
+SHELL_ID="99a62b9064feac53"
+# 从JSON文件中移除当前shell的状态
+VENV_STATES_FILE="/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+if [ -f "$VENV_STATES_FILE" ]; then
+    python3 -c "
+import json
+import os
+# 读取现有状态
+states = {}
+if os.path.exists('"'"'$VENV_STATES_FILE'"'"'):
+    try:
+        with open('"'"'$VENV_STATES_FILE'"'"', '"'"'r'"'"') as f:
+            states = json.load(f)
+    except:
+        states = {}
+# 移除当前shell的状态
+if '"'"'$SHELL_ID'"'"' in states:
+    del states['"'"'$SHELL_ID'"'"']
+# 保存状态
+with open('"'"'$VENV_STATES_FILE'"'"', '"'"'w'"'"') as f:
+    json.dump(states, f, indent=2, ensure_ascii=False)
+print('"'"'Virtual environment deactivated successfully'"'"')
+"
+fi
+# 删除或重置虚拟环境的shell文件
+rm -f "/content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh"
+# 验证移除是否成功
+sleep 1
+if [ -f "$VENV_STATES_FILE" ]; then
+    VERIFICATION_RESULT=$(cat "$VENV_STATES_FILE" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    shell_id = '"'"'$SHELL_ID'"'"'
+    if shell_id in data:
+        print('"'"'VERIFICATION_FAILED'"'"')
+    else:
+        print('"'"'VERIFICATION_SUCCESS'"'"')
+except:
+    print('"'"'VERIFICATION_SUCCESS'"'"')
+")
+else
+    VERIFICATION_RESULT="VERIFICATION_SUCCESS"
+fi
+if [ "$VERIFICATION_RESULT" != "VERIFICATION_SUCCESS" ]; then
+    exit 1  # Deactivation verification failed
+fi
+'
+=====================
+Remote real output: 
+=====================
+Virtual environment deactivated successfully
+No virtual environment currently activated
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'python3 << \'CLEAR_VENV_EOF\'\nimport json\nimport os\nvenv_file = "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"\nif os.path.exists(venv_file):\n    with open(venv_file, "r") as f:\n        states = json.load(f)\n    # 清除所有shell激活状态，保留environments数据\n    cleaned_states = {"environments": states.get("environments", {})}\n    with open(venv_file, "w") as f:\n        json.dump(cleaned_states, f, indent=2)\n    print("Cleared all venv activation states")\nelse:\n    print("No venv states file found")\nCLEAR_VENV_EOF'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo 'import json'
+=====================
+Remote real output: 
+=====================
+import json
+User command preview [in f-string]: 
+=====================
+echo 'import os'
+=====================
+Remote real output: 
+=====================
+import os
+User command preview [in f-string]: 
+=====================
+echo 'venv_file = "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"'
+=====================
+Remote real output: 
+=====================
+venv_file = "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+User command preview [in f-string]: 
+=====================
+echo 'if os.path.exists(venv_file):'
+=====================
+Remote real output: 
+=====================
+if os.path.exists(venv_file):
+User command preview [in f-string]: 
+=====================
+echo '    with open(venv_file, "r") as f:'
+=====================
+Remote real output: 
+=====================
+with open(venv_file, "r") as f:
+User command preview [in f-string]: 
+=====================
+echo '        states = json.load(f)'
+=====================
+Remote real output: 
+=====================
+states = json.load(f)
+User command preview [in f-string]: 
+=====================
+echo '    # 清除所有shell激活状态，保留environments数据'
+=====================
+Remote real output: 
+=====================
+# 清除所有shell激活状态，保留environments数据
+User command preview [in f-string]: 
+=====================
+echo '    cleaned_states = {"environments": states.get("environments", {})}'
+=====================
+Remote real output: 
+=====================
+cleaned_states = {"environments": states.get("environments", {})}
+User command preview [in f-string]: 
+=====================
+echo '    with open(venv_file, "w") as f:'
+=====================
+Remote real output: 
+=====================
+with open(venv_file, "w") as f:
+User command preview [in f-string]: 
+=====================
+echo '        json.dump(cleaned_states, f, indent=2)'
+=====================
+Remote real output: 
+=====================
+json.dump(cleaned_states, f, indent=2)
+User command preview [in f-string]: 
+=====================
+echo '    print("Cleared all venv activation states")'
+=====================
+Remote real output: 
+=====================
+print("Cleared all venv activation states")
+User command preview [in f-string]: 
+=====================
+echo else:
+=====================
+Remote real output: 
+=====================
+else:
+User command preview [in f-string]: 
+=====================
+echo '    print("No venv states file found")'
+=====================
+Remote real output: 
+=====================
+print("No venv states file found")
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'venv --current'
+返回码: 0
+输出: Current virtual environment: myproject_env_1763452389
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/myproject_env_1763452389
+Activated at: 2025-11-18T07:57:56.779696
+
+======================================================================
+❌❌❌ TEST FAILED ❌❌❌
+======================================================================
+💬 Message: 'No virtual environment' not found in 'Current virtual environment: myproject_env_1763452389\nEnvironment path: /content/drive/MyDrive/REMOTE_ENV/venv/myproject_env_1763452389\nActivated at: 2025-11-18T07:57:56.779696'
+======================================================================
+
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

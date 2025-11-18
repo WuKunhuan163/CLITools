@@ -557,6 +557,7 @@ class RemoteShellManager:
                         cmd = parts[0].lower()
                         
                         if cmd == "exit":
+                            print("Exit Google Drive Shell")
                             break
                         else: 
                             try:

@@ -160,9 +160,40 @@ class TextCommand(BaseCommand):
             return {"success": False, "error": f"执行cat命令时出错: {e}"}
     
     def cmd_read(self, filename, *remaining_args, force=False):
-        """read命令 - 显示文件内容(带行号)"""
-        # cmd_read is essentially the same as cmd_cat, but the execute_read method adds line numbers
-        return self.cmd_cat(filename)
+        """read命令 - 显示文件内容(带行号)
+        
+        Args:
+            filename: 文件名
+            remaining_args: 可选的start和end行号
+            force: 是否强制重新读取（使用远程cat命令，绕过缓存）
+        """
+        # 如果使用--force选项，通过远程cat命令读取
+        if force:
+            current_shell = self.main_instance.get_current_shell()
+            if not current_shell:
+                return {"success": False, "error": "No active remote shell"}
+            
+            # 解析路径为绝对路径
+            absolute_path = self.main_instance.path_resolver.resolve_remote_absolute_path(
+                filename, current_shell, return_logical=False
+            )
+            if not absolute_path:
+                return {"success": False, "error": f"Could not resolve path: {filename}"}
+            
+            # 使用远程cat命令
+            cat_cmd = f'cat "{absolute_path}"'
+            cat_result = self.main_instance.execute_command_interface(cat_cmd)
+            
+            if not cat_result.get("success"):
+                return {
+                    "success": False,
+                    "error": f"read: {filename}: {cat_result.get('error', 'No such file or directory')}"
+                }
+            
+            return {"success": True, "output": cat_result.get("stdout", ""), "filename": filename}
+        else:
+            # 正常使用Google Drive API读取
+            return self.cmd_cat(filename)
     
     def show_cat_help(self):
         """显示cat命令的帮助信息"""

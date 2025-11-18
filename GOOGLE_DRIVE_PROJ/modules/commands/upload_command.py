@@ -524,7 +524,10 @@ Notes:
             
             # 4. 检查是否有文件夹，提示正确语法
             for source_file in source_files:
-                if Path(source_file).is_dir():
+                # 展开~符号进行检查
+                import os
+                expanded_source_file = os.path.expanduser(str(source_file))
+                if Path(expanded_source_file).is_dir():
                     print(f"\nError: '{source_file}' is a directory")
                     print(f"To upload folders, use: GDS upload_folder {source_file}")
                     print(f"   Options: --keep-zip to preserve local zip file")
@@ -688,7 +691,9 @@ Notes:
                 }
             else:
                 # 纯小文件上传：使用ls-based验证
-                expected_for_verification = [fm.get("original_filename", fm["filename"]) for fm in file_moves]
+                # 注意：使用filename（实际上传的文件名，可能已重命名）而不是original_filename（原始文件名）
+                # 因为如果存在同名文件冲突，文件会被重命名（例如 file.txt -> file_1.txt）
+                expected_for_verification = [fm["filename"] for fm in file_moves]
                 
                 # 使用带进度的验证机制
                 verify_result = self.verify_upload_with_progress(
@@ -852,14 +857,16 @@ Notes:
         将文件夹打包成zip文件
         
         Args:
-            folder_path (str): 要打包的文件夹路径
+            folder_path (str): 要打包的文件夹路径（支持~展开）
             zip_path (str): zip文件保存路径，如果为None则自动生成
             
         Returns:
             dict: 打包结果 {"success": bool, "zip_path": str, "error": str}
         """
         try:
-            folder_path = Path(folder_path)
+            # 展开~符号为用户home目录
+            import os
+            folder_path = Path(os.path.expanduser(str(folder_path)))
             if not folder_path.exists():
                 return {"success": False, "error": f"文件夹不存在: {folder_path}"}
             
@@ -1099,83 +1106,40 @@ Notes:
     def verify_upload_with_progress(self, expected_files, target_path, current_shell):
         """
         带进度显示的验证逻辑，类似上传过程
-        对每个文件进行最多60次重试，显示⏳和点的进度
         """
         try:
-            # 生成文件名列表用于显示
-            if len(expected_files) <= 3:
-                file_display = ", ".join(expected_files)
-            else:
-                first_three = ", ".join(expected_files[:3])
-                file_display = f"{first_three}, ... ({len(expected_files)} files)"
+            # 直接调用verify_with_ls检查每个文件（它内部有12次重试循环）
+            # 不再使用validate_creation包裹，避免嵌套循环
+            found_files = []
+            missing_files = []
             
-            # 定义验证函数，支持最后一次尝试时使用强制刷新
-            attempt_count = 0
-            max_attempts = 15
-            
-            def validate_all_files():
-                nonlocal attempt_count
-                attempt_count += 1
-                
-                # 为每个文件使用verify_with_ls进行验证
-                found_count = 0
-                for expected_file in expected_files:
-                    # 构建文件的完整路径
-                    if target_path == "." or target_path == "":
-                        file_path = expected_file
-                    else:
-                        # 确保正确处理@路径和~路径
-                        # 对于@和~等特殊前缀，需要添加/
-                        if target_path in ["@", "~"]:
-                            file_path = f"{target_path}/{expected_file}"
-                        elif target_path.startswith("@/") or target_path.startswith("~/"):
-                            # 目标路径已经包含子路径
-                            file_path = f"{target_path}/{expected_file}"
-                        else:
-                            file_path = f"{target_path}/{expected_file}"
-                    
-                    # 使用verify_with_ls验证单个文件
-                    verify_result = self.main_instance.validation.verify_with_ls(
-                        path=file_path,
-                        current_shell=current_shell,
-                        creation_type="file"
-                    )
-                    
-                    if verify_result.get("success", False):
-                        found_count += 1
-                
-                return found_count == len(expected_files)
-            
-            # 直接使用统一的验证接口，它会正确处理进度显示的切换
-            from ..progress_manager import validate_creation
-            result = validate_creation(validate_all_files, file_display, max_attempts, "upload")
-            
-            # 转换返回格式
-            all_found = result["success"]
-            if all_found:
-                found_files = expected_files
-                missing_files = []
-            else:
-                # 如果验证失败，需要重新检查哪些文件缺失
-                found_files = []
-                for expected_file in expected_files:
-                    # 构建文件的完整路径
-                    if target_path == "." or target_path == "":
-                        file_path = expected_file
+            for expected_file in expected_files:
+                # 构建文件的完整路径
+                if target_path == "." or target_path == "":
+                    file_path = expected_file
+                else:
+                    # 确保正确处理@路径和~路径
+                    if target_path in ["@", "~"]:
+                        file_path = f"{target_path}/{expected_file}"
+                    elif target_path.startswith("@/") or target_path.startswith("~/"):
+                        file_path = f"{target_path}/{expected_file}"
                     else:
                         file_path = f"{target_path}/{expected_file}"
-                    
-                    # 使用verify_with_ls验证单个文件
-                    verify_result = self.main_instance.validation.verify_with_ls(
-                        path=file_path,
-                        current_shell=current_shell,
-                        creation_type="file"
-                    )
-                    
-                    if verify_result.get("success", False):
-                        found_files.append(expected_file)
                 
-                missing_files = [f for f in expected_files if f not in found_files]
+                # 使用verify_with_ls进行验证（它内部有12次重试循环）
+                verify_result = self.main_instance.validation.verify_with_ls(
+                    path=file_path,
+                    current_shell=current_shell,
+                    creation_type="file",
+                    max_attempts=12  # 明确指定12次重试
+                )
+                
+                if verify_result.get("success", False):
+                    found_files.append(expected_file)
+                else:
+                    missing_files.append(expected_file)
+            
+            all_found = len(found_files) == len(expected_files)
             
             return {
                 "success": all_found,
