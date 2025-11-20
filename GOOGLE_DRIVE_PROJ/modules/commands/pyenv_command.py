@@ -1415,10 +1415,12 @@ print('State updated successfully')
                 "tested_at": datetime.now().isoformat()
             }
         
-        print(f"Testing {total_count} Python versions concurrently...")
+        print(f"Testing {total_count} Python versions concurrently (3 workers)...")
+        print(f"Each test: download → configure → compile → test execution")
+        print(f"This may take 30-60 minutes depending on version count...")
         
-        # 使用线程池并发验证（限制并发数避免过载）
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        # 使用线程池并发验证（3个worker，每个独立测试）
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             future_to_version = {
                 executor.submit(verify_version_with_progress, version): version 
                 for version in candidate_versions
@@ -1454,18 +1456,12 @@ print('State updated successfully')
         return verified_versions
     
     def generate_python_version_candidates(self):
-        """生成Python版本候选列表"""
+        """生成Python版本候选列表（只包含3.6+，因为更早版本无法在现代系统编译）"""
         candidates = []
         
-        # Python 2.x 系列 (常用的后期版本)
-        for minor in [6, 7]:
-            for patch in range(15, 19):  # 2.6.15-2.6.18, 2.7.15-2.7.18
-                candidates.append(f"2.{minor}.{patch}")
-        
-        # Python 3.0-3.6 系列 (部分版本)
-        for minor in range(0, 7):  # 3.0 到 3.6
-            for patch in range(0, 3):  # 每个系列测试前几个版本
-                candidates.append(f"3.{minor}.{patch}")
+        # Python 3.6 系列
+        for patch in range(0, 16):  # 3.6.0 到 3.6.15
+            candidates.append(f"3.6.{patch}")
         
         # Python 3.7 系列
         for patch in range(0, 18):  # 3.7.0 到 3.7.17
@@ -1504,46 +1500,132 @@ print('State updated successfully')
         return candidates
     
     def verify_python_version_availability(self, version):
-        """验证Python版本是否可用（使用HTTP HEAD请求检查，不实际下载）"""
+        """验证Python版本是否可用（实际下载并测试编译和执行）"""
         import subprocess
         import sys
+        import os
+        import tempfile
+        import shutil
+        
+        # 版本过滤：只测试Python 3.6+
+        try:
+            major, minor, patch = map(int, version.split('.'))
+            if (major, minor) < (3, 6):
+                return "skipped"  # 太老，跳过
+        except:
+            return "invalid"  # 版本号格式错误
+        
+        # 创建临时目录进行测试
+        temp_dir = tempfile.mkdtemp(prefix=f'python_verify_{version}_', dir=os.path.expanduser('~/tmp'))
         
         try:
-            download_urls = []
+            download_url = f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz"
             
-            # 根据操作系统选择合适的URL
-            is_windows = sys.platform == 'win32'
-            is_macos = sys.platform == 'darwin'
-            is_linux = sys.platform.startswith('linux')
+            # 1. 下载源码（带超时）
+            download_result = subprocess.run(
+                ['wget', '-q', '-O', f'{temp_dir}/Python-{version}.tgz', download_url],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            if download_result.returncode != 0:
+                return "download_failed"
             
-            # Python 2.x 使用不同的URL模式
-            if version.startswith('2.'):
-                download_urls = [
-                    f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz",
-                    f"https://github.com/python/cpython/archive/v{version}.tar.gz"
-                ]
-            else:
-                # Python 3.x - 根据平台选择URL
-                if is_windows:
-                    download_urls = [
-                        f"https://www.python.org/ftp/python/{version}/python-{version}-embed-amd64.zip",
-                        f"https://www.python.org/ftp/python/{version}/python-{version}-amd64.exe",
-                        f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz",
-                    ]
-                else:
-                    # macOS and Linux - 只使用源码包
-                    download_urls = [
-                        f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz",
-                        f"https://github.com/python/cpython/archive/v{version}.tar.gz"
-                    ]
+            # 2. 解压
+            extract_result = subprocess.run(
+                ['tar', '-xzf', f'{temp_dir}/Python-{version}.tgz', '-C', temp_dir],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if extract_result.returncode != 0:
+                return "extract_failed"
             
-            for download_url in download_urls:
-                try:
-                    # 使用HTTP HEAD请求检查文件是否存在（不实际下载）
-                    # 使用curl的--head选项只获取头信息
-                    result = subprocess.run(
-                        ["curl", "-s", "-I", "-L", "--max-time", "5", download_url],
-                        capture_output=True,
+            source_dir = f'{temp_dir}/Python-{version}'
+            install_dir = f'{temp_dir}/install'
+            
+            # 3. 配置（简单配置，不启用优化）
+            configure_result = subprocess.run(
+                ['./configure', f'--prefix={install_dir}'],
+                cwd=source_dir,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            if configure_result.returncode != 0:
+                return "configure_failed"
+            
+            # 4. 编译（使用2核心，限制时间）
+            make_result = subprocess.run(
+                ['make', '-j2'],
+                cwd=source_dir,
+                capture_output=True,
+                text=True,
+                timeout=600  # 10分钟超时
+            )
+            # 允许编译有警告，但检查segfault
+            if 'Segmentation fault' in make_result.stderr:
+                return "compile_segfault"
+            if make_result.returncode != 0 and 'pybuilddir.txt' not in make_result.stderr:
+                return "compile_failed"
+            
+            # 5. 安装
+            install_result = subprocess.run(
+                ['make', 'install'],
+                cwd=source_dir,
+                capture_output=True,
+                text=True,
+                timeout=180
+            )
+            # 安装可能因hard link失败但实际成功
+            
+            # 6. 查找Python可执行文件
+            python_exe = None
+            bin_dir = f'{install_dir}/bin'
+            if os.path.exists(bin_dir):
+                for fname in os.listdir(bin_dir):
+                    if fname.startswith('python3.') and not fname.endswith('.1'):
+                        python_exe = f'{bin_dir}/{fname}'
+                        break
+                if not python_exe and os.path.exists(f'{bin_dir}/python3'):
+                    python_exe = f'{bin_dir}/python3'
+            
+            if not python_exe or not os.path.exists(python_exe):
+                return "executable_not_found"
+            
+            # 7. 测试执行：输出版本号
+            version_result = subprocess.run(
+                [python_exe, '--version'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if version_result.returncode != 0:
+                return "version_check_failed"
+            
+            # 8. 测试执行：运行简单代码
+            code_result = subprocess.run(
+                [python_exe, '-c', 'import sys; print(sys.version_info.major)'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if code_result.returncode != 0:
+                return "code_execution_failed"
+            
+            # 所有测试通过
+            return "verified"
+            
+        except subprocess.TimeoutExpired:
+            return "timeout"
+        except Exception as e:
+            return f"error_{str(e)[:20]}"
+        finally:
+            # 清理临时目录
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
                         timeout=10,
                         text=True
                     )

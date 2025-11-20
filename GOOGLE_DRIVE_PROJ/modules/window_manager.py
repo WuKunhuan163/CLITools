@@ -770,7 +770,7 @@ class WindowManager:
         except Exception as e:
             pass  # 静默处理错误
     
-    def request_window(self, cmd, command_hash, timeout_seconds=3600, no_direct_feedback=False, is_priority=False):
+    def request_window(self, cmd, command_hash, timeout_seconds=86400, no_direct_feedback=False, is_priority=False):
         """
         请求显示窗口 - 支持优先队列的跨进程管理
         
