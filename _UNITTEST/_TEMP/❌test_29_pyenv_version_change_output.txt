@@ -1,4 +1,8 @@
-test_30_pyenv_version_change (test_gds.GDSTest)
+# ============================================================================
+# Test completed at: 2025-11-18 17:08:03 - Status: FAIL
+# ============================================================================
+
+test_29_pyenv_version_change (test_gds.GDSTest)
 测试pyenv版本切换 - 动态获取可用版本并随机选择进行测试 ... 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
 Python缓存和pytest缓存已清理
@@ -811,3 +815,220 @@ PID: 1763451335_3635 (Real PID: 11065)
 Start time: 2025-11-18T15:35:35.269959
 Log size: 0 bytes
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+FAIL
+
+======================================================================
+FAIL: test_29_pyenv_version_change (test_gds.GDSTest)
+测试pyenv版本切换 - 动态获取可用版本并随机选择进行测试
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4730, in test_29_pyenv_version_change
+    print(f'当前Python版本输出: {python_version_output}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 209, in assertTrue
+    super().assertTrue(expr, msg)
+AssertionError: False is not true : Python 3.3.0应该成功安装
+
+----------------------------------------------------------------------
+Ran 1 test in 5667.211s
+
+FAILED (failures=1)
+任务仍在运行... 已等待3590秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3662秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3735秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3817秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3904秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待3979秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4060秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4134秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4206秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4280秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4361秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4434秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4514秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4591秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4664秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4737秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4813秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4889秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待4966秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待5041秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待5115秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待5188秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待5262秒
+命令: '--bg --status 1763451335_3635'
+返回码: 0
+输出: Status: running
+PID: 1763451335_3635 (Real PID: 11065)
+Start time: 2025-11-18T15:35:35.269959
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待5345秒
+等待超时！Python 3.3.0未能在5400秒内安装完成
+
+======================================================================
+❌❌❌ ASSERTION FAILED ❌❌❌
+======================================================================
+📍 Expected: True
+📍 Got:      False
+💬 Message:  Python 3.3.0应该成功安装
+======================================================================
+
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+
