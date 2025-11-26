@@ -225,23 +225,24 @@ class PyenvCommand(BaseCommand):
             import hashlib
             import time
             temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
-            temp_install_path = f"{self.main_instance.REMOTE_ENV}/python/.tmp_install_{temp_hash}"
+            # 使用Colab本地/tmp进行编译，避免Google Drive FUSE断开问题
+            temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
             final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             
-            # 生成源码准备脚本（下载源码）- 使用@/tmp作为临时下载目录
-            build_dir = f"{self.main_instance.REMOTE_ENV}/tmp/python_download_{version}_{temp_hash}"
+            # 生成源码准备脚本（下载源码）- 使用Colab本地/tmp避免FUSE问题
+            build_dir = f"/tmp/python_download_{version}_{temp_hash}"
             source_prep = f'''
 # 开始计时
 INSTALL_START_TIME=$(date +%s)
 echo "Installation started at: $(date)"
 
-# 设置临时构建目录（@/tmp）
+# 设置临时构建目录（Colab本地/tmp，避免Google Drive FUSE问题）
 BUILD_DIR="{build_dir}"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 # 下载Python源码（开放式显示进度）
-echo "Downloading Python {version} source code..."
+echo "Downloading Python {version} source code to Colab local /tmp..."
 wget https://www.python.org/ftp/python/{version}/Python-{version}.tgz
 
 if [ $? -ne 0 ]; then
@@ -275,14 +276,6 @@ INSTALL_SECONDS=$((INSTALL_DURATION % 60))
 echo ""
 echo "Total installation time: ${{INSTALL_MINUTES}}m ${{INSTALL_SECONDS}}s"
 '''
-            
-            # 使用--no-capture模式执行（开放式显示所有输出）
-            print("="*60)
-            print("Generated installation script:")
-            print("="*60)
-            print(install_script)
-            print("="*60)
-            print()
             
             # 直接调用execute_command_interface并设置capture_result=False
             result = self.shell.command_executor.execute_command_interface(
