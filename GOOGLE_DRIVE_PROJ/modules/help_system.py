@@ -21,7 +21,8 @@ def get_unified_help_data():
         "main_options": {
             "-my": "Open My Drive (https://drive.google.com/drive/u/0/my-drive)",
             "--console-setup": "Start Google Drive API setup wizard with GUI assistance",
-            "--shell [--no-direct-feedback] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
+            "--shell [--no-capture] [--no-direct-feedback] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
+            "--no-capture": "Execute command without capturing result (open-style execution, output displayed in real-time)",
             "--no-direct-feedback": "Hide direct feedback button in command windows (for automated testing)",
             "--priority": "Execute command with high priority in remote command queue",
             "--bg COMMAND": "Execute command in background and return immediately",
@@ -86,10 +87,10 @@ def get_unified_help_data():
                 "venv --list": "list all virtual environments"
             },
             "python_version_management": {
-                "pyenv --install <version>": "install specified Python version (e.g., 3.9.18, 3.10.12)",
+                "pyenv --install <version>": "install specified Python version (open-style, shows real-time output)",
+                "pyenv --install-local <version>": "download locally then install (faster for large files)",
                 "pyenv --uninstall <version>": "uninstall specified Python version",
                 "pyenv --list": "list all installed Python versions",
-                "pyenv --list-available": "list all available Python versions for download",
                 "pyenv --global [version]": "set/show global default Python version",
                 "pyenv --local [version]": "set/show current shell Python version",
                 "pyenv --version": "show currently active Python version",

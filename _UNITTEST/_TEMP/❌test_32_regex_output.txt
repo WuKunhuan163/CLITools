@@ -1,0 +1,100 @@
+# ============================================================================
+# Test completed at: 2025-11-20 21:05:57 - Status: FAIL
+# ============================================================================
+
+test_32_regex (test_gds.GDSTest)
+测试正则表达式验证功能 - 基于实际文件操作 ... FAIL
+
+======================================================================
+FAIL: test_32_regex (test_gds.GDSTest)
+测试正则表达式验证功能 - 基于实际文件操作
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 922, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 194, in assertEqual
+    super().assertEqual(first, second, msg)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 5015, in test_32_regex
+    result = self.gds(f'printf "Hello World" > {test_file2}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 928, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 244, in fail
+    super().fail(msg)
+AssertionError: 命令执行异常: printf "Hello World" > ~/tmp/gds_test_20251120_204822_979650_a543a56a/regex_test/printf_test.txt - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 1053.512s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251120_204822_979650_a543a56a
+正在创建远端测试目录: ~/tmp/gds_test_20251120_204822_979650_a543a56a
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251120_204822_979650_a543a56a
+✓ 验证测试目录存在: ~/tmp/gds_test_20251120_204822_979650_a543a56a
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_qhks66uy
+测试环境设置完成
+测试正则表达式验证功能
+准备：创建测试目录和文件
+命令: 'mkdir -p ~/tmp/gds_test_20251120_204822_979650_a543a56a/regex_test'
+返回码: 0
+输出: 
+命令: 'echo -n "Echo without newline" > ~/tmp/gds_test_20251120_204822_979650_a543a56a/regex_test/echo_test.txt'
+返回码: 0
+输出: 
+命令: 'printf "Hello World" > ~/tmp/gds_test_20251120_204822_979650_a543a56a/regex_test/printf_test.txt'
+返回码: 1
+输出: Error: ls: ~/tmp/cmd_result_1763643074_af96a98d.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到Unknown error，设置remount flag，下一个窗口将自动remount
+Remount flag已设置，下一个窗口将自动处理remount
+重试第1次...
+返回码: 1
+输出: Error: 连续三次remount失败，Google Drive无法访问，程序退出
+Error: 连续三次remount失败，Google Drive无法访问，程序退出
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+错误: Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py", line 32, in <module>
+    from GOOGLE_DRIVE_PROJ.google_drive_shell import GoogleDriveShell
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/google_drive_shell.py", line 35, in <module>
+    from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/pyenv_command.py", line 1629
+    timeout=10,
+IndentationError: unexpected indent...
+
+======================================================================
+❌❌❌ ASSERTION FAILED ❌❌❌
+======================================================================
+📍 Expected: 0
+📍 Got:      1
+💬 Message:  命令执行失败
+======================================================================
+
+命令执行异常: 1 != 0 : 命令执行失败
+
+======================================================================
+❌❌❌ TEST FAILED ❌❌❌
+======================================================================
+💬 Message: 命令执行异常: printf "Hello World" > ~/tmp/gds_test_20251120_204822_979650_a543a56a/regex_test/printf_test.txt - 1 != 0 : 命令执行失败
+======================================================================
+
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+
