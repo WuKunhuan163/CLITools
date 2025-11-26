@@ -205,7 +205,10 @@ class PyenvCommand(BaseCommand):
         return f"{self.get_python_base_path()}/python_states.json"
     
     def pyenv_install(self, version, force=False):
-        """安装指定Python版本（开放式安装，显示所有输出）
+        """安装指定Python版本（多步骤执行，通过指纹文件协调）
+        
+        将安装过程拆分成多个独立的GDS命令，每个命令完成后创建指纹文件。
+        这样可以与其他GDS窗口交错运行，避免长时间阻塞。
         
         Args:
             version: Python版本号
@@ -217,233 +220,228 @@ class PyenvCommand(BaseCommand):
             return check_result
         
         try:
-            print(f"Starting open-style installation of Python {version}...")
-            print(f"All output will be displayed in real-time.")
-            print()
-            
-            # 生成临时安装目录的hash名称
             import hashlib
             import time
+            
+            # 生成安装ID
             temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
-            # 使用Colab本地/tmp进行编译，避免Google Drive FUSE断开问题
             temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
             final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
-            
-            # 生成源码准备脚本（下载源码）- 使用Colab本地/tmp避免FUSE问题
             build_dir = f"/tmp/python_download_{version}_{temp_hash}"
-            python_major_minor = '.'.join(version.split('.')[:2])  # e.g., "3.8"
+            python_major_minor = '.'.join(version.split('.')[:2])
             
-            # 开放式脚本，带标志检查和重试机制
-            flag_dir = f"/tmp/python_install_flags_{temp_hash}"
-            install_script = f'''#!/bin/bash
-set -e
-INSTALL_START=$(date +%s)
-FLAG_DIR="{flag_dir}"
-MAX_RETRIES=2
-
-# 创建标志目录
-mkdir -p "$FLAG_DIR"
-
-echo "=== Python {version} Installation Start ==="
-
-# Step 1: Download
-for retry in $(seq 0 $MAX_RETRIES); do
-    if [ -f "$FLAG_DIR/download_ok" ]; then
-        echo "Step 1/6: Download [ALREADY COMPLETED]"
-        break
-    fi
-    
-    echo "Step 1/6: Downloading Python {version}... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
-    cd /tmp && mkdir -p {build_dir} && cd {build_dir}
-    
-    if wget -q --show-progress https://www.python.org/ftp/python/{version}/Python-{version}.tgz; then
-        touch "$FLAG_DIR/download_ok"
-        echo "✓ Download completed"
-        break
-    else
-        echo "✗ Download failed"
-        if [ $retry -eq $MAX_RETRIES ]; then
-            echo "Download failed after $((MAX_RETRIES+1)) attempts"
-            rm -rf "$FLAG_DIR" {build_dir}
-            exit 1
-        fi
-        sleep 2
-    fi
-done
-
-# Step 2: Extract
-for retry in $(seq 0 $MAX_RETRIES); do
-    if [ -f "$FLAG_DIR/extract_ok" ]; then
-        echo "Step 2/6: Extract [ALREADY COMPLETED]"
-        break
-    fi
-    
-    echo "Step 2/6: Extracting... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
-    cd {build_dir}
-    
-    if tar -xzf Python-{version}.tgz && [ -d Python-{version} ]; then
-        touch "$FLAG_DIR/extract_ok"
-        echo "✓ Extract completed"
-        break
-    else
-        echo "✗ Extract failed"
-        if [ $retry -eq $MAX_RETRIES ]; then
-            echo "Extract failed after $((MAX_RETRIES+1)) attempts"
-            rm -rf "$FLAG_DIR" {build_dir}
-            exit 1
-        fi
-        sleep 2
-    fi
-done
-
-# Step 3: Configure
-for retry in $(seq 0 $MAX_RETRIES); do
-    if [ -f "$FLAG_DIR/configure_ok" ]; then
-        echo "Step 3/6: Configure [ALREADY COMPLETED]"
-        break
-    fi
-    
-    echo "Step 3/6: Configuring... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
-    cd {build_dir}/Python-{version}
-    
-    if ./configure --prefix={temp_install_path} --with-ensurepip=install > /dev/null 2>&1; then
-        touch "$FLAG_DIR/configure_ok"
-        echo "✓ Configure completed"
-        break
-    else
-        echo "✗ Configure failed"
-        if [ $retry -eq $MAX_RETRIES ]; then
-            echo "Configure failed after $((MAX_RETRIES+1)) attempts"
-            rm -rf "$FLAG_DIR" {build_dir}
-            exit 1
-        fi
-        sleep 2
-    fi
-done
-
-# Step 4: Compile
-for retry in $(seq 0 $MAX_RETRIES); do
-    if [ -f "$FLAG_DIR/compile_ok" ]; then
-        echo "Step 4/6: Compile [ALREADY COMPLETED]"
-        break
-    fi
-    
-    echo "Step 4/6: Compiling (5-10 minutes)... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
-    cd {build_dir}/Python-{version}
-    
-    if make -j$(nproc) > /dev/null 2>&1; then
-        touch "$FLAG_DIR/compile_ok"
-        echo "✓ Compile completed"
-        break
-    else
-        echo "✗ Compile failed"
-        if [ $retry -eq $MAX_RETRIES ]; then
-            echo "Compile failed after $((MAX_RETRIES+1)) attempts"
-            rm -rf "$FLAG_DIR" {build_dir}
-            exit 1
-        fi
-        sleep 2
-    fi
-done
-
-# Step 5: Install
-for retry in $(seq 0 $MAX_RETRIES); do
-    if [ -f "$FLAG_DIR/install_ok" ]; then
-        echo "Step 5/6: Install [ALREADY COMPLETED]"
-        break
-    fi
-    
-    echo "Step 5/6: Installing... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
-    cd {build_dir}/Python-{version}
-    
-    if make altinstall && [ -d {temp_install_path}/bin ]; then
-        # 创建符号链接
-        cd {temp_install_path}/bin
-        [ ! -f python3 ] && ln -s python{python_major_minor} python3
-        [ ! -f pip3 ] && ln -s pip{python_major_minor} pip3
-        touch "$FLAG_DIR/install_ok"
-        echo "✓ Install completed"
-        break
-    else
-        echo "✗ Install failed"
-        if [ $retry -eq $MAX_RETRIES ]; then
-            echo "Install failed after $((MAX_RETRIES+1)) attempts"
-            rm -rf "$FLAG_DIR" {build_dir} {temp_install_path}
-            exit 1
-        fi
-        sleep 2
-    fi
-done
-
-# Step 6: Compress and move
-for retry in $(seq 0 $MAX_RETRIES); do
-    if [ -f "$FLAG_DIR/transfer_ok" ]; then
-        echo "Step 6/6: Transfer [ALREADY COMPLETED]"
-        break
-    fi
-    
-    echo "Step 6/6: Compressing and transferring... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
-    
-    cd /tmp
-    tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path})
-    ls -lh python_{version}_{temp_hash}.tar.gz
-    
-    if mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && \
-       cd {self.main_instance.REMOTE_ENV}/python && \
-       tar -xzf python_{version}_{temp_hash}.tar.gz && \
-       [ -d {version} ] && rm -rf {version} || true && \
-       mv $(basename {temp_install_path}) {version} && \
-       rm python_{version}_{temp_hash}.tar.gz && \
-       {final_install_path}/bin/python3 --version && \
-       {final_install_path}/bin/pip3 --version; then
-        touch "$FLAG_DIR/transfer_ok"
-        echo "✓ Transfer completed"
-        break
-    else
-        echo "✗ Transfer failed"
-        if [ $retry -eq $MAX_RETRIES ]; then
-            echo "Transfer failed after $((MAX_RETRIES+1)) attempts"
-            rm -rf "$FLAG_DIR" {build_dir} {temp_install_path}
-            exit 1
-        fi
-        sleep 2
-    fi
-done
-
-# 清理
-cd /
-rm -rf {build_dir} {temp_install_path} "$FLAG_DIR"
-
-# 计算时间
-INSTALL_END=$(date +%s)
-echo ""
-echo "=== Python {version} installed successfully! ==="
-echo "Location: {final_install_path}"
-echo "Total time: $((($INSTALL_END - $INSTALL_START) / 60))m $((($INSTALL_END - $INSTALL_START) % 60))s"
-'''
+            # 指纹文件基础路径（在~/tmp，可通过GDS ls验证）
+            fingerprint_base = f"~/tmp/pyenv_install_{version}_{temp_hash}"
             
-            # 直接调用execute_command_interface并设置capture_result=False
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=install_script,
-                capture_result=False
+            print(f"\n{'='*70}")
+            print(f"Multi-Step Installation of Python {version}")
+            print(f"{'='*70}")
+            print(f"Installation ID: {temp_hash}")
+            print(f"Each step will execute as a separate GDS command")
+            print(f"This allows other GDS windows to run between steps")
+            print(f"Fingerprint base: {fingerprint_base}")
+            print(f"{'='*70}\n")
+            
+            # 定义6个安装步骤
+            steps = [
+                {
+                    "num": 1,
+                    "name": "Download",
+                    "description": f"Downloading Python {version} source",
+                    "fingerprint": f"{fingerprint_base}_step1_download_ok",
+                    "command": f"cd /tmp && mkdir -p {build_dir} && cd {build_dir} && echo 'Downloading Python {version}...' && wget -q --show-progress https://www.python.org/ftp/python/{version}/Python-{version}.tgz && echo '✓ Download completed' && touch {fingerprint_base}_step1_download_ok"
+                },
+                {
+                    "num": 2,
+                    "name": "Extract",
+                    "description": f"Extracting Python {version} source",
+                    "fingerprint": f"{fingerprint_base}_step2_extract_ok",
+                    "command": f"cd {build_dir} && echo 'Extracting...' && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
+                },
+                {
+                    "num": 3,
+                    "name": "Configure",
+                    "description": f"Configuring Python {version}",
+                    "fingerprint": f"{fingerprint_base}_step3_configure_ok",
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Configuring (showing summary)...' && ./configure --prefix={temp_install_path} --with-ensurepip=install 2>&1 | grep -E 'checking|creating|config.status|configure:' | tail -10 && echo '✓ Configure completed' && touch {fingerprint_base}_step3_configure_ok"
+                },
+                {
+                    "num": 4,
+                    "name": "Compile",
+                    "description": f"Compiling Python {version} (5-10 minutes)",
+                    "fingerprint": f"{fingerprint_base}_step4_compile_ok",
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Compiling with $(nproc) cores (this takes 5-10 minutes)...' && make -j$(nproc) 2>&1 | grep -E 'gcc|g\\+\\+|building|ar rc' | head -20 && echo '... compilation in progress ...' && make -j$(nproc) > /tmp/make_{temp_hash}.log 2>&1 && echo '✓ Compile completed' && touch {fingerprint_base}_step4_compile_ok"
+                },
+                {
+                    "num": 5,
+                    "name": "Install",
+                    "description": f"Installing Python {version} to /tmp",
+                    "fingerprint": f"{fingerprint_base}_step5_install_ok",
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing...' && make altinstall 2>&1 | grep -E 'Install|Creating|copying' | tail -15 && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
+                },
+                {
+                    "num": 6,
+                    "name": "Transfer",
+                    "description": f"Compressing and transferring to Google Drive",
+                    "fingerprint": f"{fingerprint_base}_step6_transfer_ok",
+                    "command": f"cd /tmp && echo 'Compressing...' && tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path}) && ls -lh python_{version}_{temp_hash}.tar.gz && echo 'Moving to Google Drive...' && mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && cd {self.main_instance.REMOTE_ENV}/python && echo 'Extracting in Google Drive...' && tar -xzf python_{version}_{temp_hash}.tar.gz && ([ -d {version} ] && rm -rf {version} || true) && mv $(basename {temp_install_path}) {version} && rm python_{version}_{temp_hash}.tar.gz && echo 'Final verification...' && {final_install_path}/bin/python3 --version && {final_install_path}/bin/pip3 --version && echo '✓ Transfer completed' && touch {fingerprint_base}_step6_transfer_ok"
+                }
+            ]
+            
+            # 执行多步骤安装
+            return self._execute_multi_step_install(
+                version=version,
+                steps=steps,
+                temp_hash=temp_hash,
+                fingerprint_base=fingerprint_base,
+                build_dir=build_dir,
+                temp_install_path=temp_install_path,
+                final_install_path=final_install_path
             )
             
-            # 开放模式直接返回result_code为0表示成功
-            result_code = 0 if result.get("success") else 1
+        except KeyboardInterrupt:
+            print("\n⚠️  Installation interrupted by user (Ctrl+C)")
+            return {
+                "success": False,
+                "error": "Installation interrupted by user",
+                "version": version
+            }
+        except Exception as e:
+            import traceback
+            error_details = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+            print(f"\nError installing Python {version}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": error_details,
+                "version": version
+            }
+    
+    def _execute_multi_step_install(self, version, steps, temp_hash, fingerprint_base, 
+                                     build_dir, temp_install_path, final_install_path):
+        """
+        执行多步骤安装，每步作为独立的GDS命令
+        通过指纹文件协调步骤进度，允许与其他GDS窗口交错执行
+        """
+        import time
+        
+        start_time = time.time()
+        current_step = 0
+        max_retries = 2
+        
+        try:
+            while current_step < len(steps):
+                step = steps[current_step]
+                step_num = step['num']
+                
+                print(f"\n{'─'*70}")
+                print(f"Step {step_num}/{len(steps)}: {step['name']}")
+                print(f"Description: {step['description']}")
+                print(f"{'─'*70}")
+                
+                # 检查指纹文件是否已存在（使用简单的ls，不用-la减少输出）
+                # 直接使用GDS ls机制验证文件存在
+                fingerprint_check_cmd = f"ls {step['fingerprint']}"
+                
+                print(f"Checking fingerprint: {step['fingerprint']}")
+                check_result = self.shell.execute_shell_command(fingerprint_check_cmd)
+                
+                # 如果ls成功且data包含文件名，说明文件存在
+                if check_result and check_result.get("success"):
+                    output = str(check_result.get("data", ""))
+                    fingerprint_filename = step['fingerprint'].split('/')[-1]
+                    if fingerprint_filename in output:
+                        print(f"✓ Step {step_num} already completed (fingerprint found)")
+                        print(f"Skipping to next step...")
+                        current_step += 1
+                        continue
+                
+                # 执行当前步骤（最多重试max_retries次）
+                retry_count = 0
+                step_success = False
+                
+                while retry_count <= max_retries and not step_success:
+                    if retry_count > 0:
+                        print(f"\n⚠️  Retrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
+                        time.sleep(3)
+                    
+                    print(f"\n▶ Executing step {step_num} as independent GDS command...")
+                    print(f"Command preview: {step['command'][:100]}...")
+                    print()
+                    
+                    # 执行步骤命令（开放式，不捕获结果）
+                    result = self.shell.execute_shell_command(step['command'])
+                    
+                    # 等待指纹文件创建
+                    print(f"\n⏳ Waiting for fingerprint file to be created...")
+                    time.sleep(2)
+                    
+                    # 检查指纹文件是否被创建（最多检查5次）
+                    for check_attempt in range(5):
+                        check_result = self.shell.execute_shell_command(fingerprint_check_cmd)
+                        if check_result and check_result.get("success"):
+                            output = str(check_result.get("data", ""))
+                            fingerprint_filename = step['fingerprint'].split('/')[-1]
+                            if fingerprint_filename in output:
+                                print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
+                                step_success = True
+                                current_step += 1
+                                break
+                        
+                        if check_attempt < 4:
+                            time.sleep(2)
+                    
+                    if not step_success:
+                        print(f"✗ Step {step_num} failed (fingerprint not created after {check_attempt + 1} checks)")
+                        retry_count += 1
+                
+                if not step_success:
+                    print(f"\n❌ Step {step_num} ({step['name']}) failed after {max_retries + 1} attempts")
+                    print(f"Cleaning up temporary files...")
+                    cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
+                    self.shell.execute_shell_command(cleanup_cmd)
+                    return {
+                        "success": False,
+                        "error": f"Step {step_num} ({step['name']}) failed after retries",
+                        "version": version
+                    }
             
-            # 不打印本地成功提示（避免误导，远端可能崩溃）
-            # 远端脚本会在执行完成时显示"✅执行完成"和版本验证
+            # 所有步骤完成
+            elapsed = time.time() - start_time
+            minutes = int(elapsed // 60)
+            seconds = int(elapsed % 60)
+            
+            # 清理临时文件和指纹
+            print(f"\n{'='*70}")
+            print("Cleaning up temporary files and fingerprints...")
+            cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
+            self.shell.execute_shell_command(cleanup_cmd)
+            
+            print(f"\n{'='*70}")
+            print(f"✅ Python {version} installed successfully!")
+            print(f"Location: {final_install_path}")
+            print(f"Total time: {minutes}m {seconds}s")
+            print(f"{'='*70}\n")
             
             return {
-                "success": result.get("success", True),
-                "message": f"Python {version} installation command executed",
+                "success": True,
+                "message": f"Python {version} installed successfully",
                 "version": version,
-                "install_path": final_install_path
-                }
-                
-        except Exception as e:
-            return {"success": False, "error": f"Error installing Python {version}: {str(e)}"}
-    
+                "install_path": final_install_path,
+                "duration_seconds": elapsed
+            }
+            
+        except KeyboardInterrupt:
+            print("\n\n⚠️  Installation interrupted by user (Ctrl+C)")
+            print("Cleaning up...")
+            cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
+            self.shell.execute_shell_command(cleanup_cmd)
+            return {
+                "success": False,
+                "error": "Installation interrupted by user",
+                "version": version
+            }
+
     def check_version_and_prepare_install(self, version, force=False):
         """验证版本并准备安装（处理已安装的情况）
         
