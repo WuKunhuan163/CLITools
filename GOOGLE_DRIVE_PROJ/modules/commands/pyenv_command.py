@@ -380,25 +380,43 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 安装到临时目录
+# 安装到临时目录（使用altinstall避免符号链接问题）
 echo "Installing Python {version} to temporary location..."
-make install
+echo "[DEBUG] Using 'make altinstall' (safer, no symlinks)"
+make altinstall
+MAKE_INSTALL_EXIT=$?
+echo "[DEBUG] After make altinstall, exit code: $MAKE_INSTALL_EXIT"
 
-if [ $? -ne 0 ]; then
+if [ $MAKE_INSTALL_EXIT -ne 0 ]; then
     echo "Failed to install Python {version}"
     rm -rf "{temp_install_path}"
     exit 1
 fi
 
-# 设置执行权限
-echo "Setting executable permissions..."
-chmod -R 755 "{temp_install_path}/bin/"
+echo "[DEBUG] make altinstall completed successfully"
+
+# TEMPORARILY DISABLED chmod to avoid crash
+# echo "[DEBUG] Setting executable permissions..."
+# chmod -R 755 "{temp_install_path}/bin/"
+# echo "[DEBUG] chmod completed"
 
 # 验证安装 - 检查可执行文件并验证版本
+echo "[DEBUG] Starting verification..."
 echo "Verifying Python {version} installation..."
+
+# altinstall创建python3.x而不是python3，需要创建符号链接
+MAJOR_MINOR=$(echo "{version}" | cut -d. -f1-2)
+if [ ! -f "{temp_install_path}/bin/python3" ] && [ -f "{temp_install_path}/bin/python$MAJOR_MINOR" ]; then
+    echo "[DEBUG] Creating python3 symlink (alt install doesn't create it)"
+    cd "{temp_install_path}/bin" && ln -s "python$MAJOR_MINOR" python3
+fi
+
 if [ -f "{temp_install_path}/bin/python3" ]; then
+    echo "[DEBUG] python3 executable found"
     # 测试Python可执行文件
+    echo "[DEBUG] Getting Python version..."
     ACTUAL_VERSION=$("{temp_install_path}/bin/python3" --version 2>&1)
+    echo "[DEBUG] Version obtained: $ACTUAL_VERSION"
     echo "Installed version: $ACTUAL_VERSION"
     
     # 检查版本是否匹配
@@ -410,17 +428,23 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
         {temp_install_path}/bin/python3 -c "import sys; print(f'Python {{{{sys.version}}}} is working correctly!')"
         
         if [ $? -eq 0 ]; then
+            echo "[DEBUG] Python test script passed"
             echo "✓ Python executable test passed"
             
             # 测试pip
+            echo "[DEBUG] About to test pip3..."
             {temp_install_path}/bin/pip3 --version
-            if [ $? -eq 0 ]; then
+            PIP_EXIT=$?
+            echo "[DEBUG] pip3 --version exit code: $PIP_EXIT"
+            if [ $PIP_EXIT -eq 0 ]; then
                 echo "✓ pip is working correctly"
             fi
             
+            echo "[DEBUG] pip test completed, proceeding to compression..."
             # 立即压缩（避免后续操作导致崩溃）
             # 压缩-移动-解压方案（避免Google Drive FUSE问题）
             echo "Compressing installation..."
+            echo "[DEBUG] Changed to /tmp"
             cd /tmp
             tar -czf python_{version}_{temp_hash}.tar.gz "$(basename {temp_install_path})"
             

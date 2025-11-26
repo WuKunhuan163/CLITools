@@ -471,15 +471,10 @@ if not tmp_folder_id:
 verification_success = verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, SERVICE_ACCOUNT_CREDENTIALS)
 
 if verification_success:
-    print("\\n✅ 挂载验证成功！")
     print("重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
     print("✅执行完成")
 else:
-    print("\\n🚨 挂载验证失败: 无法通过API访问指纹文件")
-    print("\\n可能的原因:")
-    print("  1. Google Drive挂载不稳定")
-    print("  2. Colab runtime处于不一致状态")
-    print("  3. 文件系统同步延迟")
+    print("\\n🚨挂载验证失败: 无法通过API访问指纹文件")
     print("\\n建议的解决方案:")
     print("  1. 在Colab中: Runtime > Disconnect and delete runtime")
     print("  2. 等待runtime完全终止")
