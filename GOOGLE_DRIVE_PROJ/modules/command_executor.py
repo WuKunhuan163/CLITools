@@ -486,7 +486,7 @@ class CommandExecutor:
         else:
             return 20  # Default for testing (user can change to 20 for production)
     
-    def _should_wait_for_remount(self):
+    def should_wait_for_remount(self):
         """Check if we should wait for remount before executing commands"""
         import json
         from .path_constants import PathConstants
@@ -668,7 +668,7 @@ class CommandExecutor:
                 "event_type": "remount_triggered",
                 "reason": reason,
                 "flag_set_at": set_at,
-                "source": "CommandExecutor._should_wait_for_remount"
+                "source": "CommandExecutor.should_wait_for_remount"
             }
             
             # 读取现有log
@@ -732,7 +732,7 @@ class CommandExecutor:
             print(f"Warning: Failed to add Connection Check: {e}")
             return remote_command
 
-    def execute_command(self, remote_command, result_filename, cmd_hash, raw_command=None):
+    def execute_command(self, remote_command, result_filename, cmd_hash, raw_command=None, capture_result=True):
         """
         执行远程命令接口 - 只负责执行已生成的远程命令
 
@@ -741,75 +741,108 @@ class CommandExecutor:
             result_filename (str): 结果文件名
             cmd_hash (str): 命令hash
             raw_command (str, optional): 原始用户命令（用于debug输出）
+            capture_result (bool): 是否捕获并下载结果JSON文件（默认True）
 
         Returns:
             dict: 执行结果
         """
-        # 确保~/tmp的ID已被解析和缓存
-        self._ensure_tmp_id_cached()
-        
-        # 检查是否需要添加Connection Check
-        if self._should_add_connection_check():
-            remote_command = self.add_connection_check_to_command(remote_command, result_filename, cmd_hash)
-        
-        # 显示远程窗口
-        window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
-        
-        # 处理窗口结果
-        if window_result["action"] == "success":
-            from .progress_manager import start_progress_buffering, stop_progress_buffering
-            start_progress_buffering("⏳ Waiting for result ...")
-            try:
-                result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
-            finally:
-                stop_progress_buffering()
+        try:
+            # 确保~/tmp的ID已被解析和缓存
+            self._ensure_tmp_id_cached()
             
-            if result.get("success", False):
-                data = result.get("data", {})
-                return {
+            # 检查是否需要添加Connection Check
+            if self._should_add_connection_check():
+                remote_command = self.add_connection_check_to_command(remote_command, result_filename, cmd_hash)
+            
+            # 显示远程窗口
+            window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
+            
+            # 处理窗口结果
+            if window_result["action"] == "success":
+                # 如果不需要捕获结果，点击"执行完成"后直接返回，不等待结果JSON
+                if not capture_result:
+                    return {
                     "success": True,
                     "action": "success",
-                    "data": data,
+                    "data": {
+                        "message": "Command executed without result capture",
+                        "source": "unified_command",
+                        "capture_result": False
+                    },
                     "source": "unified_command"
                 }
-            else:
-                # 尝试从多个位置获取错误信息
-                error_msg = result.get("error", "")
-                if not error_msg:
-                    # 尝试从data.error获取
-                    data = result.get('data', {})
-                    error_msg = data.get('error', '')
+            
+                # 否则等待并读取结果文件
+                from .progress_manager import start_progress_buffering, stop_progress_buffering
+                start_progress_buffering("⏳ Waiting for result ...")
+                try:
+                    result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
+                finally:
+                    stop_progress_buffering()
                 
+                if result.get("success", False):
+                    data = result.get("data", {})
+                    return {
+                        "success": True,
+                        "action": "success",
+                        "data": data,
+                        "source": "unified_command"
+                    }
+                else:
+                    # 尝试从多个位置获取错误信息
+                    error_msg = result.get("error", "")
+                    if not error_msg:
+                        # 尝试从data.error获取
+                        data = result.get('data', {})
+                        error_msg = data.get('error', '')
+                    
+                    return {
+                        "success": False,
+                        "action": "execution_failed",
+                        "data": {
+                            "error": error_msg,
+                            "source": "unified_command"
+                        },
+                        "error": error_msg  # 保持顶级error字段，确保google_drive_shell.py能获取到
+                    }
+                    
+            elif window_result["action"] == "direct_feedback":
+                print()  # 换行
+                # 如果不捕获结果，不传递result_filename（避免等待结果文件）
+                filename_to_pass = None if not capture_result else result_filename
+                feedback_result = self.direct_feedback_interface(remote_command, filename_to_pass)
+                return feedback_result
+                
+            elif window_result["action"] == "copy":
+                return {
+                    "success": True,
+                    "action": "copy",
+                    "data": {
+                        "message": "Command copied to clipboard",
+                        "source": "unified_command"
+                    }
+                }
+            
+            # 处理interrupted情况
+            if window_result["action"] == "interrupted":
                 return {
                     "success": False,
-                    "action": "execution_failed",
-                    "data": {
-                        "error": error_msg,
-                        "source": "unified_command"
-                    },
-                    "error": error_msg  # 保持顶级error字段，确保google_drive_shell.py能获取到
+                    "error": "Command interrupted by user (Ctrl+C)",
+                    "interrupted": True
                 }
-                
-        elif window_result["action"] == "direct_feedback":
-            print()  # 换行
-            feedback_result = self.direct_feedback_interface(remote_command, result_filename)
-            return feedback_result
             
-        elif window_result["action"] == "copy":
-            return {
-                "success": True,
-                "action": "copy",
-                "data": {
-                    "message": "Command copied to clipboard",
-                    "source": "unified_command"
-                }
-            }
+            # 对于其他情况（timeout, cancel, failure, error），直接返回原始结果
+            # 让上层处理错误并显示完整traceback
+            return window_result
         
-        # 对于其他情况（timeout, cancel, failure, error），直接返回原始结果
-        # 让上层处理错误并显示完整traceback
-        return window_result
+        except KeyboardInterrupt:
+            return {
+                "success": False,
+                "error": "Command interrupted by user (Ctrl+C)",
+                "interrupted": True
+            }
 
-    def execute_command_interface(self, cmd, args=None, _skip_queue_management=False, original_user_command=None):
+    def execute_command_interface(self, cmd, args=None, _skip_queue_management=False, original_user_command=None, capture_result=True):
         """
         统一远端命令执行接口 - 处理除特殊命令外的所有命令
 
@@ -818,12 +851,13 @@ class CommandExecutor:
             args (list, optional): 命令参数。如果为None，cmd被视为完整命令字符串
             _skip_queue_management (bool): 是否跳过队列管理（避免双重管理）
             original_user_command (str, optional): 原始用户命令，用于保持hash一致性
+            capture_result (bool): 是否捕获并下载结果JSON文件（默认True）
 
         Returns:
             dict: 执行结果，包含stdout、stderr、path等字段
         """
         # 检查是否需要remount（基于flag文件）
-        should_wait = self._should_wait_for_remount()
+        should_wait = self.should_wait_for_remount()
         if should_wait: 
             try:
                 from .window_manager import get_window_manager
@@ -888,7 +922,7 @@ class CommandExecutor:
             int: Exit code (0 for success, non-zero for failure)
         """
         # 检查是否需要remount（基于flag文件）
-        should_wait = self._should_wait_for_remount()
+        should_wait = self.should_wait_for_remount()
         
         if should_wait:
             # 需要remount，触发窗口管理器处理
@@ -1068,14 +1102,13 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
                         "source": "direct_feedback_interface"
                     }
                 else:
-                    error_msg = actual_result.get("error", "Failed to get actual result")
-                    print(f"Could not get actual execution result: {error_msg}")
+                    print(f"Could not get actual execution result. ")
 
             except Exception as e:
                 print(f"Error waiting for actual result: {e}")
 
         # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
-        return feedback_result
+        return ""
 
     def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False):
         """
@@ -1149,6 +1182,9 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
                 except EOFError:
                     # Ctrl+D结束输入
                     break
+                except KeyboardInterrupt:
+                    # Ctrl+C中断 - 重新抛出以便外层处理
+                    raise
         except TimeoutException:
             print(f"\nInput timeout after {timeout_seconds} seconds")
         finally:

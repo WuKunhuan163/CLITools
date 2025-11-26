@@ -165,7 +165,6 @@ class CommandGenerator:
         import os
         import uuid
         
-        
         # 如果命令中不包含placeholder，直接返回
         if placeholder not in cmd:
             return cmd
@@ -207,6 +206,35 @@ class CommandGenerator:
         
         # 步骤7: 恢复所有特殊字符
         expanded_cmd = PathResolver.restore_special_chars(expanded_cmd, special_phs)
+
+        # 步骤8: 处理参数zhi中的路径
+        import shlex
+        try:
+            tokens = shlex.split(expanded_cmd)
+            processed_tokens = []
+            
+            for token in tokens:
+                # 检查token是否是 --xxx=value 形式
+                if '=' in token and f'{placeholder}/' in token:
+                    # 分离参数名和值
+                    param_name, param_value = token.split('=', 1)
+                    
+                    # 如果值包含placeholder，递归展开
+                    if placeholder in param_value:
+                        # 递归调用展开路径
+                        expanded_value = self.expand_paths_with_bash(param_value, placeholder, placeholder_value)
+                        processed_token = f"{param_name}={expanded_value}"
+                        processed_tokens.append(processed_token)
+                    else:
+                        processed_tokens.append(token)
+                else:
+                    processed_tokens.append(token)
+            
+            # 重新组合命令
+            expanded_cmd = ' '.join(processed_tokens)
+        except ValueError:
+            # shlex split失败，保持原样
+            pass
         
         return expanded_cmd
     
@@ -368,7 +396,7 @@ class CommandGenerator:
         
         return expanded_cmd
 
-    def generate_command(self, cmd, result_filename=None, current_shell=None):
+    def generate_command(self, cmd, result_filename=None, current_shell=None, capture_result=True):
         """
         统一的JSON结果生成接口 - 为任何用户命令生成包含JSON结果的远程脚本
         
@@ -376,6 +404,7 @@ class CommandGenerator:
             cmd (str): 用户要执行的完整命令
             result_filename (str, optional): 指定的结果文件名，如果不提供则自动生成
             current_shell (dict, optional): 当前shell信息，用于路径解析
+            capture_result (bool): 是否捕获结果（默认True）。False时直接执行命令不生成JSON
             
         Returns:
             tuple: (远端命令字符串, 结果文件名, 命令hash)
@@ -384,9 +413,13 @@ class CommandGenerator:
             'cmd': cmd,
             'cmd_length': len(cmd),
             'has_newlines': '\n' in cmd,
-            'newline_count': len(cmd.split('\n')) if '\n' in cmd else 0
+            'newline_count': len(cmd.split('\n')) if '\n' in cmd else 0,
+            'capture_result': capture_result
         })
         cmd_hash = self.calculate_command_hash(cmd)
+        
+        # 如果不捕获结果，仍然使用完整模板，但修改user command部分和JSON生成部分
+        # （保留shell路径信息等上下文）
         
         # 生成统一JSON命令
         if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
@@ -438,13 +471,13 @@ class CommandGenerator:
             result = self.fill_background_command_template(cmd, bg_pid, execute=False, result_filename=result_filename)
             remote_command = result['remote_template']
         else:
-            result = self.fill_remote_command_template(cmd, execute=False, result_filename=result_filename)
+            result = self.fill_remote_command_template(cmd, execute=False, result_filename=result_filename, capture_result=capture_result)
             remote_command = result['remote_template']
         
         # 最终生成的remote_command
         return remote_command, result_filename, cmd_hash
 
-    def fill_remote_command_template(self, cmd, execute=False, result_filename=None):
+    def fill_remote_command_template(self, cmd, execute=False, result_filename=None, capture_result=True):
         """
         暴露远端命令模板生成过程的接口 - 用于调试和探究转译后的命令
         
@@ -454,6 +487,7 @@ class CommandGenerator:
             cmd (str): 用户输入的原始命令
             execute (bool): 是否实际执行远端窗口（默认False，仅返回模板）
             result_filename (str, optional): 指定结果文件名，如果不提供则自动生成
+            capture_result (bool): 是否捕获结果JSON（默认True）
         
         Returns:
             dict: {
@@ -498,7 +532,26 @@ class CommandGenerator:
         # print("=====================")
         # exit(0)
 
-        remote_command = f'''
+        # 根据capture_result生成不同的模板
+        if not capture_result:
+            # 不捕获结果：保留shell路径信息，直接执行命令，不生成JSON
+            remote_command = f'''
+# 确保工作目录存在并切换到正确的基础目录
+mkdir -p "{remote_path}"
+cd "{remote_path}" && {{
+    # 尝试切换到当前shell路径以支持相对路径
+    if cd "{shell_absolute_path}" 2>/dev/null; then
+        # 清屏并执行用户命令（输出直接显示在终端）
+        clear
+        {cmd}
+    else
+        echo "Error: Shell working directory does not exist: {shell_absolute_path}"
+        exit 1
+    fi
+}}'''
+        else:
+            # 捕获结果：完整模板（原有逻辑）
+            remote_command = f'''
 # 确保工作目录存在并切换到正确的基础目录
 mkdir -p "{remote_path}"
 cd "{remote_path}" && {{
