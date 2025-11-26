@@ -152,9 +152,10 @@ class PyenvCommand(BaseCommand):
                     return {"success": False, "error": "Please specify a Python version to install"}
                 return self.pyenv_install(version, force=force)
             elif action == "--install-bg":
-                if not version:
-                    return {"success": False, "error": "Please specify a Python version to install in background"}
-                return self.pyenv_install_bg(version, force=force)
+                return {
+                    "success": False,
+                    "error": "pyenv --install-bg is deprecated. Use --install instead (now uses open-style installation with visible progress)."
+                }
             elif action == "--install-local":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install from local download"}
@@ -204,54 +205,99 @@ class PyenvCommand(BaseCommand):
         return f"{self.get_python_base_path()}/python_states.json"
     
     def pyenv_install(self, version, force=False):
-        """安装指定Python版本（远端下载模式）
+        """安装指定Python版本（开放式安装，显示所有输出）
         
         Args:
             version: Python版本号
             force: 是否强制覆盖已安装的版本
         """
-        if not self.validate_version(version):
-            return {
-                "success": False, 
-                "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'"
-            }
+        # 验证版本并准备安装
+        check_result = self.check_version_and_prepare_install(version, force)
+        if check_result is not None:
+            return check_result
         
         try:
-            # 检查版本是否已安装
-            if self.is_version_installed(version):
-                if not force:
-                    return {
-                        "success": False,
-                        "error": f"Python {version} is already installed. Use --force to reinstall."
-                    }
-                else:
-                    print(f"Python {version} is already installed. Forcing reinstallation...")
-                    self.pyenv_uninstall(version)
+            print(f"Starting open-style installation of Python {version}...")
+            print(f"All output will be displayed in real-time.")
+            print()
             
-            print(f"Installing Python {version}...")
-            print(f"Installation method: Remote download")
-            print(f"This may take several minutes...")
+            # 生成临时安装目录的hash名称
+            import hashlib
+            import time
+            temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
+            temp_install_path = f"{self.main_instance.REMOTE_ENV}/python/.tmp_install_{temp_hash}"
+            final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             
-            # 阶段1：远端下载
-            success, source_dir, error_msg = self._download_python_remote(version)
-            if not success:
-                return {"success": False, "error": error_msg}
+            # 生成源码准备脚本（下载源码）- 使用@/tmp作为临时下载目录
+            build_dir = f"{self.main_instance.REMOTE_ENV}/tmp/python_download_{version}_{temp_hash}"
+            source_prep = f'''
+# 开始计时
+INSTALL_START_TIME=$(date +%s)
+echo "Installation started at: $(date)"
+
+# 设置临时构建目录（@/tmp）
+BUILD_DIR="{build_dir}"
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+
+# 下载Python源码（开放式显示进度）
+echo "Downloading Python {version} source code..."
+wget https://www.python.org/ftp/python/{version}/Python-{version}.tgz
+
+if [ $? -ne 0 ]; then
+    echo "Failed to download Python {version}"
+    rm -rf "{temp_install_path}"
+    cd /
+    rm -rf "$BUILD_DIR"
+    exit 1
+fi
+'''
             
-            # 阶段2：统一编译安装
-            compile_script = self._compile_and_install_python(version, source_dir, force)
+            # 生成完整的安装脚本（包含版本验证）
+            install_script = self.generate_install_script(
+                version=version,
+                temp_install_path=temp_install_path,
+                final_install_path=final_install_path,
+                source_preparation_script=source_prep
+            )
             
-            # 执行编译脚本
-            result = self.shell.command_executor.execute_remote_script(compile_script)
+            # 添加构建目录清理和总时间输出
+            install_script += f'''
+# 清理构建目录
+cd /
+rm -rf "{build_dir}"
+
+# 计算并输出总安装时间
+INSTALL_END_TIME=$(date +%s)
+INSTALL_DURATION=$((INSTALL_END_TIME - INSTALL_START_TIME))
+INSTALL_MINUTES=$((INSTALL_DURATION / 60))
+INSTALL_SECONDS=$((INSTALL_DURATION % 60))
+echo ""
+echo "Total installation time: ${{INSTALL_MINUTES}}m ${{INSTALL_SECONDS}}s"
+'''
             
-            # 检查命令执行结果
-            data = result.get("data", {})
-            exit_code = data.get("exit_code", 1)
+            # 使用--no-capture模式执行（开放式显示所有输出）
+            print("="*60)
+            print("Generated installation script:")
+            print("="*60)
+            print(install_script)
+            print("="*60)
+            print()
             
-            if result.get("success") and exit_code == 0:
-                # 更新状态文件
-                self.add_installed_version(version)
+            # 直接调用execute_command_interface并设置capture_result=False
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=install_script,
+                capture_result=False
+            )
+            
+            # 开放模式直接返回result_code为0表示成功
+            result_code = 0 if result.get("success") else 1
+            
+            if result_code == 0:
+                print(f"\n✓ Python {version} installed successfully!")
                 
-                final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
+                # 状态文件已在bash脚本中更新，不需要额外调用
+                
                 return {
                     "success": True,
                     "message": f"Python {version} installed successfully",
@@ -259,20 +305,15 @@ class PyenvCommand(BaseCommand):
                     "install_path": final_install_path
                 }
             else:
-                stderr = data.get("stderr", "")
-                stdout = data.get("stdout", "")
-                error_msg = f"Failed to install Python {version}"
-                if stderr:
-                    error_msg += f": {stderr}"
-                elif stdout:
-                    error_msg += f": {stdout}"
-                
-                return {"success": False, "error": error_msg}
+                return {
+                    "success": False,
+                    "error": f"Installation failed with exit code {result_code}. Check output above for details."
+                }
                 
         except Exception as e:
             return {"success": False, "error": f"Error installing Python {version}: {str(e)}"}
     
-    def _check_version_and_prepare_install(self, version, force=False):
+    def check_version_and_prepare_install(self, version, force=False):
         """验证版本并准备安装（处理已安装的情况）
         
         Args:
@@ -302,7 +343,7 @@ class PyenvCommand(BaseCommand):
         
         return None  # 成功，继续安装
     
-    def _generate_install_script(self, version, temp_install_path, final_install_path, 
+    def generate_install_script(self, version, temp_install_path, final_install_path, 
                                    source_preparation_script="", work_dir=None):
         """生成Python编译安装的bash脚本模板
         
@@ -401,6 +442,34 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
             echo "Python {version} installed successfully!"
             echo "Location: {final_install_path}"
             "{final_install_path}/bin/python3" --version
+            
+            # 更新python_states.json文件（添加到已安装列表）
+            echo "Updating installation state..."
+            STATE_FILE="{final_install_path}/../python_states.json"
+            if [ -f "$STATE_FILE" ]; then
+                # 读取现有状态，添加新版本
+                python3 -c '
+import json
+try:
+    with open("'"$STATE_FILE"'", "r") as f:
+        state = json.load(f)
+    installed = json.loads(state.get("installed_versions", "[]"))
+    if "{version}" not in installed:
+        installed.append("{version}")
+        installed.sort()
+        state["installed_versions"] = json.dumps(installed)
+    with open("'"$STATE_FILE"'", "w") as f:
+        json.dump(state, f, indent=2)
+    print("✓ Installation state updated")
+except Exception as e:
+    print(f"Warning: Failed to update state: {{e}}")
+'
+            else
+                # 创建新的状态文件
+                echo '{{"installed_versions": "[\\"{version}\\"]"}}' > "$STATE_FILE"
+                echo "✓ Installation state file created"
+            fi
+            
             exit 0
         else
             echo "✗ Python executable test failed"
@@ -427,7 +496,7 @@ fi
             force: 是否强制覆盖已安装的版本
         """
         # 验证版本并准备安装
-        check_result = self._check_version_and_prepare_install(version, force)
+        check_result = self.check_version_and_prepare_install(version, force)
         if check_result is not None:
             return check_result
         
@@ -461,7 +530,7 @@ fi
 '''
             
             # 生成完整的安装脚本
-            install_script = self._generate_install_script(
+            install_script = self.generate_install_script(
                 version=version,
                 temp_install_path=temp_install_path,
                 final_install_path=final_install_path,
@@ -502,7 +571,7 @@ fi
             dict: 操作结果
         """
         # 验证版本并准备安装
-        check_result = self._check_version_and_prepare_install(version, force)
+        check_result = self.check_version_and_prepare_install(version, force)
         if check_result is not None:
             return check_result
         
@@ -593,7 +662,7 @@ fi
                 work_dir = f"{self.shell.REMOTE_ENV}/python_install_{version}"
                 
                 # 生成完整的安装脚本（源码已经上传，无需下载）
-                install_script = self._generate_install_script(
+                install_script = self.generate_install_script(
                     version=version,
                     temp_install_path=temp_install_path,
                     final_install_path=final_install_path,

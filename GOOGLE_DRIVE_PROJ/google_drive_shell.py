@@ -1128,7 +1128,13 @@ class GoogleDriveShell:
                 return self.command_executor.execute_special_command(cmd, args)
             
             # 简化：直接使用bash执行命令
-            result = self.execute_command_interface(shell_cmd_clean)
+            # 检查是否设置了_no_capture flag
+            capture_result = True
+            if hasattr(self.command_executor, '_no_capture') and self.command_executor._no_capture:
+                capture_result = False
+                self.command_executor._no_capture = False  # 重置flag
+            
+            result = self.execute_command_interface(shell_cmd_clean, capture_result=capture_result)
             
             # 处理结果
             if not result.get("success"): 

@@ -157,6 +157,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         
         if verify_result and verify_result.get("success"):
             print("✓ 远端指纹文件验证成功")
+            print("✓ Google Drive remount successful!")
             
             # Clear remount required flag after successful remount
             try:
@@ -167,8 +168,24 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
             
             return 0
         else:
+            print("✗ 远端指纹文件验证失败")
+            print("\nRemount failed: Unable to access remote fingerprint file.")
+            print("\nPossible causes:")
+            print("  1. The remote Python script was not executed successfully")
+            print("  2. Google Drive is not properly mounted in Colab")
+            print("  3. The Colab runtime is in an inconsistent state")
+            print("\nRecommended solution:")
+            print("  1. In Colab: Runtime > Disconnect and delete runtime")
+            print("  2. Wait for the runtime to be fully terminated")
+            print("  3. Start a new runtime and re-execute the remount script")
+            print("  4. Run 'GOOGLE_DRIVE --remount' again")
             return 1
     except Exception as e:
+        print(f"\n✗ Remount verification error: {e}")
+        print("\nRecommended solution:")
+        print("  1. In Colab: Runtime > Disconnect and delete runtime")
+        print("  2. Start a new runtime and re-execute the remount script")
+        print("  3. Run 'GOOGLE_DRIVE --remount' again")
         return 1
 
 

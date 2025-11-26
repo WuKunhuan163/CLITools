@@ -1513,6 +1513,11 @@ try:
     
     # 绑定窗口关闭事件
     def on_window_closing():
+        # 输出window closed结果
+        print(json.dumps({{
+            "action": "window_closed",
+            "message": "Window closed by user"
+        }}))
         cleanup_resources()
         root.destroy()
     

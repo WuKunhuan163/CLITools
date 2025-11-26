@@ -823,11 +823,18 @@ class CommandExecutor:
                     }
                 }
             
-            # 处理interrupted情况
+            # 处理interrupted和window_closed情况
             if window_result["action"] == "interrupted":
                 return {
                     "success": False,
                     "error": "Command interrupted by user (Ctrl+C)",
+                    "interrupted": True
+                }
+            
+            if window_result["action"] == "window_closed":
+                return {
+                    "success": False,
+                    "error": "Window closed by user",
                     "interrupted": True
                 }
             
@@ -898,14 +905,15 @@ class CommandExecutor:
             cmd = cmd
             
         current_shell = self.main_instance.get_current_shell()
-        remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(cmd, None, current_shell)
+        remote_command, result_filename, cmd_hash = self.main_instance.command_generator.generate_command(cmd, None, current_shell, capture_result=capture_result)
 
         # 执行远程命令
         result = self.execute_command(
             remote_command=remote_command,
             result_filename=result_filename,
             cmd_hash=cmd_hash,
-            raw_command=cmd
+            raw_command=cmd,
+            capture_result=capture_result
         )
         return result
 
@@ -1108,7 +1116,12 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
                 print(f"Error waiting for actual result: {e}")
 
         # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
-        return ""
+        return {
+            "success": True,
+            "action": "direct_feedback_no_result",
+            "data": feedback_result.get("data", {}),
+            "source": "direct_feedback_interface_no_capture"
+        }
 
     def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False):
         """
