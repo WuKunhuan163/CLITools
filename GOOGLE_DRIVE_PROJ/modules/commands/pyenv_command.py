@@ -170,7 +170,8 @@ class PyenvCommand(BaseCommand):
                 force = "--force" in args
                 return self.pyenv_list(force=force)
             elif action == "--list-available":
-                return self.pyenv_list_available()
+                force = "--force" in args
+                return self.pyenv_list_available(force=force)
             elif action == "--update-cache":
                 return self.pyenv_update_cache()
             elif action == "--global":
@@ -206,7 +207,7 @@ class PyenvCommand(BaseCommand):
         return f"{self.get_python_base_path()}/python_states.json"
     
     def pyenv_install(self, version, force=False):
-        """安装指定Python版本
+        """安装指定Python版本（远端下载模式）
         
         Args:
             version: Python版本号
@@ -230,118 +231,22 @@ class PyenvCommand(BaseCommand):
                     print(f"Python {version} is already installed. Forcing reinstallation...")
                     self.pyenv_uninstall(version)
             
-            # 生成临时安装目录的hash名称
-            import hashlib
-            import time
-            temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
-            temp_install_path = f"{self.main_instance.REMOTE_ENV}/python/.tmp_install_{temp_hash}"
-            final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
-            
             print(f"Installing Python {version}...")
-            print(f"Final installation path: {final_install_path}")
+            print(f"Installation method: Remote download")
             print(f"This may take several minutes...")
             
-            # 构建远程安装命令 - 使用临时目录和验证
-            install_command = f'''
-# 创建临时安装目录
-mkdir -p "{temp_install_path}"
-
-# 设置临时构建目录
-BUILD_DIR="/tmp/python_build_{version}_{temp_hash}"
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
-
-# 下载Python源码
-echo "Downloading Python {version} source code..."
-wget -q https://www.python.org/ftp/python/{version}/Python-{version}.tgz
-
-if [ $? -ne 0 ]; then
-    echo "Failed to download Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-# 解压源码
-tar -xzf Python-{version}.tgz
-cd Python-{version}
-
-# 配置编译选项 - 安装到临时目录
-echo "Configuring Python {version}..."
-./configure --prefix="{temp_install_path}" --enable-optimizations --with-ensurepip=install
-
-if [ $? -ne 0 ]; then
-    echo "Failed to configure Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-# 编译和安装
-echo "Compiling Python {version}..."
-make -j$(nproc)
-
-if [ $? -ne 0 ]; then
-    echo "Failed to compile Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-echo "Installing Python {version} to temporary location..."
-make install
-
-if [ $? -ne 0 ]; then
-    echo "Failed to install Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-# 清理构建目录
-cd /
-rm -rf "$BUILD_DIR"
-
-# 设置执行权限
-echo "Setting executable permissions..."
-chmod -R 755 "{temp_install_path}/bin/"
-
-# 验证安装 - 检查可执行文件并验证版本
-echo "Verifying Python {version} installation..."
-if [ -f "{temp_install_path}/bin/python3" ]; then
-    # 测试Python可执行文件
-    ACTUAL_VERSION=$("{temp_install_path}/bin/python3" --version 2>&1)
-    echo "Installed version: $ACTUAL_VERSION"
-    
-    # 检查版本是否匹配
-    if echo "$ACTUAL_VERSION" | grep -q "{version}"; then
-        echo "Version verification successful"
-        
-        # 移除旧版本（如果存在）
-        if [ -d "{final_install_path}" ]; then
-            echo "Removing existing version..."
-            rm -rf "{final_install_path}"
-        fi
-        
-        # 移动到最终位置
-        echo "Moving to final location..."
-        mv "{temp_install_path}" "{final_install_path}"
-        
-        echo "Python {version} installed successfully"
-        echo "Location: {final_install_path}"
-        "{final_install_path}/bin/python3" --version
-    else
-        echo "Version verification failed: expected {version}, got $ACTUAL_VERSION"
-        rm -rf "{temp_install_path}"
-        exit 1
-    fi
-else
-    echo "Installation verification failed: python3 executable not found"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-'''
+            # 阶段1：远端下载
+            success, source_dir, error_msg = self._download_python_remote(version)
+            if not success:
+                return {"success": False, "error": error_msg}
             
-            # 执行远程安装命令
-            result = self.shell.command_executor.execute_remote_script(install_command)
+            # 阶段2：统一编译安装
+            compile_script = self._compile_and_install_python(version, source_dir, force)
             
-            # 检查命令执行结果 - exit_code在data字段中
+            # 执行编译脚本
+            result = self.shell.command_executor.execute_remote_script(compile_script)
+            
+            # 检查命令执行结果
             data = result.get("data", {})
             exit_code = data.get("exit_code", 1)
             
@@ -349,6 +254,7 @@ fi
                 # 更新状态文件
                 self.add_installed_version(version)
                 
+                final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
                 return {
                     "success": True,
                     "message": f"Python {version} installed successfully",
@@ -356,8 +262,8 @@ fi
                     "install_path": final_install_path
                 }
             else:
-                stderr = result.get("stderr", "")
-                stdout = result.get("stdout", "")
+                stderr = data.get("stderr", "")
+                stdout = data.get("stdout", "")
                 error_msg = f"Failed to install Python {version}"
                 if stderr:
                     error_msg += f": {stderr}"
@@ -369,60 +275,61 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error installing Python {version}: {str(e)}"}
     
-    def pyenv_install_bg(self, version, force=False):
-        """在后台安装指定Python版本
+    def _check_version_and_prepare_install(self, version, force=False):
+        """验证版本并准备安装（处理已安装的情况）
         
         Args:
             version: Python版本号
             force: 是否强制覆盖已安装的版本
+            
+        Returns:
+            dict: {"success": bool, "error": str} 如果失败；None 如果成功继续
         """
         if not self.validate_version(version):
             return {
                 "success": False, 
-                "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'"
+                "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18)"
             }
         
-        try:
-            # 检查版本是否已安装
-            if self.is_version_installed(version):
-                if not force:
-                    return {
-                        "success": False,
-                        "error": f"Python {version} is already installed. Use --force to reinstall."
-                    }
-                else:
-                    print(f"Python {version} is already installed. Forcing reinstallation...")
-                    # 直接使用pyenv_uninstall接口
-                    self.pyenv_uninstall(version)
+        # 检查版本是否已安装
+        if self.is_version_installed(version):
+            if not force:
+                return {
+                    "success": False,
+                    "error": f"Python {version} is already installed. Use --force to reinstall."
+                }
+            else:
+                print(f"Python {version} is already installed. Forcing reinstallation...")
+                # 直接使用pyenv_uninstall接口
+                self.pyenv_uninstall(version)
+        
+        return None  # 成功，继续安装
+    
+    def _generate_install_script(self, version, temp_install_path, final_install_path, 
+                                   source_preparation_script="", work_dir=None):
+        """生成Python编译安装的bash脚本模板
+        
+        Args:
+            version: Python版本号
+            temp_install_path: 临时安装路径（用于编译安装）
+            final_install_path: 最终安装路径（验证通过后移动到这里）
+            source_preparation_script: 可选的源码准备脚本（下载或解压）
+            work_dir: 工作目录（如果需要切换到特定目录）
             
-            # 构建Python安装bash脚本，直接在模板中使用REMOTE_ENV
-            # 生成临时安装目录的hash名称
-            import hashlib
-            import time
-            temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
-            temp_install_path = f"{self.main_instance.REMOTE_ENV}/python/.tmp_install_{temp_hash}"
-            final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
-            
-            install_script = f'''
+        Returns:
+            str: 完整的bash安装脚本
+        """
+        # 根据是否提供work_dir生成切换目录的命令
+        cd_command = f'cd "{work_dir}"\n' if work_dir else ""
+        
+        return f'''
 # 创建临时安装目录
 mkdir -p "{temp_install_path}"
 
-# 设置临时构建目录
-BUILD_DIR="/tmp/python_build_{version}_{temp_hash}"
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
-
-# 下载Python源码
-echo "Downloading Python {version} source code..."
-wget -q https://www.python.org/ftp/python/{version}/Python-{version}.tgz
-
-if [ $? -ne 0 ]; then
-    echo "Failed to download Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
+{cd_command}{source_preparation_script}
 
 # 解压源码
+echo "Extracting source code..."
 tar -xzf Python-{version}.tgz
 cd Python-{version}
 
@@ -436,7 +343,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 编译和安装
+# 编译（使用多核加速）
 echo "Compiling Python {version}..."
 make -j$(nproc)
 
@@ -446,6 +353,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 安装到临时目录
 echo "Installing Python {version} to temporary location..."
 make install
 
@@ -454,10 +362,6 @@ if [ $? -ne 0 ]; then
     rm -rf "{temp_install_path}"
     exit 1
 fi
-
-# 清理构建目录
-cd /
-rm -rf "$BUILD_DIR"
 
 # 设置执行权限
 echo "Setting executable permissions..."
@@ -474,19 +378,38 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
     if echo "$ACTUAL_VERSION" | grep -q "{version}"; then
         echo "Version verification successful"
         
-        # 移除旧版本（如果存在）
-        if [ -d "{final_install_path}" ]; then
-            echo "Removing existing version..."
-            rm -rf "{final_install_path}"
+        # 测试Python执行
+        echo "Running test script..."
+        {temp_install_path}/bin/python3 -c "import sys; print(f'Python {{{{sys.version}}}} is working correctly!')"
+        
+        if [ $? -eq 0 ]; then
+            echo "✓ Python executable test passed"
+            
+            # 测试pip
+            {temp_install_path}/bin/pip3 --version
+            if [ $? -eq 0 ]; then
+                echo "✓ pip is working correctly"
+            fi
+            
+            # 移除旧版本（如果存在）
+            if [ -d "{final_install_path}" ]; then
+                echo "Removing existing version..."
+                rm -rf "{final_install_path}"
+            fi
+            
+            # 移动到最终位置
+            echo "Moving to final location..."
+            mv "{temp_install_path}" "{final_install_path}"
+            
+            echo "Python {version} installed successfully!"
+            echo "Location: {final_install_path}"
+            "{final_install_path}/bin/python3" --version
+            exit 0
+        else
+            echo "✗ Python executable test failed"
+            rm -rf "{temp_install_path}"
+            exit 1
         fi
-        
-        # 移动到最终位置
-        echo "Moving to final location..."
-        mv "{temp_install_path}" "{final_install_path}"
-        
-        echo "Python {version} installed successfully"
-        echo "Location: {final_install_path}"
-        "{final_install_path}/bin/python3" --version
     else
         echo "Version verification failed: expected {version}, got $ACTUAL_VERSION"
         rm -rf "{temp_install_path}"
@@ -498,6 +421,58 @@ else
     exit 1
 fi
 '''
+
+    def pyenv_install_bg(self, version, force=False):
+        """在后台安装指定Python版本（直接在远程下载源码）
+        
+        Args:
+            version: Python版本号
+            force: 是否强制覆盖已安装的版本
+        """
+        # 验证版本并准备安装
+        check_result = self._check_version_and_prepare_install(version, force)
+        if check_result is not None:
+            return check_result
+        
+        try:
+            # 生成临时安装目录的hash名称
+            import hashlib
+            import time
+            temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
+            temp_install_path = f"{self.main_instance.REMOTE_ENV}/python/.tmp_install_{temp_hash}"
+            final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
+            
+            # 生成源码准备脚本（下载源码）
+            build_dir = f"/tmp/python_build_{version}_{temp_hash}"
+            source_prep = f'''
+# 设置临时构建目录
+BUILD_DIR="{build_dir}"
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+
+# 下载Python源码
+echo "Downloading Python {version} source code..."
+wget -q https://www.python.org/ftp/python/{version}/Python-{version}.tgz
+
+if [ $? -ne 0 ]; then
+    echo "Failed to download Python {version}"
+    rm -rf "{temp_install_path}"
+    cd /
+    rm -rf "$BUILD_DIR"
+    exit 1
+fi
+'''
+            
+            # 生成完整的安装脚本
+            install_script = self._generate_install_script(
+                version=version,
+                temp_install_path=temp_install_path,
+                final_install_path=final_install_path,
+                source_preparation_script=source_prep
+            )
+            
+            # 添加构建目录清理
+            install_script += f'\n# 清理构建目录\ncd /\nrm -rf "{build_dir}"\n'
             
             # 使用GDS的后台任务系统执行脚本
             # 调用execute_background_command
@@ -529,29 +504,16 @@ fi
         Returns:
             dict: 操作结果
         """
-        if not self.validate_version(version):
-            return {
-                "success": False, 
-                "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18)"
-            }
+        # 验证版本并准备安装
+        check_result = self._check_version_and_prepare_install(version, force)
+        if check_result is not None:
+            return check_result
         
         try:
             import tempfile
             import os
             import subprocess
             from pathlib import Path
-            
-            # 检查版本是否已安装
-            if self.is_version_installed(version):
-                if not force:
-                    return {
-                        "success": False,
-                        "error": f"Python {version} is already installed. Use --force to reinstall."
-                    }
-                else:
-                    print(f"Python {version} is already installed. Forcing reinstallation...")
-                    # 直接使用pyenv_uninstall接口
-                    self.pyenv_uninstall(version)
             
             print(f"Starting local download and remote installation of Python {version}...")
             print(f"Step 1/4: Downloading Python {version} source code locally...")
@@ -633,113 +595,23 @@ fi
                 final_install_path = f"{self.shell.REMOTE_ENV}/python/{version}"
                 work_dir = f"{self.shell.REMOTE_ENV}/python_install_{version}"
                 
-                # 构建远程编译安装脚本 - 使用临时目录和验证
-                install_script = f'''
-# 创建临时安装目录
-mkdir -p "{temp_install_path}"
-
-# 切换到临时目录
+                # 生成完整的安装脚本（源码已经上传，无需下载）
+                install_script = self._generate_install_script(
+                    version=version,
+                    temp_install_path=temp_install_path,
+                    final_install_path=final_install_path,
+                    source_preparation_script="",  # 源码已上传，无需准备
+                    work_dir=work_dir
+                )
+                
+                # 添加清理临时文件的命令
+                install_script += f'''
+# 清理临时文件
 cd "{work_dir}"
-
-# 解压源码
-echo "Extracting source code..."
-tar -xzf Python-{version}.tgz
-cd Python-{version}
-
-# 配置编译选项 - 安装到临时目录
-echo "Configuring Python {version}..."
-./configure --prefix="{temp_install_path}" --enable-optimizations --with-ensurepip=install
-
-if [ $? -ne 0 ]; then
-    echo "Failed to configure Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-# 编译（使用多核加速）
-echo "Compiling Python {version}..."
-make -j$(nproc)
-
-if [ $? -ne 0 ]; then
-    echo "Failed to compile Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-# 安装到临时目录
-echo "Installing Python {version} to temporary location..."
-make install
-
-if [ $? -ne 0 ]; then
-    echo "Failed to install Python {version}"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
-
-# 设置执行权限
-echo "Setting executable permissions..."
-chmod -R 755 "{temp_install_path}/bin/"
-
-# 验证安装 - 检查可执行文件并验证版本
-echo "Verifying Python {version} installation..."
-if [ -f "{temp_install_path}/bin/python3" ]; then
-    # 测试Python可执行文件
-    ACTUAL_VERSION=$("{temp_install_path}/bin/python3" --version 2>&1)
-    echo "Installed version: $ACTUAL_VERSION"
-    
-    # 检查版本是否匹配
-    if echo "$ACTUAL_VERSION" | grep -q "{version}"; then
-        echo "Version verification successful"
-        
-        # 测试Python执行
-        echo "Running test script..."
-        {temp_install_path}/bin/python3 -c "import sys; print(f'Python {{sys.version}} is working correctly!')"
-        
-        if [ $? -eq 0 ]; then
-            echo "✓ Python executable test passed"
-            
-            # 测试pip
-            {temp_install_path}/bin/pip3 --version
-            if [ $? -eq 0 ]; then
-                echo "✓ pip is working correctly"
-            fi
-            
-            # 移除旧版本（如果存在）
-            if [ -d "{final_install_path}" ]; then
-                echo "Removing existing version..."
-                rm -rf "{final_install_path}"
-            fi
-            
-            # 移动到最终位置
-            echo "Moving to final location..."
-            mv "{temp_install_path}" "{final_install_path}"
-            
-            echo "Python {version} installed successfully!"
-            echo "Location: {final_install_path}"
-            "{final_install_path}/bin/python3" --version
-            
-            # 清理临时文件
-            cd ..
-            rm -rf Python-{version} Python-{version}.tgz
-            
-            echo "Installation complete. Clean up done."
-            echo "Python {version} is now available at: {final_install_path}/bin/python3"
-            exit 0
-        else
-            echo "✗ Python executable test failed"
-            rm -rf "{temp_install_path}"
-            exit 1
-        fi
-    else
-        echo "Version verification failed: expected {version}, got $ACTUAL_VERSION"
-        rm -rf "{temp_install_path}"
-        exit 1
-    fi
-else
-    echo "Installation verification failed: python3 executable not found"
-    rm -rf "{temp_install_path}"
-    exit 1
-fi
+cd ..
+rm -rf "{work_dir}"
+echo "Installation complete. Clean up done."
+echo "Python {version} is now available at: {final_install_path}/bin/python3"
 '''
                 
                 # 使用后台任务系统执行脚本
@@ -978,9 +850,9 @@ echo "Python {version} uninstall completed"
             print(f"Warning: Error in unified version query: {e}")
             return [], None, "system"
     
-    def pyenv_list_available(self):
-        """列出可下载的Python版本（--list-available的实现）"""
-        return self.pyenv_list(force=False)
+    def pyenv_list_available(self, force=False):
+        """列出可下载的Python版本（--list-available的实现，支持--force强制更新）"""
+        return self.pyenv_list(force=force)
     
     def pyenv_list(self, force=False):
         """列出可下载的Python版本"""
@@ -1456,8 +1328,16 @@ print('State updated successfully')
         return verified_versions
     
     def generate_python_version_candidates(self):
-        """生成Python版本候选列表（只包含3.6+，因为更早版本无法在现代系统编译）"""
+        """生成Python版本候选列表"""
         candidates = []
+        
+        # 🧪 TEMPORARY: 只测试Python 3.9系列（用于验证worker机制）
+        for patch in range(0, 6):  # 3.9.0 到 3.9.5 (测试6个版本)
+            candidates.append(f"3.9.{patch}")
+        
+        return candidates
+        
+        # === 以下是完整版本列表（暂时注释） ===
         
         # Python 3.6 系列
         for patch in range(0, 16):  # 3.6.0 到 3.6.15
@@ -1506,14 +1386,6 @@ print('State updated successfully')
         import os
         import tempfile
         import shutil
-        
-        # 版本过滤：只测试Python 3.6+
-        try:
-            major, minor, patch = map(int, version.split('.'))
-            if (major, minor) < (3, 6):
-                return "skipped"  # 太老，跳过
-        except:
-            return "invalid"  # 版本号格式错误
         
         # 创建临时目录进行测试
         temp_dir = tempfile.mkdtemp(prefix=f'python_verify_{version}_', dir=os.path.expanduser('~/tmp'))
@@ -1626,30 +1498,6 @@ print('State updated successfully')
                 shutil.rmtree(temp_dir)
             except:
                 pass
-                        timeout=10,
-                        text=True
-                    )
-                    
-                    if result.returncode == 0:
-                        # 检查HTTP响应码
-                        output = result.stdout
-                        if "HTTP/1.1 200" in output or "HTTP/2 200" in output:
-                            # 文件存在且可访问
-                            return "verified"
-                        elif "HTTP/1.1 302" in output or "HTTP/2 302" in output:
-                            # 重定向，也算可用
-                            return "verified"
-                    
-                except (subprocess.TimeoutExpired, FileNotFoundError):
-                    continue
-                except Exception:
-                    continue
-            
-            # 所有URL都失败
-            return "failed"
-            
-        except Exception as e:
-            return "failed"
     
     def add_installed_version(self, version):
         """添加已安装版本到状态文件"""
@@ -1676,4 +1524,275 @@ print('State updated successfully')
             
         except Exception as e:
             print(f"Warning: Failed to update installed versions: {e}")
+    
+    def _compile_and_install_python(self, version, source_dir, force=False):
+        """统一的Python编译安装流程
+        
+        Args:
+            version: Python版本号
+            source_dir: 源码所在目录（@/tmp/python_download_{version}）
+            force: 是否强制覆盖已安装版本
+            
+        Returns:
+            str: bash脚本内容（用于execute_shell_command或execute_background_command）
+        """
+        import hashlib
+        import time
+        
+        # 生成临时安装目录的hash名称
+        temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
+        temp_install_path = f"{self.main_instance.REMOTE_ENV}/tmp/.tmp_install_{temp_hash}"
+        final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
+        
+        # 构建统一的编译安装脚本
+        script = f'''
+# ============================================================
+# Python {version} 编译安装脚本（统一流程）
+# ============================================================
+
+# 源码目录
+SOURCE_DIR="{source_dir}"
+
+# 临时安装目录
+TEMP_INSTALL="{temp_install_path}"
+FINAL_INSTALL="{final_install_path}"
+
+echo "[$(date +%H:%M:%S)] Starting Python {version} compilation and installation"
+echo "[$(date +%H:%M:%S)] Source directory: $SOURCE_DIR"
+
+# 检查源码目录是否存在
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "[$(date +%H:%M:%S)] ERROR: Source directory does not exist: $SOURCE_DIR"
+    exit 1
+fi
+
+# 创建临时安装目录
+echo "[$(date +%H:%M:%S)] Creating temporary install directory..."
+mkdir -p "$TEMP_INSTALL"
+
+# 进入源码目录
+cd "$SOURCE_DIR"
+
+# 查找解压后的Python源码目录
+if [ -d "Python-{version}" ]; then
+    cd "Python-{version}"
+    echo "[$(date +%H:%M:%S)] Found extracted source: Python-{version}/"
+elif [ -f "Python-{version}.tgz" ]; then
+    echo "[$(date +%H:%M:%S)] Extracting source archive..."
+    tar -xzf "Python-{version}.tgz"
+    if [ $? -ne 0 ]; then
+        echo "[$(date +%H:%M:%S)] ERROR: Failed to extract source archive"
+        rm -rf "$TEMP_INSTALL"
+        exit 1
+    fi
+    cd "Python-{version}"
+    echo "[$(date +%H:%M:%S)] Source extracted successfully"
+else
+    echo "[$(date +%H:%M:%S)] ERROR: Source archive not found"
+    rm -rf "$TEMP_INSTALL"
+    exit 1
+fi
+
+# Configure
+echo "[$(date +%H:%M:%S)] Configuring Python {version}..."
+echo "[$(date +%H:%M:%S)] Prefix: $TEMP_INSTALL"
+./configure --prefix="$TEMP_INSTALL" --enable-optimizations --with-ensurepip=install
+
+if [ $? -ne 0 ]; then
+    echo "[$(date +%H:%M:%S)] ERROR: Configure failed"
+    rm -rf "$TEMP_INSTALL"
+    exit 1
+fi
+echo "[$(date +%H:%M:%S)] Configure completed successfully"
+
+# Compile
+echo "[$(date +%H:%M:%S)] Compiling Python {version} (this may take 5-10 minutes)..."
+make -j$(nproc)
+
+if [ $? -ne 0 ]; then
+    echo "[$(date +%H:%M:%S)] ERROR: Compilation failed"
+    rm -rf "$TEMP_INSTALL"
+    exit 1
+fi
+echo "[$(date +%H:%M:%S)] Compilation completed successfully"
+
+# Install
+echo "[$(date +%H:%M:%S)] Installing Python {version}..."
+make install
+
+if [ $? -ne 0 ]; then
+    echo "[$(date +%H:%M:%S)] ERROR: Installation failed"
+    rm -rf "$TEMP_INSTALL"
+    exit 1
+fi
+echo "[$(date +%H:%M:%S)] Installation to temp directory completed"
+
+# Verify installation
+echo "[$(date +%H:%M:%S)] Verifying installation..."
+if [ -f "$TEMP_INSTALL/bin/python3" ]; then
+    ACTUAL_VERSION=$("$TEMP_INSTALL/bin/python3" --version 2>&1)
+    echo "[$(date +%H:%M:%S)] Installed version: $ACTUAL_VERSION"
+    
+    # Check if version matches
+    if echo "$ACTUAL_VERSION" | grep -q "{version}"; then
+        echo "[$(date +%H:%M:%S)] Version verification successful"
+        
+        # Remove old version if exists
+        if [ -d "$FINAL_INSTALL" ]; then
+            echo "[$(date +%H:%M:%S)] Removing existing version..."
+            rm -rf "$FINAL_INSTALL"
+        fi
+        
+        # Move to final location
+        echo "[$(date +%H:%M:%S)] Moving to final location: $FINAL_INSTALL"
+        mv "$TEMP_INSTALL" "$FINAL_INSTALL"
+        
+        echo "[$(date +%H:%M:%S)] Python {version} installed successfully"
+        echo "[$(date +%H:%M:%S)] Location: $FINAL_INSTALL"
+        "$FINAL_INSTALL/bin/python3" --version
+    else
+        echo "[$(date +%H:%M:%S)] ERROR: Version verification failed"
+        echo "[$(date +%H:%M:%S)] Expected {version}, got $ACTUAL_VERSION"
+        rm -rf "$TEMP_INSTALL"
+        exit 1
+    fi
+else
+    echo "[$(date +%H:%M:%S)] ERROR: python3 executable not found"
+    rm -rf "$TEMP_INSTALL"
+    exit 1
+fi
+
+# Clean up source directory (optional)
+echo "[$(date +%H:%M:%S)] Cleaning up source directory..."
+rm -rf "$SOURCE_DIR"
+
+echo "[$(date +%H:%M:%S)] All done!"
+'''
+        return script
+    
+    def _download_python_remote(self, version):
+        """远端下载Python源码到统一目录
+        
+        Args:
+            version: Python版本号
+            
+        Returns:
+            tuple: (success: bool, source_dir: str, error_msg: str)
+        """
+        download_dir = f"{self.main_instance.REMOTE_ENV}/tmp/python_download_{version}"
+        
+        # 构建远端下载脚本
+        download_script = f'''
+# ============================================================
+# Python {version} 远端下载脚本
+# ============================================================
+
+DOWNLOAD_DIR="{download_dir}"
+
+echo "[$(date +%H:%M:%S)] Starting remote download of Python {version}"
+
+# 清理旧的下载目录
+if [ -d "$DOWNLOAD_DIR" ]; then
+    echo "[$(date +%H:%M:%S)] Removing old download directory..."
+    rm -rf "$DOWNLOAD_DIR"
+fi
+
+# 创建下载目录
+echo "[$(date +%H:%M:%S)] Creating download directory: $DOWNLOAD_DIR"
+mkdir -p "$DOWNLOAD_DIR"
+cd "$DOWNLOAD_DIR"
+
+# 下载Python源码
+echo "[$(date +%H:%M:%S)] Downloading Python {version} from python.org..."
+wget -q --show-progress https://www.python.org/ftp/python/{version}/Python-{version}.tgz
+
+if [ $? -ne 0 ]; then
+    echo "[$(date +%H:%M:%S)] ERROR: Failed to download Python {version}"
+    rm -rf "$DOWNLOAD_DIR"
+    exit 1
+fi
+
+echo "[$(date +%H:%M:%S)] Download completed: Python-{version}.tgz"
+ls -lh "Python-{version}.tgz"
+
+echo "[$(date +%H:%M:%S)] Remote download successful!"
+echo "[$(date +%H:%M:%S)] Source location: $DOWNLOAD_DIR"
+'''
+        
+        # 执行下载脚本
+        result = self.shell.execute_shell_command(download_script, command_identifier=None)
+        
+        if result != 0:
+            return False, None, f"Failed to download Python {version} on remote"
+        
+        return True, download_dir, ""
+    
+    def _download_python_local(self, version):
+        """本地下载Python源码并上传到统一目录
+        
+        Args:
+            version: Python版本号
+            
+        Returns:
+            tuple: (success: bool, source_dir: str, error_msg: str)
+        """
+        import tempfile
+        import subprocess
+        import os
+        import shutil
+        
+        download_dir = f"{self.main_instance.REMOTE_ENV}/tmp/python_download_{version}"
+        
+        print(f"Step 1/3: Downloading Python {version} source code locally...")
+        
+        # 创建本地临时目录
+        local_temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
+        
+        try:
+            # 本地下载
+            download_url = f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz"
+            local_tgz = os.path.join(local_temp_dir, f"Python-{version}.tgz")
+            
+            result = subprocess.run(
+                ["wget", "-q", "--show-progress", "-O", local_tgz, download_url],
+                timeout=600
+            )
+            
+            if result.returncode != 0:
+                shutil.rmtree(local_temp_dir, ignore_errors=True)
+                return False, None, f"Failed to download Python {version} locally"
+            
+            file_size = os.path.getsize(local_tgz) / 1024 / 1024
+            print(f"Downloaded: {file_size:.1f} MB")
+            
+            print(f"Step 2/3: Uploading to remote: {download_dir}...")
+            
+            # 创建远程目录
+            mkdir_result = self.shell.cmd_mkdir(download_dir, recursive=True)
+            if not mkdir_result.get("success"):
+                shutil.rmtree(local_temp_dir, ignore_errors=True)
+                return False, None, f"Failed to create remote directory: {download_dir}"
+            
+            # 上传源码包
+            upload_result = self.shell.cmd_upload(
+                local_path=local_tgz,
+                remote_path=download_dir,
+                is_folder=False,
+                command_identifier=None
+            )
+            
+            if upload_result != 0:
+                shutil.rmtree(local_temp_dir, ignore_errors=True)
+                return False, None, f"Failed to upload source code to {download_dir}"
+            
+            print(f"Upload completed!")
+            
+            # 清理本地临时文件
+            shutil.rmtree(local_temp_dir, ignore_errors=True)
+            
+            return True, download_dir, ""
+            
+        except Exception as e:
+            shutil.rmtree(local_temp_dir, ignore_errors=True)
+            return False, None, f"Error during local download: {str(e)}"
 

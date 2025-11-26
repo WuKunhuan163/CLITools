@@ -716,16 +716,24 @@ class GoogleDriveShell:
             # Part 4: Create execution script using echo commands
             cmd_parts.append("# Create execution script using echo (no heredoc)")
             cmd_parts.append(f"echo '#!/bin/bash' > {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'set -e' >> {tmp_path}/{script_file}")
-            # Immediately create log file to ensure it exists when task starts
-            cmd_parts.append(f"echo 'touch {tmp_path}/{log_file}' >> {tmp_path}/{script_file}")
+            # NO set -e! We want to capture all output, even on errors
+            cmd_parts.append(f"echo '' >> {tmp_path}/{script_file}")
+            # Add progress output - these will go to the log file
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Background task started\"' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] PID: $$\"' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Decoding command...\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'echo {cmd_b64} | base64 -d > /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'if [ $? -ne 0 ]; then echo \"[$(date +%H:%M:%S)] ERROR: Failed to decode command\"; exit 1; fi' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Command decoded successfully\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'chmod +x /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Executing command...\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'bash /tmp/bg_cmd_result_{bg_pid}.sh > /tmp/bg_stdout_{bg_pid} 2> /tmp/bg_stderr_{bg_pid}' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'EXIT_CODE=$?' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Command completed with exit code: $EXIT_CODE\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'rm -f /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
             
             # Add result generation using a separate Python script to avoid quote escaping
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Generating result file...\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'cat > {tmp_path}/create_result_{bg_pid}.py << \"RESULT_PYTHON_EOF\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'import json, os, sys' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'from datetime import datetime' >> {tmp_path}/{script_file}")
@@ -754,11 +762,15 @@ class GoogleDriveShell:
             cmd_parts.append(f"echo '    json.dump(result, f, indent=2, ensure_ascii=False)' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'RESULT_PYTHON_EOF' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'python3 {tmp_path}/create_result_{bg_pid}.py $EXIT_CODE' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'if [ $? -eq 0 ]; then echo \"[$(date +%H:%M:%S)] Result file created\"; else echo \"[$(date +%H:%M:%S)] ERROR: Failed to create result file\"; fi' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'rm -f {tmp_path}/create_result_{bg_pid}.py' >> {tmp_path}/{script_file}")
             
             # Clean up and update status
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Cleaning up temporary files...\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'rm -f /tmp/bg_stdout_{bg_pid} /tmp/bg_stderr_{bg_pid}' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Updating status to completed...\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'python3 {tmp_path}/status_helper_{bg_pid}.py {cmd_b64} {bg_pid} completed {start_time} {tmp_path}/{status_file} \"$(date -Iseconds 2>/dev/null || date)\" $EXIT_CODE {result_file}' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Background task finished\"' >> {tmp_path}/{script_file}")
             # Clean up status_helper after updating final status
             cmd_parts.append(f"echo 'rm -f {tmp_path}/status_helper_{bg_pid}.py' >> {tmp_path}/{script_file}")
             cmd_parts.append("")
@@ -789,17 +801,18 @@ class GoogleDriveShell:
             current_shell_copy["_background_pid"] = bg_pid
             current_shell_copy["_background_original_cmd"] = shell_cmd
             
-            # 生成远程命令
+            # 生成远程命令（不捕获结果）
             remote_command, result_filename, cmd_hash = self.command_generator.generate_command(
-                bg_create_cmd, None, current_shell_copy
+                bg_create_cmd, None, current_shell_copy, capture_result=False
             )
             
-            # 执行远程命令
+            # 执行远程命令（不捕获结果，因为这是后台任务创建命令）
             result = self.command_executor.execute_command(
                 remote_command=remote_command,
                 result_filename=result_filename,
                 cmd_hash=cmd_hash,
-                raw_command=bg_create_cmd
+                raw_command=bg_create_cmd,
+                capture_result=False
             )
             
             # 显示执行结果
@@ -1119,6 +1132,11 @@ class GoogleDriveShell:
             
             # 处理结果
             if not result.get("success"): 
+                # 检查是否是用户中断
+                if result.get("interrupted"):
+                    print(f"\nWarning: {result.get('error', 'Command interrupted')}")
+                    return 130  # Standard Unix exit code for Ctrl+C
+                
                 error_msg = result.get('error', '')
                 if not error_msg:
                     data = result.get('data', {})
@@ -1141,6 +1159,10 @@ class GoogleDriveShell:
                 import sys
                 print(stderr, file=sys.stderr)
             return 0
+        
+        except KeyboardInterrupt:
+            print("\n⚠️  Command interrupted by user (Ctrl+C)")
+            return 130  # Standard Unix exit code for Ctrl+C
                 
         except Exception as e:
             from GOOGLE_DRIVE_PROJ.modules.error_handler import capture_and_report_error
@@ -2191,13 +2213,16 @@ fi
             return self.handle_remount_command(command_identifier)
         elif args[0] == '--shell':
             has_no_direct_feedback = '--no-direct-feedback' in args
-            filtered_args = [arg for arg in args[1:] if arg not in ['--no-direct-feedback', '--priority']]
+            has_no_capture = '--no-capture' in args
+            filtered_args = [arg for arg in args[1:] if arg not in ['--no-direct-feedback', '--priority', '--no-capture']]
             
             if not filtered_args:
                 # 没有命令参数，进入交互模式
                 # 设置flags
                 if has_no_direct_feedback and hasattr(self, 'command_executor'):
                     self.command_executor._no_direct_feedback = True
+                if has_no_capture and hasattr(self, 'command_executor'):
+                    self.command_executor._no_capture = True
                 
                 # 使用remote_shell_manager的交互式shell实现
                 return self.shell_management.enter_shell_mode(command_identifier)
@@ -2206,6 +2231,8 @@ fi
                 # 设置flags（命令模式也需要设置！）
                 if has_no_direct_feedback and hasattr(self, 'command_executor'):
                     self.command_executor._no_direct_feedback = True
+                if has_no_capture and hasattr(self, 'command_executor'):
+                    self.command_executor._no_capture = True
                 
                 # 将参数列表转换为字符串（使用第一个参数，如果多个参数则用空格连接）
                 shell_args = args[1:]
@@ -2233,6 +2260,7 @@ fi
         # 检测并移除flags
         no_direct_feedback = False
         is_priority = False
+        no_capture = False
         
         # 简单的flag检测和移除
         if '--no-direct-feedback' in shell_cmd:
@@ -2241,6 +2269,9 @@ fi
         if '--priority' in shell_cmd:
             is_priority = True
             shell_cmd = shell_cmd.replace('--priority', '').strip()
+        if '--no-capture' in shell_cmd:
+            no_capture = True
+            shell_cmd = shell_cmd.replace('--no-capture', '').strip()
         
         shell_cmd = shell_cmd.strip()
         if not shell_cmd:
@@ -2275,6 +2306,9 @@ fi
         
         if is_priority and hasattr(self, 'command_executor'):
             self.command_executor._is_priority = True
+        
+        if no_capture and hasattr(self, 'command_executor'):
+            self.command_executor._no_capture = True
         
         # 执行shell命令
         return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)

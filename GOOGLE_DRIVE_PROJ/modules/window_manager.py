@@ -531,7 +531,7 @@ class WindowManager:
         except Exception as e:
             self.debug_log(f"[LOCK_RELEASE_ERROR] 释放锁时出错: {e}")
     
-    def _check_and_handle_remount(self):
+    def check_and_handle_remount(self):
         """在显示窗口前检查是否需要remount"""
         try:
             from .remount_lock_manager import get_remount_lock_manager
@@ -539,7 +539,7 @@ class WindowManager:
             lock_manager = get_remount_lock_manager()
             
             # 尝试获取remount锁
-            if lock_manager.acquire_remount_lock("WindowManager._check_and_handle_remount"):
+            if lock_manager.acquire_remount_lock("WindowManager.check_and_handle_remount"):
                 try:
                     # 成功获取锁，执行remount
                     remount_result = self._perform_remount_with_lock()
@@ -550,7 +550,7 @@ class WindowManager:
                         sys.exit(1)
                 finally:
                     # 无论remount是否成功，都释放锁
-                    lock_manager.release_remount_lock("WindowManager._check_and_handle_remount")
+                    lock_manager.release_remount_lock("WindowManager.check_and_handle_remount")
             else:
                 # 无法获取锁，可能是：
                 # 1. 没有remount flag（无需remount）
@@ -735,7 +735,7 @@ class WindowManager:
                 "event_type": "remount_triggered",
                 "reason": reason,
                 "flag_set_at": set_at,
-                "source": "WindowManager._check_and_handle_remount"
+                "source": "WindowManager.check_and_handle_remount"
             }
             
             # 读取现有log
@@ -913,7 +913,7 @@ class WindowManager:
         
         # 在实际显示窗口之前检查是否需要remount
         # 这样只有出队列时才检查，避免入队列时多个窗口都触发remount
-        self._check_and_handle_remount()
+        self.check_and_handle_remount()
         
         self.window_counter += 1
         window_id = f"win_{self.window_counter}_{request['request_id']}"
@@ -944,13 +944,44 @@ import base64
 # 抑制所有警告
 warnings.filterwarnings('ignore')
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
+os.environ['PYTHONWARNINGS'] = 'ignore'
+
+# 重定向stderr到/dev/null来抑制macOS IMKClient警告
+import sys
+original_stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
 
 try:
     import tkinter as tk
     import queue
+    import signal
     
     result = {"action": "timeout"}
     result_queue = queue.Queue()
+    
+    # 定义SIGINT处理函数
+    def handle_sigint(signum, frame):
+        import sys
+        print("[SUBPROCESS_DEBUG] 收到SIGINT信号", file=sys.stderr)
+        sys.stderr.flush()
+        result["action"] = "interrupted"
+        result["message"] = "User interrupted with Ctrl+C"
+        # 输出结果
+        print(json.dumps(result))
+        sys.stdout.flush()
+        sys.exit(0)
+    
+    # 注册SIGINT处理函数
+    import sys
+    # 暂时恢复stderr用于debug输出
+    sys.stderr = original_stderr
+    print("[SUBPROCESS_DEBUG] 注册SIGINT处理函数", file=sys.stderr)
+    sys.stderr.flush()
+    signal.signal(signal.SIGINT, handle_sigint)
+    print("[SUBPROCESS_DEBUG] SIGINT处理函数已注册", file=sys.stderr)
+    sys.stderr.flush()
+    # 重新抑制stderr
+    sys.stderr = open(os.devnull, 'w')
     
     # 解码base64命令
     cmd = base64.b64decode("COMMAND_B64_PLACEHOLDER").decode('utf-8')
@@ -1489,18 +1520,36 @@ try:
     
 
     # 运行窗口
+    import sys
+    # 暂时恢复stderr用于debug输出
+    sys.stderr = original_stderr
+    print("[SUBPROCESS_DEBUG] 准备运行mainloop", file=sys.stderr)
+    # 重新抑制stderr（在mainloop期间抑制macOS警告）
+    sys.stderr = open(os.devnull, 'w')
     try:
         root.mainloop()
+        print("[SUBPROCESS_DEBUG] mainloop正常结束", file=sys.stderr)
+    except KeyboardInterrupt:
+        # 用户按了Ctrl+C
+        print("[SUBPROCESS_DEBUG] 捕获到KeyboardInterrupt in mainloop", file=sys.stderr)
+        result = {"action": "interrupted", "message": "User interrupted with Ctrl+C"}
     finally:
+        print("[SUBPROCESS_DEBUG] 进入finally块", file=sys.stderr)
         cleanup_resources()
     
     # 输出结果
+    print("[SUBPROCESS_DEBUG] 输出结果: " + json.dumps(result), file=sys.stderr)
     print(json.dumps(result))
 
+except KeyboardInterrupt:
+    # 在窗口外部捕获的Ctrl+C
+    print("[SUBPROCESS_DEBUG] 捕获到KeyboardInterrupt in outer", file=sys.stderr)
+    print(json.dumps({"action": "interrupted", "message": "User interrupted with Ctrl+C"}))
 except Exception as e:
     import traceback
     error_msg = str(e)
     traceback_msg = traceback.format_exc()
+    print("[SUBPROCESS_DEBUG] 捕获到Exception: " + error_msg, file=sys.stderr)
     print(json.dumps({"action": "error", "message": error_msg, "traceback": traceback_msg}))
 '''
         
@@ -1517,9 +1566,9 @@ except Exception as e:
             process = subprocess.Popen(
                 ['python', '-c', subprocess_script],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                preexec_fn=os.setsid if hasattr(os, 'setsid') else None  # Unix系统创建新进程组
+                stderr=subprocess.DEVNULL,  # 完全抑制stderr，包括系统警告
+                text=True
+                # 移除preexec_fn=os.setsid，让subprocess接收SIGINT
             )
             
             self.debug_log(f"[SUBPROCESS_STARTED] 启动窗口子进程: PID={process.pid}, window_id: {window_id}")
@@ -1543,6 +1592,22 @@ except Exception as e:
                     except json.JSONDecodeError as e:
                         return {"action": "error", "message": f"窗口结果解析失败: {e}"}
                 else:
+                    # 尝试解析stdout即使returncode != 0（可能是interrupted）
+                    if stdout.strip():
+                        try:
+                            window_result = json.loads(stdout.strip())
+                            self.debug_log(f"[TKINTER_WINDOW_RESULT] 窗口结果(非零返回码): {window_id}, action: {window_result.get('action')}")
+                            return window_result
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # returncode != 0 且 stdout为空，可能是Ctrl+C导致
+                    if not stdout.strip():
+                        return {
+                            "action": "interrupted",
+                            "message": "Window process terminated (likely Ctrl+C)"
+                        }
+                    
                     return {"action": "error", "message": f"窗口进程失败: returncode={process.returncode}, stderr={stderr}"}
                     
             except subprocess.TimeoutExpired:
@@ -1566,6 +1631,27 @@ except Exception as e:
                 self.active_processes.pop(window_id, None)
                 
                 return {"action": "timeout", "message": "窗口超时，子进程已清理"}
+            
+            except KeyboardInterrupt:
+                # 用户按了Ctrl+C，清理子进程
+                try:
+                    process.terminate()
+                    process.wait(timeout=2)
+                except:
+                    try:
+                        process.kill()
+                        process.wait(timeout=1)
+                    except:
+                        pass
+                
+                # 从活跃进程列表中移除
+                self.active_processes.pop(window_id, None)
+                
+                # 返回interrupted标志
+                return {
+                    "action": "interrupted",
+                    "message": "User interrupted with Ctrl+C"
+                }
                 
         except Exception as e:
             return {"action": "error", "message": f"窗口创建失败: {e}"}
