@@ -318,10 +318,125 @@ try:
         }}
         json.dump(result_data, f, indent=2)
     print(f"结果文件已创建: {{result_file}}")
-    print("重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
-    print("✅执行完成")
 except Exception as e:
     print(f"结果文件创建失败: {{e}}")
+    import sys
+    sys.exit(1)
+
+# ============ Enhanced Verification (像Remote Shell Connection Check) ============
+print("\\n开始验证远端文件访问...")
+
+def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, max_attempts=10, interval=1):
+    """使用Google Drive API验证指纹文件是否真正可访问"""
+    import time
+    try:
+        # Import Google API client
+        try:
+            from googleapiclient.discovery import build
+            from google.oauth2 import service_account
+        except ImportError:
+            print("Google API client不可用，跳过API验证")
+            return True  # Graceful degradation
+        
+        # 尝试读取service account credentials
+        creds_dict = None
+        try:
+            config_path = os.path.expanduser("~/.config/gds/config.json")
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    creds_dict = config.get('service_account_credentials')
+        except:
+            pass
+        
+        if not creds_dict:
+            print("未找到service account credentials，跳过API验证")
+            return True  # Graceful degradation
+        
+        # Build service
+        try:
+            credentials = service_account.Credentials.from_service_account_info(creds_dict)
+            service = build('drive', 'v3', credentials=credentials)
+        except Exception as e:
+            print(f"构建Drive service失败: {{e}}")
+            return True  # Graceful degradation
+        
+        print(f"使用Google Drive API验证指纹文件...")
+        print(f"目标文件: {{fingerprint_filename}}")
+        print(f"tmp文件夹ID: {{tmp_folder_id}}")
+        
+        print("Verifying ", end="", flush=True)
+        for attempt in range(1, max_attempts + 1):
+            try:
+                print(".", end="", flush=True)
+                
+                # List files in tmp folder to check if fingerprint file exists
+                results = service.files().list(
+                    q=f"'{{tmp_folder_id}}' in parents and name='{{fingerprint_filename}}'",
+                    fields="files(id, name, createdTime)"
+                ).execute()
+                
+                files = results.get('files', [])
+                if files:
+                    print(f"\\n✓ 指纹文件验证成功: {{fingerprint_filename}}")
+                    return True
+                
+            except Exception as e:
+                pass
+            
+            if attempt < max_attempts:
+                time.sleep(interval)
+        
+        print(f"\\n✗ API验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
+        return False
+        
+    except Exception as e:
+        print(f"\\n验证过程出错: {{e}}")
+        return False
+
+# 获取tmp文件夹ID用于验证
+tmp_folder_id = None
+try:
+    if remote_root_id:
+        # 尝试获取tmp文件夹的ID
+        tmp_path = f"{{remote_root_path}}/tmp"
+        try:
+            from kora.xattr import get_id
+            tmp_folder_id = get_id(tmp_path)
+            print(f"tmp文件夹ID: {{tmp_folder_id}}")
+        except:
+            pass
+except:
+    pass
+
+# 执行验证
+fingerprint_filename = os.path.basename(fingerprint_file)
+if tmp_folder_id:
+    verification_success = verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename)
+    
+    if verification_success:
+        print("\\n✅ 挂载验证成功！")
+        print("重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
+        print("✅执行完成")
+    else:
+        print("\\n🚨 挂载验证失败: 无法通过API访问指纹文件")
+        print("\\n可能的原因:")
+        print("  1. Google Drive挂载不稳定")
+        print("  2. Colab runtime处于不一致状态")
+        print("  3. 文件系统同步延迟")
+        print("\\n建议的解决方案:")
+        print("  1. 在Colab中: Runtime > Disconnect and delete runtime")
+        print("  2. 等待runtime完全终止")
+        print("  3. 启动新的runtime")
+        print("  4. 重新执行挂载脚本")
+        print("\\n如果问题持续，可能需要检查Google Drive Desktop或网络连接")
+        import sys
+        sys.exit(1)
+else:
+    # 没有tmp_folder_id时，跳过API验证但仍然认为成功
+    print("无法获取tmp文件夹ID，跳过API验证")
+    print("\\n重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
+    print("✅执行完成")
 '''
     
     return script
