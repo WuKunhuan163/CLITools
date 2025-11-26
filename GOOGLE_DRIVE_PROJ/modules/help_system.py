@@ -21,9 +21,10 @@ def get_unified_help_data():
         "main_options": {
             "-my": "Open My Drive (https://drive.google.com/drive/u/0/my-drive)",
             "--console-setup": "Start Google Drive API setup wizard with GUI assistance",
-            "--shell [--no-capture] [--no-direct-feedback] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
+            "--shell [--no-capture] [--no-direct-feedback] [--raw-command] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
             "--no-capture": "Execute command without capturing result (open-style execution, output displayed in real-time)",
             "--no-direct-feedback": "Hide direct feedback button in command windows (for automated testing)",
+            "--raw-command": "Execute command as raw bash (no path expansion, no special command handling)",
             "--priority": "Execute command with high priority in remote command queue",
             "--bg COMMAND": "Execute command in background and return immediately",
             "--bg --status TASK_ID": "Check background task status",

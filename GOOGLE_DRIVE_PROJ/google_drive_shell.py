@@ -881,6 +881,27 @@ class GoogleDriveShell:
         import sys
         
         try:
+            # 检查是否是raw命令（跳过所有路径展开和特殊命令处理）
+            if hasattr(self.command_executor, '_raw_command') and self.command_executor._raw_command:
+                print("[Raw Command Mode] Executing as raw bash without any translation")
+                self.command_executor._raw_command = False  # 重置flag
+                
+                # 检查capture_result flag
+                capture_result = True
+                if hasattr(self.command_executor, '_no_capture') and self.command_executor._no_capture:
+                    capture_result = False
+                    self.command_executor._no_capture = False
+                
+                # 直接执行，不做任何展开
+                result = self.execute_command_interface(shell_cmd.strip(), capture_result=capture_result)
+                
+                if result.get("success"):
+                    return 0
+                else:
+                    error_msg = result.get('error', 'Unknown error')
+                    print(f"Command execution failed: {error_msg}")
+                    return 1
+            
             # 步骤1: 预处理heredoc语法（保留原有逻辑）
             from modules.heredoc_translator import preprocess_command
             processed_commands, needs_sequential = preprocess_command(shell_cmd)
@@ -2220,7 +2241,8 @@ fi
         elif args[0] == '--shell':
             has_no_direct_feedback = '--no-direct-feedback' in args
             has_no_capture = '--no-capture' in args
-            filtered_args = [arg for arg in args[1:] if arg not in ['--no-direct-feedback', '--priority', '--no-capture']]
+            has_raw_command = '--raw-command' in args
+            filtered_args = [arg for arg in args[1:] if arg not in ['--no-direct-feedback', '--priority', '--no-capture', '--raw-command']]
             
             if not filtered_args:
                 # 没有命令参数，进入交互模式
@@ -2229,6 +2251,8 @@ fi
                     self.command_executor._no_direct_feedback = True
                 if has_no_capture and hasattr(self, 'command_executor'):
                     self.command_executor._no_capture = True
+                if has_raw_command and hasattr(self, 'command_executor'):
+                    self.command_executor._raw_command = True
                 
                 # 使用remote_shell_manager的交互式shell实现
                 return self.shell_management.enter_shell_mode(command_identifier)
@@ -2239,6 +2263,8 @@ fi
                     self.command_executor._no_direct_feedback = True
                 if has_no_capture and hasattr(self, 'command_executor'):
                     self.command_executor._no_capture = True
+                if has_raw_command and hasattr(self, 'command_executor'):
+                    self.command_executor._raw_command = True
                 
                 # 将参数列表转换为字符串（使用第一个参数，如果多个参数则用空格连接）
                 shell_args = args[1:]
@@ -2267,6 +2293,7 @@ fi
         no_direct_feedback = False
         is_priority = False
         no_capture = False
+        raw_command = False
         
         # 简单的flag检测和移除
         if '--no-direct-feedback' in shell_cmd:
@@ -2278,6 +2305,9 @@ fi
         if '--no-capture' in shell_cmd:
             no_capture = True
             shell_cmd = shell_cmd.replace('--no-capture', '').strip()
+        if '--raw-command' in shell_cmd:
+            raw_command = True
+            shell_cmd = shell_cmd.replace('--raw-command', '').strip()
         
         shell_cmd = shell_cmd.strip()
         if not shell_cmd:
@@ -2315,6 +2345,9 @@ fi
         
         if no_capture and hasattr(self, 'command_executor'):
             self.command_executor._no_capture = True
+        
+        if raw_command and hasattr(self, 'command_executor'):
+            self.command_executor._raw_command = True
         
         # 执行shell命令
         return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)
