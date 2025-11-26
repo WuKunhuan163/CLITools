@@ -87,7 +87,6 @@ class PyenvCommand(BaseCommand):
         print("  GDS pyenv --install-local <version> [--force]# Download locally then install")
         print("  GDS pyenv --uninstall <version>              # Uninstall Python version")
         print("  GDS pyenv --list                    # List installed versions")
-        print("  GDS pyenv --list-available          # List available versions for installation")
         print("  GDS pyenv --global <version>        # Set global default Python version")
         print("  GDS pyenv --local <version>         # Set local Python version for current shell")
         print("  GDS pyenv --version                 # Show current Python version")
@@ -107,7 +106,6 @@ class PyenvCommand(BaseCommand):
         print("  GDS pyenv --global 3.9.18           # Set 3.9.18 as global default")
         print("  GDS pyenv --local 3.10.13           # Use 3.10.13 in current shell")
         print("  GDS pyenv --versions                 # List all installed versions")
-        print("  GDS pyenv --list-available          # See available versions")
         print()
         print("BACKGROUND TASKS:")
         print("  Use --install-bg for long installations. Track progress with:")
@@ -127,7 +125,6 @@ class PyenvCommand(BaseCommand):
         - --install <version>: 安装指定Python版本
         - --uninstall <version>: 卸载指定Python版本
         - --list: 列出所有已安装的Python版本
-        - --list-available: 列出可下载的Python版本
         - --global <version>: 设置全局默认Python版本
         - --local <version>: 设置当前shell的Python版本
         - --version: 显示当前使用的Python版本
@@ -143,7 +140,7 @@ class PyenvCommand(BaseCommand):
             if not args:
                 return {
                     "success": False,
-                    "error": "Usage: pyenv --install|--install-bg|--uninstall|--list|--list-available|--global|--local|--version|--versions [version]"
+                    "error": "Usage: pyenv --install|--install-bg|--uninstall|--list|--global|--local|--version|--versions [version]"
                 }
             
             action = args[0]
@@ -189,7 +186,7 @@ class PyenvCommand(BaseCommand):
             else:
                 return {
                     "success": False,
-                    "error": f"Unknown pyenv command: {action}. Supported commands: --install, --install-bg, --uninstall, --list-available, --update-cache, --global, --local, --version, --versions"
+                    "error": f"Unknown pyenv command: {action}. Supported commands: --install, --install-bg, --install-local, --uninstall, --list, --global, --local, --version, --versions"
                 }
                 
         except Exception as e:
@@ -333,9 +330,9 @@ echo "Extracting source code..."
 tar -xzf Python-{version}.tgz
 cd Python-{version}
 
-# 配置编译选项 - 安装到临时目录
+# 配置编译选项 - 安装到临时目录（不使用优化以避免编译问题）
 echo "Configuring Python {version}..."
-./configure --prefix="{temp_install_path}" --enable-optimizations --with-ensurepip=install
+./configure --prefix="{temp_install_path}" --with-ensurepip=install
 
 if [ $? -ne 0 ]; then
     echo "Failed to configure Python {version}"
@@ -442,17 +439,17 @@ fi
             temp_install_path = f"{self.main_instance.REMOTE_ENV}/python/.tmp_install_{temp_hash}"
             final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             
-            # 生成源码准备脚本（下载源码）
-            build_dir = f"/tmp/python_build_{version}_{temp_hash}"
+            # 生成源码准备脚本（下载源码）- 使用@/tmp作为临时下载目录
+            build_dir = f"{self.main_instance.REMOTE_ENV}/tmp/python_download_{version}_{temp_hash}"
             source_prep = f'''
-# 设置临时构建目录
+# 设置临时构建目录（@/tmp）
 BUILD_DIR="{build_dir}"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-# 下载Python源码
+# 下载Python源码（开放式显示进度）
 echo "Downloading Python {version} source code..."
-wget -q https://www.python.org/ftp/python/{version}/Python-{version}.tgz
+wget https://www.python.org/ftp/python/{version}/Python-{version}.tgz
 
 if [ $? -ne 0 ]; then
     echo "Failed to download Python {version}"
@@ -531,9 +528,9 @@ fi
                 result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
                 
                 if result.returncode != 0:
-                    # 尝试使用wget
-                    download_cmd = f"wget -q -O '{tarball_path}' '{download_url}'"
-                    result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
+                    # 尝试使用wget（开放式显示进度）
+                    download_cmd = f"wget -O '{tarball_path}' '{download_url}'"
+                    result = subprocess.run(download_cmd, shell=True, capture_output=False, text=True)
                     
                     if result.returncode != 0:
                         return {
@@ -852,7 +849,10 @@ echo "Python {version} uninstall completed"
     
     def pyenv_list_available(self, force=False):
         """列出可下载的Python版本（--list-available的实现，支持--force强制更新）"""
-        return self.pyenv_list(force=force)
+        return {
+            "success": False,
+            "error": "pyenv --list-available is not implemented yet. Please manually specify the Python version you want to install."
+        }
     
     def pyenv_list(self, force=False):
         """列出可下载的Python版本"""
