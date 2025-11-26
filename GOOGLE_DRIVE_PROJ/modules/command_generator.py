@@ -548,7 +548,7 @@ cd "{remote_path}" && {{
         
         # 执行完成提示（与捕获结果模式保持一致）
         echo ""
-        clear && echo "✅执行完成"
+        echo "✅执行完成"
         echo "Command hash: {cmd_hash.upper()}"
     else
         echo "Error: Shell working directory does not exist: {shell_absolute_path}"

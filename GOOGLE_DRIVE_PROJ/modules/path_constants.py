@@ -42,11 +42,13 @@ class PathConstants:
         self.RAW_GDS_OUTPUT_FILE = self.GOOGLE_DRIVE_DATA_DIR / "raw_gds_output.txt"
         
         # 默认路径值（可以被配置覆盖）
+        mount_point = "/content/drive"
         self._default_paths = {
+            "MOUNT_POINT": mount_point,
             "LOCAL_EQUIVALENT": str(self.HOME_DIR / "Applications/Google Drive"),
-            "DRIVE_EQUIVALENT": "/content/drive/Othercomputers/我的 MacBook Air/Google Drive",
-            "REMOTE_ROOT": "/content/drive/MyDrive/REMOTE_ROOT",
-            "REMOTE_ENV": "/content/drive/MyDrive/REMOTE_ENV"
+            "DRIVE_EQUIVALENT": f"{mount_point}/Othercomputers/我的 MacBook Air/Google Drive",
+            "REMOTE_ROOT": f"{mount_point}/MyDrive/REMOTE_ROOT",
+            "REMOTE_ENV": f"{mount_point}/MyDrive/REMOTE_ENV"
         }
         
         # 文件夹ID常量

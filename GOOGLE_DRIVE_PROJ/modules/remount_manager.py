@@ -11,6 +11,62 @@ import hashlib
 import time
 import json
 
+def _get_local_credentials_for_remount(google_drive_shell):
+    """
+    获取service account credentials（使用与connection_check相同的逻辑）
+    
+    Args:
+        google_drive_shell: GoogleDriveShell实例
+    
+    Returns:
+        dict: Service account credentials dict，如果没有则返回None
+    """
+    import os
+    try:
+        # Method 1: Get from drive_service.key_data (primary method)
+        if google_drive_shell and hasattr(google_drive_shell, 'drive_service'):
+            drive_service = google_drive_shell.drive_service
+            
+            # Check if drive_service has key_data
+            if hasattr(drive_service, 'key_data') and drive_service.key_data:
+                return drive_service.key_data
+            
+            # Check if drive_service has credentials object
+            if hasattr(drive_service, 'credentials') and drive_service.credentials:
+                credentials = drive_service.credentials
+                if hasattr(credentials, '_service_account_info'):
+                    return credentials._service_account_info
+        
+        # Method 2: Try JSON-format environment variables
+        credentials_env_vars = [
+            'GOOGLE_APPLICATION_CREDENTIALS_JSON',
+            'GOOGLE_SERVICE_ACCOUNT_JSON',
+            'GDS_SERVICE_ACCOUNT_JSON'
+        ]
+        
+        for env_var in credentials_env_vars:
+            creds_json = os.environ.get(env_var)
+            if creds_json:
+                try:
+                    return json.loads(creds_json)
+                except Exception:
+                    continue
+        
+        # Method 3: Check GOOGLE_APPLICATION_CREDENTIALS file
+        creds_file = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+        if creds_file and os.path.exists(creds_file):
+            try:
+                with open(creds_file, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        
+        return None
+        
+    except Exception:
+        return None
+
+
 def remount_google_drive(command_identifier=None, google_drive_shell=None):
     """
     重新挂载Google Drive的主函数
@@ -35,23 +91,27 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     timestamp = str(int(time.time()))
     mount_hash = hashlib.md5(timestamp.encode()).hexdigest()[:8]
     
-    # 获取配置和service account credentials
+    # 获取配置
     config_file = get_data_dir() / "config.json"
-    service_account_credentials = None
+    mount_point = "/content/drive"  # Google Drive挂载点
+    
     if config_file.exists():
         with open(config_file, 'r') as f:
             config = json.load(f)
         constants = config.get('constants', {})
-        remote_root = constants.get('REMOTE_ROOT', '/content/drive/MyDrive/REMOTE_ROOT')
-        remote_env = constants.get('REMOTE_ENV', '/content/drive/MyDrive/REMOTE_ENV')
-        service_account_credentials = config.get('service_account_credentials')
+        mount_point = constants.get('MOUNT_POINT', '/content/drive')
+        remote_root = constants.get('REMOTE_ROOT', f'{mount_point}/MyDrive/REMOTE_ROOT')
+        remote_env = constants.get('REMOTE_ENV', f'{mount_point}/MyDrive/REMOTE_ENV')
     else:
-        remote_root = '/content/drive/MyDrive/REMOTE_ROOT'
-        remote_env = '/content/drive/MyDrive/REMOTE_ENV'
+        remote_root = f'{mount_point}/MyDrive/REMOTE_ROOT'
+        remote_env = f'{mount_point}/MyDrive/REMOTE_ENV'
+    
+    # 获取service account credentials（使用与connection_check相同的方法）
+    service_account_credentials = _get_local_credentials_for_remount(google_drive_shell)
     
     # 检查service account credentials
     if not service_account_credentials:
-        print("✗ Error: Service account credentials not found in config.json")
+        print("✗ Error: Service account credentials not found")
         print("\nPlease set up service account credentials first:")
         print("  1. Run: GOOGLE_DRIVE --console-setup")
         print("  2. Follow the setup wizard to configure credentials")
@@ -59,6 +119,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     
     # 生成Python remount脚本（嵌入credentials）
     python_script = generate_remount_python_script(
+        mount_point=mount_point,
         remote_root=remote_root,
         remote_env=remote_env,
         mount_hash=mount_hash,
@@ -200,20 +261,21 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         return 1
 
 
-def generate_remount_python_script(remote_root, remote_env, mount_hash, timestamp, service_account_credentials):
+def generate_remount_python_script(mount_point, remote_root, remote_env, mount_hash, timestamp, service_account_credentials):
     """
     生成在远端Colab执行的Python remount脚本
     
     这个脚本会：
-    1. 挂载Google Drive
+    1. 挂载Google Drive到指定挂载点
     2. 使用kora库动态获取文件夹ID
     3. 创建mount fingerprint文件
     4. 使用Google Drive API验证文件访问
     5. 创建结果文件
     
     Args:
-        remote_root: REMOTE_ROOT路径
-        remote_env: REMOTE_ENV路径
+        mount_point: Google Drive挂载点（如 /content/drive）
+        remote_root: REMOTE_ROOT路径（如 {mount_point}/MyDrive/REMOTE_ROOT）
+        remote_env: REMOTE_ENV路径（如 {mount_point}/MyDrive/REMOTE_ENV）
         mount_hash: 新的mount hash
         timestamp: 时间戳
         service_account_credentials: Service account credentials dict
@@ -222,7 +284,6 @@ def generate_remount_python_script(remote_root, remote_env, mount_hash, timestam
         str: Python脚本内容
     """
     
-    mount_point = "/content/drive"
     fingerprint_path = f"{remote_root}/tmp/.gds_mount_fingerprint_{mount_hash}"
     result_path = f"{remote_root}/tmp/remount_result_{timestamp}_{mount_hash}.json"
     
@@ -249,8 +310,8 @@ except Exception as e:
 print(f"挂载结果: {{mount_result}}")
 
 # 验证并创建必要目录
-remote_root_path = "{mount_point}/MyDrive/REMOTE_ROOT"
-remote_env_path = "{mount_point}/MyDrive/REMOTE_ENV"
+remote_root_path = "{remote_root}"
+remote_env_path = "{remote_env}"
 
 # 确保目录存在
 os.makedirs(remote_root_path, exist_ok=True)
