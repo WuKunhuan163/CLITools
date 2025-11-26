@@ -855,46 +855,9 @@ echo "Python {version} uninstall completed"
         }
     
     def pyenv_list(self, force=False):
-        """列出可下载的Python版本"""
-        try:
-            if force:
-                # 强制更新缓存
-                print("Forcing cache update...")
-                update_result = self.pyenv_update_cache()
-                if not update_result.get("success"):
-                    return update_result
-            
-            # 获取缓存的可用版本列表
-            available_versions = self.get_cached_available_versions()
-            
-            # 只显示验证成功的版本
-            verified_versions = [v for v in available_versions if v.get("status") == "verified"]
-            
-            if not verified_versions:
-                print("No verified Python versions available for installation.")
-                print("Run with --update-cache to refresh the version list.")
-                return {
-                    "success": True,
-                    "message": "No verified versions available",
-                    "versions": []
-                }
-            
-            print("Available Python versions for installation:")
-            for version_info in verified_versions:
-                version = version_info["version"]
-                print(f"  {version}")
-            
-            print(f"\nShowing {len(verified_versions)} verified versions out of {len(available_versions)} tested.")
-            
-            return {
-                "success": True,
-                "message": f"Available Python versions ({len(verified_versions)} verified):",
-                "versions": [v["version"] for v in verified_versions],
-                "count": len(verified_versions)
-            }
-            
-        except Exception as e:
-            return {"success": False, "error": f"Error listing available Python versions: {str(e)}"}
+        """列出已安装的Python版本（--list和--versions相同）"""
+        # --list现在等同于--versions，列出已安装版本
+        return self.getpyenv_versions()
     
     def pyenv_update_cache(self):
         """更新Python版本缓存"""
