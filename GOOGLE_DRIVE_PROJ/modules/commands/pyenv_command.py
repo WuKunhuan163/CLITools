@@ -248,8 +248,8 @@ wget https://www.python.org/ftp/python/{version}/Python-{version}.tgz
 if [ $? -ne 0 ]; then
     echo "Failed to download Python {version}"
     rm -rf "{temp_install_path}"
-    cd /
-    rm -rf "$BUILD_DIR"
+cd /
+rm -rf "$BUILD_DIR"
     exit 1
 fi
 '''
@@ -259,14 +259,16 @@ fi
                 version=version,
                 temp_install_path=temp_install_path,
                 final_install_path=final_install_path,
-                source_preparation_script=source_prep
+                source_preparation_script=source_prep,
+                temp_hash=temp_hash
             )
             
             # 添加构建目录清理和总时间输出
             install_script += f'''
-# 清理构建目录
+# 清理构建目录和临时安装目录
 cd /
 rm -rf "{build_dir}"
+        rm -rf "{temp_install_path}"
 
 # 计算并输出总安装时间
 INSTALL_END_TIME=$(date +%s)
@@ -286,21 +288,14 @@ echo "Total installation time: ${{INSTALL_MINUTES}}m ${{INSTALL_SECONDS}}s"
             # 开放模式直接返回result_code为0表示成功
             result_code = 0 if result.get("success") else 1
             
-            if result_code == 0:
-                print(f"\n✓ Python {version} installed successfully!")
-                
-                # 状态文件已在bash脚本中更新，不需要额外调用
-                
-                return {
-                    "success": True,
-                    "message": f"Python {version} installed successfully",
-                    "version": version,
-                    "install_path": final_install_path
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Installation failed with exit code {result_code}. Check output above for details."
+            # 不打印本地成功提示（避免误导，远端可能崩溃）
+            # 远端脚本会在执行完成时显示"✅执行完成"和版本验证
+            
+            return {
+                "success": result.get("success", True),
+                "message": f"Python {version} installation command executed",
+                "version": version,
+                "install_path": final_install_path
                 }
                 
         except Exception as e:
@@ -322,22 +317,22 @@ echo "Total installation time: ${{INSTALL_MINUTES}}m ${{INSTALL_SECONDS}}s"
                 "error": f"Invalid Python version format: '{version}'. Expected format: x.y.z (e.g., 3.9.18)"
             }
         
-        # 检查版本是否已安装
-        if self.is_version_installed(version):
-            if not force:
-                return {
-                    "success": False,
-                    "error": f"Python {version} is already installed. Use --force to reinstall."
-                }
-            else:
-                print(f"Python {version} is already installed. Forcing reinstallation...")
-                # 直接使用pyenv_uninstall接口
-                self.pyenv_uninstall(version)
-        
+            # 检查版本是否已安装
+            if self.is_version_installed(version):
+                if not force:
+                    return {
+                        "success": False,
+                        "error": f"Python {version} is already installed. Use --force to reinstall."
+                    }
+                else:
+                    print(f"Python {version} is already installed. Forcing reinstallation...")
+                    # 直接使用pyenv_uninstall接口
+                    self.pyenv_uninstall(version)
+            
         return None  # 成功，继续安装
     
     def generate_install_script(self, version, temp_install_path, final_install_path, 
-                                   source_preparation_script="", work_dir=None):
+                                   source_preparation_script="", work_dir=None, temp_hash=""):
         """生成Python编译安装的bash脚本模板
         
         Args:
@@ -346,6 +341,7 @@ echo "Total installation time: ${{INSTALL_MINUTES}}m ${{INSTALL_SECONDS}}s"
             final_install_path: 最终安装路径（验证通过后移动到这里）
             source_preparation_script: 可选的源码准备脚本（下载或解压）
             work_dir: 工作目录（如果需要切换到特定目录）
+            temp_hash: 临时hash值（用于压缩文件命名）
             
         Returns:
             str: 完整的bash安装脚本
@@ -422,19 +418,59 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
                 echo "✓ pip is working correctly"
             fi
             
+            # 立即压缩（避免后续操作导致崩溃）
+            # 压缩-移动-解压方案（避免Google Drive FUSE问题）
+            echo "Compressing installation..."
+            cd /tmp
+            tar -czf python_{version}_{temp_hash}.tar.gz "$(basename {temp_install_path})"
+            
+            if [ $? -ne 0 ]; then
+                echo "Compression failed"
+                rm -rf "{temp_install_path}"
+                exit 1
+            fi
+            
+        echo "Moving to final location..."
+            mv python_{version}_{temp_hash}.tar.gz "{self.main_instance.REMOTE_ENV}/python/"
+            
+            if [ $? -ne 0 ]; then
+                echo "Move failed"
+                rm -rf "{temp_install_path}"
+                rm -f python_{version}_{temp_hash}.tar.gz
+                exit 1
+            fi
+            
+            echo "Extracting installation..."
+            cd "{self.main_instance.REMOTE_ENV}/python"
+            tar -xzf python_{version}_{temp_hash}.tar.gz
+            
+            if [ $? -ne 0 ]; then
+                echo "Extraction failed"
+                rm -f python_{version}_{temp_hash}.tar.gz
+                exit 1
+            fi
+            
             # 移除旧版本（如果存在）
             if [ -d "{final_install_path}" ]; then
                 echo "Removing existing version..."
                 rm -rf "{final_install_path}"
             fi
             
-            # 移动到最终位置
-            echo "Moving to final location..."
-            mv "{temp_install_path}" "{final_install_path}"
+            # 重命名为最终版本号（从压缩包中提取的目录名）
+            EXTRACTED_DIR="$(basename {temp_install_path})"
+            if [ -d "$EXTRACTED_DIR" ]; then
+                mv "$EXTRACTED_DIR" "{version}"
+            else
+                echo "Error: Extracted directory $EXTRACTED_DIR not found"
+                rm -f python_{version}_{temp_hash}.tar.gz
+                exit 1
+            fi
+            rm -f python_{version}_{temp_hash}.tar.gz
             
             echo "Python {version} installed successfully!"
             echo "Location: {final_install_path}"
             "{final_install_path}/bin/python3" --version
+            "{final_install_path}/bin/pip3" --version
             
             # 更新python_states.json文件（添加到已安装列表）
             echo "Updating installation state..."
@@ -527,7 +563,8 @@ fi
                 version=version,
                 temp_install_path=temp_install_path,
                 final_install_path=final_install_path,
-                source_preparation_script=source_prep
+                source_preparation_script=source_prep,
+                temp_hash=temp_hash
             )
             
             # 添加构建目录清理
@@ -660,17 +697,18 @@ fi
                     temp_install_path=temp_install_path,
                     final_install_path=final_install_path,
                     source_preparation_script="",  # 源码已上传，无需准备
-                    work_dir=work_dir
+                    work_dir=work_dir,
+                    temp_hash=temp_hash
                 )
                 
                 # 添加清理临时文件的命令
                 install_script += f'''
-# 清理临时文件
+            # 清理临时文件
 cd "{work_dir}"
-cd ..
+            cd ..
 rm -rf "{work_dir}"
-echo "Installation complete. Clean up done."
-echo "Python {version} is now available at: {final_install_path}/bin/python3"
+            echo "Installation complete. Clean up done."
+            echo "Python {version} is now available at: {final_install_path}/bin/python3"
 '''
                 
                 # 使用后台任务系统执行脚本
@@ -1445,7 +1483,7 @@ print('State updated successfully')
             configure_result = subprocess.run(
                 ['./configure', f'--prefix={install_dir}'],
                 cwd=source_dir,
-                capture_output=True,
+                        capture_output=True,
                 text=True,
                 timeout=120
             )
