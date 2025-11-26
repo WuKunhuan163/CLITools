@@ -35,24 +35,35 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     timestamp = str(int(time.time()))
     mount_hash = hashlib.md5(timestamp.encode()).hexdigest()[:8]
     
-    # 获取配置
+    # 获取配置和service account credentials
     config_file = get_data_dir() / "config.json"
+    service_account_credentials = None
     if config_file.exists():
         with open(config_file, 'r') as f:
             config = json.load(f)
         constants = config.get('constants', {})
         remote_root = constants.get('REMOTE_ROOT', '/content/drive/MyDrive/REMOTE_ROOT')
         remote_env = constants.get('REMOTE_ENV', '/content/drive/MyDrive/REMOTE_ENV')
+        service_account_credentials = config.get('service_account_credentials')
     else:
         remote_root = '/content/drive/MyDrive/REMOTE_ROOT'
         remote_env = '/content/drive/MyDrive/REMOTE_ENV'
     
-    # 生成Python remount脚本
+    # 检查service account credentials
+    if not service_account_credentials:
+        print("✗ Error: Service account credentials not found in config.json")
+        print("\nPlease set up service account credentials first:")
+        print("  1. Run: GOOGLE_DRIVE --console-setup")
+        print("  2. Follow the setup wizard to configure credentials")
+        return 1
+    
+    # 生成Python remount脚本（嵌入credentials）
     python_script = generate_remount_python_script(
         remote_root=remote_root,
         remote_env=remote_env,
         mount_hash=mount_hash,
-        timestamp=timestamp
+        timestamp=timestamp,
+        service_account_credentials=service_account_credentials
     )
     
     # 显示Tkinter窗口
@@ -189,7 +200,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         return 1
 
 
-def generate_remount_python_script(remote_root, remote_env, mount_hash, timestamp):
+def generate_remount_python_script(remote_root, remote_env, mount_hash, timestamp, service_account_credentials):
     """
     生成在远端Colab执行的Python remount脚本
     
@@ -197,13 +208,15 @@ def generate_remount_python_script(remote_root, remote_env, mount_hash, timestam
     1. 挂载Google Drive
     2. 使用kora库动态获取文件夹ID
     3. 创建mount fingerprint文件
-    4. 创建结果文件
+    4. 使用Google Drive API验证文件访问
+    5. 创建结果文件
     
     Args:
         remote_root: REMOTE_ROOT路径
         remote_env: REMOTE_ENV路径
         mount_hash: 新的mount hash
         timestamp: 时间戳
+        service_account_credentials: Service account credentials dict
         
     Returns:
         str: Python脚本内容
@@ -213,7 +226,10 @@ def generate_remount_python_script(remote_root, remote_env, mount_hash, timestam
     fingerprint_path = f"{remote_root}/tmp/.gds_mount_fingerprint_{mount_hash}"
     result_path = f"{remote_root}/tmp/remount_result_{timestamp}_{mount_hash}.json"
     
-    script = f'''# GDS 动态挂载脚本
+    # 将credentials嵌入脚本（使用JSON格式）
+    credentials_json = json.dumps(service_account_credentials)
+    
+    script = f'''# GDS 动态挂载脚本（含Google Drive API验证）
 import os
 import json
 from datetime import datetime
@@ -326,73 +342,47 @@ except Exception as e:
 # ============ Enhanced Verification (像Remote Shell Connection Check) ============
 print("\\n开始验证远端文件访问...")
 
-def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, max_attempts=10, interval=1):
+# Embedded service account credentials
+SERVICE_ACCOUNT_CREDENTIALS = {credentials_json}
+
+def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_dict, max_attempts=10, interval=1):
     """使用Google Drive API验证指纹文件是否真正可访问"""
     import time
-    try:
-        # Import Google API client
+    from googleapiclient.discovery import build
+    from google.oauth2 import service_account
+    
+    # Build service
+    credentials = service_account.Credentials.from_service_account_info(creds_dict)
+    service = build('drive', 'v3', credentials=credentials)
+    
+    print(f"使用Google Drive API验证指纹文件...")
+    print(f"目标文件: {{fingerprint_filename}}")
+    print(f"tmp文件夹ID: {{tmp_folder_id}}")
+    
+    print("Verifying ", end="", flush=True)
+    for attempt in range(1, max_attempts + 1):
         try:
-            from googleapiclient.discovery import build
-            from google.oauth2 import service_account
-        except ImportError:
-            print("Google API client不可用，跳过API验证")
-            return True  # Graceful degradation
-        
-        # 尝试读取service account credentials
-        creds_dict = None
-        try:
-            config_path = os.path.expanduser("~/.config/gds/config.json")
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    creds_dict = config.get('service_account_credentials')
-        except:
-            pass
-        
-        if not creds_dict:
-            print("未找到service account credentials，跳过API验证")
-            return True  # Graceful degradation
-        
-        # Build service
-        try:
-            credentials = service_account.Credentials.from_service_account_info(creds_dict)
-            service = build('drive', 'v3', credentials=credentials)
-        except Exception as e:
-            print(f"构建Drive service失败: {{e}}")
-            return True  # Graceful degradation
-        
-        print(f"使用Google Drive API验证指纹文件...")
-        print(f"目标文件: {{fingerprint_filename}}")
-        print(f"tmp文件夹ID: {{tmp_folder_id}}")
-        
-        print("Verifying ", end="", flush=True)
-        for attempt in range(1, max_attempts + 1):
-            try:
-                print(".", end="", flush=True)
-                
-                # List files in tmp folder to check if fingerprint file exists
-                results = service.files().list(
-                    q=f"'{{tmp_folder_id}}' in parents and name='{{fingerprint_filename}}'",
-                    fields="files(id, name, createdTime)"
-                ).execute()
-                
-                files = results.get('files', [])
-                if files:
-                    print(f"\\n✓ 指纹文件验证成功: {{fingerprint_filename}}")
-                    return True
-                
-            except Exception as e:
-                pass
+            print(".", end="", flush=True)
             
-            if attempt < max_attempts:
-                time.sleep(interval)
+            # List files in tmp folder to check if fingerprint file exists
+            results = service.files().list(
+                q=f"'{{tmp_folder_id}}' in parents and name='{{fingerprint_filename}}'",
+                fields="files(id, name, createdTime)"
+            ).execute()
+            
+            files = results.get('files', [])
+            if files:
+                print(f"\\n✓ 指纹文件验证成功: {{fingerprint_filename}}")
+                return True
+            
+        except Exception as e:
+            print(f"\\n✗ API请求失败: {{e}}")
         
-        print(f"\\n✗ API验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
-        return False
-        
-    except Exception as e:
-        print(f"\\n验证过程出错: {{e}}")
-        return False
+        if attempt < max_attempts:
+            time.sleep(interval)
+    
+    print(f"\\n✗ API验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
+    return False
 
 # 获取tmp文件夹ID用于验证
 tmp_folder_id = None
@@ -411,32 +401,32 @@ except:
 
 # 执行验证
 fingerprint_filename = os.path.basename(fingerprint_file)
-if tmp_folder_id:
-    verification_success = verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename)
-    
-    if verification_success:
-        print("\\n✅ 挂载验证成功！")
-        print("重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
-        print("✅执行完成")
-    else:
-        print("\\n🚨 挂载验证失败: 无法通过API访问指纹文件")
-        print("\\n可能的原因:")
-        print("  1. Google Drive挂载不稳定")
-        print("  2. Colab runtime处于不一致状态")
-        print("  3. 文件系统同步延迟")
-        print("\\n建议的解决方案:")
-        print("  1. 在Colab中: Runtime > Disconnect and delete runtime")
-        print("  2. 等待runtime完全终止")
-        print("  3. 启动新的runtime")
-        print("  4. 重新执行挂载脚本")
-        print("\\n如果问题持续，可能需要检查Google Drive Desktop或网络连接")
-        import sys
-        sys.exit(1)
-else:
-    # 没有tmp_folder_id时，跳过API验证但仍然认为成功
-    print("无法获取tmp文件夹ID，跳过API验证")
-    print("\\n重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
+if not tmp_folder_id:
+    print("\\n✗ 错误: 无法获取tmp文件夹ID")
+    print("Google Drive挂载可能存在问题")
+    import sys
+    sys.exit(1)
+
+verification_success = verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, SERVICE_ACCOUNT_CREDENTIALS)
+
+if verification_success:
+    print("\\n✅ 挂载验证成功！")
+    print("重新挂载流程完成！现在可以使用GDS命令访问Google Drive了！")
     print("✅执行完成")
+else:
+    print("\\n🚨 挂载验证失败: 无法通过API访问指纹文件")
+    print("\\n可能的原因:")
+    print("  1. Google Drive挂载不稳定")
+    print("  2. Colab runtime处于不一致状态")
+    print("  3. 文件系统同步延迟")
+    print("\\n建议的解决方案:")
+    print("  1. 在Colab中: Runtime > Disconnect and delete runtime")
+    print("  2. 等待runtime完全终止")
+    print("  3. 启动新的runtime")
+    print("  4. 重新执行挂载脚本")
+    print("\\n如果问题持续，可能需要检查Google Drive Desktop或网络连接")
+    import sys
+    sys.exit(1)
 '''
     
     return script
