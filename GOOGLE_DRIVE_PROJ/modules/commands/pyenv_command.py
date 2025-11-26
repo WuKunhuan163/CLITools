@@ -231,52 +231,195 @@ class PyenvCommand(BaseCommand):
             
             # 生成源码准备脚本（下载源码）- 使用Colab本地/tmp避免FUSE问题
             build_dir = f"/tmp/python_download_{version}_{temp_hash}"
-            source_prep = f'''
-# 开始计时
-INSTALL_START_TIME=$(date +%s)
-echo "Installation started at: $(date)"
-
-# 设置临时构建目录（Colab本地/tmp，避免Google Drive FUSE问题）
-BUILD_DIR="{build_dir}"
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
-
-# 下载Python源码（开放式显示进度）
-echo "Downloading Python {version} source code to Colab local /tmp..."
-wget https://www.python.org/ftp/python/{version}/Python-{version}.tgz
-
-if [ $? -ne 0 ]; then
-    echo "Failed to download Python {version}"
-    rm -rf "{temp_install_path}"
-cd /
-rm -rf "$BUILD_DIR"
-    exit 1
-fi
-'''
+            python_major_minor = '.'.join(version.split('.')[:2])  # e.g., "3.8"
             
-            # 生成完整的安装脚本（包含版本验证）
-            install_script = self.generate_install_script(
-                version=version,
-                temp_install_path=temp_install_path,
-                final_install_path=final_install_path,
-                source_preparation_script=source_prep,
-                temp_hash=temp_hash
-            )
-            
-            # 添加构建目录清理和总时间输出
-            install_script += f'''
-# 清理构建目录和临时安装目录
-cd /
-rm -rf "{build_dir}"
-        rm -rf "{temp_install_path}"
+            # 开放式脚本，带标志检查和重试机制
+            flag_dir = f"/tmp/python_install_flags_{temp_hash}"
+            install_script = f'''#!/bin/bash
+set -e
+INSTALL_START=$(date +%s)
+FLAG_DIR="{flag_dir}"
+MAX_RETRIES=2
 
-# 计算并输出总安装时间
-INSTALL_END_TIME=$(date +%s)
-INSTALL_DURATION=$((INSTALL_END_TIME - INSTALL_START_TIME))
-INSTALL_MINUTES=$((INSTALL_DURATION / 60))
-INSTALL_SECONDS=$((INSTALL_DURATION % 60))
+# 创建标志目录
+mkdir -p "$FLAG_DIR"
+
+echo "=== Python {version} Installation Start ==="
+
+# Step 1: Download
+for retry in $(seq 0 $MAX_RETRIES); do
+    if [ -f "$FLAG_DIR/download_ok" ]; then
+        echo "Step 1/6: Download [ALREADY COMPLETED]"
+        break
+    fi
+    
+    echo "Step 1/6: Downloading Python {version}... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
+    cd /tmp && mkdir -p {build_dir} && cd {build_dir}
+    
+    if wget -q --show-progress https://www.python.org/ftp/python/{version}/Python-{version}.tgz; then
+        touch "$FLAG_DIR/download_ok"
+        echo "✓ Download completed"
+        break
+    else
+        echo "✗ Download failed"
+        if [ $retry -eq $MAX_RETRIES ]; then
+            echo "Download failed after $((MAX_RETRIES+1)) attempts"
+            rm -rf "$FLAG_DIR" {build_dir}
+            exit 1
+        fi
+        sleep 2
+    fi
+done
+
+# Step 2: Extract
+for retry in $(seq 0 $MAX_RETRIES); do
+    if [ -f "$FLAG_DIR/extract_ok" ]; then
+        echo "Step 2/6: Extract [ALREADY COMPLETED]"
+        break
+    fi
+    
+    echo "Step 2/6: Extracting... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
+    cd {build_dir}
+    
+    if tar -xzf Python-{version}.tgz && [ -d Python-{version} ]; then
+        touch "$FLAG_DIR/extract_ok"
+        echo "✓ Extract completed"
+        break
+    else
+        echo "✗ Extract failed"
+        if [ $retry -eq $MAX_RETRIES ]; then
+            echo "Extract failed after $((MAX_RETRIES+1)) attempts"
+            rm -rf "$FLAG_DIR" {build_dir}
+            exit 1
+        fi
+        sleep 2
+    fi
+done
+
+# Step 3: Configure
+for retry in $(seq 0 $MAX_RETRIES); do
+    if [ -f "$FLAG_DIR/configure_ok" ]; then
+        echo "Step 3/6: Configure [ALREADY COMPLETED]"
+        break
+    fi
+    
+    echo "Step 3/6: Configuring... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
+    cd {build_dir}/Python-{version}
+    
+    if ./configure --prefix={temp_install_path} --with-ensurepip=install > /dev/null 2>&1; then
+        touch "$FLAG_DIR/configure_ok"
+        echo "✓ Configure completed"
+        break
+    else
+        echo "✗ Configure failed"
+        if [ $retry -eq $MAX_RETRIES ]; then
+            echo "Configure failed after $((MAX_RETRIES+1)) attempts"
+            rm -rf "$FLAG_DIR" {build_dir}
+            exit 1
+        fi
+        sleep 2
+    fi
+done
+
+# Step 4: Compile
+for retry in $(seq 0 $MAX_RETRIES); do
+    if [ -f "$FLAG_DIR/compile_ok" ]; then
+        echo "Step 4/6: Compile [ALREADY COMPLETED]"
+        break
+    fi
+    
+    echo "Step 4/6: Compiling (5-10 minutes)... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
+    cd {build_dir}/Python-{version}
+    
+    if make -j$(nproc) > /dev/null 2>&1; then
+        touch "$FLAG_DIR/compile_ok"
+        echo "✓ Compile completed"
+        break
+    else
+        echo "✗ Compile failed"
+        if [ $retry -eq $MAX_RETRIES ]; then
+            echo "Compile failed after $((MAX_RETRIES+1)) attempts"
+            rm -rf "$FLAG_DIR" {build_dir}
+            exit 1
+        fi
+        sleep 2
+    fi
+done
+
+# Step 5: Install
+for retry in $(seq 0 $MAX_RETRIES); do
+    if [ -f "$FLAG_DIR/install_ok" ]; then
+        echo "Step 5/6: Install [ALREADY COMPLETED]"
+        break
+    fi
+    
+    echo "Step 5/6: Installing... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
+    cd {build_dir}/Python-{version}
+    
+    if make altinstall && [ -d {temp_install_path}/bin ]; then
+        # 创建符号链接
+        cd {temp_install_path}/bin
+        [ ! -f python3 ] && ln -s python{python_major_minor} python3
+        [ ! -f pip3 ] && ln -s pip{python_major_minor} pip3
+        touch "$FLAG_DIR/install_ok"
+        echo "✓ Install completed"
+        break
+    else
+        echo "✗ Install failed"
+        if [ $retry -eq $MAX_RETRIES ]; then
+            echo "Install failed after $((MAX_RETRIES+1)) attempts"
+            rm -rf "$FLAG_DIR" {build_dir} {temp_install_path}
+            exit 1
+        fi
+        sleep 2
+    fi
+done
+
+# Step 6: Compress and move
+for retry in $(seq 0 $MAX_RETRIES); do
+    if [ -f "$FLAG_DIR/transfer_ok" ]; then
+        echo "Step 6/6: Transfer [ALREADY COMPLETED]"
+        break
+    fi
+    
+    echo "Step 6/6: Compressing and transferring... (attempt $((retry+1))/$((MAX_RETRIES+1)))"
+    
+    cd /tmp
+    tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path})
+    ls -lh python_{version}_{temp_hash}.tar.gz
+    
+    if mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && \
+       cd {self.main_instance.REMOTE_ENV}/python && \
+       tar -xzf python_{version}_{temp_hash}.tar.gz && \
+       [ -d {version} ] && rm -rf {version} || true && \
+       mv $(basename {temp_install_path}) {version} && \
+       rm python_{version}_{temp_hash}.tar.gz && \
+       {final_install_path}/bin/python3 --version && \
+       {final_install_path}/bin/pip3 --version; then
+        touch "$FLAG_DIR/transfer_ok"
+        echo "✓ Transfer completed"
+        break
+    else
+        echo "✗ Transfer failed"
+        if [ $retry -eq $MAX_RETRIES ]; then
+            echo "Transfer failed after $((MAX_RETRIES+1)) attempts"
+            rm -rf "$FLAG_DIR" {build_dir} {temp_install_path}
+            exit 1
+        fi
+        sleep 2
+    fi
+done
+
+# 清理
+cd /
+rm -rf {build_dir} {temp_install_path} "$FLAG_DIR"
+
+# 计算时间
+INSTALL_END=$(date +%s)
 echo ""
-echo "Total installation time: ${{INSTALL_MINUTES}}m ${{INSTALL_SECONDS}}s"
+echo "=== Python {version} installed successfully! ==="
+echo "Location: {final_install_path}"
+echo "Total time: $((($INSTALL_END - $INSTALL_START) / 60))m $((($INSTALL_END - $INSTALL_START) % 60))s"
 '''
             
             # 直接调用execute_command_interface并设置capture_result=False
