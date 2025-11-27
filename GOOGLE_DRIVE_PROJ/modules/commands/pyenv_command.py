@@ -318,6 +318,45 @@ class PyenvCommand(BaseCommand):
                 "version": version
             }
     
+    def _check_fingerprint_exists_via_api(self, fingerprint_filename):
+        """
+        使用Google Drive API直接检测指纹文件是否存在（不弹窗）
+        
+        Args:
+            fingerprint_filename: 指纹文件名（不包含路径）
+        
+        Returns:
+            bool: 文件是否存在
+        """
+        try:
+            if not hasattr(self.main_instance, 'drive_service') or not self.main_instance.drive_service:
+                return False
+            
+            # 获取tmp文件夹ID
+            config_file = self.main_instance.data_dir / "config.json"
+            if not config_file.exists():
+                return False
+            
+            import json
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+            
+            tmp_folder_id = config.get("path_ids", {}).get("~/tmp")
+            if not tmp_folder_id:
+                return False
+            
+            # 使用API检测文件
+            result = self.main_instance.drive_service.service.files().list(
+                q=f"'{tmp_folder_id}' in parents and name='{fingerprint_filename}'",
+                fields="files(id, name)"
+            ).execute()
+            
+            files = result.get('files', [])
+            return len(files) > 0
+            
+        except Exception:
+            return False
+    
     def _execute_multi_step_install(self, version, steps, temp_hash, fingerprint_base, 
                                      build_dir, temp_install_path, final_install_path):
         """
@@ -340,27 +379,13 @@ class PyenvCommand(BaseCommand):
                 print(f"Description: {step['description']}")
                 print(f"{'─'*70}")
                 
-                # 检查指纹文件是否已存在（使用简单的ls，不用-la减少输出）
-                # 直接使用GDS ls机制验证文件存在
-                fingerprint_check_cmd = f"ls {step['fingerprint']}"
-                
-                print(f"Checking fingerprint: {step['fingerprint']}")
-                check_result = self.shell.execute_shell_command(fingerprint_check_cmd)
-                
-                # 如果ls成功(返回0或包含文件名)，说明文件存在
+                # 检查指纹文件是否已存在（使用Drive API直接检测，不弹窗）
                 fingerprint_filename = step['fingerprint'].split('/')[-1]
-                if isinstance(check_result, dict):
-                    # 字典形式的返回值
-                    if check_result.get("success"):
-                        output = str(check_result.get("data", ""))
-                        if fingerprint_filename in output:
-                            print(f"✓ Step {step_num} already completed (fingerprint found)")
-                            print(f"Skipping to next step...")
-                            current_step += 1
-                            continue
-                elif isinstance(check_result, int) and check_result == 0:
-                    # 返回exit code 0表示成功
-                    print(f"✓ Step {step_num} already completed (fingerprint found)")
+                
+                print(f"Checking fingerprint via API: {fingerprint_filename}")
+                
+                if self._check_fingerprint_exists_via_api(fingerprint_filename):
+                    print(f"✓ Step {step_num} already completed (fingerprint found via API)")
                     print(f"Skipping to next step...")
                     current_step += 1
                     continue
@@ -390,27 +415,17 @@ class PyenvCommand(BaseCommand):
                     print(f"\n⏳ Waiting for fingerprint file to be created...")
                     time.sleep(2)
                     
-                    # 检查指纹文件是否被创建（最多检查5次）
+                    # 检查指纹文件是否被创建（最多检查5次，使用API不弹窗）
                     fingerprint_filename = step['fingerprint'].split('/')[-1]
                     for check_attempt in range(5):
-                        check_result = self.shell.execute_shell_command(fingerprint_check_cmd)
-                        
-                        file_found = False
-                        if isinstance(check_result, dict):
-                            if check_result.get("success"):
-                                output = str(check_result.get("data", ""))
-                                if fingerprint_filename in output:
-                                    file_found = True
-                        elif isinstance(check_result, int) and check_result == 0:
-                            file_found = True
-                        
-                        if file_found:
-                            print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
+                        if self._check_fingerprint_exists_via_api(fingerprint_filename):
+                            print(f" ✅ Step {step_num} completed successfully (fingerprint verified via API)")
                             step_success = True
                             current_step += 1
                             break
                         
                         if check_attempt < 4:
+                            print(".", end="", flush=True)
                             time.sleep(2)
                     
                     if not step_success:
