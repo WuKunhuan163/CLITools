@@ -318,32 +318,30 @@ class PyenvCommand(BaseCommand):
                 "version": version
             }
     
-    def _check_fingerprint_exists(self, fingerprint_path):
+    def _check_fingerprint_exists(self, fingerprint_path, max_attempts=20):
         """
-        检测指纹文件是否存在（使用ls命令）
+        检测指纹文件是否存在（使用validation.verify_with_ls）
         
         Args:
             fingerprint_path: 指纹文件完整路径
+            max_attempts: 最大尝试次数（默认20次，接口内部会重试）
         
         Returns:
             bool: 文件是否存在
         """
         try:
-            # 使用ls命令检测文件（类似test_gds.py中的verify_file_exists）
-            result = self.shell.execute_shell_command(f'ls {fingerprint_path}')
+            # 使用validation.verify_with_ls（接口自己会重试max_attempts次）
+            result = self.main_instance.validation.verify_with_ls(
+                path=fingerprint_path,
+                creation_type="file",
+                max_attempts=max_attempts, 
+                show_hidden=False
+            )
             
-            if isinstance(result, int):
-                return result == 0
-            elif isinstance(result, dict):
-                if not result.get("success"):
-                    return False
-                output = str(result.get("data", ""))
-                # 检查输出中不包含"not found"等错误信息
-                return "Path not found" not in output and "not found" not in output.lower() and "No such file" not in output
+            return result.get("success", False)
             
-            return False
-            
-        except Exception:
+        except Exception as e:
+            print(f"[DEBUG] Fingerprint check exception: {e}")
             return False
     
     def _execute_multi_step_install(self, version, steps, temp_hash, fingerprint_base, 
@@ -371,6 +369,7 @@ class PyenvCommand(BaseCommand):
                 # 检查指纹文件是否已存在
                 print(f"Checking fingerprint: {step['fingerprint']}")
                 
+                #TODO: Change to verify_with_ls
                 if self._check_fingerprint_exists(step['fingerprint']):
                     print(f"✓ Step {step_num} already completed (fingerprint found)")
                     print(f"Skipping to next step...")
@@ -402,21 +401,13 @@ class PyenvCommand(BaseCommand):
                     print(f"\n⏳ Waiting for fingerprint file to be created...")
                     time.sleep(2)
                     
-                    # 检查指纹文件是否被创建（最多检查20次）
-                    max_checks = 20
-                    for check_attempt in range(max_checks):
-                        if self._check_fingerprint_exists(step['fingerprint']):
-                            print(f" ✅ Step {step_num} completed successfully (fingerprint verified)")
-                            step_success = True
-                            current_step += 1
-                            break
-                        
-                        if check_attempt < 4:
-                            print(".", end="", flush=True)
-                            time.sleep(2)
-                    
-                    if not step_success:
-                        print(f"✗ Step {step_num} failed (fingerprint not created after {check_attempt + 1} checks)")
+                    # 检查指纹文件是否被创建（verify_with_ls内部会重试20次）
+                    if self._check_fingerprint_exists(step['fingerprint'], max_attempts=20):
+                        print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
+                        step_success = True
+                        current_step += 1
+                    else:
+                        print(f"✗ Step {step_num} failed (fingerprint not created after 20 checks)")
                         retry_count += 1
                 
                 if not step_success:
@@ -446,11 +437,11 @@ class PyenvCommand(BaseCommand):
             print(f"Location: {final_install_path}")
             print(f"Total time: {minutes}m {seconds}s")
             print(f"{'='*70}\n")
-                
-                return {
-                    "success": True,
-                    "message": f"Python {version} installed successfully",
-                    "version": version,
+            
+            return {
+                "success": True,
+                "message": f"Python {version} installed successfully",
+                "version": version,
                 "install_path": final_install_path,
                 "duration_seconds": elapsed
             }
@@ -1138,7 +1129,7 @@ echo "Python {version} uninstall completed"
     
     def pyenv_list_available(self, force=False):
         """列出可下载的Python版本（--list-available的实现，支持--force强制更新）"""
-                return {
+        return {
             "success": False,
             "error": "pyenv --list-available is not implemented yet. Please manually specify the Python version you want to install."
         }
