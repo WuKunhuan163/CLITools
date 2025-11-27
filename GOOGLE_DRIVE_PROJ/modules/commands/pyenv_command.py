@@ -230,8 +230,9 @@ class PyenvCommand(BaseCommand):
             build_dir = f"/tmp/python_download_{version}_{temp_hash}"
             python_major_minor = '.'.join(version.split('.')[:2])
             
-            # 指纹文件基础路径（在~/tmp，可通过GDS ls验证）
-            fingerprint_base = f"~/tmp/pyenv_install_{version}_{temp_hash}"
+            # 指纹文件基础路径（使用完整路径，因为raw command不展开~）
+            fingerprint_dir = f"{self.main_instance.REMOTE_ROOT}/tmp"
+            fingerprint_base = f"{fingerprint_dir}/pyenv_install_{version}_{temp_hash}"
             
             print(f"\n{'='*70}")
             print(f"Multi-Step Installation of Python {version}")
