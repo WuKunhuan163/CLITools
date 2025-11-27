@@ -883,7 +883,7 @@ class GoogleDriveShell:
         try:
             # 检查是否是raw命令（跳过所有路径展开和特殊命令处理）
             if hasattr(self.command_executor, '_raw_command') and self.command_executor._raw_command:
-                print("[Raw Command Mode] Executing as raw bash without any translation")
+                print("[Raw Command Mode] Executing as raw bash without any translation and result verification. Please check the result manually if needed. ")
                 self.command_executor._raw_command = False  # 重置flag
                 
                 # 检查capture_result flag
