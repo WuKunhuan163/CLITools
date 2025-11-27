@@ -346,15 +346,23 @@ class PyenvCommand(BaseCommand):
                 print(f"Checking fingerprint: {step['fingerprint']}")
                 check_result = self.shell.execute_shell_command(fingerprint_check_cmd)
                 
-                # 如果ls成功且data包含文件名，说明文件存在
-                if check_result and check_result.get("success"):
-                    output = str(check_result.get("data", ""))
-                    fingerprint_filename = step['fingerprint'].split('/')[-1]
-                    if fingerprint_filename in output:
-                        print(f"✓ Step {step_num} already completed (fingerprint found)")
-                        print(f"Skipping to next step...")
-                        current_step += 1
-                        continue
+                # 如果ls成功(返回0或包含文件名)，说明文件存在
+                fingerprint_filename = step['fingerprint'].split('/')[-1]
+                if isinstance(check_result, dict):
+                    # 字典形式的返回值
+                    if check_result.get("success"):
+                        output = str(check_result.get("data", ""))
+                        if fingerprint_filename in output:
+                            print(f"✓ Step {step_num} already completed (fingerprint found)")
+                            print(f"Skipping to next step...")
+                            current_step += 1
+                            continue
+                elif isinstance(check_result, int) and check_result == 0:
+                    # 返回exit code 0表示成功
+                    print(f"✓ Step {step_num} already completed (fingerprint found)")
+                    print(f"Skipping to next step...")
+                    current_step += 1
+                    continue
                 
                 # 执行当前步骤（最多重试max_retries次）
                 retry_count = 0
@@ -365,28 +373,41 @@ class PyenvCommand(BaseCommand):
                         print(f"\n⚠️  Retrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
                         time.sleep(3)
                     
-                    print(f"\n▶ Executing step {step_num} as independent GDS command...")
+                    print(f"\n▶ Executing step {step_num} as independent GDS command (raw mode)...")
                     print(f"Command preview: {step['command'][:100]}...")
                     print()
                     
-                    # 执行步骤命令（开放式，不捕获结果）
-                    result = self.shell.execute_shell_command(step['command'])
+                    # 执行步骤命令（使用raw command模式，不做路径解析）
+                    if hasattr(self.shell, 'command_executor'):
+                        self.shell.command_executor._raw_command = True
+                    result = self.shell.command_executor.execute_command_interface(
+                        cmd=step['command'],
+                        capture_result=False
+                    )
                     
                     # 等待指纹文件创建
                     print(f"\n⏳ Waiting for fingerprint file to be created...")
                     time.sleep(2)
                     
                     # 检查指纹文件是否被创建（最多检查5次）
+                    fingerprint_filename = step['fingerprint'].split('/')[-1]
                     for check_attempt in range(5):
                         check_result = self.shell.execute_shell_command(fingerprint_check_cmd)
-                        if check_result and check_result.get("success"):
-                            output = str(check_result.get("data", ""))
-                            fingerprint_filename = step['fingerprint'].split('/')[-1]
-                            if fingerprint_filename in output:
-                                print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
-                                step_success = True
-                                current_step += 1
-                                break
+                        
+                        file_found = False
+                        if isinstance(check_result, dict):
+                            if check_result.get("success"):
+                                output = str(check_result.get("data", ""))
+                                if fingerprint_filename in output:
+                                    file_found = True
+                        elif isinstance(check_result, int) and check_result == 0:
+                            file_found = True
+                        
+                        if file_found:
+                            print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
+                            step_success = True
+                            current_step += 1
+                            break
                         
                         if check_attempt < 4:
                             time.sleep(2)
