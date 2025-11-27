@@ -301,9 +301,9 @@ class PyenvCommand(BaseCommand):
             )
             
         except KeyboardInterrupt:
-            print("\n⚠️  Installation interrupted by user (Ctrl+C)")
+            print("\nInstallation interrupted by user (Ctrl+C)")
             return {
-                "success": False,
+                "success": False, 
                 "error": "Installation interrupted by user",
                 "version": version
             }
@@ -318,41 +318,30 @@ class PyenvCommand(BaseCommand):
                 "version": version
             }
     
-    def _check_fingerprint_exists_via_api(self, fingerprint_filename):
+    def _check_fingerprint_exists(self, fingerprint_path):
         """
-        使用Google Drive API直接检测指纹文件是否存在（不弹窗）
+        检测指纹文件是否存在（使用ls命令）
         
         Args:
-            fingerprint_filename: 指纹文件名（不包含路径）
+            fingerprint_path: 指纹文件完整路径
         
         Returns:
             bool: 文件是否存在
         """
         try:
-            if not hasattr(self.main_instance, 'drive_service') or not self.main_instance.drive_service:
-                return False
+            # 使用ls命令检测文件（类似test_gds.py中的verify_file_exists）
+            result = self.shell.execute_shell_command(f'ls {fingerprint_path}')
             
-            # 获取tmp文件夹ID
-            config_file = self.main_instance.data_dir / "config.json"
-            if not config_file.exists():
-                return False
+            if isinstance(result, int):
+                return result == 0
+            elif isinstance(result, dict):
+                if not result.get("success"):
+                    return False
+                output = str(result.get("data", ""))
+                # 检查输出中不包含"not found"等错误信息
+                return "Path not found" not in output and "not found" not in output.lower() and "No such file" not in output
             
-            import json
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-            
-            tmp_folder_id = config.get("path_ids", {}).get("~/tmp")
-            if not tmp_folder_id:
-                return False
-            
-            # 使用API检测文件
-            result = self.main_instance.drive_service.service.files().list(
-                q=f"'{tmp_folder_id}' in parents and name='{fingerprint_filename}'",
-                fields="files(id, name)"
-            ).execute()
-            
-            files = result.get('files', [])
-            return len(files) > 0
+            return False
             
         except Exception:
             return False
@@ -379,13 +368,11 @@ class PyenvCommand(BaseCommand):
                 print(f"Description: {step['description']}")
                 print(f"{'─'*70}")
                 
-                # 检查指纹文件是否已存在（使用Drive API直接检测，不弹窗）
-                fingerprint_filename = step['fingerprint'].split('/')[-1]
+                # 检查指纹文件是否已存在
+                print(f"Checking fingerprint: {step['fingerprint']}")
                 
-                print(f"Checking fingerprint via API: {fingerprint_filename}")
-                
-                if self._check_fingerprint_exists_via_api(fingerprint_filename):
-                    print(f"✓ Step {step_num} already completed (fingerprint found via API)")
+                if self._check_fingerprint_exists(step['fingerprint']):
+                    print(f"✓ Step {step_num} already completed (fingerprint found)")
                     print(f"Skipping to next step...")
                     current_step += 1
                     continue
@@ -415,11 +402,11 @@ class PyenvCommand(BaseCommand):
                     print(f"\n⏳ Waiting for fingerprint file to be created...")
                     time.sleep(2)
                     
-                    # 检查指纹文件是否被创建（最多检查5次，使用API不弹窗）
-                    fingerprint_filename = step['fingerprint'].split('/')[-1]
-                    for check_attempt in range(5):
-                        if self._check_fingerprint_exists_via_api(fingerprint_filename):
-                            print(f" ✅ Step {step_num} completed successfully (fingerprint verified via API)")
+                    # 检查指纹文件是否被创建（最多检查20次）
+                    max_checks = 20
+                    for check_attempt in range(max_checks):
+                        if self._check_fingerprint_exists(step['fingerprint']):
+                            print(f" ✅ Step {step_num} completed successfully (fingerprint verified)")
                             step_success = True
                             current_step += 1
                             break
@@ -459,11 +446,11 @@ class PyenvCommand(BaseCommand):
             print(f"Location: {final_install_path}")
             print(f"Total time: {minutes}m {seconds}s")
             print(f"{'='*70}\n")
-            
-            return {
-                "success": True,
-                "message": f"Python {version} installed successfully",
-                "version": version,
+                
+                return {
+                    "success": True,
+                    "message": f"Python {version} installed successfully",
+                    "version": version,
                 "install_path": final_install_path,
                 "duration_seconds": elapsed
             }
@@ -651,13 +638,13 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
                 rm -f python_{version}_{temp_hash}.tar.gz
                 exit 1
             fi
-            
-            # 移除旧版本（如果存在）
-            if [ -d "{final_install_path}" ]; then
-                echo "Removing existing version..."
-                rm -rf "{final_install_path}"
-            fi
-            
+        
+        # 移除旧版本（如果存在）
+        if [ -d "{final_install_path}" ]; then
+            echo "Removing existing version..."
+            rm -rf "{final_install_path}"
+        fi
+        
             # 重命名为最终版本号（从压缩包中提取的目录名）
             EXTRACTED_DIR="$(basename {temp_install_path})"
             if [ -d "$EXTRACTED_DIR" ]; then
@@ -670,8 +657,8 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
             rm -f python_{version}_{temp_hash}.tar.gz
             
             echo "Python {version} installed successfully!"
-            echo "Location: {final_install_path}"
-            "{final_install_path}/bin/python3" --version
+        echo "Location: {final_install_path}"
+        "{final_install_path}/bin/python3" --version
             "{final_install_path}/bin/pip3" --version
             
             # 更新python_states.json文件（添加到已安装列表）
@@ -1151,7 +1138,7 @@ echo "Python {version} uninstall completed"
     
     def pyenv_list_available(self, force=False):
         """列出可下载的Python版本（--list-available的实现，支持--force强制更新）"""
-        return {
+                return {
             "success": False,
             "error": "pyenv --list-available is not implemented yet. Please manually specify the Python version you want to install."
         }
