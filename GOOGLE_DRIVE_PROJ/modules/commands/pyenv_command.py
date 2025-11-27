@@ -264,21 +264,21 @@ class PyenvCommand(BaseCommand):
                     "name": "Configure",
                     "description": f"Configuring Python {version}",
                     "fingerprint": f"{fingerprint_base}_step3_configure_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Configuring (showing summary)...' && ./configure --prefix={temp_install_path} --with-ensurepip=install 2>&1 | grep -E 'checking|creating|config.status|configure:' | tail -10 && echo '✓ Configure completed' && touch {fingerprint_base}_step3_configure_ok"
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo '✓ Configure completed' && touch {fingerprint_base}_step3_configure_ok"
                 },
                 {
                     "num": 4,
                     "name": "Compile",
                     "description": f"Compiling Python {version} (5-10 minutes)",
                     "fingerprint": f"{fingerprint_base}_step4_compile_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Compiling with $(nproc) cores (this takes 5-10 minutes)...' && make -j$(nproc) 2>&1 | grep -E 'gcc|g\\+\\+|building|ar rc' | head -20 && echo '... compilation in progress ...' && make -j$(nproc) > /tmp/make_{temp_hash}.log 2>&1 && echo '✓ Compile completed' && touch {fingerprint_base}_step4_compile_ok"
+                    "command": f"cd {build_dir}/Python-{version} && echo \"Compiling Python {version} with $(nproc) cores (this takes 5-10 minutes)...\" && make -j$(nproc) && echo '✓ Compile completed' && touch {fingerprint_base}_step4_compile_ok"
                 },
                 {
                     "num": 5,
                     "name": "Install",
                     "description": f"Installing Python {version} to /tmp",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing...' && make altinstall 2>&1 | grep -E 'Install|Creating|copying' | tail -15 && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
