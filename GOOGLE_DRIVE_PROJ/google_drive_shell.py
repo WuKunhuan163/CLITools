@@ -2325,18 +2325,19 @@ fi
             command_wrapper = 'bash -c'
             shell_cmd = shell_cmd[len('bash -c '):].strip()
             try:
+                # shlex.split移除最外层引号并正确处理内部引号
                 unwrapped = shlex.split(shell_cmd)
-                if len(unwrapped) == 1:
-                    shell_cmd = unwrapped[0]
-            except:
+                shell_cmd = shlex.join(unwrapped)
+            except Exception as e:
                 pass
         elif shell_cmd.startswith('echo -e '):
             command_wrapper = 'echo -e'
             shell_cmd = shell_cmd[len('echo -e '):].strip()
             try:
+                # shlex.split移除最外层引号并正确处理内部引号
                 unwrapped = shlex.split(shell_cmd)
-                if len(unwrapped) == 1:
-                    shell_cmd = unwrapped[0]
+                # 用shlex.join重建（保留必要的内部引号）
+                shell_cmd = shlex.join(unwrapped)
             except:
                 pass
         
