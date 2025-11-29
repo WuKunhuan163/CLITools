@@ -1287,7 +1287,7 @@ try:
     # 打开本地文件夹按钮 - 使用历史模板样式
     open_local_btn = tk.Button(
         button_frame, 
-        text="📁 本地文件夹", 
+        text="📁本地文件夹", 
         command=open_local_folder,
         font=("Arial", 12),
         bg="#2196F3",
@@ -1302,7 +1302,7 @@ try:
     # 打开远程文件夹按钮 - 使用历史模板样式
     open_remote_btn = tk.Button(
         button_frame, 
-        text="🌐 远程文件夹", 
+        text="🌐远程文件夹", 
         command=open_remote_folder,
         font=("Arial", 12),
         bg="#FF9800",
@@ -1317,7 +1317,7 @@ try:
     # 上传完成按钮 - 使用历史模板样式
     complete_btn = tk.Button(
         button_frame, 
-        text="✅ 上传完成", 
+        text="✅上传完成", 
         command=upload_completed,
         font=("Arial", 12, "bold"),
         bg="#4CAF50",
@@ -1332,7 +1332,7 @@ try:
     # 取消按钮 - 使用历史模板样式
     cancel_btn = tk.Button(
         button_frame, 
-        text="❌ 取消", 
+        text="❌取消", 
         command=upload_cancelled,
         font=("Arial", 12),
         bg="#f44336",

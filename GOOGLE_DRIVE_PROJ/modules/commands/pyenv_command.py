@@ -82,10 +82,10 @@ class PyenvCommand(BaseCommand):
         print("=" * 50)
         print()
         print("USAGE:")
-        print("  GDS pyenv --install <version> [--force]      # Install Python version")
-        print("  GDS pyenv --install-bg <version> [--force]   # Install in background")
-        print("  GDS pyenv --install-local <version> [--force]# Download locally then install")
-        print("  GDS pyenv --uninstall <version>              # Uninstall Python version")
+        print("  GDS pyenv --install <version> [--force] [--progress-id <id>]  # Install Python version")
+        print("  GDS pyenv --install-bg <version> [--force]                     # Install in background")
+        print("  GDS pyenv --install-local <version> [--force]                  # Download locally then install")
+        print("  GDS pyenv --uninstall <version>                                # Uninstall Python version")
         print("  GDS pyenv --list                    # List installed versions")
         print("  GDS pyenv --global <version>        # Set global default Python version")
         print("  GDS pyenv --local <version>         # Set local Python version for current shell")
@@ -99,13 +99,21 @@ class PyenvCommand(BaseCommand):
         print("  Allows installation, switching, and management of different Python versions.")
         print()
         print("EXAMPLES:")
-        print("  GDS pyenv --install 3.9.18               # Install Python 3.9.18 (remote download)")
-        print("  GDS pyenv --install-local 3.10.13        # Download locally, then install (FASTER!)")
-        print("  GDS pyenv --install 3.9.18 --force       # Force reinstall existing version")
-        print("  GDS pyenv --install-bg 3.10.13           # Install in background")
-        print("  GDS pyenv --global 3.9.18           # Set 3.9.18 as global default")
-        print("  GDS pyenv --local 3.10.13           # Use 3.10.13 in current shell")
-        print("  GDS pyenv --versions                 # List all installed versions")
+        print("  GDS pyenv --install 3.9.18                                    # Install Python 3.9.18 (remote download)")
+        print("  GDS pyenv --install-local 3.10.13                             # Download locally, then install (FASTER!)")
+        print("  GDS pyenv --install 3.9.18 --force                            # Force reinstall existing version")
+        print("  GDS pyenv --install 3.11.7 --progress-id pyenv_install_3.11.7_7144d872  # Resume from progress ID")
+        print("  GDS pyenv --install-bg 3.10.13                                # Install in background")
+        print("  GDS pyenv --global 3.9.18                                     # Set 3.9.18 as global default")
+        print("  GDS pyenv --local 3.10.13                                     # Use 3.10.13 in current shell")
+        print("  GDS pyenv --versions                                          # List all installed versions")
+        print()
+        print("RESUMING INTERRUPTED INSTALLATIONS:")
+        print("  If an installation is interrupted (network disconnect, window closed, etc.):")
+        print("  1. The installation uses fingerprint files to track progress")
+        print("  2. Use --progress-id to resume from where it left off")
+        print("  3. Progress ID format: pyenv_install_<version>_<hash>")
+        print("  4. The system will skip completed steps and continue from the first incomplete step")
         print()
         print("BACKGROUND TASKS:")
         print("  Use --install-bg for long installations. Track progress with:")
@@ -147,10 +155,20 @@ class PyenvCommand(BaseCommand):
             version = args[1] if len(args) > 1 else None
             force = "--force" in args
             
+            # 解析--progress-id参数
+            progress_id = None
+            if "--progress-id" in args:
+                try:
+                    progress_id_index = args.index("--progress-id")
+                    if progress_id_index + 1 < len(args):
+                        progress_id = args[progress_id_index + 1]
+                except (ValueError, IndexError):
+                    return {"success": False, "error": "--progress-id requires an ID value"}
+            
             if action == "--install":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install"}
-                return self.pyenv_install(version, force=force)
+                return self.pyenv_install(version, force=force, progress_id=progress_id)
             elif action == "--install-bg":
                 return {
                     "success": False,
@@ -204,7 +222,7 @@ class PyenvCommand(BaseCommand):
         """获取Python版本状态文件路径"""
         return f"{self.get_python_base_path()}/python_states.json"
     
-    def pyenv_install(self, version, force=False):
+    def pyenv_install(self, version, force=False, progress_id=None):
         """安装指定Python版本（多步骤执行，通过指纹文件协调）
         
         将安装过程拆分成多个独立的GDS命令，每个命令完成后创建指纹文件。
@@ -213,6 +231,7 @@ class PyenvCommand(BaseCommand):
         Args:
             version: Python版本号
             force: 是否强制覆盖已安装的版本
+            progress_id: 可选的进度ID，用于恢复之前的安装进度
         """
         # 验证版本并准备安装
         check_result = self.check_version_and_prepare_install(version, force)
@@ -223,8 +242,21 @@ class PyenvCommand(BaseCommand):
             import hashlib
             import time
             
-            # 生成安装ID
-            temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
+            # 生成或使用提供的安装ID
+            if progress_id:
+                # 验证progress_id格式（应该是pyenv_install_VERSION_HASH格式）
+                if not progress_id.startswith(f"pyenv_install_{version}_"):
+                    return {
+                        "success": False,
+                        "error": f"Invalid progress ID format. Expected: pyenv_install_{version}_<hash>"
+                    }
+                # 从progress_id提取hash部分
+                temp_hash = progress_id.split("_")[-1]
+                print(f"📋 Resuming installation with progress ID: {progress_id}")
+                print(f"   Installation hash: {temp_hash}")
+            else:
+                # 生成新的安装ID
+                temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
             temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
             final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             build_dir = f"/tmp/python_download_{version}_{temp_hash}"
@@ -318,30 +350,28 @@ class PyenvCommand(BaseCommand):
                 "version": version
             }
     
-    def _check_fingerprint_exists(self, fingerprint_path, max_attempts=20):
+    def _check_fingerprint_exists(self, fingerprint_path):
         """
         检测指纹文件是否存在（使用validation.verify_with_ls）
         
         Args:
             fingerprint_path: 指纹文件完整路径
-            max_attempts: 最大尝试次数（默认20次，接口内部会重试）
         
         Returns:
             bool: 文件是否存在
         """
         try:
-            # 使用validation.verify_with_ls（接口自己会重试max_attempts次）
+            # 使用validation.verify_with_ls（接口使用自己的默认重试次数）
             result = self.main_instance.validation.verify_with_ls(
                 path=fingerprint_path,
                 creation_type="file",
-                max_attempts=max_attempts, 
                 show_hidden=False
             )
-            
             return result.get("success", False)
             
         except Exception as e:
-            print(f"[DEBUG] Fingerprint check exception: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _execute_multi_step_install(self, version, steps, temp_hash, fingerprint_base, 
@@ -401,17 +431,17 @@ class PyenvCommand(BaseCommand):
                     print(f"\n⏳ Waiting for fingerprint file to be created...")
                     time.sleep(2)
                     
-                    # 检查指纹文件是否被创建（verify_with_ls内部会重试20次）
-                    if self._check_fingerprint_exists(step['fingerprint'], max_attempts=20):
+                    # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
+                    if self._check_fingerprint_exists(step['fingerprint']):
                         print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
                         step_success = True
                         current_step += 1
                     else:
-                        print(f"✗ Step {step_num} failed (fingerprint not created after 20 checks)")
+                        print(f"✗ Step {step_num} failed (fingerprint not created)")
                         retry_count += 1
                 
                 if not step_success:
-                    print(f"\n❌ Step {step_num} ({step['name']}) failed after {max_retries + 1} attempts")
+                    print(f"\nStep {step_num} ({step['name']}) failed after {max_retries + 1} attempts")
                     print(f"Cleaning up temporary files...")
                     cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
                     self.shell.execute_shell_command(cleanup_cmd)
@@ -538,10 +568,8 @@ fi
 
 # 安装到临时目录（使用altinstall避免符号链接问题）
 echo "Installing Python {version} to temporary location..."
-echo "[DEBUG] Using 'make altinstall' (safer, no symlinks)"
 make altinstall
 MAKE_INSTALL_EXIT=$?
-echo "[DEBUG] After make altinstall, exit code: $MAKE_INSTALL_EXIT"
 
 if [ $MAKE_INSTALL_EXIT -ne 0 ]; then
     echo "Failed to install Python {version}"
@@ -549,30 +577,21 @@ if [ $MAKE_INSTALL_EXIT -ne 0 ]; then
     exit 1
 fi
 
-echo "[DEBUG] make altinstall completed successfully"
-
 # TEMPORARILY DISABLED chmod to avoid crash
-# echo "[DEBUG] Setting executable permissions..."
 # chmod -R 755 "{temp_install_path}/bin/"
-# echo "[DEBUG] chmod completed"
 
 # 验证安装 - 检查可执行文件并验证版本
-echo "[DEBUG] Starting verification..."
 echo "Verifying Python {version} installation..."
 
 # altinstall创建python3.x而不是python3，需要创建符号链接
 MAJOR_MINOR=$(echo "{version}" | cut -d. -f1-2)
 if [ ! -f "{temp_install_path}/bin/python3" ] && [ -f "{temp_install_path}/bin/python$MAJOR_MINOR" ]; then
-    echo "[DEBUG] Creating python3 symlink (alt install doesn't create it)"
     cd "{temp_install_path}/bin" && ln -s "python$MAJOR_MINOR" python3
 fi
 
 if [ -f "{temp_install_path}/bin/python3" ]; then
-    echo "[DEBUG] python3 executable found"
     # 测试Python可执行文件
-    echo "[DEBUG] Getting Python version..."
     ACTUAL_VERSION=$("{temp_install_path}/bin/python3" --version 2>&1)
-    echo "[DEBUG] Version obtained: $ACTUAL_VERSION"
     echo "Installed version: $ACTUAL_VERSION"
     
     # 检查版本是否匹配
@@ -584,23 +603,18 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
         {temp_install_path}/bin/python3 -c "import sys; print(f'Python {{{{sys.version}}}} is working correctly!')"
         
         if [ $? -eq 0 ]; then
-            echo "[DEBUG] Python test script passed"
             echo "✓ Python executable test passed"
             
             # 测试pip
-            echo "[DEBUG] About to test pip3..."
             {temp_install_path}/bin/pip3 --version
             PIP_EXIT=$?
-            echo "[DEBUG] pip3 --version exit code: $PIP_EXIT"
             if [ $PIP_EXIT -eq 0 ]; then
                 echo "✓ pip is working correctly"
             fi
             
-            echo "[DEBUG] pip test completed, proceeding to compression..."
             # 立即压缩（避免后续操作导致崩溃）
             # 压缩-移动-解压方案（避免Google Drive FUSE问题）
             echo "Compressing installation..."
-            echo "[DEBUG] Changed to /tmp"
             cd /tmp
             tar -czf python_{version}_{temp_hash}.tar.gz "$(basename {temp_install_path})"
             
