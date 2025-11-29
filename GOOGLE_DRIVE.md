@@ -651,11 +651,19 @@ Available Python versions for download:
 
 #### 安装Python版本
 ```bash
-# 安装Python 3.10.12
+# 安装Python 3.10.12（多步骤安装，每步独立执行）
 GDS pyenv --install 3.10.12
+
+# 恢复中断的安装（使用progress ID）
+GDS pyenv --install 3.11.7 --progress-id pyenv_install_3.11.7_7144d872
 ```
 
-**注意**: Python版本安装需要在远端进行源码编译，可能需要较长时间（10-30分钟）。
+**注意**: 
+- Python版本安装需要在远端进行源码编译，可能需要较长时间（10-30分钟）
+- 安装过程分为6个步骤：下载、解压、配置、编译、安装、传输
+- 每个步骤完成后会创建指纹文件，方便追踪进度和恢复中断的安装
+- 如果安装过程中断（网络断开、窗口关闭等），可以使用`--progress-id`参数恢复
+- Progress ID格式：`pyenv_install_<version>_<hash>`（在安装开始时显示）
 
 #### 查看已安装版本
 ```bash
@@ -859,15 +867,22 @@ pip --show-deps <package> [--depth=N]  # 智能依赖树分析（新功能）
 
 ### Python版本管理 ⭐ **新功能**
 ```bash
-pyenv --install <version>       # 安装指定Python版本（如 3.9.18, 3.10.12）
-pyenv --uninstall <version>     # 卸载指定Python版本
-pyenv --list                    # 列出所有已安装的Python版本
-pyenv --list-available          # 列出所有可下载的Python版本
-pyenv --global [version]        # 设置/查看全局默认Python版本
-pyenv --local [version]         # 设置/查看当前shell的Python版本
-pyenv --version                 # 显示当前使用的Python版本
-pyenv --versions                # 显示所有已安装版本及当前版本标记
+pyenv --install <version>              # 安装指定Python版本（多步骤，如 3.9.18, 3.10.12）
+pyenv --install <version> --progress-id <id>  # 从进度ID恢复中断的安装
+pyenv --uninstall <version>            # 卸载指定Python版本
+pyenv --list                           # 列出所有已安装的Python版本
+pyenv --list-available                 # 列出所有可下载的Python版本
+pyenv --global [version]               # 设置/查看全局默认Python版本
+pyenv --local [version]                # 设置/查看当前shell的Python版本
+pyenv --version                        # 显示当前使用的Python版本
+pyenv --versions                       # 显示所有已安装版本及当前版本标记
 ```
+
+**安装过程说明**:
+- 安装分为6个独立步骤，每步完成后创建指纹文件
+- 步骤：下载 → 解压 → 配置 → 编译 → 安装 → 传输到Google Drive
+- 中断后可使用`--progress-id`恢复，系统会跳过已完成的步骤
+- Progress ID在安装开始时显示，格式：`pyenv_install_<version>_<hash>`
 
 ### 代码质量检查 ⭐ **新功能**
 ```bash
