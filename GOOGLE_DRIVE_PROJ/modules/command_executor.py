@@ -1014,8 +1014,6 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         直接反馈功能 - 粘贴远端命令和用户反馈，用=分割
         使用统一的get_multiline_user_input方法
         """
-        debug_print(f"进入direct_feedback方法")
-
         # 先输出debug信息（如果有的话）
         if debug_info:
             print(f"Debug information:")
