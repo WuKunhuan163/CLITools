@@ -1182,6 +1182,9 @@ class GoogleDriveShell:
                 return 1
             
             data = result.get("data", {})
+            # data可能是空字符串而不是字典，需要处理
+            if not isinstance(data, dict):
+                data = {}
             stdout = data.get("stdout", "").strip()
             stderr = data.get("stderr", "").strip()
             if stdout:
