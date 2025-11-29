@@ -2298,14 +2298,23 @@ fi
                     self.command_executor._raw_command = True
                 
                 # 将参数列表转换为字符串
-                # 使用shlex.join正确处理引号，而不是简单的空格连接
                 import shlex
                 shell_args = args[1:]
+                
+                # 检查是否包含--raw-command flag
+                has_raw_flag = '--raw-command' in shell_args
+                
                 if len(shell_args) == 1:
                     shell_cmd = shell_args[0]
                 else:
-                    # 使用shlex.join自动为包含空格的参数添加引号
-                    shell_cmd = shlex.join(shell_args)
+                    # 对于--raw-command模式，使用简单的空格连接（不添加额外引号）
+                    # 因为raw模式的参数已经由shell解析过，&&、|等操作符不应该被引号包裹
+                    # 对于非raw模式（如shell -c命令），使用shlex.join保留引号
+                    if has_raw_flag:
+                        shell_cmd = ' '.join(shell_args)
+                    else:
+                        shell_cmd = shlex.join(shell_args)
+                
                 return self.handle_shell_command_args(shell_cmd, command_identifier)
         elif args[0] == '--desktop':
             return self.handle_desktop_command(args[1:], command_identifier)
