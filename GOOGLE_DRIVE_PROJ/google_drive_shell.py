@@ -1012,9 +1012,13 @@ class GoogleDriveShell:
                     shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
             
             # 如果有command_wrapper，在路径展开后重新包装命令
-            # 注意：不使用shlex.quote，因为命令可能包含重定向等操作符不应被引号包裹
+            # 使用shlex.join正确组装，自动处理引号
             if command_wrapper:
-                shell_cmd_clean = f"{command_wrapper} {shell_cmd_clean}"
+                import shlex
+                # command_wrapper是"bash -c"或"echo -e"，需要split成列表
+                wrapper_parts = command_wrapper.split()
+                # 组合wrapper和展开后的命令，用shlex.join自动添加正确的引号
+                shell_cmd_clean = shlex.join(wrapper_parts + [shell_cmd_clean])
             
             # 更新shell_cmd以保持一致性
             shell_cmd = shell_cmd_clean
@@ -2313,14 +2317,28 @@ fi
         if not shell_cmd:
             return 0
         
-        # 移除了bash -c和echo -e的特殊处理逻辑
-        # 原因：
-        # 1. GDS本身就是bash shell环境，不需要用户额外使用bash -c
-        # 2. 解包和重新包装bash -c会导致引号丢失，造成命令解析错误
-        # 3. @路径和~路径的展开应该在原始命令中进行，不应该先解包再展开再包装
-        # 用户应该直接使用：GDS chmod +x @/python/bin/python3
-        # 而不是：GDS bash -c 'chmod +x @/python/bin/python3'
+        # 检测特殊命令包装（bash -c, echo -e等）
+        # 提取wrapper和内部命令，对内部命令进行路径展开后，用shlex.join正确重组
+        import shlex
         command_wrapper = None
+        if shell_cmd.startswith('bash -c '):
+            command_wrapper = 'bash -c'
+            shell_cmd = shell_cmd[len('bash -c '):].strip()
+            try:
+                unwrapped = shlex.split(shell_cmd)
+                if len(unwrapped) == 1:
+                    shell_cmd = unwrapped[0]
+            except:
+                pass
+        elif shell_cmd.startswith('echo -e '):
+            command_wrapper = 'echo -e'
+            shell_cmd = shell_cmd[len('echo -e '):].strip()
+            try:
+                unwrapped = shlex.split(shell_cmd)
+                if len(unwrapped) == 1:
+                    shell_cmd = unwrapped[0]
+            except:
+                pass
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):
