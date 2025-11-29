@@ -2313,28 +2313,14 @@ fi
         if not shell_cmd:
             return 0
         
-        # 检测特殊命令包装（bash -c, echo -e等）
+        # 移除了bash -c和echo -e的特殊处理逻辑
+        # 原因：
+        # 1. GDS本身就是bash shell环境，不需要用户额外使用bash -c
+        # 2. 解包和重新包装bash -c会导致引号丢失，造成命令解析错误
+        # 3. @路径和~路径的展开应该在原始命令中进行，不应该先解包再展开再包装
+        # 用户应该直接使用：GDS chmod +x @/python/bin/python3
+        # 而不是：GDS bash -c 'chmod +x @/python/bin/python3'
         command_wrapper = None
-        if shell_cmd.startswith('bash -c '):
-            command_wrapper = 'bash -c'
-            shell_cmd = shell_cmd[len('bash -c '):].strip()
-            try:
-                unwrapped = shlex.split(shell_cmd)
-                if len(unwrapped) == 1:
-                    shell_cmd = unwrapped[0]
-            except:
-                pass
-        elif shell_cmd.startswith('echo -e '):
-            command_wrapper = 'echo -e'
-            shell_cmd = shell_cmd[len('echo -e '):].strip()
-            import shlex
-            try:
-                unwrapped = shlex.split(shell_cmd)
-                if len(unwrapped) == 1:
-                    shell_cmd = unwrapped[0]
-            except:
-                pass
-            print(f"DEBUG 检测到echo -e包装，提取内部命令: {shell_cmd}")
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):

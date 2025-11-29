@@ -1110,11 +1110,10 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             except Exception as e:
                 print(f"Error waiting for actual result: {e}")
 
-        # 如果没有result_filename或获取实际结果失败，返回用户反馈结果
         return {
             "success": True,
             "action": "direct_feedback_no_result",
-            "data": feedback_result.get("data", {}),
+            "data": "",
             "source": "direct_feedback_interface_no_capture"
         }
 
