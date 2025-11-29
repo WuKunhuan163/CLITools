@@ -207,28 +207,68 @@ class CommandGenerator:
         # 步骤7: 恢复所有特殊字符
         expanded_cmd = PathResolver.restore_special_chars(expanded_cmd, special_phs)
 
-        # 步骤8: 处理参数zhi中的路径
+        # ================================================================================
+        # 步骤8: 递归处理参数值中的路径（重要！）
+        # ================================================================================
+        # 
+        # 支持两种参数格式的路径递归展开：
+        # 
+        # 格式1: --param=value 或 -x=value
+        #   示例: ./configure --prefix="@/some/path"
+        #   处理: 分离 --prefix 和 "@/some/path"，递归展开 "@/some/path"
+        # 
+        # 格式2: --param value 或 -x value（参数名和值分离）
+        #   示例: cmake -DCMAKE_INSTALL_PREFIX "@/some/path"
+        #   处理: 识别参数选项后的值token，递归展开其中的路径
+        # 
+        # 这样可以确保无论参数如何传递，路径都能被正确展开
+        # ================================================================================
+        
         import shlex
         try:
             tokens = shlex.split(expanded_cmd)
             processed_tokens = []
+            i = 0
             
-            for token in tokens:
-                # 检查token是否是 --xxx=value 形式
+            while i < len(tokens):
+                token = tokens[i]
+                
+                # 格式1: --xxx=value 或 -x=value 形式
                 if '=' in token and f'{placeholder}/' in token:
                     # 分离参数名和值
                     param_name, param_value = token.split('=', 1)
                     
                     # 如果值包含placeholder，递归展开
                     if placeholder in param_value:
-                        # 递归调用展开路径
+                        # 递归调用展开路径（可能带引号）
                         expanded_value = self.expand_paths_with_bash(param_value, placeholder, placeholder_value)
                         processed_token = f"{param_name}={expanded_value}"
                         processed_tokens.append(processed_token)
                     else:
                         processed_tokens.append(token)
+                    i += 1
+                
+                # 格式2: --xxx value 或 -x value 形式（参数名和值分离）
+                # 检查当前token是否是参数选项（以-或--开头）且下一个token包含placeholder
+                elif (token.startswith('-') and i + 1 < len(tokens) and 
+                      f'{placeholder}/' in tokens[i + 1]):
+                    # 当前token是参数名（如--prefix或-D）
+                    param_name = token
+                    param_value = tokens[i + 1]
+                    
+                    # 如果值包含placeholder，递归展开
+                    if placeholder in param_value:
+                        expanded_value = self.expand_paths_with_bash(param_value, placeholder, placeholder_value)
+                        processed_tokens.append(param_name)
+                        processed_tokens.append(expanded_value)
+                    else:
+                        processed_tokens.append(param_name)
+                        processed_tokens.append(param_value)
+                    i += 2  # 跳过下一个token（已处理）
+                
                 else:
                     processed_tokens.append(token)
+                    i += 1
             
             # 重新组合命令
             expanded_cmd = ' '.join(processed_tokens)
