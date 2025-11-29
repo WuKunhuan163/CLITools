@@ -883,13 +883,14 @@ class GoogleDriveShell:
         try:
             # 检查是否是raw命令（跳过所有路径展开和特殊命令处理）
             if hasattr(self.command_executor, '_raw_command') and self.command_executor._raw_command:
-                print("[Raw Command Mode] Executing as raw bash without any translation and result verification. Please check the result manually if needed. ")
+                print("[Raw Command Mode] Executing as raw command without any translation. ")
                 self.command_executor._raw_command = False  # 重置flag
                 
                 # 检查capture_result flag
                 capture_result = True
                 if hasattr(self.command_executor, '_no_capture') and self.command_executor._no_capture:
                     capture_result = False
+                    print("[No Capture Mode] GDS will not capture the remote execution output and show it in this shell. Please manually check the execution output on remote. ")
                     self.command_executor._no_capture = False
                 
                 # 直接执行，不做任何展开
@@ -2330,7 +2331,7 @@ fi
         if not shell_cmd:
             return 0
         
-        # 检测特殊命令包装（bash -c, echo -e等）
+        # 检测特殊命令包装（bash -c, zsh -c, sh -c, echo -e等）
         # 提取wrapper和内部命令，对内部命令进行路径展开后，用shlex.join正确重组
         import shlex
         command_wrapper = None
@@ -2339,6 +2340,22 @@ fi
             shell_cmd = shell_cmd[len('bash -c '):].strip()
             try:
                 # shlex.split移除最外层引号并正确处理内部引号
+                unwrapped = shlex.split(shell_cmd)
+                shell_cmd = shlex.join(unwrapped)
+            except Exception as e:
+                pass
+        elif shell_cmd.startswith('zsh -c '):
+            command_wrapper = 'zsh -c'
+            shell_cmd = shell_cmd[len('zsh -c '):].strip()
+            try:
+                unwrapped = shlex.split(shell_cmd)
+                shell_cmd = shlex.join(unwrapped)
+            except Exception as e:
+                pass
+        elif shell_cmd.startswith('sh -c '):
+            command_wrapper = 'sh -c'
+            shell_cmd = shell_cmd[len('sh -c '):].strip()
+            try:
                 unwrapped = shlex.split(shell_cmd)
                 shell_cmd = shlex.join(unwrapped)
             except Exception as e:
