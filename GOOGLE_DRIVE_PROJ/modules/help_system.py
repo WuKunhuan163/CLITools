@@ -88,7 +88,8 @@ def get_unified_help_data():
                 "venv --list": "list all virtual environments"
             },
             "python_version_management": {
-                "pyenv --install <version>": "install specified Python version (open-style, shows real-time output)",
+                "pyenv --install <version>": "install specified Python version (multi-step with fingerprints)",
+                "pyenv --install <version> --progress-id <id>": "resume interrupted installation from progress ID",
                 "pyenv --install-local <version>": "download locally then install (faster for large files)",
                 "pyenv --uninstall <version>": "uninstall specified Python version",
                 "pyenv --list": "list all installed Python versions",
