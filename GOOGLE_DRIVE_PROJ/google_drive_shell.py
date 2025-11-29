@@ -1029,6 +1029,19 @@ class GoogleDriveShell:
                 import shlex
                 # command_wrapper是"bash -c"或"echo -e"，需要split成列表
                 wrapper_parts = command_wrapper.split()
+                
+                # 检查是否需要映射shell命令到自定义安装的binary路径
+                # 例如: zsh -> @/shell/zsh-install/bin/zsh
+                shell_binary_map = {
+                    'zsh': f'{self.REMOTE_ENV}/shell/zsh-install/bin/zsh',
+                    # 未来可以添加更多shell映射
+                    # 'fish': f'{self.REMOTE_ENV}/shell/fish-install/bin/fish',
+                }
+                
+                # 如果wrapper的第一个部分是自定义shell，替换为完整路径
+                if wrapper_parts[0] in shell_binary_map:
+                    wrapper_parts[0] = shell_binary_map[wrapper_parts[0]]
+                
                 # 组合wrapper和展开后的命令，用shlex.join自动添加正确的引号
                 shell_cmd_clean = shlex.join(wrapper_parts + [shell_cmd_clean])
             
