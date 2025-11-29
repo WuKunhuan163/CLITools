@@ -1114,7 +1114,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         return {
             "success": True,
             "action": "direct_feedback_no_result",
-            "data": "",
+            "data": {},
             "source": "direct_feedback_interface_no_capture"
         }
 

@@ -896,6 +896,17 @@ class GoogleDriveShell:
                 result = self.execute_command_interface(shell_cmd.strip(), capture_result=capture_result)
                 
                 if result.get("success"):
+                    # 显示输出（如果有）
+                    data = result.get("data", {})
+                    if not isinstance(data, dict):
+                        data = {}
+                    stdout = data.get("stdout", "").strip()
+                    stderr = data.get("stderr", "").strip()
+                    if stdout:
+                        print(stdout)
+                    if stderr:
+                        import sys
+                        print(stderr, file=sys.stderr)
                     return 0
                 else:
                     error_msg = result.get('error', 'Unknown error')
@@ -1182,7 +1193,6 @@ class GoogleDriveShell:
                 return 1
             
             data = result.get("data", {})
-            # data可能是空字符串而不是字典，需要处理
             if not isinstance(data, dict):
                 data = {}
             stdout = data.get("stdout", "").strip()
