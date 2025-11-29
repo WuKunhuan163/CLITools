@@ -1188,7 +1188,7 @@ class GoogleDriveShell:
             return 0
         
         except KeyboardInterrupt:
-            print("\n⚠️  Command interrupted by user (Ctrl+C)")
+            print("\nCommand interrupted by user (Ctrl+C)")
             return 130  # Standard Unix exit code for Ctrl+C
                 
         except Exception as e:
