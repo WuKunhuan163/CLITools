@@ -2301,19 +2301,25 @@ fi
                 import shlex
                 shell_args = args[1:]
                 
+                print(f"[DEBUG] shell_args from sys.argv: {shell_args}")
+                
                 # 检查是否包含--raw-command flag
                 has_raw_flag = '--raw-command' in shell_args
+                print(f"[DEBUG] has_raw_flag: {has_raw_flag}")
                 
                 if len(shell_args) == 1:
                     shell_cmd = shell_args[0]
+                    print(f"[DEBUG] Single arg, shell_cmd = {repr(shell_cmd)}")
                 else:
                     # 对于--raw-command模式，使用简单的空格连接（不添加额外引号）
                     # 因为raw模式的参数已经由shell解析过，&&、|等操作符不应该被引号包裹
                     # 对于非raw模式（如shell -c命令），使用shlex.join保留引号
                     if has_raw_flag:
                         shell_cmd = ' '.join(shell_args)
+                        print(f"[DEBUG] Raw mode, using ' '.join(): {repr(shell_cmd)}")
                     else:
                         shell_cmd = shlex.join(shell_args)
+                        print(f"[DEBUG] Normal mode, using shlex.join(): {repr(shell_cmd)}")
                 
                 return self.handle_shell_command_args(shell_cmd, command_identifier)
         elif args[0] == '--desktop':
