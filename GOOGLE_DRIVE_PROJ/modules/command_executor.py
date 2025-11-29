@@ -1079,6 +1079,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         feedback_result = self.direct_feedback(remote_command, debug_info)
 
         # 添加分隔符
+        print()
         print(f"=" * 20)
 
         # 如果提供了result_filename，尝试等待并读取实际的执行结果
