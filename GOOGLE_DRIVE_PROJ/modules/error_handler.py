@@ -385,7 +385,7 @@ class EnhancedErrorHandler:
             #         print(f"  {frame['filename']}:{frame['line_number']} in {frame['function']}()")
             
         except Exception:
-            print(f"\n❌ Error in {error_info.get('context', 'Unknown')}: {error_info.get('exception_message', 'Unknown error')}")
+            print(f"\nError in {error_info.get('context', 'Unknown')}: {error_info.get('exception_message', 'Unknown error')}")
 
 
 # 全局错误处理器实例

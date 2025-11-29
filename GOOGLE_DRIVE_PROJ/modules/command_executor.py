@@ -1000,11 +1000,6 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
 '''
         # 将挂载检查添加到命令文本前面，并在最后添加fi
         enhanced_cmd = mount_check_header + cmd + "\nfi"
-        
-        # print(f"[DEBUG] show_remote_command_window 传递给窗口的命令:")
-        # print(f"  原始cmd: {repr(cmd)}")
-        # print(f"  enhanced_cmd长度: {len(enhanced_cmd)}")
-        # print(f"  enhanced_cmd前100字符: {repr(enhanced_cmd[:100])}")
         from .window_manager import get_window_manager
         
         # 获取窗口管理器并请求窗口

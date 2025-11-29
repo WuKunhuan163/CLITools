@@ -6062,10 +6062,10 @@ print('Script execution successful!')
             
             # 对比
             if gds_output == local_output:
-                print(f'  ✅ 对齐 - GDS和本地bash输出一致')
+                print(f'  对齐 - GDS和本地bash输出一致')
                 results.append((name, True, None))
             else:
-                print(f'  ❌ 不对齐')
+                print(f'  不对齐')
                 print(f'     本地bash: {repr(local_output)}')
                 print(f'     GDS:      {repr(gds_output)}')
                 results.append((name, False, (local_output, gds_output)))
@@ -6097,10 +6097,10 @@ print('Script execution successful!')
             print(f'  实际: {repr(actual)}')
             
             if expected == actual:
-                print(f'  ✅ 匹配')
+                print(f'  匹配')
                 results.append((name, True, None))
             else:
-                print(f'  ❌ 不匹配')
+                print(f'  不匹配')
                 results.append((name, False, (expected, actual)))
         
         # 汇总报告

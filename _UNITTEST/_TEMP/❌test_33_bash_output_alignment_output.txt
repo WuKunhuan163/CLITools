@@ -1,5 +1,5 @@
 # ============================================================================
-# Test completed at: 2025-11-18 17:35:25 - Status: FAIL
+# Test completed at: 2025-11-28 17:11:18 - Status: FAIL
 # ============================================================================
 
 test_33_bash_output_alignment (test_gds.GDSTest)
@@ -10,7 +10,7 @@ FAIL: test_33_bash_output_alignment (test_gds.GDSTest)
 测试GDS shell输出与bash shell输出的对齐性
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 5282, in test_33_bash_output_alignment
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 5267, in test_33_bash_output_alignment
     self.assertEqual(gds_stdout.strip(), bash_result.stdout.strip(),
   File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 194, in assertEqual
     super().assertEqual(first, second, msg)
@@ -23,22 +23,22 @@ Line2
  : echo命令 'echo "Line1\nLine2"' (bash: 'echo -e "Line1\nLine2"') 输出应该一致
 
 ----------------------------------------------------------------------
-Ran 1 test in 746.406s
+Ran 1 test in 123.971s
 
 FAILED (failures=1)
 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
 Python缓存和pytest缓存已清理
-远端测试目录: ~/tmp/gds_test_20251118_172255_418434_1f67a4fc
-正在创建远端测试目录: ~/tmp/gds_test_20251118_172255_418434_1f67a4fc
+远端测试目录: ~/tmp/gds_test_20251128_170914_119989_5d6f95d8
+正在创建远端测试目录: ~/tmp/gds_test_20251128_170914_119989_5d6f95d8
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251118_172255_418434_1f67a4fc
-✓ 验证测试目录存在: ~/tmp/gds_test_20251118_172255_418434_1f67a4fc
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local__s9h4grb
+已切换到远端测试目录: ~/tmp/gds_test_20251128_170914_119989_5d6f95d8
+✓ 验证测试目录存在: ~/tmp/gds_test_20251128_170914_119989_5d6f95d8
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_1s8x4rd8
 测试环境设置完成
 测试GDS shell输出与bash shell输出的对齐性
-使用本地临时bash测试目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_usldh41d/bash_test_dir
-命令: 'mkdir -p ~/tmp/gds_test_20251118_172255_418434_1f67a4fc/gds_test_dir'
+使用本地临时bash测试目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_jssuinch/bash_test_dir
+命令: 'mkdir -p ~/tmp/gds_test_20251128_170914_119989_5d6f95d8/gds_test_dir'
 返回码: 0
 输出: 
 测试1: 基本命令对比

@@ -91,7 +91,7 @@ def list_tests():
 def run_tests_range(start_id, end_id, max_concurrent=3):
     """运行指定范围的测试"""
     if start_id < 0 or end_id >= len(ALL_GDS_TESTS) or start_id > end_id:
-        print(f"❌ Invalid range: {start_id}-{end_id}. Valid range: 0-{len(ALL_GDS_TESTS)-1}")
+        print(f"Invalid range: {start_id}-{end_id}. Valid range: 0-{len(ALL_GDS_TESTS)-1}")
         return
     
     test_queue = ALL_GDS_TESTS[start_id:end_id+1]
