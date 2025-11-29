@@ -2297,12 +2297,15 @@ fi
                 if has_raw_command and hasattr(self, 'command_executor'):
                     self.command_executor._raw_command = True
                 
-                # 将参数列表转换为字符串（使用第一个参数，如果多个参数则用空格连接）
+                # 将参数列表转换为字符串
+                # 使用shlex.join正确处理引号，而不是简单的空格连接
+                import shlex
                 shell_args = args[1:]
                 if len(shell_args) == 1:
                     shell_cmd = shell_args[0]
                 else:
-                    shell_cmd = ' '.join(shell_args)
+                    # 使用shlex.join自动为包含空格的参数添加引号
+                    shell_cmd = shlex.join(shell_args)
                 return self.handle_shell_command_args(shell_cmd, command_identifier)
         elif args[0] == '--desktop':
             return self.handle_desktop_command(args[1:], command_identifier)
