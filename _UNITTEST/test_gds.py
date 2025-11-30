@@ -6043,10 +6043,11 @@ print('Script execution successful!')
             
             # GDS执行
             result_gds = self.gds(cmd)
-            gds_output = result_gds.stdout.strip() if result_gds.returncode == 0 else ""
+            gds_output = self.get_cleaned_stdout(result_gds).strip() if result_gds.returncode == 0 else ""
             
             # 本地bash执行
-            local_output = expect_fn(cmd)
+            bash_result = expect_fn(cmd)
+            local_output = bash_result.stdout.strip()
             
             # 对比
             if gds_output == local_output:
