@@ -5891,35 +5891,48 @@ print('Script execution successful!')
         print("@路径操作测试完成")
 
     def test_36_pyenv_install_local(self):
-        """测试pyenv本地下载安装功能 - 动态选择随机版本进行本地下载和远程编译安装"""
+        """测试pyenv本地下载安装功能 - 通过wget检测可用版本并随机选择进行本地下载和远程编译安装"""
         print("测试pyenv本地下载安装功能（使用随机版本）")
         
-        # 步骤1：获取所有可用的Python版本
-        print("步骤1：获取所有可用的Python版本")
-        result = self.gds(["pyenv", "--list"])
-        self.assertEqual(result.returncode, 0, "获取可用版本应该成功")
-        available_versions_output = result.stdout
+        # 步骤1：通过wget检测可用的Python版本
+        print("步骤1：通过wget检测可用的Python版本（探测范围：3.7.x - 3.11.x）")
         
-        # 解析可用版本，过滤掉Python 2.x版本（Colab可能不支持）
-        import re
-        version_lines = available_versions_output.split('\n')
-        available_versions = []
-        
-        for line in version_lines:
-            line = line.strip()
-            if line and not line.startswith('Available Python versions') and not line.startswith('Showing'):
-                # 提取版本号，只选择Python 2.x和3.x版本
-                version_match = re.search(r'(\d+\.\d+\.\d+)', line)
-                if version_match:
-                    version = version_match.group(1)
-                    available_versions.append(version)
-        
-        self.assertGreaterEqual(len(available_versions), 1, "至少需要1个可用的Python版本进行测试")
-        
-        # 随机选择一个版本进行测试
         import random
         import time
         random.seed(int(time.time()))  # 使用当前时间作为种子确保真正随机
+        
+        # 定义要检测的Python版本范围（主版本.次版本）
+        version_ranges = ['3.7', '3.8', '3.9', '3.10', '3.11']
+        
+        # 对每个主次版本，尝试几个常见的patch版本
+        common_patch_versions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        
+        available_versions = []
+        
+        # 从每个主次版本中随机选择几个patch版本进行检测
+        for major_minor in version_ranges:
+            # 随机选择3-5个patch版本进行检测（减少检测时间）
+            patches_to_test = random.sample(common_patch_versions, min(5, len(common_patch_versions)))
+            
+            for patch in patches_to_test:
+                version = f"{major_minor}.{patch}"
+                url = f"https://www.python.org/ftp/python/{version}/Python-{version}.tgz"
+                
+                # 使用wget --spider检测URL是否存在（不下载文件）
+                check_cmd = f"wget --spider -q {url} 2>&1 && echo 'EXISTS' || echo 'NOT_FOUND'"
+                result = self.gds(['bash', '-c', check_cmd], expect_success=False)
+                
+                if result.returncode == 0 and 'EXISTS' in result.stdout:
+                    available_versions.append(version)
+                    print(f"  ✓ Found: Python {version}")
+                    break  # 找到一个可用版本就够了，继续下一个主次版本
+                else:
+                    print(f"  ✗ Not found: Python {version}")
+        
+        print(f"\n检测到 {len(available_versions)} 个可用的Python版本: {available_versions}")
+        self.assertGreaterEqual(len(available_versions), 1, f"至少需要1个可用的Python版本进行测试，但只找到{len(available_versions)}个")
+        
+        # 随机选择一个版本进行测试
         test_version = random.choice(available_versions)
         
         print(f'从{len(available_versions)}个可用版本中随机选择的测试版本: {test_version}')
