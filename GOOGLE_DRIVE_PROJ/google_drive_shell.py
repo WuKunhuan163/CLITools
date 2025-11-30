@@ -2301,25 +2301,19 @@ fi
                 import shlex
                 shell_args = args[1:]
                 
-                print(f"[DEBUG] shell_args from sys.argv: {shell_args}")
-                
                 # 检查是否包含--raw-command flag
                 has_raw_flag = '--raw-command' in shell_args
-                print(f"[DEBUG] has_raw_flag: {has_raw_flag}")
                 
                 if len(shell_args) == 1:
                     shell_cmd = shell_args[0]
-                    print(f"[DEBUG] Single arg, shell_cmd = {repr(shell_cmd)}")
                 else:
                     # 对于--raw-command模式，使用简单的空格连接（不添加额外引号）
                     # 因为raw模式的参数已经由shell解析过，&&、|等操作符不应该被引号包裹
                     # 对于非raw模式（如shell -c命令），使用shlex.join保留引号
                     if has_raw_flag:
                         shell_cmd = ' '.join(shell_args)
-                        print(f"[DEBUG] Raw mode, using ' '.join(): {repr(shell_cmd)}")
                     else:
                         shell_cmd = shlex.join(shell_args)
-                        print(f"[DEBUG] Normal mode, using shlex.join(): {repr(shell_cmd)}")
                 
                 return self.handle_shell_command_args(shell_cmd, command_identifier)
         elif args[0] == '--desktop':
@@ -2362,45 +2356,48 @@ fi
         if not shell_cmd:
             return 0
         
+        # ============================================================================
+        # [TEMPORARILY DISABLED FOR TESTING RECURSIVE PATH EXPANSION]
         # 检测特殊命令包装（bash -c, zsh -c, sh -c, echo -e等）
         # 提取wrapper和内部命令，对内部命令进行路径展开后，用shlex.join正确重组
-        import shlex
+        # ============================================================================
+        # import shlex
         command_wrapper = None
-        if shell_cmd.startswith('bash -c '):
-            command_wrapper = 'bash -c'
-            shell_cmd = shell_cmd[len('bash -c '):].strip()
-            try:
-                # shlex.split移除最外层引号并正确处理内部引号
-                unwrapped = shlex.split(shell_cmd)
-                shell_cmd = shlex.join(unwrapped)
-            except Exception as e:
-                pass
-        elif shell_cmd.startswith('zsh -c '):
-            command_wrapper = 'zsh -c'
-            shell_cmd = shell_cmd[len('zsh -c '):].strip()
-            try:
-                unwrapped = shlex.split(shell_cmd)
-                shell_cmd = shlex.join(unwrapped)
-            except Exception as e:
-                pass
-        elif shell_cmd.startswith('sh -c '):
-            command_wrapper = 'sh -c'
-            shell_cmd = shell_cmd[len('sh -c '):].strip()
-            try:
-                unwrapped = shlex.split(shell_cmd)
-                shell_cmd = shlex.join(unwrapped)
-            except Exception as e:
-                pass
-        elif shell_cmd.startswith('echo -e '):
-            command_wrapper = 'echo -e'
-            shell_cmd = shell_cmd[len('echo -e '):].strip()
-            try:
-                # shlex.split移除最外层引号并正确处理内部引号
-                unwrapped = shlex.split(shell_cmd)
-                # 用shlex.join重建（保留必要的内部引号）
-                shell_cmd = shlex.join(unwrapped)
-            except:
-                pass
+        # if shell_cmd.startswith('bash -c '):
+        #     command_wrapper = 'bash -c'
+        #     shell_cmd = shell_cmd[len('bash -c '):].strip()
+        #     try:
+        #         # shlex.split移除最外层引号并正确处理内部引号
+        #         unwrapped = shlex.split(shell_cmd)
+        #         shell_cmd = shlex.join(unwrapped)
+        #     except Exception as e:
+        #         pass
+        # elif shell_cmd.startswith('zsh -c '):
+        #     command_wrapper = 'zsh -c'
+        #     shell_cmd = shell_cmd[len('zsh -c '):].strip()
+        #     try:
+        #         unwrapped = shlex.split(shell_cmd)
+        #         shell_cmd = shlex.join(unwrapped)
+        #     except Exception as e:
+        #         pass
+        # elif shell_cmd.startswith('sh -c '):
+        #     command_wrapper = 'sh -c'
+        #     shell_cmd = shell_cmd[len('sh -c '):].strip()
+        #     try:
+        #         unwrapped = shlex.split(shell_cmd)
+        #         shell_cmd = shlex.join(unwrapped)
+        #     except Exception as e:
+        #         pass
+        # elif shell_cmd.startswith('echo -e '):
+        #     command_wrapper = 'echo -e'
+        #     shell_cmd = shell_cmd[len('echo -e '):].strip()
+        #     try:
+        #         # shlex.split移除最外层引号并正确处理内部引号
+        #         unwrapped = shlex.split(shell_cmd)
+        #         # 用shlex.join重建（保留必要的内部引号）
+        #         shell_cmd = shlex.join(unwrapped)
+        #     except:
+        #         pass
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):
