@@ -2313,8 +2313,9 @@ fi
                 has_raw_flag = '--raw-command' in shell_args
                 has_bg_flag = '--bg' in shell_args or '--background' in shell_args or '--async' in shell_args
                 
-                # 过滤掉所有flag，只保留命令
-                filtered_shell_args = [arg for arg in shell_args if arg not in ['--no-direct-feedback', '--priority', '--no-capture', '--raw-command', '--bg', '--background', '--async']]
+                # 只过滤修饰符flag（不改变命令行为的flag），保留--bg/--raw-command及其子命令
+                modifier_flags = ['--no-direct-feedback', '--priority', '--no-capture']
+                filtered_shell_args = [arg for arg in shell_args if arg not in modifier_flags]
                 
                 if len(filtered_shell_args) == 1:
                     shell_cmd = filtered_shell_args[0]
