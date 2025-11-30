@@ -5026,20 +5026,21 @@ print('Script execution successful!')
         # 验证文件确实被创建
         result = self.gds(f'cat {test_file1}')
         self.assertEqual(result.returncode, 0, "读取测试文件1应该成功")
-        self.assertEqual(result.stdout.strip(), "Echo without newline", "文件内容应该正确")
+        self.assertEqual(self.get_cleaned_stdout(result).strip(), "Echo without newline", "文件内容应该正确")
         
         # 测试2: 复杂命令模式匹配（基于已创建的文件）
         print(f'测试2: 复杂命令模式匹配')
         # 验证test_file2的内容
         result = self.gds(f'cat {test_file2}')
         self.assertEqual(result.returncode, 0, "读取测试文件2应该成功")
-        self.assertEqual(result.stdout.strip(), "Hello World", "printf文件内容应该正确")
+        self.assertEqual(self.get_cleaned_stdout(result).strip(), "Hello World", "printf文件内容应该正确")
         
         # 验证test_file3的追加内容
         result = self.gds(f'cat {test_file3}')
         self.assertEqual(result.returncode, 0, "读取测试文件3应该成功")
-        self.assertIn("Line 1", result.stdout, "追加文件应该包含第一行")
-        self.assertIn("Line 2", result.stdout, "追加文件应该包含第二行")
+        cleaned_output = self.get_cleaned_stdout(result)
+        self.assertIn("Line 1", cleaned_output, "追加文件应该包含第一行")
+        self.assertIn("Line 2", cleaned_output, "追加文件应该包含第二行")
         
         # 测试正则表达式匹配
         complex_commands = [
