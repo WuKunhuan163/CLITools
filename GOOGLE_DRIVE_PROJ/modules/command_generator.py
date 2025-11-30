@@ -271,7 +271,8 @@ class CommandGenerator:
                     i += 1
             
             # 重新组合命令
-            expanded_cmd = ' '.join(processed_tokens)
+            # 使用shlex.join保留必要的引号（如bash -c '...'中的引号）
+            expanded_cmd = shlex.join(processed_tokens)
         except ValueError:
             # shlex split失败，保持原样
             pass
