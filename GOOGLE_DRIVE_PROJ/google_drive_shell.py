@@ -675,14 +675,7 @@ class GoogleDriveShell:
             result_file = get_bg_result_file(bg_pid)
             
             # 使用base64编码来安全传递命令，避免引号问题
-            print(f"[DEBUG BG] Original shell_cmd: {repr(shell_cmd)}")
-            print(f"[DEBUG BG] Length: {len(shell_cmd)}")
             cmd_b64 = base64.b64encode(shell_cmd.encode('utf-8')).decode('ascii')
-            print(f"[DEBUG BG] Base64 encoded: {cmd_b64}")
-            # Test decode
-            import base64 as b64_test
-            decoded_test = b64_test.b64decode(cmd_b64).decode('utf-8')
-            print(f"[DEBUG BG] Test decode: {repr(decoded_test)}")
             
             # 构建命令使用简单字符串拼接 - 完全避免f-string嵌套引号
             cmd_parts = []
@@ -1117,8 +1110,6 @@ class GoogleDriveShell:
                         return 0
                     else:
                         # 执行background命令
-                        print(f"[DEBUG BG EXEC] remaining_cmd: {repr(remaining_cmd)}")
-                        print(f"[DEBUG BG EXEC] shell_cmd_clean: {repr(shell_cmd_clean)}")
                         return self.execute_background_command(remaining_cmd, command_identifier)
             
             # 解析命令
@@ -2317,16 +2308,18 @@ fi
                 import shlex
                 shell_args = args[1:]
                 
-                # 检查是否包含--raw-command flag
+                # 检查是否包含--raw-command或--bg flag
                 has_raw_flag = '--raw-command' in shell_args
+                has_bg_flag = '--bg' in shell_args or '--background' in shell_args or '--async' in shell_args
                 
                 if len(shell_args) == 1:
                     shell_cmd = shell_args[0]
                 else:
-                    # 对于--raw-command模式，使用简单的空格连接（不添加额外引号）
-                    # 因为raw模式的参数已经由shell解析过，&&、|等操作符不应该被引号包裹
+                    # 对于--raw-command或--bg模式，使用简单的空格连接（不添加额外引号）
+                    # 因为这些模式的参数已经由shell解析过，&&、|等操作符不应该被引号包裹
+                    # 同样，--bg命令的参数也不应该被重新引号转义
                     # 对于非raw模式（如shell -c命令），使用shlex.join保留引号
-                    if has_raw_flag:
+                    if has_raw_flag or has_bg_flag:
                         shell_cmd = ' '.join(shell_args)
                     else:
                         shell_cmd = shlex.join(shell_args)
