@@ -447,6 +447,90 @@ def get_user_input_via_terminal(project_name, timeout_hint=""):
     
     return full_input or "用户暂无输入"
 
+def copy_to_clipboard(text):
+    """将文本复制到剪贴板，使用系统命令保证可靠性"""
+    try:
+        system = platform.system()
+        
+        if system == "Darwin":  # macOS
+            # 使用pbcopy命令（最可靠的方法）
+            process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+            process.communicate(text.encode('utf-8'))
+            # print(f"[DEBUG] ✅ 已使用pbcopy复制 {len(text)} 个字符到剪贴板")
+            
+            # 验证复制是否成功（静默验证）
+            try:
+                verify_process = subprocess.Popen(['pbpaste'], stdout=subprocess.PIPE)
+                clipboard_content, _ = verify_process.communicate()
+                clipboard_text = clipboard_content.decode('utf-8')
+                if clipboard_text == text:
+                    pass  # print("[DEBUG] ✅ 验证成功：剪贴板内容完全匹配")
+                else:
+                    pass  # print(f"[DEBUG] ⚠️ 验证失败：剪贴板有 {len(clipboard_text)} 字符，预期 {len(text)} 字符")
+            except Exception as verify_error:
+                pass  # print(f"[DEBUG] ⚠️ 验证出错: {verify_error}")
+            
+            return True
+            
+        elif system == "Linux":
+            # 尝试Linux的剪贴板命令
+            try:
+                # 尝试xclip
+                process = subprocess.Popen(['xclip', '-selection', 'clipboard'], stdin=subprocess.PIPE)
+                process.communicate(text.encode('utf-8'))
+                # print(f"[DEBUG] ✅ 已使用xclip复制 {len(text)} 个字符到剪贴板")
+                return True
+            except FileNotFoundError:
+                try:
+                    # 尝试xsel
+                    process = subprocess.Popen(['xsel', '--clipboard', '--input'], stdin=subprocess.PIPE)
+                    process.communicate(text.encode('utf-8'))
+                    # print(f"[DEBUG] ✅ 已使用xsel复制 {len(text)} 个字符到剪贴板")
+                    return True
+                except FileNotFoundError:
+                    # print("[DEBUG] ⚠️ 未找到xclip或xsel，尝试使用tkinter")
+                    return _copy_to_clipboard_tkinter(text)
+                    
+        elif system == "Windows":
+            # Windows使用clip命令
+            process = subprocess.Popen(['clip'], stdin=subprocess.PIPE, shell=True)
+            process.communicate(text.encode('utf-16'))
+            # print(f"[DEBUG] ✅ 已使用clip复制 {len(text)} 个字符到剪贴板")
+            return True
+        else:
+            # 未知系统，回退到tkinter
+            # print(f"[DEBUG] ⚠️ 未知系统 {system}，使用tkinter")
+            return _copy_to_clipboard_tkinter(text)
+            
+    except Exception as e:
+        # print(f"[DEBUG] ❌ 复制到剪贴板失败: {e}，尝试tkinter方法")
+        return _copy_to_clipboard_tkinter(text)
+
+def _copy_to_clipboard_tkinter(text):
+    """使用tkinter的备用方法（不太可靠）"""
+    try:
+        import tkinter as tk
+        
+        root = tk.Tk()
+        root.withdraw()
+        root.clipboard_clear()
+        root.clipboard_append(text)
+        
+        # 多次update确保内容被保存
+        for _ in range(10):
+            root.update()
+        
+        # print(f"[DEBUG] ✅ 已使用tkinter复制 {len(text)} 个字符到剪贴板")
+        
+        # 不要立即销毁，让剪贴板有时间保存
+        root.after(100, root.destroy)
+        root.mainloop()
+        
+        return True
+    except Exception as e:
+        # print(f"[DEBUG] ❌ tkinter复制失败: {e}")
+        return False
+
 def write_to_json_output(user_input, command_identifier=None):
     """将用户输入写入到指定的 JSON 输出文件中"""
     if not is_run_environment(command_identifier):
@@ -609,9 +693,17 @@ def main():
             print(user_input)
     else:
         # 不在 RUN 环境中，直接输出到 stdout（保持原有行为）
-        os.system("clear") if os.name == "posix" else os.system("cls")
+        # 先添加结束提示
         if not timeout:
             user_input += end_hint
+        
+        # 复制完整内容到剪贴板（包含end_hint）
+        copy_to_clipboard(user_input)
+        
+        # 清空屏幕
+        os.system("clear") if os.name == "posix" else os.system("cls")
+        
+        # 输出到终端
         print(user_input)
 
 if __name__ == "__main__":
