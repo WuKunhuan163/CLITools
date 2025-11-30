@@ -727,8 +727,9 @@ class GoogleDriveShell:
             cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Command decoded successfully\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'chmod +x /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Executing command...\"' >> {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'bash /tmp/bg_cmd_result_{bg_pid}.sh > /tmp/bg_stdout_{bg_pid} 2> /tmp/bg_stderr_{bg_pid}' >> {tmp_path}/{script_file}")
-            cmd_parts.append(f"echo 'EXIT_CODE=$?' >> {tmp_path}/{script_file}")
+            # Use tee to capture stdout to both log (via script stdout) and temp file for result.json
+            cmd_parts.append(f"echo 'bash /tmp/bg_cmd_result_{bg_pid}.sh 2> /tmp/bg_stderr_{bg_pid} | tee /tmp/bg_stdout_{bg_pid}' >> {tmp_path}/{script_file}")
+            cmd_parts.append(f"echo 'EXIT_CODE=${{PIPESTATUS[0]}}' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'echo \"[$(date +%H:%M:%S)] Command completed with exit code: $EXIT_CODE\"' >> {tmp_path}/{script_file}")
             cmd_parts.append(f"echo 'rm -f /tmp/bg_cmd_result_{bg_pid}.sh' >> {tmp_path}/{script_file}")
             
