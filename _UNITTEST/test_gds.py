@@ -5240,20 +5240,8 @@ print('Script execution successful!')
             gds_stdout = self.get_cleaned_stdout(gds_result)
             
             # 为bash准备等效命令
+            # GDS和bash保持一致，普通echo不解释转义序列（需要echo -e）
             bash_cmd = cmd
-            if cmd.startswith('echo') and ('\\n' in cmd or '\\t' in cmd):
-                # GDS会自动为包含转义序列的echo命令添加-e标志
-                # 所以bash也需要使用-e标志来保持一致
-                import re
-                echo_pattern = r'^echo\s+(["\'])(.*?)\1(.*)$'
-                match = re.match(echo_pattern, cmd.strip())
-                if match:
-                    quote_char = match.group(1)
-                    content = match.group(2)
-                    rest_args = match.group(3).strip()
-                    bash_cmd = f'echo -e {quote_char}{content}{quote_char}'
-                    if rest_args:
-                        bash_cmd += f' {rest_args}'
             
             # 运行bash命令
             bash_result = self.bash(bash_cmd)
