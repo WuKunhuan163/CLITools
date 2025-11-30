@@ -5283,18 +5283,18 @@ print('Script execution successful!')
         print("测试2: 文件操作对比")
         
         # 创建相同的测试内容
-        # 注意：GDS会自动为包含\\n的echo命令添加-e标志，所以bash也需要使用echo -e
+        # 注意：GDS和bash都使用标准echo（不解释\n转义），输出字面字符
         test_content = "Test content for alignment\\nLine 2: 中文测试\\nLine 3: Special chars @#$%"
         
-        # 在GDS中创建文件（GDS会自动添加-e标志）
+        # 在GDS中创建文件
         gds_file_path = f'{gds_test_dir}/test_alignment.txt'
         gds_create_cmd = f'echo "{test_content}" > {gds_file_path}'
         gds_result = self.gds(gds_create_cmd)
         self.assertEqual(gds_result.returncode, 0, "GDS创建文件应该成功")
         
-        # 在bash中创建相同文件（需要明确使用echo -e）
+        # 在bash中创建相同文件（标准echo，不用-e）
         bash_file_path = f'{bash_test_dir}/test_alignment.txt'
-        bash_create_cmd = f'echo -e "{test_content}" > {bash_file_path}'
+        bash_create_cmd = f'echo "{test_content}" > {bash_file_path}'
         bash_result = self.bash(bash_create_cmd)
         self.assertEqual(bash_result.returncode, 0, "bash创建文件应该成功")
         
