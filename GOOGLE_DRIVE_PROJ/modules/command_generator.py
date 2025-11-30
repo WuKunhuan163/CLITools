@@ -225,6 +225,40 @@ class CommandGenerator:
         # ================================================================================
         
         import shlex
+        
+        # 辅助函数：严格判断字符串是否包含路径placeholder
+        # 避免误展开非路径字符串中的 ~ 或 @ 符号
+        def contains_path_placeholder(text, ph):
+            """
+            严格判断text是否包含路径placeholder。
+            
+            符合以下条件之一即认为是路径：
+            (1) "placeholder/" 在开头
+            (2) "placeholder " 在开头（注意最后的空格）
+            (3) " placeholder/" 在其余位置（注意开始的空格）
+            (4) " placeholder " 在其余位置（注意开始和结束的空格）
+            
+            例如：
+            - "@/python" → True (格式1)
+            - "@ " → True (格式2)
+            - "test @/path" → True (格式3)
+            - "this is @ string" → True (格式4)
+            - "this is ~ string" → False (~ 前后都有非空白字符)
+            """
+            # (1) placeholder/ 在开头
+            if text.startswith(f'{ph}/'):
+                return True
+            # (2) placeholder<space> 在开头
+            if text.startswith(f'{ph} '):
+                return True
+            # (3) <space>placeholder/ 在其余位置
+            if f' {ph}/' in text:
+                return True
+            # (4) <space>placeholder<space> 在其余位置
+            if f' {ph} ' in text:
+                return True
+            return False
+        
         try:
             tokens = shlex.split(expanded_cmd)
             processed_tokens = []
@@ -234,7 +268,7 @@ class CommandGenerator:
                 token = tokens[i]
                 
                 # 格式1: --xxx=value 或 -x=value 形式
-                if '=' in token and f'{placeholder}/' in token:
+                if '=' in token and contains_path_placeholder(token, placeholder):
                     # 分离参数名和值
                     param_name, param_value = token.split('=', 1)
                     
@@ -249,9 +283,9 @@ class CommandGenerator:
                     i += 1
                 
                 # 格式2: --xxx value 或 -x value 形式（参数名和值分离）
-                # 检查当前token是否是参数选项（以-或--开头）且下一个token包含placeholder
+                # 检查当前token是否是参数选项（以-或--开头）且下一个token包含路径placeholder
                 elif (token.startswith('-') and i + 1 < len(tokens) and 
-                      f'{placeholder}/' in tokens[i + 1]):
+                      contains_path_placeholder(tokens[i + 1], placeholder)):
                     # 当前token是参数名（如--prefix或-D）
                     param_name = token
                     param_value = tokens[i + 1]
