@@ -304,9 +304,24 @@ class CommandGenerator:
                     processed_tokens.append(token)
                     i += 1
             
-            # 重新组合命令
-            # 使用shlex.join保留必要的引号（如bash -c '...'中的引号）
-            expanded_cmd = shlex.join(processed_tokens)
+            # 重新组合命令 - 智能判断是否需要加引号
+            # 如果token可以继续split（split后长度>1），说明原来有引号，用shlex.join保留
+            # 否则直接用空格连接（避免给操作符如>加引号）
+            result_parts = []
+            for token in processed_tokens:
+                try:
+                    # 检查token是否还能继续split
+                    resplit = shlex.split(token)
+                    if len(resplit) > 1:
+                        # 能继续split，说明原来有引号，用shlex.join保留引号
+                        result_parts.append(shlex.join([token]))
+                    else:
+                        # 不能继续split，说明是单个词/操作符，直接用
+                        result_parts.append(token)
+                except ValueError:
+                    # split失败（如引号不配对），直接用
+                    result_parts.append(token)
+            expanded_cmd = ' '.join(result_parts)
         except ValueError:
             # shlex split失败，保持原样
             pass
