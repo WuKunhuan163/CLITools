@@ -874,7 +874,7 @@ class GoogleDriveShell:
         Args:
             shell_cmd: 要执行的命令
             command_identifier: 命令标识符
-            command_wrapper: 命令包装器（如 'bash -c', 'echo -e'），如果提供，将在路径展开后重新包装命令
+            command_wrapper: [DEPRECATED] 已废弃的命令包装器参数，不再使用
         """
         # 保存原始用户命令
         self.original_user_command = shell_cmd.strip()
@@ -1023,27 +1023,34 @@ class GoogleDriveShell:
                 if '~' in shell_cmd_clean:
                     shell_cmd_clean = self.command_generator.expand_paths_with_bash(shell_cmd_clean, '~', self.REMOTE_ROOT)
             
-            # 如果有command_wrapper，在路径展开后重新包装命令
-            # 使用shlex.join正确组装，自动处理引号
-            if command_wrapper:
-                import shlex
-                # command_wrapper是"bash -c"或"echo -e"，需要split成列表
-                wrapper_parts = command_wrapper.split()
-                
-                # 检查是否需要映射shell命令到自定义安装的binary路径
-                # 例如: zsh -> @/shell/zsh-install/bin/zsh
-                shell_binary_map = {
-                    'zsh': f'{self.REMOTE_ENV}/shell/zsh-install/bin/zsh',
-                    # 未来可以添加更多shell映射
-                    # 'fish': f'{self.REMOTE_ENV}/shell/fish-install/bin/fish',
-                }
-                
-                # 如果wrapper的第一个部分是自定义shell，替换为完整路径
-                if wrapper_parts[0] in shell_binary_map:
-                    wrapper_parts[0] = shell_binary_map[wrapper_parts[0]]
-                
-                # 组合wrapper和展开后的命令，用shlex.join自动添加正确的引号
-                shell_cmd_clean = shlex.join(wrapper_parts + [shell_cmd_clean])
+            # ========================================================================
+            # [DEPRECATED] Command wrapper re-wrapping logic - REMOVED 2025-11-30
+            # ========================================================================
+            # 
+            # 此处原有代码会在路径展开后重新包装命令（如bash -c, zsh -c等）。
+            # 
+            # 已移除原因：递归路径展开机制（command_generator.py步骤8）
+            # 自动处理参数值中的路径，无需手动包装逻辑。
+            # 
+            # 原有功能：
+            # - 检测command_wrapper参数（如'bash -c'）
+            # - 映射shell命令到自定义binary路径（如zsh -> @/shell/zsh-install/bin/zsh）
+            # - 使用shlex.join重新组装命令
+            # 
+            # 新机制优势：
+            # - 自动处理所有参数格式（--param=value, --param value）
+            # - 使用shlex.join正确保留引号
+            # - 无需手动管理wrapper逻辑
+            # ========================================================================
+            # if command_wrapper:
+            #     import shlex
+            #     wrapper_parts = command_wrapper.split()
+            #     shell_binary_map = {
+            #         'zsh': f'{self.REMOTE_ENV}/shell/zsh-install/bin/zsh',
+            #     }
+            #     if wrapper_parts[0] in shell_binary_map:
+            #         wrapper_parts[0] = shell_binary_map[wrapper_parts[0]]
+            #     shell_cmd_clean = shlex.join(wrapper_parts + [shell_cmd_clean])
             
             # 更新shell_cmd以保持一致性
             shell_cmd = shell_cmd_clean
@@ -2357,47 +2364,40 @@ fi
             return 0
         
         # ============================================================================
-        # [TEMPORARILY DISABLED FOR TESTING RECURSIVE PATH EXPANSION]
-        # 检测特殊命令包装（bash -c, zsh -c, sh -c, echo -e等）
-        # 提取wrapper和内部命令，对内部命令进行路径展开后，用shlex.join正确重组
+        # [DEPRECATED] WRAPPER DETECTION MECHANISM - REMOVED 2025-11-30
         # ============================================================================
-        # import shlex
-        command_wrapper = None
-        # if shell_cmd.startswith('bash -c '):
-        #     command_wrapper = 'bash -c'
-        #     shell_cmd = shell_cmd[len('bash -c '):].strip()
-        #     try:
-        #         # shlex.split移除最外层引号并正确处理内部引号
-        #         unwrapped = shlex.split(shell_cmd)
-        #         shell_cmd = shlex.join(unwrapped)
-        #     except Exception as e:
-        #         pass
-        # elif shell_cmd.startswith('zsh -c '):
-        #     command_wrapper = 'zsh -c'
-        #     shell_cmd = shell_cmd[len('zsh -c '):].strip()
-        #     try:
-        #         unwrapped = shlex.split(shell_cmd)
-        #         shell_cmd = shlex.join(unwrapped)
-        #     except Exception as e:
-        #         pass
-        # elif shell_cmd.startswith('sh -c '):
-        #     command_wrapper = 'sh -c'
-        #     shell_cmd = shell_cmd[len('sh -c '):].strip()
-        #     try:
-        #         unwrapped = shlex.split(shell_cmd)
-        #         shell_cmd = shlex.join(unwrapped)
-        #     except Exception as e:
-        #         pass
-        # elif shell_cmd.startswith('echo -e '):
-        #     command_wrapper = 'echo -e'
-        #     shell_cmd = shell_cmd[len('echo -e '):].strip()
-        #     try:
-        #         # shlex.split移除最外层引号并正确处理内部引号
-        #         unwrapped = shlex.split(shell_cmd)
-        #         # 用shlex.join重建（保留必要的内部引号）
-        #         shell_cmd = shlex.join(unwrapped)
-        #     except:
-        #         pass
+        # 
+        # 历史背景：
+        # -----------
+        # 旧机制在此处检测wrapper命令（bash -c, zsh -c, sh -c, echo -e等），
+        # 然后在execute_shell_command中的路径展开后重新包装命令。
+        # 
+        # 为什么移除：
+        # -----------
+        # 1. **递归路径展开机制更通用**：
+        #    新的递归路径展开机制（command_generator.py步骤8）自动处理
+        #    所有参数格式的路径展开，包括：
+        #    - Format 1: --param=value (如 --prefix="@/path")
+        #    - Format 2: --param value (如 -c "echo @/path")
+        # 
+        # 2. **避免重复处理**：
+        #    wrapper机制会提取、展开、重新包装命令，但递归展开
+        #    已经在token级别正确处理了所有参数值，无需额外包装逻辑。
+        # 
+        # 3. **引号处理更可靠**：
+        #    递归展开使用shlex.join重组tokens，自动保留必要的引号，
+        #    无需手动管理wrapper的引号问题。
+        # 
+        # 验证测试：
+        # -----------
+        # GDS bash -c "echo @/python/" 
+        # → 正确展开为: bash -c 'echo /content/drive/MyDrive/REMOTE_ENV/python/'
+        # 
+        # GDS cmake -DCMAKE_INSTALL_PREFIX "@/some/path"
+        # → 正确展开为: cmake -DCMAKE_INSTALL_PREFIX "/content/drive/.../some/path"
+        # 
+        # 迁移完成日期：2025-11-30
+        # ============================================================================
         
         # 设置模式标志
         if no_direct_feedback and hasattr(self, 'command_executor'):
@@ -2413,7 +2413,8 @@ fi
             self.command_executor._raw_command = True
         
         # 执行shell命令
-        return self.execute_shell_command(shell_cmd, command_identifier, command_wrapper=command_wrapper)
+        # 注意：command_wrapper参数已废弃，不再传递
+        return self.execute_shell_command(shell_cmd, command_identifier)
     
     def handle_desktop_command(self, args, command_identifier=None):
         """处理--desktop命令"""
