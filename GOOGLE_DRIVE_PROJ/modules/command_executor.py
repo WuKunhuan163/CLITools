@@ -869,7 +869,7 @@ class CommandExecutor:
             try:
                 from .window_manager import get_window_manager
                 window_manager = get_window_manager()
-                window_manager._check_and_handle_remount()
+                window_manager.check_and_handle_remount()
             except Exception as e:
                 return {"success": False, "error": f"Remount required but failed: {e}"}
         
@@ -937,7 +937,7 @@ class CommandExecutor:
             try:
                 from .window_manager import get_window_manager
                 window_manager = get_window_manager()
-                window_manager._check_and_handle_remount()
+                window_manager.check_and_handle_remount()
             except Exception as e:
                 print(f"Error: Remount required but failed: {e}")
                 return 1
