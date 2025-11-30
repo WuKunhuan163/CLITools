@@ -2313,17 +2313,21 @@ fi
                 has_raw_flag = '--raw-command' in shell_args
                 has_bg_flag = '--bg' in shell_args or '--background' in shell_args or '--async' in shell_args
                 
-                if len(shell_args) == 1:
-                    shell_cmd = shell_args[0]
+                # 过滤掉所有flag，只保留命令
+                filtered_shell_args = [arg for arg in shell_args if arg not in ['--no-direct-feedback', '--priority', '--no-capture', '--raw-command', '--bg', '--background', '--async']]
+                
+                if len(filtered_shell_args) == 1:
+                    shell_cmd = filtered_shell_args[0]
+                elif len(filtered_shell_args) == 0:
+                    print(f"Error: No command provided after filtering flags")
+                    return 1
                 else:
-                    # 对于--raw-command或--bg模式，使用简单的空格连接（不添加额外引号）
-                    # 因为这些模式的参数已经由shell解析过，&&、|等操作符不应该被引号包裹
-                    # 同样，--bg命令的参数也不应该被重新引号转义
-                    # 对于非raw模式（如shell -c命令），使用shlex.join保留引号
+                    # 多个参数（命令被拆分了），需要重新组合
+                    # 对于--raw-command或--bg模式，使用简单的空格连接
                     if has_raw_flag or has_bg_flag:
-                        shell_cmd = ' '.join(shell_args)
+                        shell_cmd = ' '.join(filtered_shell_args)
                     else:
-                        shell_cmd = shlex.join(shell_args)
+                        shell_cmd = shlex.join(filtered_shell_args)
                 
                 return self.handle_shell_command_args(shell_cmd, command_identifier)
         elif args[0] == '--desktop':
