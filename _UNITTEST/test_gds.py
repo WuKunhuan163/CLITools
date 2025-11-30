@@ -809,7 +809,7 @@ Shell commands: ls -la && echo "done"
                     # print(f'[DEBUG GDS] cleaned_stdout length: {len(cleaned_stdout)}')
                     # 检查清理后的输出是否还包含indicator（仅警告，不中断测试）
                     if '⏳' in cleaned_stdout:
-                        print(f'⚠️  WARNING: Indicator ⏳ found in cleaned stdout after processing!')
+                        print(f'WARNING: Indicator ⏳ found in cleaned stdout after processing!')
                     print(f'输出: {cleaned_stdout}')
                     
                     # 即刻输出到JSON debug文件
@@ -857,7 +857,7 @@ Shell commands: ls -la && echo "done"
                     cleaned_stderr = process_terminal_erase(result.stderr)
                     # 检查清理后的错误输出是否还包含indicator（仅警告，不中断测试）
                     if '⏳' in cleaned_stderr:
-                        print(f'⚠️ WARNING: Indicator ⏳ found in cleaned stderr after processing!')
+                        print(f'WARNING: Indicator ⏳ found in cleaned stderr after processing!')
                         print(f'   First 200 chars: {cleaned_stderr[:200]}')
                     print(f'错误: {cleaned_stderr}...')
                 

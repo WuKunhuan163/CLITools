@@ -412,7 +412,7 @@ class PyenvCommand(BaseCommand):
                 
                 while retry_count <= max_retries and not step_success:
                     if retry_count > 0:
-                        print(f"\n⚠️  Retrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
+                        print(f"\nRetrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
                         time.sleep(3)
                     
                     print(f"\n▶ Executing step {step_num} as independent GDS command (raw mode)...")
@@ -477,7 +477,7 @@ class PyenvCommand(BaseCommand):
             }
             
         except KeyboardInterrupt:
-            print("\n\n⚠️  Installation interrupted by user (Ctrl+C)")
+            print("\n\nInstallation interrupted by user (Ctrl+C)")
             print("Cleaning up...")
             cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
             self.shell.execute_shell_command(cleanup_cmd)

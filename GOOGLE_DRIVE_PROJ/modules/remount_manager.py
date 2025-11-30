@@ -648,7 +648,7 @@ try:
                     # 复制不完整，重试一次
                     root.clipboard_clear()
                     root.clipboard_append(python_script)
-                    copy_btn.config(text="🔄重新复制", bg="#FF9800")
+                    copy_btn.config(text="✅复制成功", bg="#FF9800")
             except Exception as verify_error:
                 # 验证失败但复制可能成功，显示已复制
                 copy_btn.config(text="已复制", bg="#4CAF50")

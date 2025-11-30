@@ -86,7 +86,7 @@ def test_api_connection(command_identifier=None):
             return 1
             
     except subprocess.TimeoutExpired:
-        timeout_msg = "⚠️ API test timeout"
+        timeout_msg = "API test timeout"
         if is_run_environment(command_identifier):
             write_to_json_output({"success": False, "error": timeout_msg}, command_identifier)
         else:

@@ -179,7 +179,7 @@ class PathResolver:
     @staticmethod
     def restore_special_chars(text, placeholders):
         """
-        将placeholder恢复为原始特殊符号
+        将placeholder恢复为原始特殊符号（递归恢复，直到没有placeholder为止）
         
         Args:
             text (str): 包含placeholder的字符串
@@ -189,9 +189,17 @@ class PathResolver:
             str: 恢复后的字符串
         """
         result = text
-        for placeholder, symbol in placeholders.items():
-            if placeholder in result:
-                result = result.replace(placeholder, symbol)
+        # 递归恢复：持续替换直到没有更多的placeholder可以被恢复
+        max_iterations = 100  # 防止无限循环
+        for iteration in range(max_iterations):
+            changed = False
+            for placeholder, symbol in placeholders.items():
+                if placeholder in result:
+                    result = result.replace(placeholder, symbol)
+                    changed = True
+            if not changed:
+                # 没有任何替换发生，说明已经完全恢复
+                break
         return result
 
     def expand_path(self, path):
