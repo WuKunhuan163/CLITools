@@ -204,11 +204,11 @@ class CommandGenerator:
             expanded_cmd = expanded_cmd.replace('~', placeholder)
             expanded_cmd = expanded_cmd.replace(tilde_placeholder, '~')
         
-        # 步骤7: 恢复所有特殊字符
-        expanded_cmd = PathResolver.restore_special_chars(expanded_cmd, special_phs)
+        # 注意：不要在这里恢复特殊字符！因为后续的shlex.split会移除引号
+        # 步骤7会在所有处理完成后再恢复
 
         # ================================================================================
-        # 步骤8: 递归处理参数值中的路径（重要！）
+        # 步骤7: 递归处理参数值中的路径（重要！）
         # ================================================================================
         # 
         # 支持两种参数格式的路径递归展开：
@@ -325,6 +325,9 @@ class CommandGenerator:
         except ValueError:
             # shlex split失败，保持原样
             pass
+        
+        # 步骤8: 恢复所有特殊字符（在所有处理完成后）
+        expanded_cmd = PathResolver.restore_special_chars(expanded_cmd, special_phs)
         
         return expanded_cmd
     
@@ -512,12 +515,19 @@ class CommandGenerator:
         # （保留shell路径信息等上下文）
         
         # 生成统一JSON命令
-        if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
-            print(f"Warning: Command contains ! which may cause shell history expansion issues.")
-            print(f"Original command: {cmd}")
-            cleaned_command = cmd.replace('!', '')
-            print(f"Cleaned command: {cleaned_command}")
-            cmd = cleaned_command
+        # NOTE: ! 字符处理说明：
+        # Bash history expansion (!) 只在交互式shell中发生。
+        # 我们的命令通过脚本执行（bash <<'EOF' ... EOF），不会触发history expansion。
+        # 因此不需要清理!字符，即使在echo "#!/bin/bash"这样的命令中也是安全的。
+        # 
+        # 历史逻辑：
+        # if '!' in cmd and len(cmd) < 200 and not cmd.strip().startswith('#'):
+        #     cleaned_command = cmd.replace('!', '')  # 这会错误地清理引号内的!
+        # 
+        # 现已移除此逻辑，因为：
+        # 1. 脚本执行环境不触发history expansion
+        # 2. 简单删除!会破坏合法命令（如#!/bin/bash）
+        # 3. 如果真的需要处理，应该检查!是否在引号内
         
         # 检测和处理printf格式字符问题
         # 如果命令以printf开头且包含%字符，需要特殊处理避免格式指令错误
@@ -625,7 +635,8 @@ class CommandGenerator:
         # 根据capture_result生成不同的模板
         if not capture_result:
             # 不捕获结果：保留shell路径信息，直接执行命令，不生成JSON
-            remote_command = f'''
+            # 注意：使用.format()而不是f-string来避免cmd中的反斜杠被解释
+            template_no_capture = '''
 # 确保工作目录存在并切换到正确的基础目录
 mkdir -p "{remote_path}"
 cd "{remote_path}" && {{
@@ -639,27 +650,34 @@ cd "{remote_path}" && {{
         # 执行完成提示（与捕获结果模式保持一致）
         echo ""
         echo "✅执行完成"
-        echo "Command hash: {cmd_hash.upper()}"
+        echo "Command hash: {cmd_hash_upper}"
     else
         echo "Error: Shell working directory does not exist: {shell_absolute_path}"
         exit 1
     fi
 }}'''
+            remote_command = template_no_capture.format(
+                remote_path=remote_path,
+                shell_absolute_path=shell_absolute_path,
+                cmd=cmd,  # cmd中的反斜杠不会被.format()解释
+                cmd_hash_upper=cmd_hash.upper()
+            )
         else:
             # 捕获结果：完整模板（原有逻辑）
-            remote_command = f'''
+            # 注意：使用.format()而不是f-string来避免cmd中的反斜杠被解释
+            template = '''
 # 确保工作目录存在并切换到正确的基础目录
 mkdir -p "{remote_path}"
 cd "{remote_path}" && {{
     # 确保tmp目录存在
-    mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
+    mkdir -p "{remote_root_tmp}"
     
     # 执行用户命令并捕获输出
     TIMESTAMP="{timestamp}"
     HASH="{cmd_hash}"
-    OUTPUT_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stdout_${{TIMESTAMP}}_${{HASH}}"
-    ERROR_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_stderr_${{TIMESTAMP}}_${{HASH}}"
-    EXITCODE_FILE="{self.main_instance.REMOTE_ROOT}/tmp/cmd_exitcode_${{TIMESTAMP}}_${{HASH}}"
+    OUTPUT_FILE="{remote_root_tmp}/cmd_stdout_${{TIMESTAMP}}_${{HASH}}"
+    ERROR_FILE="{remote_root_tmp}/cmd_stderr_${{TIMESTAMP}}_${{HASH}}"
+    EXITCODE_FILE="{remote_root_tmp}/cmd_exitcode_${{TIMESTAMP}}_${{HASH}}"
     
     # 尝试切换到当前shell路径以支持相对路径
     # 检查shell路径是否存在，如果不存在则报错
@@ -687,7 +705,7 @@ USER_COMMAND_EOF
     
     # 统一的执行完成提示
     clear && echo "✅执行完成"
-    echo "Command hash: {cmd_hash.upper()}"
+    echo "Command hash: {cmd_hash_upper}"
     
     # 生成JSON结果文件
     # 确保EXIT_CODE有值，如果为空则设为1（表示错误）
@@ -706,9 +724,9 @@ timestamp = os.environ.get('TIMESTAMP', '{timestamp}')
 hash_val = os.environ.get('HASH', '{cmd_hash}')
 
 # 构建文件路径
-stdout_file = f"{self.main_instance.REMOTE_ROOT}/tmp/cmd_stdout_{{timestamp}}_{{hash_val}}"
-stderr_file = f"{self.main_instance.REMOTE_ROOT}/tmp/cmd_stderr_{{timestamp}}_{{hash_val}}"
-exitcode_file = f"{self.main_instance.REMOTE_ROOT}/tmp/cmd_exitcode_{{timestamp}}_{{hash_val}}"
+stdout_file = f"{remote_root_tmp}/cmd_stdout_{{timestamp}}_{{hash_val}}"
+stderr_file = f"{remote_root_tmp}/cmd_stderr_{{timestamp}}_{{hash_val}}"
+exitcode_file = f"{remote_root_tmp}/cmd_exitcode_{{timestamp}}_{{hash_val}}"
 
 # 读取输出文件
 stdout_content = ""
@@ -759,6 +777,18 @@ JSON_SCRIPT_EOF
     # 清理临时文件
     rm -f "$OUTPUT_FILE" "$ERROR_FILE" "$EXITCODE_FILE"
 }}'''
+            
+            # 使用.format()填充所有变量，保护cmd中的反斜杠
+            remote_command = template.format(
+                remote_path=remote_path,
+                remote_root_tmp=f"{self.main_instance.REMOTE_ROOT}/tmp",
+                timestamp=timestamp,
+                cmd_hash=cmd_hash,
+                shell_absolute_path=shell_absolute_path,
+                cmd=cmd,  # cmd中的反斜杠不会被.format()解释
+                cmd_hash_upper=cmd_hash.upper(),
+                result_path=result_path
+            )
 
         # 检查生成的完整脚本语法（包括wrapper部分）
         is_valid, error_msg = self.check_bash_syntax(remote_command)
@@ -845,7 +875,11 @@ JSON_SCRIPT_EOF
         BG_RESULT_FILE = get_bg_result_file(bg_pid)
                         
         # 创建后台管理脚本内容
-        background_manager_content = f'''#!/bin/bash
+        # 注意：使用.format()而不是f-string来避免cmd中的反斜杠被解释
+        # 预处理bg_original_cmd：去除可能的外层引号
+        bg_cmd_for_heredoc = bg_original_cmd[1:-1] if (bg_original_cmd.startswith('"') and bg_original_cmd.endswith('"')) else bg_original_cmd
+        
+        background_manager_template = '''#!/bin/bash
 # Background Task Manager for {bg_pid}
 
 # 确保工作目录存在并切换到正确的基础目录
@@ -853,16 +887,16 @@ mkdir -p "{remote_path}"
 cd "{remote_path}"
 
 # 确保tmp目录存在
-mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
+mkdir -p "{remote_root_tmp}"
 
 # 创建后台执行脚本
-cat > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" << 'SCRIPT_EOF'
+cat > "{remote_root_tmp}/{bg_script_file}" << 'SCRIPT_EOF'
 #!/bin/bash
 set -e
 
 # 合并创建log文件和初始result.json文件，确保文件在任务开始时就存在
 # 将command作为环境变量传递，避免在Python代码中处理复杂的引号转义
-export BG_COMMAND={shlex.quote(bg_original_cmd)}
+export BG_COMMAND={bg_cmd_quoted}
 python3 << 'INITIAL_SETUP_EOF'
 import json
 import os
@@ -870,7 +904,7 @@ import sys
 from datetime import datetime
 
 # 首先创建log文件
-log_file = "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
+log_file = "{remote_root_tmp}/{bg_log_file}"
 with open(log_file, "w", encoding="utf-8") as f:
     pass  # 创建空文件
 
@@ -890,20 +924,20 @@ result = {{
 "timestamp": datetime.now().isoformat()
 }}
 
-with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
+with open("{remote_root_tmp}/{bg_result_file}", "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
     
 INITIAL_SETUP_EOF
 
 # 执行用户命令并捕获输出（同时写入log文件以便实时查看）
-STDOUT_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
-STDERR_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
-LOG_FILE="{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}"
+STDOUT_FILE="{remote_root_tmp}/{bg_pid}_stdout.tmp"
+STDERR_FILE="{remote_root_tmp}/{bg_pid}_stderr.tmp"
+LOG_FILE="{remote_root_tmp}/{bg_log_file}"
 
 # 执行用户命令并捕获输出
 # 由于外层重定向，所有输出都会进入log文件，所以简化tee逻辑
 bash << 'USER_COMMAND_EOF' 2>&1 | tee "$STDOUT_FILE"
-{bg_original_cmd[1:-1] if bg_original_cmd.startswith('"') and bg_original_cmd.endswith('"') else bg_original_cmd}
+{bg_cmd}
 USER_COMMAND_EOF
 EXIT_CODE=${{PIPESTATUS[0]}}
 
@@ -1003,22 +1037,36 @@ echo "Error: Background task creation failed - result file not created after ${{
 echo "This may indicate a problem with the background task script execution"
 exit 1
 '''
+        
+        # 使用.format()填充background_manager_template变量，保护cmd中的反斜杠
+        background_manager_content = background_manager_template.format(
+            bg_pid=bg_pid,
+            remote_path=remote_path,
+            remote_root_tmp=f"{self.main_instance.REMOTE_ROOT}/tmp",
+            bg_script_file=BG_SCRIPT_FILE,
+            bg_cmd_quoted=shlex.quote(bg_original_cmd),
+            bg_log_file=BG_LOG_FILE,
+            start_time=start_time,
+            bg_result_file=BG_RESULT_FILE,
+            bg_cmd=bg_cmd_for_heredoc,  # cmd中的反斜杠不会被.format()解释
+            bg_original_cmd=bg_original_cmd
+        )
 
         # 主程序：创建后台管理进程并立即返回，同时生成主程序的JSON结果
-        remote_command = f'''# Background任务启动脚本 - 主程序立即返回
+        remote_command_template = '''# Background任务启动脚本 - 主程序立即返回
 # 确保基础目录存在
-mkdir -p "{self.main_instance.REMOTE_ROOT}/tmp"
+mkdir -p "{remote_root_tmp}"
 
 # 创建后台任务管理脚本
-cat > "{self.main_instance.REMOTE_ROOT}/tmp/bg_manager_{bg_pid}.sh" << 'MANAGER_EOF'
+cat > "{remote_root_tmp}/bg_manager_{bg_pid}.sh" << 'MANAGER_EOF'
 {background_manager_content}
 MANAGER_EOF
 
 # 给管理脚本执行权限
-chmod +x "{self.main_instance.REMOTE_ROOT}/tmp/bg_manager_{bg_pid}.sh"
+chmod +x "{remote_root_tmp}/bg_manager_{bg_pid}.sh"
 
 # 启动后台管理进程
-nohup "{self.main_instance.REMOTE_ROOT}/tmp/bg_manager_{bg_pid}.sh" > "{self.main_instance.REMOTE_ROOT}/tmp/bg_manager_{bg_pid}.log" 2>&1 &
+nohup "{remote_root_tmp}/bg_manager_{bg_pid}.sh" > "{remote_root_tmp}/bg_manager_{bg_pid}.log" 2>&1 &
 
 # 主程序立即返回消息
 echo "Background task manager started for ID: {bg_pid}"
@@ -1026,10 +1074,10 @@ echo "Task creation is proceeding in background..."
 
 # 统一的执行完成提示
 clear && echo "✅执行完成"
-echo "Command hash: {cmd_hash.upper()}"
+echo "Command hash: {cmd_hash_upper}"
 
 # 立即生成主程序的JSON结果文件（用于本地wait and read）
-cd "{self.main_instance.REMOTE_ROOT}"
+cd "{remote_root}"
 export TIMESTAMP="{timestamp}"
 export HASH="{cmd_hash}"
 python3 << 'MAIN_JSON_EOF'
@@ -1048,7 +1096,7 @@ result = {{
 }}
 
 # 写入主程序结果文件（注意：这是主程序的结果文件，不是背景任务的结果文件）
-result_file = "{self.main_instance.REMOTE_ROOT}/tmp/{result_filename}"
+result_file = "{remote_root_tmp}/{result_filename}"
 result_dir = os.path.dirname(result_file)
 if result_dir:
     os.makedirs(result_dir, exist_ok=True)
@@ -1056,6 +1104,18 @@ if result_dir:
 with open(result_file, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 MAIN_JSON_EOF'''
+        
+        # 使用.format()填充remote_command_template变量
+        remote_command = remote_command_template.format(
+            remote_root_tmp=f"{self.main_instance.REMOTE_ROOT}/tmp",
+            bg_pid=bg_pid,
+            background_manager_content=background_manager_content,
+            cmd_hash_upper=cmd_hash.upper(),
+            remote_root=self.main_instance.REMOTE_ROOT,
+            timestamp=timestamp,
+            cmd_hash=cmd_hash,
+            result_filename=result_filename
+        )
 
         # 提取关键的heredoc模板片段
         import re
