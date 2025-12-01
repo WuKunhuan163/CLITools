@@ -1,36 +1,58 @@
+#!/usr/bin/env python3
+"""
+最小化测试用例 - 测试echo "Hello World"命令
+直接调用test_gds.py的.gds()接口
+"""
+
 from test_gds import GDSTest
+import sys
 
 # Create an instance
+print("=== 初始化测试实例 ===")
 test_instance = GDSTest()
 GDSTest.setUpClass()
 test_instance.setUp()
 
-# Test complex_echo from test_02
-complex_echo_file = test_instance.get_test_remote_path("complex_echo.txt")
-content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # bash默认echo输出字面值
-# 注意：heredoc（单引号）不解释反斜杠，echo输出的是字面值 Line 1\nLine 2\tTabbed\Backslash
-expected_content = "Line 1\\nLine 2\\tTabbed\\Backslash"  # 双反斜杠表示字面的单反斜杠
+print(f"\n=== 测试最简单的echo命令 ===")
+cmd = 'echo "Hello World"'
+print(f"命令: {repr(cmd)}")
 
-print(f"测试文件: {complex_echo_file}")
-print(f"输入内容 (Python repr): {repr(content)}")
-print(f"期望内容 (Python repr): {repr(expected_content)}")
-print(f"期望内容 (实际字符): {expected_content}")
+print(f"\n=== 执行GDS命令 ===")
+print(f"\n=== 调用栈 ===")
+import traceback
+traceback.print_stack()
 
-result = test_instance.gds(f'echo "{content}" > {complex_echo_file}')
-print(f"\nEcho命令执行结果: returncode={result.returncode}")
+result = test_instance.gds(cmd)
 
-# 读取实际内容
-import time
-time.sleep(2)
-cat_result = test_instance.gds(f'cat {complex_echo_file}')
-print(f"Cat命令返回码: {cat_result.returncode}")
-print(f"实际内容 (stdout repr): {repr(cat_result.stdout)}")
-print(f"实际内容 (显示): {cat_result.stdout}")
+print(f"\n=== 命令执行结果 ===")
+print(f"returncode: {result.returncode}")
+print(f"stdout (repr): {repr(result.stdout)}")
+print(f"stdout (显示): {result.stdout}")
+print(f"stderr (repr): {repr(result.stderr)}")
+if result.stderr:
+    print(f"stderr (显示): {result.stderr}")
 
-# 验证
-verify_result = test_instance.verify_file_content_contains(complex_echo_file, expected_content, terminal_erase=True)
-print(f"\n验证结果: {verify_result}")
+print(f"\n=== 使用get_cleaned_stdout清理ANSI码 ===")
+cleaned = test_instance.get_cleaned_stdout(result)
+print(f"cleaned (repr): {repr(cleaned)}")
+print(f"cleaned (显示): {cleaned}")
+print(f"cleaned.strip(): {repr(cleaned.strip())}")
+
+print(f"\n=== 对比bash结果 ===")
+bash_result = test_instance.bash(cmd)
+print(f"bash returncode: {bash_result.returncode}")
+print(f"bash stdout (repr): {repr(bash_result.stdout)}")
+print(f"bash stdout.strip(): {repr(bash_result.stdout.strip())}")
+
+print(f"\n=== 比较结果 ===")
+if cleaned.strip() == bash_result.stdout.strip():
+    print("✅ GDS和bash输出一致！")
+else:
+    print("❌ GDS和bash输出不一致")
+    print(f"  Expected (bash): {repr(bash_result.stdout.strip())}")
+    print(f"  Got (GDS):       {repr(cleaned.strip())}")
 
 # 清理
+print(f"\n=== 清理测试环境 ===")
 test_instance.tearDown()
 GDSTest.tearDownClass()

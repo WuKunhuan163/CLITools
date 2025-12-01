@@ -61,6 +61,18 @@ def _get_local_credentials_for_remount(google_drive_shell):
             except Exception:
                 pass
         
+        # Method 4: Try default credentials file location (for testing and development)
+        # Check GOOGLE_DRIVE_DATA directory for service_account.json
+        try:
+            from .path_constants import get_data_dir
+            data_dir = get_data_dir()
+            default_creds_file = data_dir / "service_account.json"
+            if default_creds_file.exists():
+                with open(default_creds_file, 'r') as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        
         return None
         
     except Exception:

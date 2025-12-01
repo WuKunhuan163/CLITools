@@ -613,8 +613,25 @@ class WindowManager:
             # 因为外层已经持有了remount锁，所以不能通过subprocess再次尝试获取锁
             from .remount_manager import remount_google_drive
             
+            # 尝试获取google_drive_shell实例以便获取credentials
+            # 如果无法获取，remount_manager会尝试从环境变量或文件获取
+            google_drive_shell_instance = None
+            try:
+                # 尝试从当前进程获取GoogleDriveShell单例实例
+                import sys
+                import os
+                proj_dir = os.path.dirname(os.path.dirname(__file__))
+                if proj_dir not in sys.path:
+                    sys.path.insert(0, proj_dir)
+                from google_drive_shell import GoogleDriveShell
+                # 尝试创建或获取实例（如果之前已经初始化过）
+                google_drive_shell_instance = GoogleDriveShell()
+            except Exception:
+                # 无法获取实例，使用None（remount_manager会尝试其他方法获取credentials）
+                pass
+            
             # remount_google_drive返回0表示成功，非0表示失败
-            result_code = remount_google_drive(command_identifier=None, google_drive_shell=None)
+            result_code = remount_google_drive(command_identifier=None, google_drive_shell=google_drive_shell_instance)
             
             # 记录remount结果
             self._log_remount_result(result_code, "Direct function call", "")

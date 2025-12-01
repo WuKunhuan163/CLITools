@@ -1,49 +1,287 @@
 # ============================================================================
-# Test completed at: 2025-11-28 17:07:56 - Status: FAIL
+# Test completed at: 2025-12-01 09:24:31 - Status: FAIL
 # ============================================================================
 
 test_24_background (test_gds.GDSTest)
-测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询 ... FAIL
+测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询 ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251201_091430_402038_91253c08
+正在创建远端测试目录: ~/tmp/gds_test_20251201_091430_402038_91253c08
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251201_091430_402038_91253c08
+✓ 验证测试目录存在: ~/tmp/gds_test_20251201_091430_402038_91253c08
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_sf57raph
+测试环境设置完成
+测试GDS --bg后台任务功能 - 优先队列验证
+测试1: 基础echo命令
+任务ID: 1764551745_7071
+WARNING: 任务 1764551745_7071 状态异常，返回码: 1
+WARNING: 输出内容: Error: Background task 1764551745_7071 not found
+
+任务完成！总等待时间: 18.2秒，检查次数: 2
+基础echo命令测试通过
+测试2: 包含引号的复杂命令
+WARNING: 任务 1764551836_7499 状态异常，返回码: 1
+WARNING: 输出内容: Error: Background task 1764551836_7499 not found
+
+WARNING: 任务 1764551836_7499 状态异常，返回码: 0
+WARNING: 输出内容: Status: starting
+PID: 1764551836_7499
+Start time: 2025-12-01T09:17:16.929666
+Log size: 0 bytes
+
+WARNING: 任务 1764551836_7499 状态异常，返回码: 0
+WARNING: 输出内容: Status: starting
+PID: 1764551836_7499
+Start time: 2025-12-01T09:17:16.929666
+Log size: 0 bytes
+
+WARNING: 任务 1764551836_7499 状态异常，返回码: 0
+WARNING: 输出内容: Status: starting
+PID: 1764551836_7499
+Start time: 2025-12-01T09:17:16.929666
+Log size: 450 bytes
+
+任务完成！总等待时间: 53.3秒，检查次数: 5
+复杂命令测试通过
+测试3: 错误命令处理
+WARNING: 任务 1764551962_3448 状态异常，返回码: 1
+WARNING: 输出内容: Error: Background task 1764551962_3448 not found
+
+任务完成！总等待时间: 18.1秒，检查次数: 2
+错误命令处理测试通过
+测试4: 长时间运行任务的时间敏感化partial输出验证
+启动长时间运行的后台任务（sleep 300秒）...
+测试开始时间: 2025-12-01 09:20:45
+长时间任务ID: 1764552045_4927
+开始重复查询，直到成功条件满足（最大测试时长: 420秒）...
+配置: 阶段1=180s, 阶段2=120s, 阶段3=60s, 查询间隔=10s
+
+=== 第1次查询 (时间: 2025-12-01 09:20:50, 已过时间: 0.0秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927
+Start time: 2025-12-01T09:20:46.000943
+Log size: 0 bytes
+✓ 任务状态：运行中
+=== 第1次查询完成 ===
+等待10秒后继续查询...
+
+=== 第2次查询 (时间: 2025-12-01 09:21:14, 已过时间: 24.1秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 首次获得任务开始时间（远端）: 2025-12-01 01:20:50
+✓ 任务运行时间（基于测试开始时间）: 24.1秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第2次查询完成 ===
+等待10秒后继续查询...
+
+=== 第3次查询 (时间: 2025-12-01 09:21:38, 已过时间: 47.7秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 47.7秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第3次查询完成 ===
+等待10秒后继续查询...
+
+=== 第4次查询 (时间: 2025-12-01 09:22:03, 已过时间: 72.9秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 72.9秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第4次查询完成 ===
+等待10秒后继续查询...
+
+=== 第5次查询 (时间: 2025-12-01 09:22:27, 已过时间: 96.5秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 96.5秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第5次查询完成 ===
+等待10秒后继续查询...
+
+=== 第6次查询 (时间: 2025-12-01 09:22:51, 已过时间: 121.2秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 121.2秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第6次查询完成 ===
+等待10秒后继续查询...
+
+=== 第7次查询 (时间: 2025-12-01 09:23:16, 已过时间: 146.5秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 146.5秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第7次查询完成 ===
+等待10秒后继续查询...
+
+=== 第8次查询 (时间: 2025-12-01 09:23:41, 已过时间: 170.6秒) ===
+当前阶段1: 0-180秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 170.6秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+FAIL
 
 ======================================================================
 FAIL: test_24_background (test_gds.GDSTest)
 测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 3972, in test_24_background
-    self.assertEqual(cleanup_result.returncode, 0, f"清理任务失败: {cleanup_result.stderr}")
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 194, in assertEqual
-    super().assertEqual(first, second, msg)
-AssertionError: 1 != 0 : 清理任务失败: 
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4159, in test_24_background
+    self.fail(f"阶段2及以后: 无法得到log file（已等待{elapsed_time:.1f}秒）")
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 244, in fail
+    super().fail(msg)
+AssertionError: 阶段2及以后: 无法得到log file（已等待218.2秒）
 
 ----------------------------------------------------------------------
-Ran 1 test in 135.244s
+Ran 1 test in 601.316s
 
 FAILED (failures=1)
-设置GDS全面测试环境...
-清理Python缓存和pytest缓存...
-Python缓存和pytest缓存已清理
-远端测试目录: ~/tmp/gds_test_20251128_170536_646254_89bff890
-正在创建远端测试目录: ~/tmp/gds_test_20251128_170536_646254_89bff890
-使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251128_170536_646254_89bff890
-✓ 验证测试目录存在: ~/tmp/gds_test_20251128_170536_646254_89bff890
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_m3lpg426
-测试环境设置完成
-测试GDS --bg后台任务功能 - 优先队列验证
-测试1: 基础echo命令
-任务ID: 1764320770_2961
-WARNING: 任务 1764320770_2961 状态异常，返回码: 1
-WARNING: 输出内容: Error: Background task 1764320770_2961 not found
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第8次查询完成 ===
+等待10秒后继续查询...
 
-任务完成！总等待时间: 15.7秒，检查次数: 2
+=== 第9次查询 (时间: 2025-12-01 09:24:03, 已过时间: 193.5秒) ===
+当前阶段2: 180-300秒（log文件应该已同步，任务未完成）
+Log查询结果: returncode=0
+Log内容预览: [01:20:50] Background task started
+[01:20:50] PID: 4396
+[01:20:50] Decoding command...
+[01:20:50] Command decoded successfully
+[01:20:50] Executing command...
+TASK_START_TIME: 2025-12-01 01:20:50
+Firs...
+✓ 任务运行时间（基于测试开始时间）: 193.5秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764552045_4927 (Real PID: 4396)
+Start time: 2025-12-01T09:20:45.999959
+Log size: 267 bytes
+✓ 任务状态：运行中
+=== 第9次查询完成 ===
+等待10秒后继续查询...
+
+=== 第10次查询 (时间: 2025-12-01 09:24:28, 已过时间: 218.2秒) ===
+当前阶段2: 180-300秒（log文件应该已同步，任务未完成）
+Log查询结果: returncode=1
+Log查询失败: 
 
 ======================================================================
-❌❌❌ ASSERTION FAILED ❌❌❌
+❌❌❌ TEST FAILED ❌❌❌
 ======================================================================
-📍 Expected: 0
-📍 Got:      1
-💬 Message:  清理任务失败: 
+💬 Message: 阶段2及以后: 无法得到log file（已等待218.2秒）
 ======================================================================
 
 
