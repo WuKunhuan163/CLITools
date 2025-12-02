@@ -797,12 +797,16 @@ rm -f {tmp_archive}
                             print(f"[Worker {worker_id}] ❌ Task {task['task_id']} failed: {result.get('error', 'Unknown')}")
                 
                 except Exception as e:
+                    import traceback
+                    error_detail = traceback.format_exc()
                     with lock:
                         failed_tasks.append({
                             "task_id": task['task_id'],
-                            "error": str(e)
+                            "error": str(e),
+                            "traceback": error_detail
                         })
                         print(f"[Worker {worker_id}] ❌ Task {task['task_id']} exception: {str(e)}")
+                        print(f"[Worker {worker_id}] [DEBUG] Full traceback:\n{error_detail}")
                 
                 finally:
                     task_queue.task_done()
