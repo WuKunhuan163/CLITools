@@ -1,0 +1,784 @@
+{
+  "tools": {
+    "ALIAS": {
+      "name": "ALIAS",
+      "description": "Permanent Shell Alias Creation Tool",
+      "purpose": "Create, remove, and manage permanent aliases in shell configuration files",
+      "usage": "ALIAS <alias_name> <alias_command> [options]",
+      "examples": [
+        "ALIAS ll 'ls -la'",
+        "ALIAS gs 'git status'",
+        "ALIAS --remove ll",
+        "ALIAS --update",
+        "ALIAS --help"
+      ],
+      "files": {
+        "binary": "ALIAS",
+        "python": "ALIAS.py",
+        "markdown": "ALIAS.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "test_command": [
+        "test_run_alias",
+        "echo \"RUN test successful\""
+      ],
+      "tool_use_scenario": "When user needs to create, remove, or manage permanent shell aliases",
+      "file_hashes": {
+        "binary": "ffd7c01b3aa874e11df70837d7241d7df33b1f9fae3515d94c16e183210667ed",
+        "python": "d2cda0d69fd6b988ea445c03ae17013b8d4ffe98e946910d73d2eea9d3a784c8",
+        "markdown": "f3f19c184f0a3e569322cb5f41c5acb61e88f13518c34f04a99961195b01ebd0"
+      }
+    },
+    "DOWNLOAD": {
+      "name": "DOWNLOAD",
+      "description": "Resource Download Tool",
+      "purpose": "Download resources from URLs to specified destination folders",
+      "usage": "DOWNLOAD <url> [destination]",
+      "examples": [
+        "DOWNLOAD https://example.com/file.pdf",
+        "DOWNLOAD https://example.com/file.pdf ~/Desktop/",
+        "DOWNLOAD https://example.com/file.pdf ~/Desktop/my.pdf"
+      ],
+      "files": {
+        "binary": "DOWNLOAD",
+        "python": "DOWNLOAD.py",
+        "markdown": "DOWNLOAD.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to download files from URLs",
+      "file_hashes": {
+        "binary": "2f49f5f0ed6ab4bbfbbb6efb38bd2bd234e0720e84785dc59e2fe8b96acd38cd",
+        "python": "93eeb5b470a59442e6a301b67a25771935c0a9c5297f03ac7671a4fb46073cad",
+        "markdown": "68cdcab942da1322377d8803314ce5ff3e9418ea97325d76716743188e5a6be8"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "EXPORT": {
+      "name": "EXPORT",
+      "description": "Environment Variable Export Tool",
+      "purpose": "Export environment variables and write to multiple shell configuration files",
+      "usage": "EXPORT <variable_name> <value>",
+      "examples": [
+        "EXPORT OPENROUTER_API_KEY \"sk-or-v1-...\"",
+        "EXPORT PATH \"/usr/local/bin:$PATH\"",
+        "EXPORT MY_VAR \"some value\""
+      ],
+      "files": {
+        "binary": "EXPORT",
+        "python": "EXPORT.py",
+        "markdown": "EXPORT.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to set environment variables persistently",
+      "file_hashes": {
+        "binary": "7f5069550e393be7c79f848ce511105f5cb1fb3e39b504899c4810955db4d10e",
+        "python": "76b31d2bc57a5763288c2ddcf9b640abbae91593ce9f1a3bbd4cfa1da3f15d20",
+        "markdown": "2b229928786a6aca7aaad7b5779723004dec0e51608f6c69de2f7692d82fe1a6"
+      },
+      "test_command": [
+        "TEST_VAR",
+        "test_value"
+      ]
+    },
+    "EXTRACT_PDF": {
+      "name": "EXTRACT_PDF",
+      "description": "Enhanced PDF extraction using MinerU with post-processing support",
+      "purpose": "Extract text from PDF files using multiple extraction engines with image processing and text formatting, and post-process markdown files to replace placeholders with actual content",
+      "usage": "EXTRACT_PDF <pdf_file> [options] | EXTRACT_PDF --post [<markdown_file>] [--post-type <type>] | EXTRACT_PDF --full <pdf_file> [options]",
+      "examples": [
+        "EXTRACT_PDF document.pdf --page 3",
+        "EXTRACT_PDF paper.pdf --page 1-5 --output-dir /path/to/output",
+        "EXTRACT_PDF paper.pdf --engine mineru-asyn --page 1-3",
+        "EXTRACT_PDF --post",
+        "EXTRACT_PDF --post document.md --post-type image",
+        "EXTRACT_PDF --post document.md --post-type all",
+        "EXTRACT_PDF --full document.pdf",
+        "EXTRACT_PDF --full paper.pdf --engine mineru --page 1-10"
+      ],
+      "files": {
+        "binary": "EXTRACT_PDF",
+        "python": "EXTRACT_PDF.py",
+        "markdown": "EXTRACT_PDF.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to extract text from PDF files with different extraction engines",
+      "file_hashes": {
+        "binary": "815cfcd144c0e380ef2a51600019ab1738cea17d79b919929d39986804c2788b",
+        "python": "f3a9b389083c60cb9638f13b410972d9bbdd56ecaba07133f80d20a4b61ae1f3",
+        "markdown": "8d49efda30ae889b8906f6805bd5f1e9bf4dd8081514c289b24b7ac4cfa1e7e6"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "EXTRACT_IMG": {
+      "name": "EXTRACT_IMG",
+      "description": "Intelligent Image Analysis Tool",
+      "purpose": "Automatically detect image content types and route to appropriate processors with integrated caching",
+      "usage": "EXTRACT_IMG [image_path] [options]",
+      "examples": [
+        "EXTRACT_IMG image.png",
+        "EXTRACT_IMG image.png --type formula",
+        "EXTRACT_IMG image.png --type table",
+        "EXTRACT_IMG --batch *.png",
+        "EXTRACT_IMG --stats"
+      ],
+      "files": {
+        "binary": "EXTRACT_IMG",
+        "python": "EXTRACT_IMG.py",
+        "markdown": "EXTRACT_IMG.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs intelligent image analysis with automatic content type detection",
+      "file_hashes": {
+        "binary": "placeholder",
+        "python": "placeholder",
+        "markdown": "placeholder"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "FILEDIALOG": {
+      "name": "FILEDIALOG",
+      "description": "File Selection Tool with tkinter GUI",
+      "purpose": "Open tkinter file selection dialog to specify file types",
+      "usage": "FILEDIALOG [options]",
+      "examples": [
+        "FILEDIALOG",
+        "FILEDIALOG --types pdf",
+        "FILEDIALOG --types pdf,txt,doc",
+        "FILEDIALOG --types image --title \"Select Image\"",
+        "FILEDIALOG --multiple --types pdf"
+      ],
+      "files": {
+        "binary": "FILEDIALOG",
+        "python": "FILEDIALOG.py",
+        "markdown": "FILEDIALOG.md"
+      },
+      "run_compatible": true,
+      "testable": false,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to select specific file types through a GUI dialog",
+      "file_hashes": {
+        "binary": "afc31e5c1a6a110ee9fca71dd2e30cbdfc3f6a2b49815769088d5f133bacdeba",
+        "python": "ff0cccfa5940d04cfb9feaab0e52f425ccf1ae38ec76f03f15ddb56e77ebf6ac",
+        "markdown": "91bbe4b18eadcb82159e044a547ef266e02e5ed87c2215e665d2bfae8d9efd97"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "GOOGLE_DRIVE": {
+      "name": "GOOGLE_DRIVE",
+      "description": "Google Drive access tool with GDS (Google Drive Shell) for remote file management, background task execution, and parallel archive extraction",
+      "purpose": "Access Google Drive in browser and manage files remotely through an interactive shell interface (GDS). Supports file operations, remote Python execution, background task execution with status monitoring, Python package management with dependency analysis, Python version management (pyenv-like), virtual environments, parallel archive extraction and transfer, Google Drive remounting, and comprehensive Google Drive API integration.",
+      "usage": "GOOGLE_DRIVE [url] [options] | GOOGLE_DRIVE --shell [command] | GDS [command]",
+      "examples": [
+        "GOOGLE_DRIVE",
+        "GOOGLE_DRIVE -my",
+        "GOOGLE_DRIVE https://drive.google.com/drive/my-drive",
+        "GOOGLE_DRIVE --shell",
+        "GOOGLE_DRIVE --shell pwd",
+        "GOOGLE_DRIVE --shell ls -R",
+        "GOOGLE_DRIVE --shell \"cd test && ls\"",
+        "GOOGLE_DRIVE --shell upload file.txt",
+        "GOOGLE_DRIVE --shell upload --target-dir docs file.txt",
+        "GOOGLE_DRIVE --shell rm -rf old_folder",
+        "GOOGLE_DRIVE --shell edit file.py '[[\"old_code\", \"new_code\"]]'",
+        "GOOGLE_DRIVE --shell python -c 'print(\"Hello World\")'",
+        "GOOGLE_DRIVE --upload file.txt remote/path",
+        "GDS pwd",
+        "GDS ls --detailed",
+        "GDS mkdir -p deep/nested/folder",
+        "GDS cd test",
+        "GDS upload file.txt",
+        "GDS download report.pdf",
+        "GDS cat config.json",
+        "GDS grep \"error\" log.txt",
+        "GDS --bg \"python train.py\"",
+        "GDS --bg \"find . -name '*.py' | wc -l\"",
+        "GDS --bg \"python train_model.py --epochs 100\"",
+        "GDS --bg \"python process_data.py\"",
+        "GDS --bg --status 1726234567_1234",
+        "GDS --bg --log 1726234567_1234",
+        "GDS --bg --result 1726234567_1234",
+        "GDS find . -name \"*.py\"",
+        "GDS touch new_file.txt",
+        "GDS mv old_name.txt new_name.txt",
+        "GDS read script.py 10 20",
+        "GDS echo \"Hello\" > greeting.txt",
+        "GDS pip list",
+        "GDS pip install numpy",
+        "GDS deps tensorflow --depth=2",
+        "GDS venv --create myenv",
+        "GDS venv --activate myenv",
+        "GDS venv --list",
+        "GDS pyenv --list-available",
+        "GDS pyenv --install 3.10.12",
+        "GDS pyenv --global 3.10.12",
+        "GDS pyenv --version",
+        "GDS linter script.py",
+        "GDS extract archive.tar.gz",
+        "GDS extract ~/tmp/python.tar.gz --transfer-batch 500",
+        "GOOGLE_DRIVE --create-remote-shell",
+        "GOOGLE_DRIVE --list-remote-shell",
+        "GOOGLE_DRIVE --console-setup",
+        "GOOGLE_DRIVE --desktop --status",
+        "GOOGLE_DRIVE --remount"
+      ],
+      "files": {
+        "binary": "GOOGLE_DRIVE",
+        "python": "GOOGLE_DRIVE.py",
+        "markdown": "GOOGLE_DRIVE.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to access Google Drive, manage remote files through shell interface, upload/download files, execute remote Python code, run background tasks with status monitoring (GDS --bg), manage Python packages with dependency analysis, manage Python versions (install/switch between different Python versions), create and manage virtual environments, perform code quality checks, edit files with advanced features, extract and transfer large archives with parallel processing (GDS extract), remount Google Drive (GOOGLE_DRIVE --remount), or set up Google Drive API integration",
+      "gds_commands": {
+        "navigation": [
+          "pwd",
+          "ls [path] [--detailed] [-R]",
+          "cd <path>"
+        ],
+        "file_operations": [
+          "mkdir [-p] <dir>",
+          "rm <file>",
+          "rm -rf <dir>",
+          "rm -f <file>",
+          "mv <source> <dest>",
+          "cat <file>",
+          "read <file> [start end]",
+          "touch <file>"
+        ],
+        "upload_download": [
+          "upload [--target-dir TARGET] <files...>",
+          "upload [--remove-local] <files...>",
+          "upload-folder [--keep-zip] <folder> [target]",
+          "download [--force] <file> [path]"
+        ],
+        "text_operations": [
+          "echo <text>",
+          "echo <text> > <file>",
+          "grep <pattern> <file>",
+          "grep <file>",
+          "edit [--preview] [--backup] <file> '<spec>'"
+        ],
+        "remote_execution": [
+          "python <file>",
+          "python -c '<code>'"
+        ],
+        "background_execution": [
+          "--bg <command>",
+          "--bg --status <task_id>",
+          "--bg --log <task_id>",
+          "--bg --result <task_id>"
+        ],
+        "package_management": [
+          "pip install <package>",
+          "pip list",
+          "pip show <package>",
+          "deps <package> [options]"
+        ],
+        "virtual_environment": [
+          "venv --create <env_name...>",
+          "venv --delete <env_name...>",
+          "venv --activate <env_name>",
+          "venv --deactivate",
+          "venv --list"
+        ],
+        "python_version_management": [
+          "pyenv --install <version>",
+          "pyenv --uninstall <version>",
+          "pyenv --list",
+          "pyenv --list-available",
+          "pyenv --global [version]",
+          "pyenv --local [version]",
+          "pyenv --version",
+          "pyenv --versions"
+        ],
+        "search": [
+          "find [path] -name [pattern]",
+          "find [path] -type [f|d] -name [pattern]"
+        ],
+        "code_quality": [
+          "linter <file>"
+        ],
+        "archive_extraction": [
+          "extract <archive_file> [--transfer-batch SIZE]"
+        ],
+        "help": [
+          "help",
+          "exit"
+        ]
+      },
+      "advanced_features": [
+        "Multi-file operations with [[src1, dst1], [src2, dst2]] syntax",
+        "Command chaining with && and || operators",
+        "Command piping with | operator (grep, head, tail, sort, uniq)",
+        "Path resolution supporting ~, .., relative and absolute paths",
+        "Automatic download caching with cache management",
+        "Remote Python code execution with full environment support",
+        "Background task execution with non-blocking operation (GDS --bg)",
+        "Real-time task status monitoring and log viewing (--status, --log)",
+        "Background task result retrieval and management (--result)",
+        "Complex quote handling and pipe operations in background commands",
+        "Python package management with pip integration",
+        "Smart dependency tree analysis with PyPI API integration",
+        "Python version management (pyenv-like) with remote compilation and installation",
+        "Multiple Python version support with automatic switching",
+        "Virtual environment creation, activation, and management",
+        "Virtual environment state synchronization across sessions",
+        "Multi-segment file editing with preview and backup modes",
+        "Intelligent file upload with conflict detection",
+        "Base64-encoded file creation for special characters",
+        "Code quality checking with multi-language linter support",
+        "Parallel archive extraction with batch transfer (extract command)",
+        "Intelligent file transfer with 3-worker parallel processing",
+        "Automatic compression decision based on file count analysis",
+        "Fingerprint-based transfer reliability verification",
+        "Google Drive remounting with automatic verification",
+        "Google Drive API setup wizard with GUI assistance",
+        "Remote shell session management with isolation",
+        "Google Drive Desktop application control and monitoring",
+        "Unified help system with context-aware formatting"
+      ],
+      "file_hashes": {
+        "binary": "44fef98442c7e718bb0ba3f77c414e036031a1ecd0572b812335dea39b659ed3",
+        "python": "d977f9772540c8b649a53173eaaf9b9cd79be5fb8bfabe976a85101310ea45ed",
+        "markdown": "65decd7289a0b47b34b3ffd866826235871782a0d9a500edcdd1a358ac0bdffb"
+      },
+      "test_command": [
+        "python",
+        "_UNITTEST/test_google_drive.py"
+      ]
+    },
+    "IMG2TEXT": {
+      "name": "IMG2TEXT",
+      "description": "Image to text conversion tool using Google Gemini Vision API",
+      "purpose": "Convert images to structured text descriptions using Google Gemini Vision API with multiple analysis modes",
+      "usage": "IMG2TEXT [image_path] [options]",
+      "examples": [
+        "IMG2TEXT example.png --mode academic",
+        "IMG2TEXT example.png --mode general --output result.txt",
+        "IMG2TEXT example.png --mode code_snippet",
+        "IMG2TEXT --test-connection",
+        "IMG2TEXT"
+      ],
+      "files": {
+        "binary": "IMG2TEXT",
+        "python": "IMG2TEXT.py",
+        "markdown": "IMG2TEXT.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to convert images to text descriptions",
+      "file_hashes": {
+        "binary": "f2d11dba37aee88e0ec5d69be78408dca4a42cda53e54627b74719ef41f71d41",
+        "python": "efda7feabebd55cfefa51473326eb4b44e0d9997fff64a3068096f7a4410e4f8"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "LEARN": {
+      "name": "LEARN",
+      "description": "智能学习系统，支持文件引用、论文搜索、命令生成等高级功能",
+      "purpose": "Create structured learning materials from topics or papers with advanced context support, paper search, and command generation",
+      "usage": "LEARN <topic> [options] | LEARN --pdf <file> [options] | LEARN --description <text> [options] | LEARN --gen-command <description>",
+      "examples": [
+        "LEARN -o ~/tutorials -m 初学者 -s 简洁明了 \"Python基础编程\"",
+        "LEARN -o ~/tutorials -m 中级 --pdf \"/path/to/paper.pdf\"",
+        "LEARN -o ~/tutorials -m 高级 -d \"3D Gaussian Splatting\" --negative \"Pi3\"",
+        "LEARN -o ~/tutorials -m 初学者 \"学习论文3.1节 @\\\"/path/to/paper.md\\\"\"",
+        "LEARN --gen-command \"我想学习深度学习论文的前五页\""
+      ],
+      "files": {
+        "binary": "LEARN",
+        "python": "LEARN.py",
+        "markdown": "LEARN.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs structured learning materials, paper analysis, context-aware tutorials, or LEARN command generation",
+      "file_hashes": {
+        "binary": "662c3a497955a3d0a209a0322d0e5806aa2c14b9e9a24962b9bb862ca14a2e36",
+        "python": "7d4b6e27074810f85943febd87f03e6225be1865fa96a0e00162ad6018b04838",
+        "markdown": "c4bac0818f9f2747aeebe47e46186db1f2353bf22ce46a60ec9dfedb5b7c70af"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "OPENROUTER": {
+      "name": "OPENROUTER",
+      "description": "OpenRouter API 调用工具",
+      "purpose": "Call OpenRouter API with customizable query, model, and API key parameters, with cost tracking and dynamic token limits",
+      "usage": "OPENROUTER <query> [options]",
+      "examples": [
+        "OPENROUTER \"What is machine learning?\"",
+        "OPENROUTER \"解释量子计算\" --model \"deepseek/deepseek-r1\"",
+        "OPENROUTER \"Write a Python function\" --key \"sk-or-v1-...\" --max-tokens 2000",
+        "OPENROUTER --list",
+        "OPENROUTER --default \"google/gemini-2.5-flash-lite-preview-06-17\"",
+        "OPENROUTER --test-connection"
+      ],
+      "files": {
+        "binary": "OPENROUTER",
+        "python": "OPENROUTER.py",
+        "markdown": "OPENROUTER.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to call OpenRouter API for AI responses with cost tracking",
+      "file_hashes": {
+        "binary": "763ee807b7ab16bb3906ca1dd3f8948c3a961f3a93179ac7be19e06d045363d4",
+        "python": "0927d2e45c0886ea84922be3f332b055a73c277590d9fc4c56c0f628f2bbe7b3",
+        "markdown": "93f573a5d4635eed0819cf9655cdc8391ceb9a3399c52748d0b4dbeba75a7297"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "OVERLEAF": {
+      "name": "OVERLEAF",
+      "description": "LaTeX文件编译工具，支持GUI文件选择、JSON返回值和模板管理功能",
+      "purpose": "Compile LaTeX files to PDF and manage LaTeX project templates",
+      "usage": "OVERLEAF [file.tex] [options] | OVERLEAF --template <name> <dir> | OVERLEAF --list-templates",
+      "examples": [
+        "OVERLEAF document.tex",
+        "OVERLEAF main.tex --output-dir /path/to/output",
+        "OVERLEAF --list-templates",
+        "OVERLEAF --template ICPRS my_paper",
+        "OVERLEAF"
+      ],
+      "files": {
+        "binary": "OVERLEAF",
+        "python": "OVERLEAF.py",
+        "markdown": "OVERLEAF.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to compile LaTeX documents or manage LaTeX project templates",
+      "template_features": {
+        "available_templates": [
+          "ICPRS"
+        ],
+        "template_operations": [
+          "List available templates",
+          "Copy template to new project directory",
+          "Automatic empty directory validation",
+          "Complete project structure deployment"
+        ],
+        "cleanup_features": [
+          "Automatic removal of .bbl files",
+          "Cleanup of .aux, .blg, .fdb_latexmk files",
+          "Removal of .run.xml, .bcf files",
+          "Complete temporary file management"
+        ]
+      },
+      "file_hashes": {
+        "binary": "a510b3f3eb3db8571b8690856653236e69adc7008125071ed2536db9a95b666b",
+        "python": "846845bde48561fa08778c48f6cdef6b07cfe4ecb59053d3126d67d59dcf8473",
+        "markdown": "300d873116eda49b8dc30a758c7372ee4cf98eb21be4654874a9807f99bcacd3"
+      },
+      "test_command": [
+        "_UNITTEST/_DATA/test_report.tex"
+      ]
+    },
+    "RUN": {
+      "name": "RUN",
+      "description": "Universal command wrapper with JSON output",
+      "purpose": "Execute other tools and capture their output in JSON format with unique identifiers",
+      "usage": "RUN [--show] <command> [args...]",
+      "examples": [
+        "RUN OVERLEAF document.tex",
+        "RUN SEARCH_PAPER \"3DGS\" --max-results 3",
+        "RUN --show SEARCH_PAPER \"3DGS\" --max-results 3"
+      ],
+      "files": {
+        "binary": "RUN",
+        "python": "RUN.py",
+        "markdown": "RUN.md"
+      },
+      "run_compatible": false,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to execute other tools with JSON output",
+      "file_hashes": {
+        "binary": "9a59306098258957c9a2a1f9202ae96929b0ae583b2a4158315d2fe0be7cd967",
+        "python": "060d581cc01ff0be02b6cf9e848e1963325a75b3d26e8ad02e8cd24b4a36c622",
+        "markdown": "5e358ab72a61ffe8eda22888b4d57161a9758c4d54972eb84a4993592416849b"
+      },
+      "test_command": [
+        "python",
+        "_UNITTEST/test_run.py"
+      ]
+    },
+    "SEARCH_PAPER": {
+      "name": "SEARCH_PAPER",
+      "description": "Enhanced Academic Paper Search Tool",
+      "purpose": "Search academic papers from multiple platforms (arXiv, Google Scholar) with web crawling",
+      "usage": "SEARCH_PAPER [query] [options]",
+      "examples": [
+        "SEARCH_PAPER \"machine learning\"",
+        "SEARCH_PAPER \"deep learning\" --max-results 20",
+        "SEARCH_PAPER \"NLP\" --sources arxiv,google_scholar"
+      ],
+      "files": {
+        "binary": "SEARCH_PAPER",
+        "python": "SEARCH_PAPER.py",
+        "markdown": "SEARCH_PAPER.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to search for academic papers",
+      "file_hashes": {
+        "binary": "2779f023273904684a05ee2f4e19c578e1c9ba957f43b8785edc3e6ed2409e5b",
+        "python": "9886a0e93f019c7a6a4be90a0fa783316710ecb482aab8c36d9004097c3f033a",
+        "markdown": "a5d4d13de705761a4d4b8ccd6a8eb6cc93173bf0a2fe6231a749104a105c4867"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "UNIMERNET": {
+      "name": "UNIMERNET",
+      "description": "UnimerNet Formula and Table Recognition Tool",
+      "purpose": "Convert mathematical formulas and tables in images to text using UnimerNet neural network",
+      "usage": "UNIMERNET <image_path> [options]",
+      "examples": [
+        "UNIMERNET formula.png",
+        "UNIMERNET table.png --type table",
+        "UNIMERNET image.png --json --output result.json",
+        "UNIMERNET --check",
+        "UNIMERNET --stats"
+      ],
+      "files": {
+        "binary": "UNIMERNET",
+        "python": "UNIMERNET.py",
+        "markdown": "UNIMERNET.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to extract mathematical formulas or tables from images",
+      "file_hashes": {
+        "binary": "placeholder",
+        "python": "placeholder",
+        "markdown": "placeholder"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "LINTER": {
+      "name": "LINTER",
+      "description": "Multi-language syntax and style checker",
+      "purpose": "Supports Python, JavaScript, Java, C++, SQL, and more",
+      "usage": "LINTER <file> [--language <language>]",
+      "examples": [
+        "LINTER file.py",
+        "LINTER file.js --language javascript",
+        "LINTER file.cpp",
+        "LINTER file.sql --language sql"
+      ],
+      "files": {
+        "binary": "LINTER",
+        "python": "LINTER.py",
+        "markdown": "LINTER.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": false,
+      "ai_usable": true,
+      "test_command": [
+        "test_errors.py"
+      ],
+      "tool_use_scenario": "When user needs to check syntax and style errors in code files",
+      "file_hashes": {
+        "binary": "TBD",
+        "python": "TBD",
+        "markdown": "TBD"
+      }
+    },
+    "USERINPUT": {
+      "name": "USERINPUT",
+      "description": "User Input Script for Cursor AI",
+      "purpose": "Get user feedback in Cursor AI workflows",
+      "usage": "USERINPUT",
+      "examples": [
+        "USERINPUT"
+      ],
+      "files": {
+        "binary": "USERINPUT",
+        "python": "USERINPUT.py",
+        "markdown": "USERINPUT.md"
+      },
+      "run_compatible": true,
+      "testable": false,
+      "test_passed": true,
+      "ai_usable": true,
+      "tool_use_scenario": "When you need to get user feedback in workflows",
+      "file_hashes": {
+        "binary": "e22c6adbe2154a75486103b429394a8fbefb343567ab2f1e48f203998adf41aa",
+        "python": "d86fff6ea20dd4f5d3e2ad8ee25a780e3ee9219d7e4bd1cc5e3e81ed31fca6cd",
+        "markdown": "c545394251662f69cb42ef394c3f858cc09cc04a2137a4fb31e607b633d4e951"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "HUGGINGFACE": {
+      "name": "HUGGINGFACE",
+      "description": "HuggingFace Credentials Management Tool",
+      "purpose": "Manage HuggingFace credentials, authentication, and model access for projects requiring HuggingFace Hub integration",
+      "usage": "HUGGINGFACE [options]",
+      "examples": [
+        "HUGGINGFACE --login",
+        "HUGGINGFACE --token hf_xxxxxxxxxxxxxxxxxxxxxxxxx",
+        "HUGGINGFACE --status",
+        "HUGGINGFACE --whoami",
+        "HUGGINGFACE --test",
+        "HUGGINGFACE --logout",
+        "RUN --show HUGGINGFACE --status"
+      ],
+      "files": {
+        "python": "HUGGINGFACE.py",
+        "markdown": "HUGGINGFACE.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": false,
+      "ai_usable": true,
+      "tool_use_scenario": "When user needs to authenticate with HuggingFace for model downloads, uploads, or API access",
+      "file_hashes": {
+        "python": "pending",
+        "markdown": "pending"
+      },
+      "test_command": [
+        "--help"
+      ]
+    },
+    "PYPI": {
+      "name": "PYPI",
+      "description": "PyPI Package Information Tool",
+      "purpose": "Retrieve package information, dependencies, and metadata from PyPI",
+      "usage": "PYPI <command> [options]",
+      "examples": [
+        "PYPI info requests",
+        "PYPI deps numpy",
+        "PYPI batch --packages requests numpy --json"
+      ],
+      "files": {
+        "binary": "PYPI",
+        "python": "PYPI.py",
+        "markdown": "PYPI.md"
+      },
+      "run_compatible": "true",
+      "testable": "true",
+      "test_passed": "true",
+      "ai_usable": "true",
+      "tool_use_scenario": "When user needs to get PyPI package information, dependencies, or metadata",
+      "file_hashes": {
+        "binary": "02cd18adddfff7eb1d304f8b6192a8d12240feda618279c0be84b0cb79eb5e3d",
+        "python": "bface66daa627894bba31d3c2a04847fa7efc6f612504c0492269c36d4ac3f9a",
+        "markdown": "056cbca9c0d3746dd738d6ed821d5a7190c56b713e410d0d440510ae445402a6"
+      }
+    },
+    "NETWORK": {
+      "name": "NETWORK",
+      "description": "Network Testing Tool",
+      "purpose": "Test network speed, latency, and connectivity",
+      "usage": "NETWORK --test",
+      "examples": [
+        "NETWORK --test"
+      ],
+      "files": {
+        "binary": "NETWORK",
+        "python": "NETWORK.py",
+        "markdown": "NETWORK.md"
+      },
+      "run_compatible": "true",
+      "testable": "true",
+      "test_passed": "true",
+      "ai_usable": "true",
+      "tool_use_scenario": "When user needs to test network performance and connectivity",
+      "file_hashes": {
+        "binary": "2946443616dc2b38846cf46ba231eee6d7262eeed59b2b4e974faac3121b5e8f",
+        "python": "23f08fbd21a9ec2984094fad8f9db6bee2529dcc02f0dd1d1cfe68da1ebb5a99",
+        "markdown": "14a847810109cd0e7468de6adea44335e6360f0564b6cf533043cb42ee49a68f"
+      }
+    },
+    "BACKGROUND_CMD": {
+      "name": "BACKGROUND_CMD",
+      "description": "Safe background process management tool - MUST RUN IN FOREGROUND ONLY",
+      "purpose": "Create, monitor, and manage background processes safely, preventing system resource exhaustion. WARNING: This tool must be executed in foreground mode (is_background=false) to avoid terminal conflicts.",
+      "usage": "BACKGROUND_CMD <command> [options]",
+      "examples": [
+        "BACKGROUND_CMD \"sleep 60\"",
+        "BACKGROUND_CMD \"ls -la\" --shell bash",
+        "BACKGROUND_CMD --list",
+        "BACKGROUND_CMD --kill 12345",
+        "BACKGROUND_CMD --cleanup", 
+        "BACKGROUND_CMD --help"
+      ],
+      "files": {
+        "binary": "BACKGROUND_CMD.sh",
+        "python": "BACKGROUND_CMD.py",
+        "markdown": "BACKGROUND_CMD.md"
+      },
+      "run_compatible": true,
+      "testable": true,
+      "test_passed": true,
+      "ai_usable": true,
+      "ai_usage_notes": "CRITICAL: Always set is_background=false when calling this tool. Running BACKGROUND_CMD in background mode causes terminal conflicts and test failures.",
+      "test_command": [
+        "_UNITTEST/test_background_cmd.py"
+      ],
+      "tool_use_scenario": "When user needs to run background processes safely, manage process resources, or resolve posix_spawnp failed errors. MUST be executed in foreground mode only.",
+      "file_hashes": {
+        "binary": "7ce4207c4fa79988bae1674460b63b5f6767d998b7085b1f4fd0aa7631dbe247",
+        "python": "b495cbc4b0c7d4c0cec8664863f080369b8a41816a725ef5cf6d422233c6c608",
+        "markdown": "c85cb625677458f87d49d1b1eeece203645452888b98d27c20f33b0448d1ceac"
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-09-01",
+    "total_tools": 20
+  }
+}
