@@ -225,7 +225,7 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
             try:
                 signal.signal(signal.SIGINT, old_handler)
             except:
-            pass
+                pass
     
     # 超时或失败
     clear_progress()
