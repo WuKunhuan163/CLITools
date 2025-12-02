@@ -11,9 +11,10 @@ import threading
 import queue
 import hashlib
 from pathlib import Path
+from GOOGLE_DRIVE_PROJ.modules.commands.base_command import BaseCommand
 
 
-class ExtractCommand:
+class ExtractCommand(BaseCommand):
     """
     GDS extract指令 - 并行文件解压和转移系统
     
@@ -58,9 +59,14 @@ class ExtractCommand:
             command_identifier (str): 命令标识符
             
         Returns:
-            dict: 执行结果
+            int: 退出码（0表示成功，非0表示失败）
         """
-        return self.handle_command(args)
+        result = self.handle_command(args)
+        
+        # 转换dict结果为exit code
+        if isinstance(result, dict):
+            return 0 if result.get("success") else 1
+        return 0
         
     def handle_command(self, args):
         """
