@@ -82,9 +82,9 @@ class PyenvCommand(BaseCommand):
         print("=" * 50)
         print()
         print("USAGE:")
-        print("  GDS pyenv --install <version> [--force] [--progress-id <id>]  # Install Python version")
-        print("  GDS pyenv --install-bg <version> [--force]                     # Install in background")
-        print("  GDS pyenv --install-local <version> [--force]                  # Download locally then install")
+        print("  GDS pyenv --install <version> [--force] [--progress-id <id>]         # Install Python version")
+        print("  GDS pyenv --install-bg <version> [--force]                           # Install in background (DEPRECATED)")
+        print("  GDS pyenv --install-local <version> [--force] [--progress-id <id>]   # Download locally then install")
         print("  GDS pyenv --uninstall <version>                                # Uninstall Python version")
         print("  GDS pyenv --list                    # List installed versions")
         print("  GDS pyenv --global <version>        # Set global default Python version")
@@ -102,8 +102,8 @@ class PyenvCommand(BaseCommand):
         print("  GDS pyenv --install 3.9.18                                    # Install Python 3.9.18 (remote download)")
         print("  GDS pyenv --install-local 3.10.13                             # Download locally, then install (FASTER!)")
         print("  GDS pyenv --install 3.9.18 --force                            # Force reinstall existing version")
-        print("  GDS pyenv --install 3.11.7 --progress-id pyenv_install_3.11.7_7144d872  # Resume from progress ID")
-        print("  GDS pyenv --install-bg 3.10.13                                # Install in background")
+        print("  GDS pyenv --install 3.11.7 --progress-id pyenv_install_3.11.7_7144d872        # Resume remote install")
+        print("  GDS pyenv --install-local 3.10.13 --progress-id pyenv_install_local_3.10.13_a1b2c3d4  # Resume local install")
         print("  GDS pyenv --global 3.9.18                                     # Set 3.9.18 as global default")
         print("  GDS pyenv --local 3.10.13                                     # Use 3.10.13 in current shell")
         print("  GDS pyenv --versions                                          # List all installed versions")
@@ -177,7 +177,7 @@ class PyenvCommand(BaseCommand):
             elif action == "--install-local":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install from local download"}
-                return self.pyenv_install_local(version, force=force)
+                return self.pyenv_install_local(version, force=force, progress_id=progress_id)
             elif action == "--uninstall":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to uninstall"}
@@ -784,157 +784,214 @@ fi
         except Exception as e:
             return {"success": False, "error": f"Error starting background installation of Python {version}: {str(e)}"}
     
-    def pyenv_install_local(self, version, force=False):
-        """本地下载Python源码并上传到远程编译安装
+    def pyenv_install_local(self, version, force=False, progress_id=None):
+        """本地下载Python源码并上传到远程编译安装（支持指纹恢复）
+        
+        现在支持指纹恢复机制，可以从中断处继续安装！
         
         Args:
             version: Python版本号
             force: 是否强制覆盖已安装的版本
+            progress_id: 可选的进度ID，用于从中断处继续安装
             
         Returns:
             dict: 操作结果
         """
-        # 验证版本并准备安装
-        check_result = self.check_version_and_prepare_install(version, force)
-        if check_result is not None:
-            return check_result
+        import tempfile
+        import os
+        import subprocess
+        import hashlib
+        import time
+        from pathlib import Path
+        
+        # 如果提供了progress_id，说明是恢复模式
+        if progress_id:
+            print(f"Resuming installation with progress ID: {progress_id}")
+            # 从progress_id中提取temp_hash和version
+            if "_local_" in progress_id:
+                temp_hash = progress_id.split("_")[-1]
+            else:
+                temp_hash = hashlib.md5(f"local_{version}_{int(time.time())}".encode()).hexdigest()[:8]
+        else:
+            # 验证版本并准备安装（只在新安装时检查）
+            check_result = self.check_version_and_prepare_install(version, force)
+            if check_result is not None:
+                return check_result
+            
+            # 生成新的progress_id
+            temp_hash = hashlib.md5(f"local_{version}_{int(time.time())}".encode()).hexdigest()[:8]
+            progress_id = f"pyenv_install_local_{version}_{temp_hash}"
+            print(f"Starting new installation with progress ID: {progress_id}")
         
         try:
-            import tempfile
-            import os
-            import subprocess
-            from pathlib import Path
+            # 定义路径
+            remote_tmp_path = f"{self.shell.REMOTE_ENV}/tmp/python_download_local_{version}_{temp_hash}"
+            temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
+            final_install_path = f"{self.shell.REMOTE_ENV}/python/{version}"
+            fingerprint_base = f"~/tmp/pyenv_install_local_{version}_{temp_hash}"
             
-            print(f"Starting local download and remote installation of Python {version}...")
-            print(f"Step 1/4: Downloading Python {version} source code locally...")
+            # 步骤1：本地下载和上传（有指纹）
+            upload_fingerprint = f"{fingerprint_base}_step1_upload_ok"
+            upload_done = self._check_fingerprint_exists(upload_fingerprint)
             
-            # 创建临时目录
-            temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
-            try:
-                # 下载Python源码到本地
-                tarball_name = f"Python-{version}.tgz"
-                tarball_path = os.path.join(temp_dir, tarball_name)
-                download_url = f"https://www.python.org/ftp/python/{version}/{tarball_name}"
+            if not upload_done:
+                print(f"Starting local download and remote installation of Python {version}...")
+                print(f"Progress ID: {progress_id}")
+                print(f"Step 1/7: Downloading Python {version} source code locally...")
                 
-                # 使用wget或curl下载
-                download_cmd = f"curl -L -o '{tarball_path}' '{download_url}'"
-                result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
-                
-                if result.returncode != 0:
-                    # 尝试使用wget（开放式显示进度）
-                    download_cmd = f"wget -O '{tarball_path}' '{download_url}'"
-                    result = subprocess.run(download_cmd, shell=True, capture_output=False, text=True)
+                # 创建临时目录
+                temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
+                try:
+                    # 下载Python源码到本地
+                    tarball_name = f"Python-{version}.tgz"
+                    tarball_path = os.path.join(temp_dir, tarball_name)
+                    download_url = f"https://www.python.org/ftp/python/{version}/{tarball_name}"
+                    
+                    # 使用wget或curl下载
+                    download_cmd = f"curl -L -o '{tarball_path}' '{download_url}'"
+                    result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
                     
                     if result.returncode != 0:
+                        # 尝试使用wget（开放式显示进度）
+                        download_cmd = f"wget -O '{tarball_path}' '{download_url}'"
+                        result = subprocess.run(download_cmd, shell=True, capture_output=False, text=True)
+                        
+                        if result.returncode != 0:
+                            return {
+                                "success": False,
+                                "error": f"Failed to download Python {version} source code. Please check your internet connection."
+                            }
+                    
+                    # 验证文件已下载
+                    if not os.path.exists(tarball_path) or os.path.getsize(tarball_path) == 0:
                         return {
                             "success": False,
-                            "error": f"Failed to download Python {version} source code. Please check your internet connection."
+                            "error": f"Downloaded file is empty or not found: {tarball_path}"
                         }
-                
-                # 验证文件已下载
-                if not os.path.exists(tarball_path) or os.path.getsize(tarball_path) == 0:
+                    
+                    file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
+                    print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
+                    
+                    print(f"Step 1/7: Uploading source code to remote REMOTE_ENV...")
+                    
+                    # 创建远程目录
+                    mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
+                    if not mkdir_result.get("success"):
+                        import traceback
+                        call_stack = ''.join(traceback.format_stack()[-3:])
+                        return {
+                            "success": False,
+                            "error": f"Failed to create remote directory: {mkdir_result.get('error', f'Directory creation failed without specific error message. Call stack: {call_stack}')}"
+                        }
+                    
+                    # 上传tar.gz文件到@路径
+                    from ..commands.upload_command import UploadCommand
+                    upload_cmd = UploadCommand(self.shell)
+                    upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path)
+                    
+                    if not upload_result.get("success"):
+                        import traceback
+                        call_stack = ''.join(traceback.format_stack()[-3:])
+                        return {
+                            "success": False,
+                            "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
+                        }
+                    
+                    print(f"✓ Uploaded to {remote_tmp_path}/{tarball_name}")
+                    
+                    # 创建上传完成指纹
+                    fingerprint_cmd = f"touch {upload_fingerprint}"
+                    self.shell.execute_remote_command(fingerprint_cmd)
+                    print(f"✓ Step 1 (Upload) completed")
+                    
+                finally:
+                    # 清理本地临时目录
+                    try:
+                        import shutil
+                        shutil.rmtree(temp_dir)
+                    except:
+                        pass
+            else:
+                print(f"✓ Step 1 (Upload) already completed, skipping...")
+            
+            # 步骤2-7：使用与远端下载相同的分步执行机制（Extract, Configure, Compile, Install, Test, Transfer）
+            print(f"\nStep 2-7: Remote compilation with fingerprint recovery...")
+            print(f"This may take 10-20 minutes. If interrupted, use: pyenv --install-local {version} --progress-id {progress_id}")
+            print(f"")
+            
+            # 定义后续步骤（与远端下载的步骤2-7对应）
+            steps = [
+                {
+                    "num": 2,
+                    "name": "Extract",
+                    "description": f"Extracting Python {version} source",
+                    "fingerprint": f"{fingerprint_base}_step2_extract_ok",
+                    "command": f"cd {remote_tmp_path} && echo 'Extracting source code...' && tar -xzf Python-{version}.tgz && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
+                },
+                {
+                    "num": 3,
+                    "name": "Configure",
+                    "description": f"Configuring Python {version} build",
+                    "fingerprint": f"{fingerprint_base}_step3_configure_ok",
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo '✓ Configure completed' && touch {fingerprint_base}_step3_configure_ok"
+                },
+                {
+                    "num": 4,
+                    "name": "Compile",
+                    "description": f"Compiling Python {version}",
+                    "fingerprint": f"{fingerprint_base}_step4_compile_ok",
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Compiling Python {version}...' && make -j$(nproc) && echo '✓ Compile completed' && touch {fingerprint_base}_step4_compile_ok"
+                },
+                {
+                    "num": 5,
+                    "name": "Install",
+                    "description": f"Installing Python {version} to temporary location",
+                    "fingerprint": f"{fingerprint_base}_step5_install_ok",
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && if [ ! -f \"{temp_install_path}/bin/python3\" ] && [ -f \"{temp_install_path}/bin/python$MAJOR_MINOR\" ]; then cd \"{temp_install_path}/bin\" && ln -s \"python$MAJOR_MINOR\" python3; fi && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
+                },
+                {
+                    "num": 6,
+                    "name": "Test",
+                    "description": f"Testing Python {version} installation",
+                    "fingerprint": f"{fingerprint_base}_step6_test_ok",
+                    "command": f"echo 'Testing Python {version}...' && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/python3 -c 'import sys; print(f\"Python {{sys.version}} is working!\")' && {temp_install_path}/bin/pip3 --version && echo '✓ Test completed' && touch {fingerprint_base}_step6_test_ok"
+                },
+                {
+                    "num": 7,
+                    "name": "Transfer",
+                    "description": f"Transferring to final location",
+                    "fingerprint": f"{fingerprint_base}_step7_transfer_ok",
+                    "command": f"cd /tmp && echo 'Compressing...' && tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path}) && ls -lh python_{version}_{temp_hash}.tar.gz && echo 'Moving to Google Drive...' && mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && cd {self.main_instance.REMOTE_ENV}/python && echo 'Extracting in Google Drive...' && tar -xzf python_{version}_{temp_hash}.tar.gz && ([ -d {version} ] && rm -rf {version} || true) && mv $(basename {temp_install_path}) {version} && rm python_{version}_{temp_hash}.tar.gz && echo 'Setting executable permissions...' && chmod -R +x {final_install_path}/bin/* && echo 'Final verification...' && {final_install_path}/bin/python3 --version && {final_install_path}/bin/pip3 --version && echo '✓ Transfer completed' && touch {fingerprint_base}_step7_transfer_ok"
+                }
+            ]
+            
+            # 执行分步安装（与pyenv_install的逻辑相同）
+            for step in steps:
+                success = self._execute_step_with_retry(step, max_retries=3)
+                if not success:
                     return {
                         "success": False,
-                        "error": f"Downloaded file is empty or not found: {tarball_path}"
+                        "error": f"Step {step['num']} ({step['name']}) failed after retries. Use --progress-id {progress_id} to resume."
                     }
-                
-                file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
-                print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
-                
-                print(f"Step 2/4: Uploading source code to remote REMOTE_ENV...")
-                
-                # 上传到REMOTE_ENV的临时目录
-                # 使用绝对路径避免在测试环境中的路径嵌套问题
-                remote_tmp_path = f"{self.shell.REMOTE_ENV}/python_install_{version}"
-                
-                # 创建远程目录
-                mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
-                if not mkdir_result.get("success"):
-                    import traceback
-                    call_stack = ''.join(traceback.format_stack()[-3:])
-                    return {
-                        "success": False,
-                        "error": f"Failed to create remote directory: {mkdir_result.get('error', f'Directory creation failed without specific error message. Call stack: {call_stack}')}"
-                    }
-                
-                # 上传tar.gz文件到@路径 - 移除force=True以启用大文件检测
-                from ..commands.upload_command import UploadCommand
-                upload_cmd = UploadCommand(self.shell)
-                upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path)
-                
-                if not upload_result.get("success"):
-                    import traceback
-                    call_stack = ''.join(traceback.format_stack()[-3:])
-                    return {
-                        "success": False,
-                        "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
-                    }
-                
-                # 构建远程tarball路径
-                tarball_filename = os.path.basename(tarball_path)
-                remote_tarball_path = f"{remote_tmp_path}/{tarball_filename}"
-                print(f"✓ Uploaded to {remote_tarball_path}")
-                
-                print(f"Step 3/4: Extracting and compiling (this may take 10-20 minutes)...")
-                
-                # 生成临时安装目录的hash名称
-                import hashlib
-                import time
-                temp_hash = hashlib.md5(f"local_{version}_{int(time.time())}".encode()).hexdigest()[:8]
-                temp_install_path = f"{self.shell.REMOTE_ENV}/python/.tmp_install_local_{temp_hash}"
-                final_install_path = f"{self.shell.REMOTE_ENV}/python/{version}"
-                work_dir = f"{self.shell.REMOTE_ENV}/python_install_{version}"
-                
-                # 生成完整的安装脚本（源码已经上传，无需下载）
-                install_script = self.generate_install_script(
-                    version=version,
-                    temp_install_path=temp_install_path,
-                    final_install_path=final_install_path,
-                    source_preparation_script="",  # 源码已上传，无需准备
-                    work_dir=work_dir,
-                    temp_hash=temp_hash
-                )
-                
-                # 添加清理临时文件的命令
-                install_script += f'''
+            
             # 清理临时文件
-cd "{work_dir}"
-            cd ..
-rm -rf "{work_dir}"
-            echo "Installation complete. Clean up done."
-            echo "Python {version} is now available at: {final_install_path}/bin/python3"
-'''
-                
-                # 使用后台任务系统执行脚本
-                print(f"Step 4/4: Starting background compilation...")
-                result_code = self.shell.execute_background_command(install_script, command_identifier=None)
-                
-                if result_code == 0:
-                    print(f"✓ Background compilation started successfully!")
-                    print(f"")
-                    print(f"The compilation will continue in the background.")
-                    print(f"This typically takes 10-20 minutes depending on server performance.")
-                    print(f"")
-                    print(f"To check installation progress, use the background task commands shown above.")
-                    
-                    return {
-                        "success": True,
-                        "message": f"Started local-download installation of Python {version}",
-                        "stdout": f"Background compilation started. Use 'GDS --bg --status <task_id>' to check progress."
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "error": f"Failed to start background compilation"
-                    }
-                    
-            finally:
-                # 清理本地临时目录
-                try:
-                    import shutil
-                    shutil.rmtree(temp_dir)
-                except:
-                    pass
+            print(f"\nCleaning up temporary files...")
+            cleanup_cmd = f"rm -rf {remote_tmp_path} {temp_install_path} {fingerprint_base}_step*"
+            self.shell.execute_remote_command(cleanup_cmd)
+            
+            # 更新安装版本列表
+            self.update_installed_versions(version)
+            
+            print(f"✅ Python {version} installed successfully (local download mode)!")
+            print(f"Location: {final_install_path}")
+            print(f"Use 'GDS pyenv --local {version}' to activate this version")
+            
+            return {
+                "success": True,
+                "message": f"Python {version} installed successfully (local download mode)",
+                "version": version,
+                "install_path": final_install_path
+            }
                 
         except Exception as e:
             import traceback
