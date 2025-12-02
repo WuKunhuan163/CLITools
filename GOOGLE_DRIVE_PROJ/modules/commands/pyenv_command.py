@@ -315,14 +315,14 @@ class PyenvCommand(BaseCommand):
                 {
                     "num": 6,
                     "name": "Transfer",
-                    "description": f"Compressing and transferring to Google Drive",
+                    "description": f"Compressing the installation in /tmp, transferring to and extracting in Google Drive",
                     "fingerprint": f"{fingerprint_base}_step6_transfer_ok",
                     "command": f"cd /tmp && echo 'Compressing...' && tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path}) && ls -lh python_{version}_{temp_hash}.tar.gz && echo 'Moving to Google Drive...' && mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && cd {self.main_instance.REMOTE_ENV}/python && echo 'Extracting in Google Drive...' && tar -xzf python_{version}_{temp_hash}.tar.gz && ([ -d {version} ] && rm -rf {version} || true) && mv $(basename {temp_install_path}) {version} && rm python_{version}_{temp_hash}.tar.gz && echo 'Setting executable permissions...' && chmod -R +x {final_install_path}/bin/* && echo 'Final verification...' && {final_install_path}/bin/python3 --version && {final_install_path}/bin/pip3 --version && echo '✓ Transfer completed' && touch {fingerprint_base}_step6_transfer_ok"
                 }
             ]
             
             # 执行多步骤安装
-            return self._execute_multi_step_install(
+            return self.execute_multi_step_install(
                 version=version,
                 steps=steps,
                 temp_hash=temp_hash,
@@ -333,11 +333,16 @@ class PyenvCommand(BaseCommand):
             )
             
         except KeyboardInterrupt:
-            print("\nInstallation interrupted by user (Ctrl+C)")
+            print("\n\n⚠️  Installation interrupted by user (Ctrl+C)")
+            print(f"\nProgress has been saved using fingerprint files.")
+            print(f"You can resume this installation later using:")
+            print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
+            print(f"\nExiting without cleanup to preserve progress...")
             return {
                 "success": False, 
                 "error": "Installation interrupted by user",
-                "version": version
+                "version": version,
+                "progress_id": f"pyenv_install_{version}_{temp_hash}"
             }
         except Exception as e:
             import traceback
@@ -350,7 +355,7 @@ class PyenvCommand(BaseCommand):
                 "version": version
             }
     
-    def _check_fingerprint_exists(self, fingerprint_path):
+    def check_fingerprint_exists(self, fingerprint_path, max_attempts=12):
         """
         检测指纹文件是否存在（使用validation.verify_with_ls）
         
@@ -365,7 +370,8 @@ class PyenvCommand(BaseCommand):
             result = self.main_instance.validation.verify_with_ls(
                 path=fingerprint_path,
                 creation_type="file",
-                show_hidden=False
+                show_hidden=False,
+                max_attempts=max_attempts
             )
             return result.get("success", False)
             
@@ -374,7 +380,7 @@ class PyenvCommand(BaseCommand):
             traceback.print_exc()
             return False
     
-    def _execute_multi_step_install(self, version, steps, temp_hash, fingerprint_base, 
+    def execute_multi_step_install(self, version, steps, temp_hash, fingerprint_base, 
                                      build_dir, temp_install_path, final_install_path):
         """
         执行多步骤安装，每步作为独立的GDS命令
@@ -400,41 +406,51 @@ class PyenvCommand(BaseCommand):
                 print(f"Checking fingerprint: {step['fingerprint']}")
                 
                 #TODO: Change to verify_with_ls
-                if self._check_fingerprint_exists(step['fingerprint']):
-                    print(f"✓ Step {step_num} already completed (fingerprint found)")
+                if self.check_fingerprint_exists(step['fingerprint'], max_attempts=3):
+                    print(f"✅Step {step_num} already completed (fingerprint found)")
                     print(f"Skipping to next step...")
                     current_step += 1
                     continue
+                else: 
+                    print(f"Step {step_num} not completed yet (fingerprint not found)")
                 
                 # 执行当前步骤（最多重试max_retries次）
                 retry_count = 0
                 step_success = False
                 
                 while retry_count <= max_retries and not step_success:
-                    if retry_count > 0:
-                        print(f"\nRetrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
-                        time.sleep(3)
+                    try:
+                        if retry_count > 0:
+                            print(f"\nRetrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
+                            time.sleep(3)
+                        
+                        print(f"\nExecuting step {step_num}...")
+                        print(f"Command preview: {step['command'][:100]}...")
+                        
+                        # 执行步骤命令（使用raw command模式，不做路径解析）
+                        if hasattr(self.shell, 'command_executor'):
+                            self.shell.command_executor._raw_command = True
+                        result = self.shell.command_executor.execute_command_interface(
+                            cmd=step['command'],
+                            capture_result=False
+                        )
+                        
+                        # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
+                        if self.check_fingerprint_exists(step['fingerprint']):
+                            print(f"✅Step {step_num} completed successfully (fingerprint verified)")
+                            step_success = True
+                            current_step += 1
+                        else:
+                            print(f"✗ Step {step_num} failed (fingerprint not created)")
+                            retry_count += 1
                     
-                    print(f"\n▶ Executing step {step_num} as independent GDS command (raw mode)...")
-                    print(f"Command preview: {step['command'][:100]}...")
-                    print()
-                    
-                    # 执行步骤命令（使用raw command模式，不做路径解析）
-                    if hasattr(self.shell, 'command_executor'):
-                        self.shell.command_executor._raw_command = True
-                    result = self.shell.command_executor.execute_command_interface(
-                        cmd=step['command'],
-                        capture_result=False
-                    )
-                    
-                    # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
-                    if self._check_fingerprint_exists(step['fingerprint']):
-                        print(f"✅ Step {step_num} completed successfully (fingerprint verified)")
-                        step_success = True
-                        current_step += 1
-                    else:
-                        print(f"✗ Step {step_num} failed (fingerprint not created)")
-                        retry_count += 1
+                    except KeyboardInterrupt:
+                        print(f"\n\n⚠️  Installation interrupted by user (Ctrl+C)")
+                        print(f"Current progress: Step {step_num}/{len(steps)} - {step['name']}")
+                        print(f"\nYou can resume this installation later using:")
+                        print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
+                        print(f"\nExiting...")
+                        raise  # Re-raise to let outer handler catch it
                 
                 if not step_success:
                     print(f"\nStep {step_num} ({step['name']}) failed after {max_retries + 1} attempts")
@@ -473,14 +489,16 @@ class PyenvCommand(BaseCommand):
             }
             
         except KeyboardInterrupt:
-            print("\n\nInstallation interrupted by user (Ctrl+C)")
-            print("Cleaning up...")
-            cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
-            self.shell.execute_shell_command(cleanup_cmd)
+            print("\n\n⚠️  Installation interrupted by user (Ctrl+C)")
+            print(f"\nProgress has been saved using fingerprint files.")
+            print(f"You can resume this installation later using:")
+            print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
+            print(f"\nExiting without cleanup to preserve progress...")
             return {
                 "success": False,
                 "error": "Installation interrupted by user",
-                "version": version
+                "version": version,
+                "progress_id": f"pyenv_install_{version}_{temp_hash}"
             }
 
     def check_version_and_prepare_install(self, version, force=False):
@@ -828,7 +846,7 @@ fi
             
             # 步骤1：本地下载和上传（有指纹）
             upload_fingerprint = f"{fingerprint_base}_step1_upload_ok"
-            upload_done = self._check_fingerprint_exists(upload_fingerprint)
+            upload_done = self.check_fingerprint_exists(upload_fingerprint)
             
             if not upload_done:
                 print(f"Starting local download and remote installation of Python {version}...")
@@ -913,7 +931,6 @@ fi
             # 步骤2-7：使用与远端下载相同的分步执行机制（Extract, Configure, Compile, Install, Test, Transfer）
             print(f"\nStep 2-7: Remote compilation with fingerprint recovery...")
             print(f"This may take 10-20 minutes. If interrupted, use: pyenv --install-local {version} --progress-id {progress_id}")
-            print(f"")
             
             # 定义后续步骤（与远端下载的步骤2-7对应）
             steps = [
@@ -962,7 +979,7 @@ fi
             ]
             
             # 执行分步安装（使用与pyenv_install相同的方法）
-            return self._execute_multi_step_install(
+            return self.execute_multi_step_install(
                 version=version,
                 steps=steps,
                 temp_hash=temp_hash,
@@ -971,6 +988,19 @@ fi
                 temp_install_path=temp_install_path,
                 final_install_path=final_install_path
             )
+        
+        except KeyboardInterrupt:
+            print("\n\n⚠️  Installation interrupted by user (Ctrl+C)")
+            print(f"\nProgress has been saved using fingerprint files.")
+            print(f"You can resume this installation later using:")
+            print(f"  GDS pyenv --install-local {version} --progress-id {progress_id}")
+            print(f"\nExiting without cleanup to preserve progress...")
+            return {
+                "success": False,
+                "error": "Installation interrupted by user",
+                "version": version,
+                "progress_id": progress_id
+            }
                 
         except Exception as e:
             import traceback
