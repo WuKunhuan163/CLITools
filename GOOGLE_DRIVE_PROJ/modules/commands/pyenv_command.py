@@ -289,7 +289,7 @@ class PyenvCommand(BaseCommand):
                     "name": "Extract",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
-                    "command": f"cd {build_dir} && echo 'Extracting...' && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
+                    "command": f"cd {build_dir} && echo 'Extracting...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
                 },
                 {
                     "num": 3,
@@ -426,10 +426,6 @@ class PyenvCommand(BaseCommand):
                         cmd=step['command'],
                         capture_result=False
                     )
-                    
-                    # 等待指纹文件创建
-                    print(f"\n⏳ Waiting for fingerprint file to be created...")
-                    time.sleep(2)
                     
                     # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
                     if self._check_fingerprint_exists(step['fingerprint']):
@@ -797,20 +793,20 @@ fi
         Returns:
             dict: 操作结果
         """
-            import tempfile
-            import os
-            import subprocess
+        import tempfile
+        import os
+        import subprocess
         import hashlib
         import time
-            from pathlib import Path
-            
+        from pathlib import Path
+        
         # 如果提供了progress_id，说明是恢复模式
         if progress_id:
             print(f"Resuming installation with progress ID: {progress_id}")
             # 从progress_id中提取temp_hash和version
             if "_local_" in progress_id:
                 temp_hash = progress_id.split("_")[-1]
-                else:
+            else:
                 temp_hash = hashlib.md5(f"local_{version}_{int(time.time())}".encode()).hexdigest()[:8]
         else:
             # 验证版本并准备安装（只在新安装时检查）
@@ -835,82 +831,82 @@ fi
             upload_done = self._check_fingerprint_exists(upload_fingerprint)
             
             if not upload_done:
-            print(f"Starting local download and remote installation of Python {version}...")
+                print(f"Starting local download and remote installation of Python {version}...")
                 print(f"Progress ID: {progress_id}")
                 print(f"Step 1/7: Downloading Python {version} source code locally...")
-            
-            # 创建临时目录
-            temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
-            try:
-                # 下载Python源码到本地
-                tarball_name = f"Python-{version}.tgz"
-                tarball_path = os.path.join(temp_dir, tarball_name)
-                download_url = f"https://www.python.org/ftp/python/{version}/{tarball_name}"
                 
-                # 使用wget或curl下载
-                download_cmd = f"curl -L -o '{tarball_path}' '{download_url}'"
-                result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
-                
-                if result.returncode != 0:
+                # 创建临时目录
+                temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
+                try:
+                    # 下载Python源码到本地
+                    tarball_name = f"Python-{version}.tgz"
+                    tarball_path = os.path.join(temp_dir, tarball_name)
+                    download_url = f"https://www.python.org/ftp/python/{version}/{tarball_name}"
+                    
+                    # 使用wget或curl下载
+                    download_cmd = f"curl -L -o '{tarball_path}' '{download_url}'"
+                    result = subprocess.run(download_cmd, shell=True, capture_output=True, text=True)
+                    
+                    if result.returncode != 0:
                         # 尝试使用wget（开放式显示进度）
                         download_cmd = f"wget -O '{tarball_path}' '{download_url}'"
                         result = subprocess.run(download_cmd, shell=True, capture_output=False, text=True)
                     
-                    if result.returncode != 0:
+                        if result.returncode != 0:
+                            return {
+                                "success": False,
+                                "error": f"Failed to download Python {version} source code. Please check your internet connection."
+                            }
+                    
+                    # 验证文件已下载
+                    if not os.path.exists(tarball_path) or os.path.getsize(tarball_path) == 0:
                         return {
                             "success": False,
-                            "error": f"Failed to download Python {version} source code. Please check your internet connection."
+                            "error": f"Downloaded file is empty or not found: {tarball_path}"
                         }
-                
-                # 验证文件已下载
-                if not os.path.exists(tarball_path) or os.path.getsize(tarball_path) == 0:
-                    return {
-                        "success": False,
-                        "error": f"Downloaded file is empty or not found: {tarball_path}"
-                    }
-                
-                file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
-                print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
-                
+                    
+                    file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
+                    print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
+                    
                     print(f"Step 1/7: Uploading source code to remote REMOTE_ENV...")
-                
-                # 创建远程目录
-                mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
-                if not mkdir_result.get("success"):
-                    import traceback
-                    call_stack = ''.join(traceback.format_stack()[-3:])
-                    return {
-                        "success": False,
-                        "error": f"Failed to create remote directory: {mkdir_result.get('error', f'Directory creation failed without specific error message. Call stack: {call_stack}')}"
-                    }
-                
-                    # 上传tar.gz文件到@路径
-                from ..commands.upload_command import UploadCommand
-                upload_cmd = UploadCommand(self.shell)
-                upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path)
-                
-                if not upload_result.get("success"):
-                    import traceback
-                    call_stack = ''.join(traceback.format_stack()[-3:])
-                    return {
-                        "success": False,
-                        "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
-                    }
-                
-                    print(f"✓ Uploaded to {remote_tmp_path}/{tarball_name}")
                     
-                    # 创建上传完成指纹
-                    fingerprint_cmd = f"touch {upload_fingerprint}"
-                    self.shell.execute_shell_command(fingerprint_cmd)
-                    print(f"✓ Step 1 (Upload) completed")
+                    # 创建远程目录
+                    mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
+                    if not mkdir_result.get("success"):
+                        import traceback
+                        call_stack = ''.join(traceback.format_stack()[-3:])
+                        return {
+                            "success": False,
+                            "error": f"Failed to create remote directory: {mkdir_result.get('error', f'Directory creation failed without specific error message. Call stack: {call_stack}')}"
+                        }
                     
-            finally:
-                # 清理本地临时目录
-                try:
-                    import shutil
-                    shutil.rmtree(temp_dir)
-                except:
-                    pass
+                        # 上传tar.gz文件到@路径
+                    from ..commands.upload_command import UploadCommand
+                    upload_cmd = UploadCommand(self.shell)
+                    upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path)
+                    
+                    if not upload_result.get("success"):
+                        import traceback
+                        call_stack = ''.join(traceback.format_stack()[-3:])
+                        return {
+                            "success": False,
+                            "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
+                        }
+                    
+                        print(f"✓ Uploaded to {remote_tmp_path}/{tarball_name}")
+                        
+                        # 创建上传完成指纹
+                        fingerprint_cmd = f"touch {upload_fingerprint}"
+                        self.shell.execute_shell_command(fingerprint_cmd)
+                        print(f"✓ Step 1 (Upload) completed")
+                        
+                finally:
+                    # 清理本地临时目录
+                    try:
+                        import shutil
+                        shutil.rmtree(temp_dir)
+                    except:
+                        pass
             else:
                 print(f"✓ Step 1 (Upload) already completed, skipping...")
             
@@ -926,7 +922,7 @@ fi
                     "name": "Extract",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
-                    "command": f"cd {remote_tmp_path} && echo 'Extracting source code...' && tar -xzf Python-{version}.tgz && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
+                    "command": f"cd {remote_tmp_path} && echo 'Extracting source code...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
                 },
                 {
                     "num": 3,
@@ -1183,7 +1179,7 @@ echo "Python {version} uninstall completed"
     
     def pyenv_list_available(self, force=False):
         """列出可下载的Python版本（--list-available的实现，支持--force强制更新）"""
-                return {
+        return {
             "success": False,
             "error": "pyenv --list-available is not implemented yet. Please manually specify the Python version you want to install."
         }
