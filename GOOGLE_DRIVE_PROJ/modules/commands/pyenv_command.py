@@ -254,9 +254,9 @@ class PyenvCommand(BaseCommand):
                 temp_hash = progress_id.split("_")[-1]
                 print(f"📋 Resuming installation with progress ID: {progress_id}")
                 print(f"   Installation hash: {temp_hash}")
-                else:
+            else:
                 # 生成新的安装ID
-            temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
+                temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
             temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
             final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             build_dir = f"/tmp/python_download_{version}_{temp_hash}"
