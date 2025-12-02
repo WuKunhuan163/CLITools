@@ -33,6 +33,11 @@ class ExtractCommand:
         GDS extract @/python/test.zip --transfer-batch 2000
     """
     
+    @property
+    def command_name(self):
+        """命令名称"""
+        return "extract"
+    
     def __init__(self, main_instance):
         """
         初始化ExtractCommand
@@ -42,6 +47,20 @@ class ExtractCommand:
         """
         self.main_instance = main_instance
         self.shell = main_instance
+    
+    def execute(self, cmd, args, command_identifier=None):
+        """
+        执行extract命令（CommandRegistry接口）
+        
+        Args:
+            cmd (str): 命令名称
+            args (list): 命令参数
+            command_identifier (str): 命令标识符
+            
+        Returns:
+            dict: 执行结果
+        """
+        return self.handle_command(args)
         
     def handle_command(self, args):
         """
