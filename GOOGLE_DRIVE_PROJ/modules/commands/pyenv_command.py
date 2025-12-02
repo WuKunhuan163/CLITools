@@ -315,9 +315,13 @@ class PyenvCommand(BaseCommand):
                 {
                     "num": 6,
                     "name": "Transfer",
-                    "description": f"Compressing the installation in /tmp, transferring to and extracting in Google Drive",
+                    "description": f"Batch transferring Python {version} to Google Drive using parallel workers",
                     "fingerprint": f"{fingerprint_base}_step6_transfer_ok",
-                    "command": f"cd /tmp && echo 'Compressing...' && tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path}) && ls -lh python_{version}_{temp_hash}.tar.gz && echo 'Moving to Google Drive...' && mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && cd {self.main_instance.REMOTE_ENV}/python && echo 'Extracting in Google Drive...' && tar -xzf python_{version}_{temp_hash}.tar.gz && ([ -d {version} ] && rm -rf {version} || true) && mv $(basename {temp_install_path}) {version} && rm python_{version}_{temp_hash}.tar.gz && echo 'Setting executable permissions...' && chmod -R +x {final_install_path}/bin/* && echo 'Final verification...' && {final_install_path}/bin/python3 --version && {final_install_path}/bin/pip3 --version && echo '✓ Transfer completed' && touch {fingerprint_base}_step6_transfer_ok"
+                    "type": "batch_transfer",  # 特殊步骤类型
+                    "source": temp_install_path,
+                    "target": final_install_path,
+                    "transfer_batch": 1000,
+                    "version": version
                 }
             ]
             
@@ -442,24 +446,86 @@ class PyenvCommand(BaseCommand):
                             time.sleep(3)
                         
                         print(f"\nExecuting step {step_num}...")
-                        print(f"Command preview: {step['command'][:100]}...")
                         
-                        print(f"[DEBUG] About to execute command...")
-                        # 执行步骤命令（使用raw command模式，不做路径解析）
-                        if hasattr(self.shell, 'command_executor'):
-                            self.shell.command_executor._raw_command = True
-                        result = self.shell.command_executor.execute_command_interface(
-                            cmd=step['command'],
-                            capture_result=False
-                        )
-                        print(f"[DEBUG] Command execution returned, result type: {type(result)}")
-                        
-                        # 检查命令是否被中断
-                        if isinstance(result, dict) and result.get("interrupted"):
-                            print(f"[DEBUG] Command was interrupted, raising KeyboardInterrupt")
-                            raise KeyboardInterrupt()
+                        # 检查是否为特殊的batch_transfer步骤
+                        if step.get('type') == 'batch_transfer':
+                            print(f"[DEBUG] Detected batch_transfer step, using extract command...")
+                            
+                            # 调用extract命令的transfer_directory方法
+                            from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
+                            extract_cmd = ExtractCommand(self.main_instance)
+                            
+                            result = extract_cmd.transfer_directory(
+                                source_dir=step['source'],
+                                target_dir=step['target'],
+                                transfer_batch=step.get('transfer_batch', 1000)
+                            )
+                            
+                            # 检查transfer结果
+                            if not result.get("success"):
+                                print(f"[DEBUG] Batch transfer failed: {result.get('error', 'Unknown error')}")
+                                step_success = False
+                                retry_count += 1
+                                continue
+                            
+                            # 设置executable权限和最终验证
+                            print(f"\n[DEBUG] Setting executable permissions and verifying...")
+                            verify_cmd = f"chmod -R +x {step['target']}/bin/* && {step['target']}/bin/python3 --version && {step['target']}/bin/pip3 --version"
+                            
+                            if hasattr(self.shell, 'command_executor'):
+                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                self.shell.command_executor._raw_command = True
+                                
+                                verify_result = self.shell.command_executor.execute_command_interface(
+                                    cmd=verify_cmd,
+                                    capture_result=False
+                                )
+                                
+                                self.shell.command_executor._raw_command = old_raw
+                                
+                                if verify_result.get("success") == False or verify_result.get("interrupted"):
+                                    print(f"[DEBUG] Verification failed")
+                                    step_success = False
+                                    retry_count += 1
+                                    continue
+                        else:
+                            # 普通命令步骤
+                            print(f"Command preview: {step['command'][:100]}...")
+                            
+                            print(f"[DEBUG] About to execute command...")
+                            # 执行步骤命令（使用raw command模式，不做路径解析）
+                            if hasattr(self.shell, 'command_executor'):
+                                self.shell.command_executor._raw_command = True
+                            result = self.shell.command_executor.execute_command_interface(
+                                cmd=step['command'],
+                                capture_result=False
+                            )
+                            print(f"[DEBUG] Command execution returned, result type: {type(result)}")
+                            
+                            # 检查命令是否被中断
+                            if isinstance(result, dict) and result.get("interrupted"):
+                                print(f"[DEBUG] Command was interrupted, raising KeyboardInterrupt")
+                                raise KeyboardInterrupt()
                         
                         print(f"[DEBUG] About to check fingerprint...")
+                        
+                        # 对于batch_transfer步骤，手动创建指纹文件
+                        if step.get('type') == 'batch_transfer':
+                            # Batch transfer成功，手动创建指纹
+                            print(f"[DEBUG] Creating fingerprint for batch_transfer step...")
+                            create_fingerprint_cmd = f"touch {step['fingerprint']}"
+                            
+                            if hasattr(self.shell, 'command_executor'):
+                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                self.shell.command_executor._raw_command = True
+                                
+                                self.shell.command_executor.execute_command_interface(
+                                    cmd=create_fingerprint_cmd,
+                                    capture_result=False
+                                )
+                                
+                                self.shell.command_executor._raw_command = old_raw
+                        
                         # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
                         if self.check_fingerprint_exists(step['fingerprint']):
                             print(f"✅Step {step_num} completed successfully (fingerprint verified)")
@@ -1003,9 +1069,13 @@ fi
                 {
                     "num": 7,
                     "name": "Transfer",
-                    "description": f"Transferring to final location",
+                    "description": f"Batch transferring Python {version} to Google Drive using parallel workers",
                     "fingerprint": f"{fingerprint_base}_step7_transfer_ok",
-                    "command": f"cd /tmp && echo 'Compressing...' && tar -czf python_{version}_{temp_hash}.tar.gz $(basename {temp_install_path}) && ls -lh python_{version}_{temp_hash}.tar.gz && echo 'Moving to Google Drive...' && mv python_{version}_{temp_hash}.tar.gz {self.main_instance.REMOTE_ENV}/python/ && cd {self.main_instance.REMOTE_ENV}/python && echo 'Extracting in Google Drive...' && tar -xzf python_{version}_{temp_hash}.tar.gz && ([ -d {version} ] && rm -rf {version} || true) && mv $(basename {temp_install_path}) {version} && rm python_{version}_{temp_hash}.tar.gz && echo 'Setting executable permissions...' && chmod -R +x {final_install_path}/bin/* && echo 'Final verification...' && {final_install_path}/bin/python3 --version && {final_install_path}/bin/pip3 --version && echo '✓ Transfer completed' && touch {fingerprint_base}_step7_transfer_ok"
+                    "type": "batch_transfer",  # 特殊步骤类型
+                    "source": temp_install_path,
+                    "target": final_install_path,
+                    "transfer_batch": 1000,
+                    "version": version
                 }
             ]
             
