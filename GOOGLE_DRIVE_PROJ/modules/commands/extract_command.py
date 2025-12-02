@@ -361,7 +361,7 @@ class ExtractCommand(BaseCommand):
         """
         # 构造复制和解压命令
         archive_name = os.path.basename(archive_path)
-        tmp_archive = f"/tmp/{archive_name}"
+        tmp_archive = f"/tmp/gds_archive_{archive_name}"  # 添加前缀避免同名
         
         # 检测压缩文件类型
         if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
@@ -376,11 +376,17 @@ class ExtractCommand(BaseCommand):
                 "error": f"Unsupported archive format: {archive_name}"
             }
         
+        # 如果源文件已在/tmp，直接使用，不复制
+        if archive_path.startswith('/tmp/'):
+            copy_cmd = f"[ '{archive_path}' = '{tmp_archive}' ] || cp '{archive_path}' {tmp_archive}"
+        else:
+            copy_cmd = f"cp '{archive_path}' {tmp_archive}"
+        
         # 执行复制和解压
         cmd = f"""
 cd /tmp && \\
-echo 'Copying archive to /tmp...' && \\
-cp '{archive_path}' {tmp_archive} && \\
+echo 'Preparing archive...' && \\
+{copy_cmd} && \\
 echo 'Creating extract directory...' && \\
 mkdir -p {extract_dir} && \\
 echo 'Extracting archive...' && \\
