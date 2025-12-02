@@ -148,8 +148,14 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
         nonlocal interrupted
         interrupted = True
     
-    # 保存原有的信号处理器
-    old_handler = signal.signal(signal.SIGINT, signal_handler)
+    # 保存原有的信号处理器（只在主线程可用）
+    old_handler = None
+    try:
+        old_handler = signal.signal(signal.SIGINT, signal_handler)
+    except ValueError:
+        # 在worker线程中signal.signal会抛出ValueError
+        # 跳过signal handler设置，worker线程不需要处理Ctrl+C
+        pass
     
     try:
         attempt = 0
@@ -214,10 +220,11 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
             "attempts": attempt
         }
     finally:
-        # 恢复原有的信号处理器
-        try:
-            signal.signal(signal.SIGINT, old_handler)
-        except:
+        # 恢复原有的信号处理器（只在主线程有效）
+        if old_handler is not None:
+            try:
+                signal.signal(signal.SIGINT, old_handler)
+            except:
             pass
     
     # 超时或失败
