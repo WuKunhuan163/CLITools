@@ -252,24 +252,29 @@ class ExtractCommand(BaseCommand):
             if not result["success"]:
                 return result
             
-            # Step 4: 递归分析目录结构
-            print("\nStep 3: Analyzing directory structure...")
-            dir_structure = self._analyze_directory_structure(tmp_extract_dir)
+            # Step 4: 找到实际的解压内容目录
+            print("\nStep 3: Finding extracted content...")
+            actual_extract_dir = self._find_extract_content_dir(tmp_extract_dir)
+            print(f"  Actual content dir: {actual_extract_dir}")
+            
+            # Step 5: 递归分析目录结构
+            print("\nStep 4: Analyzing directory structure...")
+            dir_structure = self._analyze_directory_structure(actual_extract_dir)
             print(f"  Total files: {dir_structure['total_files']}")
             print(f"  Total directories: {dir_structure['total_dirs']}")
             
-            # Step 5: 构建转移任务列表
-            print("\nStep 4: Building transfer task list...")
+            # Step 6: 构建转移任务列表
+            print("\nStep 5: Building transfer task list...")
             task_list = self._build_transfer_tasks(
-                tmp_extract_dir, 
+                actual_extract_dir, 
                 dir_structure,
                 transfer_batch,
                 fingerprint_dir
             )
             print(f"  Total tasks: {len(task_list)}")
             
-            # Step 6: 启动3个worker并行执行
-            print("\nStep 5: Starting parallel transfer with 3 workers...")
+            # Step 7: 启动3个worker并行执行
+            print("\nStep 6: Starting parallel transfer with 3 workers...")
             transfer_result = self._parallel_transfer(task_list, num_workers=3)
             
             if not transfer_result["success"]:
@@ -414,6 +419,63 @@ rm -f {tmp_archive}
                 }
         
         return {"success": True}
+    
+    def _find_extract_content_dir(self, extract_dir):
+        """
+        找到解压后的实际内容目录
+        
+        tar解压可能在extract_dir下创建子目录，需要找到实际内容
+        
+        Args:
+            extract_dir (str): 解压目标目录
+            
+        Returns:
+            str: 实际内容目录路径
+        """
+        # 检查extract_dir下有多少个项目
+        cmd = f"find {extract_dir} -maxdepth 1 -mindepth 1 | wc -l"
+        
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd,
+                capture_result=True
+            )
+            
+            self.shell.command_executor._raw_command = old_raw
+            
+            if result.get("success"):
+                try:
+                    count = int(result.get("stdout", "0").strip())
+                    
+                    # 如果只有一个项目，且是目录，使用该目录
+                    if count == 1:
+                        cmd2 = f"find {extract_dir} -maxdepth 1 -mindepth 1 -type d"
+                        
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        
+                        result2 = self.shell.command_executor.execute_command_interface(
+                            cmd=cmd2,
+                            capture_result=True
+                        )
+                        
+                        self.shell.command_executor._raw_command = old_raw
+                        
+                        if result2.get("success"):
+                            dir_path = result2.get("stdout", "").strip()
+                            if dir_path:
+                                print(f"  [DEBUG] Found single subdirectory: {dir_path}")
+                                return dir_path
+                
+                except:
+                    pass
+        
+        # 默认返回extract_dir本身
+        print(f"  [DEBUG] Using extract_dir itself: {extract_dir}")
+        return extract_dir
     
     def _analyze_directory_structure(self, root_dir):
         """
@@ -718,7 +780,9 @@ rm -f {tmp_archive}
                     with lock:
                         print(f"\n[Worker {worker_id}] Starting task {task['task_id']}: {task['description']}")
                     
+                    print(f"[Worker {worker_id}] [DEBUG] About to execute transfer task...")
                     result = self._execute_transfer_task(task)
+                    print(f"[Worker {worker_id}] [DEBUG] Transfer task returned: {result.get('success')}")
                     
                     with lock:
                         if result["success"]:
