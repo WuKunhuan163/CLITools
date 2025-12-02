@@ -33,6 +33,7 @@ from GOOGLE_DRIVE_PROJ.modules.commands.linter_command import LinterCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
+from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
 from GOOGLE_DRIVE_PROJ.modules.debug_logger import debug_log
 from GOOGLE_DRIVE_PROJ.modules.command_executor import clean_stderr_trailing_newlines
 
@@ -206,6 +207,7 @@ class GoogleDriveShell:
         self.command_registry.register(PipCommand(self))
         self.command_registry.register(DepsCommand(self))
         self.command_registry.register(PyenvCommand(self))
+        self.command_registry.register(ExtractCommand(self))
     
     def execute_command_via_registry(self, command_name, method_name, *args, **kwargs):
         """通用的命令委托方法 - 通过command_registry执行命令"""
