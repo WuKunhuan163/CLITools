@@ -467,11 +467,11 @@ class PyenvCommand(BaseCommand):
             print(f"Location: {final_install_path}")
             print(f"Total time: {minutes}m {seconds}s")
             print(f"{'='*70}\n")
-                
-                return {
-                    "success": True,
-                    "message": f"Python {version} installed successfully",
-                    "version": version,
+            
+            return {
+                "success": True,
+                "message": f"Python {version} installed successfully",
+                "version": version,
                 "install_path": final_install_path,
                 "duration_seconds": elapsed
             }
