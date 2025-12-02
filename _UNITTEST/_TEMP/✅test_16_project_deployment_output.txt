@@ -1,88 +1,60 @@
 # ============================================================================
-# Test completed at: 2025-11-18 16:03:36 - Status: PASS
+# Test completed at: 2025-12-02 18:36:55 - Status: PASS
 # ============================================================================
 
 test_16_project_deployment (test_gds.GDSTest) ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 370.556s
+Ran 1 test in 716.927s
 
 OK
 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
 Python缓存和pytest缓存已清理
-远端测试目录: ~/tmp/gds_test_20251118_155724_360961_f6f75005
-正在创建远端测试目录: ~/tmp/gds_test_20251118_155724_360961_f6f75005
+远端测试目录: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b
+正在创建远端测试目录: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251118_155724_360961_f6f75005
-✓ 验证测试目录存在: ~/tmp/gds_test_20251118_155724_360961_f6f75005
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_h85q0nak
+已切换到远端测试目录: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_9hux8k4r
 测试环境设置完成
 
-执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251118_155724_360961_f6f75005 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
-验证命令: ['ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project']
+执行带重试的upload命令: upload_folder --target-dir ~/tmp/gds_test_20251202_182454_742197_da1fbc7b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"
+验证命令: ['ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project']
 最大重试次数: 3
 
 尝试 1/3
-命令: 'upload_folder --target-dir ~/tmp/gds_test_20251118_155724_360961_f6f75005 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
+命令: 'upload_folder --target-dir ~/tmp/gds_test_20251202_182454_742197_da1fbc7b --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_project"'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-bash -c '
-# 创建目录
-mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155724_360961_f6f75005"
-# 移动文件（带重试机制）
-for attempt in $(seq 1 30); do
-    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_project.zip" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155724_360961_f6f75005" 2>/dev/null; then
-        break
-    elif [ "$attempt" -eq 30 ]; then
-        echo "Error: gds_test_20251118_155724_360961_f6f75005 move failed, still failed after 30 retries" >&2
-        exit 1
-    else
-        sleep 1
-    fi
-done
-clear
-echo "✅执行完成"
-# 解压和清理zip文件
-(cd "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155724_360961_f6f75005" && echo "Start decompressing test_project.zip" && (unzip -o "test_project.zip" 2>&1 | grep -v "zipfile is empty" || true) && echo "=== 删除zip ===" && rm "test_project.zip" && echo "Verifying decompression result ..." && ls -la)'
-=====================
-Remote real output: 
-=====================
+输出: 
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证命令 1: ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project
-命令: 'ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project'
+验证命令 1: ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project
+命令: 'ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project'
 返回码: 0
 输出: config.json
 core.py
 main.py
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-验证成功: ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project
+验证成功: ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project
 所有验证通过!
-命令: 'cd ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project'
+命令: 'cd ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project'
 返回码: 0
-命令: 'ls -la ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project'
+命令: 'ls -la ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-bash -c 'ls -la /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155724_360961_f6f75005/test_project'
-=====================
-Remote real output: 
-=====================
-total 2
--rw------- 1 root root 249 Nov 18  2025 config.json
--rw------- 1 root root 391 Nov 18  2025 core.py
--rw------- 1 root root 686 Nov 18  2025 main.py
-命令: 'ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project/main.py'
+输出: total 2
+-rw------- 1 root root 249 Dec  2  2025 config.json
+-rw------- 1 root root 391 Dec  2  2025 core.py
+-rw------- 1 root root 686 Dec  2  2025 main.py
+命令: 'ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project/main.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project/main.py
-命令: 'ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project/core.py'
+输出: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project/main.py
+命令: 'ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project/core.py'
 返回码: 0
-输出: ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project/core.py
-命令: 'ls ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project/config.json'
+输出: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project/core.py
+命令: 'ls ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project/config.json'
 返回码: 0
-输出: ~/tmp/gds_test_20251118_155724_360961_f6f75005/test_project/config.json
-命令: 'cd ~/tmp/gds_test_20251118_155724_360961_f6f75005'
+输出: ~/tmp/gds_test_20251202_182454_742197_da1fbc7b/test_project/config.json
+命令: 'cd ~/tmp/gds_test_20251202_182454_742197_da1fbc7b'
 返回码: 0
 
 ======================================================================

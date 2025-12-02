@@ -1,54 +1,37 @@
 # ============================================================================
-# Test completed at: 2025-11-18 15:18:55 - Status: PASS
+# Test completed at: 2025-12-02 12:48:21 - Status: PASS
 # ============================================================================
 
 test_02_echo_basic (test_gds.GDSTest)
 测试基础echo命令 ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 457.180s
+Ran 1 test in 476.074s
 
 OK
 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
 Python缓存和pytest缓存已清理
-远端测试目录: ~/tmp/gds_test_20251118_151112_605529_cb27133c
-正在创建远端测试目录: ~/tmp/gds_test_20251118_151112_605529_cb27133c
+远端测试目录: ~/tmp/gds_test_20251202_124025_127111_51a84728
+正在创建远端测试目录: ~/tmp/gds_test_20251202_124025_127111_51a84728
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251118_151112_605529_cb27133c
-✓ 验证测试目录存在: ~/tmp/gds_test_20251118_151112_605529_cb27133c
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_bdnkugrd
+已切换到远端测试目录: ~/tmp/gds_test_20251202_124025_127111_51a84728
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_124025_127111_51a84728
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2akcatwt
 测试环境设置完成
 命令: 'echo "Hello World"'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "Hello World"
-=====================
-Remote real output: 
-=====================
-Hello World
+输出: Hello World
 命令: 'echo "Complex: @#$%^&*() \\"quotes\\" 中文字符"'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "Complex: @#$%^&*() \"quotes\" 中文字符"
-=====================
-Remote real output: 
-=====================
-Complex: @#$%^&*() "quotes" 中文字符
-命令: 'echo "Test content" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/test_echo.txt'
+输出: Complex: @#$%^&*() "quotes" 中文字符
+命令: 'echo "Test content" > ~/tmp/gds_test_20251202_124025_127111_51a84728/test_echo.txt'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "Test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151112_605529_cb27133c/test_echo.txt
-=====================
-Remote real output: 
-=====================
-  filename: ~/tmp/gds_test_20251118_151112_605529_cb27133c/test_echo.txt
+输出: 
+  filename: ~/tmp/gds_test_20251202_124025_127111_51a84728/test_echo.txt
   expected_content: 'Test content'
   terminal_erase: False
-命令: 'cat ~/tmp/gds_test_20251118_151112_605529_cb27133c/test_echo.txt'
+命令: 'cat ~/tmp/gds_test_20251202_124025_127111_51a84728/test_echo.txt'
 返回码: 0
 输出: Test content
   returncode: 0
@@ -56,18 +39,13 @@ Remote real output:
   stderr: ''
   actual_content: 'Test content\n'
   actual_content length: 13
-命令: 'echo "Line 1\\nLine 2\\tTabbed\\Backslash" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/complex_echo.txt'
+命令: 'echo "Line 1\\nLine 2\\tTabbed\\Backslash" > ~/tmp/gds_test_20251202_124025_127111_51a84728/complex_echo.txt'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "Line 1\nLine 2\tTabbed\Backslash" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151112_605529_cb27133c/complex_echo.txt
-=====================
-Remote real output: 
-=====================
-  filename: ~/tmp/gds_test_20251118_151112_605529_cb27133c/complex_echo.txt
+输出: 
+  filename: ~/tmp/gds_test_20251202_124025_127111_51a84728/complex_echo.txt
   expected_content: 'Line 1\\nLine 2\\tTabbed\\Backslash'
   terminal_erase: True
-命令: 'cat ~/tmp/gds_test_20251118_151112_605529_cb27133c/complex_echo.txt'
+命令: 'cat ~/tmp/gds_test_20251202_124025_127111_51a84728/complex_echo.txt'
 返回码: 0
 输出: Line 1\nLine 2\tTabbed\Backslash
   returncode: 0
@@ -75,18 +53,13 @@ Remote real output:
   stderr: ''
   actual_content: 'Line 1\\nLine 2\\tTabbed\\Backslash'
   actual_content length: 32
-命令: 'echo "{\'name\': \'test02_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/json_echo.txt'
+命令: 'echo "{\'name\': \'test02_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251202_124025_127111_51a84728/json_echo.txt'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "{'name': 'test02_json_echo_01', 'value': 123}" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151112_605529_cb27133c/json_echo.txt
-=====================
-Remote real output: 
-=====================
-  filename: ~/tmp/gds_test_20251118_151112_605529_cb27133c/json_echo.txt
+输出: 
+  filename: ~/tmp/gds_test_20251202_124025_127111_51a84728/json_echo.txt
   expected_content: "{'name': 'test02_json_echo_01', 'value': 123}"
   terminal_erase: True
-命令: 'cat ~/tmp/gds_test_20251118_151112_605529_cb27133c/json_echo.txt'
+命令: 'cat ~/tmp/gds_test_20251202_124025_127111_51a84728/json_echo.txt'
 返回码: 0
 输出: {'name': 'test02_json_echo_01', 'value': 123}
   returncode: 0
@@ -94,18 +67,13 @@ Remote real output:
   stderr: ''
   actual_content: "{'name': 'test02_json_echo_01', 'value': 123}"
   actual_content length: 45
-命令: 'echo "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/chinese_echo.txt'
+命令: 'echo "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?" > ~/tmp/gds_test_20251202_124025_127111_51a84728/chinese_echo.txt'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151112_605529_cb27133c/chinese_echo.txt
-=====================
-Remote real output: 
-=====================
-  filename: ~/tmp/gds_test_20251118_151112_605529_cb27133c/chinese_echo.txt
+输出: 
+  filename: ~/tmp/gds_test_20251202_124025_127111_51a84728/chinese_echo.txt
   expected_content: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'
   terminal_erase: True
-命令: 'cat ~/tmp/gds_test_20251118_151112_605529_cb27133c/chinese_echo.txt'
+命令: 'cat ~/tmp/gds_test_20251202_124025_127111_51a84728/chinese_echo.txt'
 返回码: 0
 输出: 测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?
   returncode: 0
@@ -113,19 +81,13 @@ Remote real output:
   stderr: ''
   actual_content: '测试中文：你好世界 Special chars: @#$%^&*()_+-=[]{}|;:,.<>?'
   actual_content length: 50
-命令: 'echo -e "line1\\nline2\\nline3" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_multiline.txt'
+命令: 'echo -e "line1\\nline2\\nline3" > ~/tmp/gds_test_20251202_124025_127111_51a84728/echo_multiline.txt'
 返回码: 0
-输出: DEBUG 检测到echo -e包装，提取内部命令: "line1\nline2\nline3" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_multiline.txt
-User command preview [in f-string]: 
-=====================
-echo -e "line1\nline2\nline3" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151112_605529_cb27133c/echo_multiline.txt
-=====================
-Remote real output: 
-=====================
-  filename: ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_multiline.txt
+输出: 
+  filename: ~/tmp/gds_test_20251202_124025_127111_51a84728/echo_multiline.txt
   expected_content: 'line1\nline2\nline3'
   terminal_erase: True
-命令: 'cat ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_multiline.txt'
+命令: 'cat ~/tmp/gds_test_20251202_124025_127111_51a84728/echo_multiline.txt'
 返回码: 0
 输出: line1
 line2
@@ -135,19 +97,13 @@ line3
   stderr: ''
   actual_content: 'line1\nline2\nline3'
   actual_content length: 17
-命令: 'echo -e "Line 1\\nLine 2\\tTabbed\\\\Backslash" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_escape.txt'
+命令: 'echo -e "Line 1\\nLine 2\\tTabbed\\\\Backslash" > ~/tmp/gds_test_20251202_124025_127111_51a84728/echo_escape.txt'
 返回码: 0
-输出: DEBUG 检测到echo -e包装，提取内部命令: "Line 1\nLine 2\tTabbed\\Backslash" > ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_escape.txt
-User command preview [in f-string]: 
-=====================
-echo -e "Line 1\nLine 2\tTabbed\\Backslash" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_151112_605529_cb27133c/echo_escape.txt
-=====================
-Remote real output: 
-=====================
-  filename: ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_escape.txt
+输出: 
+  filename: ~/tmp/gds_test_20251202_124025_127111_51a84728/echo_escape.txt
   expected_content: 'Line 1\nLine 2\tTabbed\\Backslash'
   terminal_erase: True
-命令: 'cat ~/tmp/gds_test_20251118_151112_605529_cb27133c/echo_escape.txt'
+命令: 'cat ~/tmp/gds_test_20251202_124025_127111_51a84728/echo_escape.txt'
 返回码: 0
 输出: Line 1
 Line 2	Tabbed\Backslash

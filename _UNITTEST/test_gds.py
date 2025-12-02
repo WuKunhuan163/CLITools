@@ -5380,10 +5380,10 @@ print('Script execution successful!')
         bash_file_output = bash_ls_file.stdout.strip()
         
         # 单个文件应该显示完整路径（可能是相对路径或绝对路径）
-        # 验证GDS和bash的行为一致（都显示完整路径，以single_file.txt结尾）
-        self.assertTrue(gds_file_output.endswith("single_file.txt"), 
+        # 验证GDS和bash的行为一致（都显示完整路径，以testfile.txt结尾）
+        self.assertTrue(gds_file_output.endswith("testfile.txt"), 
                        f"ls单个文件应该显示包含文件名的路径，实际: {gds_file_output}")
-        self.assertTrue(bash_file_output.endswith("single_file.txt"), 
+        self.assertTrue(bash_file_output.endswith("testfile.txt"), 
                        f"bash ls单个文件应该显示包含文件名的路径，实际: {bash_file_output}")
         print(f"  ✓ ls单个文件路径格式一致")
         
@@ -5454,7 +5454,7 @@ print('Script execution successful!')
         self.assertNotEqual(gds_mkdir_fail.returncode, 0, "mkdir多级目录应该失败")
         
         # 验证错误信息包含"No such file or directory"
-        gds_mkdir_error = self.get_cleaned_stdout(gds_mkdir_fail)
+        gds_mkdir_error = self.get_cleaned_stdout(gds_mkdir_fail, use_stderr=True)
         self.assertTrue(gds_mkdir_error.endswith("No such file or directory"), 
                        f"mkdir错误应该以'No such file or directory'结束，实际: {gds_mkdir_error}")
         print(f"  ✓ mkdir错误消息正确: {gds_mkdir_error[:80]}...")
@@ -5467,7 +5467,7 @@ print('Script execution successful!')
         self.assertNotEqual(gds_touch_fail.returncode, 0, "touch不存在目录下的文件应该失败")
         
         # 验证错误信息包含"No such file or directory"
-        gds_touch_error = self.get_cleaned_stdout(gds_touch_fail)
+        gds_touch_error = self.get_cleaned_stdout(gds_touch_fail, use_stderr=True)
         self.assertTrue(gds_touch_error.endswith("No such file or directory"), 
                        f"touch错误应该以'No such file or directory'结束，实际: {gds_touch_error}")
         print(f"  ✓ touch错误消息正确: {gds_touch_error[:80]}...")

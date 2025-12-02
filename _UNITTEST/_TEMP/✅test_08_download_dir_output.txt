@@ -1,82 +1,64 @@
 # ============================================================================
-# Test completed at: 2025-11-18 16:05:28 - Status: PASS
+# Test completed at: 2025-12-02 17:42:51 - Status: PASS
 # ============================================================================
 
 test_08_download_dir (test_gds.GDSTest)
 测试GDS目录下载功能 ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 414.646s
+Ran 1 test in 1466.413s
 
 OK
 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
 Python缓存和pytest缓存已清理
-远端测试目录: ~/tmp/gds_test_20251118_155831_583943_e7e2e118
-正在创建远端测试目录: ~/tmp/gds_test_20251118_155831_583943_e7e2e118
+远端测试目录: ~/tmp/gds_test_20251202_171822_636113_d8f16ea1
+正在创建远端测试目录: ~/tmp/gds_test_20251202_171822_636113_d8f16ea1
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251118_155831_583943_e7e2e118
-✓ 验证测试目录存在: ~/tmp/gds_test_20251118_155831_583943_e7e2e118
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_5m2mucnj
+已切换到远端测试目录: ~/tmp/gds_test_20251202_171822_636113_d8f16ea1
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_171822_636113_d8f16ea1
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_tqlk518t
 测试环境设置完成
 测试GDS目录下载功能
-命令: 'mkdir -p ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir'
+命令: 'mkdir -p ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir"'
-=====================
-Remote real output: 
-=====================
-命令: 'echo "Directory download test content" > ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir/test_file.txt'
+输出: 
+命令: 'echo "Directory download test content" > ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir/test_file.txt'
+返回码: 1
+输出: Error: ls: ~/tmp/cmd_result_1764667276_0d32a49b.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到remount flag已存在，跳过重复设置
+重试第1次...
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-echo "Directory download test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir/test_file.txt
-=====================
-Remote real output: 
-=====================
-命令: 'ls ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir'
+输出: 
+命令: 'ls ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir'
 返回码: 0
 输出: test_file.txt
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-命令: 'ls ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir/test_file.txt'
+命令: 'ls ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir/test_file.txt'
 返回码: 0
-输出: ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir/test_file.txt
+输出: ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir/test_file.txt
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
 测试目录下载功能
-命令: 'download ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip'
+命令: 'download ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir /Users/wukunhuan/tmp/downloaded_dir.zip'
 返回码: 0
-输出: 正在压缩目录 test_download_dir 到 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1763452988_ab6a8ca6.zip...
-User command preview [in f-string]: 
-=====================
-bash -c 'mkdir -p '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp'"'"' && cd '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155831_583943_e7e2e118'"'"' && zip -r '"'"'/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1763452988_ab6a8ca6.zip'"'"' '"'"'test_download_dir'"'"''
-=====================
-Remote real output: 
-=====================
-验证zip文件创建: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1763452988_ab6a8ca6.zip
+输出: 正在压缩目录 test_download_dir 到 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1764667733_e7dcea93.zip...
+验证zip文件创建: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1764667733_e7dcea93.zip
 下载zip文件到本地...
-User command preview [in f-string]: 
-=====================
-bash -c 'rm -f /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_download_test_download_dir_1763452988_ab6a8ca6.zip'
-=====================
-Remote real output: 
-=====================
 Directory downloaded successfully as: /Users/wukunhuan/tmp/downloaded_dir.zip
 Local path: /Users/wukunhuan/tmp/downloaded_dir.zip
 Directory compressed and downloaded as zip file
-Temporary zip filename: gds_download_test_download_dir_1763452988_ab6a8ca6.zip
+Temporary zip filename: gds_download_test_download_dir_1764667733_e7dcea93.zip
 本地zip文件存在: /Users/wukunhuan/tmp/downloaded_dir.zip
 文件大小: 408 bytes
 清理本地zip文件成功
-命令: 'rm -rf ~/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir'
+命令: 'rm -rf ~/tmp/gds_test_20251202_171822_636113_d8f16ea1/test_download_dir'
 返回码: 0
-输出: User command preview [in f-string]: 
-=====================
-bash -c 'rm -rf "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_155831_583943_e7e2e118/test_download_dir"'
-=====================
-Remote real output: 
-=====================
+输出: 
 GDS目录下载功能测试完成
 
 ======================================================================

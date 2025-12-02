@@ -24,26 +24,50 @@
 
 ### lib目录详细结构
 
-`lib/python3.9/` 包含以下主要模块（maxdepth=2）：
-- `turtledemo/` - 图形演示
-- `xmlrpc/` - XML-RPC支持
-- `importlib/` - 导入机制
-- `unittest/` - 单元测试框架
-- `pydoc_data/` - 文档数据
-- `idlelib/` - IDLE IDE
-- `zoneinfo/` - 时区信息
-- `curses/` - 终端控制
-- `concurrent/` - 并发编程
-- `tkinter/` - GUI工具包
-- `lib-dynload/` - 动态加载库
-- `multiprocessing/` - 多进程
-- `dbm/` - 数据库接口
-- `ensurepip/` - pip安装
-- `site-packages/` - 第三方包
-- `logging/` - 日志系统
-- `venv/` - 虚拟环境
-- `xml/` - XML处理
-- ...（更多标准库模块）
+`lib/python3.9/` 包含以下主要模块（按文件数排序）：
+
+| 模块目录 | 文件数 | 说明 |
+|----------|--------|------|
+| `test/` | 3,301 | **Python测试套件**（占40%） |
+| `site-packages/` | 1,091 | 第三方包（pip, setuptools等） |
+| `__pycache__/` | 519 | Python字节码缓存 |
+| `idlelib/` | 519 | IDLE集成开发环境 |
+| `encodings/` | 488 | 字符编码支持 |
+| `distutils/` | 385 | 包分发工具 |
+| `lib2to3/` | 357 | Python 2到3转换工具 |
+| `ctypes/` | 251 | C类型外部函数库 |
+| `unittest/` | 172 | 单元测试框架 |
+| `tkinter/` | 137 | GUI工具包 |
+| `asyncio/` | 120 | 异步I/O框架 |
+| `email/` | 117 | 邮件处理 |
+| `multiprocessing/` | 92 | 多进程支持 |
+| `xml/` | 88 | XML处理 |
+| `turtledemo/` | 85 | 图形演示 |
+| `lib-dynload/` | 74 | 动态加载的C扩展 |
+| `sqlite3/` | 52 | SQLite数据库 |
+| `importlib/` | 36 | 导入机制 |
+| `wsgiref/` | 24 | WSGI参考实现 |
+| `urllib/` | 24 | URL处理库 |
+| `json/` | 20 | JSON编解码 |
+| `http/` | 20 | HTTP协议支持 |
+| `curses/` | 20 | 终端控制 |
+| `concurrent/` | 20 | 并发编程 |
+| `ensurepip/` | 18 | pip引导安装 |
+| `zoneinfo/` | 16 | 时区信息 |
+| `dbm/` | 16 | 数据库接口 |
+| `xmlrpc/` | 12 | XML-RPC支持 |
+| `venv/` | 12 | 虚拟环境 |
+| `logging/` | 12 | 日志系统 |
+| `html/` | 12 | HTML处理 |
+| `config-3.9-x86_64-linux-gnu/` | 10 | 配置文件 |
+| `pydoc_data/` | 9 | 文档数据 |
+| `collections/` | 8 | 容器数据类型 |
+| ...（其他小模块） | ~200 | 其他标准库模块 |
+
+**关键发现**：
+- `test/`目录占了**40%的文件**（3301/8314），这是Python的测试套件
+- 核心运行时只需要剩余60%的文件（~5000个）
+- 如果移除测试套件，可以减少到~140 MB
 
 ## 问题分析
 

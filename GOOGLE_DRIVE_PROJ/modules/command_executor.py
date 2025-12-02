@@ -37,8 +37,19 @@ import json
 import os
 from .connection_check import create_connection_check_instance
 
-# Note: clean_stderr_trailing_newlines is defined in google_drive_shell.py
-# We'll need to refactor to use it if needed in this module
+
+def clean_stderr_trailing_newlines(text):
+    """
+    如果text以连续至少两个\\n结尾，去掉一个\\n。
+    例如：
+    - "error\\n\\n" -> "error\\n"
+    - "error\\n\\n\\n\\n" -> "error\\n\\n\\n"
+    - "error\\n" -> "error\\n" (不变)
+    """
+    if text.endswith('\n\n'):
+        return text[:-1]  # 去掉最后一个\\n
+    return text
+
 
 class DebugCapture:
     """Debug信息捕获和存储系统"""

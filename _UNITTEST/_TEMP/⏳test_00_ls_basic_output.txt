@@ -1,0 +1,94 @@
+test_00_ls_basic (test_gds.GDSTest)
+测试ls命令的全路径支持（修复后的功能） ... FAIL
+
+======================================================================
+FAIL: test_00_ls_basic (test_gds.GDSTest)
+测试ls命令的全路径支持（修复后的功能）
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 922, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 194, in assertEqual
+    super().assertEqual(first, second, msg)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 1364, in test_00_ls_basic
+    result = self.gds(f'echo "test content" > {testdir}/testfile.txt')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 928, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 244, in fail
+    super().fail(msg)
+AssertionError: 命令执行异常: echo "test content" > ~/tmp/gds_test_20251202_185953_959109_83aa8f6a/testdir/testfile.txt - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 380.511s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251202_185953_959109_83aa8f6a
+正在创建远端测试目录: ~/tmp/gds_test_20251202_185953_959109_83aa8f6a
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+创建测试目录尝试 1/3 失败: 返回码=1
+已切换到远端测试目录: ~/tmp/gds_test_20251202_185953_959109_83aa8f6a
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_185953_959109_83aa8f6a
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_x9a_upy2
+测试环境设置完成
+命令: 'mkdir -p ~/tmp/gds_test_20251202_185953_959109_83aa8f6a/testdir'
+返回码: 1
+输出: Command interrupted by user (Ctrl+C)
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 0
+输出: 
+命令: 'echo "test content" > ~/tmp/gds_test_20251202_185953_959109_83aa8f6a/testdir/testfile.txt'
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002033c7240 (most recent call first):
+  <no Python frame>...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002033c7240 (most recent call first):
+  <no Python frame>...
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+错误: Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+Current thread 0x00000002033c7240 (most recent call first):
+  <no Python frame>...
+
+======================================================================
+❌❌❌ ASSERTION FAILED ❌❌❌
+======================================================================
+📍 Expected: 0
+📍 Got:      1
+💬 Message:  命令执行失败
+======================================================================
+
+命令执行异常: 1 != 0 : 命令执行失败
+
+======================================================================
+❌❌❌ TEST FAILED ❌❌❌
+======================================================================
+💬 Message: 命令执行异常: echo "test content" > ~/tmp/gds_test_20251202_185953_959109_83aa8f6a/testdir/testfile.txt - 1 != 0 : 命令执行失败
+======================================================================
+
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+
