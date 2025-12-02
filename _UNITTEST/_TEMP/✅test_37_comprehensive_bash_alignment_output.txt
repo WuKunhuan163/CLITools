@@ -1,33 +1,23 @@
 # ============================================================================
-# Test completed at: 2025-12-02 08:20:46 - Status: FAIL
+# Test completed at: 2025-12-02 08:41:20 - Status: PASS
 # ============================================================================
 
 test_37_comprehensive_bash_alignment (test_gds.GDSTest)
-全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等 ... FAIL
-
-======================================================================
-FAIL: test_37_comprehensive_bash_alignment (test_gds.GDSTest)
-全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 6175, in test_37_comprehensive_bash_alignment
-  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 194, in assertEqual
-    super().assertEqual(first, second, msg)
-AssertionError: 13 != 14 : Bash alignment测试失败: 1/14个测试不通过
+全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等 ... ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 826.555s
+Ran 1 test in 1001.101s
 
-FAILED (failures=1)
+OK
 设置GDS全面测试环境...
 清理Python缓存和pytest缓存...
 Python缓存和pytest缓存已清理
-远端测试目录: ~/tmp/gds_test_20251202_080658_823225_dad50fce
-正在创建远端测试目录: ~/tmp/gds_test_20251202_080658_823225_dad50fce
+远端测试目录: ~/tmp/gds_test_20251202_082433_954677_398a8f17
+正在创建远端测试目录: ~/tmp/gds_test_20251202_082433_954677_398a8f17
 使用测试模式，窗口将只显示复制指令和执行完成按钮
-已切换到远端测试目录: ~/tmp/gds_test_20251202_080658_823225_dad50fce
-✓ 验证测试目录存在: ~/tmp/gds_test_20251202_080658_823225_dad50fce
-本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6j8vwigi
+已切换到远端测试目录: ~/tmp/gds_test_20251202_082433_954677_398a8f17
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_082433_954677_398a8f17
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_v612sozn
 测试环境设置完成
 测试全面bash alignment
 
@@ -97,20 +87,17 @@ Line2
   对齐 - GDS和本地bash输出一致
 
 测试9: Backtick
-  命令: 'echo "Command: `pwd`"'
-命令: 'echo "Command: `pwd`"'
+  命令: 'echo "Command: `echo test`"'
+命令: 'echo "Command: `echo test`"'
 返回码: 0
-输出: Command: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_080658_823225_dad50fce
-  不对齐
-     本地bash: 'Command: /private/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6j8vwigi'
-     GDS:      'Command: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_080658_823225_dad50fce'
+输出: Command: test
+  对齐 - GDS和本地bash输出一致
 
 测试10: 混合特殊符号
-  命令: 'echo "Test: $VAR \\n `cmd`"'
-命令: 'echo "Test: $VAR \\n `cmd`"'
+  命令: 'echo "Test: $VAR \\n `echo cmd`"'
+命令: 'echo "Test: $VAR \\n `echo cmd`"'
 返回码: 0
-输出: Test:  \n
-错误: bash: line 1: cmd: command not found...
+输出: Test:  \n cmd
   对齐 - GDS和本地bash输出一致
 
 测试11: 双引号内单引号-JSON格式
@@ -131,11 +118,11 @@ Line2
 重定向测试组
 
 重定向测试1: 重定向-双引号-反斜杠
-  写入命令: 'echo "Line1\\nLine2" > ~/tmp/gds_test_20251202_080658_823225_dad50fce/bash_alignment_1.txt'
-命令: 'echo "Line1\\nLine2" > ~/tmp/gds_test_20251202_080658_823225_dad50fce/bash_alignment_1.txt'
+  写入命令: 'echo "Line1\\nLine2" > ~/tmp/gds_test_20251202_082433_954677_398a8f17/bash_alignment_1.txt'
+命令: 'echo "Line1\\nLine2" > ~/tmp/gds_test_20251202_082433_954677_398a8f17/bash_alignment_1.txt'
 返回码: 0
 输出: 
-命令: 'cat ~/tmp/gds_test_20251202_080658_823225_dad50fce/bash_alignment_1.txt'
+命令: 'cat ~/tmp/gds_test_20251202_082433_954677_398a8f17/bash_alignment_1.txt'
 返回码: 0
 输出: Line1\nLine2
   期望: 'Line1\\nLine2'
@@ -143,11 +130,11 @@ Line2
   匹配
 
 重定向测试2: 重定向-echo-e
-  写入命令: 'echo -e "Line1\\nLine2\\nLine3" > ~/tmp/gds_test_20251202_080658_823225_dad50fce/bash_alignment_2.txt'
-命令: 'echo -e "Line1\\nLine2\\nLine3" > ~/tmp/gds_test_20251202_080658_823225_dad50fce/bash_alignment_2.txt'
+  写入命令: 'echo -e "Line1\\nLine2\\nLine3" > ~/tmp/gds_test_20251202_082433_954677_398a8f17/bash_alignment_2.txt'
+命令: 'echo -e "Line1\\nLine2\\nLine3" > ~/tmp/gds_test_20251202_082433_954677_398a8f17/bash_alignment_2.txt'
 返回码: 0
 输出: 
-命令: 'cat ~/tmp/gds_test_20251202_080658_823225_dad50fce/bash_alignment_2.txt'
+命令: 'cat ~/tmp/gds_test_20251202_082433_954677_398a8f17/bash_alignment_2.txt'
 返回码: 0
 输出: Line1
 Line2
@@ -160,21 +147,7 @@ Line3
 Bash Alignment 测试汇总
 ================================================================================
 
-通过: 13/14
-
-失败的测试:
-  - Backtick
-      期望: 'Command: /private/var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6j8vwigi'
-      实际: 'Command: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_080658_823225_dad50fce'
-
-======================================================================
-❌❌❌ ASSERTION FAILED ❌❌❌
-======================================================================
-📍 Expected: 14
-📍 Got:      13
-💬 Message:  Bash alignment测试失败: 1/14个测试不通过
-======================================================================
-
+通过: 14/14
 
 ======================================================================
 🏁 GDS测试套件执行完成

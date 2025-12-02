@@ -1,0 +1,236 @@
+# ============================================================================
+# Test completed at: 2025-12-02 08:31:34 - Status: PASS
+# ============================================================================
+
+test_24_background (test_gds.GDSTest)
+测试GDS --bg后台任务功能 - 利用优先队列验证长时间运行任务的状态查询 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 755.302s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251202_081854_955194_e137eee6
+正在创建远端测试目录: ~/tmp/gds_test_20251202_081854_955194_e137eee6
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251202_081854_955194_e137eee6
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_081854_955194_e137eee6
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_lhcifvr2
+测试环境设置完成
+测试GDS --bg后台任务功能 - 优先队列验证
+测试1: 基础echo命令
+任务ID: 1764634799_8837
+WARNING: 任务 1764634799_8837 状态异常，返回码: 0
+WARNING: 输出内容: Status: unknown
+PID: 1764634799_8837 (finished)
+Start time: N/A
+Exit code: 0
+Log size: 417 bytes
+
+任务完成！总等待时间: 34.0秒，检查次数: 2
+基础echo命令测试通过
+测试2: 包含引号的复杂命令
+WARNING: 任务 1764634938_4512 状态异常，返回码: 0
+WARNING: 输出内容: Status: unknown
+PID: 1764634938_4512 (finished)
+Start time: N/A
+Exit code: 0
+Log size: 451 bytes
+
+任务完成！总等待时间: 33.5秒，检查次数: 2
+复杂命令测试通过
+测试3: 错误命令处理
+WARNING: 任务 1764635059_1567 状态异常，返回码: 0
+WARNING: 输出内容: Status: unknown
+PID: 1764635059_1567 (finished)
+Start time: N/A
+Exit code: 2
+Log size: 396 bytes
+
+任务完成！总等待时间: 36.2秒，检查次数: 2
+错误命令处理测试通过
+测试4: 长时间运行任务的时间敏感化partial输出验证
+启动长时间运行的后台任务（sleep 180秒）...
+测试开始时间: 2025-12-02 08:26:05
+长时间任务ID: 1764635166_8683
+开始重复查询，直到成功条件满足（最大测试时长: 300秒）...
+配置: 阶段1=60s, 阶段2=120s, 阶段3=60s, 查询间隔=10s
+配置: 最大连续log查询失败次数=3
+
+=== 第1次查询 (时间: 2025-12-02 08:26:32, 已过时间: 0.0秒) ===
+当前阶段1: 0-60秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=1
+Log查询失败: 
+⚠ Log查询失败（连续失败次数: 1/3）
+Status查询结果: returncode=0
+Status内容: Status: starting
+PID: 1764635166_8683
+Start time: 2025-12-02T08:26:06.038087
+Log size: 0 bytes
+=== 第1次查询完成 ===
+等待10秒后继续查询...
+
+=== 第2次查询 (时间: 2025-12-02 08:27:02, 已过时间: 30.0秒) ===
+当前阶段1: 0-60秒（log文件可能因同步延迟未出现）
+Log查询结果: returncode=0
+Log内容预览: [00:26:32] Background task started
+[00:26:32] PID: 20452
+[00:26:32] Decoding command...
+[00:26:32] Command decoded successfully
+[00:26:32] Executing command...
+TASK_START_TIME: 2025-12-02 00:26:32
+Fir...
+✓ 首次获得任务开始时间（远端）: 2025-12-02 00:26:32
+✓ 任务运行时间（基于测试开始时间）: 30.0秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764635166_8683 (Real PID: 20452)
+Start time: 2025-12-02T08:26:06.038087
+Log size: 268 bytes
+✓ 任务状态：运行中
+=== 第2次查询完成 ===
+等待10秒后继续查询...
+
+=== 第3次查询 (时间: 2025-12-02 08:27:35, 已过时间: 62.6秒) ===
+当前阶段2: 60-180秒（log文件应该已同步，任务未完成）
+Log查询结果: returncode=0
+Log内容预览: [00:26:32] Background task started
+[00:26:32] PID: 20452
+[00:26:32] Decoding command...
+[00:26:32] Command decoded successfully
+[00:26:32] Executing command...
+TASK_START_TIME: 2025-12-02 00:26:32
+Fir...
+✓ 任务运行时间（基于测试开始时间）: 62.6秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764635166_8683 (Real PID: 20452)
+Start time: 2025-12-02T08:26:06.038087
+Log size: 268 bytes
+✓ 任务状态：运行中
+=== 第3次查询完成 ===
+等待10秒后继续查询...
+
+=== 第4次查询 (时间: 2025-12-02 08:28:07, 已过时间: 94.3秒) ===
+当前阶段2: 60-180秒（log文件应该已同步，任务未完成）
+Log查询结果: returncode=0
+Log内容预览: [00:26:32] Background task started
+[00:26:32] PID: 20452
+[00:26:32] Decoding command...
+[00:26:32] Command decoded successfully
+[00:26:32] Executing command...
+TASK_START_TIME: 2025-12-02 00:26:32
+Fir...
+✓ 任务运行时间（基于测试开始时间）: 94.3秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764635166_8683 (Real PID: 20452)
+Start time: 2025-12-02T08:26:06.038087
+Log size: 268 bytes
+✓ 任务状态：运行中
+=== 第4次查询完成 ===
+等待10秒后继续查询...
+
+=== 第5次查询 (时间: 2025-12-02 08:28:41, 已过时间: 128.5秒) ===
+当前阶段2: 60-180秒（log文件应该已同步，任务未完成）
+Log查询结果: returncode=0
+Log内容预览: [00:26:32] Background task started
+[00:26:32] PID: 20452
+[00:26:32] Decoding command...
+[00:26:32] Command decoded successfully
+[00:26:32] Executing command...
+TASK_START_TIME: 2025-12-02 00:26:32
+Fir...
+✓ 任务运行时间（基于测试开始时间）: 128.5秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764635166_8683 (Real PID: 20452)
+Start time: 2025-12-02T08:26:06.038087
+Log size: 268 bytes
+✓ 任务状态：运行中
+=== 第5次查询完成 ===
+等待10秒后继续查询...
+
+=== 第6次查询 (时间: 2025-12-02 08:29:12, 已过时间: 159.6秒) ===
+当前阶段2: 60-180秒（log文件应该已同步，任务未完成）
+Log查询结果: returncode=0
+Log内容预览: [00:26:32] Background task started
+[00:26:32] PID: 20452
+[00:26:32] Decoding command...
+[00:26:32] Command decoded successfully
+[00:26:32] Executing command...
+TASK_START_TIME: 2025-12-02 00:26:32
+Fir...
+✓ 任务运行时间（基于测试开始时间）: 159.6秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+- 不包含第二个echo输出（任务仍在运行）
+Status查询结果: returncode=0
+Status内容: Status: running
+PID: 1764635166_8683 (Real PID: 20452)
+Start time: 2025-12-02T08:26:06.038087
+Log size: 268 bytes
+✓ 任务状态：运行中
+=== 第6次查询完成 ===
+等待10秒后继续查询...
+
+=== 第7次查询 (时间: 2025-12-02 08:29:44, 已过时间: 191.7秒) ===
+当前阶段3: 180-240秒（允许完成）
+Log查询结果: returncode=0
+Log内容预览: [00:26:32] Background task started
+[00:26:32] PID: 20452
+[00:26:32] Decoding command...
+[00:26:32] Command decoded successfully
+[00:26:32] Executing command...
+TASK_START_TIME: 2025-12-02 00:26:32
+Fir...
+✓ 任务运行时间（基于测试开始时间）: 191.7秒
+✓ 包含第一个echo输出
+✓ 包含sleep提示
+✓ 包含第二个echo输出（任务已完成）
+Status查询结果: returncode=0
+Status内容: Status: completed
+PID: 1764635166_8683
+Start time: 2025-12-02T08:26:06.038087
+End time: 2025-12-02T00:29:32+00:00
+Log size: 544 bytes
+✓ 任务状态：已完成
+=== 第7次查询完成 ===
+✅ 任务在191.7秒时完成，测试通过！
+进行最终验证...
+最终验证时间: 2025-12-02 08:30:06
+最终status查询结果: returncode=0
+最终status输出: Status: completed
+PID: 1764635166_8683
+Start time: 2025-12-02T08:26:06.038087
+End time: 2025-12-02T00:29:32+00:00
+Log size: 544 bytes
+
+最终result查询结果: returncode=0
+最终result输出: TASK_START_TIME: 2025-12-02 00:26:32
+First echo: Task started at 00:26:32
+About to sleep for 180 seconds...
+Second echo: Task completed at 00:29:32
+
+最终检查验证通过：确认是完整输出
+长时间运行任务的partial输出验证完成
+GDS --bg后台任务功能测试完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

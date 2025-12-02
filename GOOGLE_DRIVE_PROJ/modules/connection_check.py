@@ -170,7 +170,7 @@ def verify_result_file_access(tmp_folder_id, result_filename, max_attempts, inte
 
 def show_clipboard_reminder():
     """Show clipboard reminder during countdown"""
-    print("📋 REMINDER: The command is still in your clipboard!")
+    print("📋REMINDER: The command is still in your clipboard!")
     print("You can run the above GOOGLE_DRIVE --remount cell and paste it to the terminal again")
     print("Or you may provide feedback in direct mode without re-running the cell")
 
@@ -187,7 +187,7 @@ def main():
     success = verify_result_file_access(tmp_folder_id, result_filename, max_attempts, interval)
     
     if not success:
-        print("🚨 SHELL CRASH DETECTED: Cannot access result file. ")
+        print("🚨SHELL CRASH DETECTED: Cannot access result file. ")
         print("Current session may have disconnected and cannot be used anymore. ")
         
         # Show clipboard reminder

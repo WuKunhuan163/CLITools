@@ -39,7 +39,11 @@ class FileCommand(BaseCommand):
             result = self.cmd_touch(file_path)
             
             if not result.get("success", False):
-                print(result.get("error", f"Failed to create file: {file_path}"))
+                error_msg = result.get("error", f"Failed to create file: {file_path}")
+                # 打印到stderr并清理多余的尾部换行
+                import sys
+                from GOOGLE_DRIVE_PROJ.modules.command_executor import clean_stderr_trailing_newlines
+                print(clean_stderr_trailing_newlines(error_msg), end="", file=sys.stderr)
                 return 1
         
         return 0
@@ -129,16 +133,29 @@ class FileCommand(BaseCommand):
             # 使用统一接口执行远端命令
             execution_result = self.main_instance.execute_command_interface("bash", ["-c", remote_command])
             
-            if execution_result["success"]:
-                # 简洁返回，像bash shell一样成功时不显示任何信息
-                return {
-                    "success": True,
-                    "filename": filename,
-                    "absolute_path": absolute_path,
-                    "remote_command": remote_command,
-                    "message": "",  # 空消息，不显示任何内容
-                    "verification": {"success": True}
-                }
+            # 检查命令是否真正成功（exit_code == 0）
+            if execution_result.get("success"):
+                data = execution_result.get("data", {})
+                exit_code = data.get("exit_code", 0)
+                
+                if exit_code == 0:
+                    # 真正成功：简洁返回，像bash shell一样成功时不显示任何信息
+                    return {
+                        "success": True,
+                        "filename": filename,
+                        "absolute_path": absolute_path,
+                        "remote_command": remote_command,
+                        "message": "",  # 空消息，不显示任何内容
+                        "verification": {"success": True}
+                    }
+                else:
+                    # 命令执行了但失败：远端脚本已经输出错误到stderr，不需要重复
+                    stderr = data.get("stderr", "")
+                    return {
+                        "success": False,
+                        "error": stderr or f"touch命令失败 (exit code: {exit_code})",
+                        "exit_code": exit_code
+                    }
             else:
                 return execution_result
             

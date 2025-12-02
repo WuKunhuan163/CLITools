@@ -34,6 +34,8 @@ from GOOGLE_DRIVE_PROJ.modules.commands.pip_command import PipCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
 from GOOGLE_DRIVE_PROJ.modules.debug_logger import debug_log
+from GOOGLE_DRIVE_PROJ.modules.command_executor import clean_stderr_trailing_newlines
+
 
 class GoogleDriveShell:
     """Google Drive Shell管理类 (重构版本)"""
@@ -822,14 +824,14 @@ class GoogleDriveShell:
             # 处理统一接口的结果
             if result.get("success", False):
                 data = result.get("data", {})
-                stdout = data.get("stdout", "").strip()
-                stderr = data.get("stderr", "").strip()
+                stdout = data.get("stdout", "")
+                stderr = data.get("stderr", "")
                 
                 if stdout:
-                    print(stdout)
+                    print(stdout, end="")
                 if stderr:
                     import sys
-                    print(stderr, file=sys.stderr)
+                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 
                 # 显示后台任务信息
                 print(f"Background task started with ID: {bg_pid}")
@@ -910,10 +912,10 @@ class GoogleDriveShell:
                     stdout = data.get("stdout", "").strip()
                     stderr = data.get("stderr", "").strip()
                     if stdout:
-                        print(stdout)
+                        print(stdout, end="")
                     if stderr:
                         import sys
-                        print(stderr, file=sys.stderr)
+                        print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                     return 0
                 else:
                     error_msg = result.get('error', 'Unknown error')
@@ -1081,18 +1083,18 @@ class GoogleDriveShell:
                     elif remaining_cmd.startswith('--log '):
                         # GDS --bg --log <task_id>
                         task_id = remaining_cmd[6:].strip()  # 移除--log 
-                        return self._show_background_log(task_id, command_identifier)
+                        return self.show_background_log(task_id, command_identifier)
                     elif remaining_cmd.startswith('--result '):
                         # GDS --bg --result <task_id>
                         task_id = remaining_cmd[9:].strip()  # 移除--result 
-                        return self._show_background_result(task_id, command_identifier)
+                        return self.show_background_result(task_id, command_identifier)
                     elif remaining_cmd.startswith('--cleanup'):
                         # GDS --bg --cleanup [task_id]
                         cleanup_args = remaining_cmd[9:].strip()  # 移除--cleanup
                         if cleanup_args:
-                            return self._cleanup_background_task(cleanup_args, command_identifier)
+                            return self.cleanup_background_task(cleanup_args, command_identifier)
                         else:
-                            return self._cleanup_background_tasks(command_identifier)
+                            return self.cleanup_background_tasks(command_identifier)
                     elif remaining_cmd.startswith('--wait '):
                         # GDS --bg --wait <task_id>
                         task_id = remaining_cmd[7:].strip()  # 移除--wait 
@@ -1216,7 +1218,11 @@ class GoogleDriveShell:
                     call_stack = ''.join(traceback.format_stack()[-3:])
                     error_msg = f'Unknown error. Call stack: {call_stack}'
                 
-                print(f"Command execution failed: {error_msg}")
+                # DEBUG: 打印error_msg的repr
+                import sys
+                
+                # 打印错误到stderr，并清理多余的尾部换行
+                print(clean_stderr_trailing_newlines(error_msg), end="", file=sys.stderr)
                 return 1
             
             data = result.get("data", {})
@@ -1225,10 +1231,10 @@ class GoogleDriveShell:
             stdout = data.get("stdout", "").strip()
             stderr = data.get("stderr", "").strip()
             if stdout:
-                print(stdout)
+                print(stdout, end="")
             if stderr:
                 import sys
-                print(stderr, file=sys.stderr)
+                print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
             return 0
         
         except KeyboardInterrupt:
@@ -1250,7 +1256,7 @@ class GoogleDriveShell:
             import json
             
             # 首先尝试读取status文件
-            status_data = self._read_background_file(bg_pid, 'status', command_identifier)
+            status_data = self.read_background_file(bg_pid, 'status', command_identifier)
             
             if status_data.get("success", False):
                 data = status_data.get("data", {})
@@ -1267,7 +1273,7 @@ class GoogleDriveShell:
                         real_pid = status_json.get("real_pid", None)
                         
                         # 获取日志大小
-                        log_result = self._read_background_file(bg_pid, 'log', command_identifier)
+                        log_result = self.read_background_file(bg_pid, 'log', command_identifier)
                         log_size = 0
                         if log_result.get("success", False):
                             log_data = log_result.get("data", {})
@@ -1296,7 +1302,7 @@ class GoogleDriveShell:
                         return 1
             
             # status文件不存在，尝试读取result文件（任务已完成）
-            result_data = self._read_background_file(bg_pid, 'result', command_identifier)
+            result_data = self.read_background_file(bg_pid, 'result', command_identifier)
             if not result_data.get("success", False):
                 print(f"Error: Background task {bg_pid} not found")
                 return 1
@@ -1326,7 +1332,7 @@ class GoogleDriveShell:
                 pid = result_json.get("pid", bg_pid)
                 
                 # 获取日志大小
-                log_result = self._read_background_file(bg_pid, 'log', command_identifier)
+                log_result = self.read_background_file(bg_pid, 'log', command_identifier)
                 log_size = 0
                 if log_result.get("success", False):
                     log_data = log_result.get("data", {})
@@ -1442,10 +1448,10 @@ fi
                 
                 # 统一在命令处理结束后打印输出
                 if stdout:
-                    print(stdout)
+                    print(stdout, end="")
                 if stderr:
                     import sys
-                    print(stderr, file=sys.stderr)
+                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 return 0
             else:
                 error_msg = result.get("error", "Failed to check status")
@@ -1456,11 +1462,11 @@ fi
             print(f"Error: Status check failed: {e}")
             return 1
 
-    def _show_background_log(self, bg_pid, command_identifier=None):
+    def show_background_log(self, bg_pid, command_identifier=None):
         """显示background任务日志 - 直接读取.log文件"""
         try:
             # 直接读取.log文件，包含所有输出信息
-            result = self._read_background_file(bg_pid, 'log', command_identifier)
+            result = self.read_background_file(bg_pid, 'log', command_identifier)
             
             if result.get("success", False):
                 data = result.get("data", {})
@@ -1468,10 +1474,10 @@ fi
                 stderr = data.get("stderr", "").strip()
                 
                 if stdout:
-                    print(stdout)
+                    print(stdout, end="")
                 elif stderr:
                     import sys
-                    print(stderr, file=sys.stderr)
+                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 else:
                     print(f"Log file for task {bg_pid} is empty or task hasn't started producing output yet.")
                 
@@ -1649,7 +1655,7 @@ done
         
         return False
 
-    def _cleanup_background_tasks(self, command_identifier=None):
+    def cleanup_background_tasks(self, command_identifier=None):
         """清理所有已完成的background任务"""
         try:
             current_shell = self.get_current_shell()
@@ -1704,10 +1710,10 @@ echo "Cleaned up $CLEANED completed background tasks"
                 
                 # 统一在命令处理结束后打印输出
                 if stdout:
-                    print(stdout)
+                    print(stdout, end="")
                 if stderr:
                     import sys
-                    print(stderr, file=sys.stderr)
+                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 return 0
             else:
                 error_msg = result.get("error", "Failed to cleanup")
@@ -1718,7 +1724,7 @@ echo "Cleaned up $CLEANED completed background tasks"
             print(f"Error: Cleanup failed: {e}")
             return 1
 
-    def _cleanup_background_task(self, bg_pid, command_identifier=None):
+    def cleanup_background_task(self, bg_pid, command_identifier=None):
         """清理特定的background任务"""
         try:
             current_shell = self.get_current_shell()
@@ -1787,10 +1793,10 @@ fi
                 exit_code = data.get("exit_code", 0)
                 
                 if stdout:
-                    print(stdout)
+                    print(stdout, end="")
                 if stderr:
                     import sys
-                    print(stderr, file=sys.stderr)
+                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 
                 # 检查shell脚本的退出码
                 if exit_code != 0:
@@ -1806,7 +1812,7 @@ fi
             print(f"Error: Cleanup failed: {e}")
             return 1
 
-    def _read_background_file(self, bg_pid, file_type, command_identifier=None):
+    def read_background_file(self, bg_pid, file_type, command_identifier=None):
         """通用的后台任务文件读取接口
         
         Args:
@@ -1857,11 +1863,11 @@ fi
         except Exception as e:
             return {"success": False, "error": str(e)}
     
-    def _show_background_result(self, bg_pid, command_identifier=None):
+    def show_background_result(self, bg_pid, command_identifier=None):
         """显示background任务的最终结果 - 先检查状态，再读取结果"""
         try:
             # 从result文件读取状态和结果信息
-            result = self._read_background_file(bg_pid, 'result', command_identifier)
+            result = self.read_background_file(bg_pid, 'result', command_identifier)
             
             # 处理统一接口的结果
             if result.get("success", False):
@@ -1890,7 +1896,7 @@ fi
                             
                             if stderr_content:
                                 import sys
-                                print(stderr_content, file=sys.stderr, end="")
+                                print(clean_stderr_trailing_newlines(stderr_content), file=sys.stderr, end="")
                             
                             return exit_code
                         else:
@@ -1918,7 +1924,7 @@ fi
                         
                         if stderr_content:
                             import sys
-                            print(stderr_content, file=sys.stderr, end="")
+                            print(clean_stderr_trailing_newlines(stderr_content), file=sys.stderr, end="")
                         
                         return exit_code
                         

@@ -1,0 +1,104 @@
+# ============================================================================
+# Test completed at: 2025-12-02 09:40:17 - Status: FAIL
+# ============================================================================
+
+test_33_bash_output_alignment (test_gds.GDSTest)
+测试GDS shell输出与bash shell输出的对齐性 ... FAIL
+
+======================================================================
+FAIL: test_33_bash_output_alignment (test_gds.GDSTest)
+测试GDS shell输出与bash shell输出的对齐性
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 5384, in test_33_bash_output_alignment
+    self.assertTrue(gds_file_output.endswith("single_file.txt"),
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 209, in assertTrue
+    super().assertTrue(expr, msg)
+AssertionError: False is not true : ls单个文件应该显示包含文件名的路径，实际: ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test/testfile.txt
+
+----------------------------------------------------------------------
+Ran 1 test in 624.401s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251202_092949_541762_0584404e
+正在创建远端测试目录: ~/tmp/gds_test_20251202_092949_541762_0584404e
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251202_092949_541762_0584404e
+✓ 验证测试目录存在: ~/tmp/gds_test_20251202_092949_541762_0584404e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_2hdyo19e
+测试环境设置完成
+测试GDS shell输出与bash shell输出的对齐性
+使用本地临时bash测试目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_rx4kjby2/bash_test_dir
+命令: 'mkdir -p ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir'
+返回码: 0
+输出: 
+命令: 'readlink -f ~/tmp/gds_test_20251202_092949_541762_0584404e'
+返回码: 0
+输出: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_092949_541762_0584404e
+测试1: 基本命令对比
+  测试简单命令: echo "Hello World"
+命令: 'echo "Hello World"'
+返回码: 0
+输出: Hello World
+  测试简单命令: echo "Line1\nLine2"
+命令: 'echo "Line1\\nLine2"'
+返回码: 0
+输出: Line1\nLine2
+  测试文件系统命令:
+    GDS: mkdir ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_basic_dir
+    Bash: mkdir /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_rx4kjby2/bash_test_dir/test_basic_dir
+命令: 'mkdir ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_basic_dir'
+返回码: 0
+输出: 
+    GDS: ls ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_basic_dir
+    Bash: ls /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_rx4kjby2/bash_test_dir/test_basic_dir
+命令: 'ls ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_basic_dir'
+返回码: 0
+    GDS: rmdir ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_basic_dir
+    Bash: rmdir /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_bash_test_rx4kjby2/bash_test_dir/test_basic_dir
+命令: 'rmdir ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_basic_dir'
+返回码: 0
+输出: 
+测试2: 文件操作对比
+命令: 'echo "Test content for alignment\\nLine 2: 中文测试\\nLine 3: Special chars @#$%" > ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_alignment.txt'
+返回码: 0
+输出: 
+命令: 'cat ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/test_alignment.txt'
+返回码: 0
+输出: Test content for alignment\nLine 2: 中文测试\nLine 3: Special chars @#$%
+测试2.5: ls命令bash alignment测试
+命令: 'mkdir -p ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test'
+返回码: 0
+输出: 
+命令: 'echo "test content" > ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test/testfile.txt'
+返回码: 0
+输出: 
+  测试目录列表输出格式
+命令: 'ls ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test'
+返回码: 0
+输出: testfile.txt
+  测试目录列表（带尾部斜杠）
+命令: 'ls ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test/'
+返回码: 0
+输出: testfile.txt
+  测试单个文件输出格式
+命令: 'ls ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test/testfile.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test/testfile.txt
+
+======================================================================
+❌❌❌ ASSERTION FAILED ❌❌❌
+======================================================================
+📍 Expected: True
+📍 Got:      False
+💬 Message:  ls单个文件应该显示包含文件名的路径，实际: ~/tmp/gds_test_20251202_092949_541762_0584404e/gds_test_dir/ls_alignment_test/testfile.txt
+======================================================================
+
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

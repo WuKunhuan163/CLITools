@@ -37,6 +37,9 @@ import json
 import os
 from .connection_check import create_connection_check_instance
 
+# Note: clean_stderr_trailing_newlines is defined in google_drive_shell.py
+# We'll need to refactor to use it if needed in this module
+
 class DebugCapture:
     """Debug信息捕获和存储系统"""
     _instance = None

@@ -976,7 +976,7 @@ try:
     if os.path.exists(stderr_file):
         try:
             with open(stderr_file, "r", encoding="utf-8", errors="ignore") as f:
-                stderr_content = f.read().rstrip('\\n')
+                stderr_content = f.read()
         except Exception:
             stderr_content = ""
 
