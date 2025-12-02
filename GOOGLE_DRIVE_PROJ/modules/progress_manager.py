@@ -160,9 +160,18 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
             if interrupted:
                 raise KeyboardInterrupt()
             
+            # 执行检查函数前再次检查中断（防止在loop_func执行前被中断）
+            if interrupted:
+                raise KeyboardInterrupt()
+            
             # 执行检查函数
             try:
                 result = loop_func()
+                
+                # 检查函数执行后立即检查中断（防止在loop_func期间被中断）
+                if interrupted:
+                    raise KeyboardInterrupt()
+                
                 if result is True:
                     # 成功完成
                     clear_progress()
@@ -176,6 +185,9 @@ def interruptible_progress_loop(progress_message, loop_func, check_interval=1.0,
                     # 失败，退出循环
                     break
                 # result is False: 继续循环
+            except KeyboardInterrupt:
+                # 立即传播KeyboardInterrupt
+                raise
             except Exception as e:
                 # 循环函数异常，继续重试
                 pass

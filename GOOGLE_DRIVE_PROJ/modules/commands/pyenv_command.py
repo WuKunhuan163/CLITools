@@ -377,7 +377,13 @@ class PyenvCommand(BaseCommand):
                 show_hidden=False,
                 max_attempts=max_attempts
             )
-            print(f"[DEBUG] verify_with_ls returned: {result.get('success', False)}")
+            print(f"[DEBUG] verify_with_ls returned: success={result.get('success', False)}, cancelled={result.get('cancelled', False)}")
+            
+            # 如果验证被取消（Ctrl+C），抛出KeyboardInterrupt
+            if result.get("cancelled"):
+                print(f"[DEBUG] Verification was cancelled, raising KeyboardInterrupt")
+                raise KeyboardInterrupt()
+            
             return result.get("success", False)
             
         except Exception as e:
@@ -447,6 +453,11 @@ class PyenvCommand(BaseCommand):
                             capture_result=False
                         )
                         print(f"[DEBUG] Command execution returned, result type: {type(result)}")
+                        
+                        # 检查命令是否被中断
+                        if isinstance(result, dict) and result.get("interrupted"):
+                            print(f"[DEBUG] Command was interrupted, raising KeyboardInterrupt")
+                            raise KeyboardInterrupt()
                         
                         print(f"[DEBUG] About to check fingerprint...")
                         # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
