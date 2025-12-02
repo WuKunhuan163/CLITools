@@ -197,13 +197,29 @@ class RemountLockManager:
         等待remount完成
         
         Args:
-            max_wait_seconds: 最大等待时间（秒）
+            max_wait_seconds: 最大等待时间（秒），None表示无限等待
             
         Returns:
-            bool: True表示remount已完成，False表示超时
+            bool: True表示remount已完成，False表示超时（仅当max_wait_seconds不为None时）
         """
         start_time = time.time()
         
+        # 无限等待模式
+        if max_wait_seconds is None:
+            while True:
+                # 检查flag是否还存在
+                flag_file = self._get_flag_file_path()
+                if not flag_file.exists():
+                    return True
+                
+                # 检查是否有remount正在进行
+                if not self.is_remount_in_progress():
+                    break
+                
+                time.sleep(0.5)  # 每0.5秒检查一次
+            return True
+        
+        # 有限等待模式
         while (time.time() - start_time) < max_wait_seconds:
             # 检查flag是否还存在
             flag_file = self._get_flag_file_path()

@@ -535,13 +535,27 @@ class WindowManager:
         """在显示窗口前检查是否需要remount"""
         try:
             from .remount_lock_manager import get_remount_lock_manager
+            from .path_constants import PathConstants
+            
+            path_constants = PathConstants()
+            flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+            lock_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_in_progress.lock"
+            
+            # DEBUG: 记录进入check_and_handle_remount
+            self.debug_log(f"[REMOUNT_CHECK] 进入check_and_handle_remount")
+            self.debug_log(f"[REMOUNT_CHECK] Flag文件存在: {flag_file.exists()}")
+            self.debug_log(f"[REMOUNT_CHECK] Lock文件存在: {lock_file.exists()}")
             
             lock_manager = get_remount_lock_manager()
             
             # 尝试获取remount锁
-            if lock_manager.acquire_remount_lock("WindowManager.check_and_handle_remount"):
+            acquire_result = lock_manager.acquire_remount_lock("WindowManager.check_and_handle_remount")
+            self.debug_log(f"[REMOUNT_CHECK] acquire_remount_lock返回: {acquire_result}")
+            
+            if acquire_result:
                 try:
                     # 成功获取锁，执行remount
+                    self.debug_log(f"[REMOUNT_CHECK] 成功获取remount锁，准备执行remount")
                     remount_result = self._perform_remount_with_lock()
                     if remount_result is False:
                         # remount失败，系统无法继续工作
@@ -551,15 +565,19 @@ class WindowManager:
                 finally:
                     # 无论remount是否成功，都释放锁
                     lock_manager.release_remount_lock("WindowManager.check_and_handle_remount")
+                    self.debug_log(f"[REMOUNT_CHECK] 已释放remount锁")
             else:
                 # 无法获取锁，可能是：
                 # 1. 没有remount flag（无需remount）
                 # 2. 已有其他进程在执行remount
-                # 等待remount完成
-                lock_manager.wait_for_remount_completion(max_wait_seconds=60)
+                self.debug_log(f"[REMOUNT_CHECK] 无法获取remount锁，等待remount完成")
+                # 无限等待remount完成（no timeout）
+                lock_manager.wait_for_remount_completion(max_wait_seconds=None)
+                self.debug_log(f"[REMOUNT_CHECK] 等待remount完成")
                 
         except Exception as e:
             # 静默处理remount错误，不影响窗口显示
+            self.debug_log(f"[CHECK_REMOUNT_ERROR] 检查remount时出错: {e}")
             pass
     
     def _perform_remount_with_lock(self):
@@ -928,12 +946,18 @@ class WindowManager:
         import json
         import base64
         
+        # DEBUG: 在显示窗口前记录窗口计数器
+        self.debug_log(f"[WINDOW_CREATE_START] 准备创建窗口, 当前计数器: {self.window_counter}")
+        
         # 在实际显示窗口之前检查是否需要remount
         # 这样只有出队列时才检查，避免入队列时多个窗口都触发remount
         self.check_and_handle_remount()
         
         self.window_counter += 1
         window_id = f"win_{self.window_counter}_{request['request_id']}"
+        
+        # DEBUG: 记录新窗口计数器
+        self.debug_log(f"[WINDOW_CREATE] 创建窗口ID: {window_id}, 新计数器: {self.window_counter}")
         
         # 使用提供的command_hash（应该已经在execute_command中计算）
         if not request.get('command_hash'):

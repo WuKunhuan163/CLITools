@@ -2472,17 +2472,43 @@ fi
         """处理python: GOOGLE_DRIVE --remount命令（直接调用，force=True不检查flag）"""
         try:
             from .modules.remount_lock_manager import get_remount_lock_manager
+            from .modules.path_constants import PathConstants
+            import json
+            import time
             
             lock_manager = get_remount_lock_manager()
+            path_constants = PathConstants()
             
             # 尝试获取remount锁（force=True，不检查flag文件）
             if lock_manager.acquire_remount_lock("GoogleDriveShell.handle_remount_command", force=True):
                 try:
-                    # 成功获取锁，执行remount
+                    # 成功获取锁后，立即创建flag文件，让其他进程知道remount正在进行
+                    flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+                    flag_data = {
+                        "reason": "Manual remount command (GOOGLE_DRIVE --remount)",
+                        "set_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "timestamp": time.time()
+                    }
+                    with open(flag_file, 'w') as f:
+                        json.dump(flag_data, f, indent=2)
+                    
+                    # 执行remount
                     from .modules.remount_manager import remount_google_drive
-                    return remount_google_drive(command_identifier, self)
+                    result = remount_google_drive(command_identifier, self)
+                    
+                    # remount完成后，清除flag文件
+                    if flag_file.exists():
+                        flag_file.unlink()
+                    
+                    return result
                 finally:
-                    # 无论remount是否成功，都释放锁
+                    # 无论remount是否成功，都释放锁并清除flag
+                    try:
+                        flag_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "remount_required.flag"
+                        if flag_file.exists():
+                            flag_file.unlink()
+                    except Exception:
+                        pass
                     lock_manager.release_remount_lock("GoogleDriveShell.handle_remount_command")
             else:
                 # 无法获取锁，说明已有其他进程在执行remount
