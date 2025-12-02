@@ -901,7 +901,7 @@ fi
                     
                     # 创建上传完成指纹
                     fingerprint_cmd = f"touch {upload_fingerprint}"
-                    self.shell.execute_remote_command(fingerprint_cmd)
+                    self.shell.execute_shell_command(fingerprint_cmd)
                     print(f"✓ Step 1 (Upload) completed")
                     
                 finally:
@@ -977,7 +977,7 @@ fi
             # 清理临时文件
             print(f"\nCleaning up temporary files...")
             cleanup_cmd = f"rm -rf {remote_tmp_path} {temp_install_path} {fingerprint_base}_step*"
-            self.shell.execute_remote_command(cleanup_cmd)
+            self.shell.execute_shell_command(cleanup_cmd)
             
             # 更新安装版本列表
             self.update_installed_versions(version)
