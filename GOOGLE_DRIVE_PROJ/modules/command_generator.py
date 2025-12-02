@@ -659,7 +659,7 @@ cd "{remote_path}" && {{
             remote_command = template_no_capture.format(
                 remote_path=remote_path,
                 shell_absolute_path=shell_absolute_path,
-                cmd=cmd,  # cmd中的反斜杠不会被.format()解释
+                cmd=cmd,  # cmd中的反斜杠和花括号都不会被.format()解释
                 cmd_hash_upper=cmd_hash.upper()
             )
         else:
@@ -777,7 +777,6 @@ JSON_SCRIPT_EOF
     # 清理临时文件
     rm -f "$OUTPUT_FILE" "$ERROR_FILE" "$EXITCODE_FILE"
 }}'''
-            
             # 使用.format()填充所有变量，保护cmd中的反斜杠
             remote_command = template.format(
                 remote_path=remote_path,
@@ -964,8 +963,8 @@ try:
     stdout_content = ""
     stderr_content = ""
 
-    stdout_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stdout.tmp"
-    stderr_file = "{self.main_instance.REMOTE_ROOT}/tmp/{bg_pid}_stderr.tmp"
+    stdout_file = "{remote_root_tmp}/{bg_pid}_stdout.tmp"
+    stderr_file = "{remote_root_tmp}/{bg_pid}_stderr.tmp"
 
     if os.path.exists(stdout_file):
         try:
@@ -994,7 +993,7 @@ try:
         "timestamp": datetime.now().isoformat()
     }}
 
-    with open("{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}", "w", encoding="utf-8") as f:
+    with open("{remote_root_tmp}/{bg_result_file}", "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     
     # 清理临时文件
@@ -1010,15 +1009,15 @@ PYTHON_EOF
 SCRIPT_EOF
 
 # 给脚本执行权限并启动后台任务
-chmod +x "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}"
+chmod +x "{remote_root_tmp}/{bg_script_file}"
 # 将所有输出重定向到log文件，但修改脚本内部逻辑来避免tee冲突
-nohup "{self.main_instance.REMOTE_ROOT}/tmp/{BG_SCRIPT_FILE}" < /dev/null > "{self.main_instance.REMOTE_ROOT}/tmp/{BG_LOG_FILE}" 2>&1 &
+nohup "{remote_root_tmp}/{bg_script_file}" < /dev/null > "{remote_root_tmp}/{bg_log_file}" 2>&1 &
 REAL_PID=$!
 
 # 验证background任务文件是否被正确创建（增加等待时间和重试逻辑）
 MAX_WAIT=10
 for i in $(seq 1 $MAX_WAIT); do
-    if [ -f "{self.main_instance.REMOTE_ROOT}/tmp/{BG_RESULT_FILE}" ]; then
+    if [ -f "{remote_root_tmp}/{bg_result_file}" ]; then
         echo "Background task started with ID: {bg_pid}"
         echo "Command: {bg_original_cmd}"
         echo ""

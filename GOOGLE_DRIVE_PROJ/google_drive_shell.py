@@ -866,8 +866,12 @@ class GoogleDriveShell:
                 return 1
                 
         except Exception as e:
+            # 不封装错误，输出完整的traceback让上层处理
+            import traceback
             print(f"Error executing background command: {e}")
-            return 1
+            print("Full traceback:")
+            traceback.print_exc()
+            raise  # 重新抛出异常，让上层error handler处理
 
     def execute_shell_command(self, shell_cmd, command_identifier=None, command_wrapper=None):
         """
