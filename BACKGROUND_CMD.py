@@ -31,12 +31,12 @@ class ProcessManager:
         self.processes: Dict[str, Dict] = {}
         
         # 加载现有进程状态
-        self.load_state()
+        self._load_state()
         
         # 清理已死亡的进程
         self._cleanup_dead_processes()
     
-    def load_state(self):
+    def _load_state(self):
         """从文件加载进程状态"""
         if self.state_file.exists():
             try:
@@ -83,7 +83,7 @@ class ProcessManager:
         if updated:
             self._save_state()
     
-    def resolve_shell_aliases(self, command: str, shell: str) -> str:
+    def _resolve_shell_aliases(self, command: str, shell: str) -> str:
         """解析shell别名"""
         # 获取命令的第一部分
         try:
@@ -166,11 +166,11 @@ class ProcessManager:
         
         # 解析别名
         if resolve_aliases:
-            command = self.resolve_shell_aliases(command, shell)
+            command = self._resolve_shell_aliases(command, shell)
         
         # 创建日志文件
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-        log_filename = f"bg_cmd_result_{timestamp}.log"
+        log_filename = f"bg_cmd_{timestamp}.log"
         log_file = self.log_dir / log_filename
         
         try:
