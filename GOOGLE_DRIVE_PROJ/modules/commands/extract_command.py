@@ -436,6 +436,146 @@ rm -f {tmp_archive}
         
         return {"success": True}
     
+    def _extract_and_analyze_combined(self, archive_path, extract_dir):
+        """
+        合并的解压和分析方法 - 在一个远端命令中完成所有操作
+        
+        流程：
+        1. 复制并解压
+        2. 找到实际内容目录
+        3. 执行ls -R获取完整目录树
+        4. 统计文件和目录数量
+        
+        Args:
+            archive_path (str): 压缩文件路径
+            extract_dir (str): 解压目标目录
+            
+        Returns:
+            dict: {
+                "success": bool,
+                "content_dir": str,      # 实际内容目录
+                "dir_tree": str,          # ls -R结果文本
+                "total_files": int,
+                "total_dirs": int
+            }
+        """
+        archive_name = os.path.basename(archive_path)
+        tmp_archive = f"/tmp/gds_archive_{archive_name}"
+        
+        # 检测压缩文件类型
+        if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
+            extract_cmd = f"tar -xzf {tmp_archive} -C {extract_dir}"
+        elif archive_path.endswith('.tar'):
+            extract_cmd = f"tar -xf {tmp_archive} -C {extract_dir}"
+        elif archive_path.endswith('.zip'):
+            extract_cmd = f"unzip -q {tmp_archive} -d {extract_dir}"
+        else:
+            return {
+                "success": False,
+                "error": f"Unsupported archive format: {archive_name}"
+            }
+        
+        # 复制命令
+        if archive_path.startswith('/tmp/'):
+            copy_cmd = f"[ '{archive_path}' = '{tmp_archive}' ] || cp '{archive_path}' {tmp_archive}"
+        else:
+            copy_cmd = f"cp '{archive_path}' {tmp_archive}"
+        
+        # 构造合并命令：复制、解压、分析、统计（全部在一个命令中）
+        cmd = f"""
+cd /tmp && \\
+echo '[Step 1] Preparing archive...' && \\
+{copy_cmd} && \\
+echo '[Step 2] Creating extract directory...' && \\
+mkdir -p {extract_dir} && \\
+echo '[Step 3] Extracting archive...' && \\
+{extract_cmd} && \\
+rm -f {tmp_archive} && \\
+echo '[Step 4] Finding content directory...' && \\
+CONTENT_DIR=$(find {extract_dir} -maxdepth 1 -mindepth 1 -type d | head -1) && \\
+if [ -z "$CONTENT_DIR" ]; then CONTENT_DIR="{extract_dir}"; fi && \\
+echo "Content dir: $CONTENT_DIR" && \\
+echo '[Step 5] Getting directory tree (ls -R)...' && \\
+ls -R "$CONTENT_DIR" && \\
+echo '---STATS---' && \\
+find "$CONTENT_DIR" -type f | wc -l && \\
+find "$CONTENT_DIR" -type d | wc -l && \\
+echo "$CONTENT_DIR"
+"""
+        
+        print(f"  [DEBUG] Executing combined command (this reduces remote windows)")
+        
+        # 执行命令并捕获结果
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd.strip(),
+                capture_result=True
+            )
+            
+            self.shell.command_executor._raw_command = old_raw
+            
+            if not result.get("success") or result.get("interrupted"):
+                return {
+                    "success": False,
+                    "error": "Failed to extract and analyze"
+                }
+            
+            # 解析输出
+            stdout = self._get_stdout(result)
+            if not stdout:
+                return {
+                    "success": False,
+                    "error": "No output from extract command"
+                }
+            
+            # 查找统计信息标记
+            if '---STATS---' not in stdout:
+                return {
+                    "success": False,
+                    "error": "Missing stats marker in output"
+                }
+            
+            # 分割dir_tree和stats
+            parts = stdout.split('---STATS---')
+            dir_tree = parts[0]
+            stats_part = parts[1].strip()
+            
+            # 解析统计信息（最后3行）
+            stats_lines = stats_part.strip().split('\n')
+            if len(stats_lines) < 3:
+                return {
+                    "success": False,
+                    "error": f"Invalid stats format: {stats_part}"
+                }
+            
+            try:
+                total_files = int(stats_lines[-3].strip())
+                total_dirs = int(stats_lines[-2].strip())
+                content_dir = stats_lines[-1].strip()
+            except:
+                return {
+                    "success": False,
+                    "error": f"Failed to parse stats: {stats_lines}"
+                }
+            
+            print(f"  [DEBUG] Parsed: files={total_files}, dirs={total_dirs}, content_dir={content_dir}")
+            
+            return {
+                "success": True,
+                "content_dir": content_dir,
+                "dir_tree": dir_tree,
+                "total_files": total_files,
+                "total_dirs": total_dirs
+            }
+        
+        return {
+            "success": False,
+            "error": "Shell executor not available"
+        }
+    
     def _find_extract_content_dir(self, extract_dir):
         """
         找到解压后的实际内容目录
@@ -605,6 +745,52 @@ rm -f {tmp_archive}
             task_counter,
             prefix=""
         )
+        
+        return tasks
+    
+    def _build_transfer_tasks_from_tree(self, source_dir, dir_tree_text, total_files, batch_size, fingerprint_dir):
+        """
+        从ls -R结果本地构建转移任务列表（减少远端查询）
+        
+        简化策略：
+        - 如果文件总数 <= batch_size: 压缩整体转移
+        - 否则: 暂时也压缩整体转移（未来可以优化为分批）
+        
+        Args:
+            source_dir (str): 源目录
+            dir_tree_text (str): ls -R结果文本
+            total_files (int): 总文件数
+            batch_size (int): 每批文件数
+            fingerprint_dir (str): 指纹文件目录
+            
+        Returns:
+            list: 任务列表
+        """
+        # 创建指纹目录
+        self._ensure_fingerprint_dir(fingerprint_dir)
+        
+        tasks = []
+        
+        # 获取目标根目录
+        target_root = source_dir.replace('/tmp/gds_extract_', '~/gds_extracted_')
+        
+        print(f"  [DEBUG] Simple strategy: total_files={total_files}, batch_size={batch_size}")
+        
+        # 简化策略：整体压缩转移（未来可优化为智能分批）
+        task = {
+            "type": "compress_transfer",
+            "source": source_dir,
+            "target": target_root,
+            "fingerprint": f"{fingerprint_dir}/task_0000_ok",
+            "description": f"Compress and transfer {source_dir} ({total_files} files)",
+            "task_id": 0
+        }
+        tasks.append(task)
+        
+        print(f"  [DEBUG] Created 1 compress_transfer task for {total_files} files")
+        
+        # TODO: 未来优化 - 如果文件数很多，可以解析dir_tree_text来分批
+        # 但现在先保持简单，减少远端查询窗口是第一优先级
         
         return tasks
     
