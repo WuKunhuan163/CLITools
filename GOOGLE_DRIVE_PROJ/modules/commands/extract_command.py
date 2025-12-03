@@ -1142,8 +1142,13 @@ echo "$CONTENT_DIR"
         task_type = task["type"]
         fingerprint = task["fingerprint"]
         
-        # 注意：不在这里检查指纹（会多开一个窗口）
-        # 如果需要断点续传，应该在_parallel_transfer之前就过滤掉已完成的任务
+        # 检查指纹文件是否已存在（使用verify_with_ls，不会开新窗口）
+        if self._check_fingerprint(fingerprint, max_attempts=3):
+            return {
+                "success": True,
+                "files_count": 0,
+                "message": "Task already completed (fingerprint exists)"
+            }
         
         # 根据类型执行不同的操作
         if task_type == "compress_transfer":
@@ -1162,26 +1167,36 @@ echo "$CONTENT_DIR"
         
         return result
     
-    def _check_fingerprint(self, fingerprint_path):
-        """检查指纹文件是否存在"""
-        cmd = f"test -f {fingerprint_path} && echo 'exists' || echo 'not_exists'"
+    def _check_fingerprint(self, fingerprint_path, max_attempts=3):
+        """
+        检查指纹文件是否存在（使用verify_with_ls，不开窗口）
         
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
+        Args:
+            fingerprint_path (str): 指纹文件路径
+            max_attempts (int): 最大重试次数
             
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=True
+        Returns:
+            bool: 文件是否存在
+        """
+        try:
+            # 使用validation.verify_with_ls（不会开新窗口）
+            result = self.main_instance.validation.verify_with_ls(
+                path=fingerprint_path,
+                max_attempts=max_attempts,
+                check_interval=1  # 1秒检查间隔
             )
             
-            self.shell.command_executor._raw_command = old_raw
+            # 检查是否被中断
+            if result.get("cancelled"):
+                raise KeyboardInterrupt()
             
-            if result.get("success"):
-                stdout = self._get_stdout(result)
-                return 'exists' in (stdout if stdout else "")
-        
-        return False
+            return result.get("success", False)
+            
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print(f"  [DEBUG] Fingerprint check error: {e}")
+            return False
     
     def _create_fingerprint(self, fingerprint_path):
         """创建指纹文件"""
