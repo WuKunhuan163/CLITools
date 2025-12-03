@@ -478,10 +478,12 @@ rm -f {tmp_archive}
                 "error": f"Unsupported archive format: {archive_name}"
             }
         
-        # 复制命令
-        if archive_path.startswith('/tmp/'):
-            copy_cmd = f"[ '{archive_path}' = '{tmp_archive}' ] || cp '{archive_path}' {tmp_archive}"
+        # 复制命令（确保总是返回成功）
+        if archive_path.startswith('/tmp/') and archive_path == tmp_archive:
+            # 如果源文件就是目标文件，跳过复制
+            copy_cmd = f"echo 'Archive already in place: {tmp_archive}'"
         else:
+            # 否则执行复制
             copy_cmd = f"cp '{archive_path}' {tmp_archive}"
         
         # 构造合并命令：复制、解压、分析、统计、创建所有需要的目录（全部在一个命令中）
