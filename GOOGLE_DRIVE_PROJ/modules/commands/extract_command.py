@@ -68,6 +68,22 @@ class ExtractCommand(BaseCommand):
             return 0 if result.get("success") else 1
         return 0
         
+    def _get_stdout(self, result):
+        """
+        从命令结果中获取stdout
+        
+        Args:
+            result (dict): 命令执行结果
+            
+        Returns:
+            str: stdout内容
+        """
+        # 首先尝试从data中获取（正常的capture_result模式）
+        if 'data' in result and 'stdout' in result['data']:
+            return result['data']['stdout']
+        # 否则直接从result获取（兼容性）
+        return result.get('stdout', '')
+    
     def handle_command(self, args):
         """
         处理extract命令
@@ -438,7 +454,10 @@ rm -f {tmp_archive}
         
         if hasattr(self.shell, 'command_executor'):
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            old_debug = getattr(self.shell.command_executor, '_debug_remote_cmd', False)
+            
             self.shell.command_executor._raw_command = True
+            self.shell.command_executor._debug_remote_cmd = True  # 启用远端命令打印
             
             print(f"  [DEBUG] Running command: {cmd}")
             result = self.shell.command_executor.execute_command_interface(
@@ -447,12 +466,14 @@ rm -f {tmp_archive}
             )
             
             self.shell.command_executor._raw_command = old_raw
+            self.shell.command_executor._debug_remote_cmd = old_debug
             
-            print(f"  [DEBUG] Result success: {result.get('success')}, stdout: {result.get('stdout', '')}")
+            stdout = self._get_stdout(result)
+            print(f"  [DEBUG] Result success: {result.get('success')}, stdout: {stdout}")
             
             if result.get("success"):
                 try:
-                    count_str = result.get("stdout", "0").strip()
+                    count_str = stdout.strip() if stdout else "0"
                     print(f"  [DEBUG] Count string: '{count_str}'")
                     count = int(count_str)
                     print(f"  [DEBUG] Item count: {count}")
@@ -472,10 +493,11 @@ rm -f {tmp_archive}
                         
                         self.shell.command_executor._raw_command = old_raw
                         
-                        print(f"  [DEBUG] Directory check result: {result2.get('success')}, stdout: {result2.get('stdout', '')}")
+                        stdout2 = self._get_stdout(result2)
+                        print(f"  [DEBUG] Directory check result: {result2.get('success')}, stdout: {stdout2}")
                         
                         if result2.get("success"):
-                            dir_path = result2.get("stdout", "").strip()
+                            dir_path = stdout2.strip() if stdout2 else ""
                             if dir_path:
                                 print(f"  [DEBUG] Found single subdirectory: {dir_path}")
                                 return dir_path
@@ -518,11 +540,12 @@ rm -f {tmp_archive}
             
             self.shell.command_executor._raw_command = old_raw
             
-            print(f"  [DEBUG] Result: success={result.get('success')}, stdout='{result.get('stdout', '')}'")
+            stdout = self._get_stdout(result)
+            print(f"  [DEBUG] Result: success={result.get('success')}, stdout='{stdout}'")
             
             if result.get("success"):
                 # 解析输出
-                output = result.get("stdout", "").strip().split('\n')
+                output = stdout.strip().split('\n') if stdout else ['']
                 print(f"  [DEBUG] Output lines: {output}")
                 if len(output) >= 2:
                     try:
@@ -726,10 +749,11 @@ rm -f {tmp_archive}
                 cmd=cmd_total,
                 capture_result=True
             )
-            print(f"    [DEBUG] Total files result: success={result.get('success')}, stdout='{result.get('stdout', '')}'")
+            stdout = self._get_stdout(result)
+            print(f"    [DEBUG] Total files result: success={result.get('success')}, stdout='{stdout}'")
             if result.get("success"):
                 try:
-                    total_files = int(result.get("stdout", "0").strip())
+                    total_files = int(stdout.strip()) if stdout else 0
                     print(f"    [DEBUG] Parsed total_files: {total_files}")
                 except Exception as e:
                     print(f"    [DEBUG] Error parsing total_files: {e}")
@@ -740,9 +764,10 @@ rm -f {tmp_archive}
                 cmd=cmd_subdirs,
                 capture_result=True
             )
-            print(f"    [DEBUG] Subdirs result: success={result.get('success')}, stdout='{result.get('stdout', '')[:100]}'")
-            if result.get("success"):
-                output = result.get("stdout", "").strip()
+            stdout = self._get_stdout(result)
+            print(f"    [DEBUG] Subdirs result: success={result.get('success')}, stdout='{stdout[:100] if stdout else ''}'")
+            if result.get("success") and stdout:
+                output = stdout.strip()
                 if output:
                     subdirs = [d.strip() for d in output.split('\n') if d.strip()]
                     print(f"    [DEBUG] Parsed subdirs: {subdirs}")
@@ -753,9 +778,10 @@ rm -f {tmp_archive}
                 cmd=cmd_direct_files,
                 capture_result=True
             )
-            print(f"    [DEBUG] Direct files result: success={result.get('success')}, stdout length={len(result.get('stdout', ''))}")
-            if result.get("success"):
-                output = result.get("stdout", "").strip()
+            stdout = self._get_stdout(result)
+            print(f"    [DEBUG] Direct files result: success={result.get('success')}, stdout length={len(stdout) if stdout else 0}")
+            if result.get("success") and stdout:
+                output = stdout.strip()
                 if output:
                     direct_files = [f.strip() for f in output.split('\n') if f.strip()]
                     print(f"    [DEBUG] Parsed direct_files: {len(direct_files)} files")
@@ -946,7 +972,8 @@ rm -f {tmp_archive}
             self.shell.command_executor._raw_command = old_raw
             
             if result.get("success"):
-                return 'exists' in result.get("stdout", "")
+                stdout = self._get_stdout(result)
+                return 'exists' in (stdout if stdout else "")
         
         return False
     
@@ -1039,7 +1066,8 @@ echo 'Transfer completed'
             
             if result.get("success"):
                 try:
-                    files_count = int(result.get("stdout", "0").strip())
+                    stdout = self._get_stdout(result)
+                    files_count = int(stdout.strip()) if stdout else 0
                 except:
                     pass
         
