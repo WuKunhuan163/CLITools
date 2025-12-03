@@ -266,7 +266,8 @@ class ExtractCommand(BaseCommand):
             print("\nStep 2: Extracting and analyzing (combined in one remote command)...")
             extract_result = self._extract_and_analyze_combined(
                 remote_archive_path, 
-                tmp_extract_dir
+                tmp_extract_dir,
+                fingerprint_dir
             )
             
             if not extract_result["success"]:
@@ -436,7 +437,7 @@ rm -f {tmp_archive}
         
         return {"success": True}
     
-    def _extract_and_analyze_combined(self, archive_path, extract_dir):
+    def _extract_and_analyze_combined(self, archive_path, extract_dir, fingerprint_dir):
         """
         合并的解压和分析方法 - 在一个远端命令中完成所有操作
         
@@ -445,10 +446,12 @@ rm -f {tmp_archive}
         2. 找到实际内容目录
         3. 执行ls -R获取完整目录树
         4. 统计文件和目录数量
+        5. 创建指纹目录
         
         Args:
             archive_path (str): 压缩文件路径
             extract_dir (str): 解压目标目录
+            fingerprint_dir (str): 指纹文件目录
             
         Returns:
             dict: {
@@ -481,17 +484,14 @@ rm -f {tmp_archive}
         else:
             copy_cmd = f"cp '{archive_path}' {tmp_archive}"
         
-        # 获取fingerprint目录（从extract_dir推导）
-        # 注意：这里我们需要从调用者传递fingerprint_dir，但现在先硬编码
-        
-        # 构造合并命令：复制、解压、分析、统计、创建指纹目录（全部在一个命令中）
+        # 构造合并命令：复制、解压、分析、统计、创建所有需要的目录（全部在一个命令中）
         cmd = f"""
 cd /tmp && \\
 echo '[Step 1] Preparing archive...' && \\
 {copy_cmd} && \\
-echo '[Step 2] Creating directories...' && \\
+echo '[Step 2] Creating all directories...' && \\
 mkdir -p {extract_dir} && \\
-mkdir -p ~/tmp && \\
+mkdir -p {fingerprint_dir} && \\
 echo '[Step 3] Extracting archive...' && \\
 {extract_cmd} && \\
 rm -f {tmp_archive} && \\
