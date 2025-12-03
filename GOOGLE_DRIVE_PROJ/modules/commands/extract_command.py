@@ -432,6 +432,8 @@ rm -f {tmp_archive}
         Returns:
             str: 实际内容目录路径
         """
+        print(f"  [DEBUG] Checking extract_dir: {extract_dir}")
+        
         # 检查extract_dir下有多少个项目
         cmd = f"find {extract_dir} -maxdepth 1 -mindepth 1 | wc -l"
         
@@ -439,6 +441,7 @@ rm -f {tmp_archive}
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
             self.shell.command_executor._raw_command = True
             
+            print(f"  [DEBUG] Running command: {cmd}")
             result = self.shell.command_executor.execute_command_interface(
                 cmd=cmd,
                 capture_result=True
@@ -446,13 +449,19 @@ rm -f {tmp_archive}
             
             self.shell.command_executor._raw_command = old_raw
             
+            print(f"  [DEBUG] Result success: {result.get('success')}, stdout: {result.get('stdout', '')}")
+            
             if result.get("success"):
                 try:
-                    count = int(result.get("stdout", "0").strip())
+                    count_str = result.get("stdout", "0").strip()
+                    print(f"  [DEBUG] Count string: '{count_str}'")
+                    count = int(count_str)
+                    print(f"  [DEBUG] Item count: {count}")
                     
                     # 如果只有一个项目，且是目录，使用该目录
                     if count == 1:
                         cmd2 = f"find {extract_dir} -maxdepth 1 -mindepth 1 -type d"
+                        print(f"  [DEBUG] Found 1 item, checking if it's a directory: {cmd2}")
                         
                         old_raw = getattr(self.shell.command_executor, '_raw_command', False)
                         self.shell.command_executor._raw_command = True
@@ -464,14 +473,20 @@ rm -f {tmp_archive}
                         
                         self.shell.command_executor._raw_command = old_raw
                         
+                        print(f"  [DEBUG] Directory check result: {result2.get('success')}, stdout: {result2.get('stdout', '')}")
+                        
                         if result2.get("success"):
                             dir_path = result2.get("stdout", "").strip()
                             if dir_path:
                                 print(f"  [DEBUG] Found single subdirectory: {dir_path}")
                                 return dir_path
+                    else:
+                        print(f"  [DEBUG] Not a single item (count={count}), using extract_dir itself")
                 
-                except:
-                    pass
+                except Exception as e:
+                    print(f"  [DEBUG] Exception during detection: {e}")
+                    import traceback
+                    traceback.print_exc()
         
         # 默认返回extract_dir本身
         print(f"  [DEBUG] Using extract_dir itself: {extract_dir}")
