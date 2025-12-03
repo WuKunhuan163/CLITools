@@ -766,6 +766,15 @@ echo "$CONTENT_DIR"
         Returns:
             list: 任务列表
         """
+        print(f"\n{'='*70}")
+        print(f"LOCAL TASK LIST BUILDING (no remote queries)")
+        print(f"{'='*70}")
+        print(f"Source directory: {source_dir}")
+        print(f"Total files: {total_files}")
+        print(f"Batch size: {batch_size}")
+        print(f"Strategy: {'Single compress' if total_files <= batch_size * 2 else 'May need batching (TBD)'}")
+        print(f"{'='*70}")
+        
         # 创建指纹目录
         self._ensure_fingerprint_dir(fingerprint_dir)
         
@@ -774,7 +783,9 @@ echo "$CONTENT_DIR"
         # 获取目标根目录
         target_root = source_dir.replace('/tmp/gds_extract_', '~/gds_extracted_')
         
-        print(f"  [DEBUG] Simple strategy: total_files={total_files}, batch_size={batch_size}")
+        print(f"\nDECISION: Using single compress_transfer task")
+        print(f"  Reason: Simple and reliable for {total_files} files")
+        print(f"  Target: {target_root}")
         
         # 简化策略：整体压缩转移（未来可优化为智能分批）
         task = {
@@ -787,7 +798,17 @@ echo "$CONTENT_DIR"
         }
         tasks.append(task)
         
-        print(f"  [DEBUG] Created 1 compress_transfer task for {total_files} files")
+        print(f"\nCREATED TASK LIST:")
+        print(f"  Task 0: compress_transfer")
+        print(f"    - Source: {source_dir}")
+        print(f"    - Target: {target_root}")
+        print(f"    - Files: {total_files}")
+        print(f"    - Fingerprint: {fingerprint_dir}/task_0000_ok")
+        
+        print(f"\n{'='*70}")
+        print(f"TASK LIST READY: {len(tasks)} task(s) generated locally")
+        print(f"NO MORE REMOTE QUERIES NEEDED FOR TASK BUILDING")
+        print(f"{'='*70}\n")
         
         # TODO: 未来优化 - 如果文件数很多，可以解析dir_tree_text来分批
         # 但现在先保持简单，减少远端查询窗口是第一优先级
