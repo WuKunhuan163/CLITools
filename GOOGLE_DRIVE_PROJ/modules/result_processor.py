@@ -74,8 +74,14 @@ class ResultProcessor:
             nonlocal interrupted
             interrupted = True
         
-        # 注册信号处理器
-        old_handler = signal.signal(signal.SIGINT, signal_handler)
+        # 注册信号处理器（只在主线程有效）
+        old_handler = None
+        try:
+            old_handler = signal.signal(signal.SIGINT, signal_handler)
+        except ValueError:
+            # 在worker线程中signal.signal会抛出ValueError
+            # 跳过signal handler设置，worker线程不需要处理Ctrl+C
+            pass
         
         try:
             last_access_error = None
@@ -94,7 +100,8 @@ class ResultProcessor:
                     clear_progress()
                     
                     # 恢复原来的信号处理器
-                    signal.signal(signal.SIGINT, old_handler)
+                    if old_handler is not None:
+                        signal.signal(signal.SIGINT, old_handler)
                     return file_result
                 else:
                     if i == max_attempts - 1:
@@ -102,7 +109,8 @@ class ResultProcessor:
                         last_access_error = ls_result
                         from .progress_manager import clear_progress
                         clear_progress()
-                        signal.signal(signal.SIGINT, old_handler)
+                        if old_handler is not None:
+                            signal.signal(signal.SIGINT, old_handler)
                         failed_path = ls_result.get("failed_path", logical_file_path)
                         failed_id = ls_result.get("failed_id")
                         detailed_error_msg = self._format_timeout_error_with_solutions(error_msg, failed_path, failed_id)
@@ -132,7 +140,8 @@ class ResultProcessor:
             from .progress_manager import clear_progress
             clear_progress()
             # 恢复原来的信号处理器
-            signal.signal(signal.SIGINT, old_handler)
+            if old_handler is not None:
+                signal.signal(signal.SIGINT, old_handler)
             return {
                 "success": False,
                 "data": {
@@ -142,13 +151,15 @@ class ResultProcessor:
             }
         finally:
             # 确保信号处理器总是被恢复
-            try:
-                signal.signal(signal.SIGINT, old_handler)
-            except:
-                pass
+            if old_handler is not None:
+                try:
+                    signal.signal(signal.SIGINT, old_handler)
+                except:
+                    pass
         
         # 超时处理，恢复信号处理器并显示超时信息
-        signal.signal(signal.SIGINT, old_handler)
+        if old_handler is not None:
+            signal.signal(signal.SIGINT, old_handler)
         
         # 清除进度指示器
         from .progress_manager import clear_progress
