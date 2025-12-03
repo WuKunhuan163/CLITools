@@ -299,11 +299,10 @@ class ExtractCommand(BaseCommand):
             
         except KeyboardInterrupt:
             print("\n\n⚠️ Extract interrupted by user (Ctrl+C)")
-            print("Progress may be partially saved. You can manually check the transfer status.")
-            return {
-                "success": False,
-                "error": "Extract interrupted by user"
-            }
+            print("Exiting immediately...")
+            # 不保存进度，立即退出
+            import sys
+            sys.exit(1)
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -502,8 +501,11 @@ rm -f {tmp_archive}
         Returns:
             dict: 目录结构信息
         """
+        print(f"  [DEBUG] Analyzing directory: {root_dir}")
+        
         # 使用find命令获取所有文件和目录
         cmd = f"find {root_dir} -type f | wc -l && find {root_dir} -type d | wc -l"
+        print(f"  [DEBUG] Running command: {cmd}")
         
         if hasattr(self.shell, 'command_executor'):
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
@@ -516,13 +518,18 @@ rm -f {tmp_archive}
             
             self.shell.command_executor._raw_command = old_raw
             
+            print(f"  [DEBUG] Result: success={result.get('success')}, stdout='{result.get('stdout', '')}'")
+            
             if result.get("success"):
                 # 解析输出
                 output = result.get("stdout", "").strip().split('\n')
+                print(f"  [DEBUG] Output lines: {output}")
                 if len(output) >= 2:
                     try:
                         total_files = int(output[0].strip())
                         total_dirs = int(output[1].strip())
+                        
+                        print(f"  [DEBUG] Parsed: files={total_files}, dirs={total_dirs}")
                         
                         return {
                             "success": True,
@@ -530,15 +537,16 @@ rm -f {tmp_archive}
                             "total_files": total_files,
                             "total_dirs": total_dirs
                         }
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"  [DEBUG] Parse error: {e}")
         
-        # Fallback: 假设有很多文件
+        # Fallback: 返回0而不是假设值
+        print(f"  [DEBUG] Fallback to 0 files/dirs")
         return {
             "success": False,
             "root_dir": root_dir,
-            "total_files": 10000,  # 默认值
-            "total_dirs": 100
+            "total_files": 0,
+            "total_dirs": 0
         }
     
     def _build_transfer_tasks(self, source_dir, dir_structure, batch_size, fingerprint_dir):
@@ -693,6 +701,8 @@ rm -f {tmp_archive}
                 "direct_files": list # 当前目录的直接文件列表
             }
         """
+        print(f"    [DEBUG] Getting stats for: {dir_path}")
+        
         # 获取总文件数（递归）
         cmd_total = f"find {dir_path} -type f | wc -l"
         
@@ -711,37 +721,48 @@ rm -f {tmp_archive}
             self.shell.command_executor._raw_command = True
             
             # 获取总文件数
+            print(f"    [DEBUG] Command: {cmd_total}")
             result = self.shell.command_executor.execute_command_interface(
                 cmd=cmd_total,
                 capture_result=True
             )
+            print(f"    [DEBUG] Total files result: success={result.get('success')}, stdout='{result.get('stdout', '')}'")
             if result.get("success"):
                 try:
                     total_files = int(result.get("stdout", "0").strip())
-                except:
-                    pass
+                    print(f"    [DEBUG] Parsed total_files: {total_files}")
+                except Exception as e:
+                    print(f"    [DEBUG] Error parsing total_files: {e}")
             
             # 获取子目录
+            print(f"    [DEBUG] Command: {cmd_subdirs}")
             result = self.shell.command_executor.execute_command_interface(
                 cmd=cmd_subdirs,
                 capture_result=True
             )
+            print(f"    [DEBUG] Subdirs result: success={result.get('success')}, stdout='{result.get('stdout', '')[:100]}'")
             if result.get("success"):
                 output = result.get("stdout", "").strip()
                 if output:
                     subdirs = [d.strip() for d in output.split('\n') if d.strip()]
+                    print(f"    [DEBUG] Parsed subdirs: {subdirs}")
             
             # 获取直接文件
+            print(f"    [DEBUG] Command: {cmd_direct_files}")
             result = self.shell.command_executor.execute_command_interface(
                 cmd=cmd_direct_files,
                 capture_result=True
             )
+            print(f"    [DEBUG] Direct files result: success={result.get('success')}, stdout length={len(result.get('stdout', ''))}")
             if result.get("success"):
                 output = result.get("stdout", "").strip()
                 if output:
                     direct_files = [f.strip() for f in output.split('\n') if f.strip()]
+                    print(f"    [DEBUG] Parsed direct_files: {len(direct_files)} files")
             
             self.shell.command_executor._raw_command = old_raw
+        
+        print(f"    [DEBUG] Final stats: total_files={total_files}, subdirs={len(subdirs)}, direct_files={len(direct_files)}")
         
         return {
             "total_files": total_files,
