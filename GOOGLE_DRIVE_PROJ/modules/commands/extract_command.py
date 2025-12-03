@@ -518,17 +518,13 @@ echo "$CONTENT_DIR"
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
             self.shell.command_executor._raw_command = True
             
-            print(f"  [DEBUG] Calling execute_command_interface (capture_result=False for now)...")
-            # 暂时改为 capture_result=False 来看完整输出
+            print(f"  [DEBUG] Calling execute_command_interface (capture_result=True)...")
             result = self.shell.command_executor.execute_command_interface(
                 cmd=cmd.strip(),
-                capture_result=False
+                capture_result=True
             )
             
             print(f"  [DEBUG] Command returned: success={result.get('success')}, interrupted={result.get('interrupted')}")
-            print(f"  [DEBUG] Sleeping 3s to let command complete...")
-            import time
-            time.sleep(3)
             
             self.shell.command_executor._raw_command = old_raw
             
