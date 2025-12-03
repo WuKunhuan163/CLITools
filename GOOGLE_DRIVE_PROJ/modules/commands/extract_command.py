@@ -508,48 +508,72 @@ echo "$CONTENT_DIR"
 """
         
         print(f"  [DEBUG] Executing combined command (this reduces remote windows)")
+        print(f"  [DEBUG] Command preview (first 200 chars): {cmd.strip()[:200]}...")
         
         # 执行命令并捕获结果
         if hasattr(self.shell, 'command_executor'):
+            print(f"  [DEBUG] Setting raw command mode...")
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
             self.shell.command_executor._raw_command = True
             
+            print(f"  [DEBUG] Calling execute_command_interface...")
             result = self.shell.command_executor.execute_command_interface(
                 cmd=cmd.strip(),
                 capture_result=True
             )
             
+            print(f"  [DEBUG] Command returned: success={result.get('success')}, interrupted={result.get('interrupted')}")
+            
             self.shell.command_executor._raw_command = old_raw
             
             if not result.get("success") or result.get("interrupted"):
+                print(f"  [DEBUG] Command failed or interrupted")
+                print(f"  [DEBUG] Result: {result}")
                 return {
                     "success": False,
                     "error": "Failed to extract and analyze"
                 }
             
             # 解析输出
+            print(f"  [DEBUG] Parsing command output...")
             stdout = self._get_stdout(result)
+            print(f"  [DEBUG] stdout length: {len(stdout) if stdout else 0}")
+            
             if not stdout:
+                print(f"  [DEBUG] No stdout! Full result keys: {result.keys()}")
                 return {
                     "success": False,
                     "error": "No output from extract command"
                 }
             
             # 查找统计信息标记
+            print(f"  [DEBUG] Looking for ---STATS--- marker...")
             if '---STATS---' not in stdout:
+                print(f"  [DEBUG] Stats marker not found!")
+                print(f"  [DEBUG] stdout (first 500 chars): {stdout[:500]}")
                 return {
                     "success": False,
                     "error": "Missing stats marker in output"
                 }
             
             # 分割dir_tree和stats
+            print(f"  [DEBUG] Splitting stdout by ---STATS---...")
             parts = stdout.split('---STATS---')
+            print(f"  [DEBUG] Got {len(parts)} parts")
+            
             dir_tree = parts[0]
-            stats_part = parts[1].strip()
+            stats_part = parts[1].strip() if len(parts) > 1 else ""
+            
+            print(f"  [DEBUG] stats_part length: {len(stats_part)}")
+            print(f"  [DEBUG] stats_part content: {stats_part}")
             
             # 解析统计信息（最后3行）
             stats_lines = stats_part.strip().split('\n')
+            print(f"  [DEBUG] stats_lines count: {len(stats_lines)}")
+            print(f"  [DEBUG] stats_lines: {stats_lines}")
+            
             if len(stats_lines) < 3:
+                print(f"  [DEBUG] Not enough stats lines!")
                 return {
                     "success": False,
                     "error": f"Invalid stats format: {stats_part}"
@@ -559,7 +583,9 @@ echo "$CONTENT_DIR"
                 total_files = int(stats_lines[-3].strip())
                 total_dirs = int(stats_lines[-2].strip())
                 content_dir = stats_lines[-1].strip()
-            except:
+                print(f"  [DEBUG] Successfully parsed: files={total_files}, dirs={total_dirs}, content_dir={content_dir}")
+            except Exception as parse_err:
+                print(f"  [DEBUG] Parse error: {parse_err}")
                 return {
                     "success": False,
                     "error": f"Failed to parse stats: {stats_lines}"
