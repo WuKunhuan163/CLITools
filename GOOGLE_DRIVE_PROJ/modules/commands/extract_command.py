@@ -262,35 +262,36 @@ class ExtractCommand(BaseCommand):
             print(f"  Temp extract dir: {tmp_extract_dir}")
             print(f"  Fingerprint dir: {fingerprint_dir}")
             
-            # Step 3: 复制到/tmp并解压
-            print("\nStep 2: Copying and extracting archive...")
-            result = self._copy_and_extract(remote_archive_path, tmp_extract_dir)
-            if not result["success"]:
-                return result
+            # Step 2-4: 在一个命令中完成解压和分析（减少远端窗口数量）
+            print("\nStep 2: Extracting and analyzing (combined in one remote command)...")
+            extract_result = self._extract_and_analyze_combined(
+                remote_archive_path, 
+                tmp_extract_dir
+            )
             
-            # Step 4: 找到实际的解压内容目录
-            print("\nStep 3: Finding extracted content...")
-            actual_extract_dir = self._find_extract_content_dir(tmp_extract_dir)
+            if not extract_result["success"]:
+                return extract_result
+            
+            actual_extract_dir = extract_result["content_dir"]
+            dir_tree_text = extract_result["dir_tree"]  # ls -R结果文本
+            
             print(f"  Actual content dir: {actual_extract_dir}")
+            print(f"  Total files: {extract_result['total_files']}")
+            print(f"  Total directories: {extract_result['total_dirs']}")
             
-            # Step 5: 递归分析目录结构
-            print("\nStep 4: Analyzing directory structure...")
-            dir_structure = self._analyze_directory_structure(actual_extract_dir)
-            print(f"  Total files: {dir_structure['total_files']}")
-            print(f"  Total directories: {dir_structure['total_dirs']}")
-            
-            # Step 6: 构建转移任务列表
-            print("\nStep 5: Building transfer task list...")
-            task_list = self._build_transfer_tasks(
+            # Step 3: 本地分析目录树构建任务列表（无需多次远端查询）
+            print("\nStep 3: Building transfer task list (local analysis)...")
+            task_list = self._build_transfer_tasks_from_tree(
                 actual_extract_dir, 
-                dir_structure,
+                dir_tree_text,
+                extract_result['total_files'],
                 transfer_batch,
                 fingerprint_dir
             )
             print(f"  Total tasks: {len(task_list)}")
             
-            # Step 7: 启动3个worker并行执行
-            print("\nStep 6: Starting parallel transfer with 3 workers...")
+            # Step 4: 启动3个worker并行执行
+            print("\nStep 4: Starting parallel transfer with 3 workers...")
             transfer_result = self._parallel_transfer(task_list, num_workers=3)
             
             if not transfer_result["success"]:
