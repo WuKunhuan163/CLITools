@@ -1069,6 +1069,11 @@ echo "$CONTENT_DIR"
                             })
                             print(f"[Worker {worker_id}] ❌ Task {task['task_id']} failed: {result.get('error', 'Unknown')}")
                 
+                except KeyboardInterrupt:
+                    print(f"[Worker {worker_id}] [DEBUG] Ctrl+C detected, stopping worker immediately")
+                    task_queue.task_done()  # 标记当前任务完成，避免死锁
+                    raise  # 向上传播
+                
                 except Exception as e:
                     import traceback
                     error_detail = traceback.format_exc()
@@ -1096,7 +1101,18 @@ echo "$CONTENT_DIR"
         print(f"Started {num_workers} workers for {len(task_list)} tasks...")
         print(f"{'='*70}")
         
-        task_queue.join()  # 阻塞直到所有任务完成
+        try:
+            task_queue.join()  # 阻塞直到所有任务完成
+        except KeyboardInterrupt:
+            print(f"\n[DEBUG] Ctrl+C in main thread, stopping all workers...")
+            # 清空队列，避免死锁
+            while not task_queue.empty():
+                try:
+                    task_queue.get_nowait()
+                    task_queue.task_done()
+                except queue.Empty:
+                    break
+            raise
         
         # 等待所有worker线程结束
         for t in workers:
@@ -1179,11 +1195,12 @@ echo "$CONTENT_DIR"
             bool: 文件是否存在
         """
         try:
-            # 使用validation.verify_with_ls（不会开新窗口）
+            # 使用validation.verify_with_ls（参考pyenv_command.py的正确用法）
             result = self.main_instance.validation.verify_with_ls(
                 path=fingerprint_path,
-                max_attempts=max_attempts,
-                check_interval=1  # 1秒检查间隔
+                creation_type="file",
+                show_hidden=False,
+                max_attempts=max_attempts
             )
             
             # 检查是否被中断

@@ -1,5 +1,7 @@
 # Fdb version 4
-["bibtex main"] 0 "main.aux" "main.bbl" "main" 0 0
+["bibtex main"] 0 "main.aux" "main.bbl" "main" 1764724524.20842 0
+  "./references.bib" 1764724487.75114 0 d41d8cd98f00b204e9800998ecf8427e ""
+  "/usr/local/texlive/2024/texmf-dist/bibtex/bib/ieeetran/IEEEabrv.bib" 1440712899 20898 a5d2167c380db7dfff810b085c77ed63 ""
   "/usr/local/texlive/2024/texmf-dist/bibtex/bst/acmart/ACM-Reference-Format.bst" 1680299675 90332 18dc4e5c9b5c2ddd337e9f97727d04f1 ""
   "main.aux" 0 -1 0 "pdflatex"
   "sample-base.bib" 0 -1 0 ""
@@ -7,7 +9,7 @@
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1764724390.87306 "main.tex" "main.pdf" "main" 1764724394.30491 2
+["pdflatex"] 1764724519.94495 "main.tex" "main.pdf" "main" 1764724524.20864 2
   "/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/inconsolata/i4-t1-4.enc" 1558214095 7693 0f2dce6d313c82989ec3a67fc24df2a0 ""
   "/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/libertine/lbtn_25tcsq.enc" 1490131464 2921 8ca0eb0831f9bc5da080d3697cfe67bf ""
   "/usr/local/texlive/2024/texmf-dist/fonts/enc/dvips/libertine/lbtn_76gpa5.enc" 1490131464 2933 9ad527ce78d7c5fa0a642dead095f172 ""
@@ -219,11 +221,11 @@
   "/usr/local/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1733295685.8513 5467645 128b85b7cde5f5edc5cb7f1dd7ff8736 ""
   "/usr/local/texlive/2024/texmf-var/web2c/pdftex/pdflatex.fmt" 1733295673 8221429 2990978fd8b75b05179aca47dfbc5739 ""
   "/usr/local/texlive/2024/texmf.cnf" 1710266656 577 e590dabc9e28c5b61546e15f63eebcdf ""
-  "comment.cut" 1764724392.9381 64 0754424945249fbfae64d8991d811e64 "pdflatex"
-  "main.aux" 1764724392.96607 5873 5932ea51a092210a06422b94bc4c46a8 "pdflatex"
+  "comment.cut" 1764724522.96424 64 0754424945249fbfae64d8991d811e64 "pdflatex"
+  "main.aux" 1764724523.15942 5903 52a2b541f5aeb65bde2f209a359fd5df "pdflatex"
   "main.bbl" 0 -1 0 "bibtex main"
-  "main.out" 1764724392.96825 4332 5f5a941372c44d364c5c5f824bc0a281 "pdflatex"
-  "main.tex" 1764723345.79443 31887 120cfa4f7c3582bd27d66fab71bd4cc7 ""
+  "main.out" 1764724523.16083 4332 5f5a941372c44d364c5c5f824bc0a281 "pdflatex"
+  "main.tex" 1764724479.69171 31923 7bf5c654b90f7b656ded031c0e8b7844 ""
   "sample-franklin" 0 -1 0 ""
   (generated)
   "comment.cut"
@@ -232,3 +234,4 @@
   "main.out"
   "main.pdf"
   (rewritten before read)
+  "comment.cut"
