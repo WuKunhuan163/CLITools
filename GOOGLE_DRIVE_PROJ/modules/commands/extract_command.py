@@ -481,13 +481,17 @@ rm -f {tmp_archive}
         else:
             copy_cmd = f"cp '{archive_path}' {tmp_archive}"
         
-        # 构造合并命令：复制、解压、分析、统计（全部在一个命令中）
+        # 获取fingerprint目录（从extract_dir推导）
+        # 注意：这里我们需要从调用者传递fingerprint_dir，但现在先硬编码
+        
+        # 构造合并命令：复制、解压、分析、统计、创建指纹目录（全部在一个命令中）
         cmd = f"""
 cd /tmp && \\
 echo '[Step 1] Preparing archive...' && \\
 {copy_cmd} && \\
-echo '[Step 2] Creating extract directory...' && \\
+echo '[Step 2] Creating directories...' && \\
 mkdir -p {extract_dir} && \\
+mkdir -p ~/tmp && \\
 echo '[Step 3] Extracting archive...' && \\
 {extract_cmd} && \\
 rm -f {tmp_archive} && \\
@@ -775,8 +779,7 @@ echo "$CONTENT_DIR"
         print(f"Strategy: {'Single compress' if total_files <= batch_size * 2 else 'May need batching (TBD)'}")
         print(f"{'='*70}")
         
-        # 创建指纹目录
-        self._ensure_fingerprint_dir(fingerprint_dir)
+        # 注意：指纹目录已在Step 2的合并命令中创建，无需再次创建
         
         tasks = []
         
@@ -1139,13 +1142,8 @@ echo "$CONTENT_DIR"
         task_type = task["type"]
         fingerprint = task["fingerprint"]
         
-        # 首先检查指纹文件是否已存在（任务已完成）
-        if self._check_fingerprint(fingerprint):
-            return {
-                "success": True,
-                "files_count": 0,
-                "message": "Task already completed (fingerprint exists)"
-            }
+        # 注意：不在这里检查指纹（会多开一个窗口）
+        # 如果需要断点续传，应该在_parallel_transfer之前就过滤掉已完成的任务
         
         # 根据类型执行不同的操作
         if task_type == "compress_transfer":
