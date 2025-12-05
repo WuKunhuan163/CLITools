@@ -309,7 +309,7 @@ class ExtractCommand:
             if all_files:
                 self._create_fingerprint(task_id, archive_path, task_id, all_files)
             
-            # Step 4: 执行传输任务
+            # Step 2: 执行传输任务
             print("\nStep 2: Executing transfer tasks...")
             transfer_result = self._execute_transfers(task_list, total_files, progress_id)
             
@@ -317,10 +317,31 @@ class ExtractCommand:
                 return transfer_result
             
             files_transferred = transfer_result["files_transferred"]
+            failed_tasks = transfer_result.get("failed_tasks", [])
+            
+            # Step 3: 验证传输结果
+            print("\nStep 3: Verifying transfer results...")
+            verification_result = self._verify_transfer_results(content_dir, target_root, total_files)
+            
+            if not verification_result["success"]:
+                print(f"Verification failed: {verification_result['error']}")
+                if failed_tasks:
+                    print("Will retry failed tasks...")
+                    # TODO: 这里可以重新调度失败的任务
+                return verification_result
+            
+            actual_files = verification_result["actual_files"]
+            missing_files = verification_result.get("missing_files", 0)
+            
+            if missing_files > 0:
+                print(f"Warning: {missing_files} files are missing from target directory")
+                if failed_tasks:
+                    print("This may be due to failed worker tasks that will be retried")
             
             print(f"\n{'='*70}")
             print(f"Extract completed")
             print(f"Files transferred: {files_transferred}/{total_files}")
+            print(f"Files verified: {actual_files}/{total_files}")
             print(f"{'='*70}\n")
             
             return {
@@ -366,7 +387,7 @@ class ExtractCommand:
         completed_tasks = []
         failed_tasks = []  # 记录失败的任务（用于Step 5重试）
         files_transferred = 0
-        max_attempts = 3  # 每个任务最多尝试3次
+        max_attempts = 2  # 每个任务最多尝试2次（1次重试）
         
         def start_worker(task_idx, task):
             """启动一个worker执行任务"""
@@ -486,6 +507,15 @@ class ExtractCommand:
                     else:
                         # 失败
                         worker_id = (task_idx % 3) + 1
+                        
+                        # 创建 remount flag 文件
+                        try:
+                            remount_flag_path = "/tmp/gds_remount_needed"
+                            with open(remount_flag_path, "w") as f:
+                                f.write(f"Worker {worker_id} failed at {time.time()}\n")
+                        except Exception as e:
+                            print(f"Warning: Failed to create remount flag: {e}")
+                        
                         if attempt < max_attempts:
                             # 重试
                             print(f"Worker {worker_id} failed (attempt {attempt}/{max_attempts}), will retry...")
@@ -1194,6 +1224,103 @@ echo '✓ Completed'
                 return {"success": False, "error": f"Parse error: {e}"}
         
         return {"success": False, "error": "No executor"}
+
+    def _verify_transfer_results(self, content_dir, target_root, expected_files):
+        """
+        验证传输结果：使用 find sort 确认目标文件夹结构与预期一致
+        
+        Args:
+            content_dir (str): 源内容目录
+            target_root (str): 目标根目录
+            expected_files (int): 预期文件数量
+            
+        Returns:
+            dict: 验证结果
+        """
+        try:
+            # 获取源目录的文件列表
+            source_cmd = f"cd '{content_dir}' && find . -type f | sort"
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                source_result = self.shell.command_executor.execute_command_interface(
+                    cmd=source_cmd, capture_result=True)
+                self.shell.command_executor._raw_command = old_raw
+                
+                # 提取 stdout，处理嵌套字典结构
+                source_stdout = ""
+                if isinstance(source_result, dict):
+                    if 'stdout' in source_result:
+                        source_stdout = source_result['stdout']
+                    elif 'data' in source_result:
+                        source_stdout = source_result['data']
+                    # 如果还是字典，可能是嵌套的命令结果
+                    if isinstance(source_stdout, dict) and 'stdout' in source_stdout:
+                        source_stdout = source_stdout['stdout']
+                
+                source_files = [f.strip() for f in str(source_stdout).strip().split('\n') if f.strip()]
+                
+                # 获取目标目录的文件列表
+                target_cmd = f"cd '{target_root}' && find . -type f | sort"
+                
+                self.shell.command_executor._raw_command = True
+                target_result = self.shell.command_executor.execute_command_interface(
+                    cmd=target_cmd, capture_result=True)
+                self.shell.command_executor._raw_command = old_raw
+                
+                # 提取 stdout，处理嵌套字典结构
+                target_stdout = ""
+                if isinstance(target_result, dict):
+                    if 'stdout' in target_result:
+                        target_stdout = target_result['stdout']
+                    elif 'data' in target_result:
+                        target_stdout = target_result['data']
+                    # 如果还是字典，可能是嵌套的命令结果
+                    if isinstance(target_stdout, dict) and 'stdout' in target_stdout:
+                        target_stdout = target_stdout['stdout']
+                
+                target_files = [f.strip() for f in str(target_stdout).strip().split('\n') if f.strip()]
+                
+                # 比较文件列表
+                source_set = set(source_files)
+                target_set = set(target_files)
+                
+                missing_files = source_set - target_set
+                extra_files = target_set - source_set
+                
+                actual_files = len(target_files)
+                missing_count = len(missing_files)
+                
+                if missing_count == 0:
+                    print(f"✓ All {actual_files} files verified successfully")
+                    return {
+                        "success": True,
+                        "actual_files": actual_files,
+                        "missing_files": 0,
+                        "extra_files": len(extra_files)
+                    }
+                else:
+                    print(f"✗ {missing_count} files missing:")
+                    for f in sorted(missing_files)[:5]:  # 只显示前5个
+                        print(f"  - {f}")
+                    if len(missing_files) > 5:
+                        print(f"  ... and {len(missing_files) - 5} more")
+                    
+                    return {
+                        "success": False,
+                        "error": f"{missing_count} files missing",
+                        "actual_files": actual_files,
+                        "missing_files": missing_count,
+                        "extra_files": len(extra_files),
+                        "missing_list": list(missing_files)
+                    }
+                    
+            else:
+                return {"success": False, "error": "No executor available"}
+                
+        except Exception as e:
+            return {"success": False, "error": f"Verification failed: {e}"}
 
 
 # 保留旧代码的兼容性（暂时不删除，以防需要参考）
