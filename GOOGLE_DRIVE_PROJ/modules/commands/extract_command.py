@@ -293,6 +293,41 @@ if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
     exit 1
 fi
 
+# 检查任务是否已经完成
+# 如果指纹的remaining_files为空且目标文件都存在，返回已完成
+echo "Checking if task is already completed..."
+python3 << 'CHECK_COMPLETE_EOF'
+import json
+import os
+
+try:
+    with open("{fingerprint_path}", 'r') as f:
+        data = json.load(f)
+    
+    remaining_files = data.get("remaining_files", [])
+    
+    if len(remaining_files) == 0:
+        # 检查目标目录是否存在
+        target_root = "~/gds_extracted_{task_id}"
+        # 展开~为绝对路径
+        if target_root.startswith("~/"):
+            target_root = target_root.replace("~", "{remote_root}", 1)
+        
+        if os.path.exists(target_root):
+            # 检查目标文件数量
+            file_count = 0
+            for root, dirs, files in os.walk(target_root):
+                file_count += len(files)
+            
+            if file_count > 0:
+                print(f"Task already completed: {{file_count}} files transferred")
+                print("COMPLETED")
+                exit(0)
+except Exception as e:
+    print(f"Warning: Failed to check completion status: {{e}}")
+    pass
+CHECK_COMPLETE_EOF
+
 echo "✓ Task can be recovered"
 echo "VALID"
 """
@@ -312,16 +347,15 @@ echo "VALID"
             
             stdout_str = str(stdout)
             
-            # DEBUG: 打印验证结果
-            print(f"DEBUG: Validation stdout:\n{stdout_str[:500]}")
-            print(f"DEBUG: Result exit_code: {result.get('exit_code', 'N/A')}")
-            
-            if "VALID" in stdout_str:
-                return {"valid": True}
-            elif "INVALID:fingerprint_missing" in stdout_str:
+            # 先检查INVALID状态（优先级更高）
+            if "INVALID:fingerprint_missing" in stdout_str:
                 return {"valid": False, "reason": "Fingerprint file not found - task cannot be recovered", "cleanup": False}
             elif "INVALID:both_missing" in stdout_str:
                 return {"valid": False, "reason": "Both archive and tmp dir missing - task cannot be recovered (fingerprint cleaned up)", "cleanup": True}
+            elif "COMPLETED" in stdout_str:
+                return {"valid": True, "completed": True}
+            elif "VALID" in stdout_str:
+                return {"valid": True, "completed": False}
             else:
                 print(f"DEBUG: No validation marker found, treating as invalid")
                 return {"valid": False, "reason": "Unknown validation error", "cleanup": False}
@@ -396,9 +430,12 @@ echo "VALID"
                     print(f"✗ Task validation failed: {validation_result.get('reason')}")
                     return {"success": False, "error": validation_result.get("reason")}
                 
+                # 如果任务已完成，直接返回成功
+                if validation_result.get("completed"):
+                    print("✓ Task already completed - all files transferred\n")
+                    return {"success": True, "task_id": progress_id, "message": "Task already completed"}
+                
                 print("✓ Task state validated successfully\n")
-                print("=== BREAKPOINT: Task validation completed ===")
-                exit(0)
                 task_id = progress_id
             else:
                 # 生成新的task_id
