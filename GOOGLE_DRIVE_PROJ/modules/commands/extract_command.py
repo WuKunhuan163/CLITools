@@ -333,7 +333,8 @@ class ExtractCommand:
                     "files": [os.path.join(content_dir, f) for f in t["files"]],
                     "source_dir": content_dir,
                     "target_dir": target_root,
-                    "fingerprint": f"{fingerprint_dir}/task_{t['task_id']:04d}_ok"
+                    "fingerprint": f"{fingerprint_dir}/task_{t['task_id']:04d}_ok",
+                    "archive_path": archive_path  # 添加归档路径，用于指纹创建
                 }
                 task_list.append(task)
             
@@ -446,43 +447,77 @@ class ExtractCommand:
                     target_file = os.path.join(target_dir, rel_path)
                     cmd_parts.append(f"cp '{file_path}' '{target_file}'")
                 
-                # 创建指纹文件
-                cmd_parts.append(f"touch '{fingerprint}'")
-                
-                # 更新指纹文件（移除已完成的文件）
+                # 智能更新指纹文件（读取/创建/更新）
                 if task_id:  # 如果有task_id，更新指纹
                     fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{task_id}.json"
+                    task_fingerprint = fingerprint  # 任务级别的指纹标记文件
                     files_json = json.dumps(files)  # 将文件列表转为JSON字符串
+                    task_archive_path = task.get("archive_path", "")
+                    archive_path_json = json.dumps(task_archive_path)
                     
                     update_script = f'''
-# 更新指纹文件
+# 智能更新指纹文件
 python3 << 'UPDATE_EOF'
 import json
 import os
+from datetime import datetime
 
 fingerprint_path = "{fingerprint_path}"
+task_fingerprint = "{task_fingerprint}"
 completed_files = {files_json}
+archive_path = {archive_path_json}
 
+# 读取或创建指纹文件
 if os.path.exists(fingerprint_path):
     try:
         with open(fingerprint_path, 'r') as f:
             data = json.load(f)
-        
-        # 移除已完成的文件
-        for file in completed_files:
-            if file in data.get("remaining_files", []):
-                data["remaining_files"].remove(file)
-            if file not in data.get("completed_files", []):
-                data["completed_files"].append(file)
-        
-        data["updated_at"] = __import__('datetime').datetime.now().isoformat()
-        
-        with open(fingerprint_path, 'w') as f:
-            json.dump(data, f, indent=2)
-        
-        print(f"Updated fingerprint: {{len(completed_files)}} files completed")
     except Exception as e:
-        print(f"Warning: Failed to update fingerprint: {{e}}")
+        # 指纹文件损坏，创建新的
+        print(f"Warning: Fingerprint corrupted, creating new one: {{e}}")
+        data = {{
+            "progress_id": "{task_id}",
+            "archive_path": archive_path,
+            "task_id": "{task_id}",
+            "remaining_files": [],
+            "completed_files": [],
+            "created_at": datetime.now().isoformat()
+        }}
+else:
+    # 指纹文件不存在，创建新的
+    print("Warning: Main fingerprint not found, creating new one")
+    data = {{
+        "progress_id": "{task_id}",
+        "archive_path": archive_path,
+        "task_id": "{task_id}",
+        "remaining_files": [],
+        "completed_files": [],
+        "created_at": datetime.now().isoformat()
+    }}
+
+# 更新已完成的文件
+for file in completed_files:
+    if file in data.get("remaining_files", []):
+        data["remaining_files"].remove(file)
+    if file not in data.get("completed_files", []):
+        data["completed_files"].append(file)
+
+data["updated_at"] = datetime.now().isoformat()
+
+# 保存更新后的指纹文件
+try:
+    with open(fingerprint_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    # 创建任务级别的标记文件
+    os.makedirs(os.path.dirname(task_fingerprint), exist_ok=True)
+    with open(task_fingerprint, 'w') as f:
+        f.write(datetime.now().isoformat())
+    
+    print(f"✓ Updated fingerprint: {{len(completed_files)}} files completed")
+except Exception as e:
+    print(f"✗ Failed to update fingerprint: {{e}}")
+    exit(1)
 UPDATE_EOF
 '''
                     cmd_parts.append(update_script.strip())
@@ -564,10 +599,7 @@ UPDATE_EOF
                         completed_tasks.append(task_idx)
                         files_transferred += files_count
                         
-                        # 记录完成的文件（延迟到验证步骤统一更新指纹）
-                        if task.get('type') == 'batch_copy':
-                            completed_files = task.get('files', [])
-                            print(f"DEBUG: Worker {(task_idx % 3) + 1} completed, files={len(completed_files)} (fingerprint will be updated in verification step)")
+                        # Worker已在其命令中更新指纹文件
                         
                         # 显示完成后的进度（包括worker id）
                         worker_id = (task_idx % 3) + 1
