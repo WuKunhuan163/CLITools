@@ -7,6 +7,7 @@ Extract Command - 从归档文件提取内容到 Google Drive
 import os
 import hashlib
 import time
+import json
 from ..command_executor import process_terminal_erase
 
 
@@ -111,12 +112,12 @@ class ExtractCommand:
         self.shell = shell
     
     def _get_fingerprint_path(self, progress_id):
-        """获取指纹文件路径"""
-        return os.path.expanduser(f"~/tmp/extract_progress_{progress_id}.json")
+        """获取指纹文件路径（远端路径）"""
+        return f"~/tmp/extract_progress_{progress_id}.json"
     
     def _create_fingerprint(self, progress_id, archive_path, task_id, all_files):
         """
-        创建进度指纹文件
+        创建进度指纹文件（远端）
         
         Args:
             progress_id (str): 进度ID
@@ -136,17 +137,22 @@ class ExtractCommand:
             "created_at": __import__('datetime').datetime.now().isoformat()
         }
         
-        # 确保 ~/tmp 目录存在
-        os.makedirs(os.path.dirname(fingerprint_path), exist_ok=True)
+        # 在远端创建指纹文件
+        json_content = json.dumps(fingerprint_data, indent=2)
+        cmd = f"mkdir -p ~/tmp && cat > '{fingerprint_path}' << 'EOF'\n{json_content}\nEOF"
         
-        with open(fingerprint_path, 'w') as f:
-            json.dump(fingerprint_data, f, indent=2)
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
         
         return fingerprint_data
     
     def _load_fingerprint(self, progress_id):
         """
-        加载进度指纹文件
+        加载进度指纹文件（远端）
         
         Args:
             progress_id (str): 进度ID
@@ -157,47 +163,76 @@ class ExtractCommand:
         import json
         fingerprint_path = self._get_fingerprint_path(progress_id)
         
-        if not os.path.exists(fingerprint_path):
-            return None
+        # 检查远端文件是否存在
+        check_cmd = f"test -f '{fingerprint_path}' && echo 'exists' || echo 'not_found'"
         
-        try:
-            with open(fingerprint_path, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Warning: Failed to load fingerprint: {e}")
-            return None
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            check_result = self.shell.command_executor.execute_command_interface(
+                cmd=check_cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+            
+            check_stdout = check_result.get('stdout', '') or check_result.get('data', '')
+            if isinstance(check_stdout, dict) and 'stdout' in check_stdout:
+                check_stdout = check_stdout['stdout']
+            
+            if 'not_found' in str(check_stdout):
+                return None
+            
+            # 读取远端文件内容
+            cat_cmd = f"cat '{fingerprint_path}'"
+            cat_result = self.shell.command_executor.execute_command_interface(
+                cmd=cat_cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+            
+            cat_stdout = cat_result.get('stdout', '') or cat_result.get('data', '')
+            if isinstance(cat_stdout, dict) and 'stdout' in cat_stdout:
+                cat_stdout = cat_stdout['stdout']
+            
+            try:
+                return json.loads(str(cat_stdout))
+            except Exception as e:
+                print(f"Warning: Failed to parse fingerprint: {e}")
+                return None
+        
+        return None
     
     def _update_fingerprint(self, progress_id, completed_files):
         """
-        更新进度指纹文件
+        更新进度指纹文件（远端）
         
         Args:
             progress_id (str): 进度ID
             completed_files (list): 本次完成的文件列表
         """
         import json
-        fingerprint_path = self._get_fingerprint_path(progress_id)
         
-        if not os.path.exists(fingerprint_path):
+        # 先加载现有指纹
+        data = self._load_fingerprint(progress_id)
+        if not data:
             return
         
-        try:
-            with open(fingerprint_path, 'r') as f:
-                data = json.load(f)
-            
-            # 更新剩余文件和已完成文件
-            for file in completed_files:
-                if file in data["remaining_files"]:
-                    data["remaining_files"].remove(file)
-                if file not in data["completed_files"]:
-                    data["completed_files"].append(file)
-            
-            data["updated_at"] = __import__('datetime').datetime.now().isoformat()
-            
-            with open(fingerprint_path, 'w') as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            print(f"Warning: Failed to update fingerprint: {e}")
+        # 更新剩余文件和已完成文件
+        for file in completed_files:
+            if file in data["remaining_files"]:
+                data["remaining_files"].remove(file)
+            if file not in data["completed_files"]:
+                data["completed_files"].append(file)
+        
+        data["updated_at"] = __import__('datetime').datetime.now().isoformat()
+        
+        # 写回远端文件
+        fingerprint_path = self._get_fingerprint_path(progress_id)
+        json_content = json.dumps(data, indent=2)
+        cmd = f"cat > '{fingerprint_path}' << 'EOF'\n{json_content}\nEOF"
+        
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
     
     def validate_args(self, args):
         """
@@ -261,14 +296,12 @@ class ExtractCommand:
             # 生成 task_id
             if progress_id:
                 task_id = progress_id
-                print(f"Task ID: {progress_id}")
             else:
                 archive_basename = os.path.basename(archive_path)
                 archive_name = archive_basename.replace('.tar.gz', '').replace('.tgz', '').replace('.tar', '').replace('.zip', '')
                 import hashlib
                 hash_obj = hashlib.md5(f"{archive_path}{__import__('time').time()}".encode())
                 task_id = f"{archive_name}_{hash_obj.hexdigest()[:8]}"
-                print(f"Task ID: {task_id}")
             
             # Step 1: 合并的远端初始化和调度生成
             print("\nStep 1: Initializing and scheduling...")
@@ -289,6 +322,8 @@ class ExtractCommand:
             print(f"Collected files: {total_files}")
             print(f"Worker tasks: {total_tasks}")
             
+            # 指纹文件已在Step 1中成功创建
+            
             # 转换任务格式（适配现有worker）
             task_list = []
             for t in task_list_raw:
@@ -302,16 +337,11 @@ class ExtractCommand:
                 }
                 task_list.append(task)
             
-            # 创建指纹
-            all_files = []
-            for t in task_list:
-                all_files.extend(t['files'])
-            if all_files:
-                self._create_fingerprint(task_id, archive_path, task_id, all_files)
+            # 指纹文件已在Step 1中创建
             
             # Step 2: 执行传输任务
             print("\nStep 2: Executing transfer tasks...")
-            transfer_result = self._execute_transfers(task_list, total_files, progress_id)
+            transfer_result = self._execute_transfers(task_list, total_files, progress_id, task_id)
             
             if not transfer_result["success"]:
                 return transfer_result
@@ -366,7 +396,7 @@ class ExtractCommand:
                 "error": str(e)
             }
     
-    def _execute_transfers(self, task_list, total_files, progress_id=None):
+    def _execute_transfers(self, task_list, total_files, progress_id=None, task_id=None):
         """
         并行执行传输任务列表（使用subprocess模仿单元测试并行执行）
         
@@ -389,7 +419,7 @@ class ExtractCommand:
         files_transferred = 0
         max_attempts = 2  # 每个任务最多尝试2次（1次重试）
         
-        def start_worker(task_idx, task):
+        def start_worker(task_idx, task, task_id=None):
             """启动一个worker执行任务"""
             # 构造任务命令（直接执行batch_copy或compress_transfer）
             if task["type"] == "batch_copy":
@@ -418,6 +448,44 @@ class ExtractCommand:
                 
                 # 创建指纹文件
                 cmd_parts.append(f"touch '{fingerprint}'")
+                
+                # 更新指纹文件（移除已完成的文件）
+                if task_id:  # 如果有task_id，更新指纹
+                    fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{task_id}.json"
+                    files_json = json.dumps(files)  # 将文件列表转为JSON字符串
+                    
+                    update_script = f'''
+# 更新指纹文件
+python3 << 'UPDATE_EOF'
+import json
+import os
+
+fingerprint_path = "{fingerprint_path}"
+completed_files = {files_json}
+
+if os.path.exists(fingerprint_path):
+    try:
+        with open(fingerprint_path, 'r') as f:
+            data = json.load(f)
+        
+        # 移除已完成的文件
+        for file in completed_files:
+            if file in data.get("remaining_files", []):
+                data["remaining_files"].remove(file)
+            if file not in data.get("completed_files", []):
+                data["completed_files"].append(file)
+        
+        data["updated_at"] = __import__('datetime').datetime.now().isoformat()
+        
+        with open(fingerprint_path, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        print(f"Updated fingerprint: {{len(completed_files)}} files completed")
+    except Exception as e:
+        print(f"Warning: Failed to update fingerprint: {{e}}")
+UPDATE_EOF
+'''
+                    cmd_parts.append(update_script.strip())
                 
                 cmd = " && \\\n".join(cmd_parts)
                 files_count = len(files)
@@ -479,7 +547,7 @@ class ExtractCommand:
                 print(f"(Progress: {files_transferred}/{total_files}) Worker {worker_id} task: {task_desc}{retry_info}")
                 
                 # 启动worker
-                process, files_count = start_worker(task_idx, task)
+                process, files_count = start_worker(task_idx, task, task_id)
                 if process:
                     running_workers[process.pid] = (task_idx, task, process, files_count, attempt)
             
@@ -496,10 +564,10 @@ class ExtractCommand:
                         completed_tasks.append(task_idx)
                         files_transferred += files_count
                         
-                        # 更新指纹（如果提供了 progress_id）
-                        if progress_id and task.get('type') == 'batch_copy':
+                        # 记录完成的文件（延迟到验证步骤统一更新指纹）
+                        if task.get('type') == 'batch_copy':
                             completed_files = task.get('files', [])
-                            self._update_fingerprint(progress_id, completed_files)
+                            print(f"DEBUG: Worker {(task_idx % 3) + 1} completed, files={len(completed_files)} (fingerprint will be updated in verification step)")
                         
                         # 显示完成后的进度（包括worker id）
                         worker_id = (task_idx % 3) + 1
@@ -1104,9 +1172,12 @@ echo "$CONTENT_DIR"
         Returns:
             dict: {task_id, content_dir, total_files, total_tasks, tasks, ...}
         """
+        # 获取REMOTE_ROOT路径
+        remote_root = self.shell.REMOTE_ROOT
+        
         tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
-        fingerprint_dir = os.path.expanduser(f"~/tmp/extract_fingerprints_{task_id}")
-        target_root = os.path.expanduser(f"~/gds_extracted_{task_id}")
+        fingerprint_dir = f"{remote_root}/tmp/extract_fingerprints_{task_id}"
+        target_root = f"~/gds_extracted_{task_id}"  # 保持远端路径格式
         
         # 检测归档类型
         if archive_path.endswith(('.tar.gz', '.tgz')):
@@ -1173,6 +1244,29 @@ while i < len(files):
     if batch:
         tasks.append({{"task_id": len(tasks), "files": batch}})
 
+
+# 创建指纹文件
+fingerprint_data = {{
+    "progress_id": "{task_id}",
+    "archive_path": "{archive_path}",
+    "task_id": "{task_id}",
+    "remaining_files": [os.path.join(os.getcwd(), f) for f in files],
+    "completed_files": [],
+    "created_at": __import__('datetime').datetime.now().isoformat()
+}}
+
+# 创建指纹文件
+import os as os_mod
+remote_root = "{remote_root}"
+fingerprint_dir = os_mod.path.join(remote_root, "tmp")
+os_mod.makedirs(fingerprint_dir, exist_ok=True)
+fingerprint_path = os_mod.path.join(fingerprint_dir, "extract_progress_{task_id}.json")
+
+with open(fingerprint_path, 'w') as fp:
+    json.dump(fingerprint_data, fp, indent=2)
+
+print(f"Fingerprint created: {{fingerprint_path}}")
+
 # 输出JSON
 print("---JSON---")
 print(json.dumps({{
@@ -1238,49 +1332,47 @@ echo '✓ Completed'
             dict: 验证结果
         """
         try:
-            # 获取源目录的文件列表
-            source_cmd = f"cd '{content_dir}' && find . -type f | sort"
+            # 在一个命令中获取源目录和目标目录的文件列表
+            combined_cmd = f"""
+echo "=== SOURCE FILES ==="
+cd '{content_dir}' && find . -type f | sort
+echo "=== TARGET FILES ==="
+cd '{target_root}' && find . -type f | sort 2>/dev/null || echo "No target files found"
+echo "=== END ==="
+"""
             
             if hasattr(self.shell, 'command_executor'):
                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
                 self.shell.command_executor._raw_command = True
-                source_result = self.shell.command_executor.execute_command_interface(
-                    cmd=source_cmd, capture_result=True)
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=combined_cmd.strip(), capture_result=True)
                 self.shell.command_executor._raw_command = old_raw
                 
                 # 提取 stdout，处理嵌套字典结构
-                source_stdout = ""
-                if isinstance(source_result, dict):
-                    if 'stdout' in source_result:
-                        source_stdout = source_result['stdout']
-                    elif 'data' in source_result:
-                        source_stdout = source_result['data']
+                stdout = ""
+                if isinstance(result, dict):
+                    if 'stdout' in result:
+                        stdout = result['stdout']
+                    elif 'data' in result:
+                        stdout = result['data']
                     # 如果还是字典，可能是嵌套的命令结果
-                    if isinstance(source_stdout, dict) and 'stdout' in source_stdout:
-                        source_stdout = source_stdout['stdout']
+                    if isinstance(stdout, dict) and 'stdout' in stdout:
+                        stdout = stdout['stdout']
                 
-                source_files = [f.strip() for f in str(source_stdout).strip().split('\n') if f.strip()]
+                # 解析合并的输出
+                stdout_str = str(stdout)
+                source_start = stdout_str.find("=== SOURCE FILES ===")
+                target_start = stdout_str.find("=== TARGET FILES ===")
+                end_marker = stdout_str.find("=== END ===")
                 
-                # 获取目标目录的文件列表
-                target_cmd = f"cd '{target_root}' && find . -type f | sort"
-                
-                self.shell.command_executor._raw_command = True
-                target_result = self.shell.command_executor.execute_command_interface(
-                    cmd=target_cmd, capture_result=True)
-                self.shell.command_executor._raw_command = old_raw
-                
-                # 提取 stdout，处理嵌套字典结构
-                target_stdout = ""
-                if isinstance(target_result, dict):
-                    if 'stdout' in target_result:
-                        target_stdout = target_result['stdout']
-                    elif 'data' in target_result:
-                        target_stdout = target_result['data']
-                    # 如果还是字典，可能是嵌套的命令结果
-                    if isinstance(target_stdout, dict) and 'stdout' in target_stdout:
-                        target_stdout = target_stdout['stdout']
-                
-                target_files = [f.strip() for f in str(target_stdout).strip().split('\n') if f.strip()]
+                if source_start >= 0 and target_start > source_start and end_marker > target_start:
+                    source_section = stdout_str[source_start + len("=== SOURCE FILES ==="):target_start].strip()
+                    target_section = stdout_str[target_start + len("=== TARGET FILES ==="):end_marker].strip()
+                    
+                    source_files = [f.strip() for f in source_section.split('\n') if f.strip()]
+                    target_files = [f.strip() for f in target_section.split('\n') if f.strip() and f.strip() != "No target files found"]
+                else:
+                    return {"success": False, "error": "Failed to parse verification output"}
                 
                 # 比较文件列表
                 source_set = set(source_files)
@@ -1293,7 +1385,7 @@ echo '✓ Completed'
                 missing_count = len(missing_files)
                 
                 if missing_count == 0:
-                    print(f"✓ All {actual_files} files verified successfully")
+                    print(f"\nAll {actual_files} files verified successfully")
                     return {
                         "success": True,
                         "actual_files": actual_files,
@@ -1301,7 +1393,7 @@ echo '✓ Completed'
                         "extra_files": len(extra_files)
                     }
                 else:
-                    print(f"✗ {missing_count} files missing:")
+                    print(f"\n{missing_count} files missing:")
                     for f in sorted(missing_files)[:5]:  # 只显示前5个
                         print(f"  - {f}")
                     if len(missing_files) > 5:
