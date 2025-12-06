@@ -234,6 +234,100 @@ class ExtractCommand:
                 cmd=cmd, capture_result=True)
             self.shell.command_executor._raw_command = old_raw
     
+    def _validate_task_state(self, task_id, archive_path):
+        """
+        验证任务状态的完整性（通过一个远端窗口）
+        
+        检查：
+        1. 指纹文件是否存在
+        2. 源文件是否存在
+        3. 解压到/tmp的临时文件夹是否存在
+        
+        如果状态不对，销毁指纹并返回错误
+        
+        Args:
+            task_id (str): 任务ID
+            archive_path (str): 归档文件路径
+            
+        Returns:
+            dict: {"valid": bool, "reason": str, "cleanup": bool}
+        """
+        remote_root = self.shell.REMOTE_ROOT
+        fingerprint_path = f"{remote_root}/tmp/extract_progress_{task_id}.json"
+        tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
+        
+        # 构造验证命令（一个远端窗口完成所有检查）
+        # 验证逻辑：
+        # (1) 指纹不存在 OR (2) (解压folder不存在 AND 源文件不存在) -> 无法恢复
+        cmd = f"""
+echo "=== Validating task state ==="
+
+# 检查指纹文件
+echo "Checking fingerprint..."
+FINGERPRINT_EXISTS=$(ls "{fingerprint_path}" 2>/dev/null && echo "yes" || echo "no")
+echo "Fingerprint exists: $FINGERPRINT_EXISTS"
+
+if [ "$FINGERPRINT_EXISTS" = "no" ]; then
+    echo "✗ Fingerprint not found - task cannot be recovered"
+    echo "INVALID:fingerprint_missing"
+    exit 1
+fi
+
+# 读取指纹中的archive_path
+ARCHIVE_PATH=$(python3 -c "import json; data=json.load(open('{fingerprint_path}')); print(data.get('archive_path', ''))" 2>&1)
+echo "Archive path: $ARCHIVE_PATH"
+
+# 检查源文件和解压目录
+ARCHIVE_EXISTS=$(ls "$ARCHIVE_PATH" 2>/dev/null && echo "yes" || echo "no")
+TMP_DIR_EXISTS=$(ls -d "{tmp_extract_dir}" 2>/dev/null && echo "yes" || echo "no")
+
+echo "Archive exists: $ARCHIVE_EXISTS"
+echo "Tmp dir exists: $TMP_DIR_EXISTS"
+
+# 如果archive和tmp_dir都不存在，则无法恢复
+if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
+    echo "✗ Both archive and tmp dir missing - task cannot be recovered"
+    echo "Cleaning up fingerprint..."
+    rm -f "{fingerprint_path}"
+    echo "INVALID:both_missing"
+    exit 1
+fi
+
+echo "✓ Task can be recovered"
+echo "VALID"
+"""
+        
+        # 执行验证命令
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd.strip(), capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+            
+            # 解析结果
+            stdout = result.get('stdout', '') or result.get('data', '')
+            if isinstance(stdout, dict) and 'stdout' in stdout:
+                stdout = stdout['stdout']
+            
+            stdout_str = str(stdout)
+            
+            # DEBUG: 打印验证结果
+            print(f"DEBUG: Validation stdout:\n{stdout_str[:500]}")
+            print(f"DEBUG: Result exit_code: {result.get('exit_code', 'N/A')}")
+            
+            if "VALID" in stdout_str:
+                return {"valid": True}
+            elif "INVALID:fingerprint_missing" in stdout_str:
+                return {"valid": False, "reason": "Fingerprint file not found - task cannot be recovered", "cleanup": False}
+            elif "INVALID:both_missing" in stdout_str:
+                return {"valid": False, "reason": "Both archive and tmp dir missing - task cannot be recovered (fingerprint cleaned up)", "cleanup": True}
+            else:
+                print(f"DEBUG: No validation marker found, treating as invalid")
+                return {"valid": False, "reason": "Unknown validation error", "cleanup": False}
+        
+        return {"valid": False, "reason": "No executor available", "cleanup": False}
+    
     def validate_args(self, args):
         """
         验证命令参数
@@ -293,10 +387,21 @@ class ExtractCommand:
                 print(f"Error: --progress-id requires a value")
                 return {"success": False, "error": "--progress-id requires a value"}
         try:
-            # 生成 task_id
+            # 如果提供了progress_id，先验证任务状态
             if progress_id:
+                print(f"\n=== Validating task state for progress_id: {progress_id} ===")
+                validation_result = self._validate_task_state(progress_id, archive_path)
+                
+                if not validation_result.get("valid"):
+                    print(f"✗ Task validation failed: {validation_result.get('reason')}")
+                    return {"success": False, "error": validation_result.get("reason")}
+                
+                print("✓ Task state validated successfully\n")
+                print("=== BREAKPOINT: Task validation completed ===")
+                exit(0)
                 task_id = progress_id
             else:
+                # 生成新的task_id
                 archive_basename = os.path.basename(archive_path)
                 archive_name = archive_basename.replace('.tar.gz', '').replace('.tgz', '').replace('.tar', '').replace('.zip', '')
                 import hashlib
