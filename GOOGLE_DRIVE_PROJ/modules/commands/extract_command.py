@@ -778,11 +778,9 @@ UPDATE_EOF
                 if ret is not None:
                     # worker完成，释放槽位
                     
-                    # 释放槽位
-                    worker_slots[slot_id] = None
-                    
                     if ret == 0:
                         # 成功
+                        worker_slots[slot_id] = None  # 释放槽位
                         completed_tasks.append(task_idx)
                         files_transferred += files_count
                         
@@ -802,11 +800,41 @@ UPDATE_EOF
                             print(f"Warning: Failed to create remount flag: {e}")
                         
                         if attempt < max_attempts:
-                            # 重试
+                            # 重试：保持在同一个slot，增加尝试次数
                             print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), will retry...")
-                            task_queue.insert(0, task)  # 重新加入队列头部
+                            task_attempts[task_idx] = attempt  # 更新尝试次数
+                            
+                            # 重新启动worker（在同一slot）
+                            process, files_count_retry = start_worker(task_idx, task, task_id)
+                            if process:
+                                new_attempt = attempt + 1
+                                worker_slots[slot_id] = (task_idx, task, process, files_count_retry, new_attempt)
+                                
+                                # 重新计算task描述
+                                if task["type"] == "batch_copy":
+                                    src_files = task.get('files', [])
+                                    num_files = len(src_files)
+                                    source_dir = task.get('source_dir', '')
+                                    if num_files == 1:
+                                        file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                        task_desc = f"Copy 1 file: {file_rel}"
+                                    else:
+                                        first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                        last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                        task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                                else:
+                                    task_desc = task.get('description', 'Unknown task')
+                                
+                                retry_info = f" (retry {new_attempt}/{max_attempts})"
+                                print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
+                            else:
+                                # 无法启动worker，释放slot
+                                worker_slots[slot_id] = None
+                                print(f"Worker {slot_id} failed to restart, skipping...")
+                                failed_tasks.append((task_idx, task))
                         else:
-                            # 达到最大重试次数，跳过
+                            # 达到最大重试次数，释放槽位
+                            worker_slots[slot_id] = None
                             print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
                             failed_tasks.append((task_idx, task))
                             # 不计入 files_transferred，但继续执行
