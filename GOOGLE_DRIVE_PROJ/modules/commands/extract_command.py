@@ -957,19 +957,17 @@ UPDATE_EOF
                     time.sleep(0.3)
         
         except KeyboardInterrupt:
-            # 用户中断，终止所有运行中的workers
+            # 用户中断，强制kill所有运行中的workers
             print("\n\nTransfer interrupted by user (Ctrl+C)")
             for slot_id, slot_data in worker_slots.items():
                 if slot_data is not None:
                     _, _, process, _, _ = slot_data
                     try:
-                        process.terminate()
+                        process.kill()  # 使用kill而不是terminate，立即终止
                     except:
                         pass
-            return {
-                "success": False,
-                "error": "User interrupted"
-            }
+            # 立即返回，不等待进程
+            raise  # 重新抛出KeyboardInterrupt，让上层处理
         
         # 返回结果（包含失败任务信息）
         if failed_tasks:
