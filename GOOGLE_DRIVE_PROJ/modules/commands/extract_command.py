@@ -420,7 +420,7 @@ echo "VALID"
         try:
             # 如果提供了progress_id，先验证任务状态
             if progress_id:
-                print(f"\n=== Validating task state for progress_id: {progress_id} ===")
+                print(f"Validating task state for progress_id: {progress_id}: ")
                 validation_result = self._validate_task_state(progress_id, archive_path)
                 
                 if not validation_result.get("valid"):
@@ -429,11 +429,18 @@ echo "VALID"
                 
                 # 如果任务已完成，直接返回成功
                 if validation_result.get("completed"):
-                    print("✓ Task already completed - all files transferred\n")
+                    print("✓ Task already completed, all files transferred")
                     return {"success": True, "task_id": progress_id, "message": "Task already completed"}
                 
-                print("✓ Task state validated successfully\n")
+                print("✓ Task state validated successfully")
                 task_id = progress_id
+                
+                # 从指纹文件读取archive_path（如果未提供）
+                if not archive_path:
+                    fingerprint_data = self._load_fingerprint(progress_id)
+                    if fingerprint_data:
+                        archive_path = fingerprint_data.get("archive_path")
+                        print(f"Loaded archive path from fingerprint: {archive_path}")
             else:
                 # 生成新的task_id
                 archive_basename = os.path.basename(archive_path)
