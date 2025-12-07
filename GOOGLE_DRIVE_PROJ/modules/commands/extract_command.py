@@ -677,7 +677,9 @@ READ_FINGERPRINT_EOF
             return None
             
         except KeyboardInterrupt:
-            print("\n\nExtract interrupted by user (Ctrl+C)")
+            print("\n\n[DEBUG] KeyboardInterrupt caught in execute method")
+            print("[DEBUG] Extract interrupted by user (Ctrl+C)")
+            print("[DEBUG] Returning error result")
             return {
                 "success": False,
                 "error": "User interrupted"
@@ -958,15 +960,18 @@ UPDATE_EOF
         
         except KeyboardInterrupt:
             # 用户中断，强制kill所有运行中的workers
-            print("\n\nTransfer interrupted by user (Ctrl+C)")
+            print("\n\n[DEBUG] KeyboardInterrupt caught in _execute_transfers")
+            print("[DEBUG] Killing all running workers...")
             for slot_id, slot_data in worker_slots.items():
                 if slot_data is not None:
                     _, _, process, _, _ = slot_data
                     try:
+                        print(f"[DEBUG] Killing worker {slot_id} (PID: {process.pid})")
                         process.kill()  # 使用kill而不是terminate，立即终止
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"[DEBUG] Failed to kill worker {slot_id}: {e}")
             # 立即返回，不等待进程
+            print("[DEBUG] Re-raising KeyboardInterrupt to upper layer")
             raise  # 重新抛出KeyboardInterrupt，让上层处理
         
         # 返回结果（包含失败任务信息）
