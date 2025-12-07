@@ -520,10 +520,23 @@ READ_FINGERPRINT_EOF
                 
                 # Step 1: 合并的远端初始化和调度生成
                 print("\nStep 1: Initializing and scheduling...")
-                init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
+                try:
+                    init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
+                except KeyboardInterrupt:
+                    print("\n\n{'='*70}")
+                    print("Extract interrupted during initialization (Ctrl+C)")
+                    print(f"{'='*70}\n")
+                    return None
                 
                 if not init_result.get("success"):
-                    return {"success": False, "error": init_result.get("error", "Init failed")}
+                    # 检查是否是中断导致的失败
+                    error_msg = init_result.get("error", "")
+                    if "init failed" in error_msg.lower() or "interrupt" in error_msg.lower():
+                        print("\n\n{'='*70}")
+                        print("Extract interrupted (Ctrl+C)")
+                        print(f"{'='*70}\n")
+                        return None
+                    return {"success": False, "error": error_msg}
                 
                 # 提取结果
                 content_dir = init_result["content_dir"]
