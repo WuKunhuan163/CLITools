@@ -705,6 +705,18 @@ READ_FINGERPRINT_EOF
         """
         import subprocess
         import time
+        import signal
+        
+        # 设置中断标志
+        interrupted = [False]  # 使用list以便在嵌套函数中修改
+        
+        def signal_handler(signum, frame):
+            """处理SIGINT (Ctrl+C)"""
+            print("\n[DEBUG] SIGINT received in signal handler")
+            interrupted[0] = True
+        
+        # 保存旧的信号处理器并设置新的
+        old_handler = signal.signal(signal.SIGINT, signal_handler)
         
         max_workers = 3
         task_queue = list(task_list)
@@ -848,6 +860,10 @@ UPDATE_EOF
         
         try:
             while task_queue or any(slot is not None for slot in worker_slots.values()):
+                # 检查中断标志
+                if interrupted[0]:
+                    print("\n[DEBUG] Interrupted flag detected, breaking loop")
+                    raise KeyboardInterrupt("User interrupted via SIGINT")
                 # 为每个空闲槽位分配任务
                 for slot_id in sorted(worker_slots.keys()):
                     if worker_slots[slot_id] is None and task_queue:
@@ -988,9 +1004,18 @@ UPDATE_EOF
                         process.kill()  # 使用kill而不是terminate，立即终止
                     except Exception as e:
                         print(f"[DEBUG] Failed to kill worker {slot_id}: {e}")
+            # 恢复旧的信号处理器
+            signal.signal(signal.SIGINT, old_handler)
             # 立即返回，不等待进程
             print("[DEBUG] Re-raising KeyboardInterrupt to upper layer")
             raise  # 重新抛出KeyboardInterrupt，让上层处理
+        
+        finally:
+            # 确保恢复信号处理器
+            try:
+                signal.signal(signal.SIGINT, old_handler)
+            except:
+                pass
         
         # 返回结果（包含失败任务信息）
         if failed_tasks:
