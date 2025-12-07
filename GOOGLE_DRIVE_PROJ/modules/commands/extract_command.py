@@ -466,29 +466,52 @@ READ_FINGERPRINT_EOF
 
             
         try:
-            # 如果提供了progress_id，先验证任务状态
+            # 如果提供了progress_id，从指纹文件读取信息并转化为普通extract命令
             if progress_id:
-                print(f"Validating task state for progress_id: {progress_id}: ")
-                validation_result = self._validate_task_state(progress_id, archive_path)
+                print(f"\n=== Loading task from progress_id: {progress_id} ===")
                 
-                if not validation_result.get("valid"):
-                    print(f"✗ Task validation failed: {validation_result.get('reason')}")
-                    return {"success": False, "error": validation_result.get("reason")}
+                # Cat指纹文件获取信息
+                fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{progress_id}.json"
+                cmd = f"cat '{fingerprint_path}' 2>/dev/null || echo 'FINGERPRINT_NOT_FOUND'"
                 
-                # 如果任务已完成，直接返回成功
-                if validation_result.get("completed"):
-                    print("✓ Task already completed, all files transferred")
-                    return {"success": True, "task_id": progress_id, "message": "Task already completed"}
-                
-                print("✓ Task state validated successfully")
-                task_id = progress_id
-                
-                # 从指纹文件读取archive_path（如果未提供）
-                if not archive_path:
-                    fingerprint_data = self._load_fingerprint(progress_id)
-                    if fingerprint_data:
+                if hasattr(self.shell, 'command_executor'):
+                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                    self.shell.command_executor._raw_command = True
+                    result = self.shell.command_executor.execute_command_interface(
+                        cmd=cmd, capture_result=True)
+                    self.shell.command_executor._raw_command = old_raw
+                    
+                    stdout = result.get('stdout', '') or result.get('data', '')
+                    if isinstance(stdout, dict) and 'stdout' in stdout:
+                        stdout = stdout['stdout']
+                    
+                    stdout_str = str(stdout)
+                    
+                    if 'FINGERPRINT_NOT_FOUND' in stdout_str:
+                        print(f"✗ Fingerprint not found for progress_id: {progress_id}")
+                        return {"success": False, "error": "Fingerprint file not found"}
+                    
+                    try:
+                        fingerprint_data = json.loads(stdout_str)
                         archive_path = fingerprint_data.get("archive_path")
-                        print(f"Loaded archive path from fingerprint: {archive_path}")
+                        remaining_count = len(fingerprint_data.get("remaining_files", []))
+                        completed_count = len(fingerprint_data.get("completed_files", []))
+                        
+                        print(f"✓ Loaded fingerprint:")
+                        print(f"  - Archive: {archive_path}")
+                        print(f"  - Remaining: {remaining_count} files")
+                        print(f"  - Completed: {completed_count} files\n")
+                        
+                        if remaining_count == 0:
+                            print("✓ Task already completed - all files transferred\n")
+                            return {"success": True, "task_id": progress_id, "message": "Task already completed"}
+                        
+                        task_id = progress_id
+                    except Exception as e:
+                        print(f"✗ Failed to parse fingerprint: {e}")
+                        return {"success": False, "error": f"Failed to load fingerprint: {e}"}
+                else:
+                    return {"success": False, "error": "No executor available"}
             else:
                 # 生成新的task_id
                 archive_basename = os.path.basename(archive_path)
