@@ -553,10 +553,42 @@ READ_FINGERPRINT_EOF
             
             # Scheduling: 根据来源构建task_list
             if progress_id:
-                # Recovery模式：从指纹读取remaining_files
+                # Recovery模式：从指纹读取remaining_files并构建task_list
                 print("Scheduling from fingerprint...")
-                # TODO: 从fingerprint_data读取remaining_files并构建task_list
-                task_list = []  # 临时占位
+                remaining_files = fingerprint_data.get("remaining_files", [])
+                total_files = len(remaining_files) + len(fingerprint_data.get("completed_files", []))
+                
+                # 推导content_dir, target_root, fingerprint_dir
+                # 假设remaining_files[0]格式: /tmp/gds_extract_xxx/content/file.txt
+                if remaining_files:
+                    # 从第一个文件推导content_dir
+                    first_file = remaining_files[0]
+                    # /tmp/gds_extract_small_test_xxx/small_test/file1.txt -> /tmp/gds_extract_small_test_xxx/small_test
+                    content_dir = os.path.dirname(first_file)
+                else:
+                    # 没有剩余文件，任务已完成
+                    print("No remaining files - task already completed")
+                    return {"success": True, "task_id": task_id, "message": "Task already completed"}
+                
+                target_root = f"{self.shell.REMOTE_ROOT}/gds_extracted_{task_id}"
+                fingerprint_dir = f"{self.shell.REMOTE_ROOT}/tmp/extract_fingerprints_{task_id}"
+                
+                # 按batch_size分批
+                task_list = []
+                for i in range(0, len(remaining_files), transfer_batch):
+                    batch_files = remaining_files[i:i+transfer_batch]
+                    task = {
+                        "type": "batch_copy",
+                        "task_id": len(task_list),
+                        "files": batch_files,  # 已经是完整路径
+                        "source_dir": content_dir,
+                        "target_dir": target_root,
+                        "fingerprint": f"{fingerprint_dir}/recovery_task_{len(task_list):04d}_ok",
+                        "archive_path": archive_path
+                    }
+                    task_list.append(task)
+                
+                print(f"Generated {len(task_list)} recovery tasks from {len(remaining_files)} remaining files")
             else:
                 # 新任务模式：从Step 1结果转换
                 print("Scheduling from Step 1 results...")
@@ -606,32 +638,26 @@ READ_FINGERPRINT_EOF
                     print(f"Maximum verification retries ({max_verification_retries}) reached")
                     return verification_result
                 
-                # 重新调度缺失的文件
-                print(f"Rescheduling {missing_count} missing files...")
-                
-                # 将missing_list转换为完整路径
+                # 将missing_list转换为完整路径并构建task_list
                 missing_files_full = [os.path.join(content_dir, f.lstrip('./')) for f in missing_list]
                 
-                # 重新生成任务列表（使用同样的接口）
                 retry_task_list = []
                 batch_size = transfer_batch
                 for i in range(0, len(missing_files_full), batch_size):
                     batch_files = missing_files_full[i:i+batch_size]
                     task = {
                         "type": "batch_copy",
-                        "task_id": len(retry_task_list) + 1,
+                        "task_id": len(retry_task_list),
                         "files": batch_files,
                         "source_dir": content_dir,
                         "target_dir": target_root,
-                        "fingerprint": f"{fingerprint_dir}/retry_{verification_attempt}_task_{len(retry_task_list)+1:04d}_ok",
+                        "fingerprint": f"{fingerprint_dir}/retry_{verification_attempt}_task_{len(retry_task_list):04d}_ok",
                         "archive_path": archive_path
                     }
                     retry_task_list.append(task)
                 
-                print(f"Generated {len(retry_task_list)} retry tasks")
-                
-                # 回到Step 2执行传输
-                print(f"\nStep 2 (Retry {verification_attempt}): Executing retry tasks...")
+                # 回到Step 2执行传输（重试缺失文件）
+                print(f"\nStep 2 (Retry {verification_attempt}): Transferring {missing_count} missing files...")
                 retry_result = self._execute_transfers(retry_task_list, missing_count, progress_id, task_id)
                 
                 if not retry_result.get("success"):
