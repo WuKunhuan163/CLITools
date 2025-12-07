@@ -894,7 +894,20 @@ UPDATE_EOF
                 task_idx, task, process, files_count, attempt = slot_data
                 ret = process.poll()
                 if ret is not None:
-                    # worker完成，释放槽位
+                    # worker完成或被杀死
+                    
+                    # 检查是否被SIGINT（Ctrl+C）杀死
+                    if ret == -2:  # SIGINT signal
+                        print(f"\n[DEBUG] Worker {slot_id} killed by SIGINT, propagating KeyboardInterrupt")
+                        # 清理所有workers
+                        for sid, sdata in worker_slots.items():
+                            if sdata is not None:
+                                _, _, proc, _, _ = sdata
+                                try:
+                                    proc.kill()
+                                except:
+                                    pass
+                        raise KeyboardInterrupt("Worker killed by Ctrl+C")
                     
                     if ret == 0:
                         # 成功
