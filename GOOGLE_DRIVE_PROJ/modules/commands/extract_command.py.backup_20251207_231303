@@ -565,7 +565,12 @@ fi
                     sys.exit(1)
 
                 if not init_result.get("success"):
+                    # 检查是否是中断导致的失败
                     error_msg = init_result.get("error", "Unknown error")
+                    if "init failed" in error_msg.lower() or "interrupt" in error_msg.lower():
+                        print("\nExtract interrupted (Ctrl+C)")
+                        import sys
+                        sys.exit(1)
                     print(f"Initialization failed: {error_msg}")
                     return None
 
@@ -867,26 +872,28 @@ UPDATE_EOF
 '''
                     cmd_parts.append(update_script.strip())
 
-                # 添加完成标记
-                fingerprint_dir = os.path.dirname(fingerprint)
-                cmd_parts.append(f"mkdir -p '{fingerprint_dir}'")
-                cmd_parts.append(f"echo 'completed' > '{fingerprint}'")
-
-                cmd = " && ".join(cmd_parts)
+                cmd = " && \\\n".join(cmd_parts)
                 files_count = len(files)
             else:
                 return None, 0  # 不支持其他类型
 
-            # 使用GOOGLE_DRIVE执行命令
+            # DEBUG: MINIMAL TEST - Use trivial worker (sleep) to test loop mechanism
+            # After fixing line 981 indentation bug, this should complete successfully
             try:
-                # GOOGLE_DRIVE位于/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py
+                print(f"[DEBUG] Starting TRIVIAL worker for task {task_idx} (sleep 2 seconds)")
                 import sys
-                google_drive_path = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py"
+                sys.stdout.flush()
+
+                # Minimal test: just sleep for 2 seconds
                 process = subprocess.Popen(
-                    [sys.executable, google_drive_path, "--shell", "--raw-command", cmd],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
+                    ["sleep", "2"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
                 )
+
+                print(f"[DEBUG] Trivial worker process started, PID: {process.pid}")
+                sys.stdout.flush()
+
                 return process, files_count
             except Exception as e:
                 print(f"Failed to start worker: {e}")
@@ -901,127 +908,215 @@ UPDATE_EOF
         last_debug_time = time.time()
 
         try:
-            import sys
             while task_queue or any(slot is not None for slot in worker_slots.values()):
                 loop_count += 1
-                current_time = time.time()
+                current_time = time.time()  # 每次循环都更新时间
 
-                # 检查中断
+                # 检查中断标志
                 if interrupted[0]:
                     raise KeyboardInterrupt("User interrupted via SIGINT")
 
-                # 任务分配：为空闲worker分配任务
-                for slot_id in sorted(worker_slots.keys()):
-                    if worker_slots[slot_id] is None and task_queue:
-                        task = task_queue.pop(0)
-                        task_idx = task["task_id"]
+                # 只在首次和每5秒输出一次Loop start信息，减少输出
+                if loop_count == 1 or (current_time - last_debug_time) >= 5.0:
+                    print(f"[DEBUG] Loop {loop_count} - task_queue: {len(task_queue)}, active workers: {sum(1 for s in worker_slots.values() if s is not None)}")
+                    import sys
+                    sys.stdout.flush()
+                    last_debug_time = current_time
 
-                        # 跟踪重试次数
-                        attempt = task_attempts.get(task_idx, 0) + 1
-                        task_attempts[task_idx] = attempt
+                # 为每个空闲槽位分配任务
+                print(f"[DEBUG] {loop_count}: Before task assignment, task_queue={len(task_queue)}")
+                import sys
+                sys.stdout.flush()
+                print(f"[DEBUG] {loop_count}: After flush, still alive")
+                sys.stdout.flush()
+                print(f"[DEBUG] {loop_count}: About to check if task_queue")
+                sys.stdout.flush()
 
-                        # 构建任务描述
-                        if task["type"] == "batch_copy":
-                            src_files = task.get('files', [])
-                            num_files = len(src_files)
-                            if src_files and num_files > 0:
-                                source_dir = task.get('source_dir', '')
-                                if num_files == 1:
-                                    file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                    task_desc = f"Copy 1 file: {file_rel}"
-                                else:
-                                    first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                    last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
-                                    task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
-                            else:
-                                task_desc = f"Copy 0 files"
-                        else:
-                            task_desc = task.get('description', 'Unknown task')
+                # ONLY do task assignment if there are tasks to assign
+                if task_queue:
+                    print(f"[DEBUG] {loop_count}: INSIDE if task_queue block")
+                    import sys
+                    sys.stdout.flush()
+                    for slot_id in sorted(worker_slots.keys()):
+                        if worker_slots[slot_id] is None and task_queue:
+                            task = task_queue.pop(0)
+                            task_idx = task["task_id"]
 
-                        # 启动worker
-                        process, files_count = start_worker(task_idx, task, task_id)
-                        if process:
-                            worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
-                            worker_start_times[slot_id] = current_time
-                            retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
-                            print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
+                            # 获取当前任务的尝试次数
+                            attempt = task_attempts.get(task_idx, 0) + 1
+                            task_attempts[task_idx] = attempt
 
-                # Worker检查：检查已完成的worker
-                for slot_id, slot_data in list(worker_slots.items()):
-                    if slot_data is None:
-                        continue
-
-                    task_idx, task, process, files_count, attempt = slot_data
-                    ret = process.poll()
-
-                    if ret is not None:
-                        # Worker完成
-                        if ret == -2:  # SIGINT
-                            # 清理所有worker并抛出中断
-                            for sid, sdata in worker_slots.items():
-                                if sdata is not None:
-                                    _, _, proc, _, _ = sdata
-                                    try:
-                                        proc.kill()
-                                    except:
-                                        pass
-                            raise KeyboardInterrupt("Worker killed by Ctrl+C")
-
-                        if ret == 0:
-                            # 成功
-                            worker_slots[slot_id] = None
-                            worker_start_times.pop(slot_id, None)
-                            completed_tasks.append(task_idx)
-                            files_transferred += files_count
-                            print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} completed")
-                        else:
-                            # 失败 - 创建remount flag
-                            try:
-                                with open("/tmp/gds_remount_needed", "w") as f:
-                                    f.write(f"Worker {slot_id} failed at {current_time}\n")
-                            except:
-                                pass
-
-                            if attempt < max_attempts:
-                                # 重试
-                                print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), retrying...")
-                                process, files_count_retry = start_worker(task_idx, task, task_id)
-                                if process:
-                                    new_attempt = attempt + 1
-                                    worker_slots[slot_id] = (task_idx, task, process, files_count_retry, new_attempt)
-                                    
-                                    # 重新计算任务描述
-                                    if task["type"] == "batch_copy":
-                                        src_files = task.get('files', [])
-                                        num_files = len(src_files)
-                                        source_dir = task.get('source_dir', '')
-                                        if num_files == 1:
-                                            file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                            task_desc = f"Copy 1 file: {file_rel}"
-                                        else:
-                                            first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                            last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
-                                            task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                            # 显示任务信息
+                            if task["type"] == "batch_copy":
+                                src_files = task.get('files', [])
+                                num_files = len(src_files)
+                                if src_files and num_files > 0:
+                                    # 计算相对于source_dir的相对路径
+                                    source_dir = task.get('source_dir', '')
+                                    if num_files == 1:
+                                        file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                        task_desc = f"Copy 1 file: {file_rel}"
                                     else:
-                                        task_desc = task.get('description', 'Unknown task')
-                                    
-                                    print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc} (retry {new_attempt}/{max_attempts})")
+                                        first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                        last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                        task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
                                 else:
-                                    # 无法重启
-                                    worker_slots[slot_id] = None
-                                    worker_start_times.pop(slot_id, None)
-                                    print(f"Worker {slot_id} failed to restart, skipping...")
-                                    failed_tasks.append((task_idx, task))
+                                    task_desc = f"Copy 0 files"
                             else:
-                                # 达到最大重试次数
-                                worker_slots[slot_id] = None
-                                worker_start_times.pop(slot_id, None)
-                                print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
-                                failed_tasks.append((task_idx, task))
+                                task_desc = task.get('description', 'Unknown task')
 
-                # 短暂休眠
-                if any(slot is not None for slot in worker_slots.values()) or task_queue:
-                    time.sleep(0.1)
+                            # 启动worker
+                            process, files_count = start_worker(task_idx, task, task_id)
+                            if process:
+                                worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
+                                worker_start_times[slot_id] = time.time()  # 记录启动时间
+
+                                retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
+                                print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
+                else:
+                    print(f"[DEBUG] {loop_count}: No tasks to assign (task_queue is empty)")
+                    import sys
+                    sys.stdout.flush()
+                    print(f"[DEBUG] {loop_count}: End of else block, about to exit")
+                    sys.stdout.flush()
+
+            print(f"[DEBUG] {loop_count}: XXXXX After task assignment block (outside if) XXXXX")
+            import sys
+            sys.stdout.flush()
+
+            # 检查已完成的worker
+            print(f"[DEBUG] {loop_count}: === ENTERING WORKER CHECK LOOP ===")
+            sys.stdout.flush()
+
+            worker_check_count = 0
+            for slot_id, slot_data in list(worker_slots.items()):
+                worker_check_count += 1
+                print(f"[DEBUG] {loop_count}: Checking worker slot {slot_id} (iteration {worker_check_count}/3)")
+                sys.stdout.flush()
+
+                if slot_data is None:
+                    print(f"[DEBUG] {loop_count}: Slot {slot_id} is None, skipping")
+                    sys.stdout.flush()
+                    continue
+
+                task_idx, task, process, files_count, attempt = slot_data
+                print(f"[DEBUG] {loop_count}: Slot {slot_id} has worker, PID={process.pid}, about to poll...")
+                sys.stdout.flush()
+
+                ret = process.poll()
+                print(f"[DEBUG] {loop_count}: Slot {slot_id} poll() returned: {ret}")
+                sys.stdout.flush()
+
+                # Always print when worker completes (ret is not None)
+                if ret is not None:
+                    print(f"[DEBUG] *** Worker {slot_id} (PID: {process.pid}) COMPLETED with exit code: {ret} ***")
+                    sys.stdout.flush()
+
+                if ret is not None:
+                    # worker完成或被杀死
+
+                    # 检查是否被SIGINT（Ctrl+C）杀死
+                    if ret == -2:  # SIGINT signal
+                        # 清理所有workers并传播中断
+                        for sid, sdata in worker_slots.items():
+                            if sdata is not None:
+                                _, _, proc, _, _ = sdata
+                                try:
+                                    proc.kill()
+                                except:
+                                    pass
+                        raise KeyboardInterrupt("Worker killed by Ctrl+C")
+
+                    if ret == 0:
+                        # 成功
+                        print(f"[DEBUG] Worker {slot_id} succeeded, updating progress")
+                        worker_slots[slot_id] = None  # 释放槽位
+                        completed_tasks.append(task_idx)
+                        files_transferred += files_count
+                        print(f"[DEBUG] Files transferred updated: {files_transferred}/{total_files}")
+
+                        # Worker已在其命令中更新指纹文件
+
+                        # 显示完成后的进度（包括worker id）
+                        print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} completed")
+                    else:
+                        # 失败
+
+                        # 创建 remount flag 文件
+                        try:
+                            remount_flag_path = "/tmp/gds_remount_needed"
+                            with open(remount_flag_path, "w") as f:
+                                f.write(f"Worker {slot_id} failed at {time.time()}\n")
+                        except Exception as e:
+                            print(f"Warning: Failed to create remount flag: {e}")
+
+                        if attempt < max_attempts:
+                            # 重试：保持在同一个slot，增加尝试次数
+                            print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), will retry...")
+                            task_attempts[task_idx] = attempt  # 更新尝试次数
+
+                            # 重新启动worker（在同一slot）
+                            process, files_count_retry = start_worker(task_idx, task, task_id)
+                            if process:
+                                new_attempt = attempt + 1
+                                worker_slots[slot_id] = (task_idx, task, process, files_count_retry, new_attempt)
+
+                                # 重新计算task描述
+                                if task["type"] == "batch_copy":
+                                    src_files = task.get('files', [])
+                                    num_files = len(src_files)
+                                    source_dir = task.get('source_dir', '')
+                                    if num_files == 1:
+                                        file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                        task_desc = f"Copy 1 file: {file_rel}"
+                                    else:
+                                        first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                        last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                        task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                                else:
+                                    task_desc = task.get('description', 'Unknown task')
+
+                                retry_info = f" (retry {new_attempt}/{max_attempts})"
+                                print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
+                            else:
+                                # 无法启动worker，释放slot
+                                worker_slots[slot_id] = None
+                                worker_start_times.pop(slot_id, None)  # 清理启动时间记录
+                                print(f"Worker {slot_id} failed to restart, skipping...")
+                                failed_tasks.append((task_idx, task))
+                        else:
+                            # 达到最大重试次数，释放槽位
+                            worker_slots[slot_id] = None
+                            worker_start_times.pop(slot_id, None)  # 清理启动时间记录
+                            print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
+                            failed_tasks.append((task_idx, task))
+                            # 不计入 files_transferred，但继续执行
+
+            if loop_count % 500000 == 0:
+                print(f"[DEBUG] {loop_count}: Finished checking all workers")
+                import sys
+                sys.stdout.flush()
+
+            # 等待一小段时间再检查
+            should_sleep = any(slot is not None for slot in worker_slots.values()) or task_queue
+
+            if loop_count % 500000 == 0:
+                active_count = sum(1 for s in worker_slots.values() if s is not None)
+                print(f"[DEBUG] {loop_count}: End of loop, active_workers={active_count}, task_queue={len(task_queue)}, should_sleep={should_sleep}")
+                sys.stdout.flush()
+
+            if should_sleep:
+                if loop_count % 500000 == 0:
+                    print(f"[DEBUG] {loop_count}: About to sleep...")
+                    sys.stdout.flush()
+                time.sleep(0.3)
+                if loop_count % 500000 == 0:
+                    print(f"[DEBUG] {loop_count}: Woke up from sleep")
+                    sys.stdout.flush()
+            else:
+                if loop_count % 500000 == 0:
+                    print(f"[DEBUG] {loop_count}: Skipping sleep (no active workers/tasks)")
+                    sys.stdout.flush()
 
         except KeyboardInterrupt:
             print("[DEBUG] KeyboardInterrupt caught in _execute_transfers")
@@ -1628,32 +1723,16 @@ EOF
 echo '✓ Completed'
 """
 
-        # 执行（带重试机制）
+        # 执行
         if hasattr(self.shell, 'command_executor'):
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
             self.shell.command_executor._raw_command = True
-            
-            # 至少尝试2次
-            max_attempts = 3
-            result = None
-            for attempt in range(1, max_attempts + 1):
-                if attempt > 1:
-                    print(f"Initializing... (attempt {attempt}/{max_attempts})")
-                
-                result = self.shell.command_executor.execute_command_interface(
-                    cmd=cmd.strip(), capture_result=True)
-                
-                if result.get("success"):
-                    break  # 成功则退出重试循环
-                
-                # 如果还有重试机会，继续
-                if attempt < max_attempts:
-                    print("Initialization failed, retrying...")
-            
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd.strip(), capture_result=True)
             self.shell.command_executor._raw_command = old_raw
 
-            if not result or not result.get("success"):
-                return {"success": False, "error": "Remote init failed after retries"}
+            if not result.get("success"):
+                return {"success": False, "error": "Remote init failed"}
 
             # 解析JSON
             stdout = result.get("stdout", "")
@@ -1780,3 +1859,7 @@ echo "=== END ==="
 
         except Exception as e:
             return {"success": False, "error": f"Verification failed: {e}"}
+
+
+# 保留旧代码的兼容性（暂时不删除，以防需要参考）
+# ... 这里可以保留一些辅助函数 ...
