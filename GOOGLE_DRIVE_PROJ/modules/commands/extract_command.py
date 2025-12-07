@@ -519,7 +519,7 @@ READ_FINGERPRINT_EOF
                 task_id = f"{archive_name}_{hash_obj.hexdigest()[:8]}"
                 
                 # Step 1: 合并的远端初始化和调度生成
-                print("\nStep 1: Initializing and scheduling...")
+                print("Step 1: Initializing...")
                 try:
                     init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
                 except KeyboardInterrupt:
@@ -907,12 +907,15 @@ UPDATE_EOF
                             print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
             
             # 检查已完成的worker
+            print(f"[DEBUG] Checking workers, active slots: {[sid for sid, sd in worker_slots.items() if sd is not None]}")
             for slot_id, slot_data in list(worker_slots.items()):
                 if slot_data is None:
                     continue
                 
                 task_idx, task, process, files_count, attempt = slot_data
+                print(f"[DEBUG] Polling worker {slot_id} (PID: {process.pid})")
                 ret = process.poll()
+                print(f"[DEBUG] Worker {slot_id} poll result: {ret}")
                 if ret is not None:
                     # worker完成或被杀死
                     
@@ -930,9 +933,11 @@ UPDATE_EOF
                     
                     if ret == 0:
                         # 成功
+                        print(f"[DEBUG] Worker {slot_id} succeeded, updating progress")
                         worker_slots[slot_id] = None  # 释放槽位
                         completed_tasks.append(task_idx)
                         files_transferred += files_count
+                        print(f"[DEBUG] Files transferred updated: {files_transferred}/{total_files}")
                         
                         # Worker已在其命令中更新指纹文件
                         
