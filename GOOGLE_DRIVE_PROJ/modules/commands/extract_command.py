@@ -1564,7 +1564,7 @@ echo "=== END ==="
                         "extra_files": len(extra_files)
                     }
                 else:
-                    print(f"\n{missing_count} files missing:")
+                    print(f"{missing_count} files missing:")
                     for f in sorted(missing_files)[:5]:  # 只显示前5个
                         print(f"  - {f}")
                     if len(missing_files) > 5:
