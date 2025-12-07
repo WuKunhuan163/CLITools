@@ -675,13 +675,10 @@ READ_FINGERPRINT_EOF
             return None
             
         except KeyboardInterrupt:
-            print("\n\n[DEBUG] KeyboardInterrupt caught in execute method")
-            print("[DEBUG] Extract interrupted by user (Ctrl+C)")
-            print("[DEBUG] Returning error result")
-            return {
-                "success": False,
-                "error": "User interrupted"
-            }
+            print("\n\n{'='*70}")
+            print("Extract interrupted by user (Ctrl+C)")
+            print(f"{'='*70}\n")
+            return None  # 返回None避免打印dict
         except Exception as e:
             print(f"\n\nExtract failed: {e}")
             import traceback
@@ -712,7 +709,6 @@ READ_FINGERPRINT_EOF
         
         def signal_handler(signum, frame):
             """处理SIGINT (Ctrl+C)"""
-            print("\n[DEBUG] SIGINT received in signal handler")
             interrupted[0] = True
         
         # 保存旧的信号处理器并设置新的
@@ -854,7 +850,6 @@ UPDATE_EOF
         # 为每个任务维护重试计数
         task_attempts = {}  # {task_idx: attempt_count}
         
-        print("[DEBUG] Starting transfer loop")
         worker_start_times = {}  # {slot_id: start_time}
         WORKER_TIMEOUT = 300  # 5 minutes timeout per worker
         
@@ -862,7 +857,6 @@ UPDATE_EOF
             while task_queue or any(slot is not None for slot in worker_slots.values()):
                 # 检查中断标志
                 if interrupted[0]:
-                    print("\n[DEBUG] Interrupted flag detected, breaking loop")
                     raise KeyboardInterrupt("User interrupted via SIGINT")
                 # 为每个空闲槽位分配任务
                 for slot_id in sorted(worker_slots.keys()):
@@ -914,8 +908,7 @@ UPDATE_EOF
                     
                     # 检查是否被SIGINT（Ctrl+C）杀死
                     if ret == -2:  # SIGINT signal
-                        print(f"\n[DEBUG] Worker {slot_id} killed by SIGINT, propagating KeyboardInterrupt")
-                        # 清理所有workers
+                        # 清理所有workers并传播中断
                         for sid, sdata in worker_slots.items():
                             if sdata is not None:
                                 _, _, proc, _, _ = sdata
@@ -994,21 +987,17 @@ UPDATE_EOF
         
         except KeyboardInterrupt:
             # 用户中断，强制kill所有运行中的workers
-            print("\n\n[DEBUG] KeyboardInterrupt caught in _execute_transfers")
-            print("[DEBUG] Killing all running workers...")
             for slot_id, slot_data in worker_slots.items():
                 if slot_data is not None:
                     _, _, process, _, _ = slot_data
                     try:
-                        print(f"[DEBUG] Killing worker {slot_id} (PID: {process.pid})")
-                        process.kill()  # 使用kill而不是terminate，立即终止
-                    except Exception as e:
-                        print(f"[DEBUG] Failed to kill worker {slot_id}: {e}")
+                        process.kill()
+                    except:
+                        pass
             # 恢复旧的信号处理器
             signal.signal(signal.SIGINT, old_handler)
-            # 立即返回，不等待进程
-            print("[DEBUG] Re-raising KeyboardInterrupt to upper layer")
-            raise  # 重新抛出KeyboardInterrupt，让上层处理
+            # 重新抛出KeyboardInterrupt，让上层处理
+            raise
         
         finally:
             # 确保恢复信号处理器
