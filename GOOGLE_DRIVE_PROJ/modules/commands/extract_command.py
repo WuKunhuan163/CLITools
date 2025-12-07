@@ -489,24 +489,68 @@ echo "VALID"
             files_transferred = transfer_result["files_transferred"]
             failed_tasks = transfer_result.get("failed_tasks", [])
             
-            # Step 3: 验证传输结果
-            print("\nStep 3: Verifying transfer results...")
-            verification_result = self._verify_transfer_results(content_dir, target_root, total_files)
+            # Step 3: 验证传输结果（带重试循环）
+            max_verification_retries = 3
+            verification_attempt = 0
             
-            if not verification_result["success"]:
-                print(f"Verification failed: {verification_result['error']}")
-                if failed_tasks:
-                    print("Will retry failed tasks...")
-                    # TODO: 这里可以重新调度失败的任务
-                return verification_result
+            while verification_attempt < max_verification_retries:
+                verification_attempt += 1
+                print(f"\nStep 3: Verifying transfer results... (attempt {verification_attempt}/{max_verification_retries})")
+                verification_result = self._verify_transfer_results(content_dir, target_root, total_files)
+                
+                if verification_result["success"]:
+                    # 验证成功，跳出循环
+                    break
+                
+                # 验证失败，检查是否有缺失文件
+                missing_list = verification_result.get("missing_list", [])
+                missing_count = len(missing_list)
+                
+                print(f"Verification failed: {missing_count} files missing")
+                
+                if verification_attempt >= max_verification_retries:
+                    print(f"Maximum verification retries ({max_verification_retries}) reached")
+                    return verification_result
+                
+                # 重新调度缺失的文件
+                print(f"Rescheduling {missing_count} missing files...")
+                
+                # 将missing_list转换为完整路径
+                missing_files_full = [os.path.join(content_dir, f.lstrip('./')) for f in missing_list]
+                
+                # 重新生成任务列表（使用同样的接口）
+                retry_task_list = []
+                batch_size = transfer_batch
+                for i in range(0, len(missing_files_full), batch_size):
+                    batch_files = missing_files_full[i:i+batch_size]
+                    task = {
+                        "type": "batch_copy",
+                        "task_id": len(retry_task_list) + 1,
+                        "files": batch_files,
+                        "source_dir": content_dir,
+                        "target_dir": target_root,
+                        "fingerprint": f"{fingerprint_dir}/retry_{verification_attempt}_task_{len(retry_task_list)+1:04d}_ok",
+                        "archive_path": archive_path
+                    }
+                    retry_task_list.append(task)
+                
+                print(f"Generated {len(retry_task_list)} retry tasks")
+                
+                # 回到Step 2执行传输
+                print(f"\nStep 2 (Retry {verification_attempt}): Executing retry tasks...")
+                retry_result = self._execute_transfers(retry_task_list, missing_count, progress_id, task_id)
+                
+                if not retry_result.get("success"):
+                    print(f"Retry transfer failed: {retry_result.get('error')}")
+                    return retry_result
             
+            # 验证成功或达到最大重试次数
             actual_files = verification_result["actual_files"]
             missing_files = verification_result.get("missing_files", 0)
             
             if missing_files > 0:
-                print(f"Warning: {missing_files} files are missing from target directory")
-                if failed_tasks:
-                    print("This may be due to failed worker tasks that will be retried")
+                print(f"Warning: {missing_files} files are still missing after {verification_attempt} attempts")
+                return verification_result
             
             print(f"\n{'='*70}")
             print(f"Extract completed")
@@ -774,9 +818,9 @@ UPDATE_EOF
                 time.sleep(0.3)
         
         # 返回结果（包含失败任务信息）
-        if failed_tasks:
-            print(f"\n{len(failed_tasks)} task(s) failed after {max_attempts} attempts")
-            print("These tasks will be retried in Step 5 (verification)")
+            if failed_tasks:
+                print(f"\n{len(failed_tasks)} task(s) failed after {max_attempts} attempts")
+                print("These tasks will be rescheduled if verification detects missing files")
         
         return {
             "success": True,
