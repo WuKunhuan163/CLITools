@@ -670,10 +670,8 @@ READ_FINGERPRINT_EOF
                 print(f"Warning: {missing_files} files are still missing after {verification_attempt} attempts")
                 return verification_result
             
-            print(f"\n{'='*70}")
-            print(f"Extract completed")
+            print(f"\nExtract completed")
             print(f"Files verified: {actual_files}/{total_files}")
-            print(f"{'='*70}\n")
             
             # Return None to avoid printing dict output
             return None
@@ -855,33 +853,33 @@ UPDATE_EOF
                         # 获取当前任务的尝试次数
                         attempt = task_attempts.get(task_idx, 0) + 1
                         task_attempts[task_idx] = attempt
-                
-                    # 显示任务信息
-                    if task["type"] == "batch_copy":
-                        src_files = task.get('files', [])
-                        num_files = len(src_files)
-                        if src_files and num_files > 0:
-                            # 计算相对于source_dir的相对路径
-                            source_dir = task.get('source_dir', '')
-                            if num_files == 1:
-                                file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                task_desc = f"Copy 1 file: {file_rel}"
-                            else:
-                                first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
-                                task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
-                        else:
-                            task_desc = f"Copy 0 files"
-                    else:
-                        task_desc = task.get('description', 'Unknown task')
-                    
-                    # 启动worker
-                    process, files_count = start_worker(task_idx, task, task_id)
-                    if process:
-                        worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
                         
-                        retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
-                        print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
+                        # 显示任务信息
+                        if task["type"] == "batch_copy":
+                            src_files = task.get('files', [])
+                            num_files = len(src_files)
+                            if src_files and num_files > 0:
+                                # 计算相对于source_dir的相对路径
+                                source_dir = task.get('source_dir', '')
+                                if num_files == 1:
+                                    file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    task_desc = f"Copy 1 file: {file_rel}"
+                                else:
+                                    first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                    task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                            else:
+                                task_desc = f"Copy 0 files"
+                        else:
+                            task_desc = task.get('description', 'Unknown task')
+                        
+                        # 启动worker
+                        process, files_count = start_worker(task_idx, task, task_id)
+                        if process:
+                            worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
+                            
+                            retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
+                            print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
             
             # 检查已完成的worker
             for slot_id, slot_data in list(worker_slots.items()):
