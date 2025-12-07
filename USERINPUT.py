@@ -75,7 +75,7 @@ def show_prompt_header(project_name, hint_text=None):
     print(f"{separator}")
     
     if hint_text:
-        print(f"\nHint provided: {hint_text}")
+        print(f"\nHint provided: \n{hint_text}")
     
     print(f"\nEnter your next prompt. Press Ctrl+D (EOF) when done.")
 
