@@ -468,7 +468,7 @@ READ_FINGERPRINT_EOF
         try:
             # 如果提供了progress_id，从指纹文件读取信息并转化为普通extract命令
             if progress_id:
-                print(f"\n=== Loading task from progress_id: {progress_id} ===")
+                print(f"Step 1: Loading task from progress_id: {progress_id}: ")
                 
                 # Cat指纹文件获取信息
                 fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{progress_id}.json"
@@ -497,13 +497,13 @@ READ_FINGERPRINT_EOF
                         remaining_count = len(fingerprint_data.get("remaining_files", []))
                         completed_count = len(fingerprint_data.get("completed_files", []))
                         
-                        print(f"✓ Loaded fingerprint:")
+                        print(f"✓ Loaded task from progress_id: {progress_id}:")
                         print(f"  - Archive: {archive_path}")
                         print(f"  - Remaining: {remaining_count} files")
-                        print(f"  - Completed: {completed_count} files\n")
+                        print(f"  - Completed: {completed_count} files")
                         
                         if remaining_count == 0:
-                            print("✓ Task already completed - all files transferred\n")
+                            print("✓ Task already completed, all files transferred")
                             return {"success": True, "task_id": progress_id, "message": "Task already completed"}
                         
                         task_id = progress_id
@@ -519,46 +519,62 @@ READ_FINGERPRINT_EOF
                 import hashlib
                 hash_obj = hashlib.md5(f"{archive_path}{__import__('time').time()}".encode())
                 task_id = f"{archive_name}_{hash_obj.hexdigest()[:8]}"
+                
+                # Step 1: 合并的远端初始化和调度生成
+                print("\nStep 1: Initializing and scheduling...")
+                init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
+                
+                if not init_result.get("success"):
+                    return {"success": False, "error": init_result.get("error", "Init failed")}
+                
+                # 提取结果
+                content_dir = init_result["content_dir"]
+                total_files = init_result["total_files"]
+                total_tasks = init_result["total_tasks"]
+                task_list_raw = init_result["tasks"]
+                target_root = init_result["target_root"]
+                fingerprint_dir = init_result["fingerprint_dir"]
+                
+                print(f"Task ID: {task_id} (Use 'GDS extract --progress-id {task_id}' to resume if interrupted)")
+                print(f"Collected files: {total_files}")
+                print(f"Worker tasks: {total_tasks}")
+                
+
+
+
+
+
+
+
+
             
-            # Step 1: 合并的远端初始化和调度生成
-            print("\nStep 1: Initializing and scheduling...")
-            init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
+            # Step 2: Scheduling and executing transfer tasks
+            print("\nStep 2: Scheduling and executing transfer tasks...")
             
-            if not init_result.get("success"):
-                return {"success": False, "error": init_result.get("error", "Init failed")}
+            # Scheduling: 根据来源构建task_list
+            if progress_id:
+                # Recovery模式：从指纹读取remaining_files
+                print("Scheduling from fingerprint...")
+                # TODO: 从fingerprint_data读取remaining_files并构建task_list
+                task_list = []  # 临时占位
+            else:
+                # 新任务模式：从Step 1结果转换
+                print("Scheduling from Step 1 results...")
+                task_list = []
+                for t in task_list_raw:
+                    task = {
+                        "type": "batch_copy",
+                        "task_id": t["task_id"],
+                        "files": [os.path.join(content_dir, f) for f in t["files"]],
+                        "source_dir": content_dir,
+                        "target_dir": target_root,
+                        "fingerprint": f"{fingerprint_dir}/task_{t['task_id']:04d}_ok",
+                        "archive_path": archive_path
+                    }
+                    task_list.append(task)
             
-            # 提取结果
-            content_dir = init_result["content_dir"]
-            total_files = init_result["total_files"]
-            total_tasks = init_result["total_tasks"]
-            task_list_raw = init_result["tasks"]
-            target_root = init_result["target_root"]
-            fingerprint_dir = init_result["fingerprint_dir"]
-            
-            print(f"Task ID: {task_id} (Use 'GDS extract --progress-id {task_id}' to resume if interrupted)")
-            print(f"Collected files: {total_files}")
-            print(f"Worker tasks: {total_tasks}")
-            
-            # 指纹文件已在Step 1中成功创建
-            
-            # 转换任务格式（适配现有worker）
-            task_list = []
-            for t in task_list_raw:
-                task = {
-                    "type": "batch_copy",
-                    "task_id": t["task_id"],
-                    "files": [os.path.join(content_dir, f) for f in t["files"]],
-                    "source_dir": content_dir,
-                    "target_dir": target_root,
-                    "fingerprint": f"{fingerprint_dir}/task_{t['task_id']:04d}_ok",
-                    "archive_path": archive_path  # 添加归档路径，用于指纹创建
-                }
-                task_list.append(task)
-            
-            # 指纹文件已在Step 1中创建
-            
-            # Step 2: 执行传输任务
-            print("\nStep 2: Executing transfer tasks...")
+            # 执行传输任务
+            print(f"Executing {len(task_list)} transfer tasks...")
             transfer_result = self._execute_transfers(task_list, total_files, progress_id, task_id)
             
             if not transfer_result["success"]:
