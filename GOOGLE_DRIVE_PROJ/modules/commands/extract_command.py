@@ -675,12 +675,8 @@ READ_FINGERPRINT_EOF
             print(f"Files verified: {actual_files}/{total_files}")
             print(f"{'='*70}\n")
             
-            return {
-                "success": True,
-                "task_id": task_id,
-                "files_transferred": files_transferred,
-                "message": "Extract completed"
-            }
+            # Return None to avoid printing dict output
+            return None
             
         except KeyboardInterrupt:
             print("\n\nExtract interrupted by user (Ctrl+C)")
