@@ -842,13 +842,12 @@ UPDATE_EOF
         # 为每个任务维护重试计数
         task_attempts = {}  # {task_idx: attempt_count}
         
-        print("[DEBUG] Starting transfer loop, entering try block")
+        print("[DEBUG] Starting transfer loop")
+        worker_start_times = {}  # {slot_id: start_time}
+        WORKER_TIMEOUT = 300  # 5 minutes timeout per worker
+        
         try:
-            loop_count = 0
             while task_queue or any(slot is not None for slot in worker_slots.values()):
-                loop_count += 1
-                if loop_count % 10 == 1:  # Print every 10th iteration
-                    print(f"[DEBUG] Transfer loop iteration {loop_count}, queue={len(task_queue)}, active_slots={sum(1 for s in worker_slots.values() if s is not None)}")
                 # 为每个空闲槽位分配任务
                 for slot_id in sorted(worker_slots.keys()):
                     if worker_slots[slot_id] is None and task_queue:
@@ -882,6 +881,7 @@ UPDATE_EOF
                         process, files_count = start_worker(task_idx, task, task_id)
                         if process:
                             worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
+                            worker_start_times[slot_id] = time.time()  # 记录启动时间
                             
                             retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
                             print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
@@ -948,11 +948,13 @@ UPDATE_EOF
                             else:
                                 # 无法启动worker，释放slot
                                 worker_slots[slot_id] = None
+                                worker_start_times.pop(slot_id, None)  # 清理启动时间记录
                                 print(f"Worker {slot_id} failed to restart, skipping...")
                                 failed_tasks.append((task_idx, task))
                         else:
                             # 达到最大重试次数，释放槽位
                             worker_slots[slot_id] = None
+                            worker_start_times.pop(slot_id, None)  # 清理启动时间记录
                             print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
                             failed_tasks.append((task_idx, task))
                             # 不计入 files_transferred，但继续执行
