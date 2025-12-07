@@ -554,7 +554,6 @@ echo "VALID"
             
             print(f"\n{'='*70}")
             print(f"Extract completed")
-            print(f"Files transferred: {files_transferred}/{total_files}")
             print(f"Files verified: {actual_files}/{total_files}")
             print(f"{'='*70}\n")
             
@@ -597,7 +596,7 @@ echo "VALID"
         
         max_workers = 3
         task_queue = list(task_list)
-        running_workers = {}  # {pid: (task_idx, task, process, files_count, attempt)}
+        worker_slots = {i+1: None for i in range(max_workers)}  # {slot_id: (task_idx, task, process, files_count, attempt) or None}
         completed_tasks = []
         failed_tasks = []  # 记录失败的任务（用于Step 5重试）
         files_transferred = 0
@@ -731,51 +730,56 @@ UPDATE_EOF
         # 为每个任务维护重试计数
         task_attempts = {}  # {task_idx: attempt_count}
         
-        while task_queue or running_workers:
-            # 启动新worker（如果有空闲槽位）
-            while len(running_workers) < max_workers and task_queue:
-                task = task_queue.pop(0)
-                task_idx = task["task_id"]
+        while task_queue or any(slot is not None for slot in worker_slots.values()):
+            # 为每个空闲槽位分配任务
+            for slot_id in sorted(worker_slots.keys()):
+                if worker_slots[slot_id] is None and task_queue:
+                    task = task_queue.pop(0)
+                    task_idx = task["task_id"]
+                    
+                    # 获取当前任务的尝试次数
+                    attempt = task_attempts.get(task_idx, 0) + 1
+                    task_attempts[task_idx] = attempt
                 
-                # 获取当前任务的尝试次数
-                attempt = task_attempts.get(task_idx, 0) + 1
-                task_attempts[task_idx] = attempt
-                
-                # 显示任务信息
-                if task["type"] == "batch_copy":
-                    src_files = task.get('files', [])
-                    num_files = len(src_files)
-                    if src_files and num_files > 0:
-                        # 计算相对于source_dir的相对路径
-                        source_dir = task.get('source_dir', '')
-                        if num_files == 1:
-                            file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                            task_desc = f"Copy 1 file: {file_rel}"
+                    # 显示任务信息
+                    if task["type"] == "batch_copy":
+                        src_files = task.get('files', [])
+                        num_files = len(src_files)
+                        if src_files and num_files > 0:
+                            # 计算相对于source_dir的相对路径
+                            source_dir = task.get('source_dir', '')
+                            if num_files == 1:
+                                file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                task_desc = f"Copy 1 file: {file_rel}"
+                            else:
+                                first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
                         else:
-                            first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                            last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
-                            task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                            task_desc = f"Copy 0 files"
                     else:
-                        task_desc = f"Copy 0 files"
-                else:
-                    task_desc = task.get('description', 'Unknown task')
-                
-                worker_id = (task_idx % 3) + 1
-                retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
-                print(f"(Progress: {files_transferred}/{total_files}) Worker {worker_id} task: {task_desc}{retry_info}")
-                
-                # 启动worker
-                process, files_count = start_worker(task_idx, task, task_id)
-                if process:
-                    running_workers[process.pid] = (task_idx, task, process, files_count, attempt)
+                        task_desc = task.get('description', 'Unknown task')
+                    
+                    # 启动worker
+                    process, files_count = start_worker(task_idx, task, task_id)
+                    if process:
+                        worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
+                        
+                        retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
+                        print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
             
             # 检查已完成的worker
-            completed_pids = []
-            for pid, (task_idx, task, process, files_count, attempt) in list(running_workers.items()):
+            for slot_id, slot_data in list(worker_slots.items()):
+                if slot_data is None:
+                    continue
+                
+                task_idx, task, process, files_count, attempt = slot_data
                 ret = process.poll()
                 if ret is not None:
-                    # worker完成
-                    completed_pids.append(pid)
+                    # worker完成，释放槽位
+                    
+                    # 释放槽位
+                    worker_slots[slot_id] = None
                     
                     if ret == 0:
                         # 成功
@@ -785,36 +789,30 @@ UPDATE_EOF
                         # Worker已在其命令中更新指纹文件
                         
                         # 显示完成后的进度（包括worker id）
-                        worker_id = (task_idx % 3) + 1
-                        print(f"(Progress: {files_transferred}/{total_files}) Worker {worker_id} completed")
+                        print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} completed")
                     else:
                         # 失败
-                        worker_id = (task_idx % 3) + 1
                         
                         # 创建 remount flag 文件
                         try:
                             remount_flag_path = "/tmp/gds_remount_needed"
                             with open(remount_flag_path, "w") as f:
-                                f.write(f"Worker {worker_id} failed at {time.time()}\n")
+                                f.write(f"Worker {slot_id} failed at {time.time()}\n")
                         except Exception as e:
                             print(f"Warning: Failed to create remount flag: {e}")
                         
                         if attempt < max_attempts:
                             # 重试
-                            print(f"Worker {worker_id} failed (attempt {attempt}/{max_attempts}), will retry...")
+                            print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), will retry...")
                             task_queue.insert(0, task)  # 重新加入队列头部
                         else:
                             # 达到最大重试次数，跳过
-                            print(f"Worker {worker_id} failed after {max_attempts} attempts, skipping...")
+                            print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
                             failed_tasks.append((task_idx, task))
                             # 不计入 files_transferred，但继续执行
             
-            # 移除已完成的worker
-            for pid in completed_pids:
-                del running_workers[pid]
-            
             # 等待一小段时间再检查
-            if running_workers or task_queue:
+            if any(slot is not None for slot in worker_slots.values()) or task_queue:
                 time.sleep(0.3)
         
         # 返回结果（包含失败任务信息）
