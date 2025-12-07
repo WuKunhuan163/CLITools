@@ -719,10 +719,13 @@ READ_FINGERPRINT_EOF
         
         def signal_handler(signum, frame):
             """处理SIGINT (Ctrl+C)"""
+            print("[DEBUG] SIGINT received!")
             interrupted[0] = True
         
         # 保存旧的信号处理器并设置新的
+        print("[DEBUG] Setting up SIGINT handler")
         old_handler = signal.signal(signal.SIGINT, signal_handler)
+        print("[DEBUG] SIGINT handler installed")
         
         max_workers = 3
         task_queue = list(task_list)
