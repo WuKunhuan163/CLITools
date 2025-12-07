@@ -468,7 +468,7 @@ READ_FINGERPRINT_EOF
         try:
             # 如果提供了progress_id，从指纹文件读取信息并转化为普通extract命令
             if progress_id:
-                print(f"Step 1: Loading task from progress_id: {progress_id}: ")
+                print(f"Step 1: Loading task from progress_id: {progress_id}")
                 
                 # Cat指纹文件获取信息
                 fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{progress_id}.json"
@@ -848,16 +848,17 @@ UPDATE_EOF
         # 为每个任务维护重试计数
         task_attempts = {}  # {task_idx: attempt_count}
         
-        while task_queue or any(slot is not None for slot in worker_slots.values()):
-            # 为每个空闲槽位分配任务
-            for slot_id in sorted(worker_slots.keys()):
-                if worker_slots[slot_id] is None and task_queue:
-                    task = task_queue.pop(0)
-                    task_idx = task["task_id"]
-                    
-                    # 获取当前任务的尝试次数
-                    attempt = task_attempts.get(task_idx, 0) + 1
-                    task_attempts[task_idx] = attempt
+        try:
+            while task_queue or any(slot is not None for slot in worker_slots.values()):
+                # 为每个空闲槽位分配任务
+                for slot_id in sorted(worker_slots.keys()):
+                    if worker_slots[slot_id] is None and task_queue:
+                        task = task_queue.pop(0)
+                        task_idx = task["task_id"]
+                        
+                        # 获取当前任务的尝试次数
+                        attempt = task_attempts.get(task_idx, 0) + 1
+                        task_attempts[task_idx] = attempt
                 
                     # 显示任务信息
                     if task["type"] == "batch_copy":
@@ -957,14 +958,29 @@ UPDATE_EOF
                             failed_tasks.append((task_idx, task))
                             # 不计入 files_transferred，但继续执行
             
-            # 等待一小段时间再检查
-            if any(slot is not None for slot in worker_slots.values()) or task_queue:
-                time.sleep(0.3)
+                # 等待一小段时间再检查
+                if any(slot is not None for slot in worker_slots.values()) or task_queue:
+                    time.sleep(0.3)
+        
+        except KeyboardInterrupt:
+            # 用户中断，终止所有运行中的workers
+            print("\n\nTransfer interrupted by user (Ctrl+C)")
+            for slot_id, slot_data in worker_slots.items():
+                if slot_data is not None:
+                    _, _, process, _, _ = slot_data
+                    try:
+                        process.terminate()
+                    except:
+                        pass
+            return {
+                "success": False,
+                "error": "User interrupted"
+            }
         
         # 返回结果（包含失败任务信息）
-            if failed_tasks:
-                print(f"\n{len(failed_tasks)} task(s) failed after {max_attempts} attempts")
-                print("These tasks will be rescheduled if verification detects missing files")
+        if failed_tasks:
+            print(f"\n{len(failed_tasks)} task(s) failed after {max_attempts} attempts")
+            print("These tasks will be rescheduled if verification detects missing files")
         
         return {
             "success": True,
