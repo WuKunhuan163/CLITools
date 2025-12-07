@@ -523,19 +523,17 @@ READ_FINGERPRINT_EOF
                 try:
                     init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
                 except KeyboardInterrupt:
-                    print("\n\n{'='*70}")
-                    print("Extract interrupted during initialization (Ctrl+C)")
-                    print(f"{'='*70}\n")
-                    return None
+                    print("\nExtract interrupted during initialization (Ctrl+C)")
+                    import sys
+                    sys.exit(1)
                 
                 if not init_result.get("success"):
                     # 检查是否是中断导致的失败
                     error_msg = init_result.get("error", "")
                     if "init failed" in error_msg.lower() or "interrupt" in error_msg.lower():
-                        print("\n\n{'='*70}")
-                        print("Extract interrupted (Ctrl+C)")
-                        print(f"{'='*70}\n")
-                        return None
+                        print("\nExtract interrupted (Ctrl+C)")
+                        import sys
+                        sys.exit(1)
                     return {"success": False, "error": error_msg}
                 
                 # 提取结果
@@ -688,10 +686,9 @@ READ_FINGERPRINT_EOF
             return None
             
         except KeyboardInterrupt:
-            print("\n\n{'='*70}")
-            print("Extract interrupted by user (Ctrl+C)")
-            print(f"{'='*70}\n")
-            return None  # 返回None避免打印dict
+            print("\nExtract interrupted by user (Ctrl+C)")
+            import sys
+            sys.exit(1)  # 返回退出码1
         except Exception as e:
             print(f"\n\nExtract failed: {e}")
             import traceback
