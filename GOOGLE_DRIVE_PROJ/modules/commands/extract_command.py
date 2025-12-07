@@ -590,8 +590,6 @@ READ_FINGERPRINT_EOF
                 
                 print(f"Generated {len(task_list)} recovery tasks from {len(remaining_files)} remaining files")
             else:
-                # 新任务模式：从Step 1结果转换
-                print("Scheduling from Step 1 results...")
                 task_list = []
                 for t in task_list_raw:
                     task = {
