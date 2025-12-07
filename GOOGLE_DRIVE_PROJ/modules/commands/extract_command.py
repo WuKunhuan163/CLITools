@@ -260,8 +260,6 @@ class ExtractCommand:
         # 验证逻辑：
         # (1) 指纹不存在 OR (2) (解压folder不存在 AND 源文件不存在) -> 无法恢复
         cmd = f"""
-echo "=== Validating task state ==="
-
 # 检查指纹文件
 echo "Checking fingerprint..."
 FINGERPRINT_EXISTS=$(ls "{fingerprint_path}" 2>/dev/null && echo "yes" || echo "no")
@@ -844,8 +842,13 @@ UPDATE_EOF
         # 为每个任务维护重试计数
         task_attempts = {}  # {task_idx: attempt_count}
         
+        print("[DEBUG] Starting transfer loop, entering try block")
         try:
+            loop_count = 0
             while task_queue or any(slot is not None for slot in worker_slots.values()):
+                loop_count += 1
+                if loop_count % 10 == 1:  # Print every 10th iteration
+                    print(f"[DEBUG] Transfer loop iteration {loop_count}, queue={len(task_queue)}, active_slots={sum(1 for s in worker_slots.values() if s is not None)}")
                 # 为每个空闲槽位分配任务
                 for slot_id in sorted(worker_slots.keys()):
                     if worker_slots[slot_id] is None and task_queue:
@@ -1563,7 +1566,6 @@ echo "$CONTENT_DIR"
         
         # 构造远端命令
         cmd = f"""
-echo '=== Initializing and scheduling ==='
 # 检查解压目录
 if [ -d "{tmp_extract_dir}" ]; then
     CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)
