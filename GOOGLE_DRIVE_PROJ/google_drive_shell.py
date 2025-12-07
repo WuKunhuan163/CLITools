@@ -893,14 +893,14 @@ class GoogleDriveShell:
         try:
             # 检查是否是raw命令（跳过所有路径展开和特殊命令处理）
             if hasattr(self.command_executor, '_raw_command') and self.command_executor._raw_command:
-                print("[Raw Command Mode] Executing as raw command without any translation. ")
+                # print("[Raw Command Mode] Executing as raw command without any translation. ")
                 self.command_executor._raw_command = False  # 重置flag
                 
                 # 检查capture_result flag
                 capture_result = True
                 if hasattr(self.command_executor, '_no_capture') and self.command_executor._no_capture:
                     capture_result = False
-                    print("[No Capture Mode] GDS will not capture the remote execution output and show it in this shell. Please manually check the execution output on remote. ")
+                    # print("[No Capture Mode] GDS will not capture the remote execution output and show it in this shell. Please manually check the execution output on remote. ")
                     self.command_executor._no_capture = False
                 
                 # 直接执行，不做任何展开
@@ -921,7 +921,7 @@ class GoogleDriveShell:
                     return 0
                 else:
                     error_msg = result.get('error', 'Unknown error')
-                    print(f"Command execution failed: {error_msg}")
+                    print(f"\nCommand execution failed: {error_msg}")
                     return 1
             
             # 步骤1: 预处理heredoc语法（保留原有逻辑）

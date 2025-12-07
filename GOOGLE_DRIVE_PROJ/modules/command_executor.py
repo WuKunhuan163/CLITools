@@ -48,7 +48,160 @@ def clean_stderr_trailing_newlines(text):
     """
     if text.endswith('\n\n'):
         return text[:-1]  # 去掉最后一个\\n
+    elif not text.endswith('\n'):
+        return text + '\n'
     return text
+
+def process_terminal_erase(stdout):
+        """
+        模拟终端输出处理，正确处理擦除字符和所有终端转义序列
+        
+        Args:
+            stdout: GDS命令的标准输出
+            
+        Returns:
+            str: 清理后的输出
+        """
+        import re
+        
+        def process(text):
+            """
+            处理终端转义序列，模拟真实终端行为
+            """
+            if text is None:
+                return ''
+            if not text:
+                return text
+            
+            result = text
+            
+            # 1. 移除ANSI颜色代码和其他控制序列（除了\r、\b和\x1b[K）
+            # 匹配模式：\033[...m 或 \x1b[...m 以及其他光标移动序列，但保留\x1b[K
+            # 先移除颜色代码（以m结尾的）
+            result = re.sub(r'\x1b\[[0-9;]*m', '', result)
+            result = re.sub(r'\033\[[0-9;]*m', '', result)
+            # 移除其他光标移动序列，但排除K（清除到行尾）
+            result = re.sub(r'\x1b\[[0-9;]*[A-JL-Za-jl-z]', '', result)
+            result = re.sub(r'\033\[[0-9;]*[A-JL-Za-jl-z]', '', result)
+            
+            # 2. 移除响铃符
+            result = result.replace('\a', '')
+            result = result.replace('\x07', '')
+            
+            # 4. 处理退格符 \b
+            # 从左到右处理退格符
+            while '\b' in result:
+                pos = result.find('\b')
+                if pos > 0:
+                    # 删除前一个字符和退格符本身
+                    result = result[:pos-1] + result[pos+1:]
+                else:
+                    # 开头的退格符直接删除
+                    result = result[1:]
+            
+            # 5. 反向处理：从后往前寻找擦除序列
+            while True:
+                # 寻找最后一个\r\x1b[K序列
+                last_r_erase_pos = result.rfind('\r\x1b[K')
+                # 寻找最后一个\n\x1b[K序列
+                last_n_erase_pos = result.rfind('\n\x1b[K')
+                
+                # 选择最后出现的擦除序列
+                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
+                    # 没有找到擦除序列，处理完成
+                    break
+                
+                # 确定使用哪个擦除序列（选择位置更靠后的）
+                if last_r_erase_pos > last_n_erase_pos:
+                    last_erase_pos = last_r_erase_pos
+                    erase_pattern = '\r\x1b[K'
+                else:
+                    last_erase_pos = last_n_erase_pos
+                    erase_pattern = '\n\x1b[K'
+                
+                # 找到擦除序列，需要擦除当前行
+                if erase_pattern == '\n\x1b[K':
+                    # 对于\n\x1b[K序列，擦除从换行符开始到下一个换行符（或结尾）的所有内容
+                    # 这包括换行符本身和后面的内容，直到下一行开始
+                    next_newline = result.find('\n', last_erase_pos + len(erase_pattern))
+                    if next_newline == -1:
+                        # 没有下一个换行符，擦除到结尾
+                        result = result[:last_erase_pos]
+                    else:
+                        # 有下一个换行符，擦除到下一个换行符（不包括下一个换行符）
+                        result = result[:last_erase_pos] + result[next_newline:]
+                else:
+                    # 对于\r\x1b[K序列，使用原来的逻辑
+                    # 从擦除序列位置向左找到行的开始位置
+                    line_start = result.rfind('\n', 0, last_erase_pos)
+                    if line_start == -1:
+                        # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
+                        line_start = 0
+                    else:
+                        # 找到了换行符，保留换行符，从换行符后开始擦除
+                        line_start += 1
+                    
+                    # 擦除从line_start到擦除序列结束的内容
+                    erase_end = last_erase_pos + len(erase_pattern)
+                    result = result[:line_start] + result[erase_end:]
+            
+            # 处理单独的\r（回车符）
+            while True:
+                last_cr_pos = result.rfind('\r')
+                if last_cr_pos == -1:
+                    break
+                
+                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
+                if (last_cr_pos + 3 < len(result) and 
+                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
+                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
+                    # 这种情况不应该发生，但为了安全起见
+                    break
+                
+                # 单独的\r：光标回到行首，后续字符会覆盖当前行
+                line_start = result.rfind('\n', 0, last_cr_pos)
+                if line_start == -1:
+                    line_start = 0
+                else:
+                    line_start += 1
+                
+                # 移除\r，保留后续内容（如果有的话）
+                result = result[:line_start] + result[last_cr_pos+1:]
+            
+            # 处理单独的\x1b[K序列
+            while True:
+                last_k_pos = result.rfind('\x1b[K')
+                if last_k_pos == -1:
+                    break
+                
+                # 检查这个\x1b[K前面是否有\r
+                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
+                    # 这是\r\x1b[K的一部分，应该已经被处理了
+                    break
+                
+                # 单独的\x1b[K：擦除从光标到行尾
+                # 需要擦除当前行的内容
+                # 从\x1b[K位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_k_pos)
+                if line_start == -1:
+                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
+                    result = result[last_k_pos+3:]
+                else:
+                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
+                    result = result[:line_start+1] + result[last_k_pos+3:]
+            
+            return result
+        
+        if stdout is None:
+            return ''
+        
+        cleaned_stdout = stdout
+        if cleaned_stdout:
+            cleaned_stdout = process(cleaned_stdout)
+            cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
+            cleaned_stdout = cleaned_stdout.strip()
+        
+        return cleaned_stdout
 
 
 class DebugCapture:

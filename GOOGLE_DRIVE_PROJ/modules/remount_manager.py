@@ -418,7 +418,7 @@ print("\\n开始验证远端文件访问...")
 # Embedded service account credentials
 SERVICE_ACCOUNT_CREDENTIALS = {credentials_json}
 
-def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_dict, max_attempts=10, interval=1):
+def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_dict, max_attempts=20, interval=1):
     """使用Google Drive API验证指纹文件是否真正可访问"""
     import time
     from googleapiclient.discovery import build
