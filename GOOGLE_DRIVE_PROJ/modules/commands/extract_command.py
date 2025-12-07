@@ -308,10 +308,7 @@ try:
     
     if len(remaining_files) == 0:
         # 检查目标目录是否存在
-        target_root = "~/gds_extracted_{task_id}"
-        # 展开~为绝对路径
-        if target_root.startswith("~/"):
-            target_root = target_root.replace("~", "{remote_root}", 1)
+        target_root = f"{remote_root}/gds_extracted_{task_id}"
         
         if os.path.exists(target_root):
             # 检查目标文件数量
@@ -1351,7 +1348,7 @@ echo "$CONTENT_DIR"
         
         tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
         fingerprint_dir = f"{remote_root}/tmp/extract_fingerprints_{task_id}"
-        target_root = f"~/gds_extracted_{task_id}"  # 保持远端路径格式
+        target_root = f"{remote_root}/gds_extracted_{task_id}"  # 使用REMOTE_ROOT路径
         
         # 检测归档类型
         if archive_path.endswith(('.tar.gz', '.tgz')):
@@ -1559,7 +1556,7 @@ echo "=== END ==="
                 missing_count = len(missing_files)
                 
                 if missing_count == 0:
-                    print(f"\nAll {actual_files} files verified successfully")
+                    print(f"All {actual_files} files verified successfully")
                     return {
                         "success": True,
                         "actual_files": actual_files,
