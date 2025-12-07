@@ -293,16 +293,20 @@ if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
     exit 1
 fi
 
-# 检查任务是否已经完成
-# 如果指纹的remaining_files为空且目标文件都存在，返回已完成
-echo "Checking if task is already completed..."
-python3 << 'CHECK_COMPLETE_EOF'
+# 读取并返回指纹信息
+echo "Reading fingerprint information..."
+python3 << 'READ_FINGERPRINT_EOF'
 import json
 import os
 
 try:
     with open("{fingerprint_path}", 'r') as f:
         data = json.load(f)
+    
+    # 输出JSON格式的指纹信息
+    print("FINGERPRINT_DATA")
+    print(json.dumps(data))
+    print("END_FINGERPRINT_DATA")
     
     remaining_files = data.get("remaining_files", [])
     
@@ -320,13 +324,14 @@ try:
                 print(f"Task already completed: {{file_count}} files transferred")
                 print("COMPLETED")
                 exit(0)
+    
+    print("✓ Task can be recovered")
+    print("VALID")
 except Exception as e:
-    print(f"Warning: Failed to check completion status: {{e}}")
-    pass
-CHECK_COMPLETE_EOF
-
-echo "✓ Task can be recovered"
-echo "VALID"
+    print(f"Error reading fingerprint: {{e}}")
+    print("INVALID:fingerprint_error")
+    exit(1)
+READ_FINGERPRINT_EOF
 """
         
         # 执行验证命令
@@ -344,17 +349,29 @@ echo "VALID"
             
             stdout_str = str(stdout)
             
+            # 提取指纹数据（如果有）
+            fingerprint_data = None
+            if "FINGERPRINT_DATA" in stdout_str and "END_FINGERPRINT_DATA" in stdout_str:
+                try:
+                    start_idx = stdout_str.find("FINGERPRINT_DATA") + len("FINGERPRINT_DATA")
+                    end_idx = stdout_str.find("END_FINGERPRINT_DATA")
+                    fingerprint_json = stdout_str[start_idx:end_idx].strip()
+                    fingerprint_data = json.loads(fingerprint_json)
+                except Exception as e:
+                    print(f"Warning: Failed to parse fingerprint data: {e}")
+            
             # 先检查INVALID状态（优先级更高）
             if "INVALID:fingerprint_missing" in stdout_str:
                 return {"valid": False, "reason": "Fingerprint file not found - task cannot be recovered", "cleanup": False}
             elif "INVALID:both_missing" in stdout_str:
                 return {"valid": False, "reason": "Both archive and tmp dir missing - task cannot be recovered (fingerprint cleaned up)", "cleanup": True}
+            elif "INVALID:fingerprint_error" in stdout_str:
+                return {"valid": False, "reason": "Failed to read fingerprint file", "cleanup": False}
             elif "COMPLETED" in stdout_str:
-                return {"valid": True, "completed": True}
+                return {"valid": True, "completed": True, "fingerprint": fingerprint_data}
             elif "VALID" in stdout_str:
-                return {"valid": True, "completed": False}
+                return {"valid": True, "completed": False, "fingerprint": fingerprint_data}
             else:
-                print(f"DEBUG: No validation marker found, treating as invalid")
                 return {"valid": False, "reason": "Unknown validation error", "cleanup": False}
         
         return {"valid": False, "reason": "No executor available", "cleanup": False}
@@ -414,9 +431,40 @@ echo "VALID"
             idx = args.index('--progress-id')
             if idx + 1 < len(args):
                 progress_id = args[idx + 1]
-            else:
-                print(f"Error: --progress-id requires a value")
-                return {"success": False, "error": "--progress-id requires a value"}
+        
+        # 检查参数冲突：如果同时提供archive_path和progress_id，警告并忽略progress_id
+        if archive_path and progress_id:
+            print(f"Warning: Both archive path and --progress-id provided. Ignoring --progress-id {progress_id}")
+            progress_id = None
+
+
+
+
+
+
+
+
+
+
+
+            # else:
+            #     print(f"Error: --progress-id requires a value")
+            #     return {"success": False, "error": "--progress-id requires a value"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
         try:
             # 如果提供了progress_id，先验证任务状态
             if progress_id:
