@@ -431,7 +431,7 @@ class PyenvCommand(BaseCommand):
                                     source_dir=step['source'],
                                     target_dir=step['target'],
                                     transfer_batch=step.get('transfer_batch', 1000),
-                                    quiet=True  # 静默模式，避免extract输出干扰pyenv步骤提示
+                                    quiet=False  # 开放式执行，显示transfer过程
                                 )
                             except KeyboardInterrupt:
                                 # transfer_directory中的Ctrl+C，直接向上传递（已经print过了）
@@ -455,7 +455,7 @@ class PyenvCommand(BaseCommand):
                                             source_dir=step['source'],
                                             target_dir=step['target'],
                                             transfer_batch=step.get('transfer_batch', 1000),
-                                            quiet=True,
+                                            quiet=False,  # 开放式执行
                                             progress_id=task_id
                                         )
                                     except KeyboardInterrupt:
