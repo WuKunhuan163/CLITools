@@ -252,7 +252,7 @@ class PyenvCommand(BaseCommand):
                     }
                 # 从progress_id提取hash部分
                 temp_hash = progress_id.split("_")[-1]
-                print(f"📋 Resuming installation with progress ID: {progress_id}")
+                print(f"Resuming installation with progress ID: {progress_id}")
                 print(f"   Installation hash: {temp_hash}")
             else:
                 # 生成新的安装ID
@@ -401,6 +401,84 @@ class PyenvCommand(BaseCommand):
                 print(f"Description: {step['description']}")
                 print(f"{'─'*70}")
                 
+                # 验证中间文件状态并清理无效指纹
+                print(f"Validating intermediate files...")
+                validation_cmd = f"""
+# 检查必要的中间文件是否存在
+BUILD_DIR='{build_dir}'
+TEMP_INSTALL='{temp_install_path}'
+
+# 检查build_dir中的zip文件
+ZIP_EXISTS='no'
+if [ -f "$BUILD_DIR/Python-{version}.tgz" ]; then
+    ZIP_EXISTS='yes'
+fi
+
+# 检查build_dir中的解压目录
+EXTRACTED_EXISTS='no'
+if [ -d "$BUILD_DIR/Python-{version}" ]; then
+    EXTRACTED_EXISTS='yes'
+fi
+
+# 检查temp_install_path
+INSTALL_EXISTS='no'
+if [ -d "$TEMP_INSTALL" ]; then
+    INSTALL_EXISTS='yes'
+fi
+
+echo "ZIP:$ZIP_EXISTS"
+echo "EXTRACTED:$EXTRACTED_EXISTS"
+echo "INSTALL:$INSTALL_EXISTS"
+"""
+                
+                if hasattr(self.shell, 'command_executor'):
+                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                    self.shell.command_executor._raw_command = True
+                    val_result = self.shell.command_executor.execute_command_interface(
+                        cmd=validation_cmd.strip(), capture_result=True)
+                    self.shell.command_executor._raw_command = old_raw
+                    
+                    val_output = val_result.get('stdout', '') or val_result.get('data', '')
+                    if isinstance(val_output, dict):
+                        val_output = val_output.get('stdout', '')
+                    val_output = str(val_output)
+                    
+                    # 解析状态
+                    zip_exists = 'ZIP:yes' in val_output
+                    extracted_exists = 'EXTRACTED:yes' in val_output
+                    install_exists = 'INSTALL:yes' in val_output
+                    
+                    # 根据状态清理指纹
+                    fingerprints_to_clean = []
+                    
+                    if not zip_exists and not extracted_exists:
+                        # zip和解压都不存在，清理step1之后的所有指纹
+                        print(f"⚠️  Source files missing, clearing fingerprints from step 2 onward...")
+                        for s in steps:
+                            if s['num'] >= 2:
+                                fingerprints_to_clean.append(s['fingerprint'])
+                    elif zip_exists and not extracted_exists:
+                        # 有zip但没解压，清理step2之后的指纹
+                        print(f"⚠️  Source not extracted, clearing fingerprints from step 3 onward...")
+                        for s in steps:
+                            if s['num'] >= 3:
+                                fingerprints_to_clean.append(s['fingerprint'])
+                    elif not install_exists and extracted_exists:
+                        # 解压了但没安装，清理step5之后的指纹
+                        print(f"⚠️  Installation missing, clearing fingerprints from step 6 onward...")
+                        for s in steps:
+                            if s['num'] >= 6:
+                                fingerprints_to_clean.append(s['fingerprint'])
+                    
+                    # 执行清理
+                    if fingerprints_to_clean:
+                        clean_cmd = "rm -f " + " ".join(f"'{fp}'" for fp in fingerprints_to_clean)
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        self.shell.command_executor.execute_command_interface(cmd=clean_cmd, capture_result=False)
+                        self.shell.command_executor._raw_command = old_raw
+                        print(f"✓ Cleared {len(fingerprints_to_clean)} invalid fingerprints")
+                
                 # 检查指纹文件是否已存在
                 print(f"Checking fingerprint: {step['fingerprint']}")
                 
@@ -548,11 +626,6 @@ cd {step['target']}/bin
                             retry_count += 1
                         
                     except KeyboardInterrupt:
-                        print(f"\n\nInstallation interrupted by user (Ctrl+C)")
-                        print(f"Current progress: Step {step_num}/{len(steps)} - {step['name']}")
-                        print(f"\nYou can resume this installation later using:")
-                        print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
-                        print(f"\nExiting...")
                         raise  # Re-raise to let outer handler catch it
                 
                 if not step_success:
