@@ -460,9 +460,18 @@ class PyenvCommand(BaseCommand):
                                     retry_count += 1
                                     continue
                             
-                            # 设置executable权限和最终验证
+                            # 设置executable权限、创建符号链接和最终验证
                             print(f"Verifying Python installation...")
-                            verify_cmd = f"chmod -R +x {step['target']}/bin/* && {step['target']}/bin/python3 --version && {step['target']}/bin/pip3 --version"
+                            python_major_minor = '.'.join(version.split('.')[:2])
+                            verify_cmd = f"""
+chmod -R +x {step['target']}/bin/* 2>/dev/null || true
+cd {step['target']}/bin
+# 创建python3和pip3符号链接（如果不存在）
+[ ! -f python3 ] && [ -f python{python_major_minor} ] && ln -sf python{python_major_minor} python3 || true
+[ ! -f pip3 ] && [ -f pip{python_major_minor} ] && ln -sf pip{python_major_minor} pip3 || true
+# 验证
+{step['target']}/bin/python3 --version && {step['target']}/bin/pip3 --version
+"""
                             
                             if hasattr(self.shell, 'command_executor'):
                                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
@@ -1032,7 +1041,7 @@ fi
                     "name": "Install",
                     "description": f"Installing Python {version} to temporary location",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && if [ ! -f \"{temp_install_path}/bin/python3\" ] && [ -f \"{temp_install_path}/bin/python$MAJOR_MINOR\" ]; then cd \"{temp_install_path}/bin\" && ln -s \"python$MAJOR_MINOR\" python3; fi && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && ([ ! -f pip3 ] && [ -f pip$MAJOR_MINOR ] && ln -s \"pip$MAJOR_MINOR\" pip3 || echo 'pip3 exists') && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
