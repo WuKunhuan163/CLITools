@@ -429,28 +429,45 @@ class PyenvCommand(BaseCommand):
                             # 调用extract命令的transfer_directory方法（静默模式）
                             from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
                             extract_cmd = ExtractCommand(self.main_instance)
-                            result = extract_cmd.transfer_directory(
-                                source_dir=step['source'],
-                                target_dir=step['target'],
-                                transfer_batch=step.get('transfer_batch', 1000),
-                                quiet=True  # 静默模式，避免extract输出干扰pyenv步骤提示
-                            )
+                            
+                            try:
+                                result = extract_cmd.transfer_directory(
+                                    source_dir=step['source'],
+                                    target_dir=step['target'],
+                                    transfer_batch=step.get('transfer_batch', 1000),
+                                    quiet=True  # 静默模式，避免extract输出干扰pyenv步骤提示
+                                )
+                            except KeyboardInterrupt:
+                                # transfer_directory中的Ctrl+C，直接向上传递
+                                print("\n✗ Transfer interrupted by user (Ctrl+C)")
+                                raise
                             
                             # 检查transfer结果
                             if not result.get("success"):
-                                print(f"✗ Transfer failed: {result.get('error', 'Unknown error')}")
+                                error_msg = result.get('error', 'Unknown error')
+                                print(f"✗ Transfer failed: {error_msg}")
+                                
+                                # 检查是否是Ctrl+C导致的失败
+                                if 'Ctrl+C' in error_msg or 'interrupted by user' in error_msg.lower():
+                                    print("Transfer was interrupted, stopping installation...")
+                                    raise KeyboardInterrupt()
                                 
                                 # 如果有task_id，尝试用progress-id重试
                                 task_id = result.get('task_id')
                                 if task_id and retry_count < max_retries:
                                     print(f"Retrying with progress-id: {task_id}")
-                                    result = extract_cmd.transfer_directory(
-                                        source_dir=step['source'],
-                                        target_dir=step['target'],
-                                        transfer_batch=step.get('transfer_batch', 1000),
-                                        quiet=True,
-                                        progress_id=task_id
-                                    )
+                                    try:
+                                        result = extract_cmd.transfer_directory(
+                                            source_dir=step['source'],
+                                            target_dir=step['target'],
+                                            transfer_batch=step.get('transfer_batch', 1000),
+                                            quiet=True,
+                                            progress_id=task_id
+                                        )
+                                    except KeyboardInterrupt:
+                                        print("\n✗ Retry interrupted by user (Ctrl+C)")
+                                        raise
+                                    
                                     if not result.get("success"):
                                         step_success = False
                                         retry_count += 1
@@ -483,7 +500,12 @@ cd {step['target']}/bin
                                 )
                                 self.shell.command_executor._raw_command = old_raw
                                 
-                                if verify_result.get("success") == False or verify_result.get("interrupted"):
+                                # 检查是否被中断
+                                if verify_result.get("interrupted"):
+                                    print("\n✗ Verification interrupted by user (Ctrl+C)")
+                                    raise KeyboardInterrupt()
+                                
+                                if verify_result.get("success") == False:
                                     step_success = False
                                     retry_count += 1
                                     continue
