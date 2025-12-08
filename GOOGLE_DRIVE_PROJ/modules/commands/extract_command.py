@@ -422,7 +422,7 @@ READ_FINGERPRINT_EOF
                     transfer_batch = int(args[idx + 1])
                 except ValueError:
                     print(f"✗ Error: Invalid transfer-batch value: {args[idx + 1]}")
-                    return None
+                    return 1
 
         # 解析 --progress-id 参数
         if '--progress-id' in args:
@@ -518,7 +518,7 @@ fi
 
                     if 'FINGERPRINT_NOT_FOUND' in stdout_str:
                         print(f"Fingerprint file not found for progress_id: {progress_id}")
-                        return None
+                        return 1
 
                     # 分离指纹JSON和验证结果
                     parts = stdout_str.split('---VALIDATION---')
@@ -544,19 +544,19 @@ fi
                             print(f"  Archive: {archive_path}")
                             print(f"  Tmp dir: {tmp_extract_dir}")
                             print(f"  Cannot resume task without source files")
-                            return None
+                            return 1
 
                         if remaining_count == 0:
                             print("✓ Task already completed, all files transferred")
-                            return None
+                            return 0
 
                         task_id = progress_id
                     except Exception as e:
                         print(f"✗ Failed to parse fingerprint: {e}")
-                        return None
+                        return 1
                 else:
                     print(f"✗ Error: No command executor available")
-                    return None
+                    return 1
             else:
                 # 生成新的task_id
                 archive_basename = os.path.basename(archive_path)
@@ -577,7 +577,7 @@ fi
                 if not init_result.get("success"):
                     error_msg = init_result.get("error", "Unknown error")
                     print(f"Initialization failed: {error_msg}")
-                    return None
+                    return 1
 
                 # 提取结果
                 content_dir = init_result["content_dir"]
@@ -725,8 +725,8 @@ fi
             print(f"\nExtract completed")
             print(f"Files verified: {actual_files}/{total_files}")
 
-            # Return None to avoid printing dict output
-            return None
+            # Return 0 for success
+            return 0
 
         except KeyboardInterrupt:
             print("\nExtract interrupted by user (Ctrl+C)")
@@ -736,7 +736,7 @@ fi
             print(f"\nExtract failed: {e}")
             import traceback
             traceback.print_exc()
-            return None
+            return 1
 
     def _execute_transfers(self, task_list, total_files, progress_id=None, task_id=None):
         """
@@ -1791,26 +1791,31 @@ echo "=== END ==="
         except Exception as e:
             return {"success": False, "error": f"Verification failed: {e}"}
 
-    def transfer_directory(self, source_dir, target_dir, transfer_batch=1000):
+    def transfer_directory(self, source_dir, target_dir, transfer_batch=1000, quiet=False, progress_id=None):
         """
         传输目录（使用打包-移动-extract流程避免大量文件直接在GDFUSE创建）
         
         流程：
         1. 在/tmp中打包source_dir为tar.gz
         2. 移动tar.gz到目标目录的父目录
-        3. 使用extract命令并行解压到target_dir
+        3. 使用subprocess调用GDS extract并行解压到target_dir
         
         Args:
             source_dir: 源目录路径（/tmp/python_install_xxx）
             target_dir: 目标目录路径（REMOTE_ENV/python/3.x.x）
             transfer_batch: batch大小
+            quiet: 是否静默模式（使用subprocess，不显示extract输出）
+            progress_id: 可选的progress_id用于恢复中断的extract
             
         Returns:
-            dict: {"success": bool, "error": str}
+            dict: {"success": bool, "error": str, "task_id": str (if available)}
         """
         import os
         import time
         import hashlib
+        import sys
+        import subprocess
+        import re
         
         # 生成唯一的archive名称
         timestamp = int(time.time())
@@ -1821,14 +1826,11 @@ echo "=== END ==="
         target_parent = os.path.dirname(target_dir)
         archive_path_final = f"{target_parent}/{archive_name}"
         
-        print(f"[DEBUG] transfer_directory called")
-        print(f"[DEBUG] source: {source_dir}, target: {target_dir}")
-        
         try:
-            # Step 1: 在/tmp中打包
-            print(f"Packing directory in /tmp...")
-            # cd到source_dir内部再打包，避免解压后多一层目录
-            pack_cmd = f"cd '{source_dir}' && tar -czf '/tmp/{archive_name}' . && echo 'Packed'"
+            # Step 1: Pack in /tmp
+            if not quiet:
+                print(f"Creating archive...")
+            pack_cmd = f"cd '{source_dir}' && tar -czf '/tmp/{archive_name}' ."
             
             if hasattr(self.shell, 'command_executor'):
                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
@@ -1844,11 +1846,10 @@ echo "=== END ==="
                 if not result.get("success"):
                     return {"success": False, "error": f"Failed to pack: {result.get('error', 'Unknown error')}"}
             
-            print(f"✓ Archive created")
-            
-            # Step 2: 移动archive到目标父目录
-            print(f"Moving archive to Google Drive...")
-            move_cmd = f"mkdir -p '{target_parent}' && mv '{archive_path_tmp}' '{archive_path_final}' && echo 'Moved'"
+            # Step 2: Move to Google Drive
+            if not quiet:
+                print(f"Moving to Google Drive...")
+            move_cmd = f"mkdir -p '{target_parent}' && mv '{archive_path_tmp}' '{archive_path_final}'"
             
             if hasattr(self.shell, 'command_executor'):
                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
@@ -1868,30 +1869,64 @@ echo "=== END ==="
                     self.shell.command_executor._raw_command = False
                     return {"success": False, "error": f"Failed to move archive: {result.get('error', 'Unknown error')}"}
             
-            print(f"✓ Archive moved to Google Drive")
+            # Step 3: Extract with parallel workers
+            if not quiet:
+                print(f"Extracting (batch={transfer_batch})...")
             
-            # Step 3: 使用extract命令解压
-            print(f"Extracting with parallel workers (batch={transfer_batch})...")
-            
-            # 构造extract命令参数
-            extract_args = ['extract', archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
-            
-            # 直接调用execute_shell_command
-            exit_code = self.shell.execute_shell_command(f"extract '{archive_path_final}' --target '{target_dir}' --transfer-batch {transfer_batch}")
-            
-            if exit_code != 0:
-                return {"success": False, "error": "Extract failed"}
-            
-            # 清理archive文件
-            print(f"Cleaning up archive...")
-            if hasattr(self.shell, 'command_executor'):
-                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                self.shell.command_executor._raw_command = True
-                self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_final}'", capture_result=False)
-                self.shell.command_executor._raw_command = old_raw
-            
-            print(f"✓ Directory transfer completed")
-            return {"success": True}
+            if quiet:
+                # 使用subprocess调用GDS extract（静默模式）
+                google_drive_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..', 'GOOGLE_DRIVE.py'))
+                
+                cmd = [sys.executable, google_drive_path, '--shell', 'extract', archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
+                
+                if progress_id:
+                    cmd.extend(['--progress-id', progress_id])
+                
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+                    exit_code = result.returncode
+                    
+                    # 解析task ID（从输出中）
+                    task_id_match = re.search(r'Task ID: (\S+)', result.stdout)
+                    task_id = task_id_match.group(1) if task_id_match else None
+                    
+                    if exit_code == 0:
+                        # Cleanup archive
+                        if hasattr(self.shell, 'command_executor'):
+                            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                            self.shell.command_executor._raw_command = True
+                            self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_final}'", capture_result=False)
+                            self.shell.command_executor._raw_command = old_raw
+                        
+                        return {"success": True, "task_id": task_id}
+                    else:
+                        # Extract失败
+                        return {"success": False, "error": f"Extract failed (exit_code={exit_code})", "task_id": task_id, "stdout": result.stdout, "stderr": result.stderr}
+                
+                except subprocess.TimeoutExpired:
+                    return {"success": False, "error": "Extract timeout (>1 hour)"}
+                except KeyboardInterrupt:
+                    # 用户Ctrl+C中断
+                    raise
+            else:
+                # 直接调用extract命令（非静默模式）
+                extract_args = [archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
+                if progress_id:
+                    extract_args.extend(['--progress-id', progress_id])
+                
+                exit_code = self.execute('extract', extract_args)
+                
+                if exit_code == 0:
+                    # Cleanup archive
+                    if hasattr(self.shell, 'command_executor'):
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_final}'", capture_result=False)
+                        self.shell.command_executor._raw_command = old_raw
+                    
+                    return {"success": True}
+                else:
+                    return {"success": False, "error": f"Extract failed (exit_code={exit_code})"}
             
         except KeyboardInterrupt:
             # 清理残留archive
