@@ -1843,6 +1843,10 @@ echo "=== END ==="
                 
                 self.shell.command_executor._raw_command = old_raw
                 
+                # 检查是否被中断
+                if result.get("interrupted"):
+                    raise KeyboardInterrupt()
+                
                 if not result.get("success"):
                     return {"success": False, "error": f"Failed to pack: {result.get('error', 'Unknown error')}"}
             
@@ -1861,6 +1865,10 @@ echo "=== END ==="
                 )
                 
                 self.shell.command_executor._raw_command = old_raw
+                
+                # 检查是否被中断
+                if result.get("interrupted"):
+                    raise KeyboardInterrupt()
                 
                 if not result.get("success"):
                     # 清理/tmp中的archive
