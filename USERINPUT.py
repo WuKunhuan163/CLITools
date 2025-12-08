@@ -503,7 +503,7 @@ def copy_to_clipboard(text):
             return _copy_to_clipboard_tkinter(text)
             
     except Exception as e:
-        # print(f"[DEBUG] ❌ 复制到剪贴板失败: {e}，尝试tkinter方法")
+        # print(f"[DEBUG] 复制到剪贴板失败: {e}，尝试tkinter方法")
         return _copy_to_clipboard_tkinter(text)
 
 def _copy_to_clipboard_tkinter(text):
@@ -528,7 +528,7 @@ def _copy_to_clipboard_tkinter(text):
         
         return True
     except Exception as e:
-        # print(f"[DEBUG] ❌ tkinter复制失败: {e}")
+        # print(f"[DEBUG] tkinter复制失败: {e}")
         return False
 
 def write_to_json_output(user_input, command_identifier=None):
