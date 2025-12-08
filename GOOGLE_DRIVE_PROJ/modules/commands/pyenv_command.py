@@ -434,18 +434,16 @@ class PyenvCommand(BaseCommand):
                                     quiet=True  # 静默模式，避免extract输出干扰pyenv步骤提示
                                 )
                             except KeyboardInterrupt:
-                                # transfer_directory中的Ctrl+C，直接向上传递
-                                print("\nTransfer interrupted by user (Ctrl+C)")
+                                # transfer_directory中的Ctrl+C，直接向上传递（已经print过了）
                                 raise
                             
                             # 检查transfer结果
                             if not result.get("success"):
                                 error_msg = result.get('error', 'Unknown error')
-                                print(f"Transfer failed: {error_msg}")
+                                print(f"✗ Transfer failed: {error_msg}")
                                 
-                                # 检查是否是Ctrl+C导致的失败
+                                # 检查是否是Ctrl+C导致的失败（不应该到这里，KeyboardInterrupt应该已经抛出）
                                 if 'Ctrl+C' in error_msg or 'interrupted by user' in error_msg.lower():
-                                    print("Transfer was interrupted, stopping installation...")
                                     raise KeyboardInterrupt()
                                 
                                 # 如果有task_id，尝试用progress-id重试
@@ -461,7 +459,7 @@ class PyenvCommand(BaseCommand):
                                             progress_id=task_id
                                         )
                                     except KeyboardInterrupt:
-                                        print("\nRetry interrupted by user (Ctrl+C)")
+                                        # transfer_directory已经print过了
                                         raise
                                     
                                     if not result.get("success"):
@@ -498,7 +496,6 @@ cd {step['target']}/bin
                                 
                                 # 检查是否被中断
                                 if verify_result.get("interrupted"):
-                                    print("\nVerification interrupted by user (Ctrl+C)")
                                     raise KeyboardInterrupt()
                                 
                                 if verify_result.get("success") == False:

@@ -61,11 +61,11 @@
 
 ---
 
-## ❌ Failed Installation Attempts
+## Failed Installation Attempts
 
 ### 7. Mksh (MirBSD Korn Shell)
 - **Target Binary Path**: `@/shell/mksh-install/bin/mksh`
-- **Status**: ❌ Download failed (connection timeout to www.mirbsd.org)
+- **Status**: Download failed (connection timeout to www.mirbsd.org)
 - **Issue**: Network connectivity problem
 - **Retry Strategy**: Try alternative download source or manual upload
 
