@@ -503,74 +503,77 @@ cd {step['target']}/bin
                                     retry_count += 1
                                     continue
                         else:
-                            # 普通命令步骤 - 分两步：validation + actual command
-                            # Step 1: Validation（capture result to detect rollback）
+                            # 普通命令步骤 - validation + actual command在同一个窗口
+                            # Validation通过指纹文件传递rollback信号
+                            validation_prefix = ""
+                            rollback_fingerprint = f"{fingerprint_base}_rollback_signal"
+                            
                             if step_num >= 2:  # Steps 2-5需要validation
-                                validation_cmd = ""
                                 if step_num == 2:
                                     # Step 2特殊：只检查zip
-                                    validation_cmd = f"""
+                                    validation_prefix = f"""
+# Validation
 if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
-    echo 'ROLLBACK:step1'
+    echo '⚠️  Validation failed: Source archive missing'
     rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    exit 99
+    echo 'step1' > {rollback_fingerprint}
+    exit 1
 fi
 """
                                 else:
                                     # Steps 3-5: 检查解压目录
-                                    validation_cmd = f"""
+                                    validation_prefix = f"""
+# Validation
 if [ ! -d '{build_dir}/Python-{version}' ]; then
     if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo 'ROLLBACK:step2'
+        echo '⚠️  Validation failed: Source not extracted'
         rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+        echo 'step2' > {rollback_fingerprint}
     else
-        echo 'ROLLBACK:step1'
+        echo '⚠️  Validation failed: Source missing'
         rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+        echo 'step1' > {rollback_fingerprint}
     fi
-    exit 99
+    exit 1
 fi
 """
-                                
-                                # 执行validation（capture result）
-                                if hasattr(self.shell, 'command_executor'):
-                                    self.shell.command_executor._raw_command = True
-                                val_result = self.shell.command_executor.execute_command_interface(
-                                    cmd=validation_cmd.strip(),
-                                    capture_result=True
-                                )
-                                
-                                # 检查validation是否被中断
-                                if isinstance(val_result, dict) and val_result.get("interrupted"):
-                                    raise KeyboardInterrupt()
-                                
-                                # 检查是否需要回退
-                                val_exit_code = val_result.get('data', {}).get('exit_code', 0)
-                                if val_exit_code == 99:
-                                    # 解析rollback目标
-                                    val_stdout = val_result.get('stdout', '') or val_result.get('data', {}).get('stdout', '')
-                                    if 'ROLLBACK:step1' in str(val_stdout):
-                                        print("⚠️  Validation failed: Rolling back to Step 1 (Download)")
-                                        current_step = 0
-                                        step_success = True
-                                        break
-                                    elif 'ROLLBACK:step2' in str(val_stdout):
-                                        print("⚠️  Validation failed: Rolling back to Step 2 (Extract)")
-                                        current_step = 1
-                                        step_success = True
-                                        break
                             
-                            # Step 2: Execute actual command（不capture，实时显示）
+                            # 执行validation + actual command（实时显示）
+                            full_command = validation_prefix + step['command']
                             print(f"Command preview: {step['command'][:100]}...")
                             if hasattr(self.shell, 'command_executor'):
                                 self.shell.command_executor._raw_command = True
                             result = self.shell.command_executor.execute_command_interface(
-                                cmd=step['command'],
-                                capture_result=False  # 实时显示，不capture
+                                cmd=full_command,
+                                capture_result=False  # 实时显示
                             )
                             
                             # 检查命令是否被中断
                             if isinstance(result, dict) and result.get("interrupted"):
                                 raise KeyboardInterrupt()
+                            
+                            # 检查是否有rollback信号（通过指纹文件）
+                            if self.check_fingerprint_exists(rollback_fingerprint, max_attempts=1):
+                                # 读取rollback目标
+                                read_cmd = f"cat {rollback_fingerprint} && rm -f {rollback_fingerprint}"
+                                if hasattr(self.shell, 'command_executor'):
+                                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                    self.shell.command_executor._raw_command = True
+                                    read_result = self.shell.command_executor.execute_command_interface(
+                                        cmd=read_cmd, capture_result=True)
+                                    self.shell.command_executor._raw_command = old_raw
+                                    
+                                    rollback_target = read_result.get('stdout', '').strip()
+                                    if rollback_target == 'step1':
+                                        print("⚠️  Rolling back to Step 1 (Download)")
+                                        current_step = 0
+                                        step_success = True
+                                        break
+                                    elif rollback_target == 'step2':
+                                        print("⚠️  Rolling back to Step 2 (Extract)")
+                                        current_step = 1
+                                        step_success = True
+                                        break
                         
                         # 对于batch_transfer步骤，手动创建指纹文件
                         if step.get('type') == 'batch_transfer':
