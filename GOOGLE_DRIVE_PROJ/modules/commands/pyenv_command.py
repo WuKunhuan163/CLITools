@@ -514,7 +514,7 @@ cd {step['target']}/bin
                                     validation_prefix = f"""
 # Validation
 if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
-    echo '⚠️  Validation failed: Source archive missing'
+    echo 'Validation failed: Source archive missing'
     rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
     echo 'step1' > {rollback_fingerprint}
     exit 1
@@ -526,11 +526,11 @@ fi
 # Validation
 if [ ! -d '{build_dir}/Python-{version}' ]; then
     if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo '⚠️  Validation failed: Source not extracted'
+        echo 'Validation failed: Source not extracted'
         rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
         echo 'step2' > {rollback_fingerprint}
     else
-        echo '⚠️  Validation failed: Source missing'
+        echo 'Validation failed: Source missing'
         rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
         echo 'step1' > {rollback_fingerprint}
     fi
@@ -565,12 +565,12 @@ fi
                                     
                                     rollback_target = read_result.get('stdout', '').strip()
                                     if rollback_target == 'step1':
-                                        print("⚠️  Rolling back to Step 1 (Download)")
+                                        print("Rolling back to Step 1 (Download)")
                                         current_step = 0
                                         step_success = True
                                         break
                                     elif rollback_target == 'step2':
-                                        print("⚠️  Rolling back to Step 2 (Extract)")
+                                        print("Rolling back to Step 2 (Extract)")
                                         current_step = 1
                                         step_success = True
                                         break
@@ -601,6 +601,28 @@ fi
                             current_step += 1
                         else:
                             print(f"Step {step_num} failed (fingerprint not created)")
+                            
+                            # 设置remount flag，下次窗口会自动remount
+                            if retry_count < max_retries:
+                                print(f"Setting remount flag before retry {retry_count + 2}/{max_retries + 1}...")
+                                try:
+                                    import json
+                                    import time
+                                    from pathlib import Path
+                                    
+                                    flag_file = Path(self.shell.GOOGLE_DRIVE_DATA) / "remount_required.flag"
+                                    if not flag_file.exists():
+                                        flag_data = {
+                                            "timestamp": time.time(),
+                                            "error_type": "fingerprint_not_created",
+                                            "error_message": f"Step {step_num} ({step['name']}) fingerprint not found",
+                                            "source_command": f"pyenv --install {version}"
+                                        }
+                                        flag_file.write_text(json.dumps(flag_data, indent=2))
+                                        print(f"✓ Remount flag set, next window will auto-remount")
+                                except Exception as flag_e:
+                                    print(f"Failed to set remount flag: {flag_e}")
+                            
                             retry_count += 1
                         
                     except KeyboardInterrupt:
