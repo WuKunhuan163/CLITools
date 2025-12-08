@@ -65,14 +65,15 @@ class PyenvCommand(BaseCommand):
         
         # 直接调用cmd_pyenv方法
         result = self.cmd_pyenv(*args)
-        
         if result.get("success"):
             stdout = result.get("stdout", "")
             if stdout:
+                print()
                 print(stdout)
             return 0
         else:
             error_msg = result.get("error", "Pyenv operation failed")
+            print()
             print(error_msg)
             return 1
     
@@ -513,11 +514,11 @@ cd {step['target']}/bin
 # [Auto-generated validation by step manager]
 if [ ! -d '{build_dir}/Python-{version}' ]; then
     if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo '⚠️  ROLLBACK:step2 - Source not extracted'
-        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    else
-        echo '⚠️  ROLLBACK:step1 - Source missing'
+        echo 'ROLLBACK:step2 - Source not extracted'
         rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    else
+        echo 'ROLLBACK:step1 - Source missing'
+        rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
     fi
     exit 99
 fi
@@ -527,8 +528,8 @@ fi
                                     validation_prefix = f"""
 # [Auto-generated validation by step manager]
 if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
-    echo '⚠️  ROLLBACK:step1 - Source archive missing'
-    rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    echo 'ROLLBACK:step1 - Source archive missing'
+    rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
     exit 99
 fi
 """
@@ -554,12 +555,12 @@ fi
                                 # 解析rollback目标
                                 stdout = result.get('stdout', '') or result.get('data', {}).get('stdout', '')
                                 if 'ROLLBACK:step1' in str(stdout):
-                                    print("⚠️  Rolling back to Step 1 (Download)")
+                                    print("Rolling back to Step 1 (Download)")
                                     current_step = 0
                                     step_success = True  # 标记为成功以跳出retry循环
                                     break  # 跳出retry循环，进入outer loop从step 0开始
                                 elif 'ROLLBACK:step2' in str(stdout):
-                                    print("⚠️  Rolling back to Step 2 (Extract)")
+                                    print("Rolling back to Step 2 (Extract)")
                                     current_step = 1
                                     step_success = True  # 标记为成功以跳出retry循环
                                     break  # 跳出retry循环，进入outer loop从step 1开始
