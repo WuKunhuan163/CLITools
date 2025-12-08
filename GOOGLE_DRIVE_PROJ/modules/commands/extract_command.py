@@ -1790,3 +1790,118 @@ echo "=== END ==="
 
         except Exception as e:
             return {"success": False, "error": f"Verification failed: {e}"}
+
+    def transfer_directory(self, source_dir, target_dir, transfer_batch=1000):
+        """
+        传输目录（使用打包-移动-extract流程避免大量文件直接在GDFUSE创建）
+        
+        流程：
+        1. 在/tmp中打包source_dir为tar.gz
+        2. 移动tar.gz到目标目录的父目录
+        3. 使用extract命令并行解压到target_dir
+        
+        Args:
+            source_dir: 源目录路径（/tmp/python_install_xxx）
+            target_dir: 目标目录路径（REMOTE_ENV/python/3.x.x）
+            transfer_batch: batch大小
+            
+        Returns:
+            dict: {"success": bool, "error": str}
+        """
+        import os
+        import time
+        import hashlib
+        
+        # 生成唯一的archive名称
+        timestamp = int(time.time())
+        source_basename = os.path.basename(source_dir)
+        hash_val = hashlib.md5(f"{source_basename}_{timestamp}".encode()).hexdigest()[:8]
+        archive_name = f"transfer_{source_basename}_{hash_val}.tar.gz"
+        archive_path_tmp = f"/tmp/{archive_name}"
+        target_parent = os.path.dirname(target_dir)
+        archive_path_final = f"{target_parent}/{archive_name}"
+        
+        print(f"[DEBUG] transfer_directory called")
+        print(f"[DEBUG] source: {source_dir}, target: {target_dir}")
+        
+        try:
+            # Step 1: 在/tmp中打包
+            print(f"Packing directory in /tmp...")
+            # cd到source_dir内部再打包，避免解压后多一层目录
+            pack_cmd = f"cd '{source_dir}' && tar -czf '/tmp/{archive_name}' . && echo 'Packed'"
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=pack_cmd,
+                    capture_result=True
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                if not result.get("success"):
+                    return {"success": False, "error": f"Failed to pack: {result.get('error', 'Unknown error')}"}
+            
+            print(f"✓ Archive created")
+            
+            # Step 2: 移动archive到目标父目录
+            print(f"Moving archive to Google Drive...")
+            move_cmd = f"mkdir -p '{target_parent}' && mv '{archive_path_tmp}' '{archive_path_final}' && echo 'Moved'"
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=move_cmd,
+                    capture_result=True
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                if not result.get("success"):
+                    # 清理/tmp中的archive
+                    self.shell.command_executor._raw_command = True
+                    self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_tmp}'", capture_result=False)
+                    self.shell.command_executor._raw_command = False
+                    return {"success": False, "error": f"Failed to move archive: {result.get('error', 'Unknown error')}"}
+            
+            print(f"✓ Archive moved to Google Drive")
+            
+            # Step 3: 使用extract命令解压
+            print(f"Extracting with parallel workers (batch={transfer_batch})...")
+            
+            # 构造extract命令参数
+            extract_args = ['extract', archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
+            
+            # 直接调用execute_shell_command
+            exit_code = self.shell.execute_shell_command(f"extract '{archive_path_final}' --target '{target_dir}' --transfer-batch {transfer_batch}")
+            
+            if exit_code != 0:
+                return {"success": False, "error": "Extract failed"}
+            
+            # 清理archive文件
+            print(f"Cleaning up archive...")
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_final}'", capture_result=False)
+                self.shell.command_executor._raw_command = old_raw
+            
+            print(f"✓ Directory transfer completed")
+            return {"success": True}
+            
+        except KeyboardInterrupt:
+            # 清理残留archive
+            print("\nTransfer interrupted by user")
+            if hasattr(self.shell, 'command_executor'):
+                self.shell.command_executor._raw_command = True
+                self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_tmp}' '{archive_path_final}'", capture_result=False)
+                self.shell.command_executor._raw_command = False
+            raise
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"Transfer failed: {str(e)}"}
