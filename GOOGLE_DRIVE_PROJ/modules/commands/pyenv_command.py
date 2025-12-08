@@ -265,15 +265,7 @@ class PyenvCommand(BaseCommand):
             # 指纹文件基础路径（使用完整路径，因为raw command不展开~）
             fingerprint_dir = f"{self.main_instance.REMOTE_ROOT}/tmp"
             fingerprint_base = f"{fingerprint_dir}/pyenv_install_{version}_{temp_hash}"
-            
-            print(f"\n{'='*70}")
-            print(f"Multi-Step Installation of Python {version}")
-            print(f"{'='*70}")
             print(f"Installation ID: {temp_hash}")
-            print(f"Each step will execute as a separate GDS command")
-            print(f"This allows other GDS windows to run between steps")
-            print(f"Fingerprint base: {fingerprint_base}")
-            print(f"{'='*70}\n")
             
             # 定义6个安装步骤
             steps = [
@@ -337,13 +329,11 @@ class PyenvCommand(BaseCommand):
             )
             
         except KeyboardInterrupt:
-            print(f"\n[DEBUG] *** KeyboardInterrupt caught in pyenv_install outer handler! ***")
             print("\n\nInstallation interrupted by user (Ctrl+C)")
             print(f"\nProgress has been saved using fingerprint files.")
             print(f"You can resume this installation later using:")
             print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
             print(f"\nExiting without cleanup to preserve progress...")
-            print(f"[DEBUG] Returning error dict with progress_id")
             return {
                 "success": False, 
                 "error": "Installation interrupted by user",
@@ -372,20 +362,15 @@ class PyenvCommand(BaseCommand):
             bool: 文件是否存在
         """
         try:
-            print(f"[DEBUG] Checking fingerprint: {fingerprint_path}")
             # 使用validation.verify_with_ls（接口使用自己的默认重试次数）
-            print(f"[DEBUG] About to call verify_with_ls (this may take time with retries)...")
             result = self.main_instance.validation.verify_with_ls(
                 path=fingerprint_path,
                 creation_type="file",
                 show_hidden=False,
                 max_attempts=max_attempts
             )
-            print(f"[DEBUG] verify_with_ls returned: success={result.get('success', False)}, cancelled={result.get('cancelled', False)}")
-            
             # 如果验证被取消（Ctrl+C），抛出KeyboardInterrupt
             if result.get("cancelled"):
-                print(f"[DEBUG] Verification was cancelled, raising KeyboardInterrupt")
                 raise KeyboardInterrupt()
             
             return result.get("success", False)
@@ -402,16 +387,11 @@ class PyenvCommand(BaseCommand):
         通过指纹文件协调步骤进度，允许与其他GDS窗口交错执行
         """
         import time
-        
-        print(f"[DEBUG] Entered execute_multi_step_install for Python {version}")
-        print(f"[DEBUG] Total steps: {len(steps)}, temp_hash: {temp_hash}")
-        
         start_time = time.time()
         current_step = 0
         max_retries = 2
         
         try:
-            print(f"[DEBUG] Starting main installation loop...")
             while current_step < len(steps):
                 step = steps[current_step]
                 step_num = step['num']
@@ -426,7 +406,7 @@ class PyenvCommand(BaseCommand):
                 
                 #TODO: Change to verify_with_ls
                 if self.check_fingerprint_exists(step['fingerprint'], max_attempts=3):
-                    print(f"✅Step {step_num} already completed (fingerprint found)")
+                    print(f"Step {step_num} already completed (fingerprint found)")
                     print(f"Skipping to next step...")
                     current_step += 1
                     continue
@@ -439,37 +419,49 @@ class PyenvCommand(BaseCommand):
                 
                 while retry_count <= max_retries and not step_success:
                     try:
-                        print(f"\n[DEBUG] Entering try block for step {step_num} (attempt {retry_count + 1})")
-                        
                         if retry_count > 0:
                             print(f"\nRetrying step {step_num} (attempt {retry_count + 1}/{max_retries + 1})...")
                             time.sleep(3)
-                        
                         print(f"\nExecuting step {step_num}...")
                         
                         # 检查是否为特殊的batch_transfer步骤
                         if step.get('type') == 'batch_transfer':
-                            print(f"[DEBUG] Detected batch_transfer step, using extract command...")
-                            
-                            # 调用extract命令的transfer_directory方法
+                            # 调用extract命令的transfer_directory方法（静默模式）
                             from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
                             extract_cmd = ExtractCommand(self.main_instance)
-                            
                             result = extract_cmd.transfer_directory(
                                 source_dir=step['source'],
                                 target_dir=step['target'],
-                                transfer_batch=step.get('transfer_batch', 1000)
+                                transfer_batch=step.get('transfer_batch', 1000),
+                                quiet=True  # 静默模式，避免extract输出干扰pyenv步骤提示
                             )
                             
                             # 检查transfer结果
                             if not result.get("success"):
-                                print(f"[DEBUG] Batch transfer failed: {result.get('error', 'Unknown error')}")
-                                step_success = False
-                                retry_count += 1
-                                continue
+                                print(f"✗ Transfer failed: {result.get('error', 'Unknown error')}")
+                                
+                                # 如果有task_id，尝试用progress-id重试
+                                task_id = result.get('task_id')
+                                if task_id and retry_count < max_retries:
+                                    print(f"Retrying with progress-id: {task_id}")
+                                    result = extract_cmd.transfer_directory(
+                                        source_dir=step['source'],
+                                        target_dir=step['target'],
+                                        transfer_batch=step.get('transfer_batch', 1000),
+                                        quiet=True,
+                                        progress_id=task_id
+                                    )
+                                    if not result.get("success"):
+                                        step_success = False
+                                        retry_count += 1
+                                        continue
+                                else:
+                                    step_success = False
+                                    retry_count += 1
+                                    continue
                             
                             # 设置executable权限和最终验证
-                            print(f"\n[DEBUG] Setting executable permissions and verifying...")
+                            print(f"Verifying Python installation...")
                             verify_cmd = f"chmod -R +x {step['target']}/bin/* && {step['target']}/bin/python3 --version && {step['target']}/bin/pip3 --version"
                             
                             if hasattr(self.shell, 'command_executor'):
@@ -480,39 +472,28 @@ class PyenvCommand(BaseCommand):
                                     cmd=verify_cmd,
                                     capture_result=False
                                 )
-                                
                                 self.shell.command_executor._raw_command = old_raw
                                 
                                 if verify_result.get("success") == False or verify_result.get("interrupted"):
-                                    print(f"[DEBUG] Verification failed")
                                     step_success = False
                                     retry_count += 1
                                     continue
                         else:
                             # 普通命令步骤
                             print(f"Command preview: {step['command'][:100]}...")
-                            
-                            print(f"[DEBUG] About to execute command...")
-                            # 执行步骤命令（使用raw command模式，不做路径解析）
                             if hasattr(self.shell, 'command_executor'):
                                 self.shell.command_executor._raw_command = True
                             result = self.shell.command_executor.execute_command_interface(
                                 cmd=step['command'],
                                 capture_result=False
                             )
-                            print(f"[DEBUG] Command execution returned, result type: {type(result)}")
                             
                             # 检查命令是否被中断
                             if isinstance(result, dict) and result.get("interrupted"):
-                                print(f"[DEBUG] Command was interrupted, raising KeyboardInterrupt")
                                 raise KeyboardInterrupt()
-                        
-                        print(f"[DEBUG] About to check fingerprint...")
                         
                         # 对于batch_transfer步骤，手动创建指纹文件
                         if step.get('type') == 'batch_transfer':
-                            # Batch transfer成功，手动创建指纹
-                            print(f"[DEBUG] Creating fingerprint for batch_transfer step...")
                             create_fingerprint_cmd = f"touch {step['fingerprint']}"
                             
                             if hasattr(self.shell, 'command_executor'):
@@ -528,23 +509,19 @@ class PyenvCommand(BaseCommand):
                         
                         # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
                         if self.check_fingerprint_exists(step['fingerprint']):
-                            print(f"✅Step {step_num} completed successfully (fingerprint verified)")
+                            print(f"Step {step_num} completed successfully (fingerprint verified)")
                             step_success = True
                             current_step += 1
                         else:
                             print(f"✗ Step {step_num} failed (fingerprint not created)")
                             retry_count += 1
                         
-                        print(f"[DEBUG] Step {step_num} iteration completed normally")
-                    
                     except KeyboardInterrupt:
-                        print(f"\n[DEBUG] *** KeyboardInterrupt caught in step execution! ***")
                         print(f"\n\nInstallation interrupted by user (Ctrl+C)")
                         print(f"Current progress: Step {step_num}/{len(steps)} - {step['name']}")
                         print(f"\nYou can resume this installation later using:")
                         print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
                         print(f"\nExiting...")
-                        print(f"[DEBUG] About to re-raise KeyboardInterrupt...")
                         raise  # Re-raise to let outer handler catch it
                 
                 if not step_success:
@@ -570,7 +547,7 @@ class PyenvCommand(BaseCommand):
             self.shell.execute_shell_command(cleanup_cmd)
             
             print(f"\n{'='*70}")
-            print(f"✅ Python {version} installed successfully!")
+            print(f"Python {version} installed successfully!")
             print(f"Location: {final_install_path}")
             print(f"Total time: {minutes}m {seconds}s")
             print(f"{'='*70}\n")
@@ -584,13 +561,11 @@ class PyenvCommand(BaseCommand):
             }
             
         except KeyboardInterrupt:
-            print(f"\n[DEBUG] *** KeyboardInterrupt caught in execute_multi_step_install outer handler! ***")
             print("\n\nInstallation interrupted by user (Ctrl+C)")
             print(f"\nProgress has been saved using fingerprint files.")
             print(f"You can resume this installation later using:")
             print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
             print(f"\nExiting without cleanup to preserve progress...")
-            print(f"[DEBUG] Returning error dict with progress_id")
             return {
                 "success": False,
                 "error": "Installation interrupted by user",
@@ -1091,13 +1066,11 @@ fi
             )
         
         except KeyboardInterrupt:
-            print(f"\n[DEBUG] *** KeyboardInterrupt caught in pyenv_install_local outer handler! ***")
             print("\n\nInstallation interrupted by user (Ctrl+C)")
             print(f"\nProgress has been saved using fingerprint files.")
             print(f"You can resume this installation later using:")
             print(f"  GDS pyenv --install-local {version} --progress-id {progress_id}")
             print(f"\nExiting without cleanup to preserve progress...")
-            print(f"[DEBUG] Returning error dict with progress_id: {progress_id}")
             return {
                 "success": False,
                 "error": "Installation interrupted by user",
