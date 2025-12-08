@@ -466,46 +466,25 @@ READ_FINGERPRINT_EOF
         try:
             # 如果提供了progress_id，从指纹文件读取信息并转化为普通extract命令
             if progress_id:
-                print(f"Step 1: Loading task from progress_id: {progress_id}")
+                print(f"Step 1: Loading and validating task from progress_id: {progress_id}")
 
-                # Cat指纹文件获取信息
+                # 合并：读取指纹文件 + 验证存在性（一个窗口完成）
                 fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{progress_id}.json"
-                cmd = f"cat '{fingerprint_path}' 2>/dev/null || echo 'FINGERPRINT_NOT_FOUND'"
+                tmp_extract_dir = f"/tmp/gds_extract_{progress_id}"
+                
+                combined_cmd = f"""
+# 读取指纹文件
+if [ ! -f '{fingerprint_path}' ]; then
+    echo 'FINGERPRINT_NOT_FOUND'
+    exit 1
+fi
 
-                if hasattr(self.shell, 'command_executor'):
-                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                    self.shell.command_executor._raw_command = True
-                    result = self.shell.command_executor.execute_command_interface(
-                        cmd=cmd, capture_result=True)
-                    self.shell.command_executor._raw_command = old_raw
+cat '{fingerprint_path}'
+echo '---VALIDATION---'
 
-                    stdout = result.get('stdout', '') or result.get('data', '')
-                    if isinstance(stdout, dict) and 'stdout' in stdout:
-                        stdout = stdout['stdout']
-
-                    stdout_str = str(stdout)
-
-                    if 'FINGERPRINT_NOT_FOUND' in stdout_str:
-                        print(f"✗ Fingerprint file not found for progress_id: {progress_id}")
-                        return None
-
-                    try:
-                        fingerprint_data = json.loads(stdout_str)
-                        archive_path = fingerprint_data.get("archive_path")
-                        remaining_count = len(fingerprint_data.get("remaining_files", []))
-                        completed_count = len(fingerprint_data.get("completed_files", []))
-
-                        print(f"✓ Loaded task from progress_id: {progress_id}:")
-                        print(f"  - Archive: {archive_path}")
-                        print(f"  - Remaining: {remaining_count} files")
-                        print(f"  - Completed: {completed_count} files")
-
-                        # 验证源文件和解压目录是否存在
-                        print("Validating task state...")
-                        tmp_extract_dir = f"/tmp/gds_extract_{progress_id}"
-                        check_cmd = f"""
-# 检查源文件和解压目录
-ARCHIVE_EXISTS=$(test -f '{archive_path}' && echo 'yes' || echo 'no')
+# 验证源文件和解压目录
+ARCHIVE_PATH=$(python3 -c "import json; data=json.load(open('{fingerprint_path}')); print(data.get('archive_path', ''))")
+ARCHIVE_EXISTS=$(test -f "$ARCHIVE_PATH" && echo 'yes' || echo 'no')
 TMP_DIR_EXISTS=$(test -d '{tmp_extract_dir}' && echo 'yes' || echo 'no')
 
 echo "Archive: $ARCHIVE_EXISTS"
@@ -517,19 +496,50 @@ if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
 fi
 """
 
-                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                        self.shell.command_executor._raw_command = True
-                        check_result = self.shell.command_executor.execute_command_interface(
-                            cmd=check_cmd.strip(), capture_result=True)
-                        self.shell.command_executor._raw_command = old_raw
+                if hasattr(self.shell, 'command_executor'):
+                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                    self.shell.command_executor._raw_command = True
+                    
+                    try:
+                        result = self.shell.command_executor.execute_command_interface(
+                            cmd=combined_cmd.strip(), capture_result=True)
+                    except KeyboardInterrupt:
+                        print("\nLoading interrupted by user (Ctrl+C)")
+                        import sys
+                        sys.exit(1)
+                    
+                    self.shell.command_executor._raw_command = old_raw
 
-                        check_stdout = check_result.get('stdout', '') or check_result.get('data', '')
-                        if isinstance(check_stdout, dict) and 'stdout' in check_stdout:
-                            check_stdout = check_stdout['stdout']
+                    stdout = result.get('stdout', '') or result.get('data', '')
+                    if isinstance(stdout, dict) and 'stdout' in stdout:
+                        stdout = stdout['stdout']
 
-                        check_stdout_str = str(check_stdout)
+                    stdout_str = str(stdout)
 
-                        if "ERROR:both_missing" in check_stdout_str:
+                    if 'FINGERPRINT_NOT_FOUND' in stdout_str:
+                        print(f"Fingerprint file not found for progress_id: {progress_id}")
+                        return None
+
+                    # 分离指纹JSON和验证结果
+                    parts = stdout_str.split('---VALIDATION---')
+                    fingerprint_json = parts[0].strip()
+                    validation_output = parts[1].strip() if len(parts) > 1 else ""
+
+                    try:
+                        fingerprint_data = json.loads(fingerprint_json)
+                        archive_path = fingerprint_data.get("archive_path")
+                        remaining_files = fingerprint_data.get("remaining_files", [])
+                        completed_files = fingerprint_data.get("completed_files", [])
+                        remaining_count = len(remaining_files)
+                        completed_count = len(completed_files)
+
+                        print(f"Loaded task from progress_id: {progress_id}:")
+                        print(f"  - Archive: {archive_path}")
+                        print(f"  - Remaining: {remaining_count} files")
+                        print(f"  - Completed: {completed_count} files")
+
+                        # 检查验证结果
+                        if "ERROR:both_missing" in validation_output:
                             print(f"✗ Error: Both archive file and tmp extraction directory are missing")
                             print(f"  Archive: {archive_path}")
                             print(f"  Tmp dir: {tmp_extract_dir}")
@@ -721,8 +731,6 @@ fi
         except KeyboardInterrupt:
             print("\nExtract interrupted by user (Ctrl+C)")
             import sys
-            print("[DEBUG] About to call sys.exit(1)")
-            sys.stdout.flush()
             sys.exit(1)  # 返回退出码1
         except Exception as e:
             print(f"\nExtract failed: {e}")
@@ -792,17 +800,14 @@ fi
                     cmd_parts.append(f"cp '{file_path}' '{target_file}'")
 
                 # 智能更新指纹文件（读取/创建/更新）
-                # DEBUG: DISABLED for testing - Python script may cause worker to hang
-                if False and task_id: 
+                if task_id: 
                     fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{task_id}.json"
                     task_fingerprint = fingerprint  # 任务级别的指纹标记文件
                     files_json = json.dumps(files)  # 将文件列表转为JSON字符串
                     task_archive_path = task.get("archive_path", "")
                     archive_path_json = json.dumps(task_archive_path)
 
-                    update_script = f'''
-# 智能更新指纹文件
-python3 << 'UPDATE_EOF'
+                    update_script = f'''python3 << 'UPDATE_EOF'
 import json
 import os
 from datetime import datetime
@@ -865,14 +870,17 @@ except Exception as e:
     exit(1)
 UPDATE_EOF
 '''
-                    cmd_parts.append(update_script.strip())
+                    # 不能用strip()，会去掉UPDATE_EOF后的换行符，导致heredoc无法终止
+                    cmd_parts.append(update_script)
 
                 # 添加完成标记
                 fingerprint_dir = os.path.dirname(fingerprint)
                 cmd_parts.append(f"mkdir -p '{fingerprint_dir}'")
                 cmd_parts.append(f"echo 'completed' > '{fingerprint}'")
 
-                cmd = " && ".join(cmd_parts)
+                # heredoc script必须单独执行，不能用&&连接
+                # 所以使用分号`;`代替，或者用换行符
+                cmd = "\n".join(cmd_parts)
                 files_count = len(files)
             else:
                 return None, 0  # 不支持其他类型
@@ -955,7 +963,15 @@ UPDATE_EOF
                     ret = process.poll()
 
                     if ret is not None:
-                        # Worker完成
+                        # Worker完成 - 读取输出用于调试
+                        try:
+                            stdout, stderr = process.communicate(timeout=1)
+                            stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ""
+                            stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ""
+                        except:
+                            stdout_text = ""
+                            stderr_text = ""
+                        
                         if ret == -2:  # SIGINT
                             # 清理所有worker并抛出中断
                             for sid, sdata in worker_slots.items():
@@ -974,6 +990,7 @@ UPDATE_EOF
                             completed_tasks.append(task_idx)
                             files_transferred += files_count
                             print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} completed")
+                        
                         else:
                             # 失败 - 创建remount flag
                             try:
@@ -1024,22 +1041,15 @@ UPDATE_EOF
                     time.sleep(0.1)
 
         except KeyboardInterrupt:
-            print("[DEBUG] KeyboardInterrupt caught in _execute_transfers")
-            import sys
-            sys.stdout.flush()
             # 用户中断，强制kill所有运行中的workers
             for slot_id, slot_data in worker_slots.items():
                 if slot_data is not None:
                     _, _, process, _, _ = slot_data
                     try:
-                        print(f"[DEBUG] Killing worker {slot_id} (PID: {process.pid})")
-                        sys.stdout.flush()
                         process.kill()
                     except:
                         pass
             # 恢复旧的信号处理器
-            print("[DEBUG] Restoring signal handler and re-raising KeyboardInterrupt")
-            sys.stdout.flush()
             signal.signal(signal.SIGINT, old_handler)
             # 重新抛出KeyboardInterrupt，让上层处理
             raise

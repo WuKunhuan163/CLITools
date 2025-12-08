@@ -1041,9 +1041,7 @@ class CommandExecutor:
                 return {"success": False, "error": f"Remount required but failed: {e}"}
         
         # 调试代码已移除
-        # 检查是否为特殊命令，如果是则不应该到这里
-        if cmd in self.SPECIAL_COMMANDS:
-            return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
+        # 特殊命令保护已移除 - 现在有raw command功能，允许所有命令通过窗口执行
         
         # 如果args为None，说明cmd已经是完整命令字符串
         if args is None:
