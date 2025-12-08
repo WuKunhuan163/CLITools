@@ -822,16 +822,16 @@ class GoogleDriveShell:
             )
             
             # 显示执行结果
-            
             # 处理统一接口的结果
             if result.get("success", False):
                 data = result.get("data", {})
                 stdout = data.get("stdout", "")
                 stderr = data.get("stderr", "")
-                
                 if stdout:
                     print(stdout, end="")
                 if stderr:
+                    if stdout and not stdout.endswith('\n'):
+                        print()
                     import sys
                     print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 
@@ -905,9 +905,7 @@ class GoogleDriveShell:
                 
                 # 直接执行，不做任何展开
                 result = self.execute_command_interface(shell_cmd.strip(), capture_result=capture_result)
-                
                 if result.get("success"):
-                    # 显示输出（如果有）
                     data = result.get("data", {})
                     if not isinstance(data, dict):
                         data = {}
@@ -916,6 +914,8 @@ class GoogleDriveShell:
                     if stdout:
                         print(stdout, end="")
                     if stderr:
+                        if stdout and not stdout.endswith('\n'):
+                            print()
                         import sys
                         print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                     return 0
@@ -1220,10 +1220,7 @@ class GoogleDriveShell:
                     call_stack = ''.join(traceback.format_stack()[-3:])
                     error_msg = f'Unknown error. Call stack: {call_stack}'
                 
-                # DEBUG: 打印error_msg的repr
                 import sys
-                
-                # 打印错误到stderr，并清理多余的尾部换行
                 print(clean_stderr_trailing_newlines(error_msg), end="", file=sys.stderr)
                 return 1
             
@@ -1236,6 +1233,8 @@ class GoogleDriveShell:
                 print(stdout, end="")
             if stderr:
                 import sys
+                if stdout and not stdout.endswith('\n'):
+                    print()
                 print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
             return 0
         
@@ -1452,6 +1451,8 @@ fi
                 if stdout:
                     print(stdout, end="")
                 if stderr:
+                    if stdout and not stdout.endswith('\n'):
+                        print()
                     import sys
                     print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 return 0
@@ -1477,10 +1478,12 @@ fi
                 
                 if stdout:
                     print(stdout, end="")
-                elif stderr:
+                if stderr:
+                    if stdout and not stdout.endswith('\n'):
+                        print()
                     import sys
                     print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
-                else:
+                if (not stdout and not stderr):
                     print(f"Log file for task {bg_pid} is empty or task hasn't started producing output yet.")
                 
                 return 0
@@ -1714,6 +1717,8 @@ echo "Cleaned up $CLEANED completed background tasks"
                 if stdout:
                     print(stdout, end="")
                 if stderr:
+                    if stdout and not stdout.endswith('\n'):
+                        print()
                     import sys
                     print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 return 0
@@ -1797,6 +1802,8 @@ fi
                 if stdout:
                     print(stdout, end="")
                 if stderr:
+                    if stdout and not stdout.endswith('\n'):
+                        print()
                     import sys
                     print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
                 
@@ -1895,8 +1902,9 @@ fi
                             # 显示后台任务的输出
                             if stdout_content:
                                 print(stdout_content, end="")
-                            
                             if stderr_content:
+                                if stdout_content and not stdout_content.endswith('\n'):
+                                    print()
                                 import sys
                                 print(clean_stderr_trailing_newlines(stderr_content), file=sys.stderr, end="")
                             
@@ -1923,8 +1931,9 @@ fi
                         # 显示后台任务的输出
                         if stdout_content:
                             print(stdout_content, end="")
-                        
                         if stderr_content:
+                            if stdout_content and not stdout_content.endswith('\n'):
+                                print()
                             import sys
                             print(clean_stderr_trailing_newlines(stderr_content), file=sys.stderr, end="")
                         
