@@ -570,12 +570,16 @@ fi
                                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
                                 self.shell.command_executor._raw_command = True
                                 
-                                self.shell.command_executor.execute_command_interface(
+                                fingerprint_result = self.shell.command_executor.execute_command_interface(
                                     cmd=create_fingerprint_cmd,
-                                    capture_result=False
+                                    capture_result=True  # 需要检查interrupted
                                 )
                                 
                                 self.shell.command_executor._raw_command = old_raw
+                                
+                                # 检查是否被中断
+                                if isinstance(fingerprint_result, dict) and fingerprint_result.get("interrupted"):
+                                    raise KeyboardInterrupt()
                         
                         # 检查指纹文件是否被创建（verify_with_ls使用自己的默认重试次数）
                         if self.check_fingerprint_exists(step['fingerprint']):
