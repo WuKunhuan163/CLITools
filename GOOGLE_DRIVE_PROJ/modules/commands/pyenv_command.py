@@ -303,7 +303,7 @@ class PyenvCommand(BaseCommand):
                     "name": "Install",
                     "description": f"Installing Python {version} to /tmp",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && {temp_install_path}/bin/python3 --version && echo '✓ Python installed' && ({temp_install_path}/bin/python3 -m ensurepip --default-pip 2>/dev/null && echo '✓ pip installed' || echo '⚠️  pip may need manual install') && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
@@ -480,8 +480,11 @@ cd {step['target']}/bin
 # 创建python3和pip3符号链接（如果不存在）
 [ ! -f python3 ] && [ -f python{python_major_minor} ] && ln -sf python{python_major_minor} python3 || true
 [ ! -f pip3 ] && [ -f pip{python_major_minor} ] && ln -sf pip{python_major_minor} pip3 || true
-# 验证
-{step['target']}/bin/python3 --version && {step['target']}/bin/pip3 --version
+# 验证python3（pip3不验证，可能需要ensurepip修复）
+{step['target']}/bin/python3 --version
+echo '✓ Python installed successfully'
+# 尝试修复pip（如果失败不影响整体成功）
+{step['target']}/bin/python3 -m ensurepip --default-pip 2>/dev/null && echo '✓ pip installed via ensurepip' || echo '⚠️  pip not available, use: python3 -m ensurepip to install'
 """
                             
                             if hasattr(self.shell, 'command_executor'):
@@ -645,16 +648,13 @@ fi
             seconds = int(elapsed % 60)
             
             # 清理临时文件和指纹
-            print(f"\n{'='*70}")
             print("Cleaning up temporary files and fingerprints...")
             cleanup_cmd = f"cd / && rm -rf {build_dir} {temp_install_path} {fingerprint_base}_*"
             self.shell.execute_shell_command(cleanup_cmd)
             
-            print(f"\n{'='*70}")
             print(f"Python {version} installed successfully!")
             print(f"Location: {final_install_path}")
             print(f"Total time: {minutes}m {seconds}s")
-            print(f"{'='*70}\n")
             
             return {
                 "success": True,
@@ -1131,7 +1131,7 @@ fi
                     "name": "Install",
                     "description": f"Installing Python {version} to temporary location",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && ([ ! -f pip3 ] && [ -f pip$MAJOR_MINOR ] && ln -s \"pip$MAJOR_MINOR\" pip3 || echo 'pip3 exists') && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && \"{temp_install_path}/bin/python3\" --version && echo '✓ Python installed' && (\"{temp_install_path}/bin/python3\" -m ensurepip --default-pip 2>/dev/null && echo '✓ pip installed' || echo '⚠️  pip may need manual install') && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
