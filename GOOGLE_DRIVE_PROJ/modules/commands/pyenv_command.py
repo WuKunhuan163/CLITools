@@ -274,35 +274,82 @@ class PyenvCommand(BaseCommand):
                     "name": "Download",
                     "description": f"Downloading Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step1_download_ok",
-                    "command": f"cd /tmp && mkdir -p {build_dir} && cd {build_dir} && echo 'Downloading Python {version}...' && wget -q --show-progress https://www.python.org/ftp/python/{version}/Python-{version}.tgz && echo '✓ Download completed' && touch {fingerprint_base}_step1_download_ok"
+                    "command": f"cd /tmp && mkdir -p {build_dir} && cd {build_dir} && echo 'Downloading Python {version}...' && wget -q --show-progress https://www.python.org/ftp/python/{version}/Python-{version}.tgz && echo 'Download completed' && touch {fingerprint_base}_step1_download_ok"
                 },
                 {
                     "num": 2,
                     "name": "Extract",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
-                    "command": f"cd {build_dir} && echo 'Extracting...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
+                    "command": f"""
+# Validate: zip file must exist
+if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
+    echo '⚠️  ROLLBACK:step1 - Source archive missing, need to re-download'
+    rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    exit 99
+fi
+cd {build_dir} && echo 'Extracting...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo 'Extract completed' && touch {fingerprint_base}_step2_extract_ok
+"""
                 },
                 {
                     "num": 3,
                     "name": "Configure",
                     "description": f"Configuring Python {version}",
                     "fingerprint": f"{fingerprint_base}_step3_configure_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo '✓ Configure completed' && touch {fingerprint_base}_step3_configure_ok"
+                    "command": f"""
+# Validate: extracted source must exist
+if [ ! -d '{build_dir}/Python-{version}' ]; then
+    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
+        echo '⚠️  ROLLBACK:step2 - Source not extracted, need to re-extract'
+        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    else
+        echo '⚠️  ROLLBACK:step1 - Source missing, need to re-download'
+        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    fi
+    exit 99
+fi
+cd {build_dir}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo 'Configure completed' && touch {fingerprint_base}_step3_configure_ok
+"""
                 },
                 {
                     "num": 4,
                     "name": "Compile",
                     "description": f"Compiling Python {version} (5-10 minutes)",
                     "fingerprint": f"{fingerprint_base}_step4_compile_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo \"Compiling Python {version} with $(nproc) cores (this takes 5-10 minutes)...\" && make -j$(nproc) && echo '✓ Compile completed' && touch {fingerprint_base}_step4_compile_ok"
+                    "command": f"""
+# Validate: extracted source must exist
+if [ ! -d '{build_dir}/Python-{version}' ]; then
+    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
+        echo '⚠️  ROLLBACK:step2 - Source not extracted'
+        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    else
+        echo '⚠️  ROLLBACK:step1 - Source missing'
+        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    fi
+    exit 99
+fi
+cd {build_dir}/Python-{version} && echo "Compiling Python {version} with $(nproc) cores (this takes 5-10 minutes)..." && make -j$(nproc) && echo 'Compile completed' && touch {fingerprint_base}_step4_compile_ok
+"""
                 },
                 {
                     "num": 5,
                     "name": "Install",
                     "description": f"Installing Python {version} to /tmp",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"""
+# Validate: extracted source must exist
+if [ ! -d '{build_dir}/Python-{version}' ]; then
+    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
+        echo '⚠️  ROLLBACK:step2 - Source not extracted'
+        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    else
+        echo '⚠️  ROLLBACK:step1 - Source missing'
+        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    fi
+    exit 99
+fi
+cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok
+"""
                 },
                 {
                     "num": 6,
@@ -329,11 +376,6 @@ class PyenvCommand(BaseCommand):
             )
             
         except KeyboardInterrupt:
-            print("\n\nInstallation interrupted by user (Ctrl+C)")
-            print(f"\nProgress has been saved using fingerprint files.")
-            print(f"You can resume this installation later using:")
-            print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
-            print(f"\nExiting without cleanup to preserve progress...")
             return {
                 "success": False, 
                 "error": "Installation interrupted by user",
@@ -401,84 +443,6 @@ class PyenvCommand(BaseCommand):
                 print(f"Description: {step['description']}")
                 print(f"{'─'*70}")
                 
-                # 验证中间文件状态并清理无效指纹
-                print(f"Validating intermediate files...")
-                validation_cmd = f"""
-# 检查必要的中间文件是否存在
-BUILD_DIR='{build_dir}'
-TEMP_INSTALL='{temp_install_path}'
-
-# 检查build_dir中的zip文件
-ZIP_EXISTS='no'
-if [ -f "$BUILD_DIR/Python-{version}.tgz" ]; then
-    ZIP_EXISTS='yes'
-fi
-
-# 检查build_dir中的解压目录
-EXTRACTED_EXISTS='no'
-if [ -d "$BUILD_DIR/Python-{version}" ]; then
-    EXTRACTED_EXISTS='yes'
-fi
-
-# 检查temp_install_path
-INSTALL_EXISTS='no'
-if [ -d "$TEMP_INSTALL" ]; then
-    INSTALL_EXISTS='yes'
-fi
-
-echo "ZIP:$ZIP_EXISTS"
-echo "EXTRACTED:$EXTRACTED_EXISTS"
-echo "INSTALL:$INSTALL_EXISTS"
-"""
-                
-                if hasattr(self.shell, 'command_executor'):
-                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                    self.shell.command_executor._raw_command = True
-                    val_result = self.shell.command_executor.execute_command_interface(
-                        cmd=validation_cmd.strip(), capture_result=True)
-                    self.shell.command_executor._raw_command = old_raw
-                    
-                    val_output = val_result.get('stdout', '') or val_result.get('data', '')
-                    if isinstance(val_output, dict):
-                        val_output = val_output.get('stdout', '')
-                    val_output = str(val_output)
-                    
-                    # 解析状态
-                    zip_exists = 'ZIP:yes' in val_output
-                    extracted_exists = 'EXTRACTED:yes' in val_output
-                    install_exists = 'INSTALL:yes' in val_output
-                    
-                    # 根据状态清理指纹
-                    fingerprints_to_clean = []
-                    
-                    if not zip_exists and not extracted_exists:
-                        # zip和解压都不存在，清理step1之后的所有指纹
-                        print(f"⚠️  Source files missing, clearing fingerprints from step 2 onward...")
-                        for s in steps:
-                            if s['num'] >= 2:
-                                fingerprints_to_clean.append(s['fingerprint'])
-                    elif zip_exists and not extracted_exists:
-                        # 有zip但没解压，清理step2之后的指纹
-                        print(f"⚠️  Source not extracted, clearing fingerprints from step 3 onward...")
-                        for s in steps:
-                            if s['num'] >= 3:
-                                fingerprints_to_clean.append(s['fingerprint'])
-                    elif not install_exists and extracted_exists:
-                        # 解压了但没安装，清理step5之后的指纹
-                        print(f"⚠️  Installation missing, clearing fingerprints from step 6 onward...")
-                        for s in steps:
-                            if s['num'] >= 6:
-                                fingerprints_to_clean.append(s['fingerprint'])
-                    
-                    # 执行清理
-                    if fingerprints_to_clean:
-                        clean_cmd = "rm -f " + " ".join(f"'{fp}'" for fp in fingerprints_to_clean)
-                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                        self.shell.command_executor._raw_command = True
-                        self.shell.command_executor.execute_command_interface(cmd=clean_cmd, capture_result=False)
-                        self.shell.command_executor._raw_command = old_raw
-                        print(f"✓ Cleared {len(fingerprints_to_clean)} invalid fingerprints")
-                
                 # 检查指纹文件是否已存在
                 print(f"Checking fingerprint: {step['fingerprint']}")
                 
@@ -517,13 +481,13 @@ echo "INSTALL:$INSTALL_EXISTS"
                                 )
                             except KeyboardInterrupt:
                                 # transfer_directory中的Ctrl+C，直接向上传递
-                                print("\n✗ Transfer interrupted by user (Ctrl+C)")
+                                print("\nTransfer interrupted by user (Ctrl+C)")
                                 raise
                             
                             # 检查transfer结果
                             if not result.get("success"):
                                 error_msg = result.get('error', 'Unknown error')
-                                print(f"✗ Transfer failed: {error_msg}")
+                                print(f"Transfer failed: {error_msg}")
                                 
                                 # 检查是否是Ctrl+C导致的失败
                                 if 'Ctrl+C' in error_msg or 'interrupted by user' in error_msg.lower():
@@ -543,7 +507,7 @@ echo "INSTALL:$INSTALL_EXISTS"
                                             progress_id=task_id
                                         )
                                     except KeyboardInterrupt:
-                                        print("\n✗ Retry interrupted by user (Ctrl+C)")
+                                        print("\nRetry interrupted by user (Ctrl+C)")
                                         raise
                                     
                                     if not result.get("success"):
@@ -580,7 +544,7 @@ cd {step['target']}/bin
                                 
                                 # 检查是否被中断
                                 if verify_result.get("interrupted"):
-                                    print("\n✗ Verification interrupted by user (Ctrl+C)")
+                                    print("\nVerification interrupted by user (Ctrl+C)")
                                     raise KeyboardInterrupt()
                                 
                                 if verify_result.get("success") == False:
@@ -594,12 +558,28 @@ cd {step['target']}/bin
                                 self.shell.command_executor._raw_command = True
                             result = self.shell.command_executor.execute_command_interface(
                                 cmd=step['command'],
-                                capture_result=False
+                                capture_result=True  # 需要capture才能检测rollback
                             )
                             
                             # 检查命令是否被中断
                             if isinstance(result, dict) and result.get("interrupted"):
                                 raise KeyboardInterrupt()
+                            
+                            # 检查是否需要回退（exit code 99）
+                            exit_code = result.get('data', {}).get('exit_code', 0)
+                            if exit_code == 99:
+                                # 解析rollback目标
+                                stdout = result.get('stdout', '') or result.get('data', {}).get('stdout', '')
+                                if 'ROLLBACK:step1' in str(stdout):
+                                    print("⚠️  Rolling back to Step 1 (Download)")
+                                    current_step = 0
+                                    retry_count = 0
+                                    continue
+                                elif 'ROLLBACK:step2' in str(stdout):
+                                    print("⚠️  Rolling back to Step 2 (Extract)")
+                                    current_step = 1
+                                    retry_count = 0
+                                    continue
                         
                         # 对于batch_transfer步骤，手动创建指纹文件
                         if step.get('type') == 'batch_transfer':
@@ -622,7 +602,7 @@ cd {step['target']}/bin
                             step_success = True
                             current_step += 1
                         else:
-                            print(f"✗ Step {step_num} failed (fingerprint not created)")
+                            print(f"Step {step_num} failed (fingerprint not created)")
                             retry_count += 1
                         
                     except KeyboardInterrupt:
@@ -665,11 +645,6 @@ cd {step['target']}/bin
             }
             
         except KeyboardInterrupt:
-            print("\n\nInstallation interrupted by user (Ctrl+C)")
-            print(f"\nProgress has been saved using fingerprint files.")
-            print(f"You can resume this installation later using:")
-            print(f"  GDS pyenv --install {version} --progress-id pyenv_install_{version}_{temp_hash}")
-            print(f"\nExiting without cleanup to preserve progress...")
             return {
                 "success": False,
                 "error": "Installation interrupted by user",
@@ -793,13 +768,13 @@ if [ -f "{temp_install_path}/bin/python3" ]; then
         {temp_install_path}/bin/python3 -c "import sys; print(f'Python {{{{sys.version}}}} is working correctly!')"
         
         if [ $? -eq 0 ]; then
-            echo "✓ Python executable test passed"
+            echo "Python executable test passed"
             
             # 测试pip
             {temp_install_path}/bin/pip3 --version
             PIP_EXIT=$?
             if [ $PIP_EXIT -eq 0 ]; then
-                echo "✓ pip is working correctly"
+                echo "pip is working correctly"
             fi
             
             # 立即压缩（避免后续操作导致崩溃）
@@ -873,19 +848,19 @@ try:
         state["installed_versions"] = json.dumps(installed)
     with open("'"$STATE_FILE"'", "w") as f:
         json.dump(state, f, indent=2)
-    print("✓ Installation state updated")
+    print("Installation state updated")
 except Exception as e:
     print(f"Warning: Failed to update state: {{e}}")
 '
             else
                 # 创建新的状态文件
                 echo '{{"installed_versions": "[\\"{version}\\"]"}}' > "$STATE_FILE"
-                echo "✓ Installation state file created"
+                echo "Installation state file created"
             fi
             
             exit 0
         else
-            echo "✗ Python executable test failed"
+            echo "Python executable test failed"
             rm -rf "{temp_install_path}"
             exit 1
         fi
@@ -1060,7 +1035,7 @@ fi
                         }
                     
                     file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
-                    print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
+                    print(f"Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
                     
                     print(f"Step 1/7: Uploading source code to remote REMOTE_ENV...")
                     
@@ -1087,12 +1062,12 @@ fi
                             "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
                         }
                     
-                        print(f"✓ Uploaded to {remote_tmp_path}/{tarball_name}")
+                        print(f"Uploaded to {remote_tmp_path}/{tarball_name}")
                         
                         # 创建上传完成指纹
                         fingerprint_cmd = f"touch {upload_fingerprint}"
                         self.shell.execute_shell_command(fingerprint_cmd)
-                        print(f"✓ Step 1 (Upload) completed")
+                        print(f"Step 1 (Upload) completed")
                         
                 finally:
                     # 清理本地临时目录
@@ -1102,7 +1077,7 @@ fi
                     except:
                         pass
             else:
-                print(f"✓ Step 1 (Upload) already completed, skipping...")
+                print(f"Step 1 (Upload) already completed, skipping...")
             
             # 步骤2-7：使用与远端下载相同的分步执行机制（Extract, Configure, Compile, Install, Test, Transfer）
             print(f"\nStep 2-7: Remote compilation with fingerprint recovery...")
@@ -1115,35 +1090,35 @@ fi
                     "name": "Extract",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
-                    "command": f"cd {remote_tmp_path} && echo 'Extracting source code...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && echo '✓ Extract completed' && touch {fingerprint_base}_step2_extract_ok"
+                    "command": f"cd {remote_tmp_path} && echo 'Extracting source code...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && echo 'Extract completed' && touch {fingerprint_base}_step2_extract_ok"
                 },
                 {
                     "num": 3,
                     "name": "Configure",
                     "description": f"Configuring Python {version} build",
                     "fingerprint": f"{fingerprint_base}_step3_configure_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo '✓ Configure completed' && touch {fingerprint_base}_step3_configure_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo 'Configure completed' && touch {fingerprint_base}_step3_configure_ok"
                 },
                 {
                     "num": 4,
                     "name": "Compile",
                     "description": f"Compiling Python {version}",
                     "fingerprint": f"{fingerprint_base}_step4_compile_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Compiling Python {version}...' && make -j$(nproc) && echo '✓ Compile completed' && touch {fingerprint_base}_step4_compile_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Compiling Python {version}...' && make -j$(nproc) && echo 'Compile completed' && touch {fingerprint_base}_step4_compile_ok"
                 },
                 {
                     "num": 5,
                     "name": "Install",
                     "description": f"Installing Python {version} to temporary location",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && ([ ! -f pip3 ] && [ -f pip$MAJOR_MINOR ] && ln -s \"pip$MAJOR_MINOR\" pip3 || echo 'pip3 exists') && echo '✓ Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && ([ ! -f pip3 ] && [ -f pip$MAJOR_MINOR ] && ln -s \"pip$MAJOR_MINOR\" pip3 || echo 'pip3 exists') && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
                     "name": "Test",
                     "description": f"Testing Python {version} installation",
                     "fingerprint": f"{fingerprint_base}_step6_test_ok",
-                    "command": f"echo 'Testing Python {version}...' && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/python3 -c 'import sys; print(f\"Python {{sys.version}} is working!\")' && {temp_install_path}/bin/pip3 --version && echo '✓ Test completed' && touch {fingerprint_base}_step6_test_ok"
+                    "command": f"echo 'Testing Python {version}...' && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/python3 -c 'import sys; print(f\"Python {{sys.version}} is working!\")' && {temp_install_path}/bin/pip3 --version && echo 'Test completed' && touch {fingerprint_base}_step6_test_ok"
                 },
                 {
                     "num": 7,
@@ -1170,11 +1145,6 @@ fi
             )
         
         except KeyboardInterrupt:
-            print("\n\nInstallation interrupted by user (Ctrl+C)")
-            print(f"\nProgress has been saved using fingerprint files.")
-            print(f"You can resume this installation later using:")
-            print(f"  GDS pyenv --install-local {version} --progress-id {progress_id}")
-            print(f"\nExiting without cleanup to preserve progress...")
             return {
                 "success": False,
                 "error": "Installation interrupted by user",
