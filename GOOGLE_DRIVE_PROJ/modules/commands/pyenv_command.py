@@ -556,13 +556,13 @@ fi
                                 if 'ROLLBACK:step1' in str(stdout):
                                     print("⚠️  Rolling back to Step 1 (Download)")
                                     current_step = 0
-                                    retry_count = 0
-                                    continue
+                                    step_success = True  # 标记为成功以跳出retry循环
+                                    break  # 跳出retry循环，进入outer loop从step 0开始
                                 elif 'ROLLBACK:step2' in str(stdout):
                                     print("⚠️  Rolling back to Step 2 (Extract)")
                                     current_step = 1
-                                    retry_count = 0
-                                    continue
+                                    step_success = True  # 标记为成功以跳出retry循环
+                                    break  # 跳出retry循环，进入outer loop从step 1开始
                         
                         # 对于batch_transfer步骤，手动创建指纹文件
                         if step.get('type') == 'batch_transfer':
