@@ -281,75 +281,28 @@ class PyenvCommand(BaseCommand):
                     "name": "Extract",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
-                    "command": f"""
-# Validate: zip file must exist
-if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
-    echo '⚠️  ROLLBACK:step1 - Source archive missing, need to re-download'
-    rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    exit 99
-fi
-cd {build_dir} && echo 'Extracting...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo 'Extract completed' && touch {fingerprint_base}_step2_extract_ok
-"""
+                    "command": f"cd {build_dir} && echo 'Extracting...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo 'Extract completed' && touch {fingerprint_base}_step2_extract_ok"
                 },
                 {
                     "num": 3,
                     "name": "Configure",
                     "description": f"Configuring Python {version}",
                     "fingerprint": f"{fingerprint_base}_step3_configure_ok",
-                    "command": f"""
-# Validate: extracted source must exist
-if [ ! -d '{build_dir}/Python-{version}' ]; then
-    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo '⚠️  ROLLBACK:step2 - Source not extracted, need to re-extract'
-        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    else
-        echo '⚠️  ROLLBACK:step1 - Source missing, need to re-download'
-        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    fi
-    exit 99
-fi
-cd {build_dir}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo 'Configure completed' && touch {fingerprint_base}_step3_configure_ok
-"""
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Configuring Python {version}...' && ./configure --prefix={temp_install_path} --with-ensurepip=install && echo 'Configure completed' && touch {fingerprint_base}_step3_configure_ok"
                 },
                 {
                     "num": 4,
                     "name": "Compile",
                     "description": f"Compiling Python {version} (5-10 minutes)",
                     "fingerprint": f"{fingerprint_base}_step4_compile_ok",
-                    "command": f"""
-# Validate: extracted source must exist
-if [ ! -d '{build_dir}/Python-{version}' ]; then
-    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo '⚠️  ROLLBACK:step2 - Source not extracted'
-        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    else
-        echo '⚠️  ROLLBACK:step1 - Source missing'
-        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    fi
-    exit 99
-fi
-cd {build_dir}/Python-{version} && echo "Compiling Python {version} with $(nproc) cores (this takes 5-10 minutes)..." && make -j$(nproc) && echo 'Compile completed' && touch {fingerprint_base}_step4_compile_ok
-"""
+                    "command": f"cd {build_dir}/Python-{version} && echo \"Compiling Python {version} with $(nproc) cores (this takes 5-10 minutes)...\" && make -j$(nproc) && echo 'Compile completed' && touch {fingerprint_base}_step4_compile_ok"
                 },
                 {
                     "num": 5,
                     "name": "Install",
                     "description": f"Installing Python {version} to /tmp",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"""
-# Validate: extracted source must exist
-if [ ! -d '{build_dir}/Python-{version}' ]; then
-    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo '⚠️  ROLLBACK:step2 - Source not extracted'
-        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    else
-        echo '⚠️  ROLLBACK:step1 - Source missing'
-        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    fi
-    exit 99
-fi
-cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok
-"""
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && ([ ! -f pip3 ] && ln -s pip{python_major_minor} pip3 || echo 'pip3 exists') && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/pip3 --version && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
@@ -552,12 +505,42 @@ cd {step['target']}/bin
                                     retry_count += 1
                                     continue
                         else:
-                            # 普通命令步骤
+                            # 普通命令步骤 - 添加统一的validation前缀
+                            validation_prefix = ""
+                            if step_num >= 2:  # Steps 2-5需要validation
+                                # 生成validation前缀
+                                validation_prefix = f"""
+# [Auto-generated validation by step manager]
+if [ ! -d '{build_dir}/Python-{version}' ]; then
+    if [ -f '{build_dir}/Python-{version}.tgz' ]; then
+        echo '⚠️  ROLLBACK:step2 - Source not extracted'
+        rm -f {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    else
+        echo '⚠️  ROLLBACK:step1 - Source missing'
+        rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    fi
+    exit 99
+fi
+"""
+                                if step_num == 2:
+                                    # Step 2特殊：只检查zip
+                                    validation_prefix = f"""
+# [Auto-generated validation by step manager]
+if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
+    echo '⚠️  ROLLBACK:step1 - Source archive missing'
+    rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    exit 99
+fi
+"""
+                            
+                            # 拼接validation和实际命令
+                            full_command = validation_prefix + step['command']
                             print(f"Command preview: {step['command'][:100]}...")
+                            
                             if hasattr(self.shell, 'command_executor'):
                                 self.shell.command_executor._raw_command = True
                             result = self.shell.command_executor.execute_command_interface(
-                                cmd=step['command'],
+                                cmd=full_command,
                                 capture_result=True  # 需要capture才能检测rollback
                             )
                             
