@@ -503,64 +503,74 @@ cd {step['target']}/bin
                                     retry_count += 1
                                     continue
                         else:
-                            # 普通命令步骤 - 添加统一的validation前缀
-                            validation_prefix = ""
+                            # 普通命令步骤 - 分两步：validation + actual command
+                            # Step 1: Validation（capture result to detect rollback）
                             if step_num >= 2:  # Steps 2-5需要validation
-                                # 生成validation前缀
-                                validation_prefix = f"""
-# [Auto-generated validation by step manager]
+                                validation_cmd = ""
+                                if step_num == 2:
+                                    # Step 2特殊：只检查zip
+                                    validation_cmd = f"""
+if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
+    echo 'ROLLBACK:step1'
+    rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    exit 99
+fi
+"""
+                                else:
+                                    # Steps 3-5: 检查解压目录
+                                    validation_cmd = f"""
 if [ ! -d '{build_dir}/Python-{version}' ]; then
     if [ -f '{build_dir}/Python-{version}.tgz' ]; then
-        echo 'ROLLBACK:step2 - Source not extracted'
+        echo 'ROLLBACK:step2'
         rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
     else
-        echo 'ROLLBACK:step1 - Source missing'
+        echo 'ROLLBACK:step1'
         rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
     fi
     exit 99
 fi
 """
-                                if step_num == 2:
-                                    # Step 2特殊：只检查zip
-                                    validation_prefix = f"""
-# [Auto-generated validation by step manager]
-if [ ! -f '{build_dir}/Python-{version}.tgz' ]; then
-    echo 'ROLLBACK:step1 - Source archive missing'
-    rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
-    exit 99
-fi
-"""
+                                
+                                # 执行validation（capture result）
+                                if hasattr(self.shell, 'command_executor'):
+                                    self.shell.command_executor._raw_command = True
+                                val_result = self.shell.command_executor.execute_command_interface(
+                                    cmd=validation_cmd.strip(),
+                                    capture_result=True
+                                )
+                                
+                                # 检查validation是否被中断
+                                if isinstance(val_result, dict) and val_result.get("interrupted"):
+                                    raise KeyboardInterrupt()
+                                
+                                # 检查是否需要回退
+                                val_exit_code = val_result.get('data', {}).get('exit_code', 0)
+                                if val_exit_code == 99:
+                                    # 解析rollback目标
+                                    val_stdout = val_result.get('stdout', '') or val_result.get('data', {}).get('stdout', '')
+                                    if 'ROLLBACK:step1' in str(val_stdout):
+                                        print("⚠️  Validation failed: Rolling back to Step 1 (Download)")
+                                        current_step = 0
+                                        step_success = True
+                                        break
+                                    elif 'ROLLBACK:step2' in str(val_stdout):
+                                        print("⚠️  Validation failed: Rolling back to Step 2 (Extract)")
+                                        current_step = 1
+                                        step_success = True
+                                        break
                             
-                            # 拼接validation和实际命令
-                            full_command = validation_prefix + step['command']
+                            # Step 2: Execute actual command（不capture，实时显示）
                             print(f"Command preview: {step['command'][:100]}...")
-                            
                             if hasattr(self.shell, 'command_executor'):
                                 self.shell.command_executor._raw_command = True
                             result = self.shell.command_executor.execute_command_interface(
-                                cmd=full_command,
-                                capture_result=True  # 需要capture才能检测rollback
+                                cmd=step['command'],
+                                capture_result=False  # 实时显示，不capture
                             )
                             
                             # 检查命令是否被中断
                             if isinstance(result, dict) and result.get("interrupted"):
                                 raise KeyboardInterrupt()
-                            
-                            # 检查是否需要回退（exit code 99）
-                            exit_code = result.get('data', {}).get('exit_code', 0)
-                            if exit_code == 99:
-                                # 解析rollback目标
-                                stdout = result.get('stdout', '') or result.get('data', {}).get('stdout', '')
-                                if 'ROLLBACK:step1' in str(stdout):
-                                    print("Rolling back to Step 1 (Download)")
-                                    current_step = 0
-                                    step_success = True  # 标记为成功以跳出retry循环
-                                    break  # 跳出retry循环，进入outer loop从step 0开始
-                                elif 'ROLLBACK:step2' in str(stdout):
-                                    print("Rolling back to Step 2 (Extract)")
-                                    current_step = 1
-                                    step_success = True  # 标记为成功以跳出retry循环
-                                    break  # 跳出retry循环，进入outer loop从step 1开始
                         
                         # 对于batch_transfer步骤，手动创建指纹文件
                         if step.get('type') == 'batch_transfer':
