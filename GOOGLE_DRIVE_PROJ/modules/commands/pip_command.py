@@ -420,7 +420,6 @@ print(f"JSON file updated successfully")
                 )
                 self.shell.command_executor._raw_command = old_raw
             
-            print("-" * 70)
             if success_check:
                 print(f"pip {pip_command} completed successfully")
                 if current_env:
@@ -462,7 +461,7 @@ tar -czf /tmp/pip_packages_{temp_id}.tar.gz . && \
 mkdir -p {final_venv_dir} && \
 cd {final_venv_dir} && \
 tar -xzf /tmp/pip_packages_{temp_id}.tar.gz && \
-echo '✓ Packages transferred successfully' && \
+echo 'Packages transferred successfully' && \
 rm -f /tmp/pip_packages_{temp_id}.tar.gz && \
 rm -rf {temp_install_dir}
 """
