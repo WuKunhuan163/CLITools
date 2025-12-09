@@ -655,7 +655,8 @@ fi
                             print(f"Step {step_num} failed (fingerprint not created)")
                             
                             # 设置remount flag，下次窗口会自动remount
-                            if retry_count < max_retries:
+                            ENABLE_AUTO_REMOUNT = True  # 开关：是否在步骤失败时自动触发remount
+                            if ENABLE_AUTO_REMOUNT and retry_count < max_retries:
                                 print(f"Setting remount flag before retry {retry_count + 2}/{max_retries + 1}...")
                                 try:
                                     import json
