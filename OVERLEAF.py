@@ -418,7 +418,7 @@ def compile_latex(tex_file, command_identifier=None, output_dir=None, latex_opti
                 if copy_to_clipboard(log_content):
                     print(f"\n✓ Full compilation log copied to clipboard")
                 else:
-                    print(f"\n✗ Failed to copy log to clipboard")
+                    print(f"\nFailed to copy log to clipboard")
                     
             return result.returncode
     

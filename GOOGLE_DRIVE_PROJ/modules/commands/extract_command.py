@@ -266,7 +266,7 @@ FINGERPRINT_EXISTS=$(ls "{fingerprint_path}" 2>/dev/null && echo "yes" || echo "
 echo "Fingerprint exists: $FINGERPRINT_EXISTS"
 
 if [ "$FINGERPRINT_EXISTS" = "no" ]; then
-    echo "✗ Fingerprint not found - task cannot be recovered"
+    echo "Fingerprint not found - task cannot be recovered"
     echo "INVALID:fingerprint_missing"
     exit 1
 fi
@@ -284,7 +284,7 @@ echo "Tmp dir exists: $TMP_DIR_EXISTS"
 
 # 如果archive和tmp_dir都不存在，则无法恢复
 if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
-    echo "✗ Both archive and tmp dir missing - task cannot be recovered"
+    echo "Both archive and tmp dir missing - task cannot be recovered"
     echo "Cleaning up fingerprint..."
     rm -f "{fingerprint_path}"
     echo "INVALID:both_missing"
@@ -421,7 +421,7 @@ READ_FINGERPRINT_EOF
                 try:
                     transfer_batch = int(args[idx + 1])
                 except ValueError:
-                    print(f"✗ Error: Invalid transfer-batch value: {args[idx + 1]}")
+                    print(f"Error: Invalid transfer-batch value: {args[idx + 1]}")
                     return 1
 
         # 解析 --progress-id 参数
@@ -540,7 +540,7 @@ fi
 
                         # 检查验证结果
                         if "ERROR:both_missing" in validation_output:
-                            print(f"✗ Error: Both archive file and tmp extraction directory are missing")
+                            print(f"Error: Both archive file and tmp extraction directory are missing")
                             print(f"  Archive: {archive_path}")
                             print(f"  Tmp dir: {tmp_extract_dir}")
                             print(f"  Cannot resume task without source files")
@@ -552,10 +552,10 @@ fi
 
                         task_id = progress_id
                     except Exception as e:
-                        print(f"✗ Failed to parse fingerprint: {e}")
+                        print(f"Failed to parse fingerprint: {e}")
                         return 1
                 else:
-                    print(f"✗ Error: No command executor available")
+                    print(f"Error: No command executor available")
                     return 1
             else:
                 # 生成新的task_id
@@ -866,7 +866,7 @@ try:
 
     print(f"✓ Updated fingerprint: {{len(completed_files)}} files completed")
 except Exception as e:
-    print(f"✗ Failed to update fingerprint: {{e}}")
+    print(f"Failed to update fingerprint: {{e}}")
     exit(1)
 UPDATE_EOF
 '''

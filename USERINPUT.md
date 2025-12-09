@@ -246,7 +246,7 @@ if [ "$response" = "yes" ]; then
     rm logs/*.log
     echo "✓ Log files deleted"
 else
-    echo "✗ Operation cancelled"
+    echo "Operation cancelled"
 fi
 ```
 

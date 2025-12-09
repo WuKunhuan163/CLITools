@@ -456,8 +456,11 @@ echo 'source_ok'
                                 
                                 # 检查是否需要回滚
                                 check_exit = check_result.get('data', {}).get('exit_code', 0)
+                                check_stdout = check_result.get('stdout', '') or check_result.get('data', {}).get('stdout', '')
+                                check_stdout = str(check_stdout).strip()
+                                print(f"[DEBUG] Validation result: exit={check_exit}, stdout='{check_stdout[:100]}'")
+                                
                                 if check_exit == 99:
-                                    check_stdout = check_result.get('stdout', '').strip()
                                     if 'ROLLBACK:step1' in check_stdout:
                                         print("Validation failed: Rolling back to Step 1 (Download)")
                                         current_step = 0
@@ -492,7 +495,7 @@ echo 'source_ok'
                             # 检查transfer结果
                             if not result.get("success"):
                                 error_msg = result.get('error', 'Unknown error')
-                                print(f"✗ Transfer failed: {error_msg}")
+                                print(f"Transfer failed: {error_msg}")
                                 
                                 # 检查是否是Ctrl+C导致的失败（不应该到这里，KeyboardInterrupt应该已经抛出）
                                 if 'Ctrl+C' in error_msg or 'interrupted by user' in error_msg.lower():

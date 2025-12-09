@@ -567,7 +567,7 @@ Notes:
                         "file": source_file,
                         "error": error_msg
                     })
-                    print(f"\n✗ {move_result['error']}")
+                    print(f"\n{move_result['error']}")
             
             if not file_moves:
                 return {
