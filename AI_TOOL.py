@@ -333,7 +333,7 @@ class BinManager:
                 # 检查是否有变化
                 if old_hashes != new_hashes:
                     updated_count += 1
-                    print(f"✓ Updated hashes for {tool}")
+                    print(f"Updated hashes for {tool}")
                     
                     # 显示变化的文件
                     for file_type, new_hash in new_hashes.items():

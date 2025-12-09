@@ -180,13 +180,13 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        print(f"✓ config.json updated: MOUNT_HASH={mount_hash}")
+        print(f"config.json updated: MOUNT_HASH={mount_hash}")
         
         # 同时更新GoogleDriveShell实例的MOUNT_HASH属性（如果实例存在）
         if google_drive_shell:
             google_drive_shell.MOUNT_HASH = mount_hash
             google_drive_shell.MOUNT_TIMESTAMP = timestamp
-            print(f"✓ current shell instance updated: MOUNT_HASH={mount_hash}")
+            print(f"current shell instance updated: MOUNT_HASH={mount_hash}")
     except Exception as e:
         print(f"Warning: failed to update config.json: {e}")
     
@@ -196,7 +196,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         if reset_command:
             clear_result = reset_command.cmd_reset_clear_all()
             if clear_result.get("success"):
-                print(f"✓ {clear_result.get('message', 'Path IDs cleared and defaults restored')}")
+                print(f"{clear_result.get('message', 'Path IDs cleared and defaults restored')}")
             else:
                 print(f"Warning: Failed to clear path IDs: {clear_result.get('error', 'Unknown error')}")
         else:
@@ -226,7 +226,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
                 shells_data["shells"][active_shell_id]["current_path"] = "~"
                 shells_data["shells"][active_shell_id]["current_folder_id"] = default_id
                 google_drive_shell.save_shells(shells_data)
-                print(f"✓ Shell pwd reset to ~ (folder_id: {default_id})")
+                print(f"Shell pwd reset to ~ (folder_id: {default_id})")
     except Exception as e:
         print(f"Warning: Failed to reset shell pwd: {e}")
     
@@ -240,8 +240,8 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         )
         
         if verify_result and verify_result.get("success"):
-            print("✓ 远端指纹文件验证成功")
-            print("✓ Google Drive remount successful!")
+            print("远端指纹文件验证成功")
+            print("Google Drive remount successful!")
             
             # Clear remount required flag after successful remount
             try:
