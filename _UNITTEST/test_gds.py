@@ -226,7 +226,7 @@ class GDSTest(unittest.TestCase):
             print(f'Unknown error: {error_msg}')
             raise RuntimeError(error_msg)
         else:
-            print(f'✓ 验证测试目录存在: {cls.test_folder}')
+            print(f'验证测试目录存在: {cls.test_folder}')
         
         # 本地也切换到临时目录，避免本地重定向问题
         import tempfile
@@ -3972,11 +3972,11 @@ sys.stdout.flush()
                 if current_task_start_time_str:
                     if task_start_time_str is None:
                         task_start_time_str = current_task_start_time_str
-                        print(f"✓ 首次获得任务开始时间（远端）: {task_start_time_str}")
+                        print(f"首次获得任务开始时间（远端）: {task_start_time_str}")
                     
                     # 使用相对时间elapsed_time作为任务运行时间的估算
                     # 避免时区差异导致的问题（远端log时间可能与本地时区不同）
-                    print(f"✓ 任务运行时间（基于测试开始时间）: {elapsed_time:.1f}秒")
+                    print(f"任务运行时间（基于测试开始时间）: {elapsed_time:.1f}秒")
                     
                     # 异常检测：任务运行时间异常（使用elapsed_time）
                     if elapsed_time > MAX_TEST_DURATION:
@@ -3992,11 +3992,11 @@ sys.stdout.flush()
                 has_second_echo = "Second echo: Task completed at" in log_result.stdout
                 
                 if has_first_echo:
-                    print("✓ 包含第一个echo输出")
+                    print("包含第一个echo输出")
                 if has_sleep_msg:
-                    print("✓ 包含sleep提示")
+                    print("包含sleep提示")
                 if has_second_echo:
-                    print("✓ 包含第二个echo输出（任务已完成）")
+                    print("包含第二个echo输出（任务已完成）")
                     task_completed = True
                 else:
                     print("- 不包含第二个echo输出（任务仍在运行）")
@@ -4023,10 +4023,10 @@ sys.stdout.flush()
                 
                 # 检查是否完成
                 if "Status: completed" in status_result.stdout:
-                    print("✓ 任务状态：已完成")
+                    print("任务状态：已完成")
                     task_completed = True
                 elif "Status: running" in status_result.stdout:
-                    print("✓ 任务状态：运行中")
+                    print("任务状态：运行中")
                     # 如果任务正在运行，检查连续log查询失败次数
                     if log_result.returncode != 0 and elapsed_time >= STAGE1_DURATION and expect_log_exists:
                         if consecutive_log_failures >= MAX_CONSECUTIVE_LOG_FAILURES:
@@ -4513,7 +4513,7 @@ print(f'Current directory: {os.getcwd()}')'''
                 
                 if result.returncode == 0 and 'EXISTS' in result.stdout:
                     available_versions.append(version)
-                    print(f"  ✓ Found: Python {version}")
+                    print(f"  Found: Python {version}")
                     break  # 找到一个可用版本就够了，继续下一个主次版本
                 else:
                     print(f"  Not found: Python {version}")
@@ -5237,7 +5237,7 @@ print('Script execution successful!')
                        f"ls单个文件应该显示包含文件名的路径，实际: {gds_file_output}")
         self.assertTrue(bash_file_output.endswith("testfile.txt"), 
                        f"bash ls单个文件应该显示包含文件名的路径，实际: {bash_file_output}")
-        print(f"  ✓ ls单个文件路径格式一致")
+        print(f"  ls单个文件路径格式一致")
         
         # 测试案例：不存在的文件（错误信息格式）
         print("  测试不存在文件的错误信息")
@@ -5262,7 +5262,7 @@ print('Script execution successful!')
         
         bash_error_normalized = bash_error_output.replace(bash_ls_test_dir, "TEST_DIR")
         self.assertEqual(gds_error_normalized, bash_error_normalized, "ls错误信息应该完全一致")
-        print(f"  ✓ ls不存在文件的错误消息正确")
+        print(f"  ls不存在文件的错误消息正确")
             
         # 测试用例3: 无输出命令对比（echo重定向等）
         print("测试3: 无输出命令对比")
@@ -5309,7 +5309,7 @@ print('Script execution successful!')
         gds_mkdir_error = self.get_cleaned_stdout(gds_mkdir_fail, use_stderr=True)
         self.assertTrue(gds_mkdir_error.endswith("No such file or directory"), 
                        f"mkdir错误应该以'No such file or directory'结束，实际: {gds_mkdir_error}")
-        print(f"  ✓ mkdir错误消息正确: {gds_mkdir_error[:80]}...")
+        print(f"  mkdir错误消息正确: {gds_mkdir_error[:80]}...")
         
         # 测试touch不存在目录下的文件
         print("  测试touch不存在目录下的文件（应该失败）")
@@ -5322,7 +5322,7 @@ print('Script execution successful!')
         gds_touch_error = self.get_cleaned_stdout(gds_touch_fail, use_stderr=True)
         self.assertTrue(gds_touch_error.endswith("No such file or directory"), 
                        f"touch错误应该以'No such file or directory'结束，实际: {gds_touch_error}")
-        print(f"  ✓ touch错误消息正确: {gds_touch_error[:80]}...")
+        print(f"  touch错误消息正确: {gds_touch_error[:80]}...")
         
         # 测试cd到不存在的目录
         print("  测试cd不存在目录")
@@ -5839,11 +5839,11 @@ print('Script execution successful!')
             # 等待安装完成
             install_success = self.wait_for_pyenv_install(task_id, test_version)
             self.assertTrue(install_success, f"Python {test_version}应该成功安装")
-            print(f'✓ Python {test_version}本地下载安装成功')
+            print(f'Python {test_version}本地下载安装成功')
         else:
             # 如果没有任务ID，验证直接输出中的安装成功信息
             self.assertIn("installed successfully", result.stdout, "应该显示安装成功信息")
-            print(f'✓ Python {test_version}本地下载安装成功')
+            print(f'Python {test_version}本地下载安装成功')
         
         # 步骤4：验证版本已安装
         print(f'\n步骤4：验证Python {test_version}已正确安装')
@@ -5851,7 +5851,7 @@ print('Script execution successful!')
         self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
         updated_versions = result.stdout
         self.assertIn(test_version, updated_versions, f"Python {test_version}应该出现在已安装版本列表中")
-        print(f'✓ Python {test_version}已出现在版本列表中')
+        print(f'Python {test_version}已出现在版本列表中')
         
         # 步骤5：切换到新安装的版本并验证
         print(f'\n步骤5：切换到Python {test_version}并验证')
@@ -5862,14 +5862,14 @@ print('Script execution successful!')
         result = self.gds(["pyenv", "--version"])
         self.assertEqual(result.returncode, 0, "检查当前版本应该成功")
         self.assertIn(test_version, result.stdout, f"当前版本应该是{test_version}")
-        print(f'✓ 成功切换到Python {test_version}')
+        print(f'成功切换到Python {test_version}')
         
         # 步骤6：测试Python可执行性
         print(f'\n步骤6：测试Python {test_version}可执行性')
         result = self.gds(["python", "--version"])
         self.assertEqual(result.returncode, 0, "python --version应该成功")
         self.assertIn(test_version, result.stdout, f"python --version应该显示{test_version}")
-        print(f'✓ Python {test_version}可执行性验证成功')
+        print(f'Python {test_version}可执行性验证成功')
         
         # 步骤7：测试Python代码执行
         print(f'\n步骤7：测试Python代码执行')
@@ -5877,17 +5877,17 @@ print('Script execution successful!')
         result = self.gds(["python", "-c", test_code])
         self.assertEqual(result.returncode, 0, "Python代码执行应该成功")
         self.assertIn("is working correctly", result.stdout, "Python代码应该正确执行")
-        print(f'✓ Python {test_version}代码执行验证成功')
+        print(f'Python {test_version}代码执行验证成功')
         
         # 步骤8：测试pip功能
         print(f'\n步骤8：测试pip功能')
         result = self.gds(["python", "-c", "import pip; print(f'pip version: {pip.__version__}')"])
         self.assertEqual(result.returncode, 0, "pip导入应该成功")
         self.assertIn("pip version:", result.stdout, "应该显示pip版本信息")
-        print(f'✓ pip功能验证成功')
+        print(f'pip功能验证成功')
         
         print(f'\npyenv本地下载安装测试完成')
-        print(f'✓ Python {test_version}通过本地下载模式成功安装并验证')
+        print(f'Python {test_version}通过本地下载模式成功安装并验证')
 
     def test_37_comprehensive_bash_alignment(self):
         """全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等"""
@@ -6064,7 +6064,7 @@ print('Script execution successful!')
             
             # 确保不再是无效ID的错误
             self.assertNotIn(invalid_id, error_output, f"错误信息不应该再包含无效ID {invalid_id}")
-        print(f'✓ GDS reset功能测试完成')
+        print(f'GDS reset功能测试完成')
 
 
 

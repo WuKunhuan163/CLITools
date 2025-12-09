@@ -303,7 +303,7 @@ class PyenvCommand(BaseCommand):
                     "name": "Install",
                     "description": f"Installing Python {version} to /tmp",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && {temp_install_path}/bin/python3 --version && echo '✓ Python installed' && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && {temp_install_path}/bin/python3 --version && echo 'Python installed' && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
@@ -458,7 +458,6 @@ echo 'source_ok'
                                 check_exit = check_result.get('data', {}).get('exit_code', 0)
                                 check_stdout = check_result.get('stdout', '') or check_result.get('data', {}).get('stdout', '')
                                 check_stdout = str(check_stdout).strip()
-                                print(f"[DEBUG] Validation result: exit={check_exit}, stdout='{check_stdout[:100]}'")
                                 
                                 if check_exit == 99:
                                     if 'ROLLBACK:step1' in check_stdout:
@@ -536,7 +535,7 @@ cd {step['target']}/bin
 [ ! -f python3 ] && [ -f python{python_major_minor} ] && ln -sf python{python_major_minor} python3 || true
 # 验证python3（不检查pip，GDS有自己的pip管理）
 {step['target']}/bin/python3 --version
-echo '✓ Python installed successfully (pip managed by GDS)'
+echo 'Python installed successfully (pip managed by GDS)'
 """
                             
                             if hasattr(self.shell, 'command_executor'):
@@ -674,7 +673,7 @@ fi
                                             "source_command": f"pyenv --install {version}"
                                         }
                                         flag_file.write_text(json.dumps(flag_data, indent=2))
-                                        print(f"✓ Remount flag set, next window will auto-remount")
+                                        print(f"Remount flag set, next window will auto-remount")
                                 except Exception as flag_e:
                                     print(f"Failed to set remount flag: {flag_e}")
                             
@@ -1183,7 +1182,7 @@ fi
                     "name": "Install",
                     "description": f"Installing Python {version} to temporary location",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && \"{temp_install_path}/bin/python3\" --version && echo '✓ Python installed' && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && \"{temp_install_path}/bin/python3\" --version && echo 'Python installed' && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,

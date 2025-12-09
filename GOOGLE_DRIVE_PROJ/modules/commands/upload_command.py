@@ -470,10 +470,10 @@ Notes:
                     mv_result = {"success": True}
                 
                 if mv_result.get("success"):
-                    print(f"✓ Files moved successfully to {target_display_path}")
+                    print(f"Files moved successfully to {target_display_path}")
                     return {
                         "success": True,
-                        "message": f"\n✓ Large files uploaded and moved: {len(large_files)} files",
+                        "message": f"\nLarge files uploaded and moved: {len(large_files)} files",
                         "large_files_handled": True
                     }
                 else:
@@ -1063,7 +1063,7 @@ Notes:
                 # 先打开远程文件夹（浏览器）
                 try:
                     webbrowser.open(drive_eq_url)
-                    print(f"✓ Opened the target remote folder in browser")
+                    print(f"Opened the target remote folder in browser")
                 except Exception as e:
                     print(f"Warning: Failed to open browser: {e}")
                     print(f"Please manually visit: {drive_eq_url}")
@@ -1079,7 +1079,7 @@ Notes:
                     else:  # Linux
                         subprocess.run(["xdg-open", str(temp_upload_dir)])
                     
-                    print(f"✓ Opened the local temporary folder")
+                    print(f"Opened the local temporary folder")
                 except Exception as e:
                     print(f"Warning: Failed to open local temporary folder: {e}")
                 
@@ -1094,7 +1094,7 @@ Notes:
                 # 清理临时文件夹
                 try:
                     shutil.rmtree(temp_upload_dir)
-                    print(f"✓ Cleaned up the local temporary folder")
+                    print(f"Cleaned up the local temporary folder")
                 except Exception as e:
                     print(f"Warning: Failed to clean up the local temporary folder: {e}")
                 
@@ -1439,7 +1439,7 @@ except Exception as e:
                 mv_result = {"success": True}
             
             if mv_result.get("success"):
-                message = "✓ Files moved successfully"
+                message = "Files moved successfully"
                 
                 print(message)
                 return {

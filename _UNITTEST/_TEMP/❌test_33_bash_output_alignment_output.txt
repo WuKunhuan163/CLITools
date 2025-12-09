@@ -27,7 +27,7 @@ Python缓存和pytest缓存已清理
 正在创建远端测试目录: ~/tmp/gds_test_20251202_181345_686952_5449c5af
 使用测试模式，窗口将只显示复制指令和执行完成按钮
 已切换到远端测试目录: ~/tmp/gds_test_20251202_181345_686952_5449c5af
-✓ 验证测试目录存在: ~/tmp/gds_test_20251202_181345_686952_5449c5af
+验证测试目录存在: ~/tmp/gds_test_20251202_181345_686952_5449c5af
 本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_4fhr6h72
 测试环境设置完成
 测试GDS shell输出与bash shell输出的对齐性
@@ -88,12 +88,12 @@ Python缓存和pytest缓存已清理
 命令: 'ls ~/tmp/gds_test_20251202_181345_686952_5449c5af/gds_test_dir/ls_alignment_test/testfile.txt'
 返回码: 0
 输出: ~/tmp/gds_test_20251202_181345_686952_5449c5af/gds_test_dir/ls_alignment_test/testfile.txt
-  ✓ ls单个文件路径格式一致
+  ls单个文件路径格式一致
   测试不存在文件的错误信息
 命令: 'ls ~/tmp/gds_test_20251202_181345_686952_5449c5af/gds_test_dir/ls_alignment_test/nonexistent.txt'
 返回码: 1
 输出: ls: ~/tmp/gds_test_20251202_181345_686952_5449c5af/gds_test_dir/ls_alignment_test/nonexistent.txt: No such file or directory
-  ✓ ls不存在文件的错误消息正确
+  ls不存在文件的错误消息正确
 测试3: 无输出命令对比
   测试无输出命令: echo "redirect test" > ~/tmp/gds_test_20251202_181345_686952_5449c5af/gds_test_dir/redirect_test.txt
 命令: 'echo "redirect test" > ~/tmp/gds_test_20251202_181345_686952_5449c5af/gds_test_dir/redirect_test.txt'

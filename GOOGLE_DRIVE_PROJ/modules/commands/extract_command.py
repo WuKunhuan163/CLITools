@@ -323,7 +323,7 @@ try:
                 print("COMPLETED")
                 exit(0)
 
-    print("✓ Task can be recovered")
+    print("Task can be recovered")
     print("VALID")
 except Exception as e:
     print(f"Error reading fingerprint: {{e}}")
@@ -547,7 +547,7 @@ fi
                             return 1
 
                         if remaining_count == 0:
-                            print("✓ Task already completed, all files transferred")
+                            print("Task already completed, all files transferred")
                             return 0
 
                         task_id = progress_id
@@ -864,7 +864,7 @@ try:
     with open(task_fingerprint, 'w') as f:
         f.write(datetime.now().isoformat())
 
-    print(f"✓ Updated fingerprint: {{len(completed_files)}} files completed")
+    print(f"Updated fingerprint: {{len(completed_files)}} files completed")
 except Exception as e:
     print(f"Failed to update fingerprint: {{e}}")
     exit(1)
@@ -1336,14 +1336,14 @@ UPDATE_EOF
 echo '[Step 2.1] Checking for existing extraction...' && \\
 CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1) && \\
 if [ -n "$CONTENT_DIR" ] && [ -d "$CONTENT_DIR" ]; then
-    echo '✓ Found existing extraction directory'
+    echo 'Found existing extraction directory'
 else
     echo 'Extraction directory not found or empty, re-extracting...' && \\
     rm -rf {tmp_extract_dir} && \\
     mkdir -p {tmp_extract_dir} && \\
     mkdir -p {fingerprint_dir} && \\
     {extract_cmd} && \\
-    echo '✓ Re-extraction completed' && \\
+    echo 'Re-extraction completed' && \\
     CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d | head -1)
 fi && \\
 if [ -z "$CONTENT_DIR" ]; then CONTENT_DIR="{tmp_extract_dir}"; fi && \\
@@ -1550,7 +1550,7 @@ fi
 if [ -d "{tmp_extract_dir}" ]; then
     CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)
     if [ -n "$CONTENT_DIR" ]; then
-        echo '✓ Found existing extraction'
+        echo 'Found existing extraction'
     else
         echo '→ Re-extracting...'
         rm -rf {tmp_extract_dir}
@@ -1635,7 +1635,7 @@ print(json.dumps({{
 print("---END---")
 EOF
 
-echo '✓ Completed'
+echo 'Completed'
 """
 
         # 执行（带重试机制）

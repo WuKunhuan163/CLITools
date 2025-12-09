@@ -120,7 +120,7 @@ USERINPUT --timeout 300 --hint "Type 'done' when testing is complete"
 
 ```bash
 # AI agent completed a subtask and waits for next instruction
-echo "✓ Database schema created successfully"
+echo "Database schema created successfully"
 USERINPUT --hint "What should I work on next?"
 ```
 
@@ -244,7 +244,7 @@ ls -lh logs/*.log
 response=$(USERINPUT --timeout 60 --hint "Type 'yes' to confirm deletion")
 if [ "$response" = "yes" ]; then
     rm logs/*.log
-    echo "✓ Log files deleted"
+    echo "Log files deleted"
 else
     echo "Operation cancelled"
 fi
@@ -262,7 +262,7 @@ while true; do
     next_task=$(USERINPUT --timeout 300 --hint "What should I do next? (type 'exit' to finish)")
     
     if [ "$next_task" = "exit" ]; then
-        echo "✓ All tasks completed"
+        echo "All tasks completed"
         break
     fi
     

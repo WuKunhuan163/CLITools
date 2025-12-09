@@ -10,7 +10,7 @@ Python缓存和pytest缓存已清理
 正在创建远端测试目录: ~/tmp/gds_test_20251202_124445_395866_a0561b95
 使用测试模式，窗口将只显示复制指令和执行完成按钮
 已切换到远端测试目录: ~/tmp/gds_test_20251202_124445_395866_a0561b95
-✓ 验证测试目录存在: ~/tmp/gds_test_20251202_124445_395866_a0561b95
+验证测试目录存在: ~/tmp/gds_test_20251202_124445_395866_a0561b95
 本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ui3qzyh9
 测试环境设置完成
 命令: 'echo "{\'name\': \'test03_json_echo_01\', \'value\': 123}" > ~/tmp/gds_test_20251202_124445_395866_a0561b95/correct_json.txt'
@@ -323,18 +323,18 @@ Remount flag已设置，下一个窗口将自动处理remount
 重试第1次...
 返回码: 0
 输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_e584e2d0
-✓ config.json updated: MOUNT_HASH=e584e2d0
-✓ current shell instance updated: MOUNT_HASH=e584e2d0
+config.json updated: MOUNT_HASH=e584e2d0
+current shell instance updated: MOUNT_HASH=e584e2d0
 Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
 Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
-✓ Cleared 3 path IDs and restored 2 default IDs
-✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
-✓ 远端指纹文件验证成功
-✓ Google Drive remount successful!
+Cleared 3 path IDs and restored 2 default IDs
+Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+远端指纹文件验证成功
+Google Drive remount successful!
 Line1
 Line2     with     spaces	Tabbed
   returncode: 0
-  stdout: '正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_e584e2d0\n✓ config.json updated: MOUNT_HASH=e584e2d0\n✓ current shell instance updated: MOUNT_HASH=e584e2d0\nRestored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f\nRestored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h\n✓ Cleared 3 path IDs and restored 2 default IDs\n✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)\n\r\x1b[K⏳ Validating file existence ...\r\x1b[K✓ 远端指纹文件验证成功\n✓ Google Drive remount successful!\nLine1\nLine2     with     spaces\tTabbed\n'
+  stdout: '正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_e584e2d0\nconfig.json updated: MOUNT_HASH=e584e2d0\ncurrent shell instance updated: MOUNT_HASH=e584e2d0\nRestored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f\nRestored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h\nCleared 3 path IDs and restored 2 default IDs\nShell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)\n\r\x1b[K⏳ Validating file existence ...\r\x1b[K远端指纹文件验证成功\nGoogle Drive remount successful!\nLine1\nLine2     with     spaces\tTabbed\n'
   stderr: ''
 ok
 
@@ -342,7 +342,7 @@ ok
 Ran 1 test in 2314.570s
 
 OK
-  actual_content: '正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_e584e2d0\n✓ config.json updated: MOUNT_HASH=e584e2d0\n✓ current shell instance updated: MOUNT_HASH=e584e2d0\nRestored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f\nRestored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h\n✓ Cleared 3 path IDs and restored 2 default IDs\n✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)\n\r\x1b[K⏳ Validating file existence ...\r\x1b[K✓ 远端指纹文件验证成功\n✓ Google Drive remount successful!\nLine1\nLine2     with     spaces\tTabbed\n'
+  actual_content: '正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_e584e2d0\nconfig.json updated: MOUNT_HASH=e584e2d0\ncurrent shell instance updated: MOUNT_HASH=e584e2d0\nRestored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f\nRestored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h\nCleared 3 path IDs and restored 2 default IDs\nShell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)\n\r\x1b[K⏳ Validating file existence ...\r\x1b[K远端指纹文件验证成功\nGoogle Drive remount successful!\nLine1\nLine2     with     spaces\tTabbed\n'
   actual_content length: 513
 测试包含真实换行符的多行echo命令（修复前会失败）
 命令: 'echo "Line 1: Hello world\nLine 2: This is a test\nLine 3: Hello again\nLine 4: Multiple Hello Hello Hello\nLine 5: No match here" > ~/tmp/gds_test_20251202_124445_395866_a0561b95/multiline_real_newline.txt'
