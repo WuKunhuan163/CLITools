@@ -392,10 +392,8 @@ class PyenvCommand(BaseCommand):
                 step = steps[current_step]
                 step_num = step['num']
                 
-                print(f"\n{'─'*70}")
                 print(f"Step {step_num}/{len(steps)}: {step['name']}")
                 print(f"Description: {step['description']}")
-                print(f"{'─'*70}")
                 
                 # 检查指纹文件是否已存在
                 print(f"Checking fingerprint: {step['fingerprint']}")

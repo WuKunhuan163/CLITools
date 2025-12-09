@@ -1871,6 +1871,21 @@ echo "=== END ==="
                     raise KeyboardInterrupt()
                 
                 if not result.get("success"):
+                    # 创建remount flag以便重试
+                    from pathlib import Path
+                    import json
+                    import time
+                    flag_file = Path(self.google_drive_path).parent / "GOOGLE_DRIVE_DATA" / "remount_required.flag"
+                    try:
+                        flag_file.parent.mkdir(parents=True, exist_ok=True)
+                        with open(flag_file, 'w') as f:
+                            json.dump({"timestamp": time.time(), "reason": "transfer_directory move archive failed"}, f)
+                        if not quiet:
+                            print(f'⚠️  Setting remount flag for retry')
+                    except Exception as flag_e:
+                        if not quiet:
+                            print(f'⚠️  Failed to set remount flag: {flag_e}')
+                    
                     # 清理/tmp中的archive
                     self.shell.command_executor._raw_command = True
                     self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_tmp}'", capture_result=False)
@@ -1884,9 +1899,7 @@ echo "=== END ==="
             if quiet:
                 # 使用subprocess调用GDS extract（静默模式）
                 google_drive_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..', 'GOOGLE_DRIVE.py'))
-                
                 cmd = [sys.executable, google_drive_path, '--shell', 'extract', archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
-                
                 if progress_id:
                     cmd.extend(['--progress-id', progress_id])
                 
