@@ -1937,12 +1937,8 @@ echo "=== END ==="
                     return {"success": False, "error": f"Extract failed (exit_code={exit_code})"}
             
         except KeyboardInterrupt:
-            # 清理残留archive
+            # 不在这里清理archive（会打开新窗口），直接raise让上层处理
             print("\nTransfer interrupted by user")
-            if hasattr(self.shell, 'command_executor'):
-                self.shell.command_executor._raw_command = True
-                self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_tmp}' '{archive_path_final}'", capture_result=False)
-                self.shell.command_executor._raw_command = False
             raise
         except Exception as e:
             import traceback
