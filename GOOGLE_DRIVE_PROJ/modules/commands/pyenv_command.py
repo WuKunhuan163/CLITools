@@ -422,7 +422,31 @@ class PyenvCommand(BaseCommand):
                         
                         # 检查是否为特殊的batch_transfer步骤
                         if step.get('type') == 'batch_transfer':
-                            # 调用extract命令的transfer_directory方法（静默模式）
+                            # 检查源文件是否存在（validation）
+                            print(f"Validating source directory...")
+                            source_check_cmd = f"[ -d '{step['source']}' ] && echo 'exists' || echo 'missing'"
+                            if hasattr(self.shell, 'command_executor'):
+                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                self.shell.command_executor._raw_command = True
+                                check_result = self.shell.command_executor.execute_command_interface(
+                                    cmd=source_check_cmd, capture_result=True)
+                                self.shell.command_executor._raw_command = old_raw
+                                
+                                source_status = check_result.get('stdout', '').strip()
+                                if source_status != 'exists':
+                                    print(f"⚠️  Source directory missing: {step['source']}")
+                                    print(f"⚠️  Rolling back to Step 5 (Install) to rebuild")
+                                    # 清理Step 5-6指纹
+                                    clean_cmd = f"rm -f {fingerprint_base}_step5_* {fingerprint_base}_step6_*"
+                                    self.shell.command_executor._raw_command = True
+                                    self.shell.command_executor.execute_command_interface(cmd=clean_cmd, capture_result=False)
+                                    self.shell.command_executor._raw_command = old_raw
+                                    # 回滚到Step 5
+                                    current_step = 4  # Step 5的index是4
+                                    step_success = True
+                                    break
+                            
+                            # 调用extract命令的transfer_directory方法
                             from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
                             extract_cmd = ExtractCommand(self.main_instance)
                             
