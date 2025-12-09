@@ -4516,7 +4516,7 @@ print(f'Current directory: {os.getcwd()}')'''
                     print(f"  ✓ Found: Python {version}")
                     break  # 找到一个可用版本就够了，继续下一个主次版本
                 else:
-                    print(f"  ✗ Not found: Python {version}")
+                    print(f"  Not found: Python {version}")
         
         print(f"\n检测到 {len(available_versions)} 个可用的Python版本: {available_versions}")
         self.assertGreaterEqual(len(available_versions), 2, f"至少需要2个可用的Python版本进行测试，但只找到{len(available_versions)}个")

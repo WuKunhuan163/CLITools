@@ -379,39 +379,52 @@ print(f"JSON file updated successfully")
                 env_path = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
                 pip_target_option = f" --target {env_path}"
             
-            # 直接执行pip命令，不capture输出（开放式执行）
-            full_pip_command = f"pip {pip_command}{pip_target_option}"
+            # 构建pip命令（开放式执行）
+            import time
+            pip_success_fingerprint = f"~/tmp/pip_{current_env or 'system'}_{int(time.time())}.success"
+            full_pip_command = f"pip {pip_command}{pip_target_option} && touch {pip_success_fingerprint}"
             
-            print(f"Executing: {full_pip_command} {target_info}")
+            print(f"Executing: pip {pip_command} {target_info}")
             print("-" * 70)
             
-            # 使用execute_command_interface直接执行，不capture（capture_result=False）
-            result = self.shell.execute_command_interface(
-                "bash", 
-                ["-c", full_pip_command]
-            )
+            # 使用raw command模式，不capture输出（实时显示）
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=full_pip_command,
+                    capture_result=False  # 不capture，实时显示
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
             
-            # 简单的成功/失败判断
-            success = result.get("success", False)
-            if success:
-                data = result.get("data", {})
-                exit_code = data.get("exit_code", 0) if isinstance(data, dict) else result.get("exit_code", 0)
-                success = (exit_code == 0)
+            # 检查成功指纹是否被创建
+            from .pyenv_command import PyenvCommand
+            pyenv_cmd = PyenvCommand(self.shell)
+            success_check = pyenv_cmd.check_fingerprint_exists(pip_success_fingerprint, max_attempts=3)
+            
+            # 清理成功指纹
+            if success_check and hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                self.shell.command_executor.execute_command_interface(
+                    cmd=f"rm -f {pip_success_fingerprint}",
+                    capture_result=False
+                )
+                self.shell.command_executor._raw_command = old_raw
             
             print("-" * 70)
-            if success:
+            if success_check:
                 print(f"✓ pip {pip_command} completed successfully")
+                if current_env:
+                    print(f"Note: Use 'GDS pip list --refresh-list' to refresh package cache.")
             else:
-                print(f"✗ pip {pip_command} failed")
-            
-            # 注意：开放式执行无法自动更新state JSON
-            # 用户需要使用 pip list --refresh-list 来手动刷新状态
-            if success and current_env:
-                print(f"Note: Package state updated. Use 'GDS pip list --refresh-list' to refresh cached list.")
+                print(f"✗ pip {pip_command} may have failed (fingerprint not found)")
             
             return {
-                "success": success,
-                "message": f"pip {pip_command} {'completed' if success else 'failed'}",
+                "success": success_check,
+                "message": f"pip {pip_command} {'completed' if success_check else 'failed'}",
                 "environment": current_env or "system"
             }
             

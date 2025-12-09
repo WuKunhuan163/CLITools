@@ -123,7 +123,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     
     # 检查service account credentials
     if not service_account_credentials:
-        print("✗ Error: Service account credentials not found")
+        print("Error: Service account credentials not found")
         print("\nPlease set up service account credentials first:")
         print("  1. Run: GOOGLE_DRIVE --console-setup")
         print("  2. Follow the setup wizard to configure credentials")
@@ -252,7 +252,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
             
             return 0
         else:
-            print("✗ 远端指纹文件验证失败")
+            print("远端指纹文件验证失败")
             print("\nRemount failed: Unable to access remote fingerprint file.")
             print("\nPossible causes:")
             print("  1. The remote Python script was not executed successfully")
@@ -265,7 +265,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
             print("  4. Run 'GOOGLE_DRIVE --remount' again")
             return 1
     except Exception as e:
-        print(f"\n✗ Remount verification error: {e}")
+        print(f"\nRemount verification error: {e}")
         print("\nRecommended solution:")
         print("  1. In Colab: Runtime -> Disconnect and delete runtime")
         print("  2. Start a new runtime and re-execute the remount script")
@@ -449,12 +449,12 @@ def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_di
                 return True
             
         except Exception as e:
-            print(f"\\n✗ API请求失败: {{e}}")
+            print(f"\\nAPI请求失败: {{e}}")
         
         if attempt < max_attempts:
             time.sleep(interval)
     
-    print(f"\\n✗ API验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
+    print(f"\\nAPI验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
     return False
 
 # 获取tmp文件夹ID用于验证
@@ -475,7 +475,7 @@ except:
 # 执行验证
 fingerprint_filename = os.path.basename(fingerprint_file)
 if not tmp_folder_id:
-    print("\\n✗ 错误: 无法获取tmp文件夹ID")
+    print("\\n错误: 无法获取tmp文件夹ID")
     print("Google Drive挂载可能存在问题")
     import sys
     sys.exit(1)
