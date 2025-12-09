@@ -371,242 +371,49 @@ print(f"JSON file updated successfully")
             return {}
 
     def execute_pip_command(self, pip_command, current_env, target_info):
-        """强化的pip命令执行，支持错误处理和结果验证"""
+        """开放式pip命令执行，显示实时输出"""
         try:
-            import time
-            import random
-            
-            # 生成唯一的结果文件名
-            timestamp = int(time.time())
-            random_id = f"{random.randint(1000, 9999):04x}"
-            result_filename = f"pip_result_{timestamp}_{random_id}.json"
-            
-            # 构建环境设置命令
+            # 构建pip命令
             pip_target_option = ""
             if current_env:
                 env_path = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
                 pip_target_option = f" --target {env_path}"
             
-            # 使用Python subprocess包装pip执行，确保正确捕获所有输出和错误
-            python_script = f'''
-import subprocess
-import json
-import sys
-from datetime import datetime
-
-print(f"Starting pip {pip_command}...")
-start_time = datetime.now()
-
-# 执行pip命令并捕获所有输出
-try:
-    pip_cmd_parts = ["pip"] + "{pip_command}".split()
-    # 添加虚拟环境目标目录（如果有的话）
-    pip_target = "{pip_target_option}"
-    if pip_target.strip():
-        pip_cmd_parts.extend(pip_target.strip().split())
-    
-    print(f"Full pip command: {{pip_cmd_parts}}")
-    
-    # 执行pip命令并捕获输出
-    result = subprocess.run(
-        pip_cmd_parts,
-        capture_output=True,
-        text=True
-    )
-    
-    # 显示pip的完整输出
-    if result.stdout:
-        print(f"STDOUT:")
-        print(result.stdout)
-    if result.stderr:
-        print(f"STDERR:")
-        print(result.stderr)
-    
-    # 检查是否有严重ERROR关键字（排除依赖冲突警告）
-    has_error = False
-    if result.returncode != 0:
-        has_error = "ERROR:" in result.stderr or "ERROR:" in result.stdout
-    
-    # 计算执行时间
-    end_time = datetime.now()
-    duration = end_time - start_time
-    
-    print(f"Pip command completed with exit code: {{result.returncode}}")
-    if has_error:
-        print(f" Detected ERROR messages in pip output")
-    
-    # 生成结果JSON
-    result_data = {{
-        "success": result.returncode == 0 and not has_error,
-        "pip_command": "{pip_command}",
-        "exit_code": result.returncode,
-        "environment": "{current_env or 'system'}",
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "has_error": has_error,
-        "timestamp": datetime.now().isoformat(),
-        "start_time": start_time.isoformat(),
-        "end_time": end_time.isoformat(),
-        "duration_seconds": duration.total_seconds()
-    }}
-    
-    with open("{self.shell.REMOTE_ROOT}/tmp/{result_filename}", "w") as f:
-        json.dump(result_data, f, indent=2)
-    
-    # 显示最终状态
-    if result.returncode == 0 and not has_error:
-        print(f"pip command completed successfully")
-        
-        # 如果是install/uninstall命令且成功，更新JSON文件
-        if ("{pip_command}".startswith("install") or "{pip_command}".startswith("uninstall")) and "{current_env}":
-            try:
-                import json
-                import os
-                
-                venv_states_file = f"{self.shell.REMOTE_ENV}/venv/venv_states.json"
-                env_name = "{current_env}"
-                
-                if "{pip_command}".startswith("install"):
-                    # 解析Successfully installed行获取包信息
-                    installed_packages = {{}}
-                    for line in result.stdout.split('\\n'):
-                        if 'Successfully installed' in line:
-                            parts = line.replace('Successfully installed', '').strip().split()
-                            for part in parts:
-                                if '-' in part:
-                                    pkg_parts = part.rsplit('-', 1)
-                                    if len(pkg_parts) == 2:
-                                        package_name, version = pkg_parts
-                                        installed_packages[package_name] = version
-                    
-                    if installed_packages:
-                        # 读取现有状态
-                        states = {{}}
-                        if os.path.exists(venv_states_file):
-                            try:
-                                with open(venv_states_file, 'r') as f:
-                                    states = json.load(f)
-                            except:
-                                states = {{}}
-                        
-                        # 确保结构存在
-                        if 'environments' not in states:
-                            states['environments'] = {{}}
-                        if env_name not in states['environments']:
-                            states['environments'][env_name] = {{"packages": {{}}}}
-                        if 'packages' not in states['environments'][env_name]:
-                            states['environments'][env_name]['packages'] = {{}}
-                        
-                        # 更新包信息
-                        states['environments'][env_name]['packages'].update(installed_packages)
-                        
-                        # 写回文件
-                        with open(venv_states_file, 'w') as f:
-                            json.dump(states, f, indent=2)
-                        
-                        print(f"Updated JSON with {{len(installed_packages)}} newly installed packages")
-                        
-                elif "{pip_command}".startswith("uninstall"):
-                    # 解析Successfully uninstalled行获取包信息
-                    uninstalled_packages = []
-                    for line in result.stdout.split('\\n'):
-                        if 'Successfully uninstalled' in line:
-                            parts = line.replace('Successfully uninstalled', '').strip().split()
-                            for part in parts:
-                                if '-' in part:
-                                    pkg_parts = part.rsplit('-', 1)
-                                    if len(pkg_parts) == 2:
-                                        package_name, version = pkg_parts
-                                        uninstalled_packages.append(package_name)
-                    
-                    if uninstalled_packages:
-                        # 读取现有状态
-                        states = {{}}
-                        if os.path.exists(venv_states_file):
-                            try:
-                                with open(venv_states_file, 'r') as f:
-                                    states = json.load(f)
-                            except:
-                                states = {{}}
-                        
-                        # 确保结构存在
-                        if 'environments' not in states:
-                            states['environments'] = {{}}
-                        if env_name not in states['environments']:
-                            states['environments'][env_name] = {{"packages": {{}}}}
-                        if 'packages' not in states['environments'][env_name]:
-                            states['environments'][env_name]['packages'] = {{}}
-                        
-                        # 移除包信息
-                        for pkg in uninstalled_packages:
-                            if pkg in states['environments'][env_name]['packages']:
-                                del states['environments'][env_name]['packages'][pkg]
-                        
-                        # 写回文件
-                        with open(venv_states_file, 'w') as f:
-                            json.dump(states, f, indent=2)
-                        
-                        print(f"Removed {{len(uninstalled_packages)}} packages from JSON")
-            except Exception as e:
-                print(f"Warning: Failed to update JSON: {{e}}")
-    else:
-        print(f"pip command failed (exit_code: {{result.returncode}}, has_error: {{has_error}})")
-
-except Exception as e:
-    end_time = datetime.now()
-    duration = end_time - start_time
-    print(f"Error: Error executing pip command: {{e}}")
-    result_data = {{
-        "success": False,
-        "pip_command": "{pip_command}",
-        "exit_code": -1,
-        "environment": "{current_env or 'system'}",
-        "error": str(e),
-        "timestamp": datetime.now().isoformat(),
-        "start_time": start_time.isoformat(),
-        "end_time": end_time.isoformat(),
-        "duration_seconds": duration.total_seconds()
-    }}
-    with open("{self.shell.REMOTE_ROOT}/tmp/{result_filename}", "w") as f:
-        json.dump(result_data, f, indent=2)
-'''
+            # 直接执行pip命令，不capture输出（开放式执行）
+            full_pip_command = f"pip {pip_command}{pip_target_option}"
             
-            # 构建完整的远程命令
-            commands = [
-                f'cd "{self.shell.REMOTE_ROOT}"',
-                "mkdir -p tmp",
-                f'python3 -c "{python_script.replace(chr(92), chr(92)+chr(92)).replace(chr(34), chr(92)+chr(34))}"'
-            ]
+            print(f"Executing: {full_pip_command} {target_info}")
+            print("-" * 70)
             
-            commands = [cmd for cmd in commands if cmd.strip()]
-            full_command = " && ".join(commands)
+            # 使用execute_command_interface直接执行，不capture（capture_result=False）
+            result = self.shell.execute_command_interface(
+                "bash", 
+                ["-c", full_pip_command]
+            )
             
-            # 执行远程命令
-            result = self.shell.command_executor.execute_command_interface("bash", ["-c", full_command])
+            # 简单的成功/失败判断
+            success = result.get("success", False)
+            if success:
+                data = result.get("data", {})
+                exit_code = data.get("exit_code", 0) if isinstance(data, dict) else result.get("exit_code", 0)
+                success = (exit_code == 0)
             
-            if result.get("success"):
-                # 显示远程pip的完整输出
-                remote_output = result.get("stdout", "")
-                if remote_output:
-                    print(f"Remote pip output:")
-                    print(remote_output)
-                
-                return {
-                    "success": True,
-                    "output": remote_output,
-                    "environment": current_env or "system"
-                }
+            print("-" * 70)
+            if success:
+                print(f"✓ pip {pip_command} completed successfully")
             else:
-                error_output = result.get("stderr", "")
-                if error_output:
-                    print(f"Remote pip error:")
-                    print(error_output)
-                
-                return {
-                    "success": False,
-                    "error": result.get("error", f"Pip {pip_command} execution failed"),
-                    "stderr": error_output
-                }
+                print(f"✗ pip {pip_command} failed")
+            
+            # 注意：开放式执行无法自动更新state JSON
+            # 用户需要使用 pip list --refresh-list 来手动刷新状态
+            if success and current_env:
+                print(f"Note: Package state updated. Use 'GDS pip list --refresh-list' to refresh cached list.")
+            
+            return {
+                "success": success,
+                "message": f"pip {pip_command} {'completed' if success else 'failed'}",
+                "environment": current_env or "system"
+            }
             
         except Exception as e:
             return {"success": False, "error": f"pip命令执行失败: {str(e)}"}

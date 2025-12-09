@@ -303,7 +303,7 @@ class PyenvCommand(BaseCommand):
                     "name": "Install",
                     "description": f"Installing Python {version} to /tmp",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && {temp_install_path}/bin/python3 --version && echo '✓ Python installed' && ({temp_install_path}/bin/python3 -m ensurepip --default-pip 2>/dev/null && echo '✓ pip installed' || echo '⚠️  pip may need manual install') && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {build_dir}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && [ -d {temp_install_path}/bin ] && cd {temp_install_path}/bin && ([ ! -f python3 ] && ln -s python{python_major_minor} python3 || echo 'python3 exists') && {temp_install_path}/bin/python3 --version && echo '✓ Python installed' && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
@@ -477,14 +477,11 @@ class PyenvCommand(BaseCommand):
                             verify_cmd = f"""
 chmod -R +x {step['target']}/bin/* 2>/dev/null || true
 cd {step['target']}/bin
-# 创建python3和pip3符号链接（如果不存在）
+# 创建python3符号链接（如果不存在）
 [ ! -f python3 ] && [ -f python{python_major_minor} ] && ln -sf python{python_major_minor} python3 || true
-[ ! -f pip3 ] && [ -f pip{python_major_minor} ] && ln -sf pip{python_major_minor} pip3 || true
-# 验证python3（pip3不验证，可能需要ensurepip修复）
+# 验证python3（不检查pip，GDS有自己的pip管理）
 {step['target']}/bin/python3 --version
-echo '✓ Python installed successfully'
-# 尝试修复pip（如果失败不影响整体成功）
-{step['target']}/bin/python3 -m ensurepip --default-pip 2>/dev/null && echo '✓ pip installed via ensurepip' || echo '⚠️  pip not available, use: python3 -m ensurepip to install'
+echo '✓ Python installed successfully (pip managed by GDS)'
 """
                             
                             if hasattr(self.shell, 'command_executor'):
@@ -1131,7 +1128,7 @@ fi
                     "name": "Install",
                     "description": f"Installing Python {version} to temporary location",
                     "fingerprint": f"{fingerprint_base}_step5_install_ok",
-                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && \"{temp_install_path}/bin/python3\" --version && echo '✓ Python installed' && (\"{temp_install_path}/bin/python3\" -m ensurepip --default-pip 2>/dev/null && echo '✓ pip installed' || echo '⚠️  pip may need manual install') && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
+                    "command": f"cd {remote_tmp_path}/Python-{version} && echo 'Installing Python {version}...' && make altinstall && MAJOR_MINOR=$(echo \"{version}\" | cut -d. -f1-2) && cd \"{temp_install_path}/bin\" && ([ ! -f python3 ] && [ -f python$MAJOR_MINOR ] && ln -s \"python$MAJOR_MINOR\" python3 || echo 'python3 exists') && \"{temp_install_path}/bin/python3\" --version && echo '✓ Python installed' && echo 'Install completed' && touch {fingerprint_base}_step5_install_ok"
                 },
                 {
                     "num": 6,
