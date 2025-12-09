@@ -422,29 +422,53 @@ class PyenvCommand(BaseCommand):
                         
                         # 检查是否为特殊的batch_transfer步骤
                         if step.get('type') == 'batch_transfer':
-                            # 检查源文件是否存在（validation）
-                            print(f"Validating source directory...")
-                            source_check_cmd = f"[ -d '{step['source']}' ] && echo 'exists' || echo 'missing'"
+                            # 检查源文件和build状态（validation）
+                            print(f"Validating transfer prerequisites...")
+                            validation_cmd = f"""
+if [ ! -d '{step['source']}' ]; then
+    # Source不存在，检查build_dir状态
+    if [ ! -d '{build_dir}/Python-{version}' ]; then
+        if [ -f '{build_dir}/Python-{version}.tgz' ]; then
+            echo 'ROLLBACK:step2'
+            rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+        else
+            echo 'ROLLBACK:step1'
+            rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+        fi
+    else
+        echo 'ROLLBACK:step5'
+        rm -f {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+    fi
+    exit 99
+fi
+echo 'source_ok'
+"""
                             if hasattr(self.shell, 'command_executor'):
                                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
                                 self.shell.command_executor._raw_command = True
                                 check_result = self.shell.command_executor.execute_command_interface(
-                                    cmd=source_check_cmd, capture_result=True)
+                                    cmd=validation_cmd.strip(), capture_result=True)
                                 self.shell.command_executor._raw_command = old_raw
                                 
-                                source_status = check_result.get('stdout', '').strip()
-                                if source_status != 'exists':
-                                    print(f"⚠️  Source directory missing: {step['source']}")
-                                    print(f"⚠️  Rolling back to Step 5 (Install) to rebuild")
-                                    # 清理Step 5-6指纹
-                                    clean_cmd = f"rm -f {fingerprint_base}_step5_* {fingerprint_base}_step6_*"
-                                    self.shell.command_executor._raw_command = True
-                                    self.shell.command_executor.execute_command_interface(cmd=clean_cmd, capture_result=False)
-                                    self.shell.command_executor._raw_command = old_raw
-                                    # 回滚到Step 5
-                                    current_step = 4  # Step 5的index是4
-                                    step_success = True
-                                    break
+                                # 检查是否需要回滚
+                                check_exit = check_result.get('data', {}).get('exit_code', 0)
+                                if check_exit == 99:
+                                    check_stdout = check_result.get('stdout', '').strip()
+                                    if 'ROLLBACK:step1' in check_stdout:
+                                        print("⚠️  Validation failed: Rolling back to Step 1 (Download)")
+                                        current_step = 0
+                                        step_success = True
+                                        break
+                                    elif 'ROLLBACK:step2' in check_stdout:
+                                        print("⚠️  Validation failed: Rolling back to Step 2 (Extract)")
+                                        current_step = 1
+                                        step_success = True
+                                        break
+                                    elif 'ROLLBACK:step5' in check_stdout:
+                                        print("⚠️  Validation failed: Rolling back to Step 5 (Install)")
+                                        current_step = 4
+                                        step_success = True
+                                        break
                             
                             # 调用extract命令的transfer_directory方法
                             from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
