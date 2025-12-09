@@ -371,17 +371,23 @@ print(f"JSON file updated successfully")
             return {}
 
     def execute_pip_command(self, pip_command, current_env, target_info):
-        """开放式pip命令执行，显示实时输出"""
+        """pip命令执行（install使用tmp-pack-transfer策略）"""
         try:
+            # install命令使用tmp-pack-transfer避免GDFUSE问题
+            if pip_command.startswith("install") and current_env:
+                return self._pip_install_with_transfer(pip_command, current_env)
+            
+            # 其他命令直接执行
             # 构建pip命令
+            import time
+            pip_success_fingerprint = f"~/tmp/pip_{current_env or 'system'}_{int(time.time())}.success"
+            
             pip_target_option = ""
             if current_env:
                 env_path = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
-                pip_target_option = f" --target {env_path}"
+                if pip_command.startswith("uninstall"):
+                    pip_target_option = f" --target {env_path}"
             
-            # 构建pip命令（开放式执行）
-            import time
-            pip_success_fingerprint = f"~/tmp/pip_{current_env or 'system'}_{int(time.time())}.success"
             full_pip_command = f"pip {pip_command}{pip_target_option} && touch {pip_success_fingerprint}"
             
             print(f"Executing: pip {pip_command} {target_info}")
@@ -420,7 +426,7 @@ print(f"JSON file updated successfully")
                 if current_env:
                     print(f"Note: Use 'GDS pip list --refresh-list' to refresh package cache.")
             else:
-                print(f"✗ pip {pip_command} may have failed (fingerprint not found)")
+                print(f"pip {pip_command} may have failed (fingerprint not found)")
             
             return {
                 "success": success_check,
@@ -430,4 +436,81 @@ print(f"JSON file updated successfully")
             
         except Exception as e:
             return {"success": False, "error": f"pip命令执行失败: {str(e)}"}
+    
+    def _pip_install_with_transfer(self, pip_command, current_env):
+        """pip install使用tmp-pack-transfer策略（避免直接在GDFUSE创建大量文件）"""
+        try:
+            import time
+            import hashlib
+            
+            # 生成临时目录
+            timestamp = int(time.time())
+            temp_id = hashlib.md5(f"{current_env}_{timestamp}".encode()).hexdigest()[:8]
+            temp_install_dir = f"/tmp/pip_install_{temp_id}"
+            final_venv_dir = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
+            
+            print(f"Installing packages to /tmp (avoid GDFUSE issues)...")
+            print(f"Packages will be transferred to venv after download")
+            print("-" * 70)
+            
+            # Step 1: pip install到/tmp
+            install_cmd = f"mkdir -p {temp_install_dir} && pip {pip_command} --target {temp_install_dir}"
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                install_result = self.shell.command_executor.execute_command_interface(
+                    cmd=install_cmd,
+                    capture_result=False  # 实时显示pip下载进度
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                if not install_result.get("success"):
+                    return {"success": False, "error": "pip install to /tmp failed"}
+            
+            print("-" * 70)
+            print(f"Packages downloaded. Transferring to venv...")
+            
+            # Step 2: 打包并转移到venv（直接用tar，不用extract的worker机制）
+            transfer_cmd = f"""
+cd {temp_install_dir}
+tar -czf /tmp/pip_packages_{temp_id}.tar.gz .
+mkdir -p {final_venv_dir}
+cd {final_venv_dir}
+tar -xzf /tmp/pip_packages_{temp_id}.tar.gz
+echo '✓ Packages transferred'
+rm -f /tmp/pip_packages_{temp_id}.tar.gz
+rm -rf {temp_install_dir}
+"""
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                transfer_result = self.shell.command_executor.execute_command_interface(
+                    cmd=transfer_cmd.strip(),
+                    capture_result=False
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                success = transfer_result.get("success", False)
+            
+            print("-" * 70)
+            if success:
+                print(f"✓ pip {pip_command} completed successfully")
+                print(f"Note: Use 'GDS pip list --refresh-list' to refresh package cache.")
+            else:
+                print(f"✗ Transfer failed")
+            
+            return {
+                "success": success,
+                "message": f"pip {pip_command} {'completed' if success else 'failed'}",
+                "environment": current_env
+            }
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"pip install with transfer failed: {str(e)}"}
 
