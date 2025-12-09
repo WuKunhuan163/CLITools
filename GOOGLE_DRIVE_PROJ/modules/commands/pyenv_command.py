@@ -450,22 +450,26 @@ echo 'source_ok'
                                     cmd=validation_cmd.strip(), capture_result=True)
                                 self.shell.command_executor._raw_command = old_raw
                                 
+                                # 检查validation是否被中断
+                                if isinstance(check_result, dict) and check_result.get("interrupted"):
+                                    raise KeyboardInterrupt()
+                                
                                 # 检查是否需要回滚
                                 check_exit = check_result.get('data', {}).get('exit_code', 0)
                                 if check_exit == 99:
                                     check_stdout = check_result.get('stdout', '').strip()
                                     if 'ROLLBACK:step1' in check_stdout:
-                                        print("⚠️  Validation failed: Rolling back to Step 1 (Download)")
+                                        print("Validation failed: Rolling back to Step 1 (Download)")
                                         current_step = 0
                                         step_success = True
                                         break
                                     elif 'ROLLBACK:step2' in check_stdout:
-                                        print("⚠️  Validation failed: Rolling back to Step 2 (Extract)")
+                                        print("Validation failed: Rolling back to Step 2 (Extract)")
                                         current_step = 1
                                         step_success = True
                                         break
                                     elif 'ROLLBACK:step5' in check_stdout:
-                                        print("⚠️  Validation failed: Rolling back to Step 5 (Install)")
+                                        print("Validation failed: Rolling back to Step 5 (Install)")
                                         current_step = 4
                                         step_success = True
                                         break
