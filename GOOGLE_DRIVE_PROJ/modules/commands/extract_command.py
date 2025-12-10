@@ -501,7 +501,7 @@ fi
                     self.shell.command_executor._raw_command = True
                     
                     try:
-                    result = self.shell.command_executor.execute_command_interface(
+                        result = self.shell.command_executor.execute_command_interface(
                             cmd=combined_cmd.strip(), capture_result=True)
                     except KeyboardInterrupt:
                         print("\nLoading interrupted by user (Ctrl+C)")
@@ -963,17 +963,17 @@ UPDATE_EOF
                 ret = process.poll()
 
                 if ret is not None:
-                        # Worker完成 - 读取输出用于调试
-                        try:
-                            stdout, stderr = process.communicate(timeout=1)
-                            stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ""
-                            stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ""
-                        except:
-                            stdout_text = ""
-                            stderr_text = ""
-                        
-                        if ret == -2:  # SIGINT
-                            # 清理所有worker并抛出中断
+                    # Worker完成 - 读取输出用于调试
+                    try:
+                        stdout, stderr = process.communicate(timeout=1)
+                        stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ""
+                        stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ""
+                    except:
+                        stdout_text = ""
+                        stderr_text = ""
+                    
+                    if ret == -2:  # SIGINT
+                        # 清理所有worker并抛出中断
                         for sid, sdata in worker_slots.items():
                             if sdata is not None:
                                 _, _, proc, _, _ = sdata
@@ -985,56 +985,56 @@ UPDATE_EOF
                     
                     if ret == 0:
                         # 成功
-                            worker_slots[slot_id] = None
-                            worker_start_times.pop(slot_id, None)
+                        worker_slots[slot_id] = None
+                        worker_start_times.pop(slot_id, None)
                         completed_tasks.append(task_idx)
                         files_transferred += files_count
                         print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} completed")
-                        
-                        else:
-                            # 失败 - 创建remount flag
-                            try:
-                                with open("/tmp/gds_remount_needed", "w") as f:
-                                    f.write(f"Worker {slot_id} failed at {current_time}\n")
-                            except:
-                                pass
-                        
-                        if attempt < max_attempts:
-                                # 重试
-                                print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), retrying...")
-                            process, files_count_retry = start_worker(task_idx, task, task_id)
-                            if process:
-                                new_attempt = attempt + 1
-                                worker_slots[slot_id] = (task_idx, task, process, files_count_retry, new_attempt)
-                                
-                                    # 重新计算任务描述
-                                if task["type"] == "batch_copy":
-                                    src_files = task.get('files', [])
-                                    num_files = len(src_files)
-                                    source_dir = task.get('source_dir', '')
-                                    if num_files == 1:
-                                        file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                        task_desc = f"Copy 1 file: {file_rel}"
-                                    else:
-                                        first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
-                                        last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
-                                        task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                    
+                    else:
+                        # 失败 - 创建remount flag
+                        try:
+                            with open("/tmp/gds_remount_needed", "w") as f:
+                                f.write(f"Worker {slot_id} failed at {current_time}\n")
+                        except:
+                            pass
+                    
+                    if attempt < max_attempts:
+                        # 重试
+                        print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), retrying...")
+                        process, files_count_retry = start_worker(task_idx, task, task_id)
+                        if process:
+                            new_attempt = attempt + 1
+                            worker_slots[slot_id] = (task_idx, task, process, files_count_retry, new_attempt)
+                            
+                                # 重新计算任务描述
+                            if task["type"] == "batch_copy":
+                                src_files = task.get('files', [])
+                                num_files = len(src_files)
+                                source_dir = task.get('source_dir', '')
+                                if num_files == 1:
+                                    file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    task_desc = f"Copy 1 file: {file_rel}"
                                 else:
-                                    task_desc = task.get('description', 'Unknown task')
-                                
-                                    print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc} (retry {new_attempt}/{max_attempts})")
+                                    first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                    task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
                             else:
-                                    # 无法重启
-                                worker_slots[slot_id] = None
-                                    worker_start_times.pop(slot_id, None)
-                                print(f"Worker {slot_id} failed to restart, skipping...")
-                                failed_tasks.append((task_idx, task))
+                                task_desc = task.get('description', 'Unknown task')
+                            
+                                print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc} (retry {new_attempt}/{max_attempts})")
                         else:
-                                # 达到最大重试次数
+                            # 无法重启
                             worker_slots[slot_id] = None
-                                worker_start_times.pop(slot_id, None)
-                            print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
+                            worker_start_times.pop(slot_id, None)
+                            print(f"Worker {slot_id} failed to restart, skipping...")
                             failed_tasks.append((task_idx, task))
+                    else:
+                        # 达到最大重试次数
+                        worker_slots[slot_id] = None
+                        worker_start_times.pop(slot_id, None)
+                        print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
+                        failed_tasks.append((task_idx, task))
             
                 # 短暂休眠
                 if any(slot is not None for slot in worker_slots.values()) or task_queue:
@@ -1188,7 +1188,7 @@ UPDATE_EOF
                 all_files = remaining_files
             else:
                 # 首次运行：返回错误，因为无法解析目录树
-            return {
+                return {
                     "success": False,
                     "error": f"Failed to parse directory tree: {e}"
                 }
@@ -1650,8 +1650,8 @@ echo 'Completed'
                 if attempt > 1:
                     print(f"Initializing... (attempt {attempt}/{max_attempts})")
                 
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd.strip(), capture_result=True)
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=cmd.strip(), capture_result=True)
                 
                 if result.get("success"):
                     break  # 成功则退出重试循环
