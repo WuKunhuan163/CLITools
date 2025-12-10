@@ -194,8 +194,8 @@ class PyenvCommand(BaseCommand):
                 if version and progress_id and len(args) > 1 and args[1] not in ["--progress-id", "--force"]:
                     # 检查progress_id是否匹配version
                     if f"_{version}_" not in progress_id:
-                        print(f"⚠️  Warning: --progress-id '{progress_id}' will be IGNORED (version '{version}' explicitly specified)")
-                        print(f"⚠️  Correct usage: GDS pyenv --install --progress-id {progress_id}")
+                        print(f"Warning: --progress-id '{progress_id}' will be IGNORED (version '{version}' explicitly specified)")
+                        print(f"Correct usage: GDS pyenv --install --progress-id {progress_id}")
                 
                 return self.pyenv_install(version, force=force, progress_id=progress_id)
             elif action == "--install-bg":
@@ -211,8 +211,8 @@ class PyenvCommand(BaseCommand):
                 if version and progress_id and len(args) > 1 and args[1] not in ["--progress-id", "--force"]:
                     # 检查progress_id是否匹配version
                     if f"_{version}_" not in progress_id:
-                        print(f"⚠️  Warning: --progress-id '{progress_id}' will be IGNORED (version '{version}' explicitly specified)")
-                        print(f"⚠️  Correct usage: GDS pyenv --install-local --progress-id {progress_id}")
+                        print(f"Warning: --progress-id '{progress_id}' will be IGNORED (version '{version}' explicitly specified)")
+                        print(f"Correct usage: GDS pyenv --install-local --progress-id {progress_id}")
                 
                 return self.pyenv_install_local(version, force=force, progress_id=progress_id)
             elif action == "--uninstall":
@@ -302,7 +302,9 @@ class PyenvCommand(BaseCommand):
             # 指纹文件基础路径（使用完整路径，因为raw command不展开~）
             fingerprint_dir = f"{self.main_instance.REMOTE_ROOT}/tmp"
             fingerprint_base = f"{fingerprint_dir}/pyenv_install_{version}_{temp_hash}"
-            print(f"Installation ID: {temp_hash}")
+            progress_id_display = f"pyenv_install_{version}_{temp_hash}"
+            print(f"Progress ID: {progress_id_display}")
+            print(f"Resume with: GDS pyenv --install --progress-id {progress_id_display}")
             
             # 定义6个安装步骤
             steps = [
