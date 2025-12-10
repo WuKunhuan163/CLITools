@@ -128,7 +128,18 @@ class PipCommand(BaseCommand):
             
             # 解析选项
             force_install = '--force' in packages_args
-            packages_to_install = [pkg for pkg in packages_args if not pkg.startswith('--')]
+            
+            # 解析--transfer-batch参数
+            transfer_batch = 1000  # 默认值
+            if '--transfer-batch' in packages_args:
+                try:
+                    batch_index = packages_args.index('--transfer-batch')
+                    if batch_index + 1 < len(packages_args):
+                        transfer_batch = int(packages_args[batch_index + 1])
+                except (ValueError, IndexError):
+                    pass
+            
+            packages_to_install = [pkg for pkg in packages_args if not pkg.startswith('--') and pkg != str(transfer_batch)]
 
             if not force_install:
                 all_installed = True
@@ -148,7 +159,7 @@ class PipCommand(BaseCommand):
             # 标准安装流程
             install_command = f"install {' '.join(packages_to_install)}"
             target_info = f"in {current_venv}" if current_venv else "in system environment"
-            return self.execute_pip_command(install_command, current_venv, target_info)
+            return self.execute_pip_command(install_command, current_venv, target_info, transfer_batch=transfer_batch)
             
         except Exception as e:
             return {"success": False, "error": f"处理pip install时出错: {str(e)}"}
@@ -370,12 +381,12 @@ print(f"JSON file updated successfully")
         else: 
             return {}
 
-    def execute_pip_command(self, pip_command, current_env, target_info):
+    def execute_pip_command(self, pip_command, current_env, target_info, transfer_batch=1000):
         """pip命令执行（install使用tmp-pack-transfer策略）"""
         try:
             # install命令使用tmp-pack-transfer避免GDFUSE问题
             if pip_command.startswith("install") and current_env:
-                return self._pip_install_with_transfer(pip_command, current_env)
+                return self._pip_install_with_transfer(pip_command, current_env, transfer_batch=transfer_batch)
             
             # 其他命令直接执行
             # 构建pip命令
@@ -436,8 +447,8 @@ print(f"JSON file updated successfully")
         except Exception as e:
             return {"success": False, "error": f"pip命令执行失败: {str(e)}"}
     
-    def _pip_install_with_transfer(self, pip_command, current_env):
-        """pip install使用tmp-pack-transfer策略（避免直接在GDFUSE创建大量文件）"""
+    def _pip_install_with_transfer(self, pip_command, current_env, transfer_batch=1000):
+        """pip install使用智能transfer策略（根据文件数选择tar或worker）"""
         try:
             import time
             import hashlib
@@ -449,13 +460,55 @@ print(f"JSON file updated successfully")
             final_venv_dir = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
             print(f"Installing packages...")
             
-            # 合并install和transfer到一个窗口（&&确保失败时不执行transfer）
-            combined_cmd = f"""
-mkdir -p {temp_install_dir} && \
-pip {pip_command} --target {temp_install_dir} && \
-echo '' && \
-echo '──────────────────────────────────────────────' && \
-echo 'Download completed. Transferring to venv...' && \
+            # Step 1: pip install到/tmp（实时显示）
+            install_cmd = f"mkdir -p {temp_install_dir} && pip {pip_command} --target {temp_install_dir}"
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                install_result = self.shell.command_executor.execute_command_interface(
+                    cmd=install_cmd,
+                    capture_result=False  # 实时显示
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                if not install_result.get("success"):
+                    return {"success": False, "error": "pip install to /tmp failed"}
+            
+            print("-" * 70)
+            print(f"Download completed. Counting files...")
+            
+            # Step 2: 统计文件数（包括子目录）
+            count_cmd = f"find {temp_install_dir} -type f | wc -l"
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                count_result = self.shell.command_executor.execute_command_interface(
+                    cmd=count_cmd,
+                    capture_result=True  # 需要读取结果
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                file_count = 0
+                if count_result.get("success"):
+                    count_stdout = count_result.get('stdout', '') or count_result.get('data', {}).get('stdout', '')
+                    try:
+                        file_count = int(str(count_stdout).strip())
+                        print(f"Total files: {file_count} (batch size: {transfer_batch})")
+                    except ValueError:
+                        print(f"⚠️  Failed to parse file count, using worker strategy")
+                        file_count = transfer_batch + 1  # 强制使用worker
+            
+            # Step 3: 根据文件数选择transfer策略
+            if file_count <= transfer_batch:
+                # 小包：简单tar策略（一次性转移所有文件和文件夹）
+                print(f"Using simple tar strategy (files <= {transfer_batch})")
+                print("Transferring...")
+                
+                tar_cmd = f"""
 cd {temp_install_dir} && \
 tar -czf /tmp/pip_packages_{temp_id}.tar.gz . && \
 mkdir -p {final_venv_dir} && \
@@ -465,18 +518,47 @@ echo 'Packages transferred successfully' && \
 rm -f /tmp/pip_packages_{temp_id}.tar.gz && \
 rm -rf {temp_install_dir}
 """
-            if hasattr(self.shell, 'command_executor'):
                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
                 self.shell.command_executor._raw_command = True
                 
                 result = self.shell.command_executor.execute_command_interface(
-                    cmd=combined_cmd.strip(),
-                    capture_result=False  # 实时显示
+                    cmd=tar_cmd.strip(),
+                    capture_result=False
                 )
                 
                 self.shell.command_executor._raw_command = old_raw
-                
                 success = result.get("success", False)
+            else:
+                # 大包：使用GDS extract的worker机制
+                print(f"Using worker strategy (files > {transfer_batch})")
+                print("Transferring with parallel workers...")
+                
+                from .extract_command import ExtractCommand
+                extract_cmd = ExtractCommand(self.main_instance)
+                
+                try:
+                    transfer_result = extract_cmd.transfer_directory(
+                        source_dir=temp_install_dir,
+                        target_dir=final_venv_dir,
+                        transfer_batch=transfer_batch,
+                        quiet=False
+                    )
+                    success = transfer_result.get("success", False)
+                    
+                    # 清理temp_install_dir
+                    if success:
+                        cleanup_cmd = f"rm -rf {temp_install_dir}"
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        self.shell.command_executor.execute_command_interface(cmd=cleanup_cmd, capture_result=False)
+                        self.shell.command_executor._raw_command = old_raw
+                        
+                except KeyboardInterrupt:
+                    print("\nPip install interrupted by user")
+                    raise
+                except Exception as e:
+                    print(f"✗ Worker transfer failed: {e}")
+                    success = False
             
             print("-" * 70)
             if success:
