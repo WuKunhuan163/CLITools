@@ -289,11 +289,10 @@ class PyenvCommand(BaseCommand):
                     }
                 # 从progress_id提取hash部分
                 temp_hash = progress_id.split("_")[-1]
-                print(f"Resuming installation with progress ID: {progress_id}")
-                print(f"   Installation hash: {temp_hash}")
             else:
                 # 生成新的安装ID
                 temp_hash = hashlib.md5(f"{version}_{int(time.time())}".encode()).hexdigest()[:8]
+                
             temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
             final_install_path = f"{self.main_instance.REMOTE_ENV}/python/{version}"
             build_dir = f"/tmp/python_download_{version}_{temp_hash}"
@@ -302,9 +301,12 @@ class PyenvCommand(BaseCommand):
             # 指纹文件基础路径（使用完整路径，因为raw command不展开~）
             fingerprint_dir = f"{self.main_instance.REMOTE_ROOT}/tmp"
             fingerprint_base = f"{fingerprint_dir}/pyenv_install_{version}_{temp_hash}"
-            progress_id_display = f"pyenv_install_{version}_{temp_hash}"
-            print(f"Progress ID: {progress_id_display}")
-            print(f"Resume with: GDS pyenv --install --progress-id {progress_id_display}")
+            
+            # 只在新安装时打印progress-id（恢复安装不打印）
+            if not progress_id:
+                progress_id_display = f"pyenv_install_{version}_{temp_hash}"
+                print(f"Progress ID: {progress_id_display}")
+                print(f"Resume with: GDS pyenv --install --progress-id {progress_id_display}")
             
             # 定义6个安装步骤
             steps = [
