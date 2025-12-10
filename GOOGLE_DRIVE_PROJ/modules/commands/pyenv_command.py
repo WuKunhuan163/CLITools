@@ -430,8 +430,10 @@ class PyenvCommand(BaseCommand):
                 step = steps[current_step]
                 step_num = step['num']
                 
+                print("\n" + "─" * 70)
                 print(f"Step {step_num}/{len(steps)}: {step['name']}")
                 print(f"Description: {step['description']}")
+                print("─" * 70)
                 
                 # 检查指纹文件是否已存在
                 print(f"Checking fingerprint: {step['fingerprint']}")
@@ -1079,7 +1081,6 @@ fi
         
         # 如果提供了progress_id，说明是恢复模式
         if progress_id:
-            print(f"Resuming installation with progress ID: {progress_id}")
             # 从progress_id中提取temp_hash和version
             if "_local_" in progress_id:
                 temp_hash = progress_id.split("_")[-1]
