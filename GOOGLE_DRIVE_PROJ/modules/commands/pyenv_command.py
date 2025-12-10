@@ -83,9 +83,11 @@ class PyenvCommand(BaseCommand):
         print("=" * 50)
         print()
         print("USAGE:")
-        print("  GDS pyenv --install <version> [--force] [--progress-id <id>]         # Install Python version")
-        print("  GDS pyenv --install-bg <version> [--force]                           # Install in background (DEPRECATED)")
-        print("  GDS pyenv --install-local <version> [--force] [--progress-id <id>]   # Download locally then install")
+        print("  GDS pyenv --install <version> [--force]                       # Install Python version")
+        print("  GDS pyenv --install --progress-id <id>                        # Resume installation from progress")
+        print("  GDS pyenv --install-bg <version> [--force]                    # Install in background (DEPRECATED)")
+        print("  GDS pyenv --install-local <version> [--force]                 # Download locally then install")
+        print("  GDS pyenv --install-local --progress-id <id>                  # Resume local installation")
         print("  GDS pyenv --uninstall <version>                                # Uninstall Python version")
         print("  GDS pyenv --list                    # List installed versions")
         print("  GDS pyenv --global <version>        # Set global default Python version")
@@ -103,8 +105,8 @@ class PyenvCommand(BaseCommand):
         print("  GDS pyenv --install 3.9.18                                    # Install Python 3.9.18 (remote download)")
         print("  GDS pyenv --install-local 3.10.13                             # Download locally, then install (FASTER!)")
         print("  GDS pyenv --install 3.9.18 --force                            # Force reinstall existing version")
-        print("  GDS pyenv --install 3.11.7 --progress-id pyenv_install_3.11.7_7144d872        # Resume remote install")
-        print("  GDS pyenv --install-local 3.10.13 --progress-id pyenv_install_local_3.10.13_a1b2c3d4  # Resume local install")
+        print("  GDS pyenv --install --progress-id pyenv_install_3.11.7_7144d872              # Resume remote install")
+        print("  GDS pyenv --install-local --progress-id pyenv_install_local_3.10.13_a1b2c3d4 # Resume local install")
         print("  GDS pyenv --global 3.9.18                                     # Set 3.9.18 as global default")
         print("  GDS pyenv --local 3.10.13                                     # Use 3.10.13 in current shell")
         print("  GDS pyenv --versions                                          # List all installed versions")
@@ -153,7 +155,6 @@ class PyenvCommand(BaseCommand):
                 }
             
             action = args[0]
-            version = args[1] if len(args) > 1 else None
             force = "--force" in args
             
             # 解析--progress-id参数
@@ -166,9 +167,36 @@ class PyenvCommand(BaseCommand):
                 except (ValueError, IndexError):
                     return {"success": False, "error": "--progress-id requires an ID value"}
             
+            # 解析version（考虑--install --progress-id语法）
+            version = None
+            if len(args) > 1:
+                potential_version = args[1]
+                # 如果args[1]是--progress-id，从进度文件读取版本
+                if potential_version == "--progress-id":
+                    if not progress_id:
+                        return {"success": False, "error": "Cannot extract version from progress-id: ID not provided"}
+                    # 从progress_id提取版本号（格式: pyenv_install_X.Y.Z_hash）
+                    import re
+                    match = re.search(r'pyenv_install(?:_local)?_(\d+\.\d+\.\d+)_', progress_id)
+                    if match:
+                        version = match.group(1)
+                        print(f"Resuming installation for Python {version} (from progress-id {progress_id})")
+                    else:
+                        return {"success": False, "error": f"Cannot extract version from progress-id: {progress_id}"}
+                elif not potential_version.startswith("--"):
+                    version = potential_version
+            
             if action == "--install":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install"}
+                
+                # 警告：如果同时指定version和progress_id（旧语法）
+                if version and progress_id and len(args) > 1 and args[1] not in ["--progress-id", "--force"]:
+                    # 检查progress_id是否匹配version
+                    if f"_{version}_" not in progress_id:
+                        print(f"⚠️  Warning: --progress-id '{progress_id}' will be IGNORED (version '{version}' explicitly specified)")
+                        print(f"⚠️  Correct usage: GDS pyenv --install --progress-id {progress_id}")
+                
                 return self.pyenv_install(version, force=force, progress_id=progress_id)
             elif action == "--install-bg":
                 return {
@@ -178,6 +206,14 @@ class PyenvCommand(BaseCommand):
             elif action == "--install-local":
                 if not version:
                     return {"success": False, "error": "Please specify a Python version to install from local download"}
+                
+                # 警告：如果同时指定version和progress_id（旧语法）
+                if version and progress_id and len(args) > 1 and args[1] not in ["--progress-id", "--force"]:
+                    # 检查progress_id是否匹配version
+                    if f"_{version}_" not in progress_id:
+                        print(f"⚠️  Warning: --progress-id '{progress_id}' will be IGNORED (version '{version}' explicitly specified)")
+                        print(f"⚠️  Correct usage: GDS pyenv --install-local --progress-id {progress_id}")
+                
                 return self.pyenv_install_local(version, force=force, progress_id=progress_id)
             elif action == "--uninstall":
                 if not version:
