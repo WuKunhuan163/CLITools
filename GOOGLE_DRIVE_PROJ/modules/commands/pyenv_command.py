@@ -517,17 +517,17 @@ echo 'source_ok'
                                 
                                 if check_exit == 99:
                                     if 'ROLLBACK:step1' in check_stdout:
-                                        print("⚠️  Validation failed: Rolling back to Step 1 (Download)")
+                                        print("Validation failed: Rolling back to Step 1 (Download)")
                                         current_step = 0
                                         step_success = True
                                         break
                                     elif 'ROLLBACK:step2' in check_stdout:
-                                        print("⚠️  Validation failed: Rolling back to Step 2 (Extract Source)")
+                                        print("Validation failed: Rolling back to Step 2 (Extract Source)")
                                         current_step = 1
                                         step_success = True
                                         break
                                     elif 'ROLLBACK:step5' in check_stdout:
-                                        print("⚠️  Validation failed: Rolling back to Step 5 (Install)")
+                                        print("Validation failed: Rolling back to Step 5 (Install)")
                                         current_step = 4
                                         step_success = True
                                         break
@@ -584,8 +584,8 @@ echo 'source_ok'
                                 
                                 archive_status = archive_result.get('stdout', '') or archive_result.get('data', {}).get('stdout', '')
                                 if 'archive_missing' in str(archive_status):
-                                    print(f"⚠️  Archive missing: {step['archive_path']}")
-                                    print(f"⚠️  Rolling back to Step 6 (Pack & Move)")
+                                    print(f"Archive missing: {step['archive_path']}")
+                                    print(f"Rolling back to Step 6 (Pack & Move)")
                                     # 清理Step 6-7指纹
                                     clean_cmd = f"rm -f {fingerprint_base}_step6_* {fingerprint_base}_step7_*"
                                     self.shell.command_executor._raw_command = True
@@ -621,61 +621,10 @@ echo 'source_ok'
                                 if 'Ctrl+C' in error_msg or 'interrupted by user' in error_msg.lower():
                                     raise KeyboardInterrupt()
                                 
-                                task_id = result.get('task_id')
-                                if task_id and retry_count < max_retries:
-                                    print(f"Retrying with progress-id: {task_id}")
-                                    try:
-                                        result = extract_cmd.transfer_directory(
-                                            source_dir=step['source'],
-                                            target_dir=step['target'],
-                                            transfer_batch=step.get('transfer_batch', 1000),
-                                            quiet=False,  # 开放式执行
-                                            progress_id=task_id
-                                        )
-                                    except KeyboardInterrupt:
-                                        # transfer_directory已经print过了
-                                        raise
-                                    
-                                    if not result.get("success"):
-                                        step_success = False
-                                        retry_count += 1
-                                        continue
-                                else:
-                                    step_success = False
-                                    retry_count += 1
-                                    continue
+                                retry_count += 1
+                                continue
                             
-                            # 设置executable权限、创建符号链接和最终验证
-                            print(f"Verifying Python installation...")
-                            python_major_minor = '.'.join(version.split('.')[:2])
-                            verify_cmd = f"""
-chmod -R +x {step['target']}/bin/* 2>/dev/null || true
-cd {step['target']}/bin
-# 创建python3符号链接（如果不存在）
-[ ! -f python3 ] && [ -f python{python_major_minor} ] && ln -sf python{python_major_minor} python3 || true
-# 验证python3（不检查pip，GDS有自己的pip管理）
-{step['target']}/bin/python3 --version
-echo 'Python installed successfully (pip managed by GDS)'
-"""
-                            
-                            if hasattr(self.shell, 'command_executor'):
-                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                                self.shell.command_executor._raw_command = True
-                                
-                                verify_result = self.shell.command_executor.execute_command_interface(
-                                    cmd=verify_cmd,
-                                    capture_result=False
-                                )
-                                self.shell.command_executor._raw_command = old_raw
-                                
-                                # 检查是否被中断
-                                if verify_result.get("interrupted"):
-                                    raise KeyboardInterrupt()
-                                
-                                if verify_result.get("success") == False:
-                                    step_success = False
-                                    retry_count += 1
-                                    continue
+                            step_success = True
                         else:
                             # 普通命令步骤 - validation + actual command在同一个窗口
                             # Validation通过指纹文件传递rollback信号
@@ -725,7 +674,7 @@ fi
                             # 检查命令是否被中断
                             if isinstance(result, dict) and result.get("interrupted"):
                                 raise KeyboardInterrupt()
-                            
+                        
                             # 检查是否有rollback信号（通过指纹文件）
                             if self.check_fingerprint_exists(rollback_fingerprint, max_attempts=1):
                                 # 读取rollback目标
@@ -1193,7 +1142,7 @@ fi
             if not upload_done:
                 print(f"Starting local download and remote installation of Python {version}...")
                 print(f"Progress ID: {progress_id}")
-                print(f"Step 1/7: Downloading Python {version} source code locally...")
+                print(f"Step 1/8: Downloading Python {version} source code locally...")
                 
                 # 创建临时目录
                 temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
@@ -1228,7 +1177,7 @@ fi
                     file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
                     print(f"Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
                     
-                    print(f"Step 1/7: Uploading source code to remote REMOTE_ENV...")
+                    print(f"Step 1/8: Uploading source code to remote REMOTE_ENV...")
                     
                     # 创建远程目录
                     mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
@@ -1270,15 +1219,19 @@ fi
             else:
                 print(f"Step 1 (Upload) already completed, skipping...")
             
-            # 步骤2-7：使用与远端下载相同的分步执行机制（Extract, Configure, Compile, Install, Test, Transfer）
-            print(f"\nStep 2-7: Remote compilation with fingerprint recovery...")
-            print(f"This may take 10-20 minutes. If interrupted, use: pyenv --install-local {version} --progress-id {progress_id}")
+            # 步骤2-8：使用与远端下载相同的分步执行机制（Extract, Configure, Compile, Install, Test, Pack & Move, Extract）
+            print(f"\nStep 2-8: Remote compilation with fingerprint recovery...")
+            print(f"This may take 10-20 minutes. If interrupted, use: pyenv --install-local --progress-id {progress_id}")
             
-            # 定义后续步骤（与远端下载的步骤2-7对应）
+            # 定义后续步骤（与远端下载的步骤2-8对应）
+            archive_name = f"transfer_python_install_local_{version}_{temp_hash}"
+            archive_path_tmp = f"/tmp/{archive_name}.tar.gz"
+            archive_path_final = f"{final_install_path}/{archive_name}.tar.gz"
+            
             steps = [
                 {
                     "num": 2,
-                    "name": "Extract",
+                    "name": "Extract Source",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
                     "command": f"cd {remote_tmp_path} && echo 'Extracting source code...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && echo 'Extract completed' && touch {fingerprint_base}_step2_extract_ok"
@@ -1309,18 +1262,30 @@ fi
                     "name": "Test",
                     "description": f"Testing Python {version} installation",
                     "fingerprint": f"{fingerprint_base}_step6_test_ok",
-                    "command": f"echo 'Testing Python {version}...' && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/python3 -c 'import sys; print(f\"Python {{sys.version}} is working!\")' && {temp_install_path}/bin/pip3 --version && echo 'Test completed' && touch {fingerprint_base}_step6_test_ok"
+                    "command": f"echo 'Testing Python {version}...' && {temp_install_path}/bin/python3 --version && {temp_install_path}/bin/python3 -c 'import sys; print(f\"Python {{sys.version}} is working!\")' && echo 'Test completed' && touch {fingerprint_base}_step6_test_ok"
                 },
                 {
                     "num": 7,
-                    "name": "Transfer",
-                    "description": f"Batch transferring Python {version} to Google Drive using parallel workers",
-                    "fingerprint": f"{fingerprint_base}_step7_transfer_ok",
-                    "type": "batch_transfer",  # 特殊步骤类型
+                    "name": "Pack & Move",
+                    "description": f"Creating archive and moving to Google Drive",
+                    "fingerprint": f"{fingerprint_base}_step7_pack_ok",
+                    "type": "pack_and_move",  # 新的特殊步骤类型
                     "source": temp_install_path,
+                    "archive_tmp": archive_path_tmp,
+                    "archive_final": archive_path_final,
+                    "version": version
+                },
+                {
+                    "num": 8,
+                    "name": "Extract",
+                    "description": f"Extracting Python {version} with parallel workers (batch=1000)",
+                    "fingerprint": f"{fingerprint_base}_step8_extract_ok",
+                    "type": "extract_transfer",  # 新的特殊步骤类型
+                    "archive_path": archive_path_final,
                     "target": final_install_path,
                     "transfer_batch": 1000,
-                    "version": version
+                    "version": version,
+                    "progress_id_base": f"pyenv_install_local_{version}_{temp_hash}"
                 }
             ]
             

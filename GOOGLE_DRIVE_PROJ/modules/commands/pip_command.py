@@ -499,7 +499,7 @@ print(f"JSON file updated successfully")
                         file_count = int(str(count_stdout).strip())
                         print(f"Total files: {file_count} (batch size: {transfer_batch})")
                     except ValueError:
-                        print(f"⚠️  Failed to parse file count, using worker strategy")
+                        print(f"Failed to parse file count, using worker strategy")
                         file_count = transfer_batch + 1  # 强制使用worker
             
             # Step 3: 根据文件数选择transfer策略
