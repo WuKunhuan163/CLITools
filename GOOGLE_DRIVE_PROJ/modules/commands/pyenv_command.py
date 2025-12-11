@@ -1142,7 +1142,11 @@ fi
             if not upload_done:
                 print(f"Starting local download and remote installation of Python {version}...")
                 print(f"Progress ID: {progress_id}")
-                print(f"Step 1/8: Downloading Python {version} source code locally...")
+                print("\n" + "─" * 70)
+                print(f"Step 1/8: Upload")
+                print(f"Description: Downloading and uploading Python {version} source")
+                print("─" * 70)
+                print(f"Downloading Python {version} source code locally...")
                 
                 # 创建临时目录
                 temp_dir = tempfile.mkdtemp(prefix=f"python_{version}_")
@@ -1175,9 +1179,9 @@ fi
                         }
                     
                     file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
-                    print(f"Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
+                    print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
                     
-                    print(f"Step 1/8: Uploading source code to remote REMOTE_ENV...")
+                    print(f"Uploading source code to remote REMOTE_ENV...")
                     
                     # 创建远程目录
                     mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
@@ -1202,12 +1206,12 @@ fi
                             "error": f"Failed to upload source code: {upload_result.get('error', f'Source code upload failed without specific error message. Call stack: {call_stack}')}"
                         }
                     
-                        print(f"Uploaded to {remote_tmp_path}/{tarball_name}")
-                        
-                        # 创建上传完成指纹
-                        fingerprint_cmd = f"touch {upload_fingerprint}"
-                        self.shell.execute_shell_command(fingerprint_cmd)
-                        print(f"Step 1 (Upload) completed")
+                    print(f"✓ Uploaded to {remote_tmp_path}/{tarball_name}")
+                    
+                    # 创建上传完成指纹
+                    fingerprint_cmd = f"touch {upload_fingerprint}"
+                    self.shell.execute_shell_command(fingerprint_cmd)
+                    print(f"✓ Step 1 (Upload) completed")
                         
                 finally:
                     # 清理本地临时目录
@@ -1217,7 +1221,11 @@ fi
                     except:
                         pass
             else:
-                print(f"Step 1 (Upload) already completed, skipping...")
+                print("\n" + "─" * 70)
+                print(f"Step 1/8: Upload")
+                print(f"Description: Downloading and uploading Python {version} source")
+                print("─" * 70)
+                print(f"✓ Step 1 (Upload) already completed, skipping...")
             
             # 步骤2-8：使用与远端下载相同的分步执行机制（Extract, Configure, Compile, Install, Test, Pack & Move, Extract）
             print(f"\nStep 2-8: Remote compilation with fingerprint recovery...")
