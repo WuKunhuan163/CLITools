@@ -603,11 +603,17 @@ echo 'source_ok'
                                 # 生成extract的progress-id
                                 extract_progress_id = f"{step['progress_id_base']}_extract"
                                 
-                                result = extract_cmd.execute(
+                                # 构建extract命令的args
+                                extract_args = [
                                     step['archive_path'],
-                                    target=step['target'],
-                                    transfer_batch=step.get('transfer_batch', 1000),
-                                    progress_id=extract_progress_id,
+                                    '--target', step['target'],
+                                    '--transfer-batch', str(step.get('transfer_batch', 1000)),
+                                    '--progress-id', extract_progress_id
+                                ]
+                                
+                                result = extract_cmd.execute(
+                                    name='extract',
+                                    args=extract_args,
                                     display_context="pyenv install"  # 改变步骤显示风格
                                 )
                             except KeyboardInterrupt:
