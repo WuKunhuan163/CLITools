@@ -413,6 +413,7 @@ READ_FINGERPRINT_EOF
         archive_path = args[0] if (args and not args[0].startswith('--')) else None
         transfer_batch = 20  # 默认值
         progress_id = None  # 进度ID
+        display_context = kwargs.get('display_context', None)  # 步骤显示context
         
         # 解析 --transfer-batch 参数
         if '--transfer-batch' in args:
@@ -466,7 +467,8 @@ READ_FINGERPRINT_EOF
         try:
             # 如果提供了progress_id，从指纹文件读取信息并转化为普通extract命令
             if progress_id:
-                print(f"Step 1: Loading and validating task from progress_id: {progress_id}")
+                step_prefix = f"{display_context} Extract: " if display_context else ""
+                print(f"{step_prefix}Step 1: Loading and validating task from progress_id: {progress_id}")
                 
                 # 合并：读取指纹文件 + 验证存在性（一个窗口完成）
                 fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{progress_id}.json"
@@ -566,7 +568,8 @@ fi
                 task_id = f"{archive_name}_{hash_obj.hexdigest()[:8]}"
                 
                 # Step 1: 合并的远端初始化和调度生成
-                print("Step 1: Initializing...")
+                step_prefix = f"{display_context} Extract: " if display_context else ""
+                print(f"{step_prefix}Step 1: Initializing...")
                 try:
                     init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
                 except KeyboardInterrupt:
@@ -601,7 +604,8 @@ fi
 
             
             # Step 2: Scheduling and executing transfer tasks
-            print("\nStep 2: Scheduling and executing transfer tasks...")
+            step_prefix = f"{display_context} Extract: " if display_context else ""
+            print(f"\n{step_prefix}Step 2: Scheduling and executing transfer tasks...")
             
             # Scheduling: 根据来源构建task_list
             if progress_id:
@@ -671,7 +675,8 @@ fi
             
             while verification_attempt < max_verification_retries:
                 verification_attempt += 1
-                print(f"\nStep 3: Verifying transfer results... (attempt {verification_attempt}/{max_verification_retries})")
+                step_prefix = f"{display_context} Extract: " if display_context else ""
+                print(f"\n{step_prefix}Step 3: Verifying transfer results... (attempt {verification_attempt}/{max_verification_retries})")
                 verification_result = self._verify_transfer_results(content_dir, target_root, total_files)
                 
                 if verification_result["success"]:
