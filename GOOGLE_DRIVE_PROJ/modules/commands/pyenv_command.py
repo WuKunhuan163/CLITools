@@ -308,7 +308,11 @@ class PyenvCommand(BaseCommand):
                 print(f"Progress ID: {progress_id_display}")
                 print(f"Resume with: GDS pyenv --install --progress-id {progress_id_display}")
             
-            # 定义6个安装步骤
+            # 定义7个安装步骤
+            archive_name = f"transfer_python_install_{version}_{temp_hash}"
+            archive_path_tmp = f"/tmp/{archive_name}.tar.gz"
+            archive_path_final = f"{final_install_path}/{archive_name}.tar.gz"
+            
             steps = [
                 {
                     "num": 1,
@@ -319,7 +323,7 @@ class PyenvCommand(BaseCommand):
                 },
                 {
                     "num": 2,
-                    "name": "Extract",
+                    "name": "Extract Source",
                     "description": f"Extracting Python {version} source",
                     "fingerprint": f"{fingerprint_base}_step2_extract_ok",
                     "command": f"cd {build_dir} && echo 'Extracting...' && rm -rf Python-{version} && tar -xzf Python-{version}.tgz && [ -d Python-{version} ] && echo 'Extract completed' && touch {fingerprint_base}_step2_extract_ok"
@@ -347,14 +351,26 @@ class PyenvCommand(BaseCommand):
                 },
                 {
                     "num": 6,
-                    "name": "Transfer",
-                    "description": f"Batch transferring Python {version} to Google Drive using parallel workers",
-                    "fingerprint": f"{fingerprint_base}_step6_transfer_ok",
-                    "type": "batch_transfer",  # 特殊步骤类型
+                    "name": "Pack & Move",
+                    "description": f"Creating archive and moving to Google Drive",
+                    "fingerprint": f"{fingerprint_base}_step6_pack_ok",
+                    "type": "pack_and_move",  # 新的特殊步骤类型
                     "source": temp_install_path,
+                    "archive_tmp": archive_path_tmp,
+                    "archive_final": archive_path_final,
+                    "version": version
+                },
+                {
+                    "num": 7,
+                    "name": "Extract",
+                    "description": f"Extracting Python {version} with parallel workers (batch=1000)",
+                    "fingerprint": f"{fingerprint_base}_step7_extract_ok",
+                    "type": "extract_transfer",  # 新的特殊步骤类型
+                    "archive_path": archive_path_final,
                     "target": final_install_path,
                     "transfer_batch": 1000,
-                    "version": version
+                    "version": version,
+                    "progress_id_base": f"pyenv_install_{version}_{temp_hash}"
                 }
             ]
             
@@ -460,24 +476,24 @@ class PyenvCommand(BaseCommand):
                             time.sleep(3)
                         print(f"\nExecuting step {step_num}...")
                         
-                        # 检查是否为特殊的batch_transfer步骤
-                        if step.get('type') == 'batch_transfer':
+                        # 检查是否为特殊的pack_and_move步骤（Step 6）
+                        if step.get('type') == 'pack_and_move':
                             # 检查源文件和build状态（validation）
-                            print(f"Validating transfer prerequisites...")
+                            print(f"Validating source directory...")
                             validation_cmd = f"""
 if [ ! -d '{step['source']}' ]; then
     # Source不存在，检查build_dir状态
     if [ ! -d '{build_dir}/Python-{version}' ]; then
         if [ -f '{build_dir}/Python-{version}.tgz' ]; then
             echo 'ROLLBACK:step2'
-            rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+            rm -f {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_* {fingerprint_base}_step7_*
         else
             echo 'ROLLBACK:step1'
-            rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+            rm -f {fingerprint_base}_step1_* {fingerprint_base}_step2_* {fingerprint_base}_step3_* {fingerprint_base}_step4_* {fingerprint_base}_step5_* {fingerprint_base}_step6_* {fingerprint_base}_step7_*
         fi
     else
         echo 'ROLLBACK:step5'
-        rm -f {fingerprint_base}_step5_* {fingerprint_base}_step6_*
+        rm -f {fingerprint_base}_step5_* {fingerprint_base}_step6_* {fingerprint_base}_step7_*
     fi
     exit 99
 fi
@@ -501,46 +517,110 @@ echo 'source_ok'
                                 
                                 if check_exit == 99:
                                     if 'ROLLBACK:step1' in check_stdout:
-                                        print("Validation failed: Rolling back to Step 1 (Download)")
+                                        print("⚠️  Validation failed: Rolling back to Step 1 (Download)")
                                         current_step = 0
                                         step_success = True
                                         break
                                     elif 'ROLLBACK:step2' in check_stdout:
-                                        print("Validation failed: Rolling back to Step 2 (Extract)")
+                                        print("⚠️  Validation failed: Rolling back to Step 2 (Extract Source)")
                                         current_step = 1
                                         step_success = True
                                         break
                                     elif 'ROLLBACK:step5' in check_stdout:
-                                        print("Validation failed: Rolling back to Step 5 (Install)")
+                                        print("⚠️  Validation failed: Rolling back to Step 5 (Install)")
                                         current_step = 4
                                         step_success = True
                                         break
                             
-                            # 调用extract命令的transfer_directory方法
+                            # Pack and Move (不包括extract)
+                            print(f"Creating archive...")
+                            pack_cmd = f"cd {step['source']} && tar -czf {step['archive_tmp']} ."
+                            
+                            if hasattr(self.shell, 'command_executor'):
+                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                self.shell.command_executor._raw_command = True
+                                pack_result = self.shell.command_executor.execute_command_interface(
+                                    cmd=pack_cmd, capture_result=False)
+                                self.shell.command_executor._raw_command = old_raw
+                                
+                                if not pack_result.get("success"):
+                                    print(f"✗ Pack failed")
+                                    retry_count += 1
+                                    continue
+                            
+                            print(f"Moving to Google Drive...")
+                            # Move archive到最终位置的parent目录
+                            import os
+                            target_parent = os.path.dirname(step['archive_final'])
+                            move_cmd = f"mkdir -p {target_parent} && mv {step['archive_tmp']} {step['archive_final']}"
+                            
+                            if hasattr(self.shell, 'command_executor'):
+                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                self.shell.command_executor._raw_command = True
+                                move_result = self.shell.command_executor.execute_command_interface(
+                                    cmd=move_cmd, capture_result=False)
+                                self.shell.command_executor._raw_command = old_raw
+                                
+                                if not move_result.get("success"):
+                                    print(f"✗ Move failed")
+                                    retry_count += 1
+                                    continue
+                            
+                            print(f"✓ Archive created and moved")
+                            step_success = True
+                        
+                        # 检查是否为extract_transfer步骤（Step 7）
+                        elif step.get('type') == 'extract_transfer':
+                            # 验证archive是否存在
+                            print(f"Validating archive...")
+                            archive_check_cmd = f"[ -f '{step['archive_path']}' ] && echo 'archive_exists' || echo 'archive_missing'"
+                            
+                            if hasattr(self.shell, 'command_executor'):
+                                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                                self.shell.command_executor._raw_command = True
+                                archive_result = self.shell.command_executor.execute_command_interface(
+                                    cmd=archive_check_cmd, capture_result=True)
+                                self.shell.command_executor._raw_command = old_raw
+                                
+                                archive_status = archive_result.get('stdout', '') or archive_result.get('data', {}).get('stdout', '')
+                                if 'archive_missing' in str(archive_status):
+                                    print(f"⚠️  Archive missing: {step['archive_path']}")
+                                    print(f"⚠️  Rolling back to Step 6 (Pack & Move)")
+                                    # 清理Step 6-7指纹
+                                    clean_cmd = f"rm -f {fingerprint_base}_step6_* {fingerprint_base}_step7_*"
+                                    self.shell.command_executor._raw_command = True
+                                    self.shell.command_executor.execute_command_interface(cmd=clean_cmd, capture_result=False)
+                                    self.shell.command_executor._raw_command = old_raw
+                                    current_step = 5  # 回到Step 6
+                                    step_success = True
+                                    break
+                            
+                            # 调用extract命令（传递progress-id和display_context）
                             from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
                             extract_cmd = ExtractCommand(self.main_instance)
                             
                             try:
-                                result = extract_cmd.transfer_directory(
-                                    source_dir=step['source'],
-                                    target_dir=step['target'],
+                                # 生成extract的progress-id
+                                extract_progress_id = f"{step['progress_id_base']}_extract"
+                                
+                                result = extract_cmd.execute(
+                                    step['archive_path'],
+                                    target=step['target'],
                                     transfer_batch=step.get('transfer_batch', 1000),
-                                    quiet=False  # 开放式执行，显示transfer过程
+                                    progress_id=extract_progress_id,
+                                    display_context="pyenv install"  # 改变步骤显示风格
                                 )
                             except KeyboardInterrupt:
-                                # transfer_directory中的Ctrl+C，直接向上传递（已经print过了）
                                 raise
                             
-                            # 检查transfer结果
-                            if not result.get("success"):
+                            # 检查extract结果
+                            if isinstance(result, dict) and not result.get("success"):
                                 error_msg = result.get('error', 'Unknown error')
-                                print(f"Transfer failed: {error_msg}")
+                                print(f"✗ Extract failed: {error_msg}")
                                 
-                                # 检查是否是Ctrl+C导致的失败（不应该到这里，KeyboardInterrupt应该已经抛出）
                                 if 'Ctrl+C' in error_msg or 'interrupted by user' in error_msg.lower():
                                     raise KeyboardInterrupt()
                                 
-                                # 如果有task_id，尝试用progress-id重试
                                 task_id = result.get('task_id')
                                 if task_id and retry_count < max_retries:
                                     print(f"Retrying with progress-id: {task_id}")
@@ -669,8 +749,8 @@ fi
                                         step_success = True
                                         break
                         
-                        # 对于batch_transfer步骤，手动创建指纹文件
-                        if step.get('type') == 'batch_transfer':
+                        # 对于pack_and_move和extract_transfer步骤，手动创建指纹文件
+                        if step.get('type') in ['pack_and_move', 'extract_transfer']:
                             create_fingerprint_cmd = f"touch {step['fingerprint']}"
                             
                             if hasattr(self.shell, 'command_executor'):
