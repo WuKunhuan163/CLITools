@@ -1135,8 +1135,8 @@ fi
             print(f"Starting new installation with progress ID: {progress_id}")
         
         try:
-            # 定义路径
-            remote_tmp_path = f"{self.shell.REMOTE_ENV}/tmp/python_download_local_{version}_{temp_hash}"
+            # 定义路径（使用/tmp避免在Google Drive上extract）
+            remote_tmp_path = f"/tmp/python_download_local_{version}_{temp_hash}"
             temp_install_path = f"/tmp/python_install_{version}_{temp_hash}"
             final_install_path = f"{self.shell.REMOTE_ENV}/python/{version}"
             fingerprint_base = f"~/tmp/pyenv_install_local_{version}_{temp_hash}"
@@ -1187,19 +1187,19 @@ fi
                     file_size_mb = os.path.getsize(tarball_path) / (1024 * 1024)
                     print(f"✓ Downloaded {tarball_name} ({file_size_mb:.1f} MB)")
                     
-                    print(f"Uploading source code to remote REMOTE_ENV...")
+                    print(f"Uploading source code to remote /tmp...")
                     
-                    # 创建远程目录
-                    mkdir_result = self.shell.cmd_mkdir(remote_tmp_path, recursive=True)
-                    if not mkdir_result.get("success"):
-                        import traceback
-                        call_stack = ''.join(traceback.format_stack()[-3:])
-                        return {
-                            "success": False,
-                            "error": f"Failed to create remote directory: {mkdir_result.get('error', f'Directory creation failed without specific error message. Call stack: {call_stack}')}"
-                        }
+                    # 创建远程/tmp目录（使用raw command）
+                    if hasattr(self.shell, 'command_executor'):
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        self.shell.command_executor.execute_command_interface(
+                            cmd=f"mkdir -p {remote_tmp_path}",
+                            capture_result=False
+                        )
+                        self.shell.command_executor._raw_command = old_raw
                     
-                        # 上传tar.gz文件到@路径
+                    # 上传tar.gz文件到/tmp
                     from ..commands.upload_command import UploadCommand
                     upload_cmd = UploadCommand(self.shell)
                     upload_result = upload_cmd.cmd_upload([tarball_path], target_path=remote_tmp_path)
