@@ -8,7 +8,7 @@
 - **Status**: ✅ Installed and tested
 - **Usage**: `GDS @/shell/zsh-install/bin/zsh -c 'command'`
 - **Test Result**: Working, but `@` placeholder in quoted strings is not expanded
-- **Code Translation**: ⚠️ **REQUIRED** - Need to map `zsh -c` to full binary path
+- **Code Translation**: **REQUIRED** - Need to map `zsh -c` to full binary path
 
 ### 2. Tcsh (TENEX C Shell) 6.24.13
 - **Binary Path**: `@/shell/tcsh-install/bin/tcsh`
@@ -16,7 +16,7 @@
 - **Status**: ✅ Installed and tested
 - **Usage**: `GDS @/shell/tcsh-install/bin/tcsh -c 'command'`
 - **Test Result**: Working, but `@` placeholder in quoted strings is not expanded
-- **Code Translation**: ⚠️ **REQUIRED** - Need to map `tcsh -c` to full binary path
+- **Code Translation**: **REQUIRED** - Need to map `tcsh -c` to full binary path
 
 ---
 
@@ -32,7 +32,7 @@
   2. Extract and build
   3. Install to `@/shell/fish-install`
   4. Add execute permissions
-- **Code Translation**: ⚠️ **REQUIRED** - Need to map `fish -c` to full binary path
+- **Code Translation**: **REQUIRED** - Need to map `fish -c` to full binary path
 
 ---
 
@@ -50,14 +50,14 @@
 - **Status**: ✅ System provided
 - **Usage**: `GDS dash -c 'command'`
 - **Test Result**: Not yet tested
-- **Code Translation**: ⚠️ **REQUIRED** - Need to add `dash -c` handler
+- **Code Translation**: **REQUIRED** - Need to add `dash -c` handler
 
 ### 6. Sh (Bourne Shell / POSIX Shell)
 - **Binary Path**: `/bin/sh` (usually symlink to dash or bash)
 - **Status**: ✅ System provided
 - **Usage**: `GDS sh -c 'command'`
 - **Test Result**: Not yet tested
-- **Code Translation**: ⚠️ **REQUIRED** - Need to add `sh -c` handler
+- **Code Translation**: **REQUIRED** - Need to add `sh -c` handler
 
 ---
 
@@ -77,13 +77,13 @@
 - **Description**: Traditional Unix shell with scripting features
 - **Availability**: Needs installation
 - **Priority**: Medium
-- **Code Translation**: ⚠️ Will require mapping `ksh -c` to binary path
+- **Code Translation**: Will require mapping `ksh -c` to binary path
 
 ### 9. Ash (Almquist Shell)
 - **Description**: Lightweight Bourne shell variant
 - **Availability**: May be system-provided or needs installation
 - **Priority**: Low
-- **Code Translation**: ⚠️ Will require mapping `ash -c` to binary path
+- **Code Translation**: Will require mapping `ash -c` to binary path
 
 ### 10. Elvish
 - **Description**: Modern shell with advanced features
@@ -120,7 +120,7 @@ GDS needs to:
 - `bash -c` → Uses system `/bin/bash`
 - Full path detection: `@/shell/xxx/bin/shell -c` → Automatically expands `@`
 
-#### ⚠️ **REQUIRED** (Not Yet Implemented):
+#### **REQUIRED** (Not Yet Implemented):
 - `zsh -c` → Should map to `@/shell/zsh-install/bin/zsh -c`
 - `tcsh -c` → Should map to `@/shell/tcsh-install/bin/tcsh -c`
 - `fish -c` → Should map to `@/shell/fish-install/bin/fish -c`

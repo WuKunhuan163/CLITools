@@ -77,7 +77,7 @@
 1. ✅ 在`/tmp`编译安装（224 MB，8477个文件）
 2. ✅ 压缩为`.tar.gz`
 3. ✅ 移动到Google Drive
-4. ⚠️ **在Google Drive解压** ← 中断点
+4. **在Google Drive解压** ← 中断点
 
 **问题**：
 - Google Drive FUSE对大量小文件的I/O性能较差
@@ -194,7 +194,7 @@ rsync -av --progress /tmp/python_install_X/ @/python/X/
 - **编译时间**: ~5-10分钟（取决于CPU）
 - **压缩时间**: ~1-2分钟（224 MB → ~80 MB）
 - **传输时间**: ~1-2分钟（上传到Google Drive）
-- **解压时间**: ⚠️ **未知**（中断点，可能需要5-15分钟）
+- **解压时间**: **未知**（中断点，可能需要5-15分钟）
 
 ---
 

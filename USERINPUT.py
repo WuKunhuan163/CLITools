@@ -466,9 +466,9 @@ def copy_to_clipboard(text):
                 if clipboard_text == text:
                     pass  # print("[DEBUG] ✅ 验证成功：剪贴板内容完全匹配")
                 else:
-                    pass  # print(f"[DEBUG] ⚠️ 验证失败：剪贴板有 {len(clipboard_text)} 字符，预期 {len(text)} 字符")
+                    pass  # print(f"[DEBUG] 验证失败：剪贴板有 {len(clipboard_text)} 字符，预期 {len(text)} 字符")
             except Exception as verify_error:
-                pass  # print(f"[DEBUG] ⚠️ 验证出错: {verify_error}")
+                pass  # print(f"[DEBUG] 验证出错: {verify_error}")
             
             return True
             
@@ -488,7 +488,7 @@ def copy_to_clipboard(text):
                     # print(f"[DEBUG] ✅ 已使用xsel复制 {len(text)} 个字符到剪贴板")
                     return True
                 except FileNotFoundError:
-                    # print("[DEBUG] ⚠️ 未找到xclip或xsel，尝试使用tkinter")
+                    # print("[DEBUG] 未找到xclip或xsel，尝试使用tkinter")
                     return _copy_to_clipboard_tkinter(text)
                     
         elif system == "Windows":
@@ -499,7 +499,7 @@ def copy_to_clipboard(text):
             return True
         else:
             # 未知系统，回退到tkinter
-            # print(f"[DEBUG] ⚠️ 未知系统 {system}，使用tkinter")
+            # print(f"[DEBUG] 未知系统 {system}，使用tkinter")
             return _copy_to_clipboard_tkinter(text)
             
     except Exception as e:
@@ -659,7 +659,7 @@ def main():
     
     # IGNOREEOF 现在由 USERINPUT shell 脚本自动设置
     # 设置超时覆盖（如果有的话）
-    timeout_hint = "\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+    timeout_hint = "\n\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
     end_hint = "\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
     if timeout_override is not None:
         get_user_input_via_terminal._timeout_override = timeout_override
