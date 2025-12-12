@@ -698,7 +698,7 @@ Status: Tokenizer Error
 
 ---
 
-## ⚠️ Tokenizer Error
+## Tokenizer Error
 
 The UnimerNet tokenizer failed to load properly. This is a known compatibility issue with the current tokenizer version.
 
@@ -1680,7 +1680,7 @@ Formula recognition is currently unavailable.
                 return "\n".join(error_details)
             else:
                 # Fallback: return the stderr output as is, but clean it up
-                clean_stderr = stderr_output.replace('⚠️ 警告: ', '').strip()
+                clean_stderr = stderr_output.replace('警告: ', '').strip()
                 return clean_stderr if clean_stderr else "Unknown error"
                 
         except Exception as e:

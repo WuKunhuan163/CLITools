@@ -689,7 +689,7 @@ Status: Tokenizer Error
 
 ---
 
-## ⚠️ Tokenizer Error
+## Tokenizer Error
 
 The UnimerNet tokenizer failed to load properly. This is a known compatibility issue with the current tokenizer version.
 
