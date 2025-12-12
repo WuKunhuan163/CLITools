@@ -547,7 +547,7 @@ fi
                             print(f"  Tmp dir: {tmp_extract_dir}")
                             print(f"  Cannot resume task without source files")
                             return 1
-
+                        
                         if remaining_count == 0:
                             print("Task already completed, all files transferred")
                             return 0
@@ -778,9 +778,149 @@ fi
         max_attempts = 2  # 每个任务最多尝试2次（1次重试）
         
         def start_worker(task_idx, task, task_id=None):
-            """启动一个worker执行任务"""
-            # 构造任务命令（执行batch_copy）
-            if task["type"] == "batch_copy":
+            """启动一个worker执行任务
+            
+            支持两种任务类型：
+            - folder_copy: 整个文件夹复制（适用于小文件夹，总文件数 <= batch_size）
+            - batch_copy: 批量文件复制（原有逻辑）
+            """
+            # 处理folder_copy类型（新增）
+            if task["type"] == "folder_copy":
+                # 整个文件夹复制
+                folder_path = task["path"]
+                source_dir = task["source_dir"]
+                target_dir = task["target_dir"]
+                fingerprint = task["fingerprint"]
+                total_files = task.get("total_files", 0)
+                
+                # 构建源路径和目标路径
+                source_full_path = os.path.join(source_dir, folder_path) if folder_path != '.' else source_dir
+                target_full_path = os.path.join(target_dir, folder_path) if folder_path != '.' else target_dir
+                
+                cmd_parts = []
+                
+                # 创建目标父目录
+                target_parent = os.path.dirname(target_full_path)
+                if target_parent:
+                    cmd_parts.append(f"mkdir -p '{target_parent}'")
+                
+                # 复制整个文件夹
+                # 注意：cp -r会创建target_full_path，如果已存在会复制到其内部
+                # 所以需要特殊处理
+                if folder_path == '.':
+                    # 根目录，复制所有内容到target
+                    cmd_parts.append(f"mkdir -p '{target_full_path}'")
+                    cmd_parts.append(f"cp -r '{source_full_path}'/. '{target_full_path}/'")
+                else:
+                    # 子文件夹，直接cp -r
+                    cmd_parts.append(f"cp -r '{source_full_path}' '{target_full_path}'")
+                
+                # 收集文件夹内所有文件（用于指纹更新）
+                collect_files_script = f'''
+files_in_folder=$(cd '{source_full_path}' && find . -type f -print)
+files_list=""
+for f in $files_in_folder; do
+    if [ -n "${{files_list}}" ]; then
+        files_list="${{files_list}}, "
+    fi
+    # 添加文件夹路径前缀
+    if [ "{folder_path}" = "." ]; then
+        files_list="${{files_list}}\\"$f\\""
+    else
+        files_list="${{files_list}}\\"{{folder_path}}/$f\\""
+    fi
+done
+files_list="[${{files_list}}]"
+'''
+                cmd_parts.append(collect_files_script)
+                
+                # 智能更新指纹文件
+                if task_id:
+                    fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{task_id}.json"
+                    task_fingerprint = fingerprint
+                    task_archive_path = task.get("archive_path", "")
+                    archive_path_json = json.dumps(task_archive_path)
+                    
+                    update_script = f'''python3 << 'UPDATE_EOF'
+import json
+import os
+from datetime import datetime
+
+fingerprint_path = "{fingerprint_path}"
+task_fingerprint = "{task_fingerprint}"
+archive_path = {archive_path_json}
+
+# 从bash传入的files_list
+import sys
+files_list_str = "${{files_list}}"
+try:
+    completed_files = json.loads(files_list_str)
+except:
+    completed_files = []
+
+# 读取或创建指纹文件
+if os.path.exists(fingerprint_path):
+    try:
+        with open(fingerprint_path, 'r') as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"Warning: Fingerprint corrupted: {{e}}")
+        data = {{
+            "progress_id": "{task_id}",
+            "archive_path": archive_path,
+            "task_id": "{task_id}",
+            "remaining_files": [],
+            "completed_files": [],
+            "created_at": datetime.now().isoformat()
+        }}
+else:
+    print("Warning: Main fingerprint not found")
+    data = {{
+        "progress_id": "{task_id}",
+        "archive_path": archive_path,
+        "task_id": "{task_id}",
+        "remaining_files": [],
+        "completed_files": [],
+        "created_at": datetime.now().isoformat()
+    }}
+
+# 更新已完成的文件
+for file in completed_files:
+    if file in data.get("remaining_files", []):
+        data["remaining_files"].remove(file)
+    if file not in data.get("completed_files", []):
+        data["completed_files"].append(file)
+
+data["updated_at"] = datetime.now().isoformat()
+
+# 保存
+try:
+    with open(fingerprint_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    # 任务标记
+    os.makedirs(os.path.dirname(task_fingerprint), exist_ok=True)
+    with open(task_fingerprint, 'w') as f:
+        f.write(datetime.now().isoformat())
+    
+    print(f"Folder copied: {total_files} files")
+except Exception as e:
+    print(f"Failed to update fingerprint: {{e}}")
+    exit(1)
+UPDATE_EOF
+'''
+                    cmd_parts.append(update_script)
+                
+                # 完成标记
+                fingerprint_dir = os.path.dirname(fingerprint)
+                cmd_parts.append(f"mkdir -p '{fingerprint_dir}'")
+                cmd_parts.append(f"echo 'completed' > '{fingerprint}'")
+                
+                cmd = "\n".join(cmd_parts)
+                files_count = total_files
+            
+            # 处理batch_copy类型（原有逻辑）
+            elif task["type"] == "batch_copy":
                 # 构造批量复制命令
                 files = task["files"]
                 target_dir = task["target_dir"]
@@ -934,7 +1074,12 @@ UPDATE_EOF
                         task_attempts[task_idx] = attempt
                         
                         # 构建任务描述
-                        if task["type"] == "batch_copy":
+                        if task["type"] == "folder_copy":
+                            folder_path = task.get('path', '.')
+                            total_files = task.get('total_files', 0)
+                            folder_name = os.path.basename(folder_path) if folder_path != '.' else '.'
+                            task_desc = f"Copy folder {folder_name} ({total_files} files)"
+                        elif task["type"] == "batch_copy":
                             src_files = task.get('files', [])
                             num_files = len(src_files)
                             if src_files and num_files > 0:
@@ -1577,29 +1722,61 @@ echo "→ Generating schedule..."
 cd "$CONTENT_DIR" && python3 << 'EOF'
 import os, json
 
-# find sort收集文件
-files = []
-for root, dirs, fnames in os.walk('.'):
-    for f in fnames:
-        p = os.path.normpath(os.path.join(root, f))
-        files.append(p)
-files.sort()
+def count_files_recursive(dir_path):
+    '''递归统计目录及子目录中的文件总数'''
+    count = 0
+    try:
+        for item in os.listdir(dir_path):
+            item_path = os.path.join(dir_path, item)
+            if os.path.isfile(item_path):
+                count += 1
+            elif os.path.isdir(item_path):
+                count += count_files_recursive(item_path)
+    except:
+        pass
+    return count
 
-# 线性扫描分组
-batch_size = {batch_size}
+def recursive_schedule(dir_path, batch_size, base_dir='.'):
+    '''递归调度算法B
+    
+    规则：
+    1. 如果文件夹（含子文件夹）总文件数 <= batch_size，直接cp整个文件夹
+    2. 否则递归拆解：
+       - 对每个子文件夹，递归使用本算法
+       - 对当前层的文件，按batch_size分组传输
+    '''
+    total_files = count_files_recursive(dir_path)
+    rel_path = os.path.relpath(dir_path, base_dir) if dir_path != base_dir else '.'
+    
+    if total_files <= batch_size:
+        # 情况1：小文件夹，创建一个task直接cp整个文件夹
+        return [{{"type": "folder_copy", "path": rel_path, "total_files": total_files}}]
+    else:
+        # 情况2：大文件夹，递归拆解
 tasks = []
-i = 0
-
-while i < len(files):
-    batch = []
-    cur_dir = os.path.dirname(files[i])
-    
-    while i < len(files) and len(batch) < batch_size:
-        if os.path.dirname(files[i]) != cur_dir:
-            break
-        batch.append(files[i])
-        i += 1
-    
+        
+        # (a) 收集当前层的子文件夹和文件
+        subdirs = []
+        current_files = []
+        try:
+            for item in sorted(os.listdir(dir_path)):
+                item_path = os.path.join(dir_path, item)
+                if os.path.isdir(item_path):
+                    subdirs.append(item_path)
+                elif os.path.isfile(item_path):
+                    # 保存相对路径
+                    rel_file_path = os.path.relpath(item_path, base_dir)
+                    current_files.append(rel_file_path)
+        except Exception as e:
+            print(f"Warning: Failed to list {{dir_path}}: {{e}}", file=__import__('sys').stderr)
+        
+        # (b) 对每个子文件夹，递归调度
+        for subdir in subdirs:
+            tasks.extend(recursive_schedule(subdir, batch_size, base_dir))
+        
+        # (c) 对当前层的文件，按batch_size分组
+        for i in range(0, len(current_files), batch_size):
+            batch = current_files[i:i+batch_size]
     if batch:
         tasks.append({{"task_id": len(tasks), "files": batch}})
 
@@ -1609,7 +1786,7 @@ fingerprint_data = {{
     "progress_id": "{task_id}",
     "archive_path": "{archive_path}",
     "task_id": "{task_id}",
-    "remaining_files": [os.path.join(os.getcwd(), f) for f in files],
+    "remaining_files": [os.path.join(os.getcwd(), f) for f in all_files],
     "completed_files": [],
     "created_at": __import__('datetime').datetime.now().isoformat()
 }}
@@ -1631,7 +1808,7 @@ print("---JSON---")
 print(json.dumps({{
     "task_id": "{task_id}",
     "content_dir": os.getcwd(),
-    "total_files": len(files),
+    "total_files": len(all_files),
     "total_tasks": len(tasks),
     "tasks": tasks,
     "target_root": "{target_root}",
@@ -1684,7 +1861,7 @@ echo 'Completed'
                 for line in stdout.split('\n'):
                     if "Archive file not found" in line:
                         return {"success": False, "error": line.strip()}
-
+            
             try:
                 json_start = stdout.find('---JSON---')
                 json_end = stdout.find('---END---')

@@ -391,7 +391,8 @@ print(f"JSON file updated successfully")
             # 其他命令直接执行
             # 构建pip命令
             import time
-            pip_success_fingerprint = f"~/tmp/pip_{current_env or 'system'}_{int(time.time())}.success"
+            # 使用完整绝对路径，避免在raw command模式下~被远端翻译成/root
+            pip_success_fingerprint = f"{self.shell.REMOTE_ROOT}/tmp/pip_{current_env or 'system'}_{int(time.time())}.success"
             
             pip_target_option = ""
             if current_env:
@@ -448,7 +449,12 @@ print(f"JSON file updated successfully")
             return {"success": False, "error": f"pip命令执行失败: {str(e)}"}
     
     def _pip_install_with_transfer(self, pip_command, current_env, transfer_batch=1000):
-        """pip install使用智能transfer策略（根据文件数选择tar或worker）"""
+        """pip install使用智能transfer策略（根据文件数选择tar或worker）
+        
+        优化策略：
+        - 对于小包（文件数 <= batch）：单窗口完成所有步骤（install→count→pack→move→extract→cleanup）
+        - 对于大包（文件数 > batch）：使用worker并行传输
+        """
         try:
             import time
             import hashlib
@@ -458,55 +464,65 @@ print(f"JSON file updated successfully")
             temp_id = hashlib.md5(f"{current_env}_{timestamp}".encode()).hexdigest()[:8]
             temp_install_dir = f"/tmp/pip_install_{temp_id}"
             final_venv_dir = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
-            print(f"Installing packages...")
             
-            # Step 1: pip install到/tmp（实时显示）
-            install_cmd = f"mkdir -p {temp_install_dir} && pip {pip_command} --target {temp_install_dir}"
-            if hasattr(self.shell, 'command_executor'):
-                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                self.shell.command_executor._raw_command = True
-                
-                install_result = self.shell.command_executor.execute_command_interface(
-                    cmd=install_cmd,
-                    capture_result=False  # 实时显示
-                )
-                
-                self.shell.command_executor._raw_command = old_raw
-                
-                if not install_result.get("success"):
-                    return {"success": False, "error": "pip install to /tmp failed"}
-            
+            print(f"Installing and counting files...")
             print("-" * 70)
-            print(f"Download completed. Counting files...")
             
-            # Step 2: 统计文件数（包括子目录）
-            count_cmd = f"find {temp_install_dir} -type f | wc -l"
+            # Step 1: 合并install、count、pack、move（单窗口完成）
+            # 对于大包，在同一窗口完成打包和移动，Python只处理解压
+            archive_name = f"pip_packages_{temp_id}.tar.gz"
+            archive_path_tmp = f"/tmp/{archive_name}"
+            archive_path_final = f"{final_venv_dir}/{archive_name}"
+            
+            unified_cmd = f"""
+mkdir -p {temp_install_dir} && \
+pip {pip_command} --target {temp_install_dir} && \
+echo "" && \
+echo "Download completed. Counting files..." && \
+file_count=$(find {temp_install_dir} -type f | wc -l) && \
+echo "Total files: $file_count (batch size: {transfer_batch})" && \
+if [ $file_count -le {transfer_batch} ]; then
+    echo "Using tar strategy (files <= {transfer_batch})" && \
+    echo "Transferring..." && \
+    cd {temp_install_dir} && \
+    tar -czf {archive_path_tmp} . && \
+    mkdir -p {final_venv_dir} && \
+    cd {final_venv_dir} && \
+    tar -xzf {archive_path_tmp} && \
+    echo "Packages transferred successfully" && \
+    rm -f {archive_path_tmp} && \
+    rm -rf {temp_install_dir} && \
+    echo "__TRANSFER_COMPLETE__"
+else
+    echo "Using worker strategy (files > {transfer_batch})" && \
+    echo "Creating archive and moving to Google Drive..." && \
+    cd {temp_install_dir} && \
+    tar -czf {archive_path_tmp} . && \
+    mkdir -p {final_venv_dir} && \
+    mv {archive_path_tmp} {archive_path_final} && \
+    rm -rf {temp_install_dir} && \
+    echo "Archive created and moved successfully" && \
+    echo "__NEED_WORKER_EXTRACT__:$file_count:{archive_path_final}"
+fi
+"""
+            
             if hasattr(self.shell, 'command_executor'):
                 old_raw = getattr(self.shell.command_executor, '_raw_command', False)
                 self.shell.command_executor._raw_command = True
                 
-                count_result = self.shell.command_executor.execute_command_interface(
-                    cmd=count_cmd,
-                    capture_result=True  # 需要读取结果
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=unified_cmd.strip(),
+                    capture_result=True  # 需要检查是否需要worker
                 )
                 
                 self.shell.command_executor._raw_command = old_raw
                 
-                file_count = 0
-                if count_result.get("success"):
-                    count_stdout = count_result.get('stdout', '') or count_result.get('data', {}).get('stdout', '')
-                    try:
-                        file_count = int(str(count_stdout).strip())
-                        print(f"Total files: {file_count} (batch size: {transfer_batch})")
-                    except ValueError:
-                        print(f"Failed to parse file count, using worker strategy")
-                        file_count = transfer_batch + 1  # 强制使用worker
-            
-            # Step 3: 根据文件数选择transfer策略
-            if file_count <= transfer_batch:
-                # 小包：简单tar策略（一次性转移所有文件和文件夹）
-                print(f"Using simple tar strategy (files <= {transfer_batch})")
-                print("Transferring...")
+                if not result.get("success"):
+                    return {"success": False, "error": "pip install failed"}
+                
+                # 检查输出，判断是否需要worker传输
+                stdout = result.get('stdout', '') or result.get('data', {}).get('stdout', '')
+                stdout_str = str(stdout)
                 
                 tar_cmd = f"""
 cd {temp_install_dir} && \
