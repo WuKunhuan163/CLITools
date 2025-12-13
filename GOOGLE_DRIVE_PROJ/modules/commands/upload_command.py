@@ -1364,8 +1364,10 @@ except Exception as e:
         
         try:
             # 运行subprocess
+            # 使用PYTHON_PROJ中的Python而不是系统Python
+            python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
             process = subprocess.run([
-                "/usr/bin/python3", "-c", subprocess_script
+                python_exec, "-c", subprocess_script
             ], capture_output=True, text=True, timeout=300)
             
             # 根据返回码判断结果

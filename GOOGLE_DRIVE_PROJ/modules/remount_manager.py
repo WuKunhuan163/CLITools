@@ -740,8 +740,10 @@ except Exception as e:
 '''
         
     # 运行subprocess窗口，暂时不抑制stderr用于调试
+    # 使用PYTHON_PROJ中的Python而不是系统Python
+    python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
     result = subprocess.run(
-        ['python3', '-c', subprocess_script],
+        [python_exec, '-c', subprocess_script],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,  # 抑制stderr输出
         text=True,

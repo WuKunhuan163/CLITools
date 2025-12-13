@@ -527,10 +527,8 @@ else:
 '''
             
             # 使用subprocess运行tkinter，抑制IMK消息
-            # 使用PYTHON_PROJ中的Python而不是系统Python
-            python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
             result = subprocess.run(
-                [python_exec, '-c', tkinter_script],
+                [sys.executable, '-c', tkinter_script],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,  # 抑制IMK消息
                 text=True,
