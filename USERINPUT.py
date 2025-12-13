@@ -84,13 +84,19 @@ def get_enhanced_session_info():
     
     return info
 
-def get_cursor_session_title():
+def get_cursor_session_title(custom_id=None):
     """获取Cursor session标题"""
     try:
         project_name, _, _ = get_project_name()
-        return f"{project_name} - Agent Mode"
+        base_title = f"{project_name} - Agent Mode"
+        if custom_id:
+            return f"{base_title} [{custom_id}]"
+        return base_title
     except:
-        return "Agent Mode"
+        base_title = "Agent Mode"
+        if custom_id:
+            return f"{base_title} [{custom_id}]"
+        return base_title
 
 class TkinterInputWindow:
     def __init__(self, title=None, timeout=180, window_id=None):
@@ -553,16 +559,32 @@ def main():
     """主函数"""
     # 解析命令行参数
     timeout = 180
-    if len(sys.argv) > 1:
-        try:
-            if sys.argv[1] == '--timeout' and len(sys.argv) > 2:
-                timeout = int(sys.argv[2])
-        except ValueError:
-            pass
+    custom_id = None
+    
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == '--timeout' and i + 1 < len(sys.argv):
+            try:
+                timeout = int(sys.argv[i + 1])
+                i += 2
+            except ValueError:
+                print("Error: --timeout requires a numeric value")
+                return 1
+        elif sys.argv[i] == '--id' and i + 1 < len(sys.argv):
+            custom_id = sys.argv[i + 1]
+            i += 2
+        elif sys.argv[i] in ['--help', '-h']:
+            print("Usage: USERINPUT [--timeout SECONDS] [--id CUSTOM_ID]")
+            print("  --timeout SECONDS  Set timeout in seconds (default: 180)")
+            print("  --id CUSTOM_ID     Set custom ID for window title")
+            return 0
+        else:
+            print(f"Unknown argument: {sys.argv[i]}")
+            return 1
     
     # 获取用户输入
     result = get_user_input_tkinter(
-        title=get_cursor_session_title(),
+        title=get_cursor_session_title(custom_id),
         timeout=timeout,
         max_retries=3
     )
