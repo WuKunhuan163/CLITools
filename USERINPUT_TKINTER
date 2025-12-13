@@ -31,7 +31,7 @@ def get_cursor_session_title():
         cwd = os.getcwd()
         return f"Session-{os.path.basename(cwd)}"
     except:
-        return "USERINPUT - Agent Mode"
+        return "Agent Mode"
 
 class TkinterInputWindow:
     def __init__(self, title=None, timeout=180, window_id=None):
@@ -294,7 +294,7 @@ import platform
 
 class TkinterInputWindow:
     def __init__(self):
-        self.title = "{title or 'USERINPUT - Agent Mode'}"
+        self.title = "{title or 'Agent Mode'}"
         self.timeout = {timeout}
         self.window_id = "{window_id}"
         self.result = None
@@ -504,7 +504,7 @@ def main():
     
     # 获取用户输入
     result = get_user_input_tkinter(
-        title="USERINPUT - Agent Mode",
+        title="Agent Mode",
         timeout=timeout,
         max_retries=3
     )
