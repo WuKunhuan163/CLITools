@@ -35,7 +35,7 @@ from GOOGLE_DRIVE_PROJ.modules.commands.deps_command import DepsCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.pyenv_command import PyenvCommand
 from GOOGLE_DRIVE_PROJ.modules.commands.extract_command import ExtractCommand
 from GOOGLE_DRIVE_PROJ.modules.debug_logger import debug_log
-from GOOGLE_DRIVE_PROJ.modules.command_executor import clean_stderr_trailing_newlines
+from GOOGLE_DRIVE_PROJ.modules.command_executor import regularize_newlines
 
 
 class GoogleDriveShell:
@@ -828,12 +828,12 @@ class GoogleDriveShell:
                 stdout = data.get("stdout", "")
                 stderr = data.get("stderr", "")
                 if stdout:
-                    print(stdout, end="")
+                    print(regularize_newlines(stdout), end="")
                 if stderr:
                     if stdout and not stdout.endswith('\n'):
                         print()
                     import sys
-                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                    print(regularize_newlines(stderr), end="", file=sys.stderr)
                 
                 # 显示后台任务信息
                 print(f"Background task started with ID: {bg_pid}")
@@ -912,12 +912,12 @@ class GoogleDriveShell:
                     stdout = data.get("stdout", "").strip()
                     stderr = data.get("stderr", "").strip()
                     if stdout:
-                        print(stdout, end="")
+                        print(regularize_newlines(stdout), end="")
                     if stderr:
                         if stdout and not stdout.endswith('\n'):
                             print()
                         import sys
-                        print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                        print(regularize_newlines(stderr), end="", file=sys.stderr)
                     return 0
                 else:
                     error_msg = result.get('error', 'Unknown error')
@@ -1216,11 +1216,10 @@ class GoogleDriveShell:
                     error_msg = data.get('error', '')
                 
                 if not error_msg:
-                    # 不要隐藏真正的错误，让异常抛出来
                     error_msg = f'Command execution failed without specific error message. Result: {result}'
                 
                 import sys
-                print(clean_stderr_trailing_newlines(error_msg), end="", file=sys.stderr)
+                print(regularize_newlines(error_msg), end="", file=sys.stderr)
                 return 1
             
             data = result.get("data", {})
@@ -1229,12 +1228,12 @@ class GoogleDriveShell:
             stdout = data.get("stdout", "").strip()
             stderr = data.get("stderr", "").strip()
             if stdout:
-                print(stdout, end="")
+                print(regularize_newlines(stdout), end="")
             if stderr:
                 import sys
                 if stdout and not stdout.endswith('\n'):
                     print()
-                print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                print(regularize_newlines(stderr), end="", file=sys.stderr)
             return 0
         
         except KeyboardInterrupt:
@@ -1448,12 +1447,12 @@ fi
                 
                 # 统一在命令处理结束后打印输出
                 if stdout:
-                    print(stdout, end="")
+                    print(regularize_newlines(stdout), end="")
                 if stderr:
                     if stdout and not stdout.endswith('\n'):
                         print()
                     import sys
-                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                    print(regularize_newlines(stderr), end="", file=sys.stderr)
                 return 0
             else:
                 error_msg = result.get("error", "Failed to check status")
@@ -1476,12 +1475,12 @@ fi
                 stderr = data.get("stderr", "").strip()
                 
                 if stdout:
-                    print(stdout, end="")
+                    print(regularize_newlines(stdout), end="")
                 if stderr:
                     if stdout and not stdout.endswith('\n'):
                         print()
                     import sys
-                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                    print(regularize_newlines(stderr), end="", file=sys.stderr)
                 if (not stdout and not stderr):
                     print(f"Log file for task {bg_pid} is empty or task hasn't started producing output yet.")
                 
@@ -1714,12 +1713,12 @@ echo "Cleaned up $CLEANED completed background tasks"
                 
                 # 统一在命令处理结束后打印输出
                 if stdout:
-                    print(stdout, end="")
+                    print(regularize_newlines(stdout), end="")
                 if stderr:
                     if stdout and not stdout.endswith('\n'):
                         print()
                     import sys
-                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                    print(regularize_newlines(stderr), end="", file=sys.stderr)
                 return 0
             else:
                 error_msg = result.get("error", "Failed to cleanup")
@@ -1799,12 +1798,12 @@ fi
                 exit_code = data.get("exit_code", 0)
                 
                 if stdout:
-                    print(stdout, end="")
+                    print(regularize_newlines(stdout), end="")
                 if stderr:
                     if stdout and not stdout.endswith('\n'):
                         print()
                     import sys
-                    print(clean_stderr_trailing_newlines(stderr), end="", file=sys.stderr)
+                    print(regularize_newlines(stderr), end="", file=sys.stderr)
                 
                 # 检查shell脚本的退出码
                 if exit_code != 0:
@@ -1900,12 +1899,12 @@ fi
                             
                             # 显示后台任务的输出
                             if stdout_content:
-                                print(stdout_content, end="")
+                                print(regularize_newlines(stdout_content), end="")
                             if stderr_content:
                                 if stdout_content and not stdout_content.endswith('\n'):
                                     print()
                                 import sys
-                                print(clean_stderr_trailing_newlines(stderr_content), file=sys.stderr, end="")
+                                print(regularize_newlines(stderr_content), file=sys.stderr, end="")
                             
                             return exit_code
                         else:
@@ -1929,12 +1928,12 @@ fi
                         
                         # 显示后台任务的输出
                         if stdout_content:
-                            print(stdout_content, end="")
+                            print(regularize_newlines(stdout_content), end="")
                         if stderr_content:
                             if stdout_content and not stdout_content.endswith('\n'):
                                 print()
                             import sys
-                            print(clean_stderr_trailing_newlines(stderr_content), file=sys.stderr, end="")
+                            print(regularize_newlines(stderr_content), file=sys.stderr, end="")
                         
                         return exit_code
                         
