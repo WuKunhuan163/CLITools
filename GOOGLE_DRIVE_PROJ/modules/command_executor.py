@@ -1190,14 +1190,52 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         print(remote_command)
         print(f"=" * 20)  # 50个等号分割线
 
-        print(f"Please provide command execution result (multi-line input, press Ctrl+D to finish):")
-        print()
-
-        # 使用统一的多行输入方法，传递命令上下文
-        full_output = self.get_multiline_user_input(
-            prompt="Enter command output (press Ctrl+D when done):",
-            command_context=remote_command
-        )
+        # 直接使用USERINPUT GUI获取用户输入
+        try:
+            import sys
+            import os
+            
+            # 添加USERINPUT.py所在目录到Python路径
+            userinput_dir = '/Users/wukunhuan/.local/bin'
+            if userinput_dir not in sys.path:
+                sys.path.insert(0, userinput_dir)
+            
+            # 导入USERINPUT模块
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+            userinput_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(userinput_module)
+            
+            # 从remote_command中提取实际的用户命令
+            import re
+            user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
+            if user_command_match:
+                clean_context = user_command_match.group(1).strip()
+            else:
+                clean_context = "GDS command"
+            
+            # 构造窗口标题
+            project_name, _, _ = userinput_module.get_project_name()
+            title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
+            
+            # 直接调用get_user_input_tkinter函数
+            full_output = userinput_module.get_user_input_tkinter(
+                title=title,
+                timeout=180,
+                max_retries=3
+            )
+            
+            # 确保返回字符串
+            if full_output is None:
+                full_output = ""
+            
+            # 移除末尾的提示信息（如果存在）
+            if "任务完成后，执行终端命令" in full_output:
+                full_output = full_output.split("任务完成后，执行终端命令")[0].strip()
+                
+        except Exception as e:
+            print(f"USERINPUT interface failed: {e}")
+            full_output = f"Error: Unable to get user input via USERINPUT interface: {e}"
 
         # 检查是否成功获取到输出
         if full_output is None:
@@ -1309,16 +1347,16 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             str: 用户输入的多行内容
         """
         
-        print(f"[DEBUG] get_multiline_user_input called with:")
-        print(f"  - prompt: {prompt}")
-        print(f"  - timeout_seconds: {timeout_seconds}")
-        print(f"  - command_context: {command_context[:100] if command_context else None}...")
+        print(f"[DEBUG] get_multiline_user_input called!")
+        print(f"[DEBUG] prompt: {prompt}")
+        print(f"[DEBUG] command_context length: {len(command_context) if command_context else 0}")
         
         try:
             import sys
             import os
             
-            print(f"[DEBUG] Adding USERINPUT directory to Python path...")
+            print(f"[DEBUG] Starting USERINPUT integration...")
+            
             # 添加USERINPUT.py所在目录到Python路径
             userinput_dir = '/Users/wukunhuan/.local/bin'
             if userinput_dir not in sys.path:
@@ -1331,27 +1369,26 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             userinput_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(userinput_module)
             
-            # 构造窗口标题和ID
+            print(f"[DEBUG] USERINPUT module imported successfully")
+            
+            # 构造窗口标题
             title = None
-            custom_id = None
             if command_context:
                 # 清理命令上下文，只保留主要部分
                 clean_context = command_context.replace('GDS ', '').strip()
                 if len(clean_context) > 50:
                     clean_context = clean_context[:47] + "..."
-                custom_id = clean_context
                 # 获取项目名并添加自定义ID
                 project_name, _, _ = userinput_module.get_project_name()
                 title = f"{project_name} - Agent Mode [{clean_context}]"
-            
+                
             print(f"[DEBUG] Window title: {title}")
-            print(f"[DEBUG] Custom ID: {custom_id}")
             
             # 显示提示信息（在USERINPUT窗口之外）
             if prompt and not prompt_same_line:
                 print(prompt)
             
-            print(f"[DEBUG] Calling get_user_input_tkinter...")
+            print(f"[DEBUG] About to call get_user_input_tkinter...")
             # 直接调用get_user_input_tkinter函数
             user_input = userinput_module.get_user_input_tkinter(
                 title=title,
@@ -1359,22 +1396,22 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
                 max_retries=3
             )
             
-            print(f"[DEBUG] USERINPUT returned: {len(user_input) if user_input else 0} characters")
+            print(f"[DEBUG] get_user_input_tkinter returned: {user_input}")
+            print(f"[DEBUG] user_input type: {type(user_input)}")
+            print(f"[DEBUG] user_input length: {len(user_input) if user_input else 0}")
             
             if user_input:
                 # 移除末尾的提示信息（如果存在）
                 if "任务完成后，执行终端命令" in user_input:
                     user_input = user_input.split("任务完成后，执行终端命令")[0].strip()
-                    print(f"[DEBUG] Cleaned user input: {len(user_input)} characters")
-                
-                print(f"[DEBUG] Returning user input successfully")
+                print(f"[DEBUG] Returning cleaned user input: {len(user_input)} chars")
                 return user_input
             else:
-                print(f"[DEBUG] USERINPUT returned empty, returning empty string")
+                print(f"[DEBUG] No user input received, returning empty string")
                 return ""
                 
         except Exception as e:
-            print(f"[DEBUG] USERINPUT interface failed with exception: {e}")
+            print(f"[DEBUG] Exception in USERINPUT interface: {e}")
             import traceback
             traceback.print_exc()
             # 如果USERINPUT接口失败，返回错误信息
