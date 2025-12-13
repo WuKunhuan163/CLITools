@@ -1199,6 +1199,8 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
             if user_command_match:
                 clean_context = user_command_match.group(1).strip()
+                # 尝试恢复常见的引号格式
+                clean_context = clean_context.replace("'", '"')
             else:
                 clean_context = "GDS command"
             
@@ -1319,6 +1321,8 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
             if user_command_match:
                 clean_context = user_command_match.group(1).strip()
+                # 尝试恢复常见的引号格式
+                clean_context = clean_context.replace("'", '"')
             else:
                 clean_context = "GDS command"
             

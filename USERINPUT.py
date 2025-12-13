@@ -310,33 +310,9 @@ def get_user_input_tkinter(title=None, timeout=180, max_retries=3, hint_text=Non
     
     for attempt in range(max_retries):
         try:
-            # 直接创建TkinterInputWindow实例
-            window = TkinterInputWindow(title=title, timeout=timeout, hint_text=hint_text)
-            result = window.show_and_wait()
-            
-            if result:
-                # 移除末尾的提示信息（如果存在）
-                if "任务完成后，执行终端命令" in result:
-                    result = result.split("任务完成后，执行终端命令")[0].strip()
-                return result
-            else:
-                if attempt < max_retries - 1:
-                    time.sleep(2)
-                    
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(2)
-    
-    return None
-
-def get_user_input_tkinter_subprocess_backup(title=None, timeout=180, max_retries=3, hint_text=None):
-    """使用tkinter获取用户输入（通过subprocess抑制IMK消息）- 备用方法"""
-    
-    for attempt in range(max_retries):
-        try:
             # 先生成Window ID并打印（在subprocess之前！）
             window_id = f"win_{int(time.time())}_{random.randint(1000, 9999)}"
-            print(f"Window ID: {window_id}")
+            
             
             # 创建完整的tkinter脚本
             tkinter_script = f'''
@@ -367,7 +343,7 @@ class TkinterInputWindow:
     def create_window(self):
         try:
             self.root = tk.Tk()
-            self.root.title(f"{{self.title}} [{{self.window_id}}]")
+            self.root.title(f"{{self.title}}")
             self.root.geometry("450x250")
             self.root.attributes('-topmost', True)
             self.root.focus_force()
@@ -386,6 +362,11 @@ class TkinterInputWindow:
                 selectbackground="#007acc", relief=tk.FLAT, borderwidth=1
             )
             self.text_widget.pack(fill=tk.X, pady=(0, 15))
+            
+            # 插入提示文本（如果有的话）
+            hint_text = {repr(hint_text or '')}
+            if hint_text:
+                self.text_widget.insert(tk.END, hint_text)
             
             self.root.bind('<Configure>', self.on_window_resize)
             
@@ -542,13 +523,7 @@ else:
                 if user_result and user_result != "无法获取用户输入":
                     return user_result
             
-            if attempt < max_retries - 1:
-                time.sleep(2)
-                
-        except subprocess.TimeoutExpired:
-            if attempt < max_retries - 1:
-                time.sleep(2)
-        except Exception:
+        except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(2)
     
@@ -609,7 +584,7 @@ def main():
             pass
         
         # 清屏并输出
-        os.system("clear") if os.name == "posix" else os.system("cls")
+        # 不清屏，避免影响GDS直接反馈的显示
         print(final_result)
     else:
         print("无法获取用户输入")
