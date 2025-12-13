@@ -1215,7 +1215,9 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             if title and 'GDS:' in title:
                 # 提取GDS命令作为ID
                 gds_cmd = title.split('[GDS: ')[-1].rstrip(']')
-                cmd_args.extend(['--id', f'GDS: {gds_cmd}'])
+                # 简化ID，移除特殊字符
+                gds_cmd_safe = gds_cmd.replace("'", '').replace('"', '')
+                cmd_args.extend(['--id', f'GDS: {gds_cmd_safe}'])
             
             # 运行USERINPUT
             result = subprocess.run(
@@ -1335,7 +1337,9 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             if title and 'GDS:' in title:
                 # 提取GDS命令作为ID
                 gds_cmd = title.split('[GDS: ')[-1].rstrip(']')
-                cmd_args.extend(['--id', f'GDS: {gds_cmd}'])
+                # 简化ID，移除特殊字符
+                gds_cmd_safe = gds_cmd.replace("'", '').replace('"', '')
+                cmd_args.extend(['--id', f'GDS: {gds_cmd_safe}'])
             
             # 运行USERINPUT
             result = subprocess.run(
