@@ -975,10 +975,147 @@ class CommandExecutor:
                     
             elif window_result["action"] == "direct_feedback":
                 print()  # 换行
-                # 如果不捕获结果，不传递result_filename（避免等待结果文件）
-                filename_to_pass = None if not capture_result else result_filename
-                feedback_result = self.direct_feedback_interface(remote_command, filename_to_pass)
-                return feedback_result
+                
+                # 在GDS中央处理器直接调用USERINPUT接口，避免subprocess嵌套
+                print(f"Generated remote command:")
+                print(remote_command)
+                print(f"=" * 20)
+                
+                import os
+                import sys
+                import traceback
+                import inspect
+                
+                print(f"[DEBUG] ===== GDS DIRECT FEEDBACK DEBUG =====")
+                print(f"[DEBUG] Current process PID: {os.getpid()}")
+                print(f"[DEBUG] Parent process PID: {os.getppid()}")
+                print(f"[DEBUG] Current call stack:")
+                stack = traceback.format_stack()
+                for i, frame in enumerate(stack[-10:]):  # 显示最后10层调用栈
+                    print(f"[DEBUG]   {i}: {frame.strip()}")
+                
+                # 检查当前执行环境
+                print(f"[DEBUG] Current working directory: {os.getcwd()}")
+                print(f"[DEBUG] Python executable: {sys.executable}")
+                print(f"[DEBUG] sys.argv: {sys.argv}")
+                
+                # 检查环境变量
+                env_vars = ['CURSOR_TRACE_ID', 'CURSOR_AGENT', 'TERM', 'DISPLAY']
+                for var in env_vars:
+                    value = os.environ.get(var, 'NOT_SET')
+                    print(f"[DEBUG] ENV {var}: {value}")
+                
+                # 检查是否在subprocess中
+                try:
+                    import psutil
+                    current_process = psutil.Process(os.getpid())
+                    parent_process = psutil.Process(os.getppid())
+                    print(f"[DEBUG] Current process name: {current_process.name()}")
+                    print(f"[DEBUG] Parent process name: {parent_process.name()}")
+                    print(f"[DEBUG] Parent cmdline: {' '.join(parent_process.cmdline())[:200]}...")
+                except Exception as e:
+                    print(f"[DEBUG] Could not get process info: {e}")
+                
+                # 现在尝试调用USERINPUT接口
+                print(f"[DEBUG] Starting direct feedback in central processor...")
+                
+                try:
+                    import re
+                    
+                    print(f"[DEBUG] Adding USERINPUT path to sys.path...")
+                    # 添加USERINPUT.py所在目录到Python路径
+                    userinput_dir = '/Users/wukunhuan/.local/bin'
+                    if userinput_dir not in sys.path:
+                        sys.path.insert(0, userinput_dir)
+                    
+                    print(f"[DEBUG] Importing USERINPUT module...")
+                    # 导入USERINPUT模块
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+                    userinput_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(userinput_module)
+                    print(f"[DEBUG] USERINPUT module imported successfully")
+                    
+                    print(f"[DEBUG] Extracting user command from remote_command...")
+                    # 从remote_command中提取实际的用户命令
+                    user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
+                    if user_command_match:
+                        clean_context = user_command_match.group(1).strip()
+                        print(f"[DEBUG] Extracted command: {clean_context}")
+                    else:
+                        clean_context = "GDS command"
+                        print(f"[DEBUG] Could not extract command, using default: {clean_context}")
+                    
+                    print(f"[DEBUG] Getting project name...")
+                    # 构造窗口标题
+                    project_name, _, _ = userinput_module.get_project_name()
+                    title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
+                    print(f"[DEBUG] Window title: {title}")
+                    
+                    print(f"[DEBUG] About to call get_user_input_tkinter...")
+                    # 直接调用get_user_input_tkinter函数（在主进程中，避免subprocess嵌套）
+                    full_output = userinput_module.get_user_input_tkinter(
+                        title=title,
+                        timeout=180,
+                        max_retries=3
+                    )
+                    print(f"[DEBUG] get_user_input_tkinter returned: {repr(full_output)}")
+                    print(f"[DEBUG] Return type: {type(full_output)}")
+                    
+                    # 确保返回字符串
+                    if full_output is None:
+                        full_output = ""
+                        print(f"[DEBUG] Converted None to empty string")
+                    
+                    # 移除末尾的提示信息（如果存在）
+                    if "任务完成后，执行终端命令" in full_output:
+                        full_output = full_output.split("任务完成后，执行终端命令")[0].strip()
+                        print(f"[DEBUG] Cleaned output: {repr(full_output)}")
+                    
+                    print(f"[DEBUG] Processing user input for error keywords...")
+                    # 处理用户输入，构造direct feedback结果
+                    error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
+                                     'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
+                    
+                    has_error = any(keyword in full_output for keyword in error_keywords)
+                    print(f"[DEBUG] Has error keywords: {has_error}")
+                    
+                    if has_error:
+                        stdout_content = ""
+                        stderr_content = full_output
+                        exit_code = 1
+                    else:
+                        stdout_content = full_output
+                        stderr_content = ""
+                        exit_code = 0
+                    
+                    feedback_result = {
+                        "cmd": "direct_feedback",
+                        "stdout": stdout_content,
+                        "stderr": stderr_content,
+                        "exit_code": exit_code,
+                        "source": "direct_feedback_central"
+                    }
+                    
+                    print(f"[DEBUG] Feedback result: {feedback_result}")
+                    print(f"[DEBUG] Returning feedback result...")
+                    return feedback_result
+                    
+                except Exception as e:
+                    print(f"[DEBUG] Exception in direct feedback: {e}")
+                    import traceback
+                    print(f"[DEBUG] Full traceback:")
+                    traceback.print_exc()
+                    
+                    error_result = {
+                        "cmd": "direct_feedback_failed",
+                        "stdout": "",
+                        "stderr": f"Failed to get user input: {e}",
+                        "exit_code": 1,
+                        "source": "direct_feedback_error"
+                    }
+                    print(f"[DEBUG] Returning error result: {error_result}")
+                    return error_result
                 
             elif window_result["action"] == "copy":
                 return {
@@ -1219,11 +1356,14 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
             
             # 直接调用get_user_input_tkinter函数
+            print(f"[DEBUG] Calling get_user_input_tkinter with title: {title}")
             full_output = userinput_module.get_user_input_tkinter(
                 title=title,
                 timeout=180,
                 max_retries=3
             )
+            print(f"[DEBUG] get_user_input_tkinter returned: {repr(full_output)}")
+            print(f"[DEBUG] Return type: {type(full_output)}")
             
             # 确保返回字符串
             if full_output is None:
