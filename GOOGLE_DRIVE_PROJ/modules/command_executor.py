@@ -1021,6 +1021,7 @@ class CommandExecutor:
                 
                 try:
                     import re
+                    import subprocess
                     
                     print(f"[DEBUG] Adding USERINPUT path to sys.path...")
                     # 添加USERINPUT.py所在目录到Python路径
@@ -1052,13 +1053,40 @@ class CommandExecutor:
                     title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
                     print(f"[DEBUG] Window title: {title}")
                     
-                    print(f"[DEBUG] About to call get_user_input_tkinter...")
-                    # 直接调用get_user_input_tkinter函数（在主进程中，避免subprocess嵌套）
-                    full_output = userinput_module.get_user_input_tkinter(
-                        title=title,
-                        timeout=180,
-                        max_retries=3
+                    print(f"[DEBUG] About to call USERINPUT via subprocess with PYTHON_PROJ/python3...")
+                    # 使用PYTHON_PROJ/python3 subprocess调用USERINPUT，避免系统Python的tkinter问题
+                    # 动态构造路径：假设PYTHON_PROJ与GOOGLE_DRIVE.py同层
+                    import pathlib
+                    current_file_dir = pathlib.Path(__file__).parent.parent  # 回到GOOGLE_DRIVE_PROJ目录
+                    base_dir = current_file_dir.parent  # 回到包含GOOGLE_DRIVE.py的目录
+                    python_exec = str(base_dir / 'PYTHON_PROJ' / 'python3')
+                    userinput_path = str(base_dir / 'USERINPUT.py')
+                    
+                    print(f"[DEBUG] Resolved python_exec: {python_exec}")
+                    print(f"[DEBUG] Resolved userinput_path: {userinput_path}")
+                    
+                    # 构造命令参数
+                    cmd_args = [python_exec, userinput_path, '--timeout', '180']
+                    if title and 'GDS:' in title:
+                        # 提取GDS命令作为ID
+                        gds_cmd = title.split('[GDS: ')[-1].rstrip(']')
+                        cmd_args.extend(['--id', f'GDS: {gds_cmd}'])
+                    
+                    print(f"[DEBUG] Running command: {' '.join(cmd_args)}")
+                    
+                    # 运行USERINPUT
+                    result = subprocess.run(
+                        cmd_args,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=200
                     )
+                    
+                    if result.returncode == 0 and result.stdout:
+                        full_output = result.stdout.strip()
+                    else:
+                        full_output = f"USERINPUT subprocess failed: returncode={result.returncode}, stderr={result.stderr}"
                     print(f"[DEBUG] get_user_input_tkinter returned: {repr(full_output)}")
                     print(f"[DEBUG] Return type: {type(full_output)}")
                     
