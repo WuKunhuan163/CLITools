@@ -1193,8 +1193,11 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         print(f"Please provide command execution result (multi-line input, press Ctrl+D to finish):")
         print()
 
-        # 使用统一的多行输入方法
-        full_output = self.get_multiline_user_input(prompt="Enter command output (press Ctrl+D when done):")
+        # 使用统一的多行输入方法，传递命令上下文
+        full_output = self.get_multiline_user_input(
+            prompt="Enter command output (press Ctrl+D when done):",
+            command_context=remote_command
+        )
 
         # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
         error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
@@ -1281,10 +1284,10 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             "source": "direct_feedback_interface_no_capture"
         }
 
-    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False):
+    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False, command_context=None):
         """
         获取用户的多行输入，支持Ctrl+D结束
-        使用与USERINPUT完全相同的信号超时输入逻辑
+        使用USERINPUT tkinter GUI接口优先，fallback到原始方法
         增强：支持中文字符输入
         
         Args:
@@ -1292,10 +1295,57 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             is_single_line (bool): 是否单行输入
             timeout_seconds (int): 超时时间（秒），默认180秒
             prompt_same_line (bool): 是否在同一行显示提示符，默认False
+            command_context (str): 命令上下文，用作USERINPUT的ID
             
         Returns:
             str: 用户输入的多行内容
         """
+        
+        # 尝试使用USERINPUT tkinter接口
+        try:
+            import subprocess
+            import os
+            import sys
+            
+            # 构造USERINPUT命令 - 使用绝对路径
+            userinput_path = '/Users/wukunhuan/.local/bin/USERINPUT.py'
+            if not os.path.exists(userinput_path):
+                raise FileNotFoundError(f"USERINPUT.py not found at {userinput_path}")
+            userinput_cmd = [userinput_path]
+            userinput_cmd.extend(['--timeout', str(timeout_seconds)])
+            
+            # 如果有命令上下文，使用作为ID
+            if command_context:
+                # 清理命令上下文，只保留主要部分
+                clean_context = command_context.replace('GDS ', '').strip()
+                if len(clean_context) > 50:
+                    clean_context = clean_context[:47] + "..."
+                userinput_cmd.extend(['--id', clean_context])
+            
+            # 显示提示信息（在USERINPUT窗口之外）
+            if prompt and not prompt_same_line:
+                print(prompt)
+            
+            # 执行USERINPUT
+            result = subprocess.run(
+                userinput_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=timeout_seconds + 10
+            )
+            
+            if result.returncode == 0 and result.stdout:
+                user_input = result.stdout.strip()
+                # 移除末尾的提示信息（如果存在）
+                if "任务完成后，执行终端命令" in user_input:
+                    user_input = user_input.split("任务完成后，执行终端命令")[0].strip()
+                return user_input
+                
+        except Exception as e:
+            print(f"USERINPUT interface failed, falling back to terminal input: {e}")
+        
+        # Fallback到原始方法
         lines = []
         
         # 显示提示信息
