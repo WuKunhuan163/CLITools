@@ -263,7 +263,7 @@ class TkinterInputWindow:
             return
         try:
             text_content = self.text_widget.get("1.0", tk.END).strip()
-            timeout_hint = "用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+            timeout_hint = "\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
             if text_content:
                 self.result = f"{text_content}\n{timeout_hint}"
             else:
@@ -468,7 +468,7 @@ class TkinterInputWindow:
             return
         try:
             text_content = self.text_widget.get("1.0", tk.END).strip()
-            timeout_hint = "用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+            timeout_hint = "\\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
             if text_content:
                 self.result = f"{{text_content}}\\n{{timeout_hint}}"
             else:
