@@ -202,7 +202,7 @@ class TkinterInputWindow:
             return True
             
         except Exception as e:
-            print(f"❌ 创建tkinter窗口失败: {e}")
+            print(f"创建tkinter窗口失败: {e}")
             return False
     
     def on_window_resize(self, event):
@@ -607,7 +607,7 @@ def main():
         os.system("clear") if os.name == "posix" else os.system("cls")
         print(final_result)
     else:
-        print("❌ 无法获取用户输入")
+        print("无法获取用户输入")
         return 1
     
     return 0
