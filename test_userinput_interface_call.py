@@ -48,11 +48,11 @@ def test_userinput_interface():
             print(f"✅ 接口调用成功! 获得用户输入: {result}")
             return True
         else:
-            print(f"❌ 接口调用失败! 没有获得用户输入")
+            print(f"接口调用失败! 没有获得用户输入")
             return False
             
     except Exception as e:
-        print(f"❌ 接口调用异常: {e}")
+        print(f"接口调用异常: {e}")
         import traceback
         traceback.print_exc()
         return False
