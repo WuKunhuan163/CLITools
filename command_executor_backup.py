@@ -38,7 +38,7 @@ import os
 from .connection_check import create_connection_check_instance
 
 
-def clean_stderr_trailing_newlines(text):
+def regularize_newlines(text):
     """
     如果text以连续至少两个\\n结尾，去掉一个\\n。
     例如：
