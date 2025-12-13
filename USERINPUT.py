@@ -202,7 +202,7 @@ class TkinterInputWindow:
             return True
             
         except Exception as e:
-            print(f"创建tkinter窗口失败: {e}")
+            print(f"❌ 创建tkinter窗口失败: {e}")
             return False
     
     def on_window_resize(self, event):
@@ -291,7 +291,7 @@ class TkinterInputWindow:
             return
         try:
             text_content = self.text_widget.get("1.0", tk.END).strip()
-            timeout_hint = "\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+            timeout_hint = "用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
             if text_content:
                 self.result = f"{text_content}\n{timeout_hint}"
             else:
@@ -490,7 +490,7 @@ class TkinterInputWindow:
             return
         try:
             text_content = self.text_widget.get("1.0", tk.END).strip()
-            timeout_hint = "\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+            timeout_hint = "用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
             if text_content:
                 self.result = f"{{text_content}}\\n{{timeout_hint}}"
             else:
@@ -591,7 +591,7 @@ def main():
     
     if result:
         # 添加结束提示
-        end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
+        end_hint = "\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
         final_result = result + end_hint
         
         # 复制到剪贴板
@@ -607,7 +607,7 @@ def main():
         os.system("clear") if os.name == "posix" else os.system("cls")
         print(final_result)
     else:
-        print("无法获取用户输入")
+        print("❌ 无法获取用户输入")
         return 1
     
     return 0

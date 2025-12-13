@@ -1199,6 +1199,16 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             command_context=remote_command
         )
 
+        # 检查是否成功获取到输出
+        if full_output is None:
+            return {
+                "cmd": "direct_feedback_failed",
+                "stdout": "",
+                "stderr": "Failed to get user input via USERINPUT interface",
+                "exit_code": 1,
+                "source": "direct_feedback_error"
+            }
+
         # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
         error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
                          'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
@@ -1286,131 +1296,86 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
 
     def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False, command_context=None):
         """
-        获取用户的多行输入，支持Ctrl+D结束
-        使用USERINPUT tkinter GUI接口优先，fallback到原始方法
-        增强：支持中文字符输入
+        获取用户的多行输入 - 直接使用USERINPUT tkinter GUI接口
         
         Args:
             prompt (str): 输入提示
-            is_single_line (bool): 是否单行输入
+            is_single_line (bool): 是否单行输入（保留兼容性，实际不使用）
             timeout_seconds (int): 超时时间（秒），默认180秒
-            prompt_same_line (bool): 是否在同一行显示提示符，默认False
+            prompt_same_line (bool): 是否在同一行显示提示符（保留兼容性，实际不使用）
             command_context (str): 命令上下文，用作USERINPUT的ID
             
         Returns:
             str: 用户输入的多行内容
         """
         
-        # 尝试使用USERINPUT tkinter接口
+        print(f"[DEBUG] get_multiline_user_input called with:")
+        print(f"  - prompt: {prompt}")
+        print(f"  - timeout_seconds: {timeout_seconds}")
+        print(f"  - command_context: {command_context[:100] if command_context else None}...")
+        
         try:
-            import subprocess
-            import os
             import sys
+            import os
             
-            # 构造USERINPUT命令 - 使用绝对路径
-            userinput_path = '/Users/wukunhuan/.local/bin/USERINPUT.py'
-            if not os.path.exists(userinput_path):
-                raise FileNotFoundError(f"USERINPUT.py not found at {userinput_path}")
-            userinput_cmd = [userinput_path]
-            userinput_cmd.extend(['--timeout', str(timeout_seconds)])
+            print(f"[DEBUG] Adding USERINPUT directory to Python path...")
+            # 添加USERINPUT.py所在目录到Python路径
+            userinput_dir = '/Users/wukunhuan/.local/bin'
+            if userinput_dir not in sys.path:
+                sys.path.insert(0, userinput_dir)
             
-            # 如果有命令上下文，使用作为ID
+            print(f"[DEBUG] Importing USERINPUT module...")
+            # 导入USERINPUT模块
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+            userinput_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(userinput_module)
+            
+            # 构造窗口标题和ID
+            title = None
+            custom_id = None
             if command_context:
                 # 清理命令上下文，只保留主要部分
                 clean_context = command_context.replace('GDS ', '').strip()
                 if len(clean_context) > 50:
                     clean_context = clean_context[:47] + "..."
-                userinput_cmd.extend(['--id', clean_context])
+                custom_id = clean_context
+                # 获取项目名并添加自定义ID
+                project_name, _, _ = userinput_module.get_project_name()
+                title = f"{project_name} - Agent Mode [{clean_context}]"
+            
+            print(f"[DEBUG] Window title: {title}")
+            print(f"[DEBUG] Custom ID: {custom_id}")
             
             # 显示提示信息（在USERINPUT窗口之外）
             if prompt and not prompt_same_line:
                 print(prompt)
             
-            # 执行USERINPUT
-            result = subprocess.run(
-                userinput_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout_seconds + 10
+            print(f"[DEBUG] Calling get_user_input_tkinter...")
+            # 直接调用get_user_input_tkinter函数
+            user_input = userinput_module.get_user_input_tkinter(
+                title=title,
+                timeout=timeout_seconds,
+                max_retries=3
             )
             
-            if result.returncode == 0 and result.stdout:
-                user_input = result.stdout.strip()
+            print(f"[DEBUG] USERINPUT returned: {len(user_input) if user_input else 0} characters")
+            
+            if user_input:
                 # 移除末尾的提示信息（如果存在）
                 if "任务完成后，执行终端命令" in user_input:
                     user_input = user_input.split("任务完成后，执行终端命令")[0].strip()
+                    print(f"[DEBUG] Cleaned user input: {len(user_input)} characters")
+                
+                print(f"[DEBUG] Returning user input successfully")
                 return user_input
+            else:
+                print(f"[DEBUG] USERINPUT returned empty, returning empty string")
+                return ""
                 
         except Exception as e:
-            print(f"USERINPUT interface failed, falling back to terminal input: {e}")
-        
-        # Fallback到原始方法
-        lines = []
-        
-        # 显示提示信息
-        if prompt:
-            if prompt_same_line:
-                print(prompt, end="")
-            else:
-                print(prompt)
-        
-        # 定义超时异常
-        class TimeoutException(Exception):
-            pass
-        
-        def timeout_handler(signum, frame):
-            raise TimeoutException("Input timeout")
-        
-        # 使用信号方式进行超时控制
-        import signal
-        import readline
-        
-        # 配置readline以支持中文字符
-        try:
-            readline.set_startup_hook(None)
-            readline.clear_history()
-            
-            # 设置编辑模式为emacs（支持更好的中文编辑）
-            readline.parse_and_bind("set editing-mode emacs")
-            # 启用UTF-8支持
-            readline.parse_and_bind("set input-meta on")
-            readline.parse_and_bind("set output-meta on")
-            readline.parse_and_bind("set convert-meta off")
-            # 启用中文字符显示
-            readline.parse_and_bind("set print-completions-horizontally off")
-            readline.parse_and_bind("set skip-completed-text on")
-            # 确保正确处理宽字符
-            readline.parse_and_bind("set enable-bracketed-paste on")
-        except Exception:
-            pass  # 如果配置失败，继续使用默认设置
-        
-        original_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(timeout_seconds)
-        
-        try:
-            while True:
-                try:
-                    if is_single_line:
-                        # 单行输入模式
-                        line = input()
-                        lines.append(line)
-                        break  # 单行模式只读取一行就退出
-                    else:
-                        # 多行输入模式
-                        line = input()
-                        lines.append(line)
-                except EOFError:
-                    # Ctrl+D结束输入
-                    break
-                except KeyboardInterrupt:
-                    # Ctrl+C中断 - 重新抛出以便外层处理
-                    raise
-        except TimeoutException:
-            print(f"\nInput timeout after {timeout_seconds} seconds")
-        finally:
-            # 恢复信号处理器
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, original_handler)
-        
-        return '\n'.join(lines)
+            print(f"[DEBUG] USERINPUT interface failed with exception: {e}")
+            import traceback
+            traceback.print_exc()
+            # 如果USERINPUT接口失败，返回错误信息
+            return f"Error: Unable to get user input via USERINPUT interface: {e}"
