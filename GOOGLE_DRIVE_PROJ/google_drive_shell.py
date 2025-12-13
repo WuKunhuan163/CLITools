@@ -1216,9 +1216,8 @@ class GoogleDriveShell:
                     error_msg = data.get('error', '')
                 
                 if not error_msg:
-                    import traceback
-                    call_stack = ''.join(traceback.format_stack()[-3:])
-                    error_msg = f'Unknown error. Call stack: {call_stack}'
+                    # 不要隐藏真正的错误，让异常抛出来
+                    error_msg = f'Command execution failed without specific error message. Result: {result}'
                 
                 import sys
                 print(clean_stderr_trailing_newlines(error_msg), end="", file=sys.stderr)

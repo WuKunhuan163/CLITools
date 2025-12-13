@@ -1125,14 +1125,25 @@ class CommandExecutor:
                         "source": "direct_feedback_central"
                     }
                     
-                    print(f"User feedback: {stdout_content}")
-                    print(f"=" * 20)
-                    # 不要直接return，让执行继续到结果等待阶段
+                    print(f"[DEBUG] Feedback result: {feedback_result}")
+                    print(f"[DEBUG] Returning feedback result...")
+                    return feedback_result
                     
                 except Exception as e:
-                    print(f"Failed to get user feedback: {e}")
-                    print(f"=" * 20)
-                    # 即使出错也继续执行，不要return
+                    print(f"[DEBUG] Exception in direct feedback: {e}")
+                    import traceback
+                    print(f"[DEBUG] Full traceback:")
+                    traceback.print_exc()
+                    
+                    error_result = {
+                        "cmd": "direct_feedback_failed",
+                        "stdout": "",
+                        "stderr": f"Failed to get user input: {e}",
+                        "exit_code": 1,
+                        "source": "direct_feedback_error"
+                    }
+                    print(f"[DEBUG] Returning error result: {error_result}")
+                    return error_result
                 
             elif window_result["action"] == "copy":
                 return {
