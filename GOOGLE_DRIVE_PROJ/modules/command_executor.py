@@ -1125,14 +1125,26 @@ class CommandExecutor:
                         "source": "direct_feedback_central"
                     }
                     
-                    print(f"User feedback: {stdout_content}")
-                    print(f"=" * 20)
-                    # 不要直接return，让执行继续到结果等待阶段
+                    # 不要直接return，而是调用direct_feedback_interface来处理
+                    # 如果不捕获结果，不传递result_filename（避免等待结果文件）
+                    filename_to_pass = None if not capture_result else result_filename
+                    return self.direct_feedback_interface(remote_command, filename_to_pass)
                     
                 except Exception as e:
-                    print(f"Failed to get user feedback: {e}")
-                    print(f"=" * 20)
-                    # 即使出错也继续执行，不要return
+                    print(f"[DEBUG] Exception in direct feedback: {e}")
+                    import traceback
+                    print(f"[DEBUG] Full traceback:")
+                    traceback.print_exc()
+                    
+                    error_result = {
+                        "cmd": "direct_feedback_failed",
+                        "stdout": "",
+                        "stderr": f"Failed to get user input: {e}",
+                        "exit_code": 1,
+                        "source": "direct_feedback_error"
+                    }
+                    print(f"[DEBUG] Returning error result: {error_result}")
+                    return error_result
                 
             elif window_result["action"] == "copy":
                 return {
@@ -1344,41 +1356,47 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         print(remote_command)
         print(f"=" * 20)  # 50个等号分割线
 
-        # 直接使用USERINPUT GUI获取用户输入
+        # 使用PYTHON_PROJ/python3 subprocess调用USERINPUT，避免系统Python的tkinter问题
         try:
-            import sys
-            import os
-            
-            # 添加USERINPUT.py所在目录到Python路径
-            userinput_dir = '/Users/wukunhuan/.local/bin'
-            if userinput_dir not in sys.path:
-                sys.path.insert(0, userinput_dir)
-            
-            # 导入USERINPUT模块
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
-            userinput_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(userinput_module)
+            import re
+            import subprocess
+            import pathlib
             
             # 从remote_command中提取实际的用户命令
-            import re
             user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
             if user_command_match:
                 clean_context = user_command_match.group(1).strip()
             else:
                 clean_context = "GDS command"
             
-            # 构造窗口标题
-            project_name, _, _ = userinput_module.get_project_name()
+            # 动态构造路径
+            current_file_dir = pathlib.Path(__file__).parent.parent  # 从modules/command_executor.py回到GOOGLE_DRIVE_PROJ
+            base_dir = current_file_dir.parent  # 回到包含GOOGLE_DRIVE.py的目录
+            project_name = base_dir.name
             title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
+            python_exec = str(base_dir / 'PYTHON_PROJ' / 'python3')
+            userinput_path = str(base_dir / 'USERINPUT.py')
             
-            # 直接调用get_user_input_tkinter函数
-            print(f"[DEBUG] Calling get_user_input_tkinter with title: {title}")
-            full_output = userinput_module.get_user_input_tkinter(
-                title=title,
-                timeout=180,
-                max_retries=3
+            # 构造命令参数
+            cmd_args = [python_exec, userinput_path, '--timeout', '180']
+            if title and 'GDS:' in title:
+                # 提取GDS命令作为ID
+                gds_cmd = title.split('[GDS: ')[-1].rstrip(']')
+                cmd_args.extend(['--id', f'GDS: {gds_cmd}'])
+            
+            # 运行USERINPUT
+            result = subprocess.run(
+                cmd_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=200
             )
+            
+            if result.returncode == 0 and result.stdout:
+                full_output = result.stdout.strip()
+            else:
+                full_output = f"USERINPUT subprocess failed: returncode={result.returncode}, stderr={result.stderr}"
             print(f"[DEBUG] get_user_input_tkinter returned: {repr(full_output)}")
             print(f"[DEBUG] Return type: {type(full_output)}")
             
