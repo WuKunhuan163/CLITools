@@ -2,7 +2,7 @@
 
 ## Overview
 
-USERINPUT is a specialized tool designed for AI agents (like Cursor AI) to request and receive user input during task execution. It provides an interactive way for AI agents to pause, wait for user feedback, and continue their work based on user instructions.
+USERINPUT is a specialized tool designed for AI agents (like Cursor AI) to request and receive user input during task execution. It provides a modern tkinter GUI interface with session identification capabilities, allowing AI agents to pause, wait for user feedback, and continue their work based on user instructions.
 
 ## Purpose
 
@@ -28,11 +28,11 @@ USERINPUT
 # With timeout (seconds)
 USERINPUT --timeout 60
 
-# With hint message
-USERINPUT --hint "Please confirm the operation"
+# With custom ID for window identification
+USERINPUT --id task_review
 
-# Combined: timeout and hint
-USERINPUT --timeout 120 --hint "Review the changes and provide feedback"
+# Combined: timeout and custom ID
+USERINPUT --timeout 120 --id code_approval
 ```
 
 ### Command-Line Options
@@ -40,8 +40,7 @@ USERINPUT --timeout 120 --hint "Review the changes and provide feedback"
 | Option | Description | Example |
 |--------|-------------|---------|
 | `--timeout SECONDS` | Set timeout in seconds | `USERINPUT --timeout 60` |
-| `--hint TEXT` | Display hint message to user | `USERINPUT --hint "Approve changes?"` |
-| `--no-focus` | Disable focus window | `USERINPUT --no-focus` |
+| `--id CUSTOM_ID` | Set custom ID for window title identification | `USERINPUT --id debug_session` |
 | `--help` | Show help message | `USERINPUT --help` |
 
 ## Features
@@ -57,35 +56,46 @@ USERINPUT --timeout 180
 
 If the timeout is reached without user input, USERINPUT returns with a timeout message.
 
-### 2. Hint Messages
+### 2. Custom ID Support
 
-Provide context to the user about what input is expected:
+Provide custom identifiers to help users distinguish between multiple feedback windows:
 
 ```bash
-USERINPUT --hint "Please review the test results and confirm whether to proceed with deployment"
+# Different tasks with descriptive IDs
+USERINPUT --id code_review --timeout 180
+USERINPUT --id bug_report --timeout 120
+USERINPUT --id final_approval --timeout 60
 ```
 
-### 3. Focus Window
+Window titles will display as: `project_name - Agent Mode [custom_id]`
 
-USERINPUT displays a Tkinter focus window to alert the user:
-- Audio notification (plays bell sound every 3rd focus)
-- Visual window that brings attention to the terminal
-- Displays project name and timeout information
-- Can be disabled with `--no-focus` flag
+### 3. Modern GUI Interface
 
-### 4. Multiline Input
+USERINPUT displays a modern tkinter GUI window:
+- Audio notification (plays bell sound on startup and periodic refocus)
+- Clean, resizable interface with scrollable text area
+- Displays project name, session info, and custom ID in window title
+- Dynamic window sizing and automatic text area adjustment
+- Countdown timer showing remaining time
+- IMK message suppression for clean operation
 
-USERINPUT supports multiline text input:
-- Type multiple lines of text
-- Press `Ctrl+D` (EOF) when done
-- Empty input is also accepted (just press Ctrl+D)
+### 4. Enhanced Text Input
 
-### 5. Project Context
+USERINPUT supports rich text input through GUI:
+- Multiline text input with scrollable text area
+- Click "提交" button or press Ctrl+Enter to submit
+- Dynamic text area resizing based on window size
+- Automatic focus management and periodic refocus
+- Clipboard integration (results copied to clipboard)
 
-USERINPUT automatically detects:
-- Current project name (from git root)
-- Working directory
-- RUN environment context (if running under RUN tool)
+### 5. Session Information
+
+USERINPUT automatically detects and displays:
+- Current project name (from git root or working directory)
+- Cursor session information (CURSOR_TRACE_ID)
+- Process identification (PID)
+- Timestamp information for session tracking
+- Custom ID integration for multi-window scenarios
 
 ## Use Cases for AI Agents
 
