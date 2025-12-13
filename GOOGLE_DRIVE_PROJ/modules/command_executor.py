@@ -1416,8 +1416,15 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 如果提供了result_filename，尝试等待并读取实际的执行结果
         if result_filename:
             try:
-                # 等待并读取结果文件
-                actual_result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
+                # 开始进度显示
+                from .progress_manager import start_progress_buffering, stop_progress_buffering
+                start_progress_buffering("⏳ Waiting for result ...")
+                try:
+                    # 等待并读取结果文件
+                    actual_result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
+                finally:
+                    # 确保停止进度显示
+                    stop_progress_buffering()
 
                 if actual_result.get("success", False):
                     actual_data = actual_result.get("data", {})
