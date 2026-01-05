@@ -136,19 +136,20 @@ class TkinterInputWindow:
             default_font = ("Arial", 12)
             submit_font = ("Arial", 13, "bold")
             
-            # 先 pack 加时按钮，它会最靠右
-            add_time_btn = tk.Button(
-                button_frame, text="加时60秒", command=self.add_time,
-                font=default_font
-            )
-            add_time_btn.pack(side=tk.RIGHT)
-
-            # 后 pack 提交按钮，它会靠在加时按钮的左边
+            # 先 pack 提交按钮，它会最靠右
             submit_btn = tk.Button(
                 button_frame, text="提交", command=self.submit_input,
                 font=submit_font
             )
-            submit_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            submit_btn.pack(side=tk.RIGHT)
+
+            # 后 pack 加时按钮，它会靠在提交按钮的左边
+            add_time_btn = tk.Button(
+                button_frame, text="加时60秒", command=self.add_time,
+                font=default_font
+            )
+            # padx=(0, 10) 在此按钮右侧增加10像素间距
+            add_time_btn.pack(side=tk.RIGHT, padx=(0, 10))
             # --- 样式和顺序改动结束 ---
             
             self.status_label = tk.Label(button_frame, text="", font=("Arial", 12), fg="black")
