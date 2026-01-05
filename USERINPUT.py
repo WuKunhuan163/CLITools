@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT tkinter版本 - 解决Cursor AI环境输入问题
+USERINPUT tkinter版本
 """
 
 import os
