@@ -14,7 +14,7 @@ A comprehensive command-line tool for interacting with the PyPI API to retrieve 
 
 ## Installation
 
-The tool is automatically available in your `~/.local/bin` directory. Ensure this directory is in your PATH.
+The tool is available in your project directory. Ensure this directory is in your PATH.
 
 ## Usage
 

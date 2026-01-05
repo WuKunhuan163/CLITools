@@ -1471,18 +1471,21 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         try:
             import sys
             import os
+            import pathlib
             
             print(f"[DEBUG] Starting USERINPUT integration...")
             
-            # 添加USERINPUT.py所在目录到Python路径
-            userinput_dir = '/Users/wukunhuan/.local/bin'
+            # 动态获取项目根目录
+            project_root = pathlib.Path(__file__).parent.absolute()
+            userinput_dir = str(project_root)
             if userinput_dir not in sys.path:
                 sys.path.insert(0, userinput_dir)
             
             print(f"[DEBUG] Importing USERINPUT module...")
             # 导入USERINPUT模块
             import importlib.util
-            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+            userinput_py = project_root / "USERINPUT.py"
+            spec = importlib.util.spec_from_file_location("userinput_module", str(userinput_py))
             userinput_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(userinput_module)
             

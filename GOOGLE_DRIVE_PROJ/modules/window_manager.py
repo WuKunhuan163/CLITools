@@ -96,11 +96,12 @@ class WindowManager:
         except ImportError:
             # 回退到原来的方法
             from pathlib import Path
-            self.lock_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.lock"))
-            self.pid_file_path = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_lock.pid"))
-            self.priority_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/priority_queue.json"))
-            self.normal_queue_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/normal_queue.json"))
-            self.queue_lock_file = Path(os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/queue_lock.lock"))
+            project_root = Path(__file__).parent.parent.parent.absolute()
+            self.lock_file_path = project_root / "GOOGLE_DRIVE_DATA/window_lock.lock"
+            self.pid_file_path = project_root / "GOOGLE_DRIVE_DATA/window_lock.pid"
+            self.priority_queue_file = project_root / "GOOGLE_DRIVE_DATA/priority_queue.json"
+            self.normal_queue_file = project_root / "GOOGLE_DRIVE_DATA/normal_queue.json"
+            self.queue_lock_file = project_root / "GOOGLE_DRIVE_DATA/queue_lock.lock"
         
         self.current_lock_fd = None  # 当前持有的锁文件描述符
         
@@ -805,7 +806,7 @@ class WindowManager:
         except Exception as e:
             pass  # 静默处理错误
     
-    def request_window(self, cmd, command_hash, timeout_seconds=86400, no_direct_feedback=False, is_priority=False):
+    def request_window(self, cmd, command_hash, timeout_seconds=86400, no_direct_feedback=False, is_priority=False, user_command=None):
         """
         请求显示窗口 - 支持优先队列的跨进程管理
         
@@ -815,6 +816,7 @@ class WindowManager:
             command_hash (str): 命令哈希
             no_direct_feedback (bool): 是否隐藏直接反馈按钮
             is_priority (bool): 是否为优先队列请求
+            user_command (str): 原始用户命令
             
         Returns:
             dict: 用户操作结果
@@ -834,6 +836,7 @@ class WindowManager:
             'command_hash': command_hash,
             'no_direct_feedback': no_direct_feedback,
             'is_priority': is_priority,
+            'user_command': user_command,
             'timestamp': time.time()
         }
         
@@ -966,8 +969,30 @@ class WindowManager:
         
         self.debug_log(f"[TKINTER_WINDOW_CREATE] 创建窗口: {window_id}")
         
+        # 使用传递过来的user_command，如果没有则尝试从cmd中提取（兼容旧请求）
+        user_command = request.get('user_command')
+        if not user_command:
+            import re
+            cmd_text = request['cmd']
+            # 尝试从USER_COMMAND_EOF中提取用户命令
+            user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', cmd_text, re.DOTALL)
+            if user_command_match:
+                user_command = user_command_match.group(1).strip()
+            else:
+                # 如果没有找到USER_COMMAND_EOF，尝试其他模式
+                bg_match = re.search(r'bash << \'USER_COMMAND_EOF\'.*?\n(.*?)\nUSER_COMMAND_EOF', cmd_text, re.DOTALL)
+                if bg_match:
+                    user_command = bg_match.group(1).strip()
+                else:
+                    user_command = "GDS command"
+        
+        # 限制user_command长度，避免标题过长
+        if user_command and len(user_command) > 50:
+            user_command = user_command[:47] + "..."
+        
         # 使用subprocess创建窗口（避免主线程阻塞）
         command_b64 = base64.b64encode(request['cmd'].encode('utf-8')).decode('ascii')
+        user_command_b64 = base64.b64encode(user_command.encode('utf-8')).decode('ascii') if user_command else ""
         
         # 获取音频文件路径
         current_dir = os.path.dirname(__file__)
@@ -1027,6 +1052,15 @@ try:
     # 解码base64命令
     cmd = base64.b64decode("COMMAND_B64_PLACEHOLDER").decode('utf-8')
     
+    # 解码user_command（如果存在）
+    user_command = ""
+    try:
+        user_command_b64 = "USER_COMMAND_B64_PLACEHOLDER"
+        if user_command_b64 and user_command_b64.strip():
+            user_command = base64.b64decode(user_command_b64).decode('utf-8')
+    except:
+        user_command = ""
+    
     # 获取父进程PID（由父进程传入）
     parent_pid = PARENT_PID_PLACEHOLDER
     
@@ -1034,13 +1068,20 @@ try:
     no_direct_feedback = TEST_MODE_PLACEHOLDER
     
     root = tk.Tk()
-    root.title("GDS · Command hash: COMMAND_HASH_PLACEHOLDER")
+    # 构建窗口标题：GDS · Command hash: xxxxxxxx · COMMAND
+    if user_command:
+        window_title = f"GDS · Command hash: COMMAND_HASH_PLACEHOLDER · {user_command}"
+    else:
+        window_title = "GDS · Command hash: COMMAND_HASH_PLACEHOLDER"
+    root.title(window_title)
     root.geometry("500x60")
     root.resizable(False, False)
     
     # 窗口计数器 - 记录到debug日志
     import os
-    debug_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_queue_debug.log")
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent.parent.absolute()
+    debug_file = project_root / "GOOGLE_DRIVE_DATA/window_queue_debug.log"
     try:
         with open(debug_file, "a", encoding="utf-8") as f:
             import time
@@ -1607,6 +1648,13 @@ except Exception as e:
         subprocess_script = subprocess_script.replace("AUDIO_FILE_PATH_PLACEHOLDER", audio_file_path)
         subprocess_script = subprocess_script.replace("PARENT_PID_PLACEHOLDER", str(os.getpid()))
         subprocess_script = subprocess_script.replace("TEST_MODE_PLACEHOLDER", str(request.get('no_direct_feedback', False)))
+        # 替换user_command占位符（需要特殊处理，因为可能在条件判断中）
+        if user_command_b64:
+            subprocess_script = subprocess_script.replace('"USER_COMMAND_B64_PLACEHOLDER"', f'"{user_command_b64}"')
+            subprocess_script = subprocess_script.replace("USER_COMMAND_B64_PLACEHOLDER", user_command_b64)
+        else:
+            subprocess_script = subprocess_script.replace('"USER_COMMAND_B64_PLACEHOLDER"', '""')
+            subprocess_script = subprocess_script.replace("USER_COMMAND_B64_PLACEHOLDER", "")
         
         try:
             process = subprocess.Popen(
@@ -1710,7 +1758,9 @@ except Exception as e:
                 from .path_constants import get_data_dir
                 debug_file = str(get_data_dir() / "window_queue_debug.log")
             except ImportError:
-                debug_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/window_queue_debug.log")
+                from pathlib import Path
+                project_root = Path(__file__).parent.parent.parent.absolute()
+                debug_file = project_root / "GOOGLE_DRIVE_DATA/window_queue_debug.log"
             os.makedirs(os.path.dirname(debug_file), exist_ok=True)
             
             with open(debug_file, "a", encoding="utf-8") as f:

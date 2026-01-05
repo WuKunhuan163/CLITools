@@ -26,15 +26,15 @@ BACKGROUND_CMD_PROJ/
 
 ## 核心文件位置
 
-- **主程序**: `~/.local/bin/BACKGROUND_CMD.py`
-- **启动脚本**: `~/.local/bin/BACKGROUND_CMD.sh`
-- **文档**: `~/.local/bin/BACKGROUND_CMD.md`
+- **主程序**: `BACKGROUND_CMD.py`
+- **启动脚本**: `BACKGROUND_CMD.sh`
+- **文档**: `BACKGROUND_CMD.md`
 
 ## 快速开始
 
 ```bash
 # 进入项目目录
-cd ~/.local/bin/BACKGROUND_CMD_PROJ
+cd BACKGROUND_CMD_PROJ
 
 # 运行基础示例
 ./examples/basic_usage.sh

@@ -1365,7 +1365,9 @@ except Exception as e:
         try:
             # 运行subprocess
             # 使用PYTHON_PROJ中的Python而不是系统Python
-            python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
+            import pathlib
+            project_root = pathlib.Path(__file__).parent.parent.parent.parent.absolute()
+            python_exec = str(project_root / 'PYTHON_PROJ' / 'python3')
             process = subprocess.run([
                 python_exec, "-c", subprocess_script
             ], capture_output=True, text=True, timeout=300)

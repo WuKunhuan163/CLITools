@@ -16,9 +16,11 @@ class PathConstants:
     def __init__(self):
         # 基础路径常量
         self.HOME_DIR = Path.home()
-        self.BIN_DIR = self.HOME_DIR / ".local/bin"
-        self.GOOGLE_DRIVE_PROJ_DIR = self.BIN_DIR / "GOOGLE_DRIVE_PROJ"
-        self.GOOGLE_DRIVE_DATA_DIR = self.BIN_DIR / "GOOGLE_DRIVE_DATA"
+        # 动态获取项目根目录 (/Applications/AITerminalTools)
+        self.PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
+        self.BIN_DIR = self.PROJECT_ROOT
+        self.GOOGLE_DRIVE_PROJ_DIR = self.PROJECT_ROOT / "GOOGLE_DRIVE_PROJ"
+        self.GOOGLE_DRIVE_DATA_DIR = self.PROJECT_ROOT / "GOOGLE_DRIVE_DATA"
         
         # 确保目录存在
         self.GOOGLE_DRIVE_DATA_DIR.mkdir(parents=True, exist_ok=True)
