@@ -175,7 +175,7 @@ class BinManager:
         
         # Generate user rule
         rule_parts = [
-            "# Binary Tools Available in ~/.local/bin",
+            "# Binary Tools Available",
             "",
             "When working with the user, you have access to the following custom binary tools:",
             ""
