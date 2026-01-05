@@ -636,11 +636,14 @@
     },
     "USERINPUT": {
       "name": "USERINPUT",
-      "description": "User Input Script for Cursor AI",
-      "purpose": "Get user feedback in Cursor AI workflows",
-      "usage": "USERINPUT",
+      "description": "User Input Script for Cursor AI with tkinter GUI and custom ID support",
+      "purpose": "Get user feedback in Cursor AI workflows using a modern tkinter interface with session identification",
+      "usage": "USERINPUT [--timeout SECONDS] [--id CUSTOM_ID]",
       "examples": [
-        "USERINPUT"
+        "USERINPUT",
+        "USERINPUT --timeout 60",
+        "USERINPUT --id task_review",
+        "USERINPUT --id debug_session --timeout 120"
       ],
       "files": {
         "binary": "USERINPUT",
@@ -651,7 +654,23 @@
       "testable": false,
       "test_passed": true,
       "ai_usable": true,
-      "tool_use_scenario": "When you need to get user feedback in workflows",
+      "tool_use_scenario": "When you need to get user feedback in workflows. Use --id parameter to help users distinguish between multiple feedback windows (e.g., --id code_review, --id debug_help, --id final_check)",
+      "ai_usage_tips": [
+        "Add descriptive --id when multiple feedback requests are expected",
+        "Use meaningful IDs like 'code_review', 'bug_report', 'final_approval'",
+        "Window title will show: 'project_name - Agent Mode [custom_id]'",
+        "Helps users distinguish between different feedback contexts"
+      ],
+      "features": [
+        "Modern tkinter GUI interface",
+        "Custom ID support for window identification",
+        "Automatic project name detection",
+        "Session information integration",
+        "Dynamic window resizing",
+        "Audio feedback on focus",
+        "Clipboard integration",
+        "IMK message suppression"
+      ],
       "file_hashes": {
         "binary": "e22c6adbe2154a75486103b429394a8fbefb343567ab2f1e48f203998adf41aa",
         "python": "d86fff6ea20dd4f5d3e2ad8ee25a780e3ee9219d7e4bd1cc5e3e81ed31fca6cd",

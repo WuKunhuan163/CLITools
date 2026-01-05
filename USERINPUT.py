@@ -1,710 +1,595 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT.py - User Input Script for Cursor AI
-
-获取用户输入的脚本，支持多行输入和超时控制
+USERINPUT tkinter版本 - 解决Cursor AI环境输入问题
 """
 
 import os
 import sys
-import json
-import signal
-import time
+
+# 必须在导入tkinter之前设置环境变量来抑制IMK消息
+os.environ['TK_SILENCE_DEPRECATION'] = '1'
+import warnings
+warnings.filterwarnings('ignore')
+
+import tkinter as tk
+from tkinter import scrolledtext
 import threading
-from pathlib import Path
-
-# 加载环境变量
-from dotenv import load_dotenv
-load_dotenv()
-
-# 音频播放相关
+import time
+import random
+import traceback
 import subprocess
 import platform
-
-# 全局focus计数器和音频播放功能 - 每3次focus播放一次音效
-_focus_count = 0
-_audio_file_path = Path(__file__).parent / "USERINPUT_PROJ" / "tkinter_bell.mp3"
-
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
+import contextlib
 
 def get_project_name():
     """获取项目名称"""
     try:
-        # 从当前工作目录获取项目名称
-        current_dir = Path.cwd()
-        # 尝试找到项目根目录
-        project_dir = current_dir
-        while project_dir.parent != project_dir:
-            if (project_dir / '.git').exists():
+        current_dir = os.getcwd()
+        
+        # 尝试找到git根目录
+        git_root = None
+        check_dir = current_dir
+        while check_dir != os.path.dirname(check_dir):  # 直到根目录
+            if os.path.exists(os.path.join(check_dir, '.git')):
+                git_root = check_dir
                 break
-            project_dir = project_dir.parent
-        return project_dir.name, current_dir, project_dir
-    except Exception as e:
-        return "Agent Project", Path.cwd(), Path.cwd()
+            check_dir = os.path.dirname(check_dir)
+        
+        if git_root:
+            project_name = os.path.basename(git_root)
+            project_dir = git_root
+        else:
+            project_name = os.path.basename(current_dir)
+            project_dir = current_dir
+        
+        # 确保项目名称不为空
+        if not project_name:
+            project_name = "root"
+            
+        return project_name, str(current_dir), str(project_dir)
+    except Exception:
+        return "Unknown", str(os.getcwd()), str(os.getcwd())
 
-def show_project_info(current_dir, project_dir):
-    """显示项目信息"""
-    if is_run_environment():
-        run_identifier = os.environ.get('RUN_IDENTIFIER')
-        output_file = os.environ.get('RUN_DATA_FILE')
-        if run_identifier:
-            print(f"RUN identifier: {run_identifier}")
-        if output_file:
-            print(f"Output file: {output_file}")
+def get_cursor_session_title(custom_id=None):
+    """获取Cursor session标题"""
+    try:
+        project_name, _, _ = get_project_name()
+        base_title = f"{project_name} - Agent Mode"
+        if custom_id:
+            return f"{base_title} [{custom_id}]"
+        return base_title
+    except:
+        base_title = "Agent Mode"
+        if custom_id:
+            return f"{base_title} [{custom_id}]"
+        return base_title
 
-def show_prompt_header(project_name, hint_text=None):
-    """显示提示头部信息"""
-    # 移除主进程中的音效播放逻辑，只在Tkinter subprocess中播放音效
-    if project_name: 
-        project_name = project_name + " - "
-    if is_run_environment():
-        run_identifier = os.environ.get('RUN_IDENTIFIER', '')
-        title = f"{project_name}Agent Mode (RUN: {run_identifier[:8]}...)"
-    else:
-        title = f"{project_name}Agent Mode"
+class TkinterInputWindow:
+    def __init__(self, title=None, timeout=180, window_id=None, hint_text=None):
+        self.title = title or get_cursor_session_title()
+        self.timeout = timeout
+        self.window_id = window_id or f"win_{int(time.time())}_{random.randint(1000, 9999)}"
+        self.hint_text = hint_text
+        self.result = None
+        self.window_closed = False
+        self.root = None
+        self.text_widget = None
+        self.status_label = None
+        
+    def create_window(self):
+        """创建tkinter窗口"""
+        try:
+            # 抑制tkinter警告
+            warnings.filterwarnings('ignore')
+            os.environ['TK_SILENCE_DEPRECATION'] = '1'
+            
+            self.root = tk.Tk()
+            self.root.title(f"{self.title}")
+            self.root.geometry("450x250")
+            
+            # 设置窗口属性
+            self.root.attributes('-topmost', True)
+            self.root.focus_force()
+            
+            # 创建主框架
+            main_frame = tk.Frame(self.root, padx=15, pady=15)
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # 说明标签
+            instruction_label = tk.Label(main_frame, 
+                                       text="请在文本框中输入您的反馈，并点击 '提交' 按钮:",
+                                       font=("Arial", 11), fg="#555")
+            instruction_label.pack(pady=(0, 15))
+            
+            # 创建文本框
+            self.text_widget = scrolledtext.ScrolledText(
+                main_frame,
+                wrap=tk.WORD,
+                height=8,
+                font=("Arial", 12),
+                bg="#f8f9fa",
+                fg="#333",
+                insertbackground="#007acc",
+                selectbackground="#007acc",
+                relief=tk.FLAT,
+                borderwidth=1
+            )
+            self.text_widget.pack(fill=tk.X, pady=(0, 15))
+            
+            # 插入提示文本（如果有）
+            if self.hint_text:
+                self.text_widget.insert("1.0", self.hint_text)
+            
+            # 绑定窗口大小变化事件
+            self.root.bind('<Configure>', self.on_window_resize)
+            
+            # 按钮框架
+            button_frame = tk.Frame(main_frame)
+            button_frame.pack(fill=tk.X, pady=(0, 10))
+            
+            # 提交按钮
+            submit_btn = tk.Button(
+                button_frame,
+                text="提交",
+                command=self.submit_input,
+                bg="white",
+                fg="black",
+                font=("Arial", 11, "bold"),
+                padx=20,
+                pady=8,
+                relief=tk.FLAT,
+                cursor="hand2",
+                borderwidth=0,
+                highlightthickness=0,
+                activebackground="#f0f0f0"
+            )
+            submit_btn.pack(side=tk.RIGHT, padx=(10, 0))
+            
+            # 状态标签
+            self.status_label = tk.Label(button_frame, text="", 
+                                       font=("Arial", 12), fg="black")
+            self.status_label.pack(side=tk.LEFT)
+            
+            # 绑定快捷键
+            self.root.bind('<Control-Return>', lambda e: self.submit_input())
+            self.root.bind('<Escape>', lambda e: self.cancel_input())
+            
+            # 绑定窗口关闭事件
+            self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)
+            
+            # 设置焦点到文本框
+            self.text_widget.focus_set()
+            
+            # 启动超时计时器
+            if self.timeout > 0:
+                self.start_timeout_timer()
+            
+            # 启动定期focus
+            self.start_periodic_focus()
+            
+            # 窗口创建时播放音效
+            self.play_bell()
+            
+            return True
+            
+        except Exception as e:
+            # 静默处理错误，不输出到终端
+            return False
     
-    separator = "=" * len(title)
+    def on_window_resize(self, event):
+        """窗口大小变化时动态调整文本框宽度和高度"""
+        if event.widget == self.root and self.text_widget:
+            try:
+                window_width = self.root.winfo_width()
+                new_width = max(30, (window_width - 50) // 8)
+                window_height = self.root.winfo_height()
+                new_height = max(3, (window_height - 100) // 16)
+                self.text_widget.config(width=new_width, height=new_height)
+            except:
+                pass
     
-    print(f"{separator}")
-    print(f"{title}")
-    print(f"{separator}")
+    def start_timeout_timer(self):
+        """启动超时计时器"""
+        def update_timer():
+            remaining = self.timeout
+            while remaining > 0 and not self.window_closed:
+                # 显示倒计时（所有时间都显示）
+                self.status_label.config(text=f"剩余时间: {remaining}秒")
+                time.sleep(1)
+                remaining -= 1
+            if not self.window_closed:
+                self.timeout_input()
+        threading.Thread(target=update_timer, daemon=True).start()
     
-    if hint_text:
-        print(f"\nHint provided: {hint_text}")
+    def start_periodic_focus(self):
+        """启动定期重新获取焦点和播放音效"""
+        def refocus():
+            if not self.window_closed and self.root:
+                try:
+                    self.root.lift()
+                    self.root.focus_force()
+                    self.root.attributes('-topmost', True)
+                    self.text_widget.focus_set()
+                    self.play_bell()
+                    # 每30秒重新获取焦点（恢复原版间隔）
+                    self.root.after(30000, refocus)
+                except:
+                    pass
+        # 30秒后开始第一次重新获取焦点
+        if self.root:
+            self.root.after(30000, refocus)
     
-    print(f"\nEnter your next prompt. Press Ctrl+D (EOF) when done.")
+    def play_bell(self):
+        """播放提示音效"""
+        def play_in_thread():
+            try:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                audio_file_path = os.path.join(current_dir, "USERINPUT_PROJ", "tkinter_bell.mp3")
+                if os.path.exists(audio_file_path):
+                    system = platform.system()
+                    if system == "Darwin":
+                        subprocess.run(["afplay", audio_file_path], 
+                                     capture_output=True, timeout=2)
+            except:
+                pass
+        threading.Thread(target=play_in_thread, daemon=True).start()
+    
+    def submit_input(self):
+        """提交输入"""
+        if self.window_closed:
+            return
+        try:
+            text_content = self.text_widget.get("1.0", tk.END).strip()
+            if text_content:
+                self.result = text_content
+            else:
+                self.result = "用户提交了空内容"
+            self.close_window()
+        except Exception as e:
+            self.result = f"提交输入时出错: {e}"
+            self.close_window()
+    
+    def cancel_input(self):
+        """取消输入"""
+        if self.window_closed:
+            return
+        self.result = "用户取消了输入"
+        self.close_window()
+    
+    def timeout_input(self):
+        """超时处理"""
+        if self.window_closed:
+            return
+        try:
+            text_content = self.text_widget.get("1.0", tk.END).strip()
+            timeout_hint = "\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+            if text_content:
+                self.result = f"{text_content}\n{timeout_hint}"
+            else:
+                self.result = f"输入超时 ({self.timeout}秒)。{timeout_hint}"
+        except:
+            self.result = f"输入超时 ({self.timeout}秒)。用户还在测试代码，或者准备给你的反馈。"
+        self.close_window()
+    
+    def close_window(self):
+        """关闭窗口"""
+        if self.window_closed:
+            return
+        self.window_closed = True
+        if self.root:
+            try:
+                self.root.quit()
+                self.root.destroy()
+            except:
+                pass
+    
+    def show_and_wait(self):
+        """显示窗口并等待用户输入"""
+        if not self.create_window():
+            return None
+        try:
+            self.root.mainloop()
+            return self.result
+        except Exception as e:
+            return f"窗口运行时出错: {e}"
 
-def show_tkinter_window_in_subprocess(project_name, timeout_seconds):
-    """在子进程中显示tkinter窗口，抑制所有stdout/stderr输出"""
-    import subprocess
-    import sys
-    import os
+@contextlib.contextmanager
+def suppress_stderr():
+    """抑制stderr输出（包括IMK消息）"""
+    with open(os.devnull, "w") as devnull:
+        old_stderr = sys.stderr
+        sys.stderr = devnull
+        try:
+            yield
+        finally:
+            sys.stderr = old_stderr
+
+def get_user_input_tkinter(title=None, timeout=180, max_retries=3, hint_text=None):
+    """使用tkinter获取用户输入（通过subprocess抑制IMK消息）"""
     
-    # 获取音频文件路径并传递给子进程
-    current_dir = os.path.dirname(__file__)
-    audio_file_path = os.path.join(current_dir, "USERINPUT_PROJ", "tkinter_bell.mp3")
-    
-    # 创建子进程脚本
-    subprocess_script = f'''
-import sys
+    for attempt in range(max_retries):
+        try:
+            # 先生成Window ID并打印（在subprocess之前！）
+            window_id = f"win_{int(time.time())}_{random.randint(1000, 9999)}"
+            
+            
+            # 创建完整的tkinter脚本
+            tkinter_script = f'''
 import os
-import time
-
-# 抑制所有警告
+import sys
 import warnings
 warnings.filterwarnings('ignore')
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
 
-try:
-    import tkinter as tk
-    
-    root = tk.Tk()
-    root.title("{project_name} - Agent Mode")
-    root.geometry("200x40")
-    root.attributes('-topmost', True)
-    
-    # 定义统一的聚焦函数
-    def force_focus():
+import tkinter as tk
+from tkinter import scrolledtext
+import threading
+import time
+import subprocess
+import platform
+
+class TkinterInputWindow:
+    def __init__(self):
+        self.title = "{title or 'USERINPUT - Agent Mode'}"
+        self.timeout = {timeout}
+        self.window_id = "{window_id}"
+        self.result = None
+        self.window_closed = False
+        self.root = None
+        self.text_widget = None
+        self.status_label = None
+        
+    def create_window(self):
         try:
-            root.focus_force()
-            root.lift()
-            root.attributes('-topmost', True)
+            self.root = tk.Tk()
+            self.root.title(f"{{self.title}}")
+            self.root.geometry("450x250")
+            self.root.attributes('-topmost', True)
+            self.root.focus_force()
             
-            # macOS特定的焦点获取方法
-            import platform
-            if platform.system() == 'Darwin':
-                import subprocess
-                try:
-                    # 尝试多个可能的应用程序名称
-                    app_names = ['Python', 'python3', 'tkinter', 'Tk']
-                    for app_name in app_names:
-                        try:
-                            subprocess.run(['osascript', '-e', 'tell application "' + app_name + '" to activate'], 
-                                          timeout=0.5, capture_output=True)
-                            break
-                        except:
-                            continue
-                    
-                    # 尝试使用系统事件来强制获取焦点
-                    applescript_code = "tell application \\"System Events\\"\\n    set frontmost of first process whose name contains \\"Python\\" to true\\nend tell"
-                    subprocess.run(['osascript', '-e', applescript_code], timeout=0.5, capture_output=True)
-                except:
-                    pass  # 如果失败就忽略
-        except:
-            pass
-    
-    # 定义音频播放函数
-    def play_bell_in_subprocess():
-        try:
-            audio_path = "{audio_file_path}"
-            if os.path.exists(audio_path):
-                import platform
-                import subprocess
-                system = platform.system()
-                if system == "Darwin":  # macOS
-                    subprocess.run(["afplay", audio_path], 
-                                 capture_output=True, timeout=2)
-                elif system == "Linux":
-                    # 尝试多个Linux音频播放器
-                    players = ["paplay", "aplay", "mpg123", "mpv", "vlc"]
-                    for player in players:
-                        try:
-                            subprocess.run([player, audio_path], 
-                                         capture_output=True, timeout=2, check=True)
-                            break
-                        except (subprocess.CalledProcessError, FileNotFoundError):
-                            continue
-                elif system == "Windows":
-                    # Windows可以使用winsound模块或powershell
-                    try:
-                        subprocess.run(["powershell", "-c", 
-                                      "(New-Object Media.SoundPlayer '" + audio_path + "').PlaySync()"], 
-                                     capture_output=True, timeout=2)
-                    except:
-                        pass
+            main_frame = tk.Frame(self.root, padx=15, pady=15)
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            instruction_label = tk.Label(main_frame, 
+                                       text="请在文本框中输入您的反馈，并点击 '提交' 按钮:",
+                                       font=("Arial", 11), fg="#555")
+            instruction_label.pack(pady=(0, 15))
+            
+            self.text_widget = scrolledtext.ScrolledText(
+                main_frame, wrap=tk.WORD, height=8, font=("Arial", 12),
+                bg="#f8f9fa", fg="#333", insertbackground="#007acc",
+                selectbackground="#007acc", relief=tk.FLAT, borderwidth=1
+            )
+            self.text_widget.pack(fill=tk.X, pady=(0, 15))
+            
+            # 插入提示文本（如果有的话）
+            hint_text = {repr(hint_text or '')}
+            if hint_text:
+                self.text_widget.insert(tk.END, hint_text)
+            
+            self.root.bind('<Configure>', self.on_window_resize)
+            
+            button_frame = tk.Frame(main_frame)
+            button_frame.pack(fill=tk.X, pady=(0, 10))
+            
+            submit_btn = tk.Button(button_frame, text="提交", command=self.submit_input,
+                                 bg="white", fg="black", font=("Arial", 11, "bold"),
+                                 padx=20, pady=8, relief=tk.FLAT, cursor="hand2",
+                                 borderwidth=0, highlightthickness=0, activebackground="#f0f0f0")
+            submit_btn.pack(side=tk.RIGHT, padx=(10, 0))
+            
+            self.status_label = tk.Label(button_frame, text="", font=("Arial", 12), fg="black")
+            self.status_label.pack(side=tk.LEFT)
+            
+            self.root.bind('<Control-Return>', lambda e: self.submit_input())
+            self.root.bind('<Escape>', lambda e: self.cancel_input())
+            self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)
+            
+            self.text_widget.focus_set()
+            
+            if self.timeout > 0:
+                self.start_timeout_timer()
+            self.start_periodic_focus()
+            self.play_bell()
+            
+            return True
         except Exception:
-            pass  # 如果播放失败，忽略错误
+            return False
     
-    # 全局focus计数器和状态标志
-    focus_count = 0
-    button_clicked = False
+    def on_window_resize(self, event):
+        if event.widget == self.root and self.text_widget:
+            try:
+                window_width = self.root.winfo_width()
+                new_width = max(30, (window_width - 50) // 8)
+                window_height = self.root.winfo_height()
+                new_height = max(3, (window_height - 100) // 16)
+                self.text_widget.config(width=new_width, height=new_height)
+            except:
+                pass
     
-    # 带focus计数的聚焦函数
-    def force_focus_with_count():
-        global focus_count, button_clicked
-        # 如果按钮已被点击，不再播放音效
-        if button_clicked:
+    def start_timeout_timer(self):
+        def update_timer():
+            remaining = self.timeout
+            while remaining > 0 and not self.window_closed:
+                self.status_label.config(text=f"剩余时间: {{remaining}}秒")
+                time.sleep(1)
+                remaining -= 1
+            if not self.window_closed:
+                self.timeout_input()
+        threading.Thread(target=update_timer, daemon=True).start()
+    
+    def start_periodic_focus(self):
+        def refocus():
+            if not self.window_closed and self.root:
+                try:
+                    self.root.lift()
+                    self.root.focus_force()
+                    self.root.attributes('-topmost', True)
+                    self.text_widget.focus_set()
+                    self.play_bell()
+                    self.root.after(30000, refocus)
+                except:
+                    pass
+        if self.root:
+            self.root.after(30000, refocus)
+    
+    def play_bell(self):
+        def play_in_thread():
+            try:
+                # 使用绝对路径
+                audio_file_path = "/Users/wukunhuan/.local/bin/USERINPUT_PROJ/tkinter_bell.mp3"
+                if os.path.exists(audio_file_path):
+                    if platform.system() == "Darwin":
+                        subprocess.run(["afplay", audio_file_path], capture_output=True, timeout=2)
+            except:
+                pass
+        threading.Thread(target=play_in_thread, daemon=True).start()
+    
+    def submit_input(self):
+        if self.window_closed:
             return
-            
-        focus_count += 1
-        force_focus()
-        
         try:
-            import threading
-            threading.Thread(target=play_bell_in_subprocess, daemon=True).start()
+            text_content = self.text_widget.get("1.0", tk.END).strip()
+            self.result = text_content if text_content else "用户提交了空内容"
+            self.close_window()
         except Exception as e:
-            pass
+            self.result = f"提交输入时出错: {{e}}"
+            self.close_window()
     
-    # 按钮点击处理函数
-    def on_button_click():
-        global button_clicked
-        button_clicked = True  # 标记按钮已被点击
-        root.destroy()
+    def cancel_input(self):
+        if self.window_closed:
+            return
+        self.result = "用户取消了输入"
+        self.close_window()
     
-    # 初始聚焦（第1次，会播放音效）
-    force_focus_with_count()
-    
-    # 创建按钮
-    btn = tk.Button(
-        root, 
-        text="Click to Enter Prompt", 
-        command=on_button_click,  # 使用自定义的点击处理函数
-        padx=20,
-        pady=10,
-        bg="#4CAF50",
-        fg="#666666",
-        font=("Arial", 9, "bold")
-    )
-    btn.pack(expand=True)
-    
-    # 回车键快捷键已删除，用户需要点击按钮
-    
-    # 键盘事件绑定已移除
-    
-    # 定期重新获取焦点的函数 - 暂时注释掉5秒refocus机制
-    def refocus_window():
+    def timeout_input(self):
+        if self.window_closed:
+            return
         try:
-            # 使用带focus计数的聚焦函数
-            force_focus_with_count()
-            
-            # 每30秒重新获取焦点并播放音效
-            root.after(30000, refocus_window)
-        except Exception as e:
-            pass  # 如果窗口已关闭，忽略错误
+            text_content = self.text_widget.get("1.0", tk.END).strip()
+            timeout_hint = "\\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
+            if text_content:
+                self.result = f"{{text_content}}\\n{{timeout_hint}}"
+            else:
+                self.result = f"输入超时 ({{self.timeout}}秒)。{{timeout_hint}}"
+        except:
+            self.result = f"输入超时 ({{self.timeout}}秒)。用户还在测试代码，或者准备给你的反馈。"
+        self.close_window()
     
-    # 开始定期重新获取焦点
-    root.after(30000, refocus_window)
+    def close_window(self):
+        if self.window_closed:
+            return
+        self.window_closed = True
+        if self.root:
+            try:
+                self.root.quit()
+                self.root.destroy()
+            except:
+                pass
     
-    # 设置自动关闭定时器
-    def auto_close():
-        if not button_clicked:
-            root.destroy()
-    
-    root.after({timeout_seconds} * 1000, auto_close)
-    
-    # 运行窗口
-    root.mainloop()
-    
-    # 输出结果（用户是否点击了按钮）
-    print(f"clicked")
-    
-except Exception as e:
-    print(f"error")
-'''
-    
-    try:
-        # 在子进程中运行tkinter窗口，允许debug输出
-        result = subprocess.run(
-            [sys.executable, '-c', subprocess_script],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,  # 将stderr重定向到stdout以便看到debug输出
-            text=True,
-            timeout=timeout_seconds + 5  # 给子进程额外5秒时间
-        )
-        
-        # 检查结果
-        if result.returncode == 0 and "clicked" in result.stdout:
-            return True  # 用户点击了按钮
-        else:
-            return False  # 超时或其他情况
-            
-    except subprocess.TimeoutExpired:
-        return False  # 超时
-    except Exception:
-        return False  # 其他错误
-
-def show_dummy_ui(project_name):
-    """显示极简的dummy UI，使用全局超时管理"""
-    global _global_timeout_manager
-    
-    # 检查是否设置了跳过GUI的环境变量
-    if os.environ.get('USERINPUT_NO_GUI', '').lower() in ('1', 'true', 'yes'):
-        # 直接返回True，跳过GUI，使用终端输入
-        return True
-    
-    # 检查全局超时是否已经过期
-    if _global_timeout_manager and _global_timeout_manager.is_timeout_expired():
-        return False
-    
-    # 获取剩余时间
-    if _global_timeout_manager:
-        remaining_time = int(_global_timeout_manager.get_remaining_time())
-    else:
-        # 如果没有全局超时管理器，使用默认值
-        default_timeout = int(os.environ.get('USERINPUT_TIMEOUT', '300'))
-        remaining_time = getattr(get_user_input_via_terminal, '_timeout_override', default_timeout)
-    
-    # 如果剩余时间<=0，直接返回
-    if remaining_time <= 0:
-        return False
-    
-    # 使用子进程方式显示tkinter窗口
-    return show_tkinter_window_in_subprocess(project_name, remaining_time)
-
-class TimeoutException(Exception):
-    """Timeout exception for input operations"""
-    pass
-
-class GlobalTimeoutManager:
-    """管理全局超时，确保tkinter窗口和终端输入的总时间不超过设定值"""
-    def __init__(self, timeout_seconds):
-        self.timeout_seconds = timeout_seconds
-        self.start_time = time.time()
-        self.is_expired = False
-        self.lock = threading.Lock()
-    
-    def get_remaining_time(self):
-        """获取剩余时间（秒）"""
-        with self.lock:
-            if self.is_expired:
-                return 0
-            elapsed = time.time() - self.start_time
-            remaining = max(0, self.timeout_seconds - elapsed)
-            if remaining <= 0:
-                self.is_expired = True
-            return remaining
-    
-    def is_timeout_expired(self):
-        """检查是否已超时"""
-        return self.get_remaining_time() <= 0
-    
-    def mark_expired(self):
-        """手动标记为已超时"""
-        with self.lock:
-            self.is_expired = True
-
-# 全局超时管理器实例
-_global_timeout_manager = None
-
-def timeout_handler(signum, frame):
-    """Signal handler for timeout"""
-    raise TimeoutException("Input timeout")
-
-def _read_input_with_signal(lines, timeout_seconds):
-    """使用信号的传统方法，改进超时时的输入捕获"""
-    import readline
-    
-    # 创建一个共享变量来保存当前正在输入的内容
-    current_input_buffer = []
-    
-    def enhanced_timeout_handler(signum, frame):
-        """增强的超时处理器，尝试多种方法捕获当前输入"""
+    def show_and_wait(self):
+        if not self.create_window():
+            return None
         try:
-            # 方法1: 使用readline.get_line_buffer()
-            buffer = readline.get_line_buffer()
-            if buffer and buffer.strip():
-                current_input_buffer.append(buffer.strip())
+            self.root.mainloop()
+            return self.result
         except Exception:
-            pass
-        
-        # 抛出超时异常以退出input()
-        raise TimeoutException("Input timeout")
-    
-    original_handler = signal.signal(signal.SIGALRM, enhanced_timeout_handler)
-    signal.alarm(timeout_seconds)
-    
-    try:
-        while True:
-            try:
-                line = input()
-                lines.append(line)
-            except EOFError:
-                # Ctrl+D 结束输入
-                try:
-                    current_line = readline.get_line_buffer()
-                    if current_line.strip():
-                        lines.append(current_line.strip())
-                except:
-                    pass
-                return False
-            except KeyboardInterrupt:
-                # Ctrl+C 处理
-                try:
-                    current_line = readline.get_line_buffer()
-                    if current_line.strip():
-                        stripped_line = current_line.strip()
-                        if not lines or lines[-1] != stripped_line:
-                            lines.append(stripped_line)
-                except Exception:
-                    pass
-                return "partial_input" if lines else "no_input"
-            except TimeoutException:
-                # 超时处理 - 检查是否捕获了部分输入
-                if current_input_buffer:
-                    # 从超时处理器中捕获的内容
-                    stripped_line = current_input_buffer[0]
-                    if stripped_line and (not lines or lines[-1] != stripped_line):
-                        lines.append(stripped_line)
-                else:
-                    # 再次尝试从readline获取
-                    try:
-                        current_line = readline.get_line_buffer()
-                        if current_line.strip():
-                            stripped_line = current_line.strip()
-                            if not lines or lines[-1] != stripped_line:
-                                lines.append(stripped_line)
-                    except Exception:
-                        pass
-                return True
-    finally:
-        # 清理超时设置
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, original_handler)
+            return None
 
-def get_user_input_via_terminal(project_name, timeout_hint=""):
-    """直接在终端中获取用户输入，带有超时功能"""
-    global _global_timeout_manager
+# 运行窗口
+window = TkinterInputWindow()
+result = window.show_and_wait()
 
-    # 获取剩余超时时间
-    if _global_timeout_manager:
-        remaining_time = _global_timeout_manager.get_remaining_time()
-        if remaining_time <= 0:
-            return timeout_hint if timeout_hint else "输入超时"
-        TIMEOUT_SECONDS = max(1, int(remaining_time))
-    else:
-        default_timeout = int(os.environ.get('USERINPUT_TIMEOUT', '300'))
-        TIMEOUT_SECONDS = int(getattr(get_user_input_via_terminal, '_timeout_override', default_timeout))
-    
-    # 读取多行输入
-    lines = []
-    timeout_occurred = False
-    
-    try:
-        result = _read_input_with_signal(lines, TIMEOUT_SECONDS)
-        if result == "partial_input" or result == False:
-            timeout_occurred = False
-        else:
-            timeout_occurred = result  # True for timeout
-    except KeyboardInterrupt:
-        pass  # 忽略KeyboardInterrupt，继续处理
-    
-    # 组合输入
-    full_input = '\n'.join(lines).strip()
-    
-    # 如果发生超时，添加超时提示
-    if timeout_occurred or (_global_timeout_manager and _global_timeout_manager.is_timeout_expired()):
-        if timeout_hint:
-            full_input = f"{full_input}\n{timeout_hint}" if full_input else timeout_hint
-    
-    # 清理屏幕
-    if not is_run_environment():
-        print(f"\n" + "="*50)
-    
-    return full_input or "用户暂无输入"
-
-def copy_to_clipboard(text):
-    """将文本复制到剪贴板，使用系统命令保证可靠性"""
-    try:
-        system = platform.system()
-        
-        if system == "Darwin":  # macOS
-            # 使用pbcopy命令（最可靠的方法）
-            process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-            process.communicate(text.encode('utf-8'))
-            # print(f"[DEBUG] ✅ 已使用pbcopy复制 {len(text)} 个字符到剪贴板")
+if result:
+    print(result)
+else:
+    print("无法获取用户输入")
+'''
             
-            # 验证复制是否成功（静默验证）
-            try:
-                verify_process = subprocess.Popen(['pbpaste'], stdout=subprocess.PIPE)
-                clipboard_content, _ = verify_process.communicate()
-                clipboard_text = clipboard_content.decode('utf-8')
-                if clipboard_text == text:
-                    pass  # print("[DEBUG] ✅ 验证成功：剪贴板内容完全匹配")
-                else:
-                    pass  # print(f"[DEBUG] ⚠️ 验证失败：剪贴板有 {len(clipboard_text)} 字符，预期 {len(text)} 字符")
-            except Exception as verify_error:
-                pass  # print(f"[DEBUG] ⚠️ 验证出错: {verify_error}")
+            # 使用subprocess运行tkinter，抑制IMK消息
+            # 使用PYTHON_PROJ中的Python而不是系统Python
+            python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
+            result = subprocess.run(
+                [python_exec, '-c', tkinter_script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,  # 抑制IMK消息
+                text=True,
+                timeout=timeout + 10
+            )
             
-            return True
+            if result.returncode == 0 and result.stdout:
+                user_result = result.stdout.strip()
+                if user_result and user_result != "无法获取用户输入":
+                    return user_result
             
-        elif system == "Linux":
-            # 尝试Linux的剪贴板命令
-            try:
-                # 尝试xclip
-                process = subprocess.Popen(['xclip', '-selection', 'clipboard'], stdin=subprocess.PIPE)
-                process.communicate(text.encode('utf-8'))
-                # print(f"[DEBUG] ✅ 已使用xclip复制 {len(text)} 个字符到剪贴板")
-                return True
-            except FileNotFoundError:
-                try:
-                    # 尝试xsel
-                    process = subprocess.Popen(['xsel', '--clipboard', '--input'], stdin=subprocess.PIPE)
-                    process.communicate(text.encode('utf-8'))
-                    # print(f"[DEBUG] ✅ 已使用xsel复制 {len(text)} 个字符到剪贴板")
-                    return True
-                except FileNotFoundError:
-                    # print("[DEBUG] ⚠️ 未找到xclip或xsel，尝试使用tkinter")
-                    return _copy_to_clipboard_tkinter(text)
-                    
-        elif system == "Windows":
-            # Windows使用clip命令
-            process = subprocess.Popen(['clip'], stdin=subprocess.PIPE, shell=True)
-            process.communicate(text.encode('utf-16'))
-            # print(f"[DEBUG] ✅ 已使用clip复制 {len(text)} 个字符到剪贴板")
-            return True
-        else:
-            # 未知系统，回退到tkinter
-            # print(f"[DEBUG] ⚠️ 未知系统 {system}，使用tkinter")
-            return _copy_to_clipboard_tkinter(text)
-            
-    except Exception as e:
-        # print(f"[DEBUG] ❌ 复制到剪贴板失败: {e}，尝试tkinter方法")
-        return _copy_to_clipboard_tkinter(text)
-
-def _copy_to_clipboard_tkinter(text):
-    """使用tkinter的备用方法（不太可靠）"""
-    try:
-        import tkinter as tk
-        
-        root = tk.Tk()
-        root.withdraw()
-        root.clipboard_clear()
-        root.clipboard_append(text)
-        
-        # 多次update确保内容被保存
-        for _ in range(10):
-            root.update()
-        
-        # print(f"[DEBUG] ✅ 已使用tkinter复制 {len(text)} 个字符到剪贴板")
-        
-        # 不要立即销毁，让剪贴板有时间保存
-        root.after(100, root.destroy)
-        root.mainloop()
-        
-        return True
-    except Exception as e:
-        # print(f"[DEBUG] ❌ tkinter复制失败: {e}")
-        return False
-
-def write_to_json_output(user_input, command_identifier=None):
-    """将用户输入写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2)
     
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        # 确保输出目录存在
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 准备 JSON 数据
-        data = {
-            'success': True,
-            'type': 'user_input',
-            'user_input': user_input,
-            'message': 'User input received successfully'
-        }
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
-
-def show_help():
-    """显示帮助信息"""
-    print(f"""USERINPUT - User Input Script for Cursor AI
-
-Usage:
-  USERINPUT                    Get user input interactively (3-minute timeout)
-  USERINPUT --timeout SECONDS Get user input with custom timeout
-  USERINPUT --help             Show this help message
-
-Options:
-  --timeout SECONDS    Set custom timeout (default: 180 seconds)
-  --help, -h           Show this help message
-
-Environment Variables:
-  USERINPUT_TIMEOUT            Timeout in seconds (default: 180)
-  USERINPUT_NO_GUI             Skip GUI window to avoid IMK messages (1/true/yes)
-
-Examples:
-  USERINPUT                    # 3-minute timeout (default)
-  USERINPUT --timeout 20       # 20-second timeout (testing)
-  USERINPUT --timeout 300      # 5-minute timeout
-  USERINPUT_NO_GUI=1 USERINPUT # Skip GUI, avoid macOS IMK messages
-
-Features:
-- Multi-line input support (press Ctrl+D to finish)
-- Automatic timeout with graceful handling
-- GUI window for better user experience (can be disabled)
-- JSON output support for programmatic usage
-- Timeout guidance for repeated USERINPUT calls
-- Complete tkinter warning suppression
-
-GUI Notes:
-- On macOS, tkinter windows may show IMK (Input Method) messages
-- Use USERINPUT_NO_GUI=1 to completely avoid GUI and IMK messages
-- Terminal-only mode provides identical functionality
-
-Environment Variables:
-  USERINPUT_TIMEOUT            Timeout in seconds (default: 180)
-  USERINPUT_NO_GUI             Skip GUI window to avoid IMK messages (1/true/yes)
-""")
-    return True
+    return None
 
 def main():
-    """主函数，支持命令行参数"""
-    
-    # 获取command_identifier
-    args = sys.argv[1:]
-    command_identifier = None
-    
-    # 检查是否被RUN调用（第一个参数是command_identifier）
-    if args and is_run_environment(args[0]):
-        command_identifier = args[0]
-        args = args[1:]  # 移除command_identifier，保留实际参数
-    
+    """主函数"""
     # 解析命令行参数
-    timeout_override = None
+    timeout = 180
+    custom_id = None
     hint_text = None
-    remaining_args = []
     
-    i = 0
-    while i < len(args):
-        if args[i] in ['--help', '-h']:
-            # 显示帮助信息
-            show_help()
-            return
-        elif args[i] == '--timeout':
-            if i + 1 < len(args):
-                try:
-                    timeout_override = int(args[i + 1])
-                    i += 2  # Skip both --timeout and its value
-                except ValueError:
-                    print(f"Error: --timeout requires a numeric value")
-                    return
-            else:
-                print(f"Error: --timeout requires a value")
-                return
-        elif args[i] == '--hint':
-            if i + 1 < len(args):
-                hint_text = args[i + 1]
-                i += 2  # Skip both --hint and its value
-            else:
-                print(f"Error: --hint requires a value")
-                return
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == '--timeout' and i + 1 < len(sys.argv):
+            try:
+                timeout = int(sys.argv[i + 1])
+                i += 2
+            except ValueError:
+                print("Error: --timeout requires a numeric value")
+                return 1
+        elif sys.argv[i] == '--id' and i + 1 < len(sys.argv):
+            custom_id = sys.argv[i + 1]
+            i += 2
+        elif sys.argv[i] == '--hint' and i + 1 < len(sys.argv):
+            hint_text = sys.argv[i + 1]
+            i += 2
+        elif sys.argv[i] in ['--help', '-h']:
+            print("Usage: USERINPUT [--timeout SECONDS] [--id CUSTOM_ID] [--hint TEXT]")
+            print("  --timeout SECONDS  Set timeout in seconds (default: 180)")
+            print("  --id CUSTOM_ID     Set custom ID for window title")
+            print("  --hint TEXT        Default hint text to insert in textbox")
+            return 0
         else:
-            remaining_args.append(args[i])
-            i += 1
+            print(f"Unknown argument: {sys.argv[i]}")
+            return 1
     
-    # 更新剩余参数
-    args = remaining_args
+    # 获取用户输入
+    result = get_user_input_tkinter(
+        title=get_cursor_session_title(custom_id),
+        timeout=timeout,
+        max_retries=3,
+        hint_text=hint_text
+    )
     
-    # 获取项目信息
-    project_name, current_dir, project_dir = get_project_name()
-    
-    # IGNOREEOF 现在由 USERINPUT shell 脚本自动设置
-    # 设置超时覆盖（如果有的话）
-    timeout_hint = "\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。\n"
-    end_hint = "\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
-    if timeout_override is not None:
-        get_user_input_via_terminal._timeout_override = timeout_override
-    
-    # 初始化全局超时管理器
-    global _global_timeout_manager
-    default_timeout = int(os.environ.get('USERINPUT_TIMEOUT', '180'))
-    final_timeout = timeout_override if timeout_override is not None else default_timeout
-    _global_timeout_manager = GlobalTimeoutManager(final_timeout)
-    timeout = False
-    
-    # 尝试显示极简UI（仅在非RUN环境中）
-    if not is_run_environment(command_identifier):
-        ui_result = show_dummy_ui(project_name)
+    if result:
+        # 添加结束提示
+        end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
+        final_result = result + end_hint
         
-        # 如果UI因超时关闭，直接返回超时结果
-        if (not ui_result and _global_timeout_manager.is_timeout_expired()) or \
-            _global_timeout_manager.is_timeout_expired():
-            timeout = True
-            user_input = f"输入超时 ({final_timeout}秒)。{timeout_hint}"
-        else:
-            show_project_info(current_dir, project_dir)
-            show_prompt_header(project_name, hint_text)
-            user_input = get_user_input_via_terminal(project_name, timeout_hint)
+        # 复制到剪贴板
+        try:
+            system = platform.system()
+            if system == "Darwin":
+                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+                process.communicate(final_result.encode('utf-8'))
+        except:
+            pass
+        
+        # 输出结果（不清屏）
+        print(final_result)
     else:
-        user_input = get_user_input_via_terminal(project_name, timeout_hint)
+        print("无法获取用户输入")
+        return 1
     
-    if is_run_environment(command_identifier):
-        if not write_to_json_output(user_input, command_identifier):
-            print(f"Failed to write user input to JSON file.")
-            print(user_input)
-    else:
-        # 不在 RUN 环境中，直接输出到 stdout（保持原有行为）
-        # 先添加结束提示
-        if not timeout:
-            user_input += end_hint
-        
-        # 复制完整内容到剪贴板（包含end_hint）
-        copy_to_clipboard(user_input)
-        
-        # 清空屏幕
-        os.system("clear") if os.name == "posix" else os.system("cls")
-        
-        # 输出到终端
-        print(user_input)
+    return 0
 
 if __name__ == "__main__":
-    main() 
+    sys.exit(main())

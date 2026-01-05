@@ -123,7 +123,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
     
     # 检查service account credentials
     if not service_account_credentials:
-        print("✗ Error: Service account credentials not found")
+        print("Error: Service account credentials not found")
         print("\nPlease set up service account credentials first:")
         print("  1. Run: GOOGLE_DRIVE --console-setup")
         print("  2. Follow the setup wizard to configure credentials")
@@ -180,13 +180,13 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        print(f"✓ config.json updated: MOUNT_HASH={mount_hash}")
+        print(f"config.json updated: MOUNT_HASH={mount_hash}")
         
         # 同时更新GoogleDriveShell实例的MOUNT_HASH属性（如果实例存在）
         if google_drive_shell:
             google_drive_shell.MOUNT_HASH = mount_hash
             google_drive_shell.MOUNT_TIMESTAMP = timestamp
-            print(f"✓ current shell instance updated: MOUNT_HASH={mount_hash}")
+            print(f"current shell instance updated: MOUNT_HASH={mount_hash}")
     except Exception as e:
         print(f"Warning: failed to update config.json: {e}")
     
@@ -196,7 +196,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         if reset_command:
             clear_result = reset_command.cmd_reset_clear_all()
             if clear_result.get("success"):
-                print(f"✓ {clear_result.get('message', 'Path IDs cleared and defaults restored')}")
+                print(f"{clear_result.get('message', 'Path IDs cleared and defaults restored')}")
             else:
                 print(f"Warning: Failed to clear path IDs: {clear_result.get('error', 'Unknown error')}")
         else:
@@ -226,7 +226,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
                 shells_data["shells"][active_shell_id]["current_path"] = "~"
                 shells_data["shells"][active_shell_id]["current_folder_id"] = default_id
                 google_drive_shell.save_shells(shells_data)
-                print(f"✓ Shell pwd reset to ~ (folder_id: {default_id})")
+                print(f"Shell pwd reset to ~ (folder_id: {default_id})")
     except Exception as e:
         print(f"Warning: Failed to reset shell pwd: {e}")
     
@@ -240,8 +240,8 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
         )
         
         if verify_result and verify_result.get("success"):
-            print("✓ 远端指纹文件验证成功")
-            print("✓ Google Drive remount successful!")
+            print("远端指纹文件验证成功")
+            print("Google Drive remount successful!")
             
             # Clear remount required flag after successful remount
             try:
@@ -252,7 +252,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
             
             return 0
         else:
-            print("✗ 远端指纹文件验证失败")
+            print("远端指纹文件验证失败")
             print("\nRemount failed: Unable to access remote fingerprint file.")
             print("\nPossible causes:")
             print("  1. The remote Python script was not executed successfully")
@@ -265,7 +265,7 @@ def remount_google_drive(command_identifier=None, google_drive_shell=None):
             print("  4. Run 'GOOGLE_DRIVE --remount' again")
             return 1
     except Exception as e:
-        print(f"\n✗ Remount verification error: {e}")
+        print(f"\nRemount verification error: {e}")
         print("\nRecommended solution:")
         print("  1. In Colab: Runtime -> Disconnect and delete runtime")
         print("  2. Start a new runtime and re-execute the remount script")
@@ -418,7 +418,7 @@ print("\\n开始验证远端文件访问...")
 # Embedded service account credentials
 SERVICE_ACCOUNT_CREDENTIALS = {credentials_json}
 
-def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_dict, max_attempts=10, interval=1):
+def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_dict, max_attempts=20, interval=1):
     """使用Google Drive API验证指纹文件是否真正可访问"""
     import time
     from googleapiclient.discovery import build
@@ -449,12 +449,12 @@ def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_di
                 return True
             
         except Exception as e:
-            print(f"\\n✗ API请求失败: {{e}}")
+            print(f"\\nAPI请求失败: {{e}}")
         
         if attempt < max_attempts:
             time.sleep(interval)
     
-    print(f"\\n✗ API验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
+    print(f"\\nAPI验证失败: 在{{max_attempts}}次尝试后仍无法访问指纹文件")
     return False
 
 # 获取tmp文件夹ID用于验证
@@ -475,7 +475,7 @@ except:
 # 执行验证
 fingerprint_filename = os.path.basename(fingerprint_file)
 if not tmp_folder_id:
-    print("\\n✗ 错误: 无法获取tmp文件夹ID")
+    print("\\n错误: 无法获取tmp文件夹ID")
     print("Google Drive挂载可能存在问题")
     import sys
     sys.exit(1)
@@ -740,8 +740,10 @@ except Exception as e:
 '''
         
     # 运行subprocess窗口，暂时不抑制stderr用于调试
+    # 使用PYTHON_PROJ中的Python而不是系统Python
+    python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
     result = subprocess.run(
-        ['python3', '-c', subprocess_script],
+        [python_exec, '-c', subprocess_script],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,  # 抑制stderr输出
         text=True,

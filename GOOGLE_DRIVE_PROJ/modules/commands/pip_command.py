@@ -128,7 +128,18 @@ class PipCommand(BaseCommand):
             
             # 解析选项
             force_install = '--force' in packages_args
-            packages_to_install = [pkg for pkg in packages_args if not pkg.startswith('--')]
+            
+            # 解析--transfer-batch参数
+            transfer_batch = 1000  # 默认值
+            if '--transfer-batch' in packages_args:
+                try:
+                    batch_index = packages_args.index('--transfer-batch')
+                    if batch_index + 1 < len(packages_args):
+                        transfer_batch = int(packages_args[batch_index + 1])
+                except (ValueError, IndexError):
+                    pass
+            
+            packages_to_install = [pkg for pkg in packages_args if not pkg.startswith('--') and pkg != str(transfer_batch)]
 
             if not force_install:
                 all_installed = True
@@ -148,7 +159,7 @@ class PipCommand(BaseCommand):
             # 标准安装流程
             install_command = f"install {' '.join(packages_to_install)}"
             target_info = f"in {current_venv}" if current_venv else "in system environment"
-            return self.execute_pip_command(install_command, current_venv, target_info)
+            return self.execute_pip_command(install_command, current_venv, target_info, transfer_batch=transfer_batch)
             
         except Exception as e:
             return {"success": False, "error": f"处理pip install时出错: {str(e)}"}
@@ -370,244 +381,216 @@ print(f"JSON file updated successfully")
         else: 
             return {}
 
-    def execute_pip_command(self, pip_command, current_env, target_info):
-        """强化的pip命令执行，支持错误处理和结果验证"""
+    def execute_pip_command(self, pip_command, current_env, target_info, transfer_batch=1000):
+        """pip命令执行（install使用tmp-pack-transfer策略）"""
         try:
+            # install命令使用tmp-pack-transfer避免GDFUSE问题
+            if pip_command.startswith("install") and current_env:
+                return self._pip_install_with_transfer(pip_command, current_env, transfer_batch=transfer_batch)
+            
+            # 其他命令直接执行
+            # 构建pip命令
             import time
-            import random
+            # 使用完整绝对路径，避免在raw command模式下~被远端翻译成/root
+            pip_success_fingerprint = f"{self.shell.REMOTE_ROOT}/tmp/pip_{current_env or 'system'}_{int(time.time())}.success"
             
-            # 生成唯一的结果文件名
-            timestamp = int(time.time())
-            random_id = f"{random.randint(1000, 9999):04x}"
-            result_filename = f"pip_result_{timestamp}_{random_id}.json"
-            
-            # 构建环境设置命令
             pip_target_option = ""
             if current_env:
                 env_path = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
-                pip_target_option = f" --target {env_path}"
+                if pip_command.startswith("uninstall"):
+                    pip_target_option = f" --target {env_path}"
             
-            # 使用Python subprocess包装pip执行，确保正确捕获所有输出和错误
-            python_script = f'''
-import subprocess
-import json
-import sys
-from datetime import datetime
-
-print(f"Starting pip {pip_command}...")
-start_time = datetime.now()
-
-# 执行pip命令并捕获所有输出
-try:
-    pip_cmd_parts = ["pip"] + "{pip_command}".split()
-    # 添加虚拟环境目标目录（如果有的话）
-    pip_target = "{pip_target_option}"
-    if pip_target.strip():
-        pip_cmd_parts.extend(pip_target.strip().split())
-    
-    print(f"Full pip command: {{pip_cmd_parts}}")
-    
-    # 执行pip命令并捕获输出
-    result = subprocess.run(
-        pip_cmd_parts,
-        capture_output=True,
-        text=True
-    )
-    
-    # 显示pip的完整输出
-    if result.stdout:
-        print(f"STDOUT:")
-        print(result.stdout)
-    if result.stderr:
-        print(f"STDERR:")
-        print(result.stderr)
-    
-    # 检查是否有严重ERROR关键字（排除依赖冲突警告）
-    has_error = False
-    if result.returncode != 0:
-        has_error = "ERROR:" in result.stderr or "ERROR:" in result.stdout
-    
-    # 计算执行时间
-    end_time = datetime.now()
-    duration = end_time - start_time
-    
-    print(f"Pip command completed with exit code: {{result.returncode}}")
-    if has_error:
-        print(f" Detected ERROR messages in pip output")
-    
-    # 生成结果JSON
-    result_data = {{
-        "success": result.returncode == 0 and not has_error,
-        "pip_command": "{pip_command}",
-        "exit_code": result.returncode,
-        "environment": "{current_env or 'system'}",
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "has_error": has_error,
-        "timestamp": datetime.now().isoformat(),
-        "start_time": start_time.isoformat(),
-        "end_time": end_time.isoformat(),
-        "duration_seconds": duration.total_seconds()
-    }}
-    
-    with open("{self.shell.REMOTE_ROOT}/tmp/{result_filename}", "w") as f:
-        json.dump(result_data, f, indent=2)
-    
-    # 显示最终状态
-    if result.returncode == 0 and not has_error:
-        print(f"pip command completed successfully")
-        
-        # 如果是install/uninstall命令且成功，更新JSON文件
-        if ("{pip_command}".startswith("install") or "{pip_command}".startswith("uninstall")) and "{current_env}":
-            try:
-                import json
-                import os
+            full_pip_command = f"pip {pip_command}{pip_target_option} && touch {pip_success_fingerprint}"
+            
+            print(f"Executing: pip {pip_command} {target_info}")
+            print("-" * 70)
+            
+            # 使用raw command模式，不capture输出（实时显示）
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
                 
-                venv_states_file = f"{self.shell.REMOTE_ENV}/venv/venv_states.json"
-                env_name = "{current_env}"
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=full_pip_command,
+                    capture_result=False  # 不capture，实时显示
+                )
                 
-                if "{pip_command}".startswith("install"):
-                    # 解析Successfully installed行获取包信息
-                    installed_packages = {{}}
-                    for line in result.stdout.split('\\n'):
-                        if 'Successfully installed' in line:
-                            parts = line.replace('Successfully installed', '').strip().split()
-                            for part in parts:
-                                if '-' in part:
-                                    pkg_parts = part.rsplit('-', 1)
-                                    if len(pkg_parts) == 2:
-                                        package_name, version = pkg_parts
-                                        installed_packages[package_name] = version
-                    
-                    if installed_packages:
-                        # 读取现有状态
-                        states = {{}}
-                        if os.path.exists(venv_states_file):
-                            try:
-                                with open(venv_states_file, 'r') as f:
-                                    states = json.load(f)
-                            except:
-                                states = {{}}
-                        
-                        # 确保结构存在
-                        if 'environments' not in states:
-                            states['environments'] = {{}}
-                        if env_name not in states['environments']:
-                            states['environments'][env_name] = {{"packages": {{}}}}
-                        if 'packages' not in states['environments'][env_name]:
-                            states['environments'][env_name]['packages'] = {{}}
-                        
-                        # 更新包信息
-                        states['environments'][env_name]['packages'].update(installed_packages)
-                        
-                        # 写回文件
-                        with open(venv_states_file, 'w') as f:
-                            json.dump(states, f, indent=2)
-                        
-                        print(f"Updated JSON with {{len(installed_packages)}} newly installed packages")
-                        
-                elif "{pip_command}".startswith("uninstall"):
-                    # 解析Successfully uninstalled行获取包信息
-                    uninstalled_packages = []
-                    for line in result.stdout.split('\\n'):
-                        if 'Successfully uninstalled' in line:
-                            parts = line.replace('Successfully uninstalled', '').strip().split()
-                            for part in parts:
-                                if '-' in part:
-                                    pkg_parts = part.rsplit('-', 1)
-                                    if len(pkg_parts) == 2:
-                                        package_name, version = pkg_parts
-                                        uninstalled_packages.append(package_name)
-                    
-                    if uninstalled_packages:
-                        # 读取现有状态
-                        states = {{}}
-                        if os.path.exists(venv_states_file):
-                            try:
-                                with open(venv_states_file, 'r') as f:
-                                    states = json.load(f)
-                            except:
-                                states = {{}}
-                        
-                        # 确保结构存在
-                        if 'environments' not in states:
-                            states['environments'] = {{}}
-                        if env_name not in states['environments']:
-                            states['environments'][env_name] = {{"packages": {{}}}}
-                        if 'packages' not in states['environments'][env_name]:
-                            states['environments'][env_name]['packages'] = {{}}
-                        
-                        # 移除包信息
-                        for pkg in uninstalled_packages:
-                            if pkg in states['environments'][env_name]['packages']:
-                                del states['environments'][env_name]['packages'][pkg]
-                        
-                        # 写回文件
-                        with open(venv_states_file, 'w') as f:
-                            json.dump(states, f, indent=2)
-                        
-                        print(f"Removed {{len(uninstalled_packages)}} packages from JSON")
-            except Exception as e:
-                print(f"Warning: Failed to update JSON: {{e}}")
-    else:
-        print(f"pip command failed (exit_code: {{result.returncode}}, has_error: {{has_error}})")
-
-except Exception as e:
-    end_time = datetime.now()
-    duration = end_time - start_time
-    print(f"Error: Error executing pip command: {{e}}")
-    result_data = {{
-        "success": False,
-        "pip_command": "{pip_command}",
-        "exit_code": -1,
-        "environment": "{current_env or 'system'}",
-        "error": str(e),
-        "timestamp": datetime.now().isoformat(),
-        "start_time": start_time.isoformat(),
-        "end_time": end_time.isoformat(),
-        "duration_seconds": duration.total_seconds()
-    }}
-    with open("{self.shell.REMOTE_ROOT}/tmp/{result_filename}", "w") as f:
-        json.dump(result_data, f, indent=2)
-'''
+                self.shell.command_executor._raw_command = old_raw
             
-            # 构建完整的远程命令
-            commands = [
-                f'cd "{self.shell.REMOTE_ROOT}"',
-                "mkdir -p tmp",
-                f'python3 -c "{python_script.replace(chr(92), chr(92)+chr(92)).replace(chr(34), chr(92)+chr(34))}"'
-            ]
+            # 检查成功指纹是否被创建
+            from .pyenv_command import PyenvCommand
+            pyenv_cmd = PyenvCommand(self.shell)
+            success_check = pyenv_cmd.check_fingerprint_exists(pip_success_fingerprint, max_attempts=3)
             
-            commands = [cmd for cmd in commands if cmd.strip()]
-            full_command = " && ".join(commands)
+            # 清理成功指纹
+            if success_check and hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                self.shell.command_executor.execute_command_interface(
+                    cmd=f"rm -f {pip_success_fingerprint}",
+                    capture_result=False
+                )
+                self.shell.command_executor._raw_command = old_raw
             
-            # 执行远程命令
-            result = self.shell.command_executor.execute_command_interface("bash", ["-c", full_command])
-            
-            if result.get("success"):
-                # 显示远程pip的完整输出
-                remote_output = result.get("stdout", "")
-                if remote_output:
-                    print(f"Remote pip output:")
-                    print(remote_output)
-                
-                return {
-                    "success": True,
-                    "output": remote_output,
-                    "environment": current_env or "system"
-                }
+            if success_check:
+                print(f"pip {pip_command} completed successfully")
+                if current_env:
+                    print(f"Note: Use 'GDS pip list --refresh-list' to refresh package cache.")
             else:
-                error_output = result.get("stderr", "")
-                if error_output:
-                    print(f"Remote pip error:")
-                    print(error_output)
-                
-                return {
-                    "success": False,
-                    "error": result.get("error", f"Pip {pip_command} execution failed"),
-                    "stderr": error_output
-                }
+                print(f"pip {pip_command} may have failed (fingerprint not found)")
+            
+            return {
+                "success": success_check,
+                "message": f"pip {pip_command} {'completed' if success_check else 'failed'}",
+                "environment": current_env or "system"
+            }
             
         except Exception as e:
             return {"success": False, "error": f"pip命令执行失败: {str(e)}"}
+    
+    def _pip_install_with_transfer(self, pip_command, current_env, transfer_batch=1000):
+        """pip install使用智能transfer策略（根据文件数选择tar或worker）
+        
+        优化策略：
+        - 对于小包（文件数 <= batch）：单窗口完成所有步骤（install→count→pack→move→extract→cleanup）
+        - 对于大包（文件数 > batch）：使用worker并行传输
+        """
+        try:
+            import time
+            import hashlib
+            
+            # 生成临时目录
+            timestamp = int(time.time())
+            temp_id = hashlib.md5(f"{current_env}_{timestamp}".encode()).hexdigest()[:8]
+            temp_install_dir = f"/tmp/pip_install_{temp_id}"
+            final_venv_dir = f"{self.shell.REMOTE_ENV}/venv/{current_env}"
+            
+            print(f"Installing and counting files...")
+            print("-" * 70)
+            
+            # Step 1: 合并install、count、pack、move（单窗口完成）
+            # 对于大包，在同一窗口完成打包和移动，Python只处理解压
+            archive_name = f"pip_packages_{temp_id}.tar.gz"
+            archive_path_tmp = f"/tmp/{archive_name}"
+            archive_path_final = f"{final_venv_dir}/{archive_name}"
+            
+            unified_cmd = f"""
+mkdir -p {temp_install_dir} && \
+pip {pip_command} --target {temp_install_dir} && \
+echo "" && \
+echo "Download completed. Counting files..." && \
+file_count=$(find {temp_install_dir} -type f | wc -l) && \
+echo "Total files: $file_count (batch size: {transfer_batch})" && \
+if [ $file_count -le {transfer_batch} ]; then
+    echo "Using tar strategy (files <= {transfer_batch})" && \
+    echo "Transferring..." && \
+    cd {temp_install_dir} && \
+    tar -czf {archive_path_tmp} . && \
+    mkdir -p {final_venv_dir} && \
+    cd {final_venv_dir} && \
+    tar -xzf {archive_path_tmp} && \
+    echo "Packages transferred successfully" && \
+    rm -f {archive_path_tmp} && \
+    rm -rf {temp_install_dir} && \
+    echo "__TRANSFER_COMPLETE__"
+else
+    echo "Using worker strategy (files > {transfer_batch})" && \
+    echo "Creating archive and moving to Google Drive..." && \
+    cd {temp_install_dir} && \
+    tar -czf {archive_path_tmp} . && \
+    mkdir -p {final_venv_dir} && \
+    mv {archive_path_tmp} {archive_path_final} && \
+    rm -rf {temp_install_dir} && \
+    echo "Archive created and moved successfully" && \
+    echo "__NEED_WORKER_EXTRACT__:$file_count:{archive_path_final}"
+fi
+"""
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=unified_cmd.strip(),
+                    capture_result=True  # 需要检查是否需要worker
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                if not result.get("success"):
+                    return {"success": False, "error": "pip install failed"}
+                
+                # 检查输出，判断是否需要worker传输
+                stdout = result.get('stdout', '') or result.get('data', {}).get('stdout', '')
+                stdout_str = str(stdout)
+                
+                tar_cmd = f"""
+cd {temp_install_dir} && \
+tar -czf /tmp/pip_packages_{temp_id}.tar.gz . && \
+mkdir -p {final_venv_dir} && \
+cd {final_venv_dir} && \
+tar -xzf /tmp/pip_packages_{temp_id}.tar.gz && \
+echo 'Packages transferred successfully' && \
+rm -f /tmp/pip_packages_{temp_id}.tar.gz && \
+rm -rf {temp_install_dir}
+"""
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=tar_cmd.strip(),
+                    capture_result=False
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                success = result.get("success", False)
+            else:
+                # 大包：使用GDS extract的worker机制
+                print(f"Using worker strategy (files > {transfer_batch})")
+                print("Transferring with parallel workers...")
+                
+                from .extract_command import ExtractCommand
+                extract_cmd = ExtractCommand(self.main_instance)
+                
+                try:
+                    transfer_result = extract_cmd.transfer_directory(
+                        source_dir=temp_install_dir,
+                        target_dir=final_venv_dir,
+                        transfer_batch=transfer_batch,
+                        quiet=False
+                    )
+                    success = transfer_result.get("success", False)
+                    
+                    # 清理temp_install_dir
+                    if success:
+                        cleanup_cmd = f"rm -rf {temp_install_dir}"
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        self.shell.command_executor.execute_command_interface(cmd=cleanup_cmd, capture_result=False)
+                        self.shell.command_executor._raw_command = old_raw
+                        
+                except KeyboardInterrupt:
+                    print("\nPip install interrupted by user")
+                    raise
+                except Exception as e:
+                    print(f"✗ Worker transfer failed: {e}")
+                    success = False
+            
+            print("-" * 70)
+            if success:
+                print(f"pip {pip_command} completed successfully")
+                print(f"Note: Use 'GDS pip list --refresh-list' to refresh package cache.")
+            else:
+                print(f"✗ Transfer failed")
+            
+            return {
+                "success": success,
+                "message": f"pip {pip_command} {'completed' if success else 'failed'}",
+                "environment": current_env
+            }
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"pip install with transfer failed: {str(e)}"}
 
