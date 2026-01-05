@@ -1,1071 +1,1276 @@
 """
-GDS Extract Command - Parallel file extraction and transfer system
+Extract Command - 从归档文件提取内容到 Google Drive
 
-Supports extracting zip files and transferring them to Google Drive in batches
-using parallel workers for efficient large-scale file operations.
+重写版本：逐步实现，每一步都经过验证
 """
 
 import os
-import time
-import threading
-import queue
 import hashlib
-from pathlib import Path
-from GOOGLE_DRIVE_PROJ.modules.commands.base_command import BaseCommand
+import time
+import json
+from ..command_executor import process_terminal_erase
 
 
-class ExtractCommand(BaseCommand):
+def parse_ls_r_to_tree(ls_r_output, root_dir_name):
     """
-    GDS extract指令 - 并行文件解压和转移系统
+    解析 ls -R 输出为树状结构
     
-    功能：
-    1. 将zip文件复制到/tmp并解压
-    2. 递归分析目录结构
-    3. 根据文件数量智能决定压缩整体转移或分批转移
-    4. 使用3个worker并行执行转移任务
-    5. 每批转移后创建指纹文件，确保可靠性
-    
-    语法：
-        GDS extract <zip_file> [--transfer-batch SIZE]
+    Args:
+        ls_r_output (str): ls -R 的输出
+        root_dir_name (str): 根目录名
         
-    示例：
-        GDS extract test.tar.gz
-        GDS extract ~/tmp/python.tar.gz --transfer-batch 500
-        GDS extract @/python/test.zip --transfer-batch 2000
+    Returns:
+        dict: 树状结构 {"name": str, "type": "directory", "children": []}
     """
+    lines = [line.rstrip() for line in ls_r_output.strip().split('\n')]
+    dir_contents = {}
+    i = 0
     
-    @property
-    def command_name(self):
-        """命令名称"""
-        return "extract"
+    # 第一部分：根目录内容（无冒号行）
+    root_entries = []
+    while i < len(lines) and not lines[i].endswith(':'):
+        if lines[i]:
+            root_entries.append(lines[i])
+        i += 1
+    dir_contents[root_dir_name] = root_entries
     
-    def __init__(self, main_instance):
+    # 跳过空行
+    while i < len(lines) and not lines[i]:
+        i += 1
+    
+    # 第二部分：子目录内容（带冒号的目录标题）
+    current_dir = None
+    while i < len(lines):
+        line = lines[i]
+        if line.endswith(':'):
+            current_dir = line[:-1]
+            dir_contents[current_dir] = []
+        elif line and current_dir is not None:
+            dir_contents[current_dir].append(line)
+        i += 1
+    
+    # 构建树
+    def build_tree(dir_path):
+        entries = dir_contents.get(dir_path, [])
+        children = []
+        for entry in entries:
+            child_path = f"{dir_path}/{entry}"
+            if child_path in dir_contents:
+                children.append({
+                    "name": entry,
+                    "type": "directory",
+                    "children": build_tree(child_path)
+                })
+            else:
+                children.append({
+                    "name": entry,
+                    "type": "file"
+                })
+        return children
+    
+    return {
+        "name": root_dir_name,
+        "type": "directory",
+        "children": build_tree(root_dir_name)
+    }
+
+
+def count_tree_items(node):
+    """
+    递归统计文件和目录数
+    
+    Args:
+        node (dict): 树节点
+        
+    Returns:
+        tuple: (files_count, dirs_count)
+    """
+    if node["type"] == "file":
+        return 1, 0
+    else:
+        files, dirs = 0, 1
+        for child in node.get("children", []):
+            f, d = count_tree_items(child)
+            files += f
+            dirs += d
+        return files, dirs
+
+
+class ExtractCommand:
+    """Extract 命令实现"""
+    
+    command_name = "extract"
+    help_text = "Extract archive file to Google Drive with parallel transfer"
+    
+    def __init__(self, shell):
         """
-        初始化ExtractCommand
+        初始化 Extract 命令
         
         Args:
-            main_instance: GoogleDriveShell主实例
+            shell: GoogleDriveShell 实例
         """
-        self.main_instance = main_instance
-        self.shell = main_instance
+        self.shell = shell
     
-    def execute(self, cmd, args, command_identifier=None):
+    def _get_fingerprint_path(self, progress_id):
+        """获取指纹文件路径（远端路径）"""
+        return f"~/tmp/extract_progress_{progress_id}.json"
+    
+    def _create_fingerprint(self, progress_id, archive_path, task_id, all_files):
         """
-        执行extract命令（CommandRegistry接口）
+        创建进度指纹文件（远端）
         
         Args:
-            cmd (str): 命令名称
-            args (list): 命令参数
-            command_identifier (str): 命令标识符
+            progress_id (str): 进度ID
+            archive_path (str): 归档文件路径
+            task_id (str): 任务ID
+            all_files (list): 所有需要传输的文件列表
+        """
+        import json
+        fingerprint_path = self._get_fingerprint_path(progress_id)
+        
+        fingerprint_data = {
+            "progress_id": progress_id,
+            "archive_path": archive_path,
+            "task_id": task_id,
+            "remaining_files": all_files.copy(),
+            "completed_files": [],
+            "created_at": __import__('datetime').datetime.now().isoformat()
+        }
+        
+        # 在远端创建指纹文件
+        json_content = json.dumps(fingerprint_data, indent=2)
+        cmd = f"mkdir -p ~/tmp && cat > '{fingerprint_path}' << 'EOF'\n{json_content}\nEOF"
+        
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+        
+        return fingerprint_data
+    
+    def _load_fingerprint(self, progress_id):
+        """
+        加载进度指纹文件（远端）
+        
+        Args:
+            progress_id (str): 进度ID
             
         Returns:
-            int: 退出码（0表示成功，非0表示失败）
+            dict: 指纹数据，如果不存在返回 None
         """
-        result = self.handle_command(args)
+        import json
+        fingerprint_path = self._get_fingerprint_path(progress_id)
         
-        # 转换dict结果为exit code
-        if isinstance(result, dict):
-            return 0 if result.get("success") else 1
-        return 0
+        # 检查远端文件是否存在
+        check_cmd = f"test -f '{fingerprint_path}' && echo 'exists' || echo 'not_found'"
         
-    def handle_command(self, args):
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            check_result = self.shell.command_executor.execute_command_interface(
+                cmd=check_cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+            
+            check_stdout = check_result.get('stdout', '') or check_result.get('data', '')
+            if isinstance(check_stdout, dict) and 'stdout' in check_stdout:
+                check_stdout = check_stdout['stdout']
+            
+            if 'not_found' in str(check_stdout):
+                return None
+            
+            # 读取远端文件内容
+            cat_cmd = f"cat '{fingerprint_path}'"
+            cat_result = self.shell.command_executor.execute_command_interface(
+                cmd=cat_cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+            
+            cat_stdout = cat_result.get('stdout', '') or cat_result.get('data', '')
+            if isinstance(cat_stdout, dict) and 'stdout' in cat_stdout:
+                cat_stdout = cat_stdout['stdout']
+            
+            try:
+                return json.loads(str(cat_stdout))
+            except Exception as e:
+                print(f"Warning: Failed to parse fingerprint: {e}")
+                return None
+        
+        return None
+    
+    def _update_fingerprint(self, progress_id, completed_files):
         """
-        处理extract命令
+        更新进度指纹文件（远端）
         
         Args:
-            args (list): 命令参数
+            progress_id (str): 进度ID
+            completed_files (list): 本次完成的文件列表
+        """
+        import json
+        
+        # 先加载现有指纹
+        data = self._load_fingerprint(progress_id)
+        if not data:
+            return
+        
+        # 更新剩余文件和已完成文件
+        for file in completed_files:
+            if file in data["remaining_files"]:
+                data["remaining_files"].remove(file)
+            if file not in data["completed_files"]:
+                data["completed_files"].append(file)
+        
+        data["updated_at"] = __import__('datetime').datetime.now().isoformat()
+        
+        # 写回远端文件
+        fingerprint_path = self._get_fingerprint_path(progress_id)
+        json_content = json.dumps(data, indent=2)
+        cmd = f"cat > '{fingerprint_path}' << 'EOF'\n{json_content}\nEOF"
+        
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd, capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+    
+    def _validate_task_state(self, task_id, archive_path):
+        """
+        验证任务状态的完整性（通过一个远端窗口）
+        
+        检查：
+        1. 指纹文件是否存在
+        2. 源文件是否存在
+        3. 解压到/tmp的临时文件夹是否存在
+        
+        如果状态不对，销毁指纹并返回错误
+        
+        Args:
+            task_id (str): 任务ID
+            archive_path (str): 归档文件路径
+            
+        Returns:
+            dict: {"valid": bool, "reason": str, "cleanup": bool}
+        """
+        remote_root = self.shell.REMOTE_ROOT
+        fingerprint_path = f"{remote_root}/tmp/extract_progress_{task_id}.json"
+        tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
+        
+        # 构造验证命令（一个远端窗口完成所有检查）
+        # 验证逻辑：
+        # (1) 指纹不存在 OR (2) (解压folder不存在 AND 源文件不存在) -> 无法恢复
+        cmd = f"""
+# 检查指纹文件
+echo "Checking fingerprint..."
+FINGERPRINT_EXISTS=$(ls "{fingerprint_path}" 2>/dev/null && echo "yes" || echo "no")
+echo "Fingerprint exists: $FINGERPRINT_EXISTS"
+
+if [ "$FINGERPRINT_EXISTS" = "no" ]; then
+    echo "Fingerprint not found - task cannot be recovered"
+    echo "INVALID:fingerprint_missing"
+    exit 1
+fi
+
+# 读取指纹中的archive_path
+ARCHIVE_PATH=$(python3 -c "import json; data=json.load(open('{fingerprint_path}')); print(data.get('archive_path', ''))" 2>&1)
+echo "Archive path: $ARCHIVE_PATH"
+
+# 检查源文件和解压目录
+ARCHIVE_EXISTS=$(ls "$ARCHIVE_PATH" 2>/dev/null && echo "yes" || echo "no")
+TMP_DIR_EXISTS=$(ls -d "{tmp_extract_dir}" 2>/dev/null && echo "yes" || echo "no")
+
+echo "Archive exists: $ARCHIVE_EXISTS"
+echo "Tmp dir exists: $TMP_DIR_EXISTS"
+
+# 如果archive和tmp_dir都不存在，则无法恢复
+if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
+    echo "Both archive and tmp dir missing - task cannot be recovered"
+    echo "Cleaning up fingerprint..."
+    rm -f "{fingerprint_path}"
+    echo "INVALID:both_missing"
+    exit 1
+fi
+
+# 读取并返回指纹信息
+echo "Reading fingerprint information..."
+python3 << 'READ_FINGERPRINT_EOF'
+import json
+import os
+
+try:
+    with open("{fingerprint_path}", 'r') as f:
+        data = json.load(f)
+    
+    # 输出JSON格式的指纹信息
+    print("FINGERPRINT_DATA")
+    print(json.dumps(data))
+    print("END_FINGERPRINT_DATA")
+    
+    remaining_files = data.get("remaining_files", [])
+    
+    if len(remaining_files) == 0:
+        # 检查目标目录是否存在
+        target_root = f"{remote_root}/gds_extracted_{task_id}"
+        
+        if os.path.exists(target_root):
+            # 检查目标文件数量
+            file_count = 0
+            for root, dirs, files in os.walk(target_root):
+                file_count += len(files)
+            
+            if file_count > 0:
+                print(f"Task already completed: {{file_count}} files transferred")
+                print("COMPLETED")
+                exit(0)
+    
+    print("Task can be recovered")
+    print("VALID")
+except Exception as e:
+    print(f"Error reading fingerprint: {{e}}")
+    print("INVALID:fingerprint_error")
+    exit(1)
+READ_FINGERPRINT_EOF
+"""
+        
+        # 执行验证命令
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd.strip(), capture_result=True)
+            self.shell.command_executor._raw_command = old_raw
+            
+            # 解析结果
+            stdout = result.get('stdout', '') or result.get('data', '')
+            if isinstance(stdout, dict) and 'stdout' in stdout:
+                stdout = stdout['stdout']
+            
+            stdout_str = str(stdout)
+            
+            # 提取指纹数据（如果有）
+            fingerprint_data = None
+            if "FINGERPRINT_DATA" in stdout_str and "END_FINGERPRINT_DATA" in stdout_str:
+                try:
+                    start_idx = stdout_str.find("FINGERPRINT_DATA") + len("FINGERPRINT_DATA")
+                    end_idx = stdout_str.find("END_FINGERPRINT_DATA")
+                    fingerprint_json = stdout_str[start_idx:end_idx].strip()
+                    fingerprint_data = json.loads(fingerprint_json)
+                except Exception as e:
+                    print(f"Warning: Failed to parse fingerprint data: {e}")
+            
+            # 先检查INVALID状态（优先级更高）
+            if "INVALID:fingerprint_missing" in stdout_str:
+                return {"valid": False, "reason": "Fingerprint file not found - task cannot be recovered", "cleanup": False}
+            elif "INVALID:both_missing" in stdout_str:
+                return {"valid": False, "reason": "Both archive and tmp dir missing - task cannot be recovered (fingerprint cleaned up)", "cleanup": True}
+            elif "INVALID:fingerprint_error" in stdout_str:
+                return {"valid": False, "reason": "Failed to read fingerprint file", "cleanup": False}
+            elif "COMPLETED" in stdout_str:
+                return {"valid": True, "completed": True, "fingerprint": fingerprint_data}
+            elif "VALID" in stdout_str:
+                return {"valid": True, "completed": False, "fingerprint": fingerprint_data}
+            else:
+                return {"valid": False, "reason": "Unknown validation error", "cleanup": False}
+        
+        return {"valid": False, "reason": "No executor available", "cleanup": False}
+    
+    def validate_args(self, args):
+        """
+        验证命令参数
+        
+        Args:
+            args (list): 命令参数列表
+            
+        Returns:
+            bool: 参数是否有效
+        """
+        # 检查是否提供了归档路径或 progress-id
+        has_archive_path = args and not args[0].startswith('--')
+        has_progress_id = '--progress-id' in args
+        
+        # 必须提供归档路径或 progress-id 其中之一
+        if not has_archive_path and not has_progress_id:
+            print("Error: Archive path or --progress-id is required")
+            print("Usage: extract <archive_path> [--transfer-batch N] [--progress-id ID]")
+            print("   or: extract --progress-id ID [--transfer-batch N]")
+            return False
+        
+        return True
+    
+    def execute(self, name, args, **kwargs):
+        """
+        执行 extract 命令
+        
+        Args:
+            name (str): 命令名称
+            args (list): 命令参数列表
+            **kwargs: 额外参数
             
         Returns:
             dict: 执行结果
         """
         # 解析参数
-        if not args or '--help' in args or '-h' in args:
-            return self._show_help()
+        archive_path = args[0] if (args and not args[0].startswith('--')) else None
+        transfer_batch = 20  # 默认值
+        progress_id = None  # 进度ID
+        display_context = kwargs.get('display_context', None)  # 步骤显示context
         
-        # 解析文件路径和参数
-        archive_path = None
-        transfer_batch = 1000  # 默认batch大小
-        
-        i = 0
-        while i < len(args):
-            arg = args[i]
-            
-            if arg == '--transfer-batch':
-                if i + 1 < len(args):
-                    try:
-                        transfer_batch = int(args[i + 1])
-                        i += 2
-                        continue
-                    except ValueError:
-                        return {
-                            "success": False,
-                            "error": f"Invalid --transfer-batch value: {args[i + 1]}"
-                        }
-                else:
-                    return {
-                        "success": False,
-                        "error": "--transfer-batch requires a numeric argument"
-                    }
-            else:
-                if archive_path is None:
-                    archive_path = arg
-                else:
-                    return {
-                        "success": False,
-                        "error": f"Multiple archive paths specified: {archive_path} and {arg}"
-                    }
-                i += 1
-        
-        if archive_path is None:
-            return {
-                "success": False,
-                "error": "No archive file specified"
-            }
-        
-        # 执行extract操作
-        return self.extract_and_transfer(archive_path, transfer_batch)
-    
-    def transfer_directory(self, source_dir, target_dir, transfer_batch=1000):
-        """
-        批量转移已存在的目录（不需要解压）
-        
-        用于pyenv等场景，直接转移已准备好的目录
-        
-        Args:
-            source_dir (str): 源目录路径（通常在/tmp）
-            target_dir (str): 目标目录路径（GDS格式，如~/python/3.9.7）
-            transfer_batch (int): 每批转移的文件数量
-            
-        Returns:
-            dict: 执行结果
-        """
-        print(f"\n{'='*70}")
-        print(f"GDS Batch Transfer - Parallel Directory Transfer")
-        print(f"{'='*70}")
-        print(f"Source: {source_dir}")
-        print(f"Target: {target_dir}")
-        print(f"Transfer batch size: {transfer_batch}")
-        print(f"{'='*70}\n")
-        
-        try:
-            # Step 1: 生成任务ID
-            task_id = self._generate_task_id(source_dir)
-            fingerprint_dir = f"~/tmp/transfer_fingerprints_{task_id}"
-            
-            print(f"  Task ID: {task_id}")
-            print(f"  Fingerprint dir: {fingerprint_dir}")
-            
-            # Step 2: 转换目标路径为远端路径
-            remote_target_dir = self._convert_to_remote_path(target_dir)
-            print(f"  Remote target: {remote_target_dir}")
-            
-            # Step 3: 分析目录结构
-            print("\nStep 1: Analyzing directory structure...")
-            dir_structure = self._analyze_directory_structure(source_dir)
-            print(f"  Total files: {dir_structure['total_files']}")
-            print(f"  Total directories: {dir_structure['total_dirs']}")
-            
-            # Step 4: 构建转移任务列表
-            print("\nStep 2: Building transfer task list...")
-            task_list = self._build_transfer_tasks(
-                source_dir, 
-                remote_target_dir,
-                transfer_batch,
-                fingerprint_dir
-            )
-            print(f"  Total tasks: {len(task_list)}")
-            
-            # Step 5: 启动3个worker并行执行
-            print("\nStep 3: Starting parallel transfer with 3 workers...")
-            transfer_result = self._parallel_transfer(task_list, num_workers=3)
-            
-            if not transfer_result["success"]:
-                return transfer_result
-            
-            # Step 6: 清理临时文件（可选，pyenv可能需要保留）
-            # self._cleanup_tmp(source_dir)
-            
-            print(f"\n{'='*70}")
-            print(f"✅ Batch transfer completed successfully!")
-            print(f"  Files transferred: {transfer_result['files_transferred']}")
-            print(f"  Time taken: {transfer_result['time_taken']:.2f}s")
-            print(f"{'='*70}\n")
-            
-            return {
-                "success": True,
-                "task_id": task_id,
-                "files_transferred": transfer_result["files_transferred"],
-                "time_taken": transfer_result["time_taken"]
-            }
-            
-        except KeyboardInterrupt:
-            print("\n\n⚠️ Transfer interrupted by user (Ctrl+C)")
-            print("Progress may be partially saved. You can manually check the transfer status.")
-            return {
-                "success": False,
-                "error": "Transfer interrupted by user"
-            }
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return {
-                "success": False,
-                "error": f"Transfer failed: {str(e)}"
-            }
-    
-    def extract_and_transfer(self, archive_path, transfer_batch=1000):
-        """
-        解压文件并批量转移
-        
-        Args:
-            archive_path (str): 压缩文件路径（可能是GDS路径格式）
-            transfer_batch (int): 每批转移的文件数量
-            
-        Returns:
-            dict: 执行结果
-        """
-        print(f"\n{'='*70}")
-        print(f"GDS Extract - Parallel File Transfer System")
-        print(f"{'='*70}")
-        print(f"Archive: {archive_path}")
-        print(f"Transfer batch size: {transfer_batch}")
-        print(f"{'='*70}\n")
-        
-        try:
-            # Step 1: 路径转换（GDS路径 → 远端绝对路径）
-            print("Step 1: Converting path...")
-            remote_archive_path = self._convert_to_remote_path(archive_path)
-            print(f"  Remote archive path: {remote_archive_path}")
-            
-            # Step 2: 生成临时目录和任务ID
-            task_id = self._generate_task_id(remote_archive_path)
-            tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
-            fingerprint_dir = f"~/tmp/extract_fingerprints_{task_id}"
-            
-            print(f"  Task ID: {task_id}")
-            print(f"  Temp extract dir: {tmp_extract_dir}")
-            print(f"  Fingerprint dir: {fingerprint_dir}")
-            
-            # Step 3: 复制到/tmp并解压
-            print("\nStep 2: Copying and extracting archive...")
-            result = self._copy_and_extract(remote_archive_path, tmp_extract_dir)
-            if not result["success"]:
-                return result
-            
-            # Step 4: 找到实际的解压内容目录
-            print("\nStep 3: Finding extracted content...")
-            actual_extract_dir = self._find_extract_content_dir(tmp_extract_dir)
-            print(f"  Actual content dir: {actual_extract_dir}")
-            
-            # Step 5: 递归分析目录结构
-            print("\nStep 4: Analyzing directory structure...")
-            dir_structure = self._analyze_directory_structure(actual_extract_dir)
-            print(f"  Total files: {dir_structure['total_files']}")
-            print(f"  Total directories: {dir_structure['total_dirs']}")
-            
-            # Step 6: 构建转移任务列表
-            print("\nStep 5: Building transfer task list...")
-            task_list = self._build_transfer_tasks(
-                actual_extract_dir, 
-                dir_structure,
-                transfer_batch,
-                fingerprint_dir
-            )
-            print(f"  Total tasks: {len(task_list)}")
-            
-            # Step 7: 启动3个worker并行执行
-            print("\nStep 6: Starting parallel transfer with 3 workers...")
-            transfer_result = self._parallel_transfer(task_list, num_workers=3)
-            
-            if not transfer_result["success"]:
-                return transfer_result
-            
-            # Step 7: 清理临时文件
-            print("\nStep 6: Cleaning up...")
-            self._cleanup_tmp(tmp_extract_dir)
-            
-            print(f"\n{'='*70}")
-            print(f"✅ Extract and transfer completed successfully!")
-            print(f"  Files transferred: {transfer_result['files_transferred']}")
-            print(f"  Time taken: {transfer_result['time_taken']:.2f}s")
-            print(f"{'='*70}\n")
-            
-            return {
-                "success": True,
-                "task_id": task_id,
-                "files_transferred": transfer_result["files_transferred"],
-                "time_taken": transfer_result["time_taken"]
-            }
-            
-        except KeyboardInterrupt:
-            print("\n\n⚠️ Extract interrupted by user (Ctrl+C)")
-            print("Progress may be partially saved. You can manually check the transfer status.")
-            return {
-                "success": False,
-                "error": "Extract interrupted by user"
-            }
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return {
-                "success": False,
-                "error": f"Extract failed: {str(e)}"
-            }
-    
-    def _convert_to_remote_path(self, gds_path):
-        """
-        将GDS路径转换为远端绝对路径
-        
-        Args:
-            gds_path (str): GDS格式路径（可能包含~或@）
-            
-        Returns:
-            str: 远端绝对路径
-        """
-        # 获取REMOTE_ROOT和REMOTE_ENV路径
-        try:
-            from GOOGLE_DRIVE_PROJ.modules.path_constants import REMOTE_ROOT, REMOTE_ENV
-        except ImportError:
-            # Fallback
-            REMOTE_ROOT = "/content/drive/MyDrive/REMOTE_ROOT"
-            REMOTE_ENV = "/content/drive/MyDrive/REMOTE_ENV"
-        
-        # 处理不同的路径格式
-        if gds_path.startswith('@/'):
-            # @/path → {REMOTE_ENV}/path
-            return gds_path.replace('@/', f'{REMOTE_ENV}/')
-        elif gds_path.startswith('~/'):
-            # ~/path → {REMOTE_ROOT}/path
-            return gds_path.replace('~/', f'{REMOTE_ROOT}/')
-        elif gds_path.startswith('@'):
-            # @path → {REMOTE_ENV}/path
-            return gds_path.replace('@', f'{REMOTE_ENV}/')
-        elif gds_path.startswith('~'):
-            # ~path → {REMOTE_ROOT}/path
-            return gds_path.replace('~', f'{REMOTE_ROOT}/')
-        else:
-            # 绝对路径或相对路径，保持不变
-            return gds_path
-    
-    def _generate_task_id(self, path):
-        """生成任务ID"""
-        timestamp = str(int(time.time()))
-        hash_str = hashlib.md5(f"{path}_{timestamp}".encode()).hexdigest()[:8]
-        return hash_str
-    
-    def _copy_and_extract(self, archive_path, extract_dir):
-        """
-        复制压缩文件到/tmp并解压
-        
-        Args:
-            archive_path (str): 远端压缩文件路径
-            extract_dir (str): 解压目标目录
-            
-        Returns:
-            dict: 执行结果
-        """
-        # 构造复制和解压命令
-        archive_name = os.path.basename(archive_path)
-        tmp_archive = f"/tmp/gds_archive_{archive_name}"  # 添加前缀避免同名
-        
-        # 检测压缩文件类型
-        if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
-            extract_cmd = f"tar -xzf {tmp_archive} -C {extract_dir}"
-        elif archive_path.endswith('.tar'):
-            extract_cmd = f"tar -xf {tmp_archive} -C {extract_dir}"
-        elif archive_path.endswith('.zip'):
-            extract_cmd = f"unzip -q {tmp_archive} -d {extract_dir}"
-        else:
-            return {
-                "success": False,
-                "error": f"Unsupported archive format: {archive_name}"
-            }
-        
-        # 如果源文件已在/tmp，直接使用，不复制
-        if archive_path.startswith('/tmp/'):
-            copy_cmd = f"[ '{archive_path}' = '{tmp_archive}' ] || cp '{archive_path}' {tmp_archive}"
-        else:
-            copy_cmd = f"cp '{archive_path}' {tmp_archive}"
-        
-        # 执行复制和解压
-        cmd = f"""
-cd /tmp && \\
-echo 'Preparing archive...' && \\
-{copy_cmd} && \\
-echo 'Creating extract directory...' && \\
-mkdir -p {extract_dir} && \\
-echo 'Extracting archive...' && \\
-{extract_cmd} && \\
-echo 'Extraction completed' && \\
-rm -f {tmp_archive}
-"""
-        
-        # 使用raw command模式执行
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd.strip(),
-                capture_result=False
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-            
-            if result.get("success") == False or result.get("interrupted"):
-                return {
-                    "success": False,
-                    "error": "Failed to copy and extract archive"
-                }
-        
-        return {"success": True}
-    
-    def _find_extract_content_dir(self, extract_dir):
-        """
-        找到解压后的实际内容目录
-        
-        tar解压可能在extract_dir下创建子目录，需要找到实际内容
-        
-        Args:
-            extract_dir (str): 解压目标目录
-            
-        Returns:
-            str: 实际内容目录路径
-        """
-        # 检查extract_dir下有多少个项目
-        cmd = f"find {extract_dir} -maxdepth 1 -mindepth 1 | wc -l"
-        
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=True
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-            
-            if result.get("success"):
+        # 解析 --transfer-batch 参数
+        if '--transfer-batch' in args:
+            idx = args.index('--transfer-batch')
+            if idx + 1 < len(args):
                 try:
-                    count = int(result.get("stdout", "0").strip())
-                    
-                    # 如果只有一个项目，且是目录，使用该目录
-                    if count == 1:
-                        cmd2 = f"find {extract_dir} -maxdepth 1 -mindepth 1 -type d"
-                        
-                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-                        self.shell.command_executor._raw_command = True
-                        
-                        result2 = self.shell.command_executor.execute_command_interface(
-                            cmd=cmd2,
-                            capture_result=True
-                        )
-                        
-                        self.shell.command_executor._raw_command = old_raw
-                        
-                        if result2.get("success"):
-                            dir_path = result2.get("stdout", "").strip()
-                            if dir_path:
-                                print(f"  [DEBUG] Found single subdirectory: {dir_path}")
-                                return dir_path
+                    transfer_batch = int(args[idx + 1])
+                except ValueError:
+                    print(f"Error: Invalid transfer-batch value: {args[idx + 1]}")
+                    return 1
+        
+        # 解析 --progress-id 参数
+        if '--progress-id' in args:
+            idx = args.index('--progress-id')
+            if idx + 1 < len(args):
+                progress_id = args[idx + 1]
+        
+        # 检查参数冲突：如果同时提供archive_path和progress_id，警告并忽略progress_id
+        if archive_path and progress_id:
+            print(f"Warning: Both archive path and --progress-id provided. Ignoring --progress-id {progress_id}")
+            progress_id = None
+
+
+
+
+
+
+
+
+
+
+
+            # else:
+            #     print(f"Error: --progress-id requires a value")
+            #     return {"success": False, "error": "--progress-id requires a value"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+        try:
+            # 如果提供了progress_id，从指纹文件读取信息并转化为普通extract命令
+            if progress_id:
+                step_prefix = f"{display_context} Extract: " if display_context else ""
+                print(f"{step_prefix}Step 1: Loading and validating task from progress_id: {progress_id}")
                 
-                except:
-                    pass
-        
-        # 默认返回extract_dir本身
-        print(f"  [DEBUG] Using extract_dir itself: {extract_dir}")
-        return extract_dir
-    
-    def _analyze_directory_structure(self, root_dir):
-        """
-        递归分析目录结构和文件统计
-        
-        Args:
-            root_dir (str): 根目录路径
-            
-        Returns:
-            dict: 目录结构信息
-        """
-        # 使用find命令获取所有文件和目录
-        cmd = f"find {root_dir} -type f | wc -l && find {root_dir} -type d | wc -l"
-        
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=True
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-            
-            if result.get("success"):
-                # 解析输出
-                output = result.get("stdout", "").strip().split('\n')
-                if len(output) >= 2:
+                # 合并：读取指纹文件 + 验证存在性（一个窗口完成）
+                fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{progress_id}.json"
+                tmp_extract_dir = f"/tmp/gds_extract_{progress_id}"
+                
+                combined_cmd = f"""
+# 读取指纹文件
+if [ ! -f '{fingerprint_path}' ]; then
+    echo 'FINGERPRINT_NOT_FOUND'
+    exit 1
+fi
+
+cat '{fingerprint_path}'
+echo '---VALIDATION---'
+
+# 验证源文件和解压目录
+ARCHIVE_PATH=$(python3 -c "import json; data=json.load(open('{fingerprint_path}')); print(data.get('archive_path', ''))")
+ARCHIVE_EXISTS=$(test -f "$ARCHIVE_PATH" && echo 'yes' || echo 'no')
+TMP_DIR_EXISTS=$(test -d '{tmp_extract_dir}' && echo 'yes' || echo 'no')
+
+echo "Archive: $ARCHIVE_EXISTS"
+echo "TmpDir: $TMP_DIR_EXISTS"
+
+if [ "$ARCHIVE_EXISTS" = "no" ] && [ "$TMP_DIR_EXISTS" = "no" ]; then
+    echo "ERROR:both_missing"
+    exit 1
+fi
+"""
+                
+                if hasattr(self.shell, 'command_executor'):
+                    old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                    self.shell.command_executor._raw_command = True
+                    
                     try:
-                        total_files = int(output[0].strip())
-                        total_dirs = int(output[1].strip())
-                        
-                        return {
-                            "success": True,
-                            "root_dir": root_dir,
-                            "total_files": total_files,
-                            "total_dirs": total_dirs
-                        }
-                    except:
-                        pass
-        
-        # Fallback: 假设有很多文件
-        return {
-            "success": False,
-            "root_dir": root_dir,
-            "total_files": 10000,  # 默认值
-            "total_dirs": 100
-        }
-    
-    def _build_transfer_tasks(self, source_dir, dir_structure, batch_size, fingerprint_dir):
-        """
-        构建转移任务列表 - 递归分析并智能分批
-        
-        Args:
-            source_dir (str): 源目录
-            dir_structure (dict): 目录结构信息
-            batch_size (int): 每批文件数
-            fingerprint_dir (str): 指纹文件目录
-            
-        Returns:
-            list: 任务列表
-        """
-        # 创建指纹目录
-        self._ensure_fingerprint_dir(fingerprint_dir)
-        
-        tasks = []
-        task_counter = [0]  # 使用list来实现引用传递
-        
-        # 获取目标根目录（从/tmp转到~）
-        target_root = source_dir.replace('/tmp/gds_extract_', '~/gds_extracted_')
-        
-        # 递归构建任务
-        self._recursive_build_tasks(
-            source_dir, 
-            target_root,
-            batch_size, 
-            fingerprint_dir, 
-            tasks, 
-            task_counter,
-            prefix=""
-        )
-        
-        return tasks
-    
-    def _ensure_fingerprint_dir(self, fingerprint_dir):
-        """确保指纹目录存在"""
-        cmd = f"mkdir -p {fingerprint_dir}"
-        
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=False
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-    
-    def _recursive_build_tasks(self, source_path, target_path, batch_size, 
-                                fingerprint_dir, tasks, task_counter, prefix=""):
-        """
-        递归构建转移任务
-        
-        算法：
-        1. 统计当前目录及子目录的总文件数
-        2. 如果总文件数 < batch_size: 压缩整体转移
-        3. 否则：
-           - 对每个子目录递归调用
-           - 对剩余文件按batch_size分批，构造批量cp脚本
-        
-        Args:
-            source_path (str): 源路径
-            target_path (str): 目标路径
-            batch_size (int): 批大小
-            fingerprint_dir (str): 指纹目录
-            tasks (list): 任务列表（引用传递）
-            task_counter (list): 任务计数器（引用传递）
-            prefix (str): 日志前缀
-        """
-        # 统计文件和子目录
-        stats = self._get_dir_stats(source_path)
-        
-        total_files = stats["total_files"]
-        subdirs = stats["subdirs"]
-        direct_files = stats["direct_files"]
-        
-        print(f"{prefix}Analyzing {source_path}:")
-        print(f"{prefix}  Total files: {total_files}, Subdirs: {len(subdirs)}, Direct files: {len(direct_files)}")
-        
-        # 判断是否需要分批
-        if total_files <= batch_size:
-            # 整体压缩转移
-            task_id = task_counter[0]
-            task_counter[0] += 1
-            
-            task = {
-                "type": "compress_transfer",
-                "source": source_path,
-                "target": target_path,
-                "fingerprint": f"{fingerprint_dir}/task_{task_id:04d}_ok",
-                "description": f"Compress and transfer {source_path} ({total_files} files)",
-                "task_id": task_id
-            }
-            tasks.append(task)
-            print(f"{prefix}  → Task {task_id}: Compress transfer ({total_files} files)")
-            
-        else:
-            # 需要分批处理
-            print(f"{prefix}  → Splitting into batches...")
-            
-            # 1. 递归处理子目录
-            for subdir_name in subdirs:
-                source_subdir = f"{source_path}/{subdir_name}"
-                target_subdir = f"{target_path}/{subdir_name}"
-                
-                self._recursive_build_tasks(
-                    source_subdir,
-                    target_subdir,
-                    batch_size,
-                    fingerprint_dir,
-                    tasks,
-                    task_counter,
-                    prefix=prefix + "  "
-                )
-            
-            # 2. 处理当前目录的直接文件（按batch分组）
-            if direct_files:
-                file_batches = [direct_files[i:i+batch_size] 
-                               for i in range(0, len(direct_files), batch_size)]
-                
-                for batch_idx, file_batch in enumerate(file_batches):
-                    task_id = task_counter[0]
-                    task_counter[0] += 1
+                        result = self.shell.command_executor.execute_command_interface(
+                            cmd=combined_cmd.strip(), capture_result=True)
+                    except KeyboardInterrupt:
+                        print("\nLoading interrupted by user (Ctrl+C)")
+                        import sys
+                        sys.exit(1)
                     
+                    self.shell.command_executor._raw_command = old_raw
+                    
+                    stdout = result.get('stdout', '') or result.get('data', '')
+                    if isinstance(stdout, dict) and 'stdout' in stdout:
+                        stdout = stdout['stdout']
+                    
+                    stdout_str = str(stdout)
+                    
+                    if 'FINGERPRINT_NOT_FOUND' in stdout_str:
+                        print(f"Fingerprint file not found for progress_id: {progress_id}")
+                        return 1
+
+                    # 分离指纹JSON和验证结果
+                    parts = stdout_str.split('---VALIDATION---')
+                    fingerprint_json = parts[0].strip()
+                    validation_output = parts[1].strip() if len(parts) > 1 else ""
+
+                    try:
+                        fingerprint_data = json.loads(fingerprint_json)
+                        archive_path = fingerprint_data.get("archive_path")
+                        remaining_files = fingerprint_data.get("remaining_files", [])
+                        completed_files = fingerprint_data.get("completed_files", [])
+                        remaining_count = len(remaining_files)
+                        completed_count = len(completed_files)
+
+                        print(f"Loaded task from progress_id: {progress_id}:")
+                        print(f"  - Archive: {archive_path}")
+                        print(f"  - Remaining: {remaining_count} files")
+                        print(f"  - Completed: {completed_count} files")
+                        
+                        # 检查验证结果
+                        if "ERROR:both_missing" in validation_output:
+                            print(f"Error: Both archive file and tmp extraction directory are missing")
+                            print(f"  Archive: {archive_path}")
+                            print(f"  Tmp dir: {tmp_extract_dir}")
+                            print(f"  Cannot resume task without source files")
+                            return 1
+                        
+                        if remaining_count == 0:
+                            print("Task already completed, all files transferred")
+                            return 0
+                        
+                        task_id = progress_id
+                    except Exception as e:
+                        print(f"Failed to parse fingerprint: {e}")
+                        return 1
+                else:
+                    print(f"Error: No command executor available")
+                    return 1
+            else:
+                # 生成新的task_id
+                archive_basename = os.path.basename(archive_path)
+                archive_name = archive_basename.replace('.tar.gz', '').replace('.tgz', '').replace('.tar', '').replace('.zip', '')
+                import hashlib
+                hash_obj = hashlib.md5(f"{archive_path}{__import__('time').time()}".encode())
+                task_id = f"{archive_name}_{hash_obj.hexdigest()[:8]}"
+                
+                # Step 1: 合并的远端初始化和调度生成
+                step_prefix = f"{display_context} Extract: " if display_context else ""
+                print(f"{step_prefix}Step 1: Initializing...")
+                try:
+                    init_result = self._init_and_schedule_remote(archive_path, task_id, transfer_batch)
+                except KeyboardInterrupt:
+                    print("\nExtract interrupted during initialization (Ctrl+C)")
+                    import sys
+                    sys.exit(1)
+                
+                if not init_result.get("success"):
+                    error_msg = init_result.get("error", "Unknown error")
+                    print(f"Initialization failed: {error_msg}")
+                    return 1
+                
+                # 提取结果
+                content_dir = init_result["content_dir"]
+                total_files = init_result["total_files"]
+                total_tasks = init_result["total_tasks"]
+                task_list_raw = init_result["tasks"]
+                target_root = init_result["target_root"]
+                fingerprint_dir = init_result["fingerprint_dir"]
+                
+                print(f"Task ID: {task_id} (Use 'GDS extract --progress-id {task_id}' to resume if interrupted)")
+                print(f"Collected files: {total_files}")
+                print(f"Worker tasks: {total_tasks}")
+                
+
+
+
+
+
+
+
+
+            
+            # Step 2: Scheduling and executing transfer tasks
+            step_prefix = f"{display_context} Extract: " if display_context else ""
+            print(f"\n{step_prefix}Step 2: Scheduling and executing transfer tasks...")
+            
+            # Scheduling: 根据来源构建task_list
+            if progress_id:
+                # Recovery模式：从指纹读取remaining_files并构建task_list
+                print("Scheduling from fingerprint...")
+                remaining_files = fingerprint_data.get("remaining_files", [])
+                total_files = len(remaining_files) + len(fingerprint_data.get("completed_files", []))
+                
+                # 推导content_dir, target_root, fingerprint_dir
+                # 假设remaining_files[0]格式: /tmp/gds_extract_xxx/content/file.txt
+                if remaining_files:
+                    # 从第一个文件推导content_dir
+                    first_file = remaining_files[0]
+                    # /tmp/gds_extract_small_test_xxx/small_test/file1.txt -> /tmp/gds_extract_small_test_xxx/small_test
+                    content_dir = os.path.dirname(first_file)
+                else:
+                    # 没有剩余文件，任务已完成
+                    print("No remaining files - task already completed")
+                    return {"success": True, "task_id": task_id, "message": "Task already completed"}
+                
+                target_root = f"{self.shell.REMOTE_ROOT}/gds_extracted_{task_id}"
+                fingerprint_dir = f"{self.shell.REMOTE_ROOT}/tmp/extract_fingerprints_{task_id}"
+                
+                # 按batch_size分批
+                task_list = []
+                for i in range(0, len(remaining_files), transfer_batch):
+                    batch_files = remaining_files[i:i+transfer_batch]
                     task = {
                         "type": "batch_copy",
-                        "source_dir": source_path,
-                        "target_dir": target_path,
-                        "files": file_batch,
-                        "fingerprint": f"{fingerprint_dir}/task_{task_id:04d}_ok",
-                        "description": f"Batch copy {len(file_batch)} files from {source_path}",
-                        "task_id": task_id
+                        "task_id": len(task_list),
+                        "files": batch_files,  # 已经是完整路径
+                        "source_dir": content_dir,
+                        "target_dir": target_root,
+                        "fingerprint": f"{fingerprint_dir}/recovery_task_{len(task_list):04d}_ok",
+                        "archive_path": archive_path
                     }
-                    tasks.append(task)
-                    print(f"{prefix}    → Task {task_id}: Batch copy {len(file_batch)} files (batch {batch_idx+1}/{len(file_batches)})")
+                    task_list.append(task)
+                
+                print(f"Generated {len(task_list)} recovery tasks from {len(remaining_files)} remaining files")
+            else:
+                task_list = []
+                for t in task_list_raw:
+                    task = {
+                        "type": "batch_copy",
+                        "task_id": t["task_id"],
+                        "files": [os.path.join(content_dir, f) for f in t["files"]],
+                        "source_dir": content_dir,
+                        "target_dir": target_root,
+                        "fingerprint": f"{fingerprint_dir}/task_{t['task_id']:04d}_ok",
+                        "archive_path": archive_path
+                    }
+                    task_list.append(task)
+            
+            # 执行传输任务
+            print(f"Executing {len(task_list)} transfer tasks...")
+            transfer_result = self._execute_transfers(task_list, total_files, progress_id, task_id)
+            
+            if not transfer_result["success"]:
+                return transfer_result
+            
+            files_transferred = transfer_result["files_transferred"]
+            failed_tasks = transfer_result.get("failed_tasks", [])
+            
+            # Step 3: 验证传输结果（带重试循环）
+            max_verification_retries = 3
+            verification_attempt = 0
+            
+            while verification_attempt < max_verification_retries:
+                verification_attempt += 1
+                step_prefix = f"{display_context} Extract: " if display_context else ""
+                print(f"\n{step_prefix}Step 3: Verifying transfer results... (attempt {verification_attempt}/{max_verification_retries})")
+                verification_result = self._verify_transfer_results(content_dir, target_root, total_files)
+                
+                if verification_result["success"]:
+                    # 验证成功，跳出循环
+                    break
+                
+                # 验证失败，检查是否有缺失文件
+                missing_list = verification_result.get("missing_list", [])
+                missing_count = len(missing_list)
+                
+                print(f"Verification failed: {missing_count} files missing")
+                
+                if verification_attempt >= max_verification_retries:
+                    print(f"Maximum verification retries ({max_verification_retries}) reached")
+                    return verification_result
+                
+                # 将missing_list转换为完整路径并构建task_list
+                missing_files_full = [os.path.join(content_dir, f.lstrip('./')) for f in missing_list]
+                
+                retry_task_list = []
+                batch_size = transfer_batch
+                for i in range(0, len(missing_files_full), batch_size):
+                    batch_files = missing_files_full[i:i+batch_size]
+                    task = {
+                        "type": "batch_copy",
+                        "task_id": len(retry_task_list),
+                        "files": batch_files,
+                        "source_dir": content_dir,
+                        "target_dir": target_root,
+                        "fingerprint": f"{fingerprint_dir}/retry_{verification_attempt}_task_{len(retry_task_list):04d}_ok",
+                        "archive_path": archive_path
+                    }
+                    retry_task_list.append(task)
+                
+                # 回到Step 2执行传输（重试缺失文件）
+                print(f"\nStep 2 (Retry {verification_attempt}): Transferring {missing_count} missing files...")
+                retry_result = self._execute_transfers(retry_task_list, missing_count, progress_id, task_id)
+                
+                if not retry_result.get("success"):
+                    print(f"Retry transfer failed: {retry_result.get('error')}")
+                    return retry_result
+            
+            # 验证成功或达到最大重试次数
+            actual_files = verification_result["actual_files"]
+            missing_files = verification_result.get("missing_files", 0)
+            
+            if missing_files > 0:
+                print(f"Warning: {missing_files} files are still missing after {verification_attempt} attempts")
+                return verification_result
+            
+            print(f"\nExtract completed")
+            print(f"Files verified: {actual_files}/{total_files}")
+            
+            # Return 0 for success
+            return 0
+            
+        except KeyboardInterrupt:
+            print("\nExtract interrupted by user (Ctrl+C)")
+            import sys
+            sys.exit(1)  # 返回退出码1
+        except Exception as e:
+            print(f"\nExtract failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
     
-    def _get_dir_stats(self, dir_path):
+    def _execute_transfers(self, task_list, total_files, progress_id=None, task_id=None):
         """
-        获取目录统计信息
-        
-        Args:
-            dir_path (str): 目录路径
-            
-        Returns:
-            dict: {
-                "total_files": int,  # 包括子目录的所有文件
-                "subdirs": list,     # 子目录名称列表
-                "direct_files": list # 当前目录的直接文件列表
-            }
-        """
-        # 获取总文件数（递归）
-        cmd_total = f"find {dir_path} -type f | wc -l"
-        
-        # 获取子目录列表
-        cmd_subdirs = f"find {dir_path} -maxdepth 1 -type d -not -path {dir_path} -exec basename {{}} \\;"
-        
-        # 获取直接文件列表
-        cmd_direct_files = f"find {dir_path} -maxdepth 1 -type f -exec basename {{}} \\;"
-        
-        total_files = 0
-        subdirs = []
-        direct_files = []
-        
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            # 获取总文件数
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd_total,
-                capture_result=True
-            )
-            if result.get("success"):
-                try:
-                    total_files = int(result.get("stdout", "0").strip())
-                except:
-                    pass
-            
-            # 获取子目录
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd_subdirs,
-                capture_result=True
-            )
-            if result.get("success"):
-                output = result.get("stdout", "").strip()
-                if output:
-                    subdirs = [d.strip() for d in output.split('\n') if d.strip()]
-            
-            # 获取直接文件
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd_direct_files,
-                capture_result=True
-            )
-            if result.get("success"):
-                output = result.get("stdout", "").strip()
-                if output:
-                    direct_files = [f.strip() for f in output.split('\n') if f.strip()]
-            
-            self.shell.command_executor._raw_command = old_raw
-        
-        return {
-            "total_files": total_files,
-            "subdirs": subdirs,
-            "direct_files": direct_files
-        }
-    
-    def _parallel_transfer(self, task_list, num_workers=3):
-        """
-        使用多个worker并行执行转移任务
-        
-        算法：
-        1. 创建任务队列
-        2. 启动num_workers个worker线程
-        3. 每个worker从队列取任务并执行
-        4. 任务完成后检查指纹文件
-        5. 等待所有worker完成
+        并行执行传输任务列表（使用subprocess模仿单元测试并行执行）
         
         Args:
             task_list (list): 任务列表
-            num_workers (int): worker数量
+            total_files (int): 总文件数
+            progress_id (str): 进度ID（如果提供，worker完成后更新指纹）
             
         Returns:
             dict: 执行结果
         """
-        start_time = time.time()
+        import subprocess
+        import time
+        import signal
         
-        # 创建任务队列
-        task_queue = queue.Queue()
-        for task in task_list:
-            task_queue.put(task)
+        # 设置中断标志
+        interrupted = [False]  # 使用list以便在嵌套函数中修改
         
-        # 共享状态
+        def signal_handler(signum, frame):
+            """处理SIGINT (Ctrl+C)"""
+            interrupted[0] = True
+        
+        # 保存旧的信号处理器并设置新的
+        old_handler = signal.signal(signal.SIGINT, signal_handler)
+        
+        max_workers = 3
+        task_queue = list(task_list)
+        worker_slots = {i+1: None for i in range(max_workers)}  # {slot_id: (task_idx, task, process, files_count, attempt) or None}
         completed_tasks = []
-        failed_tasks = []
-        files_transferred = [0]  # 使用list实现引用传递
-        lock = threading.Lock()
+        failed_tasks = []  # 记录失败的任务（用于Step 5重试）
+        files_transferred = 0
+        max_attempts = 2  # 每个任务最多尝试2次（1次重试）
         
-        # Worker函数
-        def worker(worker_id):
-            while True:
-                try:
-                    # 从队列获取任务（非阻塞，超时1秒）
-                    task = task_queue.get(timeout=1)
-                except queue.Empty:
-                    # 队列为空，退出
-                    break
+        def start_worker(task_idx, task, task_id=None):
+            """启动一个worker执行任务
+            
+            支持两种任务类型：
+            - folder_copy: 整个文件夹复制（适用于小文件夹，总文件数 <= batch_size）
+            - batch_copy: 批量文件复制（原有逻辑）
+            """
+            # 处理folder_copy类型（新增）
+            if task["type"] == "folder_copy":
+                # 整个文件夹复制
+                folder_path = task["path"]
+                source_dir = task["source_dir"]
+                target_dir = task["target_dir"]
+                fingerprint = task["fingerprint"]
+                total_files = task.get("total_files", 0)
                 
-                try:
-                    # 执行任务
-                    with lock:
-                        print(f"\n[Worker {worker_id}] Starting task {task['task_id']}: {task['description']}")
+                # 构建源路径和目标路径
+                source_full_path = os.path.join(source_dir, folder_path) if folder_path != '.' else source_dir
+                target_full_path = os.path.join(target_dir, folder_path) if folder_path != '.' else target_dir
+                
+                cmd_parts = []
+                
+                # 创建目标父目录
+                target_parent = os.path.dirname(target_full_path)
+                if target_parent:
+                    cmd_parts.append(f"mkdir -p '{target_parent}'")
+                
+                # 复制整个文件夹
+                # 注意：cp -r会创建target_full_path，如果已存在会复制到其内部
+                # 所以需要特殊处理
+                if folder_path == '.':
+                    # 根目录，复制所有内容到target
+                    cmd_parts.append(f"mkdir -p '{target_full_path}'")
+                    cmd_parts.append(f"cp -r '{source_full_path}'/. '{target_full_path}/'")
+                else:
+                    # 子文件夹，直接cp -r
+                    cmd_parts.append(f"cp -r '{source_full_path}' '{target_full_path}'")
+                
+                # 收集文件夹内所有文件（用于指纹更新）
+                collect_files_script = f'''
+files_in_folder=$(cd '{source_full_path}' && find . -type f -print)
+files_list=""
+for f in $files_in_folder; do
+    if [ -n "${{files_list}}" ]; then
+        files_list="${{files_list}}, "
+    fi
+    # 添加文件夹路径前缀
+    if [ "{folder_path}" = "." ]; then
+        files_list="${{files_list}}\\"$f\\""
+    else
+        files_list="${{files_list}}\\"{{folder_path}}/$f\\""
+    fi
+done
+files_list="[${{files_list}}]"
+'''
+                cmd_parts.append(collect_files_script)
+                
+                # 智能更新指纹文件
+                if task_id:
+                    fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{task_id}.json"
+                    task_fingerprint = fingerprint
+                    task_archive_path = task.get("archive_path", "")
+                    archive_path_json = json.dumps(task_archive_path)
                     
-                    print(f"[Worker {worker_id}] [DEBUG] About to execute transfer task...")
-                    result = self._execute_transfer_task(task)
-                    print(f"[Worker {worker_id}] [DEBUG] Transfer task returned: {result.get('success')}")
+                    update_script = f'''python3 << 'UPDATE_EOF'
+import json
+import os
+from datetime import datetime
+
+fingerprint_path = "{fingerprint_path}"
+task_fingerprint = "{task_fingerprint}"
+archive_path = {archive_path_json}
+
+# 从bash传入的files_list
+import sys
+files_list_str = "${{files_list}}"
+try:
+    completed_files = json.loads(files_list_str)
+except:
+    completed_files = []
+
+# 读取或创建指纹文件
+if os.path.exists(fingerprint_path):
+    try:
+        with open(fingerprint_path, 'r') as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"Warning: Fingerprint corrupted: {{e}}")
+        data = {{
+            "progress_id": "{task_id}",
+            "archive_path": archive_path,
+            "task_id": "{task_id}",
+            "remaining_files": [],
+            "completed_files": [],
+            "created_at": datetime.now().isoformat()
+        }}
+else:
+    print("Warning: Main fingerprint not found")
+    data = {{
+        "progress_id": "{task_id}",
+        "archive_path": archive_path,
+        "task_id": "{task_id}",
+        "remaining_files": [],
+        "completed_files": [],
+        "created_at": datetime.now().isoformat()
+    }}
+
+# 更新已完成的文件
+for file in completed_files:
+    if file in data.get("remaining_files", []):
+        data["remaining_files"].remove(file)
+    if file not in data.get("completed_files", []):
+        data["completed_files"].append(file)
+
+data["updated_at"] = datetime.now().isoformat()
+
+# 保存
+try:
+    with open(fingerprint_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    # 任务标记
+    os.makedirs(os.path.dirname(task_fingerprint), exist_ok=True)
+    with open(task_fingerprint, 'w') as f:
+        f.write(datetime.now().isoformat())
+    
+    print(f"Folder copied: {total_files} files")
+except Exception as e:
+    print(f"Failed to update fingerprint: {{e}}")
+    exit(1)
+UPDATE_EOF
+'''
+                    cmd_parts.append(update_script)
+                
+                # 完成标记
+                fingerprint_dir = os.path.dirname(fingerprint)
+                cmd_parts.append(f"mkdir -p '{fingerprint_dir}'")
+                cmd_parts.append(f"echo 'completed' > '{fingerprint}'")
+                
+                cmd = "\n".join(cmd_parts)
+                files_count = total_files
+            
+            # 处理batch_copy类型（原有逻辑）
+            elif task["type"] == "batch_copy":
+                # 构造批量复制命令
+                files = task["files"]
+                target_dir = task["target_dir"]
+                fingerprint = task["fingerprint"]
+                
+                cmd_parts = []
+                # 收集所有需要创建的目录
+                target_dirs = set()
+                for file_path in files:
+                    rel_path = os.path.relpath(file_path, task["source_dir"])
+                    target_file_dir = os.path.join(target_dir, os.path.dirname(rel_path))
+                    target_dirs.add(target_file_dir)
+                
+                # 创建所有目标目录
+                for tdir in sorted(target_dirs):
+                    cmd_parts.append(f"mkdir -p '{tdir}'")
+                
+                # 复制所有文件
+                for file_path in files:
+                    rel_path = os.path.relpath(file_path, task["source_dir"])
+                    target_file = os.path.join(target_dir, rel_path)
+                    cmd_parts.append(f"cp '{file_path}' '{target_file}'")
+                
+                # 智能更新指纹文件（读取/创建/更新）
+                if task_id: 
+                    fingerprint_path = f"{self.shell.REMOTE_ROOT}/tmp/extract_progress_{task_id}.json"
+                    task_fingerprint = fingerprint  # 任务级别的指纹标记文件
+                    files_json = json.dumps(files)  # 将文件列表转为JSON字符串
+                    task_archive_path = task.get("archive_path", "")
+                    archive_path_json = json.dumps(task_archive_path)
                     
-                    with lock:
-                        if result["success"]:
-                            completed_tasks.append(task['task_id'])
-                            files_transferred[0] += result.get("files_count", 0)
-                            print(f"[Worker {worker_id}] ✅ Task {task['task_id']} completed ({result.get('files_count', 0)} files)")
+                    update_script = f'''python3 << 'UPDATE_EOF'
+import json
+import os
+from datetime import datetime
+
+fingerprint_path = "{fingerprint_path}"
+task_fingerprint = "{task_fingerprint}"
+completed_files = {files_json}
+archive_path = {archive_path_json}
+
+# 读取或创建指纹文件
+if os.path.exists(fingerprint_path):
+    try:
+        with open(fingerprint_path, 'r') as f:
+            data = json.load(f)
+    except Exception as e:
+        # 指纹文件损坏，创建新的
+        print(f"Warning: Fingerprint corrupted, creating new one: {{e}}")
+        data = {{
+            "progress_id": "{task_id}",
+            "archive_path": archive_path,
+            "task_id": "{task_id}",
+            "remaining_files": [],
+            "completed_files": [],
+            "created_at": datetime.now().isoformat()
+        }}
+else:
+    # 指纹文件不存在，创建新的
+    print("Warning: Main fingerprint not found, creating new one")
+    data = {{
+        "progress_id": "{task_id}",
+        "archive_path": archive_path,
+        "task_id": "{task_id}",
+        "remaining_files": [],
+        "completed_files": [],
+        "created_at": datetime.now().isoformat()
+    }}
+
+# 更新已完成的文件
+for file in completed_files:
+    if file in data.get("remaining_files", []):
+        data["remaining_files"].remove(file)
+    if file not in data.get("completed_files", []):
+        data["completed_files"].append(file)
+
+data["updated_at"] = datetime.now().isoformat()
+
+# 保存更新后的指纹文件
+try:
+    with open(fingerprint_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    # 创建任务级别的标记文件
+    os.makedirs(os.path.dirname(task_fingerprint), exist_ok=True)
+    with open(task_fingerprint, 'w') as f:
+        f.write(datetime.now().isoformat())
+    
+    print(f"Updated fingerprint: {{len(completed_files)}} files completed")
+except Exception as e:
+    print(f"Failed to update fingerprint: {{e}}")
+    exit(1)
+UPDATE_EOF
+'''
+                    # 不能用strip()，会去掉UPDATE_EOF后的换行符，导致heredoc无法终止
+                    cmd_parts.append(update_script)
+
+                # 添加完成标记
+                fingerprint_dir = os.path.dirname(fingerprint)
+                cmd_parts.append(f"mkdir -p '{fingerprint_dir}'")
+                cmd_parts.append(f"echo 'completed' > '{fingerprint}'")
+
+                # heredoc script必须单独执行，不能用&&连接
+                # 所以使用分号`;`代替，或者用换行符
+                cmd = "\n".join(cmd_parts)
+                files_count = len(files)
+            else:
+                return None, 0  # 不支持其他类型
+            
+            # 使用GOOGLE_DRIVE执行命令
+            try:
+                # GOOGLE_DRIVE位于/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py
+                import sys
+                google_drive_path = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py"
+                process = subprocess.Popen(
+                    [sys.executable, google_drive_path, "--shell", "--raw-command", cmd],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                return process, files_count
+            except Exception as e:
+                print(f"Failed to start worker: {e}")
+                return None, 0
+        
+        # 为每个任务维护重试计数
+        task_attempts = {}  # {task_idx: attempt_count}
+        worker_start_times = {}  # {slot_id: start_time}
+
+        # Debug: 追踪循环次数
+        loop_count = 0
+        last_debug_time = time.time()
+        
+        try:
+            import sys
+            while task_queue or any(slot is not None for slot in worker_slots.values()):
+                loop_count += 1
+                current_time = time.time()
+
+                # 检查中断
+                if interrupted[0]:
+                    raise KeyboardInterrupt("User interrupted via SIGINT")
+
+                # 任务分配：为空闲worker分配任务
+                for slot_id in sorted(worker_slots.keys()):
+                    if worker_slots[slot_id] is None and task_queue:
+                        task = task_queue.pop(0)
+                        task_idx = task["task_id"]
+                        
+                        # 跟踪重试次数
+                        attempt = task_attempts.get(task_idx, 0) + 1
+                        task_attempts[task_idx] = attempt
+                        
+                        # 构建任务描述
+                        if task["type"] == "folder_copy":
+                            folder_path = task.get('path', '.')
+                            total_files = task.get('total_files', 0)
+                            folder_name = os.path.basename(folder_path) if folder_path != '.' else '.'
+                            task_desc = f"Copy folder {folder_name} ({total_files} files)"
+                        elif task["type"] == "batch_copy":
+                            src_files = task.get('files', [])
+                            num_files = len(src_files)
+                            if src_files and num_files > 0:
+                                source_dir = task.get('source_dir', '')
+                                if num_files == 1:
+                                    file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    task_desc = f"Copy 1 file: {file_rel}"
+                                else:
+                                    first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                    task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                            else:
+                                task_desc = f"Copy 0 files"
                         else:
-                            failed_tasks.append({
-                                "task_id": task['task_id'],
-                                "error": result.get("error", "Unknown error")
-                            })
-                            print(f"[Worker {worker_id}] ❌ Task {task['task_id']} failed: {result.get('error', 'Unknown')}")
+                            task_desc = task.get('description', 'Unknown task')
+                        
+                        # 启动worker
+                        process, files_count = start_worker(task_idx, task, task_id)
+                        if process:
+                            worker_slots[slot_id] = (task_idx, task, process, files_count, attempt)
+                            worker_start_times[slot_id] = current_time
+                            retry_info = f" (retry {attempt}/{max_attempts})" if attempt > 1 else ""
+                            print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc}{retry_info}")
+            
+                # Worker检查：检查已完成的worker
+            for slot_id, slot_data in list(worker_slots.items()):
+                if slot_data is None:
+                    continue
                 
-                except Exception as e:
-                    import traceback
-                    error_detail = traceback.format_exc()
-                    with lock:
-                        failed_tasks.append({
-                            "task_id": task['task_id'],
-                            "error": str(e),
-                            "traceback": error_detail
-                        })
-                        print(f"[Worker {worker_id}] ❌ Task {task['task_id']} exception: {str(e)}")
-                        print(f"[Worker {worker_id}] [DEBUG] Full traceback:\n{error_detail}")
-                
-                finally:
-                    task_queue.task_done()
+                task_idx, task, process, files_count, attempt = slot_data
+                ret = process.poll()
+
+                if ret is not None:
+                    # Worker完成 - 读取输出用于调试
+                    try:
+                        stdout, stderr = process.communicate(timeout=1)
+                        stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ""
+                        stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ""
+                    except:
+                        stdout_text = ""
+                        stderr_text = ""
+                    
+                    if ret == -2:  # SIGINT
+                        # 清理所有worker并抛出中断
+                        for sid, sdata in worker_slots.items():
+                            if sdata is not None:
+                                _, _, proc, _, _ = sdata
+                                try:
+                                    proc.kill()
+                                except:
+                                    pass
+                        raise KeyboardInterrupt("Worker killed by Ctrl+C")
+                    
+                    if ret == 0:
+                        # 成功
+                        worker_slots[slot_id] = None
+                        worker_start_times.pop(slot_id, None)
+                        completed_tasks.append(task_idx)
+                        files_transferred += files_count
+                        print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} completed")
+                    
+                    else:
+                        # 失败 - 创建remount flag
+                        try:
+                            with open("/tmp/gds_remount_needed", "w") as f:
+                                f.write(f"Worker {slot_id} failed at {current_time}\n")
+                        except:
+                            pass
+                    
+                    if attempt < max_attempts:
+                        # 重试
+                        print(f"Worker {slot_id} failed (attempt {attempt}/{max_attempts}), retrying...")
+                        process, files_count_retry = start_worker(task_idx, task, task_id)
+                        if process:
+                            new_attempt = attempt + 1
+                            worker_slots[slot_id] = (task_idx, task, process, files_count_retry, new_attempt)
+                            
+                                # 重新计算任务描述
+                            if task["type"] == "batch_copy":
+                                src_files = task.get('files', [])
+                                num_files = len(src_files)
+                                source_dir = task.get('source_dir', '')
+                                if num_files == 1:
+                                    file_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    task_desc = f"Copy 1 file: {file_rel}"
+                                else:
+                                    first_rel = os.path.relpath(src_files[0], source_dir) if source_dir else os.path.basename(src_files[0])
+                                    last_rel = os.path.relpath(src_files[-1], source_dir) if source_dir else os.path.basename(src_files[-1])
+                                    task_desc = f"Copy {num_files} files from {first_rel} to {last_rel}"
+                            else:
+                                task_desc = task.get('description', 'Unknown task')
+                            
+                                print(f"(Progress: {files_transferred}/{total_files}) Worker {slot_id} task: {task_desc} (retry {new_attempt}/{max_attempts})")
+                        else:
+                            # 无法重启
+                            worker_slots[slot_id] = None
+                            worker_start_times.pop(slot_id, None)
+                            print(f"Worker {slot_id} failed to restart, skipping...")
+                            failed_tasks.append((task_idx, task))
+                    else:
+                        # 达到最大重试次数
+                        worker_slots[slot_id] = None
+                        worker_start_times.pop(slot_id, None)
+                        print(f"Worker {slot_id} failed after {max_attempts} attempts, skipping...")
+                        failed_tasks.append((task_idx, task))
+            
+                # 短暂休眠
+                if any(slot is not None for slot in worker_slots.values()) or task_queue:
+                    time.sleep(0.1)
         
-        # 启动worker线程
-        workers = []
-        for i in range(num_workers):
-            t = threading.Thread(target=worker, args=(i+1,), daemon=True)
-            t.start()
-            workers.append(t)
+        except KeyboardInterrupt:
+            # 用户中断，强制kill所有运行中的workers
+            for slot_id, slot_data in worker_slots.items():
+                if slot_data is not None:
+                    _, _, process, _, _ = slot_data
+                    try:
+                        process.kill()
+                    except:
+                        pass
+            # 恢复旧的信号处理器
+            signal.signal(signal.SIGINT, old_handler)
+            # 重新抛出KeyboardInterrupt，让上层处理
+            raise
         
-        # 等待所有任务完成
-        print(f"\n{'='*70}")
-        print(f"Started {num_workers} workers for {len(task_list)} tasks...")
-        print(f"{'='*70}")
+        finally:
+            # 确保恢复信号处理器
+            try:
+                signal.signal(signal.SIGINT, old_handler)
+            except:
+                pass
         
-        task_queue.join()  # 阻塞直到所有任务完成
-        
-        # 等待所有worker线程结束
-        for t in workers:
-            t.join(timeout=5)
-        
-        elapsed = time.time() - start_time
-        
-        # 检查是否有失败的任务
+        # 返回结果（包含失败任务信息）
         if failed_tasks:
-            error_msg = f"Failed tasks: {len(failed_tasks)}/{len(task_list)}\n"
-            for fail in failed_tasks[:5]:  # 只显示前5个错误
-                error_msg += f"  Task {fail['task_id']}: {fail['error']}\n"
-            
-            return {
-                "success": False,
-                "error": error_msg,
-                "completed": len(completed_tasks),
-                "failed": len(failed_tasks),
-                "time_taken": elapsed
-            }
+            print(f"\n{len(failed_tasks)} task(s) failed after {max_attempts} attempts")
+            print("These tasks will be rescheduled if verification detects missing files")
         
         return {
             "success": True,
-            "files_transferred": files_transferred[0],
-            "time_taken": elapsed,
-            "completed_tasks": len(completed_tasks)
-        }
-    
-    def _execute_transfer_task(self, task):
-        """
-        执行单个转移任务
-        
-        支持两种类型：
-        1. compress_transfer: 压缩整个目录并转移
-        2. batch_copy: 批量复制文件
-        
-        Args:
-            task (dict): 任务信息
-            
-        Returns:
-            dict: 执行结果
-        """
-        task_type = task["type"]
-        fingerprint = task["fingerprint"]
-        
-        # 首先检查指纹文件是否已存在（任务已完成）
-        if self._check_fingerprint(fingerprint):
-            return {
-                "success": True,
-                "files_count": 0,
-                "message": "Task already completed (fingerprint exists)"
-            }
-        
-        # 根据类型执行不同的操作
-        if task_type == "compress_transfer":
-            result = self._do_compress_transfer(task)
-        elif task_type == "batch_copy":
-            result = self._do_batch_copy(task)
-        else:
-            return {
-                "success": False,
-                "error": f"Unknown task type: {task_type}"
-            }
-        
-        # 如果成功，创建指纹文件
-        if result["success"]:
-            self._create_fingerprint(fingerprint)
-        
-        return result
-    
-    def _check_fingerprint(self, fingerprint_path):
-        """检查指纹文件是否存在"""
-        cmd = f"test -f {fingerprint_path} && echo 'exists' || echo 'not_exists'"
-        
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=True
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-            
-            if result.get("success"):
-                return 'exists' in result.get("stdout", "")
-        
-        return False
-    
-    def _create_fingerprint(self, fingerprint_path):
-        """创建指纹文件"""
-        cmd = f"touch {fingerprint_path}"
-        
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=False
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-    
-    def _do_compress_transfer(self, task):
-        """
-        执行压缩转移任务
-        
-        流程：
-        1. 在/tmp压缩源目录
-        2. 创建目标目录
-        3. 移动压缩文件到目标
-        4. 在目标位置解压
-        5. 删除压缩文件
-        
-        Args:
-            task (dict): 任务信息
-            
-        Returns:
-            dict: 执行结果
-        """
-        source = task["source"]
-        target = task["target"]
-        
-        # 生成压缩文件名
-        import random
-        random_suffix = f"{random.randint(1000, 9999)}"
-        archive_name = f"transfer_{task['task_id']}_{random_suffix}.tar.gz"
-        tmp_archive = f"/tmp/{archive_name}"
-        
-        # 构造命令
-        cmd = f"""
-cd $(dirname {source}) && \\
-tar -czf {tmp_archive} $(basename {source}) && \\
-mkdir -p $(dirname {target}) && \\
-cp {tmp_archive} $(dirname {target})/{archive_name} && \\
-cd $(dirname {target}) && \\
-tar -xzf {archive_name} && \\
-mv $(basename {source}) $(basename {target}) 2>/dev/null || true && \\
-rm -f {archive_name} {tmp_archive} && \\
-echo 'Transfer completed'
-"""
-        
-        # 执行命令
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd.strip(),
-                capture_result=False
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-            
-            if result.get("success") == False or result.get("interrupted"):
-                return {
-                    "success": False,
-                    "error": "Compress transfer command failed"
-                }
-        
-        # 统计转移的文件数
-        cmd_count = f"find {target} -type f 2>/dev/null | wc -l"
-        
-        files_count = 0
-        if hasattr(self.shell, 'command_executor'):
-            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
-            self.shell.command_executor._raw_command = True
-            
-            result = self.shell.command_executor.execute_command_interface(
-                cmd=cmd_count,
-                capture_result=True
-            )
-            
-            self.shell.command_executor._raw_command = old_raw
-            
-            if result.get("success"):
-                try:
-                    files_count = int(result.get("stdout", "0").strip())
-                except:
-                    pass
-        
-        return {
-            "success": True,
-            "files_count": files_count
+            "files_transferred": files_transferred,
+            "failed_tasks": failed_tasks
         }
     
     def _do_batch_copy(self, task):
         """
         执行批量复制任务
         
-        流程：
-        1. 创建目标目录
-        2. 构造批量cp命令
-        3. 执行cp命令
-        
         Args:
-            task (dict): 任务信息
+            task (dict): 任务信息，包含 files 列表
             
         Returns:
             dict: 执行结果
         """
-        source_dir = task["source_dir"]
-        target_dir = task["target_dir"]
         files = task["files"]
+        target_dir = task["target_dir"]
+        fingerprint = task["fingerprint"]
         
-        # 构造批量cp命令
-        mkdir_cmd = f"mkdir -p {target_dir}"
+        if not files:
+            return {"success": True, "files_count": 0}
         
-        # 构造cp命令列表
-        cp_commands = []
-        for filename in files:
-            # 使用cp而不是mv，以便失败时可以重试
-            source_file = f"{source_dir}/{filename}"
-            target_file = f"{target_dir}/{filename}"
-            cp_commands.append(f"cp '{source_file}' '{target_file}'")
+        # 构造批量复制命令
+        # 1. 创建所有需要的目标目录
+        # 2. 逐个复制文件（保持目录结构）
+        # 3. 创建指纹文件
         
-        # 组合命令（使用&&连接）
-        all_commands = mkdir_cmd + " && " + " && ".join(cp_commands)
+        cmd_parts = []
         
-        # 如果命令太长，分批执行
-        if len(all_commands) > 100000:  # 命令长度限制
-            # 分成多个批次
-            batch_size = len(files) // 2
-            if batch_size < 1:
-                batch_size = 1
-            
-            for i in range(0, len(files), batch_size):
-                batch_files = files[i:i+batch_size]
-                sub_task = {
-                    **task,
-                    "files": batch_files
-                }
-                result = self._do_batch_copy(sub_task)
-                if not result["success"]:
-                    return result
-            
-            return {
-                "success": True,
-                "files_count": len(files)
-            }
+        # 收集所有需要创建的目录
+        target_dirs = set()
+        for file_path in files:
+            # 计算相对于源目录的相对路径
+            # file_path 格式: /tmp/gds_extract_xxx/large_project/src/utils/helper.py
+            # 需要提取: src/utils
+            rel_path = os.path.relpath(file_path, task["source_dir"])
+            target_file_dir = os.path.join(target_dir, os.path.dirname(rel_path))
+            target_dirs.add(target_file_dir)
+        
+        # 创建所有目标目录
+        for tdir in sorted(target_dirs):
+            cmd_parts.append(f"mkdir -p '{tdir}'")
+        
+        # 复制所有文件
+        for file_path in files:
+            rel_path = os.path.relpath(file_path, task["source_dir"])
+            target_file = os.path.join(target_dir, rel_path)
+            cmd_parts.append(f"cp '{file_path}' '{target_file}'")
+        
+        # 创建指纹文件
+        cmd_parts.append(f"touch '{fingerprint}'")
+        
+        # 组合命令
+        cmd = " && \\\n".join(cmd_parts)
         
         # 执行命令
         if hasattr(self.shell, 'command_executor'):
@@ -1073,116 +1278,849 @@ echo 'Transfer completed'
             self.shell.command_executor._raw_command = True
             
             result = self.shell.command_executor.execute_command_interface(
-                cmd=all_commands,
-                capture_result=False
+                cmd=cmd,
+                capture_result=True
             )
             
             self.shell.command_executor._raw_command = old_raw
             
-            if result.get("success") == False or result.get("interrupted"):
+            if not result.get("success") or result.get("interrupted"):
                 return {
                     "success": False,
                     "error": "Batch copy command failed"
                 }
+            
+            return {
+                "success": True,
+                "files_count": len(files)
+            }
+        
+        return {
+            "success": False,
+            "error": "Command executor not available"
+        }
+    
+    def _build_task_list(self, content_dir, target_root, dir_tree, total_files, batch_size, fingerprint_dir, remaining_files=None):
+        """
+        本地构建传输任务列表（基于 batch_size 真正分批）
+        
+        Args:
+            content_dir (str): 源内容目录
+            target_root (str): 目标根目录
+            dir_tree (str): 目录树（ls -R 结果）
+            total_files (int): 总文件数
+            batch_size (int): 每批文件数
+            fingerprint_dir (str): 指纹文件目录
+            remaining_files (list): 如果提供，只处理这些文件（用于进度恢复）
+            
+        Returns:
+            dict: 包含任务列表和策略的字典
+        """
+        base_name = os.path.basename(content_dir)
+        final_target = f"{target_root}/{base_name}"
+        
+        # 解析目录树，按目录分组文件
+        try:
+            # 从 dir_tree 的第一行提取根目录路径
+            first_line = dir_tree.split('\n')[0].strip()
+            if first_line.endswith(':'):
+                root_path_in_tree = first_line[:-1]  # 移除末尾的冒号
+            else:
+                root_path_in_tree = content_dir
+            
+            tree = parse_ls_r_to_tree(dir_tree, root_path_in_tree)
+            file_groups = self._group_files_by_directory(tree, content_dir, batch_size, remaining_files)
+        except Exception as e:
+            print(f"  Warning: Failed to parse tree for batching: {e}")
+            # 降级策略：使用find命令直接收集文件并简单分批
+            if remaining_files:
+                # 恢复模式：使用remaining_files
+                all_files = remaining_files
+            else:
+                # 首次运行：返回错误，因为无法解析目录树
+                return {
+                    "success": False,
+                    "error": f"Failed to parse directory tree: {e}"
+                }
+
+            # 简单分批：按batch_size切分文件列表
+            file_groups = []
+            for i in range(0, len(all_files), batch_size):
+                batch = all_files[i:i+batch_size]
+                file_groups.append({
+                    "files": batch,
+                    "dir_hint": f"batch_{i//batch_size}"
+                })
+
+        # 构建批次任务
+        tasks = []
+        for task_id, group in enumerate(file_groups):
+            task = {
+                "type": "batch_copy",
+                "source_dir": content_dir,
+                "files": group["files"],
+                "target_dir": final_target,
+                "fingerprint": f"{fingerprint_dir}/task_{task_id:04d}_ok",
+                "task_id": task_id,
+                "description": f"Batch {task_id}: {len(group['files'])} files from {group['dir_hint']}"
+            }
+            tasks.append(task)
         
         return {
             "success": True,
-            "files_count": len(files)
+            "tasks": tasks,
+            "strategy": "batch_transfer"
         }
     
-    def _cleanup_tmp(self, tmp_dir):
-        """清理临时目录"""
-        cmd = f"rm -rf {tmp_dir}"
+    def _group_files_by_directory(self, tree, base_path, batch_size, remaining_files=None):
+        """
+        将目录树中的文件按目录分组（线性扫描算法）
         
+        算法：
+        1. 收集并排序所有文件
+        2. 线性扫描，按目录分组
+        3. 同一目录的文件在同一组
+        4. 每组不超过 batch_size
+        5. 遇到新目录或达到上限时创建新批次
+        
+        Args:
+            tree (dict): 目录树
+            base_path (str): 基础路径（用于计算相对路径）
+            batch_size (int): 每批大小
+            remaining_files (list): 如果提供，只处理这些文件
+            
+        Returns:
+            list: 文件分组列表
+        """
+        all_files = []
+        
+        def collect_files(node, current_path):
+            """递归收集所有文件路径"""
+            if node["type"] == "file":
+                all_files.append(current_path + "/" + node["name"])
+            else:
+                for child in node.get("children", []):
+                    collect_files(child, current_path + "/" + node["name"])
+        
+        # 收集所有文件
+        tree_root_path = tree["name"]
+        for child in tree.get("children", []):
+            collect_files(child, tree_root_path)
+        
+        # 如果提供了 remaining_files，只保留这些文件
+        if remaining_files:
+            remaining_set = set(remaining_files)
+            all_files = [f for f in all_files if f in remaining_set]
+        
+        # 排序文件列表（模拟 find | sort）
+        all_files.sort()
+        
+        # 线性扫描分组
+        groups = []
+        i = 0
+        
+        while i < len(all_files):
+            # 开始新批次
+            current_batch = []
+            current_dir = os.path.dirname(all_files[i])
+            
+            # 扫描文件，满足以下条件之一时停止：
+            # 1. 遇到不同目录的文件
+            # 2. 已达到 batch_size
+            # 3. 所有文件已扫描完
+            while i < len(all_files):
+                file_path = all_files[i]
+                file_dir = os.path.dirname(file_path)
+                
+                # 检查停止条件
+                if file_dir != current_dir:
+                    # 遇到新目录，停止当前批次
+                    break
+                if len(current_batch) >= batch_size:
+                    # 已达到批次上限，停止
+                    break
+                
+                # 添加文件到当前批次
+                current_batch.append(file_path)
+                i += 1
+            
+            # 保存当前批次
+            if current_batch:
+                groups.append({
+                    "files": current_batch,
+                    "dir_hint": os.path.basename(current_dir)
+                })
+        
+        return groups
+    
+    def _extract_and_analyze(self, archive_path, tmp_extract_dir, fingerprint_dir, skip_extract=False):
+        """
+        在远程解压归档文件并分析目录结构
+        
+        Args:
+            archive_path (str): 归档文件路径
+            tmp_extract_dir (str): 临时解压目录
+            fingerprint_dir (str): 指纹文件目录
+            skip_extract (bool): 是否跳过解压步骤（用于恢复进度）
+            
+        Returns:
+            dict: 包含解压和分析结果的字典
+        """
+        # 检测归档文件类型
+        if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
+            extract_cmd = f"tar -xzf {archive_path} -C {tmp_extract_dir}"
+        elif archive_path.endswith('.tar'):
+            extract_cmd = f"tar -xf {archive_path} -C {tmp_extract_dir}"
+        elif archive_path.endswith('.zip'):
+            extract_cmd = f"unzip -q {archive_path} -d {tmp_extract_dir}"
+        else:
+            return {
+                "success": False,
+                "error": f"Unsupported archive format: {archive_path}"
+            }
+        
+        # 构造命令：检查 /tmp 目录内容，决定是否解压
+        if skip_extract:
+            # 进度恢复：检查目录是否存在且非空
+            cmd = f"""
+echo '[Step 2.1] Checking for existing extraction...' && \\
+CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1) && \\
+if [ -n "$CONTENT_DIR" ] && [ -d "$CONTENT_DIR" ]; then
+    echo 'Found existing extraction directory'
+else
+    echo 'Extraction directory not found or empty, re-extracting...' && \\
+    rm -rf {tmp_extract_dir} && \\
+    mkdir -p {tmp_extract_dir} && \\
+    mkdir -p {fingerprint_dir} && \\
+    {extract_cmd} && \\
+    echo 'Re-extraction completed' && \\
+    CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d | head -1)
+fi && \\
+if [ -z "$CONTENT_DIR" ]; then CONTENT_DIR="{tmp_extract_dir}"; fi && \\
+echo "Content dir: $CONTENT_DIR" && \\
+echo '[Step 2.2] Getting directory tree...' && \\
+ls -R "$CONTENT_DIR" && \\
+echo '---STATS---' && \\
+echo "Files:" && find "$CONTENT_DIR" -type f | wc -l && \\
+echo "Dirs:" && find "$CONTENT_DIR" -type d | wc -l && \\
+echo "---CONTENT_DIR---" && \\
+echo "$CONTENT_DIR"
+"""
+        else:
+            # 首次运行：完整的解压和分析
+            cmd = f"""
+echo '[Step 2.1] Creating directories...' && \\
+mkdir -p {tmp_extract_dir} && \\
+mkdir -p {fingerprint_dir} && \\
+echo '[Step 2.2] Extracting archive...' && \\
+{extract_cmd} && \\
+echo '[Step 2.3] Finding content directory...' && \\
+CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d | head -1) && \\
+if [ -z "$CONTENT_DIR" ]; then CONTENT_DIR="{tmp_extract_dir}"; fi && \\
+echo "Content dir: $CONTENT_DIR" && \\
+echo '[Step 2.4] Getting directory tree...' && \\
+ls -R "$CONTENT_DIR" && \\
+echo '---STATS---' && \\
+echo "Files:" && find "$CONTENT_DIR" -type f | wc -l && \\
+echo "Dirs:" && find "$CONTENT_DIR" -type d | wc -l && \\
+echo "---CONTENT_DIR---" && \\
+echo "$CONTENT_DIR"
+"""
+        
+        # 执行命令
         if hasattr(self.shell, 'command_executor'):
             old_raw = getattr(self.shell.command_executor, '_raw_command', False)
             self.shell.command_executor._raw_command = True
             
-            self.shell.command_executor.execute_command_interface(
-                cmd=cmd,
-                capture_result=False
+            result = self.shell.command_executor.execute_command_interface(
+                cmd=cmd.strip(),
+                capture_result=True
             )
             
             self.shell.command_executor._raw_command = old_raw
-    
-    def _show_help(self):
-        """显示帮助信息"""
-        help_text = """
-╔══════════════════════════════════════════════════════════════════════╗
-║                    GDS Extract Command - Help                         ║
-╚══════════════════════════════════════════════════════════════════════╝
-
-DESCRIPTION:
-    Extract and transfer large archives to Google Drive using parallel workers
-    for efficient batch processing. Supports intelligent file grouping and
-    automatic retry with fingerprint tracking.
-
-SYNTAX:
-    GDS extract <archive_file> [--transfer-batch SIZE]
-
-ARGUMENTS:
-    <archive_file>
-        Path to the archive file (.zip, .tar.gz, .tar, etc.)
-        Supports GDS path formats: ~/path, @/path, or absolute paths
+            
+            if not result.get("success") or result.get("interrupted"):
+                return {
+                    "success": False,
+                    "error": "Failed to extract and analyze archive"
+                }
+            
+            # 解析输出（尝试多个可能的字段）
+            stdout = result.get("stdout", "")
+            if not stdout:
+                # 尝试 data 字段
+                data = result.get("data", {})
+                if isinstance(data, dict):
+                    stdout = data.get("output", "") or data.get("stdout", "")
+                elif isinstance(data, str):
+                    stdout = data
+            
+            # 提取统计信息和目录树
+            # 先清理输出（使用 process_terminal_erase）
+            stdout = process_terminal_erase(stdout)
+            lines = stdout.split('\n')
+            
+            # 提取各部分内容
+            content_dir = tmp_extract_dir
+            ls_r_output = ""
+            total_files = 0
+            total_dirs = 0
+            
+            # 状态机解析
+            state = "init"
+            ls_r_start_idx = -1
+            
+            for i, line in enumerate(lines):
+                if line.startswith('Content dir:'):
+                    # 提取 content_dir
+                    content_dir = line.split('Content dir:')[1].strip()
+                elif '[Step 2.4] Getting directory tree' in line:
+                    state = "ls_r"
+                    ls_r_start_idx = i + 1
+                elif '---STATS---' in line:
+                    state = "stats"
+                    # 提取 ls -R 输出
+                    if ls_r_start_idx >= 0:
+                        ls_r_output = '\n'.join(lines[ls_r_start_idx:i])
+                elif state == "stats":
+                    if 'Files:' in line:
+                        try:
+                            total_files = int(line.split(':')[1].strip())
+                        except:
+                            pass
+                    elif 'Dirs:' in line:
+                        try:
+                            total_dirs = int(line.split(':')[1].strip())
+                        except:
+                            pass
+                    elif line.strip().isdigit():
+                        # 备用解析：纯数字行
+                        num = int(line.strip())
+                        if total_files == 0:
+                            total_files = num
+                        elif total_dirs == 0:
+                            total_dirs = num
+            
+            # 如果没有通过标记解析到，尝试解析 ls -R 输出获取统计
+            if total_files == 0 and ls_r_output:
+                try:
+                    root_name = os.path.basename(content_dir)
+                    tree = parse_ls_r_to_tree(ls_r_output, root_name)
+                    total_files, total_dirs = count_tree_items(tree)
+                except Exception as e:
+                    print(f"  Warning: Failed to parse ls -R output: {e}")
+            
+            return {
+                "success": True,
+                "content_dir": content_dir,
+                "dir_tree": ls_r_output,
+                "total_files": total_files,
+                "total_dirs": total_dirs
+            }
         
-    --transfer-batch SIZE
-        Number of files per transfer batch (default: 1000)
-        Smaller values = more batches but more granular progress
-        Larger values = fewer batches but less overhead
-
-ALGORITHM:
-    1. Copy archive to /tmp and extract
-    2. Recursively analyze directory structure
-    3. For each directory:
-       - If total files < batch size: compress and transfer as one
-       - Otherwise:
-         • Recursively process each subdirectory
-         • Group remaining files into batches
-         • Create batch mv scripts (raw command mode)
-    4. Use 3 parallel workers for transfer
-    5. Create fingerprint after each successful batch
-    6. Next batch only starts after previous succeeds
-
-PATH HANDLING:
-    Input paths are converted to remote absolute paths:
-    - GDS extract ~/tmp/test.zip  → {REMOTE_ROOT}/tmp/test.zip
-    - GDS extract @/python/x.tar  → {REMOTE_ENV}/python/x.tar
-    - GDS extract /tmp/test.zip   → /tmp/test.zip
-
-FEATURES:
-    ✓ Parallel processing with 3 workers
-    ✓ Intelligent batching based on directory structure
-    ✓ Fingerprint-based progress tracking
-    ✓ Automatic retry on failure
-    ✓ Uses cp instead of mv for safety
-    ✓ Triggers remount on persistent failures
-
-EXAMPLES:
-    # Extract with default batch size (1000)
-    GDS extract python_install.tar.gz
+        return {
+            "success": False,
+            "error": "Command executor not available"
+        }
     
-    # Extract with custom batch size
-    GDS extract ~/tmp/large_archive.zip --transfer-batch 500
+    def _generate_task_id(self, archive_path):
+        """
+        生成唯一的 task ID 并初始化相关路径
+        
+        Args:
+            archive_path (str): 归档文件路径
+            
+        Returns:
+            dict: 包含 task_id 和各种路径的字典
+        """
+        # 生成唯一 task_id（基于时间戳的 MD5）
+        timestamp = str(time.time()).encode()
+        task_id = hashlib.md5(timestamp).hexdigest()[:8]
+        
+        # 初始化路径
+        tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
+        fingerprint_dir = f"~/tmp/extract_fingerprints_{task_id}"
+        
+        # 从临时解压目录推导目标根目录
+        # 例如: /tmp/gds_extract_abc123 -> ~/gds_extracted_abc123
+        target_root = tmp_extract_dir.replace('/tmp/gds_extract_', '~/gds_extracted_')
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "tmp_extract_dir": tmp_extract_dir,
+            "fingerprint_dir": fingerprint_dir,
+            "target_root": target_root
+        }
     
-    # Extract from Google Drive location
-    GDS extract @/downloads/backup.tar.gz --transfer-batch 2000
+    def _init_and_schedule_remote(self, archive_path, task_id, batch_size):
+        """
+        合并的远端初始化和调度生成（一个窗口完成所有工作）
+        
+        在远端执行：
+        1. 检查/tmp中的解压目录，不存在则解压
+        2. find sort 收集文件列表
+        3. Python脚本计算调度任务
+        4. 返回JSON结果
+        
+        Args:
+            archive_path: 归档文件路径
+            task_id: 任务ID
+            batch_size: 批次大小
+            
+        Returns:
+            dict: {task_id, content_dir, total_files, total_tasks, tasks, ...}
+        """
+        # 获取REMOTE_ROOT路径
+        remote_root = self.shell.REMOTE_ROOT
+        
+        tmp_extract_dir = f"/tmp/gds_extract_{task_id}"
+        fingerprint_dir = f"{remote_root}/tmp/extract_fingerprints_{task_id}"
+        target_root = f"{remote_root}/gds_extracted_{task_id}"  # 使用REMOTE_ROOT路径
+        
+        # 检测归档类型
+        if archive_path.endswith(('.tar.gz', '.tgz')):
+            extract_cmd = f"tar -xzf {archive_path} -C {tmp_extract_dir}"
+        elif archive_path.endswith('.tar'):
+            extract_cmd = f"tar -xf {archive_path} -C {tmp_extract_dir}"
+        elif archive_path.endswith('.zip'):
+            extract_cmd = f"unzip -q {archive_path} -d {tmp_extract_dir}"
+        else:
+            return {"success": False, "error": f"Unsupported format: {archive_path}"}
+        
+        # 构造远端命令
+        cmd = f"""
+# 检查归档文件是否存在
+if [ ! -f "{archive_path}" ]; then
+    echo "Archive file not found: {archive_path}"
+    exit 1
+fi
 
-NOTES:
-    - Extraction happens in /tmp for better I/O performance
-    - Original archive is preserved (uses cp, not mv)
-    - Progress can be resumed if interrupted
-    - Each batch creates a fingerprint for reliability
+# 检查解压目录
+if [ -d "{tmp_extract_dir}" ]; then
+    CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d 2>/dev/null | head -1)
+    if [ -n "$CONTENT_DIR" ]; then
+        echo 'Found existing extraction'
+    else
+        echo '→ Re-extracting...'
+        rm -rf {tmp_extract_dir}
+        mkdir -p {tmp_extract_dir}
+        {extract_cmd}
+        CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d | head -1)
+    fi
+else
+    echo '→ Extracting...'
+    mkdir -p {tmp_extract_dir} {fingerprint_dir}
+    {extract_cmd}
+    CONTENT_DIR=$(find {tmp_extract_dir} -maxdepth 1 -mindepth 1 -type d | head -1)
+fi
+
+[ -z "$CONTENT_DIR" ] && CONTENT_DIR="{tmp_extract_dir}"
+echo "Content dir: $CONTENT_DIR"
+
+echo "→ Generating schedule..."
+cd "$CONTENT_DIR" && python3 << 'EOF'
+import os, json
+
+def count_files_recursive(dir_path):
+    '''递归统计目录及子目录中的文件总数'''
+    count = 0
+    try:
+        for item in os.listdir(dir_path):
+            item_path = os.path.join(dir_path, item)
+            if os.path.isfile(item_path):
+                count += 1
+            elif os.path.isdir(item_path):
+                count += count_files_recursive(item_path)
+    except:
+        pass
+    return count
+
+def recursive_schedule(dir_path, batch_size, base_dir='.'):
+    '''递归调度算法B
+    
+    规则：
+    1. 如果文件夹（含子文件夹）总文件数 <= batch_size，直接cp整个文件夹
+    2. 否则递归拆解：
+       - 对每个子文件夹，递归使用本算法
+       - 对当前层的文件，按batch_size分组传输
+    '''
+    total_files = count_files_recursive(dir_path)
+    rel_path = os.path.relpath(dir_path, base_dir) if dir_path != base_dir else '.'
+    
+    if total_files <= batch_size:
+        # 情况1：小文件夹，创建一个task直接cp整个文件夹
+        return [{{"type": "folder_copy", "path": rel_path, "total_files": total_files}}]
+    else:
+        # 情况2：大文件夹，递归拆解
+tasks = []
+        
+        # (a) 收集当前层的子文件夹和文件
+        subdirs = []
+        current_files = []
+        try:
+            for item in sorted(os.listdir(dir_path)):
+                item_path = os.path.join(dir_path, item)
+                if os.path.isdir(item_path):
+                    subdirs.append(item_path)
+                elif os.path.isfile(item_path):
+                    # 保存相对路径
+                    rel_file_path = os.path.relpath(item_path, base_dir)
+                    current_files.append(rel_file_path)
+        except Exception as e:
+            print(f"Warning: Failed to list {{dir_path}}: {{e}}", file=__import__('sys').stderr)
+        
+        # (b) 对每个子文件夹，递归调度
+        for subdir in subdirs:
+            tasks.extend(recursive_schedule(subdir, batch_size, base_dir))
+        
+        # (c) 对当前层的文件，按batch_size分组
+        for i in range(0, len(current_files), batch_size):
+            batch = current_files[i:i+batch_size]
+    if batch:
+        tasks.append({{"task_id": len(tasks), "files": batch}})
+
+
+# 创建指纹文件
+fingerprint_data = {{
+    "progress_id": "{task_id}",
+    "archive_path": "{archive_path}",
+    "task_id": "{task_id}",
+    "remaining_files": [os.path.join(os.getcwd(), f) for f in all_files],
+    "completed_files": [],
+    "created_at": __import__('datetime').datetime.now().isoformat()
+}}
+
+# 创建指纹文件
+import os as os_mod
+remote_root = "{remote_root}"
+fingerprint_dir = os_mod.path.join(remote_root, "tmp")
+os_mod.makedirs(fingerprint_dir, exist_ok=True)
+fingerprint_path = os_mod.path.join(fingerprint_dir, "extract_progress_{task_id}.json")
+
+with open(fingerprint_path, 'w') as fp:
+    json.dump(fingerprint_data, fp, indent=2)
+
+print(f"Fingerprint created: {{fingerprint_path}}")
+
+# 输出JSON
+print("---JSON---")
+print(json.dumps({{
+    "task_id": "{task_id}",
+    "content_dir": os.getcwd(),
+    "total_files": len(all_files),
+    "total_tasks": len(tasks),
+    "tasks": tasks,
+    "target_root": "{target_root}",
+    "fingerprint_dir": "{fingerprint_dir}"
+}}))
+print("---END---")
+EOF
+
+echo 'Completed'
 """
-        print(help_text)
-        return {"success": True, "message": "Help displayed"}
+        
+        # 执行（带重试机制）
+        if hasattr(self.shell, 'command_executor'):
+            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+            self.shell.command_executor._raw_command = True
+            
+            # 至少尝试2次
+            max_attempts = 3
+            result = None
+            for attempt in range(1, max_attempts + 1):
+                if attempt > 1:
+                    print(f"Initializing... (attempt {attempt}/{max_attempts})")
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=cmd.strip(), capture_result=True)
+                
+                if result.get("success"):
+                    break  # 成功则退出重试循环
+                
+                # 如果还有重试机会，继续
+                if attempt < max_attempts:
+                    print("Initialization failed, retrying...")
+            
+            self.shell.command_executor._raw_command = old_raw
+            
+            if not result or not result.get("success"):
+                return {"success": False, "error": "Remote init failed after retries"}
+            
+            # 解析JSON
+            stdout = result.get("stdout", "")
+            if not stdout:
+                data = result.get("data", {})
+                stdout = data.get("stdout", "") if isinstance(data, dict) else ""
+            
+            stdout = process_terminal_erase(stdout)
+            
+            # 检查是否有归档文件不存在的错误
+            if "Archive file not found" in stdout:
+                # 提取错误信息
+                for line in stdout.split('\n'):
+                    if "Archive file not found" in line:
+                        return {"success": False, "error": line.strip()}
+            
+            try:
+                json_start = stdout.find('---JSON---')
+                json_end = stdout.find('---END---')
+                if json_start >= 0 and json_end > json_start:
+                    json_str = stdout[json_start+10:json_end].strip()
+                    import json
+                    data = json.loads(json_str)
+                    data["success"] = True
+                    return data
+                else:
+                    return {"success": False, "error": f"JSON markers not found", "stdout": stdout[:500]}
+            except Exception as e:
+                return {"success": False, "error": f"Parse error: {e}"}
+        
+        return {"success": False, "error": "No executor"}
 
+    def _verify_transfer_results(self, content_dir, target_root, expected_files):
+        """
+        验证传输结果：使用 find sort 确认目标文件夹结构与预期一致
+        
+        Args:
+            content_dir (str): 源内容目录
+            target_root (str): 目标根目录
+            expected_files (int): 预期文件数量
+            
+        Returns:
+            dict: 验证结果
+        """
+        try:
+            # 在一个命令中获取源目录和目标目录的文件列表
+            combined_cmd = f"""
+echo "=== SOURCE FILES ==="
+cd '{content_dir}' && find . -type f | sort
+echo "=== TARGET FILES ==="
+cd '{target_root}' && find . -type f | sort 2>/dev/null || echo "No target files found"
+echo "=== END ==="
+"""
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=combined_cmd.strip(), capture_result=True)
+                self.shell.command_executor._raw_command = old_raw
+                
+                # 提取 stdout，处理嵌套字典结构
+                stdout = ""
+                if isinstance(result, dict):
+                    if 'stdout' in result:
+                        stdout = result['stdout']
+                    elif 'data' in result:
+                        stdout = result['data']
+                    # 如果还是字典，可能是嵌套的命令结果
+                    if isinstance(stdout, dict) and 'stdout' in stdout:
+                        stdout = stdout['stdout']
+                
+                # 解析合并的输出
+                stdout_str = str(stdout)
+                source_start = stdout_str.find("=== SOURCE FILES ===")
+                target_start = stdout_str.find("=== TARGET FILES ===")
+                end_marker = stdout_str.find("=== END ===")
+                
+                if source_start >= 0 and target_start > source_start and end_marker > target_start:
+                    source_section = stdout_str[source_start + len("=== SOURCE FILES ==="):target_start].strip()
+                    target_section = stdout_str[target_start + len("=== TARGET FILES ==="):end_marker].strip()
+                    
+                    source_files = [f.strip() for f in source_section.split('\n') if f.strip()]
+                    target_files = [f.strip() for f in target_section.split('\n') if f.strip() and f.strip() != "No target files found"]
+                else:
+                    return {"success": False, "error": "Failed to parse verification output"}
+                
+                # 比较文件列表
+                source_set = set(source_files)
+                target_set = set(target_files)
+                
+                missing_files = source_set - target_set
+                extra_files = target_set - source_set
+                
+                actual_files = len(target_files)
+                missing_count = len(missing_files)
+                
+                if missing_count == 0:
+                    print(f"All {actual_files} files verified successfully")
+                    return {
+                        "success": True,
+                        "actual_files": actual_files,
+                        "missing_files": 0,
+                        "extra_files": len(extra_files)
+                    }
+                else:
+                    print(f"{missing_count} files missing:")
+                    for f in sorted(missing_files)[:5]:  # 只显示前5个
+                        print(f"  - {f}")
+                    if len(missing_files) > 5:
+                        print(f"  ... and {len(missing_files) - 5} more")
+                    
+                    return {
+                        "success": False,
+                        "error": f"{missing_count} files missing",
+                        "actual_files": actual_files,
+                        "missing_files": missing_count,
+                        "extra_files": len(extra_files),
+                        "missing_list": list(missing_files)
+                    }
+                    
+            else:
+                return {"success": False, "error": "No executor available"}
+                
+        except Exception as e:
+            return {"success": False, "error": f"Verification failed: {e}"}
 
-def register_command(main_instance):
-    """
-    注册extract命令到主实例
-    
-    Args:
-        main_instance: GoogleDriveShell主实例
-    """
-    return ExtractCommand(main_instance)
-
+    def transfer_directory(self, source_dir, target_dir, transfer_batch=1000, quiet=False, progress_id=None):
+        """
+        传输目录（使用打包-移动-extract流程避免大量文件直接在GDFUSE创建）
+        
+        流程：
+        1. 在/tmp中打包source_dir为tar.gz
+        2. 移动tar.gz到目标目录的父目录
+        3. 使用subprocess调用GDS extract并行解压到target_dir
+        
+        Args:
+            source_dir: 源目录路径（/tmp/python_install_xxx）
+            target_dir: 目标目录路径（REMOTE_ENV/python/3.x.x）
+            transfer_batch: batch大小
+            quiet: 是否静默模式（使用subprocess，不显示extract输出）
+            progress_id: 可选的progress_id用于恢复中断的extract
+            
+        Returns:
+            dict: {"success": bool, "error": str, "task_id": str (if available)}
+        """
+        import os
+        import time
+        import hashlib
+        import sys
+        import subprocess
+        import re
+        
+        # 生成唯一的archive名称
+        timestamp = int(time.time())
+        source_basename = os.path.basename(source_dir)
+        hash_val = hashlib.md5(f"{source_basename}_{timestamp}".encode()).hexdigest()[:8]
+        archive_name = f"transfer_{source_basename}_{hash_val}.tar.gz"
+        archive_path_tmp = f"/tmp/{archive_name}"
+        target_parent = os.path.dirname(target_dir)
+        archive_path_final = f"{target_parent}/{archive_name}"
+        
+        try:
+            # Step 1: Pack in /tmp
+            if not quiet:
+                print(f"Creating archive...")
+            pack_cmd = f"cd '{source_dir}' && tar -czf '/tmp/{archive_name}' ."
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=pack_cmd,
+                    capture_result=True
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                # 检查是否被中断
+                if result.get("interrupted"):
+                    raise KeyboardInterrupt()
+                
+                if not result.get("success"):
+                    return {"success": False, "error": f"Failed to pack: {result.get('error', 'Unknown error')}"}
+            
+            # Step 2: Move to Google Drive
+            if not quiet:
+                print(f"Moving to Google Drive...")
+            move_cmd = f"mkdir -p '{target_parent}' && mv '{archive_path_tmp}' '{archive_path_final}'"
+            
+            if hasattr(self.shell, 'command_executor'):
+                old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                self.shell.command_executor._raw_command = True
+                
+                result = self.shell.command_executor.execute_command_interface(
+                    cmd=move_cmd,
+                    capture_result=True
+                )
+                
+                self.shell.command_executor._raw_command = old_raw
+                
+                # 检查是否被中断
+                if result.get("interrupted"):
+                    raise KeyboardInterrupt()
+                
+                if not result.get("success"):
+                    # 清理/tmp中的archive
+                    self.shell.command_executor._raw_command = True
+                    self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_tmp}'", capture_result=False)
+                    self.shell.command_executor._raw_command = False
+                    return {"success": False, "error": f"Failed to move archive: {result.get('error', 'Unknown error')}"}
+            
+            # Step 3: Extract with parallel workers
+            if not quiet:
+                print(f"Extracting (batch={transfer_batch})...")
+            
+            if quiet:
+                # 使用subprocess调用GDS extract（静默模式）
+                google_drive_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..', 'GOOGLE_DRIVE.py'))
+                cmd = [sys.executable, google_drive_path, '--shell', 'extract', archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
+                if progress_id:
+                    cmd.extend(['--progress-id', progress_id])
+                
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+                    exit_code = result.returncode
+                    
+                    # 解析task ID（从输出中）
+                    task_id_match = re.search(r'Task ID: (\S+)', result.stdout)
+                    task_id = task_id_match.group(1) if task_id_match else None
+                    
+                    if exit_code == 0:
+                        # Cleanup archive
+                        if hasattr(self.shell, 'command_executor'):
+                            old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                            self.shell.command_executor._raw_command = True
+                            self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_final}'", capture_result=False)
+                            self.shell.command_executor._raw_command = old_raw
+                        
+                        return {"success": True, "task_id": task_id}
+                    else:
+                        # Extract失败
+                        return {"success": False, "error": f"Extract failed (exit_code={exit_code})", "task_id": task_id, "stdout": result.stdout, "stderr": result.stderr}
+                
+                except subprocess.TimeoutExpired:
+                    return {"success": False, "error": "Extract timeout (>1 hour)"}
+                except KeyboardInterrupt:
+                    # 用户Ctrl+C中断
+                    raise
+            else:
+                # 直接调用extract命令（非静默模式）
+                extract_args = [archive_path_final, '--target', target_dir, '--transfer-batch', str(transfer_batch)]
+                if progress_id:
+                    extract_args.extend(['--progress-id', progress_id])
+                
+                exit_code = self.execute('extract', extract_args)
+                
+                if exit_code == 0:
+                    # Cleanup archive
+                    if hasattr(self.shell, 'command_executor'):
+                        old_raw = getattr(self.shell.command_executor, '_raw_command', False)
+                        self.shell.command_executor._raw_command = True
+                        self.shell.command_executor.execute_command_interface(cmd=f"rm -f '{archive_path_final}'", capture_result=False)
+                        self.shell.command_executor._raw_command = old_raw
+                    
+                    return {"success": True}
+                else:
+                    return {"success": False, "error": f"Extract failed (exit_code={exit_code})"}
+            
+        except KeyboardInterrupt:
+            # 不在这里清理archive（会打开新窗口），直接raise让上层处理
+            print("\nTransfer interrupted by user")
+            raise
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"Transfer failed: {str(e)}"}

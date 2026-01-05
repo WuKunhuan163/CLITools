@@ -16,7 +16,7 @@ Python缓存和pytest缓存已清理
 正在创建远端测试目录: ~/tmp/gds_test_20251202_081854_955194_e137eee6
 使用测试模式，窗口将只显示复制指令和执行完成按钮
 已切换到远端测试目录: ~/tmp/gds_test_20251202_081854_955194_e137eee6
-✓ 验证测试目录存在: ~/tmp/gds_test_20251202_081854_955194_e137eee6
+验证测试目录存在: ~/tmp/gds_test_20251202_081854_955194_e137eee6
 本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_lhcifvr2
 测试环境设置完成
 测试GDS --bg后台任务功能 - 优先队列验证
@@ -82,17 +82,17 @@ Log内容预览: [00:26:32] Background task started
 [00:26:32] Executing command...
 TASK_START_TIME: 2025-12-02 00:26:32
 Fir...
-✓ 首次获得任务开始时间（远端）: 2025-12-02 00:26:32
-✓ 任务运行时间（基于测试开始时间）: 30.0秒
-✓ 包含第一个echo输出
-✓ 包含sleep提示
+首次获得任务开始时间（远端）: 2025-12-02 00:26:32
+任务运行时间（基于测试开始时间）: 30.0秒
+包含第一个echo输出
+包含sleep提示
 - 不包含第二个echo输出（任务仍在运行）
 Status查询结果: returncode=0
 Status内容: Status: running
 PID: 1764635166_8683 (Real PID: 20452)
 Start time: 2025-12-02T08:26:06.038087
 Log size: 268 bytes
-✓ 任务状态：运行中
+任务状态：运行中
 === 第2次查询完成 ===
 等待10秒后继续查询...
 
@@ -106,16 +106,16 @@ Log内容预览: [00:26:32] Background task started
 [00:26:32] Executing command...
 TASK_START_TIME: 2025-12-02 00:26:32
 Fir...
-✓ 任务运行时间（基于测试开始时间）: 62.6秒
-✓ 包含第一个echo输出
-✓ 包含sleep提示
+任务运行时间（基于测试开始时间）: 62.6秒
+包含第一个echo输出
+包含sleep提示
 - 不包含第二个echo输出（任务仍在运行）
 Status查询结果: returncode=0
 Status内容: Status: running
 PID: 1764635166_8683 (Real PID: 20452)
 Start time: 2025-12-02T08:26:06.038087
 Log size: 268 bytes
-✓ 任务状态：运行中
+任务状态：运行中
 === 第3次查询完成 ===
 等待10秒后继续查询...
 
@@ -129,16 +129,16 @@ Log内容预览: [00:26:32] Background task started
 [00:26:32] Executing command...
 TASK_START_TIME: 2025-12-02 00:26:32
 Fir...
-✓ 任务运行时间（基于测试开始时间）: 94.3秒
-✓ 包含第一个echo输出
-✓ 包含sleep提示
+任务运行时间（基于测试开始时间）: 94.3秒
+包含第一个echo输出
+包含sleep提示
 - 不包含第二个echo输出（任务仍在运行）
 Status查询结果: returncode=0
 Status内容: Status: running
 PID: 1764635166_8683 (Real PID: 20452)
 Start time: 2025-12-02T08:26:06.038087
 Log size: 268 bytes
-✓ 任务状态：运行中
+任务状态：运行中
 === 第4次查询完成 ===
 等待10秒后继续查询...
 
@@ -152,16 +152,16 @@ Log内容预览: [00:26:32] Background task started
 [00:26:32] Executing command...
 TASK_START_TIME: 2025-12-02 00:26:32
 Fir...
-✓ 任务运行时间（基于测试开始时间）: 128.5秒
-✓ 包含第一个echo输出
-✓ 包含sleep提示
+任务运行时间（基于测试开始时间）: 128.5秒
+包含第一个echo输出
+包含sleep提示
 - 不包含第二个echo输出（任务仍在运行）
 Status查询结果: returncode=0
 Status内容: Status: running
 PID: 1764635166_8683 (Real PID: 20452)
 Start time: 2025-12-02T08:26:06.038087
 Log size: 268 bytes
-✓ 任务状态：运行中
+任务状态：运行中
 === 第5次查询完成 ===
 等待10秒后继续查询...
 
@@ -175,16 +175,16 @@ Log内容预览: [00:26:32] Background task started
 [00:26:32] Executing command...
 TASK_START_TIME: 2025-12-02 00:26:32
 Fir...
-✓ 任务运行时间（基于测试开始时间）: 159.6秒
-✓ 包含第一个echo输出
-✓ 包含sleep提示
+任务运行时间（基于测试开始时间）: 159.6秒
+包含第一个echo输出
+包含sleep提示
 - 不包含第二个echo输出（任务仍在运行）
 Status查询结果: returncode=0
 Status内容: Status: running
 PID: 1764635166_8683 (Real PID: 20452)
 Start time: 2025-12-02T08:26:06.038087
 Log size: 268 bytes
-✓ 任务状态：运行中
+任务状态：运行中
 === 第6次查询完成 ===
 等待10秒后继续查询...
 
@@ -198,17 +198,17 @@ Log内容预览: [00:26:32] Background task started
 [00:26:32] Executing command...
 TASK_START_TIME: 2025-12-02 00:26:32
 Fir...
-✓ 任务运行时间（基于测试开始时间）: 191.7秒
-✓ 包含第一个echo输出
-✓ 包含sleep提示
-✓ 包含第二个echo输出（任务已完成）
+任务运行时间（基于测试开始时间）: 191.7秒
+包含第一个echo输出
+包含sleep提示
+包含第二个echo输出（任务已完成）
 Status查询结果: returncode=0
 Status内容: Status: completed
 PID: 1764635166_8683
 Start time: 2025-12-02T08:26:06.038087
 End time: 2025-12-02T00:29:32+00:00
 Log size: 544 bytes
-✓ 任务状态：已完成
+任务状态：已完成
 === 第7次查询完成 ===
 ✅ 任务在191.7秒时完成，测试通过！
 进行最终验证...

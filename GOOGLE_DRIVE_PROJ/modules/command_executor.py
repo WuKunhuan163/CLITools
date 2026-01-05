@@ -38,7 +38,7 @@ import os
 from .connection_check import create_connection_check_instance
 
 
-def clean_stderr_trailing_newlines(text):
+def regularize_newlines(text):
     """
     如果text以连续至少两个\\n结尾，去掉一个\\n。
     例如：
@@ -48,7 +48,160 @@ def clean_stderr_trailing_newlines(text):
     """
     if text.endswith('\n\n'):
         return text[:-1]  # 去掉最后一个\\n
+    elif not text.endswith('\n'):
+        return text + '\n'
     return text
+
+def process_terminal_erase(stdout):
+        """
+        模拟终端输出处理，正确处理擦除字符和所有终端转义序列
+        
+        Args:
+            stdout: GDS命令的标准输出
+            
+        Returns:
+            str: 清理后的输出
+        """
+        import re
+        
+        def process(text):
+            """
+            处理终端转义序列，模拟真实终端行为
+            """
+            if text is None:
+                return ''
+            if not text:
+                return text
+            
+            result = text
+            
+            # 1. 移除ANSI颜色代码和其他控制序列（除了\r、\b和\x1b[K）
+            # 匹配模式：\033[...m 或 \x1b[...m 以及其他光标移动序列，但保留\x1b[K
+            # 先移除颜色代码（以m结尾的）
+            result = re.sub(r'\x1b\[[0-9;]*m', '', result)
+            result = re.sub(r'\033\[[0-9;]*m', '', result)
+            # 移除其他光标移动序列，但排除K（清除到行尾）
+            result = re.sub(r'\x1b\[[0-9;]*[A-JL-Za-jl-z]', '', result)
+            result = re.sub(r'\033\[[0-9;]*[A-JL-Za-jl-z]', '', result)
+            
+            # 2. 移除响铃符
+            result = result.replace('\a', '')
+            result = result.replace('\x07', '')
+            
+            # 4. 处理退格符 \b
+            # 从左到右处理退格符
+            while '\b' in result:
+                pos = result.find('\b')
+                if pos > 0:
+                    # 删除前一个字符和退格符本身
+                    result = result[:pos-1] + result[pos+1:]
+                else:
+                    # 开头的退格符直接删除
+                    result = result[1:]
+            
+            # 5. 反向处理：从后往前寻找擦除序列
+            while True:
+                # 寻找最后一个\r\x1b[K序列
+                last_r_erase_pos = result.rfind('\r\x1b[K')
+                # 寻找最后一个\n\x1b[K序列
+                last_n_erase_pos = result.rfind('\n\x1b[K')
+                
+                # 选择最后出现的擦除序列
+                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
+                    # 没有找到擦除序列，处理完成
+                    break
+                
+                # 确定使用哪个擦除序列（选择位置更靠后的）
+                if last_r_erase_pos > last_n_erase_pos:
+                    last_erase_pos = last_r_erase_pos
+                    erase_pattern = '\r\x1b[K'
+                else:
+                    last_erase_pos = last_n_erase_pos
+                    erase_pattern = '\n\x1b[K'
+                
+                # 找到擦除序列，需要擦除当前行
+                if erase_pattern == '\n\x1b[K':
+                    # 对于\n\x1b[K序列，擦除从换行符开始到下一个换行符（或结尾）的所有内容
+                    # 这包括换行符本身和后面的内容，直到下一行开始
+                    next_newline = result.find('\n', last_erase_pos + len(erase_pattern))
+                    if next_newline == -1:
+                        # 没有下一个换行符，擦除到结尾
+                        result = result[:last_erase_pos]
+                    else:
+                        # 有下一个换行符，擦除到下一个换行符（不包括下一个换行符）
+                        result = result[:last_erase_pos] + result[next_newline:]
+                else:
+                    # 对于\r\x1b[K序列，使用原来的逻辑
+                    # 从擦除序列位置向左找到行的开始位置
+                    line_start = result.rfind('\n', 0, last_erase_pos)
+                    if line_start == -1:
+                        # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
+                        line_start = 0
+                    else:
+                        # 找到了换行符，保留换行符，从换行符后开始擦除
+                        line_start += 1
+                    
+                    # 擦除从line_start到擦除序列结束的内容
+                    erase_end = last_erase_pos + len(erase_pattern)
+                    result = result[:line_start] + result[erase_end:]
+            
+            # 处理单独的\r（回车符）
+            while True:
+                last_cr_pos = result.rfind('\r')
+                if last_cr_pos == -1:
+                    break
+                
+                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
+                if (last_cr_pos + 3 < len(result) and 
+                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
+                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
+                    # 这种情况不应该发生，但为了安全起见
+                    break
+                
+                # 单独的\r：光标回到行首，后续字符会覆盖当前行
+                line_start = result.rfind('\n', 0, last_cr_pos)
+                if line_start == -1:
+                    line_start = 0
+                else:
+                    line_start += 1
+                
+                # 移除\r，保留后续内容（如果有的话）
+                result = result[:line_start] + result[last_cr_pos+1:]
+            
+            # 处理单独的\x1b[K序列
+            while True:
+                last_k_pos = result.rfind('\x1b[K')
+                if last_k_pos == -1:
+                    break
+                
+                # 检查这个\x1b[K前面是否有\r
+                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
+                    # 这是\r\x1b[K的一部分，应该已经被处理了
+                    break
+                
+                # 单独的\x1b[K：擦除从光标到行尾
+                # 需要擦除当前行的内容
+                # 从\x1b[K位置向左找到行的开始位置
+                line_start = result.rfind('\n', 0, last_k_pos)
+                if line_start == -1:
+                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
+                    result = result[last_k_pos+3:]
+                else:
+                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
+                    result = result[:line_start+1] + result[last_k_pos+3:]
+            
+            return result
+        
+        if stdout is None:
+            return ''
+        
+        cleaned_stdout = stdout
+        if cleaned_stdout:
+            cleaned_stdout = process(cleaned_stdout)
+            cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
+            cleaned_stdout = cleaned_stdout.strip()
+        
+        return cleaned_stdout
 
 
 class DebugCapture:
@@ -824,8 +977,7 @@ class CommandExecutor:
                 print()  # 换行
                 # 如果不捕获结果，不传递result_filename（避免等待结果文件）
                 filename_to_pass = None if not capture_result else result_filename
-                feedback_result = self.direct_feedback_interface(remote_command, filename_to_pass)
-                return feedback_result
+                return self.direct_feedback_interface(remote_command, filename_to_pass)
                 
             elif window_result["action"] == "copy":
                 return {
@@ -888,9 +1040,7 @@ class CommandExecutor:
                 return {"success": False, "error": f"Remount required but failed: {e}"}
         
         # 调试代码已移除
-        # 检查是否为特殊命令，如果是则不应该到这里
-        if cmd in self.SPECIAL_COMMANDS:
-            return {"success": False, "error": f"Special command '{cmd}' should not use remote execution"}
+        # 特殊命令保护已移除 - 现在有raw command功能，允许所有命令通过窗口执行
         
         # 如果args为None，说明cmd已经是完整命令字符串
         if args is None:
@@ -1039,11 +1189,73 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         print(remote_command)
         print(f"=" * 20)  # 50个等号分割线
 
-        print(f"Please provide command execution result (multi-line input, press Ctrl+D to finish):")
-        print()
+        # 使用PYTHON_PROJ/python3 subprocess调用USERINPUT，避免系统Python的tkinter问题
+        try:
+            import re
+            import subprocess
+            import pathlib
+            
+            # 从remote_command中提取实际的用户命令
+            user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
+            if user_command_match:
+                clean_context = user_command_match.group(1).strip()
+            else:
+                clean_context = "GDS command"
+            
+            # 动态构造路径
+            current_file_dir = pathlib.Path(__file__).parent.parent  # 从modules/command_executor.py回到GOOGLE_DRIVE_PROJ
+            base_dir = current_file_dir.parent  # 回到包含GOOGLE_DRIVE.py的目录
+            project_name = base_dir.name
+            title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
+            python_exec = str(base_dir / 'PYTHON_PROJ' / 'python3')
+            userinput_path = str(base_dir / 'USERINPUT.py')
+            
+            # 构造命令参数
+            cmd_args = [python_exec, userinput_path, '--timeout', '180']
+            if title and 'GDS:' in title:
+                # 提取GDS命令作为ID
+                gds_cmd = title.split('[GDS: ')[-1].rstrip(']')
+                # 简化ID，移除特殊字符
+                gds_cmd_safe = gds_cmd.replace("'", '').replace('"', '')
+                cmd_args.extend(['--id', f'GDS: {gds_cmd_safe}'])
+            
+            # 运行USERINPUT
+            result = subprocess.run(
+                cmd_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=200
+            )
+            
+            if result.returncode == 0 and result.stdout:
+                full_output = result.stdout.strip()
+            else:
+                full_output = f"USERINPUT subprocess failed: returncode={result.returncode}, stderr={result.stderr}"
+            print(f"[DEBUG] get_user_input_tkinter returned: {repr(full_output)}")
+            print(f"[DEBUG] Return type: {type(full_output)}")
+            
+            # 确保返回字符串
+            if full_output is None:
+                full_output = ""
+            
+            # 移除末尾的提示信息（如果存在）
+            if "任务完成后，执行终端命令" in full_output:
+                full_output = full_output.split("任务完成后，执行终端命令")[0].strip()
+                
+        except Exception as e:
+            print(f"USERINPUT interface failed: {e}")
+            full_output = f"Error: Unable to get user input via USERINPUT interface: {e}"
 
-        # 使用统一的多行输入方法
-        full_output = self.get_multiline_user_input(prompt="Enter command output (press Ctrl+D when done):")
+        # 检查是否成功获取到输出
+        if full_output is None:
+            return {
+                "cmd": "direct_feedback_failed",
+                "stdout": "",
+                "stderr": "Failed to get user input via USERINPUT interface",
+                "exit_code": 1,
+                "source": "direct_feedback_error"
+            }
 
         # 简单解析输出：如果包含错误关键词，放到stderr，否则放到stdout
         error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
@@ -1088,7 +1300,114 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         Returns:
             dict: 包含直接反馈和实际结果的综合结果
         """
-        feedback_result = self.direct_feedback(remote_command, debug_info)
+        # 先输出debug信息（如果有的话）
+        if debug_info:
+            print(f"Debug information:")
+            print(debug_info)
+            print(f"=" * 20)  # 20个等号分割线
+
+        # 然后粘贴生成的远端指令
+        print(f"Generated remote command:")
+        print(remote_command)
+        print(f"=" * 20)  # 50个等号分割线
+
+        # 使用PYTHON_PROJ/python3 subprocess调用USERINPUT，避免系统Python的tkinter问题
+        try:
+            import re
+            import subprocess
+            import pathlib
+            
+            # 从remote_command中提取实际的用户命令
+            user_command_match = re.search(r'bash << \'USER_COMMAND_EOF\' > "\$OUTPUT_FILE" 2> "\$ERROR_FILE"\n(.*?)\nUSER_COMMAND_EOF', remote_command, re.DOTALL)
+            if user_command_match:
+                clean_context = user_command_match.group(1).strip()
+            else:
+                clean_context = "GDS command"
+            
+            # 动态构造路径
+            current_file_dir = pathlib.Path(__file__).parent.parent  # 从modules/command_executor.py回到GOOGLE_DRIVE_PROJ
+            base_dir = current_file_dir.parent  # 回到包含GOOGLE_DRIVE.py的目录
+            project_name = base_dir.name
+            title = f"{project_name} - Agent Mode [GDS: {clean_context}]"
+            python_exec = str(base_dir / 'PYTHON_PROJ' / 'python3')
+            userinput_path = str(base_dir / 'USERINPUT.py')
+            
+            # 构造命令参数
+            cmd_args = [python_exec, userinput_path, '--timeout', '180']
+            if title and 'GDS:' in title:
+                # 提取GDS命令作为ID
+                gds_cmd = title.split('[GDS: ')[-1].rstrip(']')
+                # 简化ID，移除特殊字符
+                gds_cmd_safe = gds_cmd.replace("'", '').replace('"', '')
+                cmd_args.extend(['--id', f'GDS: {gds_cmd_safe}'])
+            
+            # 运行USERINPUT
+            result = subprocess.run(
+                cmd_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=200
+            )
+            
+            if result.returncode == 0 and result.stdout:
+                full_output = result.stdout.strip()
+            else:
+                full_output = f"USERINPUT subprocess failed: returncode={result.returncode}, stderr={result.stderr}"
+            
+            # 确保返回字符串
+            if full_output is None:
+                full_output = ""
+            
+            # 移除末尾的提示信息（如果存在）
+            if "任务完成后，执行终端命令" in full_output:
+                full_output = full_output.split("任务完成后，执行终端命令")[0].strip()
+            
+            # 显示用户反馈
+            print(f"User feedback: {full_output}")
+            
+            # 处理用户输入，构造direct feedback结果
+            error_keywords = ['error', 'Error', 'ERROR', 'exception', 'Exception', 'EXCEPTION', 
+                             'traceback', 'Traceback', 'TRACEBACK', 'failed', 'Failed', 'FAILED']
+            
+            has_error = any(keyword in full_output for keyword in error_keywords)
+            
+            if has_error:
+                stdout_content = ""
+                stderr_content = full_output
+                exit_code = 1
+            else:
+                stdout_content = full_output
+                stderr_content = ""
+                exit_code = 0
+
+            feedback_result = {
+                "success": exit_code == 0,
+                "action": "direct_feedback",
+                "data": {
+                    "working_dir": "user_provided",
+                    "timestamp": "user_provided", 
+                    "exit_code": exit_code,
+                    "stdout": stdout_content,
+                    "stderr": stderr_content,
+                    "source": "direct_feedback"
+                }
+            }
+            
+        except Exception as e:
+            print(f"Failed to get user feedback: {e}")
+            feedback_result = {
+                "success": False,
+                "action": "direct_feedback",
+                "data": {
+                    "working_dir": "error",
+                    "timestamp": "error", 
+                    "exit_code": 1,
+                    "stdout": "",
+                    "stderr": f"Failed to get user input: {e}",
+                    "source": "direct_feedback"
+                }
+            }
 
         # 添加分隔符
         print()
@@ -1097,8 +1416,15 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         # 如果提供了result_filename，尝试等待并读取实际的执行结果
         if result_filename:
             try:
-                # 等待并读取结果文件
-                actual_result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
+                # 开始进度显示
+                from .progress_manager import start_progress_buffering, stop_progress_buffering
+                start_progress_buffering("⏳ Waiting for result ...")
+                try:
+                    # 等待并读取结果文件
+                    actual_result = self.main_instance.result_processor.wait_and_read_result_file(result_filename)
+                finally:
+                    # 确保停止进度显示
+                    stop_progress_buffering()
 
                 if actual_result.get("success", False):
                     actual_data = actual_result.get("data", {})
@@ -1130,86 +1456,87 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
             "source": "direct_feedback_interface_no_capture"
         }
 
-    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False):
+    def get_multiline_user_input(self, prompt, is_single_line=False, timeout_seconds=180, prompt_same_line=False, command_context=None):
         """
-        获取用户的多行输入，支持Ctrl+D结束
-        使用与USERINPUT完全相同的信号超时输入逻辑
-        增强：支持中文字符输入
+        获取用户的多行输入 - 直接使用USERINPUT tkinter GUI接口
         
         Args:
             prompt (str): 输入提示
-            is_single_line (bool): 是否单行输入
+            is_single_line (bool): 是否单行输入（保留兼容性，实际不使用）
             timeout_seconds (int): 超时时间（秒），默认180秒
-            prompt_same_line (bool): 是否在同一行显示提示符，默认False
+            prompt_same_line (bool): 是否在同一行显示提示符（保留兼容性，实际不使用）
+            command_context (str): 命令上下文，用作USERINPUT的ID
             
         Returns:
             str: 用户输入的多行内容
         """
-        lines = []
         
-        # 显示提示信息
-        if prompt:
-            if prompt_same_line:
-                print(prompt, end="")
-            else:
-                print(prompt)
+        print(f"[DEBUG] get_multiline_user_input called!")
+        print(f"[DEBUG] prompt: {prompt}")
+        print(f"[DEBUG] command_context length: {len(command_context) if command_context else 0}")
         
-        # 定义超时异常
-        class TimeoutException(Exception):
-            pass
-        
-        def timeout_handler(signum, frame):
-            raise TimeoutException("Input timeout")
-        
-        # 使用信号方式进行超时控制
-        import signal
-        import readline
-        
-        # 配置readline以支持中文字符
         try:
-            readline.set_startup_hook(None)
-            readline.clear_history()
+            import sys
+            import os
             
-            # 设置编辑模式为emacs（支持更好的中文编辑）
-            readline.parse_and_bind("set editing-mode emacs")
-            # 启用UTF-8支持
-            readline.parse_and_bind("set input-meta on")
-            readline.parse_and_bind("set output-meta on")
-            readline.parse_and_bind("set convert-meta off")
-            # 启用中文字符显示
-            readline.parse_and_bind("set print-completions-horizontally off")
-            readline.parse_and_bind("set skip-completed-text on")
-            # 确保正确处理宽字符
-            readline.parse_and_bind("set enable-bracketed-paste on")
-        except Exception:
-            pass  # 如果配置失败，继续使用默认设置
-        
-        original_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(timeout_seconds)
-        
-        try:
-            while True:
-                try:
-                    if is_single_line:
-                        # 单行输入模式
-                        line = input()
-                        lines.append(line)
-                        break  # 单行模式只读取一行就退出
-                    else:
-                        # 多行输入模式
-                        line = input()
-                        lines.append(line)
-                except EOFError:
-                    # Ctrl+D结束输入
-                    break
-                except KeyboardInterrupt:
-                    # Ctrl+C中断 - 重新抛出以便外层处理
-                    raise
-        except TimeoutException:
-            print(f"\nInput timeout after {timeout_seconds} seconds")
-        finally:
-            # 恢复信号处理器
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, original_handler)
-        
-        return '\n'.join(lines)
+            print(f"[DEBUG] Starting USERINPUT integration...")
+            
+            # 添加USERINPUT.py所在目录到Python路径
+            userinput_dir = '/Users/wukunhuan/.local/bin'
+            if userinput_dir not in sys.path:
+                sys.path.insert(0, userinput_dir)
+            
+            print(f"[DEBUG] Importing USERINPUT module...")
+            # 导入USERINPUT模块
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+            userinput_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(userinput_module)
+            
+            print(f"[DEBUG] USERINPUT module imported successfully")
+            
+            # 构造窗口标题
+            title = None
+            if command_context:
+                # 清理命令上下文，只保留主要部分
+                clean_context = command_context.replace('GDS ', '').strip()
+                if len(clean_context) > 50:
+                    clean_context = clean_context[:47] + "..."
+                # 获取项目名并添加自定义ID
+                project_name, _, _ = userinput_module.get_project_name()
+                title = f"{project_name} - Agent Mode [{clean_context}]"
+                
+            print(f"[DEBUG] Window title: {title}")
+            
+            # 显示提示信息（在USERINPUT窗口之外）
+            if prompt and not prompt_same_line:
+                print(prompt)
+            
+            print(f"[DEBUG] About to call get_user_input_tkinter...")
+            # 直接调用get_user_input_tkinter函数
+            user_input = userinput_module.get_user_input_tkinter(
+                title=title,
+                timeout=timeout_seconds,
+                max_retries=3
+            )
+            
+            print(f"[DEBUG] get_user_input_tkinter returned: {user_input}")
+            print(f"[DEBUG] user_input type: {type(user_input)}")
+            print(f"[DEBUG] user_input length: {len(user_input) if user_input else 0}")
+            
+            if user_input:
+                # 移除末尾的提示信息（如果存在）
+                if "任务完成后，执行终端命令" in user_input:
+                    user_input = user_input.split("任务完成后，执行终端命令")[0].strip()
+                print(f"[DEBUG] Returning cleaned user input: {len(user_input)} chars")
+                return user_input
+            else:
+                print(f"[DEBUG] No user input received, returning empty string")
+                return ""
+                
+        except Exception as e:
+            print(f"[DEBUG] Exception in USERINPUT interface: {e}")
+            import traceback
+            traceback.print_exc()
+            # 如果USERINPUT接口失败，返回错误信息
+            return f"Error: Unable to get user input via USERINPUT interface: {e}"

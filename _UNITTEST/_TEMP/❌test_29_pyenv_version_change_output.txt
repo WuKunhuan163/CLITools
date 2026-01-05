@@ -40,7 +40,7 @@ Python缓存和pytest缓存已清理
 正在创建远端测试目录: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
 使用测试模式，窗口将只显示复制指令和执行完成按钮
 已切换到远端测试目录: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
-✓ 验证测试目录存在: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
+验证测试目录存在: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
 本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6crhq40b
 测试环境设置完成
 测试pyenv版本切换（使用随机可用版本）
@@ -49,27 +49,27 @@ Python缓存和pytest缓存已清理
 返回码: 0
 输出: EXISTS
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  ✓ Found: Python 3.7.0
+  Found: Python 3.7.0
 命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
 返回码: 0
 输出: EXISTS
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  ✓ Found: Python 3.8.2
+  Found: Python 3.8.2
 命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.9.12/Python-3.9.12.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
 返回码: 0
 输出: EXISTS
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  ✓ Found: Python 3.9.12
+  Found: Python 3.9.12
 命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.10.8/Python-3.10.8.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
 返回码: 0
 输出: EXISTS
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  ✓ Found: Python 3.10.8
+  Found: Python 3.10.8
 命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.11.2/Python-3.11.2.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
 返回码: 0
 输出: EXISTS
 🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
-  ✓ Found: Python 3.11.2
+  Found: Python 3.11.2
 
 检测到 5 个可用的Python版本: ['3.7.0', '3.8.2', '3.9.12', '3.10.8', '3.11.2']
 从5个可用版本中随机选择的测试版本: 3.10.8 和 3.9.12

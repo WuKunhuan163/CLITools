@@ -27,159 +27,11 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 
-def process_terminal_erase(stdout):
-        """
-        模拟终端输出处理，正确处理擦除字符和所有终端转义序列
-        
-        Args:
-            stdout: GDS命令的标准输出
-            
-        Returns:
-            str: 清理后的输出
-        """
-        import re
-        
-        def process(text):
-            """
-            处理终端转义序列，模拟真实终端行为
-            """
-            if text is None:
-                return ''
-            if not text:
-                return text
-            
-            result = text
-            
-            # 1. 移除ANSI颜色代码和其他控制序列（除了\r、\b和\x1b[K）
-            # 匹配模式：\033[...m 或 \x1b[...m 以及其他光标移动序列，但保留\x1b[K
-            # 先移除颜色代码（以m结尾的）
-            result = re.sub(r'\x1b\[[0-9;]*m', '', result)
-            result = re.sub(r'\033\[[0-9;]*m', '', result)
-            # 移除其他光标移动序列，但排除K（清除到行尾）
-            result = re.sub(r'\x1b\[[0-9;]*[A-JL-Za-jl-z]', '', result)
-            result = re.sub(r'\033\[[0-9;]*[A-JL-Za-jl-z]', '', result)
-            
-            # 2. 移除响铃符
-            result = result.replace('\a', '')
-            result = result.replace('\x07', '')
-            
-            # 4. 处理退格符 \b
-            # 从左到右处理退格符
-            while '\b' in result:
-                pos = result.find('\b')
-                if pos > 0:
-                    # 删除前一个字符和退格符本身
-                    result = result[:pos-1] + result[pos+1:]
-                else:
-                    # 开头的退格符直接删除
-                    result = result[1:]
-            
-            # 5. 反向处理：从后往前寻找擦除序列
-            while True:
-                # 寻找最后一个\r\x1b[K序列
-                last_r_erase_pos = result.rfind('\r\x1b[K')
-                # 寻找最后一个\n\x1b[K序列
-                last_n_erase_pos = result.rfind('\n\x1b[K')
-                
-                # 选择最后出现的擦除序列
-                if last_r_erase_pos == -1 and last_n_erase_pos == -1:
-                    # 没有找到擦除序列，处理完成
-                    break
-                
-                # 确定使用哪个擦除序列（选择位置更靠后的）
-                if last_r_erase_pos > last_n_erase_pos:
-                    last_erase_pos = last_r_erase_pos
-                    erase_pattern = '\r\x1b[K'
-                else:
-                    last_erase_pos = last_n_erase_pos
-                    erase_pattern = '\n\x1b[K'
-                
-                # 找到擦除序列，需要擦除当前行
-                if erase_pattern == '\n\x1b[K':
-                    # 对于\n\x1b[K序列，擦除从换行符开始到下一个换行符（或结尾）的所有内容
-                    # 这包括换行符本身和后面的内容，直到下一行开始
-                    next_newline = result.find('\n', last_erase_pos + len(erase_pattern))
-                    if next_newline == -1:
-                        # 没有下一个换行符，擦除到结尾
-                        result = result[:last_erase_pos]
-                    else:
-                        # 有下一个换行符，擦除到下一个换行符（不包括下一个换行符）
-                        result = result[:last_erase_pos] + result[next_newline:]
-                else:
-                    # 对于\r\x1b[K序列，使用原来的逻辑
-                    # 从擦除序列位置向左找到行的开始位置
-                    line_start = result.rfind('\n', 0, last_erase_pos)
-                    if line_start == -1:
-                        # 没有找到换行符，说明要擦除从开头到擦除序列的所有内容
-                        line_start = 0
-                    else:
-                        # 找到了换行符，保留换行符，从换行符后开始擦除
-                        line_start += 1
-                    
-                    # 擦除从line_start到擦除序列结束的内容
-                    erase_end = last_erase_pos + len(erase_pattern)
-                    result = result[:line_start] + result[erase_end:]
-            
-            # 处理单独的\r（回车符）
-            while True:
-                last_cr_pos = result.rfind('\r')
-                if last_cr_pos == -1:
-                    break
-                
-                # 检查这个\r是否已经是\r\x1b[K的一部分（应该已经被处理了）
-                if (last_cr_pos + 3 < len(result) and 
-                    result[last_cr_pos:last_cr_pos+4] == '\r\x1b[K'):
-                    # 这是\r\x1b[K序列的一部分，应该已经被处理了，跳过
-                    # 这种情况不应该发生，但为了安全起见
-                    break
-                
-                # 单独的\r：光标回到行首，后续字符会覆盖当前行
-                line_start = result.rfind('\n', 0, last_cr_pos)
-                if line_start == -1:
-                    line_start = 0
-                else:
-                    line_start += 1
-                
-                # 移除\r，保留后续内容（如果有的话）
-                result = result[:line_start] + result[last_cr_pos+1:]
-            
-            # 处理单独的\x1b[K序列
-            while True:
-                last_k_pos = result.rfind('\x1b[K')
-                if last_k_pos == -1:
-                    break
-                
-                # 检查这个\x1b[K前面是否有\r
-                if (last_k_pos >= 1 and result[last_k_pos-1] == '\r'):
-                    # 这是\r\x1b[K的一部分，应该已经被处理了
-                    break
-                
-                # 单独的\x1b[K：擦除从光标到行尾
-                # 需要擦除当前行的内容
-                # 从\x1b[K位置向左找到行的开始位置
-                line_start = result.rfind('\n', 0, last_k_pos)
-                if line_start == -1:
-                    # 没有找到换行符，擦除从开头到\x1b[K的所有内容
-                    result = result[last_k_pos+3:]
-                else:
-                    # 找到了换行符，保留换行符，擦除从换行符后到\x1b[K的内容
-                    result = result[:line_start+1] + result[last_k_pos+3:]
-            
-            return result
-        
-        if stdout is None:
-            return ''
-        
-        cleaned_stdout = stdout
-        if cleaned_stdout:
-            cleaned_stdout = process(cleaned_stdout)
-            cleaned_stdout = re.sub(r'\n+', '\n', cleaned_stdout)
-            cleaned_stdout = cleaned_stdout.strip()
-        
-        return cleaned_stdout
-
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Import process_terminal_erase from command_executor
+from GOOGLE_DRIVE_PROJ.modules.command_executor import process_terminal_erase
 
 class GDSTest(unittest.TestCase):
     """
@@ -374,7 +226,7 @@ class GDSTest(unittest.TestCase):
             print(f'Unknown error: {error_msg}')
             raise RuntimeError(error_msg)
         else:
-            print(f'✓ 验证测试目录存在: {cls.test_folder}')
+            print(f'验证测试目录存在: {cls.test_folder}')
         
         # 本地也切换到临时目录，避免本地重定向问题
         import tempfile
@@ -4120,11 +3972,11 @@ sys.stdout.flush()
                 if current_task_start_time_str:
                     if task_start_time_str is None:
                         task_start_time_str = current_task_start_time_str
-                        print(f"✓ 首次获得任务开始时间（远端）: {task_start_time_str}")
+                        print(f"首次获得任务开始时间（远端）: {task_start_time_str}")
                     
                     # 使用相对时间elapsed_time作为任务运行时间的估算
                     # 避免时区差异导致的问题（远端log时间可能与本地时区不同）
-                    print(f"✓ 任务运行时间（基于测试开始时间）: {elapsed_time:.1f}秒")
+                    print(f"任务运行时间（基于测试开始时间）: {elapsed_time:.1f}秒")
                     
                     # 异常检测：任务运行时间异常（使用elapsed_time）
                     if elapsed_time > MAX_TEST_DURATION:
@@ -4140,11 +3992,11 @@ sys.stdout.flush()
                 has_second_echo = "Second echo: Task completed at" in log_result.stdout
                 
                 if has_first_echo:
-                    print("✓ 包含第一个echo输出")
+                    print("包含第一个echo输出")
                 if has_sleep_msg:
-                    print("✓ 包含sleep提示")
+                    print("包含sleep提示")
                 if has_second_echo:
-                    print("✓ 包含第二个echo输出（任务已完成）")
+                    print("包含第二个echo输出（任务已完成）")
                     task_completed = True
                 else:
                     print("- 不包含第二个echo输出（任务仍在运行）")
@@ -4171,10 +4023,10 @@ sys.stdout.flush()
                 
                 # 检查是否完成
                 if "Status: completed" in status_result.stdout:
-                    print("✓ 任务状态：已完成")
+                    print("任务状态：已完成")
                     task_completed = True
                 elif "Status: running" in status_result.stdout:
-                    print("✓ 任务状态：运行中")
+                    print("任务状态：运行中")
                     # 如果任务正在运行，检查连续log查询失败次数
                     if log_result.returncode != 0 and elapsed_time >= STAGE1_DURATION and expect_log_exists:
                         if consecutive_log_failures >= MAX_CONSECUTIVE_LOG_FAILURES:
@@ -4661,10 +4513,10 @@ print(f'Current directory: {os.getcwd()}')'''
                 
                 if result.returncode == 0 and 'EXISTS' in result.stdout:
                     available_versions.append(version)
-                    print(f"  ✓ Found: Python {version}")
+                    print(f"  Found: Python {version}")
                     break  # 找到一个可用版本就够了，继续下一个主次版本
                 else:
-                    print(f"  ✗ Not found: Python {version}")
+                    print(f"  Not found: Python {version}")
         
         print(f"\n检测到 {len(available_versions)} 个可用的Python版本: {available_versions}")
         self.assertGreaterEqual(len(available_versions), 2, f"至少需要2个可用的Python版本进行测试，但只找到{len(available_versions)}个")
@@ -5385,7 +5237,7 @@ print('Script execution successful!')
                        f"ls单个文件应该显示包含文件名的路径，实际: {gds_file_output}")
         self.assertTrue(bash_file_output.endswith("testfile.txt"), 
                        f"bash ls单个文件应该显示包含文件名的路径，实际: {bash_file_output}")
-        print(f"  ✓ ls单个文件路径格式一致")
+        print(f"  ls单个文件路径格式一致")
         
         # 测试案例：不存在的文件（错误信息格式）
         print("  测试不存在文件的错误信息")
@@ -5410,7 +5262,7 @@ print('Script execution successful!')
         
         bash_error_normalized = bash_error_output.replace(bash_ls_test_dir, "TEST_DIR")
         self.assertEqual(gds_error_normalized, bash_error_normalized, "ls错误信息应该完全一致")
-        print(f"  ✓ ls不存在文件的错误消息正确")
+        print(f"  ls不存在文件的错误消息正确")
             
         # 测试用例3: 无输出命令对比（echo重定向等）
         print("测试3: 无输出命令对比")
@@ -5457,7 +5309,7 @@ print('Script execution successful!')
         gds_mkdir_error = self.get_cleaned_stdout(gds_mkdir_fail, use_stderr=True)
         self.assertTrue(gds_mkdir_error.endswith("No such file or directory"), 
                        f"mkdir错误应该以'No such file or directory'结束，实际: {gds_mkdir_error}")
-        print(f"  ✓ mkdir错误消息正确: {gds_mkdir_error[:80]}...")
+        print(f"  mkdir错误消息正确: {gds_mkdir_error[:80]}...")
         
         # 测试touch不存在目录下的文件
         print("  测试touch不存在目录下的文件（应该失败）")
@@ -5470,7 +5322,7 @@ print('Script execution successful!')
         gds_touch_error = self.get_cleaned_stdout(gds_touch_fail, use_stderr=True)
         self.assertTrue(gds_touch_error.endswith("No such file or directory"), 
                        f"touch错误应该以'No such file or directory'结束，实际: {gds_touch_error}")
-        print(f"  ✓ touch错误消息正确: {gds_touch_error[:80]}...")
+        print(f"  touch错误消息正确: {gds_touch_error[:80]}...")
         
         # 测试cd到不存在的目录
         print("  测试cd不存在目录")
@@ -5987,11 +5839,11 @@ print('Script execution successful!')
             # 等待安装完成
             install_success = self.wait_for_pyenv_install(task_id, test_version)
             self.assertTrue(install_success, f"Python {test_version}应该成功安装")
-            print(f'✓ Python {test_version}本地下载安装成功')
+            print(f'Python {test_version}本地下载安装成功')
         else:
             # 如果没有任务ID，验证直接输出中的安装成功信息
             self.assertIn("installed successfully", result.stdout, "应该显示安装成功信息")
-            print(f'✓ Python {test_version}本地下载安装成功')
+            print(f'Python {test_version}本地下载安装成功')
         
         # 步骤4：验证版本已安装
         print(f'\n步骤4：验证Python {test_version}已正确安装')
@@ -5999,7 +5851,7 @@ print('Script execution successful!')
         self.assertEqual(result.returncode, 0, "检查已安装版本应该成功")
         updated_versions = result.stdout
         self.assertIn(test_version, updated_versions, f"Python {test_version}应该出现在已安装版本列表中")
-        print(f'✓ Python {test_version}已出现在版本列表中')
+        print(f'Python {test_version}已出现在版本列表中')
         
         # 步骤5：切换到新安装的版本并验证
         print(f'\n步骤5：切换到Python {test_version}并验证')
@@ -6010,14 +5862,14 @@ print('Script execution successful!')
         result = self.gds(["pyenv", "--version"])
         self.assertEqual(result.returncode, 0, "检查当前版本应该成功")
         self.assertIn(test_version, result.stdout, f"当前版本应该是{test_version}")
-        print(f'✓ 成功切换到Python {test_version}')
+        print(f'成功切换到Python {test_version}')
         
         # 步骤6：测试Python可执行性
         print(f'\n步骤6：测试Python {test_version}可执行性')
         result = self.gds(["python", "--version"])
         self.assertEqual(result.returncode, 0, "python --version应该成功")
         self.assertIn(test_version, result.stdout, f"python --version应该显示{test_version}")
-        print(f'✓ Python {test_version}可执行性验证成功')
+        print(f'Python {test_version}可执行性验证成功')
         
         # 步骤7：测试Python代码执行
         print(f'\n步骤7：测试Python代码执行')
@@ -6025,17 +5877,17 @@ print('Script execution successful!')
         result = self.gds(["python", "-c", test_code])
         self.assertEqual(result.returncode, 0, "Python代码执行应该成功")
         self.assertIn("is working correctly", result.stdout, "Python代码应该正确执行")
-        print(f'✓ Python {test_version}代码执行验证成功')
+        print(f'Python {test_version}代码执行验证成功')
         
         # 步骤8：测试pip功能
         print(f'\n步骤8：测试pip功能')
         result = self.gds(["python", "-c", "import pip; print(f'pip version: {pip.__version__}')"])
         self.assertEqual(result.returncode, 0, "pip导入应该成功")
         self.assertIn("pip version:", result.stdout, "应该显示pip版本信息")
-        print(f'✓ pip功能验证成功')
+        print(f'pip功能验证成功')
         
         print(f'\npyenv本地下载安装测试完成')
-        print(f'✓ Python {test_version}通过本地下载模式成功安装并验证')
+        print(f'Python {test_version}通过本地下载模式成功安装并验证')
 
     def test_37_comprehensive_bash_alignment(self):
         """全面测试bash alignment - 不同引号类型、反斜杠数量、特殊符号、重定向等"""
@@ -6212,7 +6064,7 @@ print('Script execution successful!')
             
             # 确保不再是无效ID的错误
             self.assertNotIn(invalid_id, error_output, f"错误信息不应该再包含无效ID {invalid_id}")
-        print(f'✓ GDS reset功能测试完成')
+        print(f'GDS reset功能测试完成')
 
 
 

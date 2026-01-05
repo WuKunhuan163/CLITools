@@ -46,9 +46,9 @@ print(f"bash stdout.strip(): {repr(bash_result.stdout.strip())}")
 
 print(f"\n=== 比较结果 ===")
 if cleaned.strip() == bash_result.stdout.strip():
-    print("✅ GDS和bash输出一致！")
+    print("GDS和bash输出一致！")
 else:
-    print("❌ GDS和bash输出不一致")
+    print("GDS和bash输出不一致")
     print(f"  Expected (bash): {repr(bash_result.stdout.strip())}")
     print(f"  Got (GDS):       {repr(cleaned.strip())}")
 

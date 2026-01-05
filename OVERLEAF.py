@@ -367,8 +367,8 @@ def compile_latex(tex_file, command_identifier=None, output_dir=None, latex_opti
                 if is_run_environment(command_identifier):
                     write_to_json_output(success_data, command_identifier)
                 else:
-                    print(f"✓ LaTeX compilation successful!")
-                    print(f"✓ Generated PDF: {final_pdf_path}")
+                    print(f"LaTeX compilation successful!")
+                    print(f"Generated PDF: {final_pdf_path}")
                 return 0
             else:
                 error_data = {
@@ -416,9 +416,9 @@ def compile_latex(tex_file, command_identifier=None, output_dir=None, latex_opti
                 
                 # 复制完整日志到剪切板
                 if copy_to_clipboard(log_content):
-                    print(f"\n✓ Full compilation log copied to clipboard")
+                    print(f"\nFull compilation log copied to clipboard")
                 else:
-                    print(f"\n✗ Failed to copy log to clipboard")
+                    print(f"\nFailed to copy log to clipboard")
                     
             return result.returncode
     

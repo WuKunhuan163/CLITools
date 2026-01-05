@@ -592,50 +592,27 @@ class PathResolver:
             remote_root_path = self.main_instance.REMOTE_ROOT if self.main_instance else "/content/drive/MyDrive/REMOTE_ROOT"
             remote_env_path = self.main_instance.REMOTE_ENV if self.main_instance else "/content/drive/MyDrive/REMOTE_ENV"
             
-            #### Special Processing for REMOTE_ROOT and REMOTE_ENV ####
-            #### 正常来讲，用户不会输入绝对路径，而是输入~以及@开头的逻辑路径 ####
-            # 首先检查是否是完整的远程路径，需要转换回逻辑路径
-            if path.startswith(remote_root_path):
-                if path == remote_root_path:
-                    logical_path = "~"
-                elif path.startswith(f"{remote_root_path}/"):
-                    relative_part = path[len(remote_root_path) + 1:]
-                    logical_path = f"~/{relative_part}"
-                else:
-                    logical_path = path  # 不应该到这里，但保持原样
-                
+            #### 绝对路径处理：保持原样，不做任何转换 ####
+            # 如果是绝对路径（以/开头），直接返回，不转换
+            # 只有在return_logical=True时，才尝试将REMOTE_ROOT/REMOTE_ENV路径转换为逻辑路径
+            if path.startswith("/"):
                 if return_logical:
-                    return logical_path
+                    # 尝试转换REMOTE_ROOT和REMOTE_ENV路径为逻辑路径
+                    if path.startswith(remote_root_path):
+                        if path == remote_root_path:
+                            return "~"
+                        elif path.startswith(f"{remote_root_path}/"):
+                            return f"~/{path[len(remote_root_path) + 1:]}"
+                    elif path.startswith(remote_env_path):
+                        if path == remote_env_path:
+                            return "@"
+                        elif path.startswith(f"{remote_env_path}/"):
+                            return f"@/{path[len(remote_env_path) + 1:]}"
+                    # 其他绝对路径（如/tmp）无法转换为逻辑路径，返回原路径
+                    return path
                 else:
-                    return path  # 已经是绝对路径
-            elif path.startswith(remote_env_path):
-                if path == remote_env_path:
-                    logical_path = "@"
-                elif path.startswith(f"{remote_env_path}/"):
-                    relative_part = path[len(remote_env_path) + 1:]
-                    logical_path = f"@/{relative_part}"
-                else:
-                    logical_path = path  # 不应该到这里，但保持原样
-                
-                if return_logical:
-                    return logical_path
-                else:
-                    return path  # 已经是绝对路径
-            
-            # 如果仍然是绝对路径（以/开头），转换为~/xxx格式
-            elif path.startswith("/"):
-                # 真正的绝对路径，映射为逻辑路径
-                # 例如 /tmp/file.txt -> ~/tmp/file.txt
-                relative_part = path[1:]  # 去掉前导的 /
-                if relative_part:
-                    logical_path = f"~/{relative_part}"
-                else:
-                    logical_path = "~"
-                # 根据return_logical决定返回格式
-                if return_logical:
-                    return logical_path
-                else:
-                    return f"{remote_root_path}/{relative_part}" if relative_part else remote_root_path
+                    # return_logical=False，直接返回绝对路径
+                    return path
             
             # 处理@开头的路径（代表REMOTE_ENV）
             if path.startswith("@"):

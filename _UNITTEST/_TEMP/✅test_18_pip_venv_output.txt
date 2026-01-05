@@ -9,7 +9,7 @@ Python缓存和pytest缓存已清理
 正在创建远端测试目录: ~/tmp/gds_test_20251118_162130_468600_b5e5f273
 使用测试模式，窗口将只显示复制指令和执行完成按钮
 已切换到远端测试目录: ~/tmp/gds_test_20251118_162130_468600_b5e5f273
-✓ 验证测试目录存在: ~/tmp/gds_test_20251118_162130_468600_b5e5f273
+验证测试目录存在: ~/tmp/gds_test_20251118_162130_468600_b5e5f273
 本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_0h_se2tb
 测试环境设置完成
 虚拟环境名称: test_env_1763454612
@@ -218,13 +218,13 @@ Ran 1 test in 2782.898s
 
 OK
 输出: 正在验证远端指纹文件: ~/tmp/.gds_mount_fingerprint_0ac66f87
-✓ config.json updated: MOUNT_HASH=0ac66f87
-✓ current shell instance updated: MOUNT_HASH=0ac66f87
+config.json updated: MOUNT_HASH=0ac66f87
+current shell instance updated: MOUNT_HASH=0ac66f87
 Restored default ID for ~: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f
 Restored default ID for @: 1ZmgwWWIl7qYnGLE66P3kx02M0jxE8D0h
-✓ Cleared 3 path IDs and restored 2 default IDs
-✓ Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
-✓ 远端指纹文件验证成功
+Cleared 3 path IDs and restored 2 default IDs
+Shell pwd reset to ~ (folder_id: 1LSndouoVj8pkoyi-yTYnC4Uv03I77T8f)
+远端指纹文件验证成功
 Deleting 1 virtual environment(s): empty_env_1763455760
 命令: 'venv --list'
 返回码: 0

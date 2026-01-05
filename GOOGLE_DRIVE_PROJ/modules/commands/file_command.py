@@ -37,13 +37,12 @@ class FileCommand(BaseCommand):
         # 处理每个文件
         for file_path in args:
             result = self.cmd_touch(file_path)
-            
             if not result.get("success", False):
                 error_msg = result.get("error", f"Failed to create file: {file_path}")
                 # 打印到stderr并清理多余的尾部换行
                 import sys
-                from GOOGLE_DRIVE_PROJ.modules.command_executor import clean_stderr_trailing_newlines
-                print(clean_stderr_trailing_newlines(error_msg), end="", file=sys.stderr)
+                from GOOGLE_DRIVE_PROJ.modules.command_executor import regularize_newlines
+                print(regularize_newlines(error_msg), end="", file=sys.stderr)
                 return 1
         
         return 0

@@ -199,7 +199,7 @@ def main():
             print(f"Shutdown in {{i}} seconds... (Ctrl+C to cancel)")
             time.sleep(1)
         
-        print("💥 Emergency shutdown: Clearing remote runtime")
+        print("💥Emergency shutdown: Clearing remote runtime")
         try:
             from google.colab import runtime
             runtime.unassign()
