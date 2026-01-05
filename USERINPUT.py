@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT tkinter版本 (v5)
-- 按钮恢复纯粹的系统默认风格
-- 调整了按钮顺序
+USERINPUT tkinter版本 (v7)
+- 增加了失败重试机制（最多3次）
+- 将空提交/取消/闪退视为失败
+- 修正了按钮的左右顺序
+- 按钮使用系统默认风格
 - 修复了音效无法播放的问题
-- 增大了按钮字体
 """
 
 import os
@@ -27,6 +28,10 @@ try:
 except ImportError:
     print("错误: Tkinter模块未找到。请确保您的Python环境包含Tkinter。", file=sys.stderr)
     sys.exit(1)
+
+# 自定义一个异常，用于标识可重试的失败情况
+class UserInputRetryableError(Exception):
+    pass
 
 def get_project_name():
     """获取项目名称"""
@@ -55,17 +60,16 @@ def get_cursor_session_title(custom_id=None):
 def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     """
     通过在一个独立的Python子进程中运行Tkinter脚本来获取用户输入。
+    如果用户取消或提交空内容，则会引发 UserInputRetryableError。
     """
     
-    # --- 音效路径修复 ---
-    # 在父进程中计算好音频文件的绝对路径，因为子进程中没有 __file__
+    # 在父进程中计算好音频文件的绝对路径
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         bell_path = os.path.join(script_dir, "USERINPUT_PROJ", "tkinter_bell.mp3")
         bell_path_str_literal = repr(bell_path)
     except Exception:
-        bell_path_str_literal = "''"  # 如果失败，则传递空字符串
-    # --- 修复结束 ---
+        bell_path_str_literal = "''"
 
     # 将要作为独立脚本执行的Python代码。
     tkinter_script = f'''
@@ -86,11 +90,9 @@ class TkinterInputWindow:
         self.root = None
         self.text_widget = None
         self.status_label = None
-        
         self.title = title
         self.initial_timeout = timeout
         self.hint_text = hint_text
-        
         self.result = None
         self.window_closed = False
         self.remaining_time = self.initial_timeout
@@ -100,72 +102,46 @@ class TkinterInputWindow:
             self.root = tk.Tk()
             self.root.title(self.title)
             self.root.geometry("450x250")
-            
             self.root.attributes('-topmost', True)
             self.root.focus_force()
-            
             main_frame = tk.Frame(self.root, padx=15, pady=15)
             main_frame.pack(fill=tk.BOTH, expand=True)
-            
             instruction_label = tk.Label(main_frame, text="请在文本框中输入您的反馈:", font=("Arial", 11), fg="#555")
             instruction_label.pack(pady=(0, 10), anchor='w')
-            
             text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
             text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
-
             scrollbar = tk.Scrollbar(text_frame)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
             self.text_widget = tk.Text(
                 text_frame, wrap=tk.WORD, height=8, font=("Arial", 12), bg="#f8f9fa",
                 fg="#333", insertbackground="#007acc", selectbackground="#007acc",
-                relief=tk.FLAT, borderwidth=0,
-                yscrollcommand=scrollbar.set
+                relief=tk.FLAT, borderwidth=0, yscrollcommand=scrollbar.set
             )
             self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            
             scrollbar.config(command=self.text_widget.yview)
-            
             if self.hint_text:
                 self.text_widget.insert("1.0", self.hint_text)
-            
             button_frame = tk.Frame(main_frame)
             button_frame.pack(fill=tk.X, pady=(0, 10))
             
-            # --- 样式和顺序改动: 恢复完全默认风格，调整顺序和字体 ---
             default_font = ("Arial", 12)
             submit_font = ("Arial", 13, "bold")
             
-            # 先 pack 提交按钮，它会最靠右
-            submit_btn = tk.Button(
-                button_frame, text="提交", command=self.submit_input,
-                font=submit_font
-            )
+            submit_btn = tk.Button(button_frame, text="提交", command=self.submit_input, font=submit_font)
             submit_btn.pack(side=tk.RIGHT)
-
-            # 后 pack 加时按钮，它会靠在提交按钮的左边
-            add_time_btn = tk.Button(
-                button_frame, text="加时60秒", command=self.add_time,
-                font=default_font
-            )
-            # padx=(0, 10) 在此按钮右侧增加10像素间距
+            add_time_btn = tk.Button(button_frame, text="加时60秒", command=self.add_time, font=default_font)
             add_time_btn.pack(side=tk.RIGHT, padx=(0, 10))
-            # --- 样式和顺序改动结束 ---
             
             self.status_label = tk.Label(button_frame, text="", font=("Arial", 12), fg="black")
             self.status_label.pack(side=tk.LEFT)
-            
             self.root.bind('<Control-Return>', lambda e: self.submit_input())
             self.root.bind('<Command-Return>', lambda e: self.submit_input())
             self.root.bind('<Escape>', lambda e: self.cancel_input())
             self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)
-            
             self.text_widget.focus_set()
-            
             self.start_timeout_timer()
             self.start_periodic_focus()
             self.play_bell()
-            
             return True
         except Exception:
             import traceback
@@ -182,12 +158,10 @@ class TkinterInputWindow:
             while self.remaining_time > 0 and not self.window_closed:
                 try:
                     self.status_label.config(text=f"剩余时间: {{self.remaining_time}}秒")
-                except tk.TclError:
-                    break
+                except tk.TclError: break
                 time.sleep(1)
                 self.remaining_time -= 1
-            if not self.window_closed:
-                self.timeout_input()
+            if not self.window_closed: self.timeout_input()
         threading.Thread(target=update_timer, daemon=True).start()
     
     def start_periodic_focus(self):
@@ -206,8 +180,6 @@ class TkinterInputWindow:
     def play_bell(self):
         def play_in_thread():
             try:
-                # --- 音效路径修复 ---
-                # 直接使用从父进程注入的、经过repr()处理的完整路径字符串
                 audio_file_path = {bell_path_str_literal}
                 if audio_file_path and os.path.exists(audio_file_path) and platform.system() == "Darwin":
                     subprocess.run(["afplay", audio_file_path], capture_output=True, timeout=2)
@@ -250,7 +222,6 @@ if __name__ == "__main__":
     title_str = {repr(title)}
     timeout_int = {timeout}
     hint_text_str = {repr(hint_text)}
-    
     window = TkinterInputWindow(title=title_str, timeout=timeout_int, hint_text=hint_text_str)
     window.show_and_wait()
 '''
@@ -271,15 +242,18 @@ if __name__ == "__main__":
         if not user_input:
              raise RuntimeError("USERINPUT子进程没有返回任何内容。")
         
+        # 新增逻辑：检查是否为“失败”信号
+        if user_input in ("用户提交了空内容", "用户取消了输入"):
+            raise UserInputRetryableError(f"用户操作失败: {user_input}")
+        
         return user_input
 
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"USERINPUT窗口运行超过 {watchdog_timeout} 秒，已被强制终止。")
-    except Exception as e:
-        raise RuntimeError(f"执行USERINPUT时发生未知错误: {e}")
+    # 不在此处捕获所有Exception，让它们冒泡到main函数中被重试逻辑处理
 
 def main():
-    """主函数"""
+    """主函数，包含重试逻辑"""
     timeout = 180
     custom_id = None
     hint_text = None
@@ -300,24 +274,41 @@ def main():
         print(f"参数错误: {e}", file=sys.stderr)
         return 1
 
-    try:
-        result = get_user_input_tkinter(
-            title=get_cursor_session_title(custom_id), timeout=timeout, hint_text=hint_text
-        )
-        
-        end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
-        final_result = result + end_hint
-        
+    # --- 新增：重试逻辑 ---
+    max_retries = 3
+    final_result = None
+    
+    for attempt in range(max_retries):
+        try:
+            result = get_user_input_tkinter(
+                title=get_cursor_session_title(custom_id), timeout=timeout, hint_text=hint_text
+            )
+            
+            # 如果成功获取输入，则准备最终结果并跳出循环
+            end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
+            final_result = result + end_hint
+            break # 成功，退出重试循环
+
+        except (UserInputRetryableError, RuntimeError) as e:
+            # 捕获可重试的失败（空提交、取消、闪退等）
+            if attempt < max_retries - 1:
+                # 如果不是最后一次尝试，则打印提示并等待1秒后重试
+                print(f"尝试 {attempt + 1}/{max_retries} 失败 ({e})，正在重试...", file=sys.stderr)
+                time.sleep(1)
+            continue # 继续下一次循环
+
+    # 循环结束后，检查是否成功获取了结果
+    if final_result:
         if platform.system() == "Darwin":
             try:
                 subprocess.run('pbcopy', input=final_result, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
             except (FileNotFoundError, subprocess.CalledProcessError): pass
-
+        
         print(final_result)
         return 0
-
-    except Exception as e:
-        print(f"错误: {e}", file=sys.stderr)
+    else:
+        # 所有尝试都失败了
+        print("获取用户输入失败，请重新执行USERINPUT！", file=sys.stderr)
         return 1
 
 if __name__ == "__main__":
