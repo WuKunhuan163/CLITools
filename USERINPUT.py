@@ -202,7 +202,7 @@ class TkinterInputWindow:
             text_content = self.text_widget.get("1.0", tk.END).strip()
             timeout_hint = "\\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
             self.result = f"{{text_content}}\\n{{timeout_hint}}" if text_content else f"输入超时 ({{self.initial_timeout}}秒)。{{timeout_hint}}"
-        except:
+        except: 
             self.result = f"输入超时。"
         self.close_window()
     
