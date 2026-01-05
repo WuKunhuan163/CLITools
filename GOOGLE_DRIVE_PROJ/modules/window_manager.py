@@ -1034,7 +1034,7 @@ try:
     no_direct_feedback = TEST_MODE_PLACEHOLDER
     
     root = tk.Tk()
-    root.title("Google Drive Shell · Command hash: COMMAND_HASH_PLACEHOLDER")
+    root.title("GDS · Command hash: COMMAND_HASH_PLACEHOLDER")
     root.geometry("500x60")
     root.resizable(False, False)
     
