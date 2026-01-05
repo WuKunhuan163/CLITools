@@ -347,8 +347,3 @@ USERINPUT --timeout 300  # 5 minutes
 ## License
 
 Part of the AITerminalTools suite.
-
-## Version
-
-Current version: 1.0 (as of December 2024)
-
