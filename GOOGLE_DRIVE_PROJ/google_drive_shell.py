@@ -2161,7 +2161,8 @@ fi
                 from .modules.path_constants import get_data_dir
                 config_file = str(get_data_dir() / "config.json")
             except ImportError:
-                config_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/config.json")
+            from .modules.path_constants import get_data_dir
+            config_file = get_data_dir() / "config.json"
             
             # 读取现有配置
             if os.path.exists(config_file):
@@ -2199,7 +2200,8 @@ fi
                 config_dir = str(get_data_dir())
                 config_file = str(get_data_dir() / "config.json")
             except ImportError:
-                config_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
+            from .modules.path_constants import get_data_dir
+            config_dir = get_data_dir()
                 config_file = os.path.join(config_dir, "config.json")
             
             if os.path.exists(config_file):

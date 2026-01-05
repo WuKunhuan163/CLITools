@@ -922,7 +922,7 @@ class CommandExecutor:
                 remote_command = self.add_connection_check_to_command(remote_command, result_filename, cmd_hash)
             
             # 显示远程窗口
-            window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
+            window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash, user_command=raw_command)
             
             # 处理窗口结果
             if window_result["action"] == "success":
@@ -1120,7 +1120,7 @@ class CommandExecutor:
         return command.execute(name, args, **kwargs)
 
 
-    def show_remote_command_window(self, cmd, timeout_seconds=3600, test_mode=False, is_priority=False, cmd_hash=None):
+    def show_remote_command_window(self, cmd, timeout_seconds=3600, test_mode=False, is_priority=False, cmd_hash=None, user_command=None):
         # 调试窗口弹出次数
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
@@ -1170,7 +1170,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         window_manager = get_window_manager()
         
         # 使用传入的cmd_hash
-        result = window_manager.request_window(enhanced_cmd, cmd_hash, timeout_seconds, no_direct_feedback=test_mode, is_priority=is_priority)
+        result = window_manager.request_window(enhanced_cmd, cmd_hash, timeout_seconds, no_direct_feedback=test_mode, is_priority=is_priority, user_command=user_command)
         return result
                 
     def direct_feedback(self, remote_command, debug_info=None):
@@ -1478,18 +1478,21 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         try:
             import sys
             import os
+            import pathlib
             
             print(f"[DEBUG] Starting USERINPUT integration...")
             
-            # 添加USERINPUT.py所在目录到Python路径
-            userinput_dir = '/Users/wukunhuan/.local/bin'
+            # 动态获取项目根目录
+            project_root = pathlib.Path(__file__).parent.parent.parent.absolute()
+            userinput_dir = str(project_root)
             if userinput_dir not in sys.path:
                 sys.path.insert(0, userinput_dir)
             
             print(f"[DEBUG] Importing USERINPUT module...")
             # 导入USERINPUT模块
             import importlib.util
-            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+            userinput_py = project_root / "USERINPUT.py"
+            spec = importlib.util.spec_from_file_location("userinput_module", str(userinput_py))
             userinput_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(userinput_module)
             
