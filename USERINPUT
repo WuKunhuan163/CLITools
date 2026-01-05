@@ -1,9 +1,19 @@
 #!/bin/bash
 # USERINPUT 命令脚本
-# 用户输入工具 - 现在调用Python版本
+# 使用项目内 PYTHON_PROJ/python/ 目录下的独立Python环境
 
-# 获取脚本所在目录
+# 获取此脚本文件所在的真实目录 (/Applications/AITerminalTools)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 调用Python版本的USERINPUT脚本
-exec /usr/bin/python3 "$SCRIPT_DIR/USERINPUT.py" "$@"    
+# 根据脚本目录，构建项目内Python可执行文件的精确路径
+PYTHON_EXEC="$SCRIPT_DIR/PYTHON_PROJ/python3.10.19/install/bin/python3"
+
+# 检查独立的Python可执行文件是否存在，如果不存在则报错退出
+if [ ! -f "$PYTHON_EXEC" ]; then
+    echo "错误：在 $PYTHON_EXEC 找不到独立的Python可执行文件。" >&2
+    echo "请确认您已将独立的Python环境解压到了 'PYTHON_PROJ' 文件夹内。" >&2
+    exit 1
+fi
+
+# 使用找到的独立Python来执行USERINPUT.py脚本，并传递所有命令行参数
+exec "$PYTHON_EXEC" "$SCRIPT_DIR/USERINPUT.py" "$@"

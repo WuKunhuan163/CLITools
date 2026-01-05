@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT tkinter版本 (v3)
-- 统一并调整了按钮样式
-- 实现滚动条按需显示
-- 增加了“加时60秒”功能
-- 强化了错误处理
+USERINPUT tkinter版本 (v5)
+- 按钮恢复纯粹的系统默认风格
+- 调整了按钮顺序
+- 修复了音效无法播放的问题
+- 增大了按钮字体
 """
 
 import os
@@ -57,6 +57,16 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     通过在一个独立的Python子进程中运行Tkinter脚本来获取用户输入。
     """
     
+    # --- 音效路径修复 ---
+    # 在父进程中计算好音频文件的绝对路径，因为子进程中没有 __file__
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        bell_path = os.path.join(script_dir, "USERINPUT_PROJ", "tkinter_bell.mp3")
+        bell_path_str_literal = repr(bell_path)
+    except Exception:
+        bell_path_str_literal = "''"  # 如果失败，则传递空字符串
+    # --- 修复结束 ---
+
     # 将要作为独立脚本执行的Python代码。
     tkinter_script = f'''
 import os
@@ -100,7 +110,6 @@ class TkinterInputWindow:
             instruction_label = tk.Label(main_frame, text="请在文本框中输入您的反馈:", font=("Arial", 11), fg="#555")
             instruction_label.pack(pady=(0, 10), anchor='w')
             
-            # --- 改动: 手动创建Text和Scrollbar以实现按需显示 ---
             text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
             text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
@@ -111,12 +120,11 @@ class TkinterInputWindow:
                 text_frame, wrap=tk.WORD, height=8, font=("Arial", 12), bg="#f8f9fa",
                 fg="#333", insertbackground="#007acc", selectbackground="#007acc",
                 relief=tk.FLAT, borderwidth=0,
-                yscrollcommand=scrollbar.set # 关键链接
+                yscrollcommand=scrollbar.set
             )
             self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
-            scrollbar.config(command=self.text_widget.yview) # 关键链接
-            # --- 改动结束 ---
+            scrollbar.config(command=self.text_widget.yview)
             
             if self.hint_text:
                 self.text_widget.insert("1.0", self.hint_text)
@@ -124,22 +132,24 @@ class TkinterInputWindow:
             button_frame = tk.Frame(main_frame)
             button_frame.pack(fill=tk.X, pady=(0, 10))
             
-            # --- 样式改动: 统一按钮风格并调整大小 ---
+            # --- 样式和顺序改动: 恢复完全默认风格，调整顺序和字体 ---
+            default_font = ("Arial", 12)
+            submit_font = ("Arial", 13, "bold")
+            
+            # 先 pack 加时按钮，它会最靠右
             add_time_btn = tk.Button(
                 button_frame, text="加时60秒", command=self.add_time,
-                bg="#e9ecef", fg="#495057", font=("Arial", 10), 
-                relief=tk.FLAT, padx=10, pady=7
+                font=default_font
             )
-            add_time_btn.pack(side=tk.RIGHT, padx=(10, 0))
+            add_time_btn.pack(side=tk.RIGHT)
 
+            # 后 pack 提交按钮，它会靠在加时按钮的左边
             submit_btn = tk.Button(
                 button_frame, text="提交", command=self.submit_input,
-                bg="#007acc", fg="white", font=("Arial", 13, "bold"), # 字体增大
-                padx=20, pady=7, # 高度增加 (5 -> 7)
-                relief=tk.FLAT
+                font=submit_font
             )
-            submit_btn.pack(side=tk.RIGHT)
-            # --- 样式改动结束 ---
+            submit_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            # --- 样式和顺序改动结束 ---
             
             self.status_label = tk.Label(button_frame, text="", font=("Arial", 12), fg="black")
             self.status_label.pack(side=tk.LEFT)
@@ -171,7 +181,7 @@ class TkinterInputWindow:
             while self.remaining_time > 0 and not self.window_closed:
                 try:
                     self.status_label.config(text=f"剩余时间: {{self.remaining_time}}秒")
-                except tk.TclError: # 窗口被意外关闭时捕获错误
+                except tk.TclError:
                     break
                 time.sleep(1)
                 self.remaining_time -= 1
@@ -195,8 +205,10 @@ class TkinterInputWindow:
     def play_bell(self):
         def play_in_thread():
             try:
-                audio_file_path = os.path.join(os.path.dirname("{os.path.abspath(__file__)}"), "USERINPUT_PROJ", "tkinter_bell.mp3")
-                if os.path.exists(audio_file_path) and platform.system() == "Darwin":
+                # --- 音效路径修复 ---
+                # 直接使用从父进程注入的、经过repr()处理的完整路径字符串
+                audio_file_path = {bell_path_str_literal}
+                if audio_file_path and os.path.exists(audio_file_path) and platform.system() == "Darwin":
                     subprocess.run(["afplay", audio_file_path], capture_output=True, timeout=2)
             except: pass
         threading.Thread(target=play_in_thread, daemon=True).start()
