@@ -26,13 +26,11 @@ Develop a GUI-based setup interface that is triggered when the user executes `GO
 6.  Click **Add Key** > **Create new key**, select **JSON**, and click **Create**.
 7.  The JSON file will be downloaded to your computer.
 
-## Key Features
-- **Trigger**: New command `GOOGLE_DRIVE --setup`.
-- **UI Framework**: Tkinter.
-- **Data Persistence**: Save configurations to `GOOGLE_DRIVE_DATA/cache_config.json` and other relevant data files.
-
-## Future Enhancements
-- Integration with the main GDS shell for first-time user detection.
-- Multi-user/account support within the setup process.
+## Progress
+- [x] Initial structure of GOOGLE_DRIVE --setup (Step 1: Service Account Verification).
+- [x] Created `_PROJ` folders and `requirements.txt` for all tools.
+- [ ] Implement Step 2 of Setup Wizard: Path Configuration.
+- [ ] Implement Step 3 of Setup Wizard: Final Validation.
+- [ ] Successfully run `GDS echo Hello`.
 
 
