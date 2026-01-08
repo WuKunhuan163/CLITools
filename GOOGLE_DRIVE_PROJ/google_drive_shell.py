@@ -2278,6 +2278,10 @@ fi
         if args[0] in ['--help', '-h']:
             show_unified_help()
             return 0
+        elif args[0] == '--setup':
+            from .modules.setup_manager import run_setup_wizard
+            run_setup_wizard()
+            return 0
         elif args[0] == '--console-setup':
             # TODO: 实现console_setup_interactive
             print("Console setup not implemented yet")

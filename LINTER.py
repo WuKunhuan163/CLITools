@@ -53,36 +53,36 @@ class MultiLanguageLinter:
     }
     
     def __init__(self):
-        self.supported_linters = self._detect_available_linters()
+        self.supported_linters = self.detect_available_linters()
     
-    def _detect_available_linters(self) -> Dict[str, str]:
+    def detect_available_linters(self) -> Dict[str, str]:
         """Detect available linters on system"""
         linters = {}
         
         python_linter_found = False
         for linter in ['flake8', 'pylint', 'pycodestyle']:
-            if self._command_exists(linter):
+            if self.command_exists(linter):
                 linters['python'] = linter
                 python_linter_found = True
                 break
         
-        if not python_linter_found and self._command_exists('python3'):
+        if not python_linter_found and self.command_exists('python3'):
             linters['python'] = 'python3'
         
         for linter in ['eslint', 'jshint', 'standard']:
-            if self._command_exists(linter):
+            if self.command_exists(linter):
                 linters['javascript'] = linter
                 linters['typescript'] = linter
                 break
         
-        if self._command_exists('checkstyle'):
+        if self.command_exists('checkstyle'):
             linters['java'] = 'checkstyle'
-        elif self._command_exists('javac'):
+        elif self.command_exists('javac'):
             linters['java'] = 'javac'
         
         cpp_linter_found = False
         for linter in ['cppcheck', 'clang-tidy']:
-            if self._command_exists(linter):
+            if self.command_exists(linter):
                 linters['cpp'] = linter
                 linters['c'] = linter
                 cpp_linter_found = True
@@ -90,44 +90,44 @@ class MultiLanguageLinter:
         
         if not cpp_linter_found:
             for compiler in ['gcc', 'clang']:
-                if self._command_exists(compiler):
+                if self.command_exists(compiler):
                     linters['cpp'] = compiler
                     linters['c'] = compiler
                     break
         
-        if self._command_exists('golint'):
+        if self.command_exists('golint'):
             linters['go'] = 'golint'
-        elif self._command_exists('gofmt'):
+        elif self.command_exists('gofmt'):
             linters['go'] = 'gofmt'
         
-        if self._command_exists('cargo'):
+        if self.command_exists('cargo'):
             linters['rust'] = 'cargo'
         
-        if self._command_exists('sqlfluff'):
+        if self.command_exists('sqlfluff'):
             linters['sql'] = 'sqlfluff'
-        elif self._command_exists('sql-formatter'):
+        elif self.command_exists('sql-formatter'):
             linters['sql'] = 'sql-formatter'
         
-        if self._command_exists('jsonlint'):
+        if self.command_exists('jsonlint'):
             linters['json'] = 'jsonlint'
-        elif self._command_exists('python3'):
+        elif self.command_exists('python3'):
             linters['json'] = 'python-json'
         
-        if self._command_exists('yamllint'):
+        if self.command_exists('yamllint'):
             linters['yaml'] = 'yamllint'
         
-        if self._command_exists('shellcheck'):
+        if self.command_exists('shellcheck'):
             linters['bash'] = 'shellcheck'
         
-        if self._command_exists('htmlhint'):
+        if self.command_exists('htmlhint'):
             linters['html'] = 'htmlhint'
         
-        if self._command_exists('stylelint'):
+        if self.command_exists('stylelint'):
             linters['css'] = 'stylelint'
         
         return linters
     
-    def _command_exists(self, command: str) -> bool:
+    def command_exists(self, command: str) -> bool:
         """Check if command exists in PATH"""
         try:
             subprocess.run(['which', command], capture_output=True, check=True)
@@ -201,9 +201,9 @@ class MultiLanguageLinter:
             }
         
         linter = self.supported_linters[detected_language]
-        return self._run_linter(content, filename, detected_language, linter)
+        return self.run_linter(content, filename, detected_language, linter)
     
-    def _run_linter(self, content: str, filename: str, language: str, linter: str) -> Dict:
+    def run_linter(self, content: str, filename: str, language: str, linter: str) -> Dict:
         """Run specific linter on content"""
         try:
             with tempfile.NamedTemporaryFile(mode='w', suffix=Path(filename).suffix, delete=False) as tmp_file:
@@ -218,7 +218,7 @@ class MultiLanguageLinter:
                 elif language == 'bash':
                     return self.lint_bash(tmp_file_path, linter)
                 else:
-                    return self._generic_lint_result(language, "Linter not implemented")
+                    return self.generic_lint_result(language, "Linter not implemented")
             finally:
                 os.unlink(tmp_file_path)
                 
@@ -248,10 +248,10 @@ class MultiLanguageLinter:
                 result = subprocess.run(['python3', '-m', 'py_compile', file_path], 
                                       capture_output=True, text=True)
             
-            return self._parse_python_output(result, linter)
+            return self.parse_python_output(result, linter)
             
         except Exception as e:
-            return self._generic_lint_result('python', f"Python linting failed: {e}")
+            return self.generic_lint_result('python', f"Python linting failed: {e}")
     
     def lint_json(self, file_path: str, linter: str) -> Dict:
         """Lint JSON content"""
@@ -270,9 +270,9 @@ class MultiLanguageLinter:
             elif linter == 'jsonlint':
                 result = subprocess.run(['jsonlint', file_path], 
                                       capture_output=True, text=True)
-                return self._parse_json_output(result)
+                return self.parse_json_output(result)
             else:
-                return self._generic_lint_result('json', "JSON linting not available")
+                return self.generic_lint_result('json', "JSON linting not available")
                 
         except json.JSONDecodeError as e:
             return {
@@ -284,7 +284,7 @@ class MultiLanguageLinter:
                 "info": []
             }
         except Exception as e:
-            return self._generic_lint_result('json', f"JSON linting failed: {e}")
+            return self.generic_lint_result('json', f"JSON linting failed: {e}")
     
     def lint_bash(self, file_path: str, linter: str) -> Dict:
         """Lint Bash scripts"""
@@ -292,14 +292,14 @@ class MultiLanguageLinter:
             if linter == 'shellcheck':
                 result = subprocess.run(['shellcheck', file_path], 
                                       capture_output=True, text=True)
-                return self._parse_shellcheck_output(result)
+                return self.parse_shellcheck_output(result)
             else:
-                return self._generic_lint_result('bash', "Shell linting not available")
+                return self.generic_lint_result('bash', "Shell linting not available")
             
         except Exception as e:
-            return self._generic_lint_result('bash', f"Bash linting failed: {e}")
+            return self.generic_lint_result('bash', f"Bash linting failed: {e}")
     
-    def _parse_python_output(self, result: subprocess.CompletedProcess, linter: str) -> Dict:
+    def parse_python_output(self, result: subprocess.CompletedProcess, linter: str) -> Dict:
         """Parse Python linter output"""
         errors = []
         warnings = []
@@ -326,7 +326,7 @@ class MultiLanguageLinter:
             "info": []
         }
     
-    def _parse_json_output(self, result: subprocess.CompletedProcess) -> Dict:
+    def parse_json_output(self, result: subprocess.CompletedProcess) -> Dict:
         """Parse JSON linter output"""
         errors = []
         warnings = []
@@ -346,7 +346,7 @@ class MultiLanguageLinter:
             "info": []
         }
     
-    def _parse_shellcheck_output(self, result: subprocess.CompletedProcess) -> Dict:
+    def parse_shellcheck_output(self, result: subprocess.CompletedProcess) -> Dict:
         """Parse shellcheck output"""
         errors = []
         warnings = []
@@ -370,7 +370,7 @@ class MultiLanguageLinter:
             "info": []
         }
     
-    def _generic_lint_result(self, language: str, message: str) -> Dict:
+    def generic_lint_result(self, language: str, message: str) -> Dict:
         """Generic lint result"""
         return {
             "success": True,

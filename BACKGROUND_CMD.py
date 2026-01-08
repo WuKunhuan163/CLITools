@@ -31,12 +31,12 @@ class ProcessManager:
         self.processes: Dict[str, Dict] = {}
         
         # 加载现有进程状态
-        self._load_state()
+        self.load_state()
         
         # 清理已死亡的进程
-        self._cleanup_dead_processes()
+        self.cleanup_dead_processes()
     
-    def _load_state(self):
+    def load_state(self):
         """从文件加载进程状态"""
         if self.state_file.exists():
             try:
@@ -46,7 +46,7 @@ class ProcessManager:
             except (json.JSONDecodeError, FileNotFoundError):
                 self.processes = {}
     
-    def _save_state(self):
+    def save_state(self):
         """保存进程状态到文件"""
         data = {
             'processes': self.processes,
@@ -55,7 +55,7 @@ class ProcessManager:
         with open(self.state_file, 'w') as f:
             json.dump(data, f, indent=2)
     
-    def _cleanup_dead_processes(self):
+    def cleanup_dead_processes(self):
         """更新已死亡进程的状态，但保留记录"""
         updated = False
         for pid_str, proc_info in self.processes.items():
@@ -81,9 +81,9 @@ class ProcessManager:
                     updated = True
         
         if updated:
-            self._save_state()
+            self.save_state()
     
-    def _resolve_shell_aliases(self, command: str, shell: str) -> str:
+    def resolve_shell_aliases(self, command: str, shell: str) -> str:
         """解析shell别名"""
         # 获取命令的第一部分
         try:
@@ -162,11 +162,11 @@ class ProcessManager:
             return None
         
         # 清理死亡进程
-        self._cleanup_dead_processes()
+        self.cleanup_dead_processes()
         
         # 解析别名
         if resolve_aliases:
-            command = self._resolve_shell_aliases(command, shell)
+            command = self.resolve_shell_aliases(command, shell)
         
         # 创建日志文件
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
@@ -210,7 +210,7 @@ class ProcessManager:
             }
             
             # 保存状态
-            self._save_state()
+            self.save_state()
             
             print(f"Process started: PID {process.pid}, Log: {log_file}")
             
@@ -225,7 +225,7 @@ class ProcessManager:
     
     def list_processes(self) -> List[Dict]:
         """列出所有进程（包括已完成的）"""
-        self._cleanup_dead_processes()
+        self.cleanup_dead_processes()
         
         all_processes = []
         for pid_str, proc_info in self.processes.items():
@@ -282,7 +282,7 @@ class ProcessManager:
                 # 进程不存在，标记为完成
                 proc_info['status'] = 'completed'
                 proc_info['end_time'] = datetime.now().isoformat()
-                self._save_state()
+                self.save_state()
                 
                 start_time = datetime.fromtimestamp(proc_info['start_time'])
                 runtime = datetime.now() - start_time
@@ -332,7 +332,7 @@ class ProcessManager:
             
             # 从管理列表中移除
             del self.processes[pid_str]
-            self._save_state()
+            self.save_state()
             
             print(f"Process {pid} terminated")
             return True
@@ -342,7 +342,7 @@ class ProcessManager:
             # 从管理列表中移除（进程可能已经死亡）
             if pid_str in self.processes:
                 del self.processes[pid_str]
-                self._save_state()
+                self.save_state()
             return False
     
     def cleanup_all(self) -> int:
@@ -369,7 +369,7 @@ class ProcessManager:
                 del self.processes[pid_str]
         
         # 保存状态
-        self._save_state()
+        self.save_state()
         return len(pids)  # 返回清理的总记录数
     
     def get_process_status(self, pid: int) -> Optional[Dict]:
@@ -413,7 +413,7 @@ class ProcessManager:
                 # PID被重用，标记为完成
                 proc_info['status'] = 'completed'
                 proc_info['end_time'] = datetime.now().isoformat()
-                self._save_state()
+                self.save_state()
                 return self.get_process_status(pid)  # 递归调用返回完成状态
             
             # 获取当前状态
@@ -443,7 +443,7 @@ class ProcessManager:
             # 进程已死亡，标记为完成
             proc_info['status'] = 'completed'
             proc_info['end_time'] = datetime.now().isoformat()
-            self._save_state()
+            self.save_state()
             return self.get_process_status(pid)  # 递归调用返回完成状态
     
     def get_process_result(self, pid: int) -> Optional[str]:

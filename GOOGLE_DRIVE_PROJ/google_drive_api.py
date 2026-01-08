@@ -32,6 +32,8 @@ class GoogleDriveService:
         # 优先尝试从环境变量加载密钥信息
         if self.load_from_environment():
             pass  # 已从环境变量加载
+        elif self.load_from_config():
+            pass  # 已从配置文件加载
         elif service_account_key_path:
             self.key_path = service_account_key_path
             if not os.path.exists(self.key_path):
@@ -40,11 +42,34 @@ class GoogleDriveService:
             # 回退到文件路径模式
             self.key_path = os.environ.get('GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY')
             if not self.key_path:
-                raise ValueError("未找到服务账户密钥文件路径或环境变量")
-            if not os.path.exists(self.key_path):
+                # 只有在没有预加载 key_data 的情况下才报错
+                if not self.key_data:
+                    raise ValueError("未找到服务账户密钥文件路径或环境变量")
+            elif not os.path.exists(self.key_path):
                 raise FileNotFoundError(f"服务账户密钥文件不存在: {self.key_path}")
         
         self.authenticate()
+    
+    def load_from_config(self):
+        """从 cache_config.json 加载密钥信息"""
+        try:
+            import json
+            from pathlib import Path
+            
+            # 获取数据目录
+            project_root = Path(__file__).parent.parent.absolute()
+            config_file = project_root / "GOOGLE_DRIVE_DATA" / "cache_config.json"
+            
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                if "service_account_info" in config:
+                    self.key_data = config["service_account_info"]
+                    return True
+            return False
+        except Exception:
+            return False
     
     def load_from_environment(self):
         """
