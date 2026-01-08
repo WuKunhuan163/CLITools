@@ -46,9 +46,9 @@ class ImageCacheSystem:
         self.images_dir.mkdir(parents=True, exist_ok=True)
         
         # Load existing cache
-        self.cache = self._load_cache()
+        self.cache = self.load_cache()
     
-    def _load_cache(self) -> Dict:
+    def load_cache(self) -> Dict:
         """Load cache from JSON file."""
         if self.cache_file.exists():
             try:
@@ -59,7 +59,7 @@ class ImageCacheSystem:
                 return {}
         return {}
     
-    def _save_cache(self):
+    def save_cache(self):
         """Save cache to JSON file."""
         try:
             with open(self.cache_file, 'w', encoding='utf-8') as f:
@@ -67,7 +67,7 @@ class ImageCacheSystem:
         except Exception as e:
             logger.error(f"Failed to save cache: {e}")
     
-    def _calculate_dual_hash(self, data: bytes) -> Tuple[str, str]:
+    def calculate_dual_hash(self, data: bytes) -> Tuple[str, str]:
         """
         Calculate dual hash (SHA256 + MD5) for collision avoidance.
         
@@ -81,7 +81,7 @@ class ImageCacheSystem:
         md5_hash = hashlib.md5(data).hexdigest()
         return sha256_hash, md5_hash
     
-    def _get_composite_hash(self, sha256_hash: str, md5_hash: str) -> str:
+    def get_composite_hash(self, sha256_hash: str, md5_hash: str) -> str:
         """
         Create composite hash for extended collision avoidance.
         
@@ -90,7 +90,7 @@ class ImageCacheSystem:
         """
         return sha256_hash[:32] + md5_hash[:16] + sha256_hash[32:48]
     
-    def _get_image_filename(self, composite_hash: str) -> str:
+    def get_image_filename(self, composite_hash: str) -> str:
         """Generate image filename from composite hash."""
         return f"{composite_hash}.jpg"
     
@@ -104,8 +104,8 @@ class ImageCacheSystem:
         Returns:
             Cached description if exists, None otherwise
         """
-        sha256_hash, md5_hash = self._calculate_dual_hash(image_data)
-        composite_hash = self._get_composite_hash(sha256_hash, md5_hash)
+        sha256_hash, md5_hash = self.calculate_dual_hash(image_data)
+        composite_hash = self.get_composite_hash(sha256_hash, md5_hash)
         
         if composite_hash in self.cache:
             cache_entry = self.cache[composite_hash]
@@ -127,11 +127,11 @@ class ImageCacheSystem:
         Returns:
             Composite hash of the stored image
         """
-        sha256_hash, md5_hash = self._calculate_dual_hash(image_data)
-        composite_hash = self._get_composite_hash(sha256_hash, md5_hash)
+        sha256_hash, md5_hash = self.calculate_dual_hash(image_data)
+        composite_hash = self.get_composite_hash(sha256_hash, md5_hash)
         
         # Store image file
-        image_filename = self._get_image_filename(composite_hash)
+        image_filename = self.get_image_filename(composite_hash)
         image_path = self.images_dir / image_filename
         
         if not image_path.exists():
@@ -154,7 +154,7 @@ class ImageCacheSystem:
             'file_size': len(image_data)
         }
         
-        self._save_cache()
+        self.save_cache()
         logger.info(f"Cached description for image {composite_hash[:12]}...")
         return composite_hash
     
@@ -240,7 +240,7 @@ class ImageCacheSystem:
                 migrated_count += 1
         
         if migrated_count > 0:
-            self._save_cache()
+            self.save_cache()
             logger.info(f"Migrated {migrated_count} entries from old cache")
         
         return migrated_count
@@ -258,8 +258,8 @@ class ImageCacheSystem:
         """
         # This is a placeholder for future perceptual hashing implementation
         # For now, we only do exact matches
-        sha256_hash, md5_hash = self._calculate_dual_hash(image_data)
-        composite_hash = self._get_composite_hash(sha256_hash, md5_hash)
+        sha256_hash, md5_hash = self.calculate_dual_hash(image_data)
+        composite_hash = self.get_composite_hash(sha256_hash, md5_hash)
         
         if composite_hash in self.cache:
             return [self.cache[composite_hash]]

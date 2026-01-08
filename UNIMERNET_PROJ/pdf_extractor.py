@@ -74,7 +74,7 @@ def load_cache() -> dict:
 def save_cache(cache: dict):
     """Legacy function - now uses centralized cache system"""
     cache_system.cache = cache
-    cache_system._save_cache()
+    cache_system.save_cache()
 def find_next_numeric_filename(directory: Path, suffix: str = ".md") -> Path:
     directory.mkdir(exist_ok=True); counter = 0
     while True:
