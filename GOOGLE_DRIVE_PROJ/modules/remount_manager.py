@@ -741,7 +741,10 @@ except Exception as e:
         
     # 运行subprocess窗口，暂时不抑制stderr用于调试
     # 使用PYTHON_PROJ中的Python而不是系统Python
-    python_exec = '/Users/wukunhuan/.local/bin/PYTHON_PROJ/python3'
+    # 获取项目根目录
+    import pathlib
+    project_root = pathlib.Path(__file__).parent.parent.parent.absolute()
+    python_exec = str(project_root / 'PYTHON_PROJ' / 'python3')
     result = subprocess.run(
         [python_exec, '-c', subprocess_script],
         stdout=subprocess.PIPE,

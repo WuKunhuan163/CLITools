@@ -15,7 +15,7 @@ When an AI agent encounters uncertainty, needs clarification, or requires user a
 
 ## Installation
 
-USERINPUT is already installed in your system at: `/Users/wukunhuan/.local/bin/USERINPUT`
+USERINPUT is already installed in your project root at: `/Applications/AITerminalTools/USERINPUT`
 
 ## Usage
 
@@ -239,9 +239,9 @@ USERINPUT automatically detects:
 
 ### File Locations
 
-- Binary: `/Users/wukunhuan/.local/bin/USERINPUT`
-- Python script: `/Users/wukunhuan/.local/bin/USERINPUT.py`
-- Audio file: `/Users/wukunhuan/.local/bin/USERINPUT_PROJ/tkinter_bell.mp3`
+- Binary: `/Applications/AITerminalTools/USERINPUT`
+- Python script: `/Applications/AITerminalTools/USERINPUT.py`
+- Audio file: `/Applications/AITerminalTools/USERINPUT_PROJ/tkinter_bell.mp3`
 
 ## Examples
 
@@ -322,7 +322,7 @@ sudo apt-get install python3-tk
 
 **Solution**: Ensure audio file exists:
 ```bash
-ls -l ~/.local/bin/USERINPUT_PROJ/tkinter_bell.mp3
+ls -l ./USERINPUT_PROJ/tkinter_bell.mp3
 ```
 
 You can disable audio by modifying the code or use `--no-focus` to disable the entire focus window.
@@ -347,8 +347,3 @@ USERINPUT --timeout 300  # 5 minutes
 ## License
 
 Part of the AITerminalTools suite.
-
-## Version
-
-Current version: 1.0 (as of December 2024)
-

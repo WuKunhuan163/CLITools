@@ -1,0 +1,18 @@
+#!/bin/bash
+# DOWNLOAD Command Script
+# Resource Download Tool - now calls Python version
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Call Python version of DOWNLOAD script
+# 使用项目内独立的Python环境
+PYTHON_EXEC="$SCRIPT_DIR/PYTHON_PROJ/python3.10.19/install/bin/python3"
+
+# 检查独立的Python可执行文件是否存在，如果不存在则回退到系统Python
+if [ -f "$PYTHON_EXEC" ]; then
+    exec "$PYTHON_EXEC" "$SCRIPT_DIR/DOWNLOAD.py" "$@"
+else
+    # 回退到原来的逻辑
+    exec /usr/bin/python3 "$SCRIPT_DIR/DOWNLOAD.py" "$@"
+fi 

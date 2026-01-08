@@ -31,15 +31,6 @@ BACKGROUND_CMD 是一个安全的后台进程管理工具，专为解决 Cursor 
 pip install psutil
 ```
 
-### 文件权限
-
-确保脚本具有执行权限：
-
-```bash
-chmod +x ~/.local/bin/BACKGROUND_CMD.py
-chmod +x ~/.local/bin/BACKGROUND_CMD.sh
-```
-
 ## 使用方法
 
 ### 基本命令
