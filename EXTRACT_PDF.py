@@ -264,7 +264,7 @@ class PDFExtractor:
                         page_content += f"![](images/{img_info['filename']})\n\n"
                 
                 # 处理正文换行符（与basic模式一致）
-                processed_text = self._process_text_linebreaks(text, ending_punctuations)
+                processed_text = self.process_text_linebreaks(text, ending_punctuations)
                 
                 # 添加页面文本
                 page_content += f"{processed_text}\n\n"
@@ -625,7 +625,7 @@ class PDFExtractor:
                         page_content += f"![](images/{img_info['filename']})\n\n"
                 
                 # 处理正文换行符
-                processed_text = self._process_text_linebreaks(text, ending_punctuations)
+                processed_text = self.process_text_linebreaks(text, ending_punctuations)
                 
                 # 添加页面文本
                 page_content += f"{processed_text}\n\n"
@@ -785,7 +785,7 @@ class PDFExtractor:
         
         return images_data
     
-    def _process_text_linebreaks(self, text, ending_punctuations):
+    def process_text_linebreaks(self, text, ending_punctuations):
         """处理正文换行符，智能合并句子和分段"""
         if not text.strip():
             return text
@@ -887,7 +887,7 @@ class PDFPostProcessor:
         
         try:
             # 第一步：确保有postprocess状态文件
-            status_file = self._ensure_postprocess_status_file(pdf_file_path, md_file)
+            status_file = self.ensure_postprocess_status_file(pdf_file_path, md_file)
             if not status_file:
                 print(f"Error: Failed to create or find status file")
                 return False
@@ -898,17 +898,17 @@ class PDFPostProcessor:
             
             # 第三步：同步markdown和JSON中的placeholder信息
             print(f"Syncing markdown and JSON placeholder information...")
-            status_data = self._sync_placeholders_with_markdown(md_file, status_data, status_file)
+            status_data = self.sync_placeholders_with_markdown(md_file, status_data, status_file)
             
             # 第四步：筛选要处理的项目
-            items_to_process = self._filter_items_to_process(status_data, process_type, specific_ids, force)
+            items_to_process = self.filter_items_to_process(status_data, process_type, specific_ids, force)
             
             if not items_to_process:
                 print(f"No items to process")
                 return True
             
             # 第五步：使用统一的混合处理方式
-            success = self._process_items_unified(str(pdf_file_path), str(md_file), status_data, 
+            success = self.process_items_unified(str(pdf_file_path), str(md_file), status_data, 
                                                 items_to_process, process_type, custom_prompt, force, timeout_multi)
             
             return success
@@ -917,7 +917,7 @@ class PDFPostProcessor:
             print(f"Error: Unified post-processing error: {e}")
             return False
     
-    def _ensure_postprocess_status_file(self, pdf_file_path: Path, md_file: Path) -> Optional[Path]:
+    def ensure_postprocess_status_file(self, pdf_file_path: Path, md_file: Path) -> Optional[Path]:
         """确保存在postprocess状态文件，如果不存在则创建"""
         status_file = pdf_file_path.parent / f"{pdf_file_path.stem}_postprocess.json"
         
@@ -983,7 +983,7 @@ class PDFPostProcessor:
             print(f"Error: Failed to create status file: {e}")
             return None
     
-    def _filter_items_to_process(self, status_data: dict, process_type: str, specific_ids: str, force: bool) -> list:
+    def filter_items_to_process(self, status_data: dict, process_type: str, specific_ids: str, force: bool) -> list:
         """筛选需要处理的项目"""
         items_to_process = []
         
@@ -1025,7 +1025,7 @@ class PDFPostProcessor:
         
         return items_to_process
     
-    def _process_items_unified(self, pdf_file: str, md_file: str, status_data: dict, 
+    def process_items_unified(self, pdf_file: str, md_file: str, status_data: dict, 
                              items_to_process: list, process_type: str, custom_prompt: str = None, force: bool = False, timeout_multi: float = 1.0) -> bool:
         """统一的项目处理方法"""
         try:
@@ -1055,7 +1055,7 @@ class PDFPostProcessor:
                     continue
                 
                 # 查找实际的图片文件路径
-                actual_image_path = self._find_actual_image_path(pdf_file, image_path)
+                actual_image_path = self.find_actual_image_path(pdf_file, image_path)
                 if not actual_image_path:
                     print(f"Warning: Image file not found: {image_path}")
                     continue
@@ -1065,15 +1065,15 @@ class PDFPostProcessor:
                 # 根据类型选择处理方式
                 result_text = ""
                 if item_type == 'image':
-                    result_text = self._process_image_with_api(actual_image_path, custom_prompt, timeout_multi)
+                    result_text = self.process_image_with_api(actual_image_path, custom_prompt, timeout_multi)
                 elif item_type in ['formula', 'interline_equation']:
-                    result_text = self._process_with_unimernet(actual_image_path, "formula", force, timeout_multi)
+                    result_text = self.process_with_unimernet(actual_image_path, "formula", force, timeout_multi)
                 elif item_type == 'table':
-                    result_text = self._process_with_unimernet(actual_image_path, "table", force, timeout_multi)
+                    result_text = self.process_with_unimernet(actual_image_path, "table", force, timeout_multi)
                 
                 if result_text:
                     # 更新markdown内容
-                    success = self._update_markdown_with_result(md_content, item, result_text)
+                    success = self.update_markdown_with_result(md_content, item, result_text)
                     if success:
                         md_content = success
                         item['processed'] = True
@@ -1103,7 +1103,7 @@ class PDFPostProcessor:
         except Exception as e:
             print(f"Error: Unified processing error: {e}")
             return False
-    def _find_actual_image_path(self, pdf_file: str, image_filename: str) -> Optional[str]:
+    def find_actual_image_path(self, pdf_file: str, image_filename: str) -> Optional[str]:
         """查找图片文件的实际路径"""
         pdf_path = Path(pdf_file)
         pdf_directory = pdf_path.parent
@@ -1122,7 +1122,7 @@ class PDFPostProcessor:
         
         return None
     
-    def _process_image_with_api(self, image_path: str, custom_prompt: str = None, timeout_multi: float = 1.0) -> str:
+    def process_image_with_api(self, image_path: str, custom_prompt: str = None, timeout_multi: float = 1.0) -> str:
         """使用IMG2TEXT API处理图片"""
         try:
             # 调用IMG2TEXT工具
@@ -1159,7 +1159,7 @@ class PDFPostProcessor:
         except Exception as e:
             return f"Image processing error: {e}"
     
-    def _sync_placeholders_with_markdown(self, md_file: Path, status_data: dict, status_file: Path) -> dict:
+    def sync_placeholders_with_markdown(self, md_file: Path, status_data: dict, status_file: Path) -> dict:
         """同步markdown和JSON文件中的placeholder信息"""
         try:
             # 读取markdown内容
@@ -1222,7 +1222,7 @@ class PDFPostProcessor:
             print(f"Error: Failed to sync placeholder information: {e}")
             return status_data
     
-    def _update_markdown_with_result(self, md_content: str, item: dict, result_text: str) -> Optional[str]:
+    def update_markdown_with_result(self, md_content: str, item: dict, result_text: str) -> Optional[str]:
         """更新markdown内容，保留placeholder，精确替换分析结果，避免误删正文"""
         import re
         
@@ -1300,7 +1300,7 @@ class PDFPostProcessor:
         
         return updated_content
     
-    def _process_with_unimernet(self, image_path: str, content_type: str = "auto", force: bool = False, timeout_multi: float = 1.0) -> str:
+    def process_with_unimernet(self, image_path: str, content_type: str = "auto", force: bool = False, timeout_multi: float = 1.0) -> str:
         """使用UNIMERNET工具处理公式或表格图片"""
         try:
             # 使用EXTRACT_IMG工具（整合了UNIMERNET和cache）
@@ -1369,7 +1369,7 @@ class PDFPostProcessor:
     
 
     
-    def _select_markdown_file_interactive(self) -> str:
+    def select_markdown_file_interactive(self) -> str:
         """交互式选择markdown文件"""
         print(f"Selecting markdown file for post-processing...")
         
@@ -1378,7 +1378,7 @@ class PDFPostProcessor:
             filedialog_path = self.script_dir / "FILEDIALOG"
             if not filedialog_path.exists():
                 print(f"Warning: FILEDIALOG tool not available, using traditional file selection")
-                return self._select_markdown_file_traditional()
+                return self.select_markdown_file_traditional()
             
             # 调用FILEDIALOG工具选择.md文件
             cmd = [str(filedialog_path), '--types', 'md', '--title', 'Select Markdown File for Post-processing']
@@ -1426,9 +1426,9 @@ class PDFPostProcessor:
         except Exception as e:
             print(f"Warning: Error using FILEDIALOG: {e}")
             print(f"Using traditional file selection")
-            return self._select_markdown_file_traditional()
+            return self.select_markdown_file_traditional()
     
-    def _select_markdown_file_traditional(self) -> str:
+    def select_markdown_file_traditional(self) -> str:
         """传统方式选择markdown文件（备用方案）"""
         print(f"Searching for EXTRACT_PDF generated markdown files...")
         
@@ -1518,7 +1518,7 @@ class PDFPostProcessor:
         """
         # 检查是否进入交互模式
         if file_path == "interactive":
-            file_path = self._select_markdown_file_interactive()
+            file_path = self.select_markdown_file_interactive()
             if not file_path:
                 return False
         
@@ -1527,7 +1527,7 @@ class PDFPostProcessor:
     
 
     
-    def _sync_placeholders_with_markdown(self, md_file: Path, status_data: dict, status_file: Path) -> dict:
+    def sync_placeholders_with_markdown(self, md_file: Path, status_data: dict, status_file: Path) -> dict:
         """
         同步markdown文件和JSON文件中的placeholder信息
         
@@ -1545,7 +1545,7 @@ class PDFPostProcessor:
                 md_content = f.read()
             
             # 解析markdown中的placeholder信息
-            md_placeholders = self._parse_placeholders_from_markdown(md_content)
+            md_placeholders = self.parse_placeholders_from_markdown(md_content)
             print(f"Found {len(md_placeholders)} placeholders in markdown")
             
             # 创建JSON中现有项目的映射
@@ -1594,7 +1594,7 @@ class PDFPostProcessor:
             for img_id, item in json_items.items():
                 print(f"Restoring missing placeholder {img_id[:8]}... type: {item['type']}")
                 # 在markdown中恢复placeholder
-                md_content = self._restore_placeholder_in_markdown(md_content, img_id, item['type'])
+                md_content = self.restore_placeholder_in_markdown(md_content, img_id, item['type'])
                 md_content_modified = True
                 updated_items.append(item)
             
@@ -1633,7 +1633,7 @@ class PDFPostProcessor:
             print(f"   Warning: Sync error: {e}")
             return status_data
     
-    def _parse_placeholders_from_markdown(self, md_content: str) -> dict:
+    def parse_placeholders_from_markdown(self, md_content: str) -> dict:
         """从markdown内容中解析placeholder信息"""
         import re
         
@@ -1649,7 +1649,7 @@ class PDFPostProcessor:
         
         return placeholders
     
-    def _restore_placeholder_in_markdown(self, md_content: str, img_id: str, placeholder_type: str) -> str:
+    def restore_placeholder_in_markdown(self, md_content: str, img_id: str, placeholder_type: str) -> str:
         """在markdown中恢复缺失的placeholder"""
         import re
         
