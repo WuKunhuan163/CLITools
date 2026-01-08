@@ -994,9 +994,11 @@ class WindowManager:
         command_b64 = base64.b64encode(request['cmd'].encode('utf-8')).decode('ascii')
         user_command_b64 = base64.b64encode(user_command.encode('utf-8')).decode('ascii') if user_command else ""
         
-        # 获取音频文件路径
+        # 获取音频文件路径和debug文件路径
         current_dir = os.path.dirname(__file__)
-        audio_file_path = os.path.join(os.path.dirname(current_dir), "tkinter_bell.mp3")
+        project_root = os.path.dirname(os.path.dirname(current_dir))
+        audio_file_path = os.path.join(project_root, "GOOGLE_DRIVE_PROJ", "tkinter_bell.mp3")
+        debug_file_path = os.path.join(project_root, "GOOGLE_DRIVE_DATA", "window_queue_debug.log")
         
         # 创建子进程脚本
         timeout_ms = request['timeout_seconds'] * 1000
@@ -1080,15 +1082,13 @@ try:
     # 窗口计数器 - 记录到debug日志
     import os
     from pathlib import Path
-    project_root = Path(__file__).parent.parent.parent.absolute()
-    debug_file = project_root / "GOOGLE_DRIVE_DATA/window_queue_debug.log"
+    debug_file = Path(r"DEBUG_FILE_PATH_PLACEHOLDER")
     try:
         with open(debug_file, "a", encoding="utf-8") as f:
             import time
-            timestamp = time.time() - 1757413752.714440  # 相对时间戳
-            f.write("[{:.3f}s] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={}, 父进程PID={})\\n".format(timestamp, os.getpid(), parent_pid))
+            f.write("[{}] [TKINTER_WINDOW_CREATED] 窗口创建成功 - WINDOW_ID_PLACEHOLDER (PID={}, 父进程PID={})\\n".format(time.strftime("%H:%M:%S"), os.getpid(), parent_pid))
             f.flush()
-    except:
+    except Exception as e:
         pass
     
     # 父进程监控函数
@@ -1099,8 +1099,7 @@ try:
             if not psutil.pid_exists(parent_pid):
                 try:
                     with open(debug_file, "a", encoding="utf-8") as f:
-                        timestamp = time.time() - 1757413752.714440
-                        f.write("[{:.3f}s] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 父进程被kill - WINDOW_ID_PLACEHOLDER\\n".format(timestamp))
+                        f.write("[{}] [TKINTER_WINDOW_DESTROYED] 窗口销毁 - 父进程被kill - WINDOW_ID_PLACEHOLDER\\n".format(time.strftime("%H:%M:%S")))
                         f.flush()
                 except:
                     pass
@@ -1646,6 +1645,7 @@ except Exception as e:
         subprocess_script = subprocess_script.replace("COMMAND_HASH_PLACEHOLDER", command_hash)
         subprocess_script = subprocess_script.replace("TIMEOUT_MS_PLACEHOLDER", str(timeout_ms))
         subprocess_script = subprocess_script.replace("AUDIO_FILE_PATH_PLACEHOLDER", audio_file_path)
+        subprocess_script = subprocess_script.replace("DEBUG_FILE_PATH_PLACEHOLDER", debug_file_path)
         subprocess_script = subprocess_script.replace("PARENT_PID_PLACEHOLDER", str(os.getpid()))
         subprocess_script = subprocess_script.replace("TEST_MODE_PLACEHOLDER", str(request.get('no_direct_feedback', False)))
         # 替换user_command占位符（需要特殊处理，因为可能在条件判断中）
