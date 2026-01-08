@@ -100,7 +100,7 @@ class MinerUWrapper:
             
             # Add page range if specified
             if page_range:
-                start_page, end_page = self._parse_page_range(page_range)
+                start_page, end_page = self.parse_page_range(page_range)
                 if start_page is not None:
                     cmd.extend(["-s", str(start_page)])
                 if end_page is not None:
@@ -122,11 +122,11 @@ class MinerUWrapper:
                 print(f"MinerU command: {' '.join(cmd)}", file=sys.stderr)
             
             # Calculate timeout based on page range (2 minutes per page, minimum 10 minutes)
-            page_count = self._estimate_page_count(page_range)
+            page_count = self.estimate_page_count(page_range)
             timeout = max(600, page_count * 120)  # 2 minutes per page, minimum 10 minutes
             
             # Execute MinerU command
-            result = self._run_with_progress(cmd, timeout, async_mode)
+            result = self.run_with_progress(cmd, timeout, async_mode)
             
             # Print debug output if enabled or if there was an error
             if debug or result.returncode != 0:
@@ -144,47 +144,47 @@ class MinerUWrapper:
             
             if result.returncode != 0:
                 print(f"MinerU error: {result.stderr}", file=sys.stderr)
-                return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+                return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
             
             # Check for runtime errors even if return code is 0
             if "Exception:" in result.stdout or "Error:" in result.stdout or "Traceback" in result.stdout:
                 # Check for specific tokenizer errors
                 if "tokenizer" in result.stdout.lower() or "unimernet" in result.stdout.lower():
                     # Try again without formula recognition
-                    retry_result = self._retry_without_formulas(pdf_path, page_range, debug)
+                    retry_result = self.retry_without_formulas(pdf_path, page_range, debug)
                     if retry_result:
                         return retry_result
                     
                     # If retry also fails, create basic output
                     print(f"MinerU: Retry without formulas also failed", file=sys.stderr)
-                    basic_output = self._create_basic_output_after_tokenizer_error(pdf_path)
+                    basic_output = self.create_basic_output_after_tokenizer_error(pdf_path)
                     if basic_output:
                         print(f"MinerU: Created basic output despite tokenizer error", file=sys.stderr)
                         return basic_output
                     
-                    return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+                    return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
                 else:
                     print(f"MinerU: Runtime error detected in output", file=sys.stderr)
                     if debug:
                         print(f"MinerU: Error details in stdout", file=sys.stderr)
-                    return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+                    return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
             
             # Find the output markdown file
-            output_file = self._find_output_file(self.temp_dir)
+            output_file = self.find_output_file(self.temp_dir)
             if output_file:
                 # Move to pdf_extractor_data directory and process with API if requested
-                target_file = self._move_to_data_directory(output_file, pdf_path, call_api, call_api_force, page_range)
+                target_file = self.move_to_data_directory(output_file, pdf_path, call_api, call_api_force, page_range)
                 
                 # If async mode, add placeholders for post-processing
                 if async_mode and target_file:
-                    print(f"Async mode enabled, calling _add_async_placeholders", file=sys.stderr)
+                    print(f"Async mode enabled, calling add_async_placeholders", file=sys.stderr)
                     # Create a modified pdf_path with page range for proper status file naming
                     pdf_path_obj = Path(pdf_path)
                     if page_range:
                         modified_pdf_path = str(pdf_path_obj.parent / f"{pdf_path_obj.stem}_p{page_range}.pdf")
                     else:
                         modified_pdf_path = pdf_path
-                    self._add_async_placeholders(target_file, output_file, modified_pdf_path)
+                    self.add_async_placeholders(target_file, output_file, modified_pdf_path)
                 else:
                     print(f"Async mode: {async_mode}, target_file: {target_file}", file=sys.stderr)
                 
@@ -198,27 +198,27 @@ class MinerUWrapper:
                         print(f"MinerU: Directory {root} contains: {files}", file=sys.stderr)
                 except Exception as e:
                     print(f"MinerU: Error listing directory: {e}", file=sys.stderr)
-                return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+                return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
                 
         except subprocess.TimeoutExpired:
             print(f"MinerU: Process timed out after {timeout}s", file=sys.stderr)
             print(f"Tip: Processing large PDFs may take longer. Consider processing fewer pages or using --debug for more info.", file=sys.stderr)
-            return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+            return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
         except KeyboardInterrupt:
             print(f" MinerU: Process interrupted by user", file=sys.stderr)
             if hasattr(self, 'temp_dir') and self.temp_dir and os.path.exists(self.temp_dir):
                 shutil.rmtree(self.temp_dir)
-            return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+            return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
         except Exception as e:
             print(f"MinerU: Unexpected error: {e}", file=sys.stderr)
-            return self._fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
+            return self.fallback_to_original(pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug)
         finally:
             # Keep temporary directory for debugging (comment out cleanup)
             # if self.temp_dir and os.path.exists(self.temp_dir):
             #     shutil.rmtree(self.temp_dir)
             pass
     
-    def _parse_page_range(self, page_range: str) -> tuple[Optional[int], Optional[int]]:
+    def parse_page_range(self, page_range: str) -> tuple[Optional[int], Optional[int]]:
         """Parse page range string into start and end pages (0-indexed)."""
         try:
             if '-' in page_range:
@@ -236,7 +236,7 @@ class MinerUWrapper:
         except ValueError:
             return None, None
     
-    def _estimate_page_count(self, page_range: Optional[str]) -> int:
+    def estimate_page_count(self, page_range: Optional[str]) -> int:
         """Estimate the number of pages to be processed."""
         if not page_range:
             return 10  # Default estimate
@@ -255,7 +255,7 @@ class MinerUWrapper:
         except ValueError:
             return 10  # Default estimate
     
-    def _run_with_progress(self, cmd: list, timeout: int, async_mode: bool = False):
+    def run_with_progress(self, cmd: list, timeout: int, async_mode: bool = False):
         """Run MinerU command with conditional output display."""
         import subprocess
         import threading
@@ -324,7 +324,7 @@ class MinerUWrapper:
         
         return ProcessResult(process.returncode, stdout_text, stderr_text)
     
-    def _find_output_file(self, output_dir: str) -> Optional[str]:
+    def find_output_file(self, output_dir: str) -> Optional[str]:
         """Find the markdown output file in MinerU output directory."""
         output_path = Path(output_dir)
         
@@ -340,7 +340,7 @@ class MinerUWrapper:
         
         return None
     
-    def _find_middle_file(self, temp_dir: str) -> Optional[str]:
+    def find_middle_file(self, temp_dir: str) -> Optional[str]:
         """Find the middle.json file in MinerU output directory."""
         temp_path = Path(temp_dir)
         
@@ -350,7 +350,7 @@ class MinerUWrapper:
         
         return None
     
-    def _move_to_data_directory(self, source_file: str, pdf_path: str, call_api: bool = False, call_api_force: bool = False, page_range: Optional[str] = None) -> str:
+    def move_to_data_directory(self, source_file: str, pdf_path: str, call_api: bool = False, call_api_force: bool = False, page_range: Optional[str] = None) -> str:
         """Move output file to EXTRACT_PDF_DATA directory and create same-name file in PDF directory."""
         # Create data directory structure
         data_dir = Path(__file__).parent.parent / "EXTRACT_PDF_DATA"
@@ -369,11 +369,11 @@ class MinerUWrapper:
         shutil.copy2(source_file, target_file)
         
         # Copy images from MinerU temp directory to EXTRACT_PDF_DATA/images
-        self._copy_mineru_images_to_data_directory(data_dir)
+        self.copy_mineru_images_to_data_directory(data_dir)
         
         # Post-process with image API if requested
         if call_api:
-            self._post_process_with_image_api(str(target_file), call_api_force)
+            self.post_process_with_image_api(str(target_file), call_api_force)
         
         # Create same-name markdown file in PDF directory
         pdf_path_obj = Path(pdf_path)
@@ -393,21 +393,21 @@ class MinerUWrapper:
             content = f.read()
         
         # Update image paths to reference EXTRACT_PDF_DATA
-        updated_content = self._update_image_paths_for_paper_directory(content, str(data_dir))
+        updated_content = self.update_image_paths_for_paper_directory(content, str(data_dir))
         
         # Convert HTML tables to Markdown format
-        markdown_content = self._convert_html_tables_to_markdown(updated_content)
+        markdown_content = self.convert_html_tables_to_markdown(updated_content)
         
         # Write to same-name file in PDF directory
         with open(same_name_md_file, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
         
         # Create {pdf_stem}_data folder with MinerU intermediate files
-        self._create_intermediate_data_folder(pdf_directory, pdf_stem_with_pages)
+        self.create_intermediate_data_folder(pdf_directory, pdf_stem_with_pages)
         
         return str(target_file)
     
-    def _update_image_paths_for_paper_directory(self, content: str, data_dir: str) -> str:
+    def update_image_paths_for_paper_directory(self, content: str, data_dir: str) -> str:
         """Update image paths in markdown content to reference EXTRACT_PDF_DATA directory."""
         import re
         
@@ -439,7 +439,7 @@ class MinerUWrapper:
         
         return updated_content
     
-    def _convert_html_tables_to_markdown(self, content: str) -> str:
+    def convert_html_tables_to_markdown(self, content: str) -> str:
         """Convert HTML tables to Markdown format."""
         import re
         from html import unescape
@@ -490,7 +490,7 @@ class MinerUWrapper:
         
         return result
     
-    def _copy_mineru_images_to_data_directory(self, data_dir: Path):
+    def copy_mineru_images_to_data_directory(self, data_dir: Path):
         """Copy images from MinerU temp directory to EXTRACT_PDF_DATA/images."""
         if not hasattr(self, 'temp_dir') or not self.temp_dir:
             return
@@ -513,7 +513,7 @@ class MinerUWrapper:
                     if not target_image.exists() or source_image.stat().st_size != target_image.stat().st_size:
                         shutil.copy2(source_image, target_image)
     
-    def _create_intermediate_data_folder(self, pdf_directory: Path, pdf_stem: str):
+    def create_intermediate_data_folder(self, pdf_directory: Path, pdf_stem: str):
         """Create {pdf_stem}_data folder with MinerU intermediate files."""
         if not hasattr(self, 'temp_dir') or not self.temp_dir:
             return
@@ -594,7 +594,7 @@ class MinerUWrapper:
                     shutil.copytree(source_images_dir, target_images_dir)
                     break  # Only copy the first images folder found
     
-    def _retry_without_formulas(self, pdf_path: str, page_range: Optional[str], debug: bool) -> Optional[str]:
+    def retry_without_formulas(self, pdf_path: str, page_range: Optional[str], debug: bool) -> Optional[str]:
         """
         Retry MinerU processing without formula recognition to avoid tokenizer errors.
         
@@ -624,7 +624,7 @@ class MinerUWrapper:
             
             # Add page range if specified
             if page_range:
-                start_page, end_page = self._parse_page_range(page_range)
+                start_page, end_page = self.parse_page_range(page_range)
                 if start_page is not None:
                     cmd.extend(["-s", str(start_page)])
                 if end_page is not None:
@@ -649,11 +649,11 @@ class MinerUWrapper:
             
             if result.returncode == 0 and "Exception:" not in result.stdout:
                 # Success! Find output file
-                output_file = self._find_output_file(retry_temp_dir)
+                output_file = self.find_output_file(retry_temp_dir)
                 if output_file:
                     # Update temp_dir to retry directory for proper cleanup
                     self.temp_dir = retry_temp_dir
-                    return self._move_to_data_directory(output_file, pdf_path, False, False, page_range)
+                    return self.move_to_data_directory(output_file, pdf_path, False, False, page_range)
                 else:
                     print(f"MinerU retry: No output file found", file=sys.stderr)
                     return None
@@ -668,7 +668,7 @@ class MinerUWrapper:
             print(f"MinerU retry error: {e}", file=sys.stderr)
             return None
     
-    def _create_basic_output_after_tokenizer_error(self, pdf_path: str) -> Optional[str]:
+    def create_basic_output_after_tokenizer_error(self, pdf_path: str) -> Optional[str]:
         """Create a basic output file with tokenizer error information."""
         try:
             # Create data directory structure
@@ -735,7 +735,7 @@ Formula recognition is currently unavailable.
                 f.write(basic_content)
             
             # Try to create intermediate data folder even with error
-            self._create_intermediate_data_folder(pdf_directory, pdf_stem)
+            self.create_intermediate_data_folder(pdf_directory, pdf_stem)
             
             return str(target_file)
             
@@ -743,11 +743,11 @@ Formula recognition is currently unavailable.
             print(f"Failed to create basic output: {e}", file=sys.stderr)
             return None
     
-    def _post_process_with_image_api(self, markdown_file: str, force: bool = False):
+    def post_process_with_image_api(self, markdown_file: str, force: bool = False):
         """Post-process markdown file by adding image API descriptions."""
         try:
             # Find middle.json file for image information
-            middle_file = self._find_middle_file(self.temp_dir) if hasattr(self, 'temp_dir') else None
+            middle_file = self.find_middle_file(self.temp_dir) if hasattr(self, 'temp_dir') else None
             if not middle_file:
                 print(f" No middle file found for image API processing", file=sys.stderr)
                 return
@@ -807,12 +807,12 @@ Formula recognition is currently unavailable.
         except Exception as e:
             print(f"Warning:  Error in image API post-processing: {e}", file=sys.stderr)
     
-    def _add_async_placeholders(self, target_file: str, original_output_file: str, pdf_path: str = None):
+    def add_async_placeholders(self, target_file: str, original_output_file: str, pdf_path: str = None):
         """Add placeholders for async post-processing in markdown file and create JSON status file."""
         print(f"Adding async placeholders to {target_file}", file=sys.stderr)
         try:
             # Find the middle.json file for image/formula/table information
-            middle_file = self._find_middle_file(self.temp_dir)
+            middle_file = self.find_middle_file(self.temp_dir)
             if not middle_file:
                 print(f" No middle file found for async placeholder processing", file=sys.stderr)
                 return
@@ -832,7 +832,7 @@ Formula recognition is currently unavailable.
                     block_type = block.get('type')
                     if block_type in ['image', 'table', 'formula', 'interline_equation']:
                         # Extract image path from the block structure
-                        image_path = self._extract_image_path_from_block(block)
+                        image_path = self.extract_image_path_from_block(block)
                         if image_path:
                             blocks_to_process.append({
                                 'page': page_idx + 1,
@@ -853,7 +853,7 @@ Formula recognition is currently unavailable.
                 content = f.read()
             
             # Add placeholders before each image reference
-            updated_content = self._add_placeholders_to_content(content, image_path_to_type)
+            updated_content = self.add_placeholders_to_content(content, image_path_to_type)
             
             # Write updated content back (WITHOUT status summary)
             with open(target_file, 'w', encoding='utf-8') as f:
@@ -890,7 +890,7 @@ Formula recognition is currently unavailable.
                             same_name_content = f.read()
                         
                         # Add placeholders to same-name file content
-                        updated_same_name_content = self._add_placeholders_to_content(same_name_content, image_path_to_type)
+                        updated_same_name_content = self.add_placeholders_to_content(same_name_content, image_path_to_type)
                         
                         # Write updated content back to same-name file (WITHOUT status summary)
                         with open(same_name_md_file, 'w', encoding='utf-8') as f:
@@ -903,7 +903,7 @@ Formula recognition is currently unavailable.
             
             # Create JSON status file instead of adding to markdown
             if pdf_path:
-                status_file = self._create_postprocess_status_json(pdf_path, blocks_to_process, image_path_to_type)
+                status_file = self.create_postprocess_status_json(pdf_path, blocks_to_process, image_path_to_type)
                 if status_file:
                     image_count = sum(1 for b in blocks_to_process if b['type'] == 'image')
                     formula_count = sum(1 for b in blocks_to_process if b['type'] in ['formula', 'interline_equation'])
@@ -917,7 +917,7 @@ Formula recognition is currently unavailable.
         except Exception as e:
             print(f"Warning:  Error adding async placeholders: {e}", file=sys.stderr)
     
-    def _extract_image_path_from_block(self, block):
+    def extract_image_path_from_block(self, block):
         """Extract image path from a block structure."""
         try:
             # Try to find image_path in the block structure
@@ -947,7 +947,7 @@ Formula recognition is currently unavailable.
             print(f"Warning:  Error extracting image path: {e}", file=sys.stderr)
             return None
     
-    def _add_placeholders_to_content(self, content: str, image_path_to_type: dict):
+    def add_placeholders_to_content(self, content: str, image_path_to_type: dict):
         """Add type placeholders before image references in markdown content."""
         import re
         
@@ -983,7 +983,7 @@ Formula recognition is currently unavailable.
         
         return updated_content
     
-    def _run_mineru_with_options(self, pdf_path: str, formula_enable: bool = True, 
+    def run_mineru_with_options(self, pdf_path: str, formula_enable: bool = True, 
                                 table_enable: bool = True, debug: bool = False) -> Optional[str]:
         """
         运行MinerU处理，支持自定义公式和表格识别选项
@@ -1032,7 +1032,7 @@ Formula recognition is currently unavailable.
             
             if result.returncode == 0:
                 # 查找输出文件
-                output_file = self._find_output_file(temp_dir)
+                output_file = self.find_output_file(temp_dir)
                 if output_file:
                     return output_file
                     
@@ -1045,7 +1045,7 @@ Formula recognition is currently unavailable.
             print(f"MinerU post-processing error: {e}", file=sys.stderr)
             return None
     
-    def _fallback_to_original(self, pdf_path: str, layout_mode: str, mode: str, 
+    def fallback_to_original(self, pdf_path: str, layout_mode: str, mode: str, 
                              call_api: bool, call_api_force: bool, page_range: Optional[str], debug: bool) -> str:
         """Fallback to original pdf_extractor when MinerU fails."""
         print(f" MinerU failed, falling back to original PDF extractor", file=sys.stderr)
@@ -1057,7 +1057,7 @@ Formula recognition is currently unavailable.
             pdf_path, layout_mode, mode, call_api, call_api_force, page_range, debug
         )
 
-    def _create_postprocess_status_json(self, pdf_path: str, blocks_to_process: list, image_path_to_type: dict):
+    def create_postprocess_status_json(self, pdf_path: str, blocks_to_process: list, image_path_to_type: dict):
         """Create filename_postprocess.json status file."""
         try:
             pdf_path_obj = Path(pdf_path)
@@ -1105,7 +1105,7 @@ Formula recognition is currently unavailable.
                     "image_path": block['image_path'],
                     "bbox": block.get('bbox', []),
                     "processed": False,
-                    "processor": self._get_processor_for_type(block['type'])
+                    "processor": self.get_processor_for_type(block['type'])
                 }
                 status_data["items"].append(item)
             
@@ -1114,7 +1114,7 @@ Formula recognition is currently unavailable.
                 json.dump(status_data, f, ensure_ascii=False, indent=2)
             
             # Update global hash mapping
-            self._update_hash_mapping_from_items(status_data["items"])
+            self.update_hash_mapping_from_items(status_data["items"])
             
             print(f"Created post-processing status file: {status_file}")
             return str(status_file)
@@ -1123,7 +1123,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to create status file: {e}", file=sys.stderr)
             return None
     
-    def _get_processor_for_type(self, block_type: str) -> str:
+    def get_processor_for_type(self, block_type: str) -> str:
         """Get processor name for block type."""
         if block_type == 'image':
             return "Google API"
@@ -1134,7 +1134,7 @@ Formula recognition is currently unavailable.
         else:
             return "Unknown"
     
-    def _regenerate_status_from_markdown(self, pdf_path: str, markdown_file: str = None):
+    def regenerate_status_from_markdown(self, pdf_path: str, markdown_file: str = None):
         """Regenerate status file based on placeholders and image links in markdown, preserving processed items."""
         try:
             pdf_path_obj = Path(pdf_path)
@@ -1244,7 +1244,7 @@ Formula recognition is currently unavailable.
             
             if blocks_to_process:
                 # Create status file
-                status_file = self._create_postprocess_status_json(pdf_path, blocks_to_process, image_path_to_type)
+                status_file = self.create_postprocess_status_json(pdf_path, blocks_to_process, image_path_to_type)
                 
                 # Update processed items status in the new file
                 if status_file and existing_processed_items:
@@ -1260,7 +1260,7 @@ Formula recognition is currently unavailable.
                             item['processed_at'] = processed_item.get('processed_at', '')
                     
                     # Recalculate counts (only unprocessed)
-                    status_data['counts'] = self._recalculate_counts(status_data.get('items', []))
+                    status_data['counts'] = self.recalculate_counts(status_data.get('items', []))
                     
                     # Save updated file
                     with open(status_file, 'w', encoding='utf-8') as f:
@@ -1276,7 +1276,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to regenerate status file: {e}", file=sys.stderr)
             return None
     
-    def _check_or_create_status_file(self, pdf_path: str):
+    def check_or_create_status_file(self, pdf_path: str):
         """Check if status file exists, if not, try to regenerate from markdown."""
         pdf_path_obj = Path(pdf_path)
         pdf_directory = pdf_path_obj.parent
@@ -1286,11 +1286,11 @@ Formula recognition is currently unavailable.
         
         if not status_file.exists():
             print(f"Status file does not exist, trying to regenerate from Markdown...")
-            return self._regenerate_status_from_markdown(pdf_path)
+            return self.regenerate_status_from_markdown(pdf_path)
         else:
             return str(status_file)
 
-    def _add_hash_ids_to_status(self, status_file: str):
+    def add_hash_ids_to_status(self, status_file: str):
         """Add unique hash IDs to each item in the status file for selective processing."""
         try:
             with open(status_file, 'r', encoding='utf-8') as f:
@@ -1319,7 +1319,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to add hash ID: {e}", file=sys.stderr)
             return False
     
-    def _get_items_by_hash_ids(self, status_file: str, hash_ids: list) -> list:
+    def get_items_by_hash_ids(self, status_file: str, hash_ids: list) -> list:
         """Get specific items from status file by their hash IDs."""
         try:
             with open(status_file, 'r', encoding='utf-8') as f:
@@ -1361,7 +1361,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to get items by hash IDs: {e}", file=sys.stderr)
             return []
     
-    def _update_item_processing_status(self, status_file: str, hash_id: str, processed: bool = True):
+    def update_item_processing_status(self, status_file: str, hash_id: str, processed: bool = True):
         """Update processing status for a specific item by hash ID."""
         try:
             with open(status_file, 'r', encoding='utf-8') as f:
@@ -1381,7 +1381,7 @@ Formula recognition is currently unavailable.
             
             if updated:
                 # Recalculate counts
-                status_data['counts'] = self._recalculate_counts(items)
+                status_data['counts'] = self.recalculate_counts(items)
                 
                 # Save updated status file
                 with open(status_file, 'w', encoding='utf-8') as f:
@@ -1397,7 +1397,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to update status: {e}", file=sys.stderr)
             return False
     
-    def _recalculate_counts(self, items: list) -> dict:
+    def recalculate_counts(self, items: list) -> dict:
         """Recalculate counts based on current items."""
         counts = {"images": 0, "formulas": 0, "tables": 0}
         
@@ -1413,7 +1413,7 @@ Formula recognition is currently unavailable.
         
         return counts
     
-    def _remove_placeholders_by_hash_ids(self, markdown_file: str, hash_ids: list):
+    def remove_placeholders_by_hash_ids(self, markdown_file: str, hash_ids: list):
         """Remove placeholders from markdown file for specified hash IDs."""
         try:
             with open(markdown_file, 'r', encoding='utf-8') as f:
@@ -1475,10 +1475,10 @@ Formula recognition is currently unavailable.
                 return False
             
             # Add hash IDs if not present
-            self._add_hash_ids_to_status(str(status_file))
+            self.add_hash_ids_to_status(str(status_file))
             
             # Get selected items
-            selected_items = self._get_items_by_hash_ids(str(status_file), hash_ids)
+            selected_items = self.get_items_by_hash_ids(str(status_file), hash_ids)
             if not selected_items:
                 print(f"Error: No items found with specified hash IDs")
                 return False
@@ -1493,7 +1493,7 @@ Formula recognition is currently unavailable.
             
             # Clean up existing template placeholders first
             print(f"Cleaning up existing template placeholders...")
-            self._clean_existing_templates(str(markdown_file))
+            self.clean_existing_templates(str(markdown_file))
             
             # Process each selected item with real content processing
             processed_ids = []
@@ -1514,7 +1514,7 @@ Formula recognition is currently unavailable.
                 print(f"Processing {item_type}: {item_id}")
                 
                 # Find the actual image file
-                image_file_path = self._find_image_file(pdf_directory, image_path)
+                image_file_path = self.find_image_file(pdf_directory, image_path)
                 if not image_file_path:
                     print(f"Warning:  Image file not found: {image_path}")
                     continue
@@ -1522,19 +1522,19 @@ Formula recognition is currently unavailable.
                 # Perform real processing based on type
                 processed_content = None
                 if item_type == 'image':
-                    processed_content = self._process_image_content(image_file_path, custom_prompt)
+                    processed_content = self.process_image_content(image_file_path, custom_prompt)
                 elif item_type in ['formula', 'interline_equation']:
-                    processed_content = self._process_formula_content(image_file_path)
+                    processed_content = self.process_formula_content(image_file_path)
                 elif item_type == 'table':
-                    processed_content = self._process_table_content(image_file_path)
+                    processed_content = self.process_table_content(image_file_path)
                 
                 if processed_content:
                     # Validate that processed content is not just a template
-                    if self._is_valid_processed_content(processed_content, item_type):
+                    if self.is_valid_processed_content(processed_content, item_type):
                         # Replace placeholder with processed content in markdown
-                        if self._replace_placeholder_with_content(str(markdown_file), item_id, processed_content):
+                        if self.replace_placeholder_with_content(str(markdown_file), item_id, processed_content):
                             # Update status
-                            if self._update_item_processing_status(str(status_file), item_id, True):
+                            if self.update_item_processing_status(str(status_file), item_id, True):
                                 processed_ids.append(item_id)
                                 print(f"Successfully processed and replaced content: {item_id}")
                             else:
@@ -1554,7 +1554,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Batch processing failed: {e}", file=sys.stderr)
             return False
     
-    def _find_image_file(self, pdf_directory: Path, image_filename: str) -> Optional[str]:
+    def find_image_file(self, pdf_directory: Path, image_filename: str) -> Optional[str]:
         """Find the actual image file in the PDF directory structure."""
         # Look for image in common locations
         possible_locations = [
@@ -1582,7 +1582,7 @@ Formula recognition is currently unavailable.
         
         return None
     
-    def _process_image_content(self, image_file_path: str, custom_prompt: str = None) -> Optional[str]:
+    def process_image_content(self, image_file_path: str, custom_prompt: str = None) -> Optional[str]:
         """Process image content using IMG2TEXT tool."""
         try:
             import time
@@ -1613,7 +1613,7 @@ Formula recognition is currently unavailable.
                     stderr_output = result.stderr.strip()
                     if stderr_output:
                         # Parse error details for better formatting
-                        error_details = self._parse_img2text_errors(stderr_output, description)
+                        error_details = self.parse_img2text_errors(stderr_output, description)
                         formatted_error = f"**[API call failed]** All configured API keys failed to get a response.\n\nDetailed error information:\n```\n{error_details}\n```"
                     else:
                         formatted_error = description.replace("*[", "**[").replace("]*", "]**")
@@ -1630,7 +1630,7 @@ Formula recognition is currently unavailable.
                 print(f"   Error: IMG2TEXT call failed, return code: {result.returncode}")
                 stderr_output = result.stderr.strip()
                 if stderr_output:
-                    error_details = self._parse_img2text_errors(stderr_output, "")
+                    error_details = self.parse_img2text_errors(stderr_output, "")
                     formatted_error = f"**[IMG2TEXT tool call failed]**\n\nDetailed error information:\n```\n{error_details}\n```"
                 else:
                     formatted_error = f"**[IMG2TEXT tool call failed]** Return code: {result.returncode}"
@@ -1646,7 +1646,7 @@ Formula recognition is currently unavailable.
             fallback_description = f"**[IMG2TEXT tool error]** {str(e)}\n\nImage file: `{Path(image_file_path).name}`"
             return f"\n\n**Image analysis result:**\n{fallback_description}\n"
     
-    def _parse_img2text_errors(self, stderr_output: str, stdout_output: str) -> str:
+    def parse_img2text_errors(self, stderr_output: str, stdout_output: str) -> str:
         """Parse IMG2TEXT error output to extract detailed error information."""
         try:
             error_details = []
@@ -1687,7 +1687,7 @@ Formula recognition is currently unavailable.
             print(f"   Failed to parse error information: {e}")
             return stderr_output.replace('\n', ' ').strip() if stderr_output else "Unknown error"
     
-    def _process_formula_content(self, image_file_path: str) -> Optional[str]:
+    def process_formula_content(self, image_file_path: str) -> Optional[str]:
         """Process formula content using MinerU's embedded UnimerNet."""
         try:
             print(f"   Calling UnimerNet to process formulas...")
@@ -1728,7 +1728,7 @@ Formula recognition is currently unavailable.
             print(f"   Error: Formula processing failed: {e}")
             return f"\n\n**公式识别结果:**\n$$ \\text{{[公式识别失败]}} \\quad \\text{{来自 {Path(image_file_path).name}}} $$\n"
     
-    def _process_table_content(self, image_file_path: str) -> Optional[str]:
+    def process_table_content(self, image_file_path: str) -> Optional[str]:
         """Process table content using MinerU's embedded UnimerNet."""
         try:
             print(f"   Calling UnimerNet to process tables...")
@@ -1758,7 +1758,7 @@ Formula recognition is currently unavailable.
             print(f"   Error: Table processing failed: {e}")
             return f"\n\n**Table recognition result:**\n| Table recognition | Failed | From {Path(image_file_path).name} |\n| Processing status | Failed | Processing exception |\n"
     
-    def _is_valid_processed_content(self, content: str, item_type: str) -> bool:
+    def is_valid_processed_content(self, content: str, item_type: str) -> bool:
         """Validate that processed content is not just a template or placeholder."""
         if not content or not content.strip():
             return False
@@ -1790,7 +1790,7 @@ Formula recognition is currently unavailable.
         
         return True
 
-    def _clean_existing_templates(self, markdown_file: str) -> bool:
+    def clean_existing_templates(self, markdown_file: str) -> bool:
         """Clean up existing template placeholders in markdown file."""
         try:
             with open(markdown_file, 'r', encoding='utf-8') as f:
@@ -1827,7 +1827,7 @@ Formula recognition is currently unavailable.
             print(f"   Error: Failed to clean up template placeholders: {e}")
             return False
 
-    def _replace_placeholder_with_content(self, markdown_file: str, hash_id: str, content: str, preserve_hash: bool = True) -> bool:
+    def replace_placeholder_with_content(self, markdown_file: str, hash_id: str, content: str, preserve_hash: bool = True) -> bool:
         """Replace placeholder with processed content in markdown file."""
         try:
             with open(markdown_file, 'r', encoding='utf-8') as f:
@@ -1889,7 +1889,7 @@ Formula recognition is currently unavailable.
             print(f"   Error: Failed to replace content: {e}", file=sys.stderr)
             return False
 
-    def _load_hash_mapping(self) -> dict:
+    def load_hash_mapping(self) -> dict:
         """Load global hash to type mapping."""
         try:
             mapping_file = Path(__file__).parent / "hash_type_mapping.json"
@@ -1902,7 +1902,7 @@ Formula recognition is currently unavailable.
             print(f"Warning:  Failed to load hash mapping: {e}", file=sys.stderr)
             return {}
     
-    def _save_hash_mapping(self, mappings: dict):
+    def save_hash_mapping(self, mappings: dict):
         """Save global hash to type mapping."""
         try:
             mapping_file = Path(__file__).parent / "hash_type_mapping.json"
@@ -1938,7 +1938,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to save hash mapping: {e}", file=sys.stderr)
             return False
     
-    def _update_hash_mapping_from_items(self, items: list):
+    def update_hash_mapping_from_items(self, items: list):
         """Update global hash mapping from processed items."""
         try:
             new_mappings = {}
@@ -1949,12 +1949,12 @@ Formula recognition is currently unavailable.
                     new_mappings[hash_id] = item_type
             
             if new_mappings:
-                self._save_hash_mapping(new_mappings)
+                self.save_hash_mapping(new_mappings)
                 
         except Exception as e:
             print(f"Warning:  Failed to update hash mapping: {e}", file=sys.stderr)
 
-    def _update_image_cache_with_types(self, pdf_path: str):
+    def update_image_cache_with_types(self, pdf_path: str):
         """Update EXTRACT_IMG_DATA/image_cache.json with type information from postprocess JSON."""
         try:
             pdf_path_obj = Path(pdf_path)
@@ -2024,7 +2024,7 @@ Formula recognition is currently unavailable.
             print(f"Error: Failed to update image cache types: {e}", file=sys.stderr)
             return False
     
-    def _sync_postprocess_with_cache(self, pdf_path: str):
+    def sync_postprocess_with_cache(self, pdf_path: str):
         """Synchronize postprocess JSON with image cache and ensure alignment with markdown."""
         try:
             pdf_path_obj = Path(pdf_path)
@@ -2032,7 +2032,7 @@ Formula recognition is currently unavailable.
             pdf_stem = pdf_path_obj.stem
             
             # First, update cache with type information from postprocess JSON
-            self._update_image_cache_with_types(pdf_path)
+            self.update_image_cache_with_types(pdf_path)
             
             # Then check if markdown and JSON are aligned
             markdown_file = pdf_directory / f"{pdf_stem}.md"

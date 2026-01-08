@@ -254,7 +254,7 @@ def check_and_show_post_processing_status(result_path: str):
                 from mineru_wrapper import mineru_wrapper
                 
                 if pdf_file and pdf_file.exists():
-                    regenerated_status = mineru_wrapper._regenerate_status_from_markdown(str(pdf_file), str(result_path_obj))
+                    regenerated_status = mineru_wrapper.regenerate_status_from_markdown(str(pdf_file), str(result_path_obj))
                     if regenerated_status:
                         status_file = Path(regenerated_status)
                     else:
