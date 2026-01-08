@@ -47,17 +47,17 @@ class APIRateLimiter:
         }
         
         # 确保数据文件夹存在
-        self._ensure_data_folder()
+        self.ensure_data_folder()
         
         # 加载历史统计数据
-        self._load_stats()
+        self.load_stats()
     
-    def _ensure_data_folder(self):
+    def ensure_data_folder(self):
         """确保数据文件夹存在"""
         if not os.path.exists(self.data_folder):
             os.makedirs(self.data_folder)
     
-    def _load_stats(self):
+    def load_stats(self):
         """加载历史统计数据"""
         stats_file = os.path.join(self.data_folder, "api_rate_stats.json")
         try:
@@ -68,7 +68,7 @@ class APIRateLimiter:
         except Exception:
             pass  # 忽略加载错误，使用默认值
     
-    def _save_stats(self):
+    def save_stats(self):
         """保存统计数据"""
         stats_file = os.path.join(self.data_folder, "api_rate_stats.json")
         try:
@@ -79,7 +79,7 @@ class APIRateLimiter:
         except Exception:
             pass  # 忽略保存错误
     
-    def _cleanup_old_calls(self):
+    def cleanup_old_calls(self):
         """清理1秒前的旧调用记录"""
         current_time = time.time()
         cutoff_time = current_time - 1.0
@@ -87,9 +87,9 @@ class APIRateLimiter:
         while self.call_history and self.call_history[0] < cutoff_time:
             self.call_history.popleft()
     
-    def _calculate_delay(self) -> float:
+    def calculate_delay(self) -> float:
         """计算需要等待的时间"""
-        self._cleanup_old_calls()
+        self.cleanup_old_calls()
         
         if len(self.call_history) < self.max_calls_per_second:
             return 0.0  # 不需要等待
@@ -107,7 +107,7 @@ class APIRateLimiter:
             实际等待的时间（秒）
         """
         with self.lock:
-            delay = self._calculate_delay()
+            delay = self.calculate_delay()
             
             if delay > 0:
                 self.stats["delayed_calls"] += 1
@@ -142,7 +142,7 @@ class APIRateLimiter:
     def save_and_reset_stats(self):
         """保存并重置统计数据"""
         with self.lock:
-            self._save_stats()
+            self.save_stats()
             self.stats = {
                 "total_calls": 0,
                 "queued_calls": 0,
