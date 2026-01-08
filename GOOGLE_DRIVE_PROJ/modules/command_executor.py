@@ -562,12 +562,12 @@ class CommandExecutor:
             
             # Check condition 1: Every X remote windows (trigger on Xth window, not X+1th)
             if counter_info['count'] >= (window_threshold - 1):
-                self._reset_execution_counter()
+                self.reset_execution_counter()
                 return True
             
             # Check condition 2: Commands taking >T seconds
             if estimated_duration_seconds and estimated_duration_seconds > duration_threshold:
-                self._reset_execution_counter()
+                self.reset_execution_counter()
                 return True
             
             # Increment counter for next time
@@ -612,7 +612,7 @@ class CommandExecutor:
         except Exception as e:
             print(f"Warning: Failed to increment execution counter: {e}")
     
-    def _reset_execution_counter(self):
+    def reset_execution_counter(self):
         """Reset the execution counter to 0"""
         try:
             import time
