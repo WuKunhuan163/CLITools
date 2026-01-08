@@ -1,0 +1,18 @@
+#!/bin/bash
+# RUN 命令脚本
+# 运行工具 - 现在调用Python版本
+
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 调用Python版本的RUN脚本
+# 使用项目内独立的Python环境
+PYTHON_EXEC="$SCRIPT_DIR/PYTHON_PROJ/python3.10.19/install/bin/python3"
+
+# 检查独立的Python可执行文件是否存在，如果不存在则回退到系统Python
+if [ -f "$PYTHON_EXEC" ]; then
+    exec "$PYTHON_EXEC" "$SCRIPT_DIR/RUN.py" "$@"
+else
+    # 回退到原来的逻辑
+    exec /usr/bin/python3 "$SCRIPT_DIR/RUN.py" "$@"
+fi 
