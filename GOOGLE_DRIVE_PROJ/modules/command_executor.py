@@ -436,23 +436,23 @@ class CommandExecutor:
         
         return cleaned_stdout
 
-    def _ensure_tmp_id_cached(self):
+    def ensure_tmp_id_cached(self):
         """确保~/tmp的ID已被解析和缓存"""
         try:
             # 检查是否已有~/tmp的缓存ID
             tmp_logical_path = "~/tmp"
-            cached_id = self._get_cached_path_id(tmp_logical_path)
+            cached_id = self.get_cached_path_id(tmp_logical_path)
             
             if cached_id:
                 # 已有缓存，无需重新解析
                 return cached_id
             
             # 没有缓存，需要解析~/tmp的ID
-            resolved_id = self._resolve_tmp_folder_id()
+            resolved_id = self.resolve_tmp_folder_id()
             
             if resolved_id:
                 # 将解析的ID添加到缓存
-                self._cache_path_id(tmp_logical_path, resolved_id)
+                self.cache_path_id(tmp_logical_path, resolved_id)
                 return resolved_id
             else:
                 # 解析失败，但不影响命令执行
@@ -463,7 +463,7 @@ class CommandExecutor:
             print(f"Warning: Failed to resolve ~/tmp ID: {e}")
             return None
     
-    def _get_cached_path_id(self, logical_path):
+    def get_cached_path_id(self, logical_path):
         """从缓存中获取路径ID"""
         try:
             from .path_constants import PathConstants
@@ -480,7 +480,7 @@ class CommandExecutor:
         except Exception:
             return None
     
-    def _cache_path_id(self, logical_path, folder_id):
+    def cache_path_id(self, logical_path, folder_id):
         """将路径ID添加到缓存"""
         try:
             import json
@@ -510,7 +510,7 @@ class CommandExecutor:
         except Exception as e:
             print(f"Warning: Failed to cache path ID: {e}")
     
-    def _resolve_tmp_folder_id(self):
+    def resolve_tmp_folder_id(self):
         """解析~/tmp文件夹的Google Drive ID"""
         try:
             if not self.main_instance.drive_service:
@@ -542,7 +542,7 @@ class CommandExecutor:
             print(f"Warning: Failed to resolve tmp folder ID: {e}")
             return None
     
-    def _should_add_connection_check(self, estimated_duration_seconds=None):
+    def should_add_connection_check(self, estimated_duration_seconds=None):
         """
         Determine if Connection Check should be added to the current command
         
@@ -554,31 +554,31 @@ class CommandExecutor:
         """
         try:
             # Load or initialize counter
-            counter_info = self._get_execution_counter()
+            counter_info = self.get_execution_counter()
             
             # Get frequency settings (configurable for testing vs production)
-            window_threshold = self._get_template_t_window_threshold()
-            duration_threshold = self._get_template_t_duration_threshold()
+            window_threshold = self.get_template_window_threshold()
+            duration_threshold = self._get_template_duration_threshold()
             
             # Check condition 1: Every X remote windows (trigger on Xth window, not X+1th)
             if counter_info['count'] >= (window_threshold - 1):
-                self._reset_execution_counter()
+                self.reset_execution_counter()
                 return True
             
             # Check condition 2: Commands taking >T seconds
             if estimated_duration_seconds and estimated_duration_seconds > duration_threshold:
-                self._reset_execution_counter()
+                self.reset_execution_counter()
                 return True
             
             # Increment counter for next time
-            self._increment_execution_counter()
+            self.increment_execution_counter()
             return False
             
         except Exception as e:
             print(f"Warning: Failed to check Connection Check condition: {e}")
             return False
     
-    def _get_execution_counter(self):
+    def get_execution_counter(self):
         """Get current execution counter from persistent storage"""
         try:
             from .path_constants import PathConstants
@@ -593,7 +593,7 @@ class CommandExecutor:
         except Exception:
             return {"count": 0, "last_reset": None}
     
-    def _increment_execution_counter(self):
+    def increment_execution_counter(self):
         """Increment the execution counter"""
         try:
             import time
@@ -602,7 +602,7 @@ class CommandExecutor:
             path_constants = PathConstants()
             counter_file = path_constants.GOOGLE_DRIVE_DATA_DIR / "connection_check_counter.json"
             
-            counter_info = self._get_execution_counter()
+            counter_info = self.get_execution_counter()
             counter_info['count'] += 1
             counter_info['last_updated'] = time.time()
             
@@ -612,7 +612,7 @@ class CommandExecutor:
         except Exception as e:
             print(f"Warning: Failed to increment execution counter: {e}")
     
-    def _reset_execution_counter(self):
+    def reset_execution_counter(self):
         """Reset the execution counter to 0"""
         try:
             import time
@@ -629,7 +629,7 @@ class CommandExecutor:
         except Exception as e:
             print(f"Warning: Failed to reset execution counter: {e}")
     
-    def _get_template_t_window_threshold(self):
+    def get_template_window_threshold(self):
         """Get window threshold for Connection Check (configurable for testing vs production)"""
         from .path_constants import PathConstants
         path_constants = PathConstants()
@@ -641,7 +641,7 @@ class CommandExecutor:
         else:
             return 50  # Default for testing (user can change to 50 for production)
     
-    def _get_template_t_duration_threshold(self):
+    def _get_template_duration_threshold(self):
         """Get duration threshold for Connection Check (configurable for testing vs production)"""
         from .path_constants import PathConstants
         path_constants = PathConstants()
@@ -871,7 +871,7 @@ class CommandExecutor:
         """
         try:
             # Get cached tmp ID
-            tmp_id = self._get_cached_path_id("~/tmp")
+            tmp_id = self.get_cached_path_id("~/tmp")
             if not tmp_id:
                 return remote_command
             
@@ -915,14 +915,14 @@ class CommandExecutor:
         """
         try:
             # 确保~/tmp的ID已被解析和缓存
-            self._ensure_tmp_id_cached()
+            self.ensure_tmp_id_cached()
             
             # 检查是否需要添加Connection Check
-            if self._should_add_connection_check():
+            if self.should_add_connection_check():
                 remote_command = self.add_connection_check_to_command(remote_command, result_filename, cmd_hash)
             
             # 显示远程窗口
-            window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash)
+            window_result = self.show_remote_command_window(cmd=remote_command, cmd_hash=cmd_hash, user_command=raw_command)
             
             # 处理窗口结果
             if window_result["action"] == "success":
@@ -1120,7 +1120,7 @@ class CommandExecutor:
         return command.execute(name, args, **kwargs)
 
 
-    def show_remote_command_window(self, cmd, timeout_seconds=3600, test_mode=False, is_priority=False, cmd_hash=None):
+    def show_remote_command_window(self, cmd, timeout_seconds=3600, test_mode=False, is_priority=False, cmd_hash=None, user_command=None):
         # 调试窗口弹出次数
         if hasattr(self, '_no_direct_feedback') and self._no_direct_feedback:
             test_mode = True
@@ -1170,7 +1170,7 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         window_manager = get_window_manager()
         
         # 使用传入的cmd_hash
-        result = window_manager.request_window(enhanced_cmd, cmd_hash, timeout_seconds, no_direct_feedback=test_mode, is_priority=is_priority)
+        result = window_manager.request_window(enhanced_cmd, cmd_hash, timeout_seconds, no_direct_feedback=test_mode, is_priority=is_priority, user_command=user_command)
         return result
                 
     def direct_feedback(self, remote_command, debug_info=None):
@@ -1478,18 +1478,21 @@ if [ $MOUNT_CHECK_FAILED -eq 0 ]; then
         try:
             import sys
             import os
+            import pathlib
             
             print(f"[DEBUG] Starting USERINPUT integration...")
             
-            # 添加USERINPUT.py所在目录到Python路径
-            userinput_dir = '/Users/wukunhuan/.local/bin'
+            # 动态获取项目根目录
+            project_root = pathlib.Path(__file__).parent.parent.parent.absolute()
+            userinput_dir = str(project_root)
             if userinput_dir not in sys.path:
                 sys.path.insert(0, userinput_dir)
             
             print(f"[DEBUG] Importing USERINPUT module...")
             # 导入USERINPUT模块
             import importlib.util
-            spec = importlib.util.spec_from_file_location("userinput_module", "/Users/wukunhuan/.local/bin/USERINPUT.py")
+            userinput_py = project_root / "USERINPUT.py"
+            spec = importlib.util.spec_from_file_location("userinput_module", str(userinput_py))
             userinput_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(userinput_module)
             

@@ -54,7 +54,7 @@ def classify_text_block(text: str) -> str:
 class ArxivLayoutProcessor:
     """A dedicated processor for the typical single-column arXiv layout."""
 
-    def _merge_text_blocks(self, classified_texts: list) -> list:
+    def merge_text_blocks(self, classified_texts: list) -> list:
         """
         Separates Main Text, merges it into a single logical block, 
         then recombines with other blocks for final output.
@@ -117,15 +117,15 @@ class ArxivLayoutProcessor:
         return final_blocks
 
     def process_page(self, page: fitz.Page, image_temp_dir: Path, debug: bool) -> list:
-        main_content_bbox = self._get_main_content_area(page)
+        main_content_bbox = self.get_main_content_area(page)
         images = [b for b in page.get_image_info(xrefs=True) if fitz.Rect(b["bbox"]).intersects(main_content_bbox)]
         texts = [b for b in page.get_text("blocks") if fitz.Rect(b[:4]).intersects(main_content_bbox)]
         
-        figure_groups = self._group_figures(images)
-        remaining_texts = self._associate_texts_to_figures(figure_groups, texts)
+        figure_groups = self.group_figures(images)
+        remaining_texts = self.associate_texts_to_figures(figure_groups, texts)
         
         for group in figure_groups:
-            path, bytes_data = self._generate_figure_screenshot(group, page, image_temp_dir)
+            path, bytes_data = self.generate_figure_screenshot(group, page, image_temp_dir)
             if path and bytes_data:
                 group["screenshot_path"], group["bytes_data"] = path, bytes_data
         
@@ -138,7 +138,7 @@ class ArxivLayoutProcessor:
             classified_texts.append({"type": block_type, "content": content, "bbox": fitz.Rect(text_block[:4])})
         
         # Call the new, robust merging function
-        merged_texts = self._merge_text_blocks(classified_texts)
+        merged_texts = self.merge_text_blocks(classified_texts)
         
         # STAGE 4: FINAL FORMATTING & RECOMPOSITION
         for block in merged_texts:
@@ -148,8 +148,8 @@ class ArxivLayoutProcessor:
         all_semantic_blocks = merged_texts + figure_groups
         return sorted(all_semantic_blocks, key=lambda b: b.get("bbox").y0)
     
-    # ... All other helper methods (_get_main_content_area, _group_figures, etc.) remain unchanged ...
-    def _get_main_content_area(self, page: fitz.Page) -> fitz.Rect:
+    # ... All other helper methods (get_main_content_area, group_figures, etc.) remain unchanged ...
+    def get_main_content_area(self, page: fitz.Page) -> fitz.Rect:
         rect = page.rect
         if page.number == 0:
             left_margin_end = 0
@@ -161,7 +161,7 @@ class ArxivLayoutProcessor:
                 return fitz.Rect(left_margin_end + 10, rect.y0, rect.x1, rect.y1)
         return rect
 
-    def _group_figures(self, images: list) -> list:
+    def group_figures(self, images: list) -> list:
         if not images: return []
         images.sort(key=lambda img: (fitz.Rect(img["bbox"]).y0, fitz.Rect(img["bbox"]).x0))
         visited, groups = [False] * len(images), []
@@ -183,7 +183,7 @@ class ArxivLayoutProcessor:
             groups.append(current_group)
         return groups
 
-    def _associate_texts_to_figures(self, figure_groups: list, texts: list) -> list:
+    def associate_texts_to_figures(self, figure_groups: list, texts: list) -> list:
         unassociated_texts = []
         for text_block in texts:
             text_bbox = fitz.Rect(text_block[:4])
@@ -199,7 +199,7 @@ class ArxivLayoutProcessor:
                 unassociated_texts.append(text_block)
         return unassociated_texts
 
-    def _generate_figure_screenshot(self, figure_group: dict, page: fitz.Page, image_temp_dir: Path) -> tuple[Path, bytes]:
+    def generate_figure_screenshot(self, figure_group: dict, page: fitz.Page, image_temp_dir: Path) -> tuple[Path, bytes]:
         tight_bbox = fitz.Rect()
         for img in figure_group["images"]: tight_bbox.include_rect(img["bbox"])
         for text_block in figure_group.get("associated_texts", []): tight_bbox.include_rect(text_block[:4])

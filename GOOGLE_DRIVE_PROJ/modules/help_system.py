@@ -20,6 +20,7 @@ def get_unified_help_data():
         },
         "main_options": {
             "-my": "Open My Drive (https://drive.google.com/drive/u/0/my-drive)",
+            "--setup": "Start the guided setup process for GDS with GUI wizard",
             "--console-setup": "Start Google Drive API setup wizard with GUI assistance",
             "--shell [--no-capture] [--no-direct-feedback] [--raw-command] [COMMAND]": "Enter interactive shell mode or execute shell command (alias: GDS)",
             "--no-capture": "Execute command without capturing result (open-style execution, output displayed in real-time)",

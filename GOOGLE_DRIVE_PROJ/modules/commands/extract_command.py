@@ -1032,9 +1032,10 @@ UPDATE_EOF
             
             # 使用GOOGLE_DRIVE执行命令
             try:
-                # GOOGLE_DRIVE位于/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py
-                import sys
-                google_drive_path = "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE.py"
+                # 获取项目根目录
+                import pathlib
+                project_root = pathlib.Path(__file__).parent.parent.parent.parent.absolute()
+                google_drive_path = str(project_root / "GOOGLE_DRIVE.py")
                 process = subprocess.Popen(
                     [sys.executable, google_drive_path, "--shell", "--raw-command", cmd],
                     stdout=subprocess.PIPE,

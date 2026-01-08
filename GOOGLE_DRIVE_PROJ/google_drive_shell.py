@@ -2161,7 +2161,9 @@ fi
                 from .modules.path_constants import get_data_dir
                 config_file = str(get_data_dir() / "config.json")
             except ImportError:
-                config_file = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA/config.json")
+                # 即使ImportError也应该保持缩进
+                from .modules.path_constants import get_data_dir
+                config_file = get_data_dir() / "config.json"
             
             # 读取现有配置
             if os.path.exists(config_file):
@@ -2199,7 +2201,8 @@ fi
                 config_dir = str(get_data_dir())
                 config_file = str(get_data_dir() / "config.json")
             except ImportError:
-                config_dir = os.path.expanduser("~/.local/bin/GOOGLE_DRIVE_DATA")
+                from .modules.path_constants import get_data_dir
+                config_dir = get_data_dir()
                 config_file = os.path.join(config_dir, "config.json")
             
             if os.path.exists(config_file):
@@ -2274,6 +2277,10 @@ fi
         # 处理各种命令行参数
         if args[0] in ['--help', '-h']:
             show_unified_help()
+            return 0
+        elif args[0] == '--setup':
+            from .modules.setup_manager import run_setup_wizard
+            run_setup_wizard()
             return 0
         elif args[0] == '--console-setup':
             # TODO: 实现console_setup_interactive
