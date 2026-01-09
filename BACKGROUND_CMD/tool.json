@@ -1,1 +1,6 @@
-{"name": "BACKGROUND_CMD"}
+{
+  "name": "BACKGROUND_CMD",
+  "description": "Safe background process management tool",
+  "purpose": "Run tasks without blocking the agent's execution.",
+  "dependencies": []
+}
