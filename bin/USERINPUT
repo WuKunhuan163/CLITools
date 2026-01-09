@@ -37,7 +37,7 @@ def get_python_exec(version="python3.10.19"):
     """Find the standalone python executable from the PYTHON tool."""
     current_dir = Path(__file__).parent.absolute()
     project_root = current_dir.parent
-    python_exec = project_root / "PYTHON" / "proj" / "installations" / version / "install" / "bin" / "python3"
+    python_exec = project_root / "PYTHON" / "proj" / version / "install" / "bin" / "python3"
     
     if python_exec.exists():
         return str(python_exec)
