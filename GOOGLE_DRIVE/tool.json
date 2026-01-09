@@ -1,0 +1,7 @@
+{
+  "name": "GOOGLE_DRIVE",
+  "description": "Google Drive access tool with GDS (Google Drive Shell)",
+  "purpose": "Remote file management and command execution on Google Drive",
+  "run_compatible": true,
+  "testable": true
+}
