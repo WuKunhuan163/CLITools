@@ -15,19 +15,29 @@ import subprocess
 import platform
 import time
 import random
+import json
 from pathlib import Path
 
 # Silence Tkinter deprecation warnings
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
 warnings.filterwarnings('ignore')
 
-# Dynamic import of tkinter
+# Localization setup
+current_dir = Path(__file__).parent.absolute()
+project_root = current_dir.parent.parent # Root is two levels up since we are in tool/USERINPUT
+python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
+if python_proj_dir.exists():
+    sys.path.append(str(python_proj_dir.parent))
+
 try:
-    import tkinter as tk
-    from tkinter import font as tkFont
+    from proj.language_utils import get_translation
 except ImportError:
-    print("Error: Tkinter module not found.", file=sys.stderr)
-    sys.exit(1)
+    def get_translation(d, k, default): return default
+
+TOOL_PROJ_DIR = current_dir / "proj"
+
+def _(key, default):
+    return get_translation(str(TOOL_PROJ_DIR), key, default)
 
 class UserInputRetryableError(Exception):
     """Exception raised for errors that should trigger a retry (e.g., user cancellation)."""
@@ -35,15 +45,13 @@ class UserInputRetryableError(Exception):
 
 def get_python_exec(version="python3.10.19"):
     """Find the standalone python executable from the PYTHON tool."""
-    current_dir = Path(__file__).parent.absolute()
-    project_root = current_dir.parent
-    python_exec = project_root / "PYTHON" / "proj" / "installations" / version / "install" / "bin" / "python3"
+    python_exec = project_root / "tool" / "PYTHON" / "proj" / "installations" / version / "install" / "bin" / "python3"
     
     if python_exec.exists():
         return str(python_exec)
     
     # Try importing from PYTHON tool utilities if available
-    python_utils = project_root / "PYTHON" / "proj" / "utils.py"
+    python_utils = project_root / "tool" / "PYTHON" / "proj" / "utils.py"
     if python_utils.exists():
         try:
             import importlib.util
@@ -60,16 +68,14 @@ def get_python_exec(version="python3.10.19"):
 def get_project_name():
     """Retrieve the name of the current project."""
     try:
-        current_dir = os.getcwd()
         git_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL, text=True).strip()
         if git_root:
             project_name = os.path.basename(git_root)
         else:
-            project_name = os.path.basename(current_dir)
+            project_name = os.path.basename(os.getcwd())
         return project_name or "root"
     except (subprocess.CalledProcessError, FileNotFoundError):
-        current_dir = os.getcwd()
-        project_name = os.path.basename(current_dir)
+        project_name = os.path.basename(os.getcwd())
         return project_name or "root"
 
 def get_cursor_session_title(custom_id=None):
@@ -86,7 +92,6 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     Captures user input via a Tkinter script run in a separate Python process.
     """
     python_exe = get_python_exec()
-    current_dir = Path(__file__).parent.absolute()
     proj_dir = current_dir / "proj"
     
     try:
@@ -111,8 +116,8 @@ import time
 import subprocess
 import platform
 
-project_root = Path({repr(str(current_dir.parent))})
-python_proj_dir = project_root / "PYTHON" / "proj"
+project_root = Path({repr(str(project_root))})
+python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
 if python_proj_dir.exists():
     sys.path.append(str(python_proj_dir.parent))
 
@@ -243,19 +248,19 @@ class TkinterInputWindow:
 
     def submit_input(self):
         user_text = self.text_widget.get("1.0", tk.END).strip()
-        if user_text:
-            self.result = user_text
-            self.close_window()
-        else:
-            self.result = "USER_SUBMITTED_EMPTY"
-            self.close_window()
+        self.result = {{"status": "success", "data": user_text if user_text else "USER_SUBMITTED_EMPTY"}}
+        self.close_window()
 
     def cancel_input(self):
-        self.result = "USER_CANCELLED"
+        self.result = {{"status": "cancelled", "data": None}}
         self.close_window()
 
     def timeout_input(self):
-        self.result = "TIMEOUT"
+        user_text = self.text_widget.get("1.0", tk.END).strip()
+        if user_text:
+            self.result = {{"status": "timeout_with_data", "data": user_text}}
+        else:
+            self.result = {{"status": "timeout", "data": None}}
         self.close_window()
 
     def close_window(self):
@@ -269,14 +274,11 @@ class TkinterInputWindow:
     def show_and_wait(self):
         if self.create_window():
             self.root.mainloop()
-            if self.result == "USER_SUBMITTED_EMPTY":
-                print(_("msg_empty", "User submitted empty content"))
-            elif self.result == "USER_CANCELLED":
-                print(_("msg_cancelled", "User cancelled input"))
-            elif self.result == "TIMEOUT":
-                print(_("msg_timeout", "Input timeout"))
-            elif self.result:
-                print(self.result)
+            # Always output JSON for robust communication
+            if self.result:
+                print(f"GDS_USERINPUT_JSON:{{json.dumps(self.result)}}")
+            else:
+                print(f"GDS_USERINPUT_JSON:{{json.dumps({{'status': 'error', 'data': 'No result'}})}}")
             sys.exit(0)
 
 if __name__ == "__main__":
@@ -297,15 +299,38 @@ if __name__ == "__main__":
             error_message = result.stdout.strip() or result.stderr.strip()
             raise RuntimeError(f"USERINPUT subprocess failed: {error_message}")
 
-        user_input = result.stdout.strip()
-        if not user_input:
-             raise RuntimeError("USERINPUT subprocess returned no output.")
+        output = result.stdout.strip()
+        json_prefix = "GDS_USERINPUT_JSON:"
+        json_data = None
         
-        failure_keywords = ["用户提交了空内容", "用户取消了输入", "Input timeout", "User cancelled", "User submitted empty"]
-        if any(kw in user_input for kw in failure_keywords):
-            raise UserInputRetryableError(f"User operation failed: {user_input}")
+        for line in output.splitlines():
+            if line.startswith(json_prefix):
+                try:
+                    json_data = json.loads(line[len(json_prefix):])
+                    break
+                except json.JSONDecodeError:
+                    continue
         
-        return user_input
+        if not json_data:
+             raise RuntimeError(f"USERINPUT subprocess returned no valid JSON output. Raw output: {output}")
+
+        status = json_data.get("status")
+        data = json_data.get("data")
+
+        if status == "success":
+            if data == "USER_SUBMITTED_EMPTY":
+                raise UserInputRetryableError(_("msg_empty", "User submitted empty content"))
+            return data
+        elif status == "timeout_with_data":
+            # Capturing partial input on timeout
+            print(_("msg_timeout", "Input timeout") + f" (Captured partial input)")
+            return data
+        elif status == "timeout":
+            raise UserInputRetryableError(_("msg_timeout", "Input timeout"))
+        elif status == "cancelled":
+            raise UserInputRetryableError(_("msg_cancelled", "User cancelled input"))
+        else:
+            raise RuntimeError(f"USERINPUT unknown status: {status}")
 
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"USERINPUT window timed out after {watchdog_timeout} seconds.")

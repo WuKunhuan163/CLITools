@@ -1,0 +1,491 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:53:06 - Status: PASS
+# ============================================================================
+
+test_19_venv_protect_unprotect (test_gds.GDSTest)
+测试虚拟环境的保护和取消保护功能 ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_161625_690269_e8c405a9
+正在创建远端测试目录: ~/tmp/gds_test_20251118_161625_690269_e8c405a9
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_161625_690269_e8c405a9
+验证测试目录存在: ~/tmp/gds_test_20251118_161625_690269_e8c405a9
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_36jkbz02
+测试环境设置完成
+测试venv --protect和--unprotect功能
+创建测试环境: protected_env_1763453881, normal_env_1763453881
+命令: 'venv --create protected_env_1763453881'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p '"'"'/content/drive/MyDrive/REMOTE_ENV/venv/protected_env_1763453881'"'"''
+=====================
+Remote real output: 
+=====================
+Virtual environment 'protected_env_1763453881' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/protected_env_1763453881
+命令: 'venv --create normal_env_1763453881'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p '"'"'/content/drive/MyDrive/REMOTE_ENV/venv/normal_env_1763453881'"'"''
+=====================
+Remote real output: 
+=====================
+Virtual environment 'normal_env_1763453881' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/normal_env_1763453881
+保护环境: protected_env_1763453881
+命令: 'venv --protect protected_env_1763453881'
+返回码: 1
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+#!/bin/bash
+# 批量保护虚拟环境
+# 确保状态文件存在
+mkdir -p "/content/drive/MyDrive/REMOTE_ENV/venv"
+if [ ! -f "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json" ]; then
+    echo '"'"'{}'"'"' > "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+fi
+# 使用Python批量处理所有环境
+python3 << '"'"'PYEOF'"'"'
+import json
+import os
+import sys
+env_names = ["protected_env_1763453881"]
+venv_base_path = "/content/drive/MyDrive/REMOTE_ENV/venv"
+state_file = "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+success_list = []
+failed_list = []
+# 检查每个环境是否存在
+for env_name in env_names:
+    env_path = os.path.join(venv_base_path, env_name)
+    if not os.path.isdir(env_path):
+        failed_list.append(f"{env_name}: Environment does not exist")
+    else:
+        success_list.append(env_name)
+# 如果有成功的环境，更新状态文件
+if success_list:
+    try:
+        # 读取现有状态
+        try:
+            with open(state_file, '"'"'r'"'"') as f:
+                states = json.load(f)
+        except:
+            states = {}
+        
+        # 确保environments字段存在
+        if '"'"'environments'"'"' not in states:
+            states['"'"'environments'"'"'] = {}
+        
+        # 批量添加/移除protected标记
+        for env_name in success_list:
+            if env_name not in states['"'"'environments'"'"']:
+                states['"'"'environments'"'"'][env_name] = {}
+            states['"'"'environments'"'"'][env_name]['"'"'protected'"'"'] = True
+        
+        # 写入更新后的状态
+        with open(state_file, '"'"'w'"'"') as f:
+            json.dump(states, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        # 如果状态文件更新失败，将所有环境标记为失败
+        failed_list.extend([f"{env}: State file update failed" for env in success_list])
+        success_list = []
+# 输出JSON结果
+action_key = "protected" if True else "unprotected"
+result = {
+    "success": len(success_list) > 0,
+    action_key: success_list,
+    "failed": failed_list,
+    "success_count": len(success_list),
+    "failed_count": len(failed_list)
+}
+print(json.dumps(result))
+PYEOF
+'
+=====================
+Remote real output: 
+=====================
+ls: ~/tmp/cmd_result_1763453981_66ccf6c8.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+检测到remount flag已存在，跳过重复设置
+重试第1次...
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+#!/bin/bash
+# 批量保护虚拟环境
+# 确保状态文件存在
+mkdir -p "/content/drive/MyDrive/REMOTE_ENV/venv"
+if [ ! -f "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json" ]; then
+    echo '"'"'{}'"'"' > "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+fi
+# 使用Python批量处理所有环境
+python3 << '"'"'PYEOF'"'"'
+import json
+import os
+import sys
+env_names = ["protected_env_1763453881"]
+venv_base_path = "/content/drive/MyDrive/REMOTE_ENV/venv"
+state_file = "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+success_list = []
+failed_list = []
+# 检查每个环境是否存在
+for env_name in env_names:
+    env_path = os.path.join(venv_base_path, env_name)
+    if not os.path.isdir(env_path):
+        failed_list.append(f"{env_name}: Environment does not exist")
+    else:
+        success_list.append(env_name)
+# 如果有成功的环境，更新状态文件
+if success_list:
+    try:
+        # 读取现有状态
+        try:
+            with open(state_file, '"'"'r'"'"') as f:
+                states = json.load(f)
+        except:
+            states = {}
+        
+        # 确保environments字段存在
+        if '"'"'environments'"'"' not in states:
+            states['"'"'environments'"'"'] = {}
+        
+        # 批量添加/移除protected标记
+        for env_name in success_list:
+            if env_name not in states['"'"'environments'"'"']:
+                states['"'"'environments'"'"'][env_name] = {}
+            states['"'"'environments'"'"'][env_name]['"'"'protected'"'"'] = True
+        
+        # 写入更新后的状态
+        with open(state_file, '"'"'w'"'"') as f:
+            json.dump(states, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        # 如果状态文件更新失败，将所有环境标记为失败
+        failed_list.extend([f"{env}: State file update failed" for env in success_list])
+        success_list = []
+# 输出JSON结果
+action_key = "protected" if True else "unprotected"
+result = {
+    "success": len(success_list) > 0,
+    action_key: success_list,
+    "failed": failed_list,
+    "success_count": len(success_list),
+    "failed_count": len(failed_list)
+}
+print(json.dumps(result))
+PYEOF
+'
+=====================
+Remote real output: 
+=====================
+Protected 1 environment(s): protected_env_1763453881
+尝试删除被保护的环境（应该被跳过）
+命令: 'venv --delete protected_env_1763453881'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+if [ -f "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json" ]; then
+    cat "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+else
+    echo "{}"
+fi
+'
+=====================
+Remote real output: 
+=====================
+Warning:  Skipped 1 protected environment(s): protected_env_1763453881
+验证被保护的环境仍然存在
+命令: 'venv --list'
+返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 2193.091s
+
+OK
+输出: Virtual environments (41 total):
+  20250826_1
+  batch_env1_1761975327
+  batch_env1_1762613452
+  batch_env2_1762613452
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  myproject_env_1762700428
+  normal_env_1761978074
+  normal_env_1763453881
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  protected_env_1763453881
+  test_activate_debug
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_env_1762613089
+  test_env_1763425360
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env
+删除未保护的环境: normal_env_1763453881
+命令: 'venv --delete normal_env_1763453881'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+if [ -f "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json" ]; then
+    cat "/content/drive/MyDrive/REMOTE_ENV/venv/venv_states.json"
+else
+    echo "{}"
+fi
+'
+=====================
+Remote real output: 
+=====================
+Deleting 1 virtual environment(s): normal_env_1763453881
+User command preview [in f-string]: 
+=====================
+bash -c 'CURRENT_ENV=$(cat "/content/drive/MyDrive/REMOTE_ENV/current_venv_99a62b9064feac53.txt" 2>/dev/null || echo "none"); if [ "$CURRENT_ENV" != "normal_env_1763453881" ] && [ -d "/content/drive/MyDrive/REMOTE_ENV/venv/normal_env_1763453881" ]; then
+  rm -rf "/content/drive/MyDrive/REMOTE_ENV/venv/normal_env_1763453881"
+fi'
+=====================
+Remote real output: 
+=====================
+验证未保护的环境已被删除
+命令: 'venv --list'
+返回码: 0
+输出: Virtual environments (40 total):
+  20250826_1
+  batch_env1_1761975327
+  batch_env1_1762613452
+  batch_env2_1762613452
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  myproject_env_1762700428
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  protected_env_1763453881
+  test_activate_debug
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_env_1762613089
+  test_env_1763425360
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env
+取消保护: protected_env_1763453881
+命令: 'venv --unprotect protected_env_1763453881'
+返回码: 0
+输出: Unprotected 1 environment(s): protected_env_1763453881
+再次尝试删除（应该成功）
+命令: 'venv --delete protected_env_1763453881'
+返回码: 0
+输出: Deleting 1 virtual environment(s): protected_env_1763453881
+验证环境已被删除
+命令: 'venv --list'
+返回码: 0
+输出: Virtual environments (40 total):
+  20250826_1
+  batch_env1_1761975327
+  batch_env1_1762613452
+  batch_env2_1762613452
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  myproject_env_1762700428
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  test_activate_debug
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_env_1762613089
+  test_env_1763425360
+  test_env_1763454612
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env
+测试批量保护功能
+命令: 'venv --create batch_env1_1763455247'
+返回码: 0
+输出: Virtual environment 'batch_env1_1763455247' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/batch_env1_1763455247
+命令: 'venv --create batch_env2_1763455247'
+返回码: 0
+输出: Virtual environment 'batch_env2_1763455247' created successfully
+Environment path: /content/drive/MyDrive/REMOTE_ENV/venv/batch_env2_1763455247
+命令: 'venv --protect batch_env1_1763455247 batch_env2_1763455247'
+返回码: 0
+输出: Protected 2 environment(s): batch_env1_1763455247, batch_env2_1763455247
+命令: 'venv --delete batch_env1_1763455247 batch_env2_1763455247'
+返回码: 0
+输出: Warning:  Skipped 2 protected environment(s): batch_env1_1763455247, batch_env2_1763455247
+命令: 'venv --list'
+返回码: 0
+输出: Virtual environments (42 total):
+  20250826_1
+  batch_env1_1761975327
+  batch_env1_1762613452
+  batch_env1_1763455247
+  batch_env2_1762613452
+  batch_env2_1763455247
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+  gaussianobject_env
+  myproject_env_1761918958
+  myproject_env_1762700428
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  test_activate_debug
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_env_1762613089
+  test_env_1763425360
+  test_env_1763454612
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env
+命令: 'venv --unprotect batch_env1_1763455247 batch_env2_1763455247'
+返回码: 0
+输出: Unprotected 2 environment(s): batch_env1_1763455247, batch_env2_1763455247
+命令: 'venv --delete batch_env1_1763455247 batch_env2_1763455247'
+返回码: 0
+输出: Deleting 2 virtual environment(s): batch_env1_1763455247, batch_env2_1763455247
+命令: 'venv --list'
+返回码: 0
+输出: Virtual environments (41 total):
+  20250826_1
+  batch_env1_1761975327
+  batch_env1_1762613452
+  batch_env2_1762613452
+  current_test_env_1760615104
+  current_test_env_1760615445
+  current_test_env_1760685152
+  debug_test_env_1756196056
+  empty_env_1756111020
+  empty_env_1761923886
+* empty_env_1763455760
+  gaussianobject_env
+  myproject_env_1761918958
+  myproject_env_1762700428
+  normal_env_1761978074
+  package_test_env_1760686053
+  protected_env_1761921345
+  protected_env_1761933082
+  protected_env_1761971658
+  protected_env_1761973590
+  protected_env_1761974170
+  protected_env_1761978074
+  test_activate_debug
+  test_debug_env
+  test_debug_env_2
+  test_debug_env_3
+  test_env_1756110677
+  test_env_1756110863
+  test_env_1756196607
+  test_env_1756197060
+  test_env_1756282653
+  test_env_1760849433
+  test_env_1761923498
+  test_env_1761971662
+  test_env_1762613089
+  test_env_1763425360
+  test_env_1763454612
+  test_fix_env
+  test_manual_env
+  test_new_env
+  test_pip_env
+venv protect/unprotect功能测试通过
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

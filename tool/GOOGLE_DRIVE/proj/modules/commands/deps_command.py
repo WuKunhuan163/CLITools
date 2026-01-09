@@ -1,0 +1,842 @@
+from .base_command import BaseCommand
+
+class DepsCommand(BaseCommand):
+    """
+    Dependency analysis command
+    """
+    
+    def __init__(self, shell_instance):
+        """Initialize DepsCommand with shell instance"""
+        super().__init__(shell_instance)
+        self._pypi_client = None
+    
+    @property
+    def command_name(self):
+        return "deps"
+    
+    def execute(self, cmd, args, command_identifier=None):
+        """执行deps命令"""
+        # 检查是否请求帮助
+        if '--help' in args or '-h' in args:
+            self.show_help()
+            return 0
+            
+        if not args:
+            print("Error: deps command needs arguments")
+            return 1
+        
+        # 直接调用cmd_deps方法
+        result = self.cmd_deps(*args)
+        
+        if result.get("success"):
+            message = result.get("message", "")
+            if message.strip():
+                print(message)
+            return 0
+        else:
+            error_msg = result.get("error", "Dependency analysis failed")
+            print(error_msg)
+            return 1
+    
+    def show_help(self):
+        """显示deps命令帮助信息"""
+        print("GDS Dependency Analysis Command Help")
+        print("=" * 50)
+        print()
+        print("USAGE:")
+        print("  GDS deps --check <package>          # Check package dependencies")
+        print("  GDS deps --analyze <package>        # Analyze dependency tree")
+        print("  GDS deps --tree <package>           # Show dependency tree")
+        print("  GDS deps --conflicts                # Check for dependency conflicts")
+        print("  GDS deps --outdated                 # List outdated packages")
+        print("  GDS deps --help                     # Show this help")
+        print()
+        print("DESCRIPTION:")
+        print("  Analyze and manage Python package dependencies.")
+        print("  Helps identify conflicts, outdated packages, and dependency trees.")
+        print()
+        print("EXAMPLES:")
+        print("  GDS deps --check numpy              # Check numpy dependencies")
+        print("  GDS deps --tree requests            # Show requests dependency tree")
+        print("  GDS deps --conflicts                # Find dependency conflicts")
+        print("  GDS deps --outdated                 # List packages that can be updated")
+        print()
+        print("RELATED COMMANDS:")
+        print("  GDS pip --help                      # Package management")
+        print("  GDS python --help                   # Python execution")
+    
+    def cmd_deps(self, *args, **kwargs):
+        """独立的依赖分析命令"""
+        try:
+            if not args:
+                return {"success": False, "error": "Usage: GDS deps <package1> [package2] [...] [--depth=N] [--analysis-type=smart|depth]"}
+            
+            # 解析参数
+            packages = []
+            max_depth = 2
+            analysis_type = "depth"  # Default analysis type
+            
+            i = 0
+            while i < len(args):
+                arg = args[i]
+                if arg.startswith('--depth='):
+                    max_depth = int(arg.split('=')[1])
+                elif arg == '--depth' and i + 1 < len(args):
+                    max_depth = int(args[i + 1])
+                    i += 1
+                elif arg.startswith('--analysis-type='):
+                    analysis_type = arg.split('=')[1]
+                elif arg == '--analysis-type' and i + 1 < len(args):
+                    analysis_type = args[i + 1]
+                    i += 1
+                elif arg == '-r' or arg == '--requirement':
+                    # 处理requirements.txt文件
+                    if i + 1 < len(args):
+                        requirements_file = args[i + 1]
+                        packages_from_file = self.parse_requirements_file(requirements_file)
+                        packages.extend(packages_from_file)
+                        i += 1
+                elif arg.startswith('-r'):
+                    # 处理 -rrequirements.txt 格式
+                    requirements_file = arg[2:]
+                    packages_from_file = self.parse_requirements_file(requirements_file)
+                    packages.extend(packages_from_file)
+                elif arg.endswith('.txt') and ('requirements' in arg.lower() or 'req' in arg.lower()):
+                    # 直接指定requirements文件
+                    packages_from_file = self.parse_requirements_file(arg)
+                    packages.extend(packages_from_file)
+                elif not arg.startswith('-'):
+                    packages.append(arg)
+                i += 1
+            
+            if not packages:
+                return {"success": False, "error": "No packages specified for dependency analysis"}
+            
+            print(f"Analyzing dependencies for: {', '.join(packages)}")
+            print(f"Analysis depth: {max_depth}")
+            
+            # 获取当前环境的已安装包信息
+            current_shell = self.shell.get_current_shell()
+            shell_id = current_shell.get("id", "default_shell") if current_shell else "default_shell"
+            
+            from ..venv_manager import VenvApiManager
+            venv_manager = VenvApiManager(self.shell.drive_service, self.shell)
+            all_states = venv_manager.load_all_venv_states()
+            
+            current_venv = None
+            if shell_id in all_states and all_states[shell_id].get("current_venv"):
+                current_venv = all_states[shell_id]["current_venv"]
+            
+            from .pip_command import PipCommand
+            pip_cmd = PipCommand(self.shell)
+            installed_packages = pip_cmd.detect_current_environment_packages(current_venv)
+            
+            # 根据分析类型选择不同的分析方法
+            if analysis_type == "smart":
+                analysis_result = self.smart_dependency_analysis(
+                    packages, 
+                    max_calls=10, 
+                    interface_mode=False, 
+                    installed_packages=installed_packages
+                )
+            elif analysis_type == "depth":
+                analysis_result = self.depth_based_dependency_analysis(
+                    packages, 
+                    max_depth=max_depth, 
+                    interface_mode=False, 
+                    installed_packages=installed_packages
+                )
+            else:
+                return {"success": False, "error": f"Unknown analysis type: {analysis_type}. Use 'smart' or 'depth'"}
+            
+            # 检查根包是否存在（即用户直接请求分析的包）
+            # Note: depth_based_dependency_analysis returns 'Q', smart_dependency_analysis may return 'dependency_tree'
+            Q = analysis_result.get('Q', analysis_result.get('dependency_tree', {}))
+            root_packages_not_found = []
+            for pkg in packages:
+                # 清理包名（去掉版本号）
+                clean_pkg = pkg.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0]
+                if clean_pkg in Q:
+                    physical_size = Q[clean_pkg].get('physical_size', 0)
+                    if physical_size == 0:
+                        root_packages_not_found.append(pkg)
+                else:
+                    root_packages_not_found.append(pkg)
+            
+            if root_packages_not_found:
+                error_msg = f"Package(s) not found: {', '.join(root_packages_not_found)}"
+                print(f"Error: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
+            
+            # 显示分析结果
+            total_calls = analysis_result.get('total_calls', 0)
+            analyzed_packages = analysis_result.get('analyzed_packages', 0)
+            total_time = analysis_result.get('total_time', 0)
+            
+            if total_time:
+                print(f"Analysis completed: {total_calls} API calls, {analyzed_packages} packages analyzed in {total_time:.2f}s\n")
+            else:
+                print(f"Analysis completed: {total_calls} API calls, {analyzed_packages} packages analyzed\n")
+            
+            # 显示依赖树
+            self.display_smart_dependency_tree(analysis_result, installed_packages)
+            
+            return {
+                "success": True,
+                "message": f"Dependency analysis completed for {len(packages)} package(s)",
+                "analysis_result": analysis_result
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": f"Dependency analysis failed: {str(e)}"}
+    
+    def parse_requirements_file(self, requirements_file):
+        """解析requirements.txt文件"""
+        packages = []
+        try:
+            # 这里可以添加远程文件读取逻辑
+            # 目前简化处理，返回空列表
+            print(f"Note: Requirements file parsing not yet implemented for remote files: {requirements_file}")
+            return packages
+        except Exception as e:
+            print(f"Error parsing requirements file: {e}")
+            return packages
+        
+    def get_pypi_client(self):
+        """Get or create PyPI client instance"""
+        if self._pypi_client is None:
+            import sys
+            import os
+            bin_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            sys.path.insert(0, bin_path)
+            from PYPI import PyPIClient
+            self._pypi_client = PyPIClient()
+        return self._pypi_client
+
+    def get_package_dependencies_with_pipdeptree(self, package_name, installed_packages=None):
+        """使用pipdeptree获取单个包的依赖信息"""
+        try:
+            if installed_packages:
+                pkg_variants = [package_name, package_name.replace('-', '_'), package_name.replace('_', '-')]
+                found_in_installed = False
+                
+                for variant in pkg_variants:
+                    if variant.lower() in [pkg.lower() for pkg in installed_packages.keys()]:
+                        found_in_installed = True
+                        for installed_pkg in installed_packages.keys():
+                            if installed_pkg.lower() == variant.lower():
+                                break
+                        break
+                
+                if not found_in_installed:
+                    return None
+            
+            # 方法1：尝试本地pipdeptree (可能不会找到远程包，但值得一试)
+            try:
+                import subprocess
+                import json
+                
+                cmd = ['pipdeptree', '-p', package_name, '--json', '--warn', 'silence']
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                # Local command completed
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    dep_data = json.loads(result.stdout)
+                    # Local pipdeptree found packages
+                    
+                    for pkg_info in dep_data:
+                        pkg_name_in_data = pkg_info['package']['package_name']
+                        if pkg_name_in_data.lower() == package_name.lower():
+                            dependencies = []
+                            for dep in pkg_info.get('dependencies', []):
+                                dependencies.append(dep['package_name'])
+                            # Local dependencies found
+                            return dependencies
+                
+            except Exception:
+                return self.get_dependencies_via_remote_pip_show(package_name)
+                
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def get_dependencies_via_remote_pip_show(self, package_name):
+        """通过远程pip show命令获取包依赖信息"""
+        try:
+            pip_show_cmd = f"pip show {package_name}"
+            result = self.shell.execute_command_interface("bash", ["-c", pip_show_cmd])
+            
+            if not result.get("success"):
+                return []
+            
+            output = result.get("stdout", "")
+            dependencies = []
+            for line in output.split('\n'):
+                if line.startswith('Requires:'):
+                    requires_text = line.replace('Requires:', '').strip()
+                    if requires_text and requires_text != 'None':
+                        for dep in requires_text.split(','):
+                            dep = dep.strip()
+                            if dep:
+                                dep_name = dep.split('>=')[0].split('<=')[0].split('==')[0].split('>')[0].split('<')[0].split('!=')[0].split('~=')[0].strip()
+                                if dep_name:
+                                    dependencies.append(dep_name)
+                    break
+            
+            return dependencies
+            
+        except Exception as e:
+            return []
+
+    def get_pypi_dependencies_with_all_sizes(self, package_name):
+        """
+        从PyPI JSON API获取包的直接依赖信息，同时获取每个依赖的大小
+        这算作一次完整的API调用
+        
+        Args:
+            package_name: 包名
+            
+        Returns:
+            tuple: (依赖列表, 包大小, 依赖大小字典)
+                   如果失败返回(None, 0, {})
+        """
+        try:
+            pypi_client = self.get_pypi_client()
+            if pypi_client:
+                # Use PYPI tool
+                dependencies, package_size = pypi_client.get_package_dependencies_with_size(package_name)
+                return dependencies, package_size, {}  # 返回空的dependency_sizes
+            else:
+                # Fallback to direct API calls
+                import requests
+                
+                # 首先获取主包信息
+                api_url = f"https://pypi.org/pypi/{package_name}/json"
+                response = requests.get(api_url, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # Get package size from latest release
+                package_size = 0
+                releases = data.get("releases", {})
+                info = data.get("info", {})
+                
+                # Try to get size from the latest version
+                latest_version = info.get("version", "")
+                if latest_version and latest_version in releases:
+                    files = releases[latest_version]
+                    if files:
+                        package_size = max((f.get("size", 0) for f in files), default=0)
+                
+                # Get dependencies
+                requires_dist = data.get("info", {}).get("requires_dist")
+                
+                if requires_dist is None:
+                    return [], package_size, {}
+                
+                # 解析依赖规格，提取包名
+                dependencies = []
+                for dep_spec in requires_dist:
+                    dep_spec = dep_spec.split(';')[0].strip()
+                    import re
+                    match = re.match(r'^([a-zA-Z0-9_-]+)', dep_spec)
+                    if match:
+                        dep_name = match.group(1)
+                        dependencies.append(dep_name)
+                
+                # 不获取依赖的大小，只返回依赖列表和主包大小
+                # 依赖的大小将在后续分析时获取
+                return dependencies, package_size, {}
+            
+        except Exception as e:
+            print(f"Error fetching dependencies for {package_name}: {e}")
+            return None, 0, {}
+
+    def smart_dependency_analysis(self, packages, max_calls=10, interface_mode=False, installed_packages=None):
+        """
+        智能依赖分析策略，限制API调用次数，基于包大小优化队列
+        
+        Args:
+            packages: 要分析的包列表
+            max_calls: 最大API调用次数 (n)
+            interface_mode: 接口模式，返回每层需要下载的包
+            installed_packages: 已安装包的字典 {package_name: version}
+            
+        Returns:
+            dict: 分析结果，包含依赖树和层级信息
+        """
+        try:
+            import heapq
+            from collections import defaultdict
+            
+            # 初始化数据结构
+            D = {}  # package name -> dependencies mapping  
+            Q = []  # priority queue: (-size, package_name) for max-heap behavior
+            package_sizes = {}  # package -> size mapping
+            layers = defaultdict(set)  # layer -> set of packages
+            
+            # 将初始包加入Layer 0
+            current_packages = [pkg.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0] for pkg in packages]
+            layers[0].update(current_packages)
+            
+            # 将初始包加入队列，优先级最高
+            for pkg in current_packages:
+                heapq.heappush(Q, (-float('inf'), pkg))
+                
+            i = 0  # 当前API调用次数
+            
+            while Q and i < max_calls:
+                l = max_calls - i  # 队列剩余容量
+                
+                # 取出优先级最高的包
+                neg_size, current_pkg = heapq.heappop(Q)
+                
+                if current_pkg in D:
+                    continue  # 已经分析过了
+                    
+                # 调用新的API获取依赖和所有大小信息
+                deps, pkg_size, dep_sizes = self.get_pypi_dependencies_with_all_sizes(current_pkg)
+                i += 1
+                
+                # 更新数据结构
+                package_sizes[current_pkg] = pkg_size
+                package_sizes.update(dep_sizes)  # 更新所有依赖的大小
+                
+                if deps is not None:
+                    D[current_pkg] = deps
+                    
+                    # 处理新发现的依赖S
+                    S = deps
+                    for dep in S:
+                        if dep not in D and dep not in [item[1] for item in Q]:
+                            # 检查是否应该加入队列Q
+                            # 规则：(1)不存在D中 (2)不存在Q中 (3)比Q的第l个元素大
+                            l = max_calls - i  # 更新l值
+                            if l > 0:
+                                dep_size = dep_sizes.get(dep, 0)
+                                if len(Q) < l:
+                                    # 队列未满，直接加入
+                                    heapq.heappush(Q, (-dep_size, dep))
+                                elif Q:
+                                    # 队列已满，检查是否比最小的大
+                                    min_size = -Q[0][0] if Q else 0
+                                    if dep_size > min_size:
+                                        heapq.heappop(Q)  # 移除最小的
+                                        heapq.heappush(Q, (-dep_size, dep))
+                                
+                                # 维护队列大小为l
+                                while len(Q) > l:
+                                    heapq.heappop(Q)
+                else:
+                    # API失败，尝试fallback
+                    fallback_deps = self.get_package_dependencies_with_pipdeptree(current_pkg, installed_packages)
+                    if fallback_deps:
+                        D[current_pkg] = fallback_deps
+                    else:
+                        D[current_pkg] = []
+            
+            # 生成依赖树和层级信息
+            decomposed = set()
+            
+            def build_tree_and_layers(pkg, current_layer=0, visited=None):
+                if visited is None:
+                    visited = set()
+                    
+                if pkg in visited:
+                    return {}  # 避免循环依赖
+                    
+                visited.add(pkg)
+                
+                if pkg in D and pkg not in decomposed:
+                    decomposed.add(pkg)
+                    deps = D[pkg]
+                    
+                    # 将依赖添加到下一层
+                    if deps:
+                        next_layer = current_layer + 1
+                        layers[next_layer].update(deps)
+                        
+                    result = {
+                        'dependencies': deps,
+                        'size': package_sizes.get(pkg, 0),
+                        'children': {}
+                    }
+                    
+                    for dep in deps:
+                        result['children'][dep] = build_tree_and_layers(dep, current_layer + 1, visited.copy())
+                    
+                    return result
+                else:
+                    return {
+                        'dependencies': [],
+                        'size': package_sizes.get(pkg, 0),
+                        'children': {}
+                    }
+            
+            # 为每个初始包构建树
+            result = {
+                'trees': {},
+                'layers': {},
+                'package_sizes': package_sizes,
+                'total_calls': i,
+                'analyzed_packages': len(D),
+                'D': D,  # 调试用
+                'Q': [(size, pkg) for size, pkg in Q]  # 调试用
+            }
+            
+            for pkg in current_packages:
+                result['trees'][pkg] = build_tree_and_layers(pkg)
+            
+            # 转换layers为list并去重
+            for layer_num in layers:
+                result['layers'][layer_num] = list(layers[layer_num])
+            
+            if interface_mode:
+                # 接口模式：返回每层需要下载的包
+                result['download_layers'] = result['layers'].copy()
+                    
+            return result
+            
+        except Exception as e:
+            # Smart analysis failed, fallback to simple analysis
+            return {
+                'trees': {},
+                'layers': {0: current_packages},
+                'package_sizes': {},
+                'total_calls': 0,
+                'analyzed_packages': 0,
+                'error': str(e)
+            }
+
+    def depth_based_dependency_analysis(self, packages, max_depth=1, interface_mode=False, installed_packages=None):
+        """
+        基于深度和包数量限制的依赖分析策略
+        
+        Args:
+            packages: 要分析的包列表
+            max_depth: 最大分析深度
+            interface_mode: 接口模式，返回每层需要下载的包
+            installed_packages: 已安装包的字典 {package_name: version}
+            
+        Returns:
+            dict: 分析结果，包含依赖树和层级信息
+        """
+        import concurrent.futures
+        from collections import defaultdict
+        import time
+        
+        # 初始化数据结构
+        # Q: {package_name: {'physical_size': int, 'logical_size': None, 'dependencies': []}}
+        Q = {}
+        R = []  # 待分析的包列表
+        layers = defaultdict(set)  # layer -> set of packages
+        
+        # 清理包名并初始化
+        current_packages = [pkg.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0] for pkg in packages]
+        layers[0].update(current_packages)
+        
+        # 初始化Q和R
+        for pkg in current_packages:
+            Q[pkg] = {
+                'physical_size': None,
+                'logical_size': None, 
+                'dependencies': []
+            }
+            R.append(pkg)
+        
+        total_calls = 0
+        current_depth = 0
+        analysis_start_time = time.time()
+        
+        # 主分析循环
+        while R and len(Q) < 1000 and current_depth <= max_depth:
+            # 准备这一轮要分析的包（最多40个）
+            batch_size = min(40, len(R))
+            current_batch = R[:batch_size]
+            R = R[batch_size:]  # 移除已处理的包
+            
+            # 过滤掉已经分析过依赖的包（dependencies不为空的包）
+            packages_to_analyze = []
+            for pkg in current_batch:
+                if pkg not in Q:
+                    packages_to_analyze.append(pkg)
+                elif len(Q[pkg]['dependencies']) == 0:  # dependencies为空，表示尚未分析依赖
+                    packages_to_analyze.append(pkg)
+            
+            if not packages_to_analyze:
+                if not R:  # R空了，进入下一层
+                    current_depth += 1
+                    if current_depth <= max_depth:
+                        # 收集下一层的包
+                        R_prime = []
+                        for pkg_name, pkg_data in Q.items():
+                            if pkg_data['dependencies']:
+                                for dep in pkg_data['dependencies']:
+                                    if dep not in Q and dep not in R_prime:
+                                        R_prime.append(dep)
+                        
+                        R = R_prime
+                        if R:
+                            layers[current_depth].update(R)
+                continue
+            
+            # 并行分析当前批次
+            batch_start_time = time.time()
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(40, len(packages_to_analyze))) as executor:
+                future_to_package = {
+                    executor.submit(self.get_pypi_dependencies_with_all_sizes, pkg): pkg 
+                    for pkg in packages_to_analyze
+                }
+                
+                for future in concurrent.futures.as_completed(future_to_package):
+                    package_name = future_to_package[future]
+                    try:
+                        deps, pkg_size, dep_sizes = future.result()
+                        total_calls += 1
+                        
+                        # 更新Q
+                        if package_name not in Q:
+                            Q[package_name] = {
+                                'physical_size': pkg_size,
+                                'logical_size': None,
+                                'dependencies': deps or []
+                            }
+                        else:
+                            Q[package_name]['physical_size'] = pkg_size
+                            Q[package_name]['dependencies'] = deps or []
+                        
+                        # 将新发现的依赖加入Q（如果还有空间），但不设置dependencies
+                        # 这样它们在下一层仍然可以被分析
+                        if deps:
+                            for dep in deps:
+                                if dep not in Q and len(Q) < 1000:
+                                    Q[dep] = {
+                                        'physical_size': None, 
+                                        'logical_size': None,
+                                        'dependencies': []  # 空列表，表示尚未分析依赖
+                                    }
+                        
+                    except Exception as e:
+                        print(f"Error analyzing {package_name}: {e}")
+                        if package_name not in Q:
+                            Q[package_name] = {
+                                'physical_size': 0,
+                                'logical_size': None,
+                                'dependencies': []
+                            }
+            
+            batch_duration = time.time() - batch_start_time
+            # Debug: print(f"    Processed {len(packages_to_analyze)} packages in {batch_duration:.2f}s")
+            
+            # 如果这批处理时间少于1秒，等待到1秒
+            if batch_duration < 1.0:
+                time.sleep(1.0 - batch_duration)
+            
+            # 检查是否需要进入下一层
+            if not R and current_depth < max_depth:
+                current_depth += 1
+                R_prime = []
+                current_layer_packages = layers.get(current_depth - 1, [])
+                
+                for pkg_name in current_layer_packages:
+                    if pkg_name in Q and Q[pkg_name]['dependencies']:
+                        for dep in Q[pkg_name]['dependencies']:
+                            if dep in Q and len(Q[dep]['dependencies']) == 0 and dep not in R_prime:
+                                R_prime.append(dep)
+                            elif dep not in Q:
+                                R_prime.append(dep)
+                                Q[dep] = {
+                                    'physical_size': None,
+                                    'logical_size': None,
+                                    'dependencies': []
+                                }
+                
+                R = R_prime
+                if R:
+                    layers[current_depth].update(R)
+                    # Debug: print(f"Moving to depth {current_depth} with {len(R)} new packages: {R[:5]}{'...' if len(R) > 5 else ''}")
+        
+        analysis_end_time = time.time()
+        total_analysis_time = analysis_end_time - analysis_start_time
+        
+        # 计算逻辑大小
+        def calculate_logical_size(pkg_name, visited=None):
+            if visited is None:
+                visited = set()
+            
+            if pkg_name in visited or pkg_name not in Q:
+                return 0
+            
+            visited.add(pkg_name)
+            pkg_data = Q[pkg_name]
+            
+            if pkg_data['logical_size'] is not None:
+                return pkg_data['logical_size']
+            
+            # 计算逻辑大小 = 物理大小 + 所有子包的逻辑大小
+            logical_size = pkg_data['physical_size'] if pkg_data['physical_size'] is not None else 0
+            for dep in pkg_data['dependencies']:
+                if dep in Q:
+                    logical_size += calculate_logical_size(dep, visited.copy())
+            pkg_data['logical_size'] = logical_size
+            return logical_size
+        
+        # 为所有包计算逻辑大小
+        for pkg_name in current_packages:
+            calculate_logical_size(pkg_name)
+        
+        # 构建结果
+        result = {
+            'trees': {},
+            'layers': {},
+            'package_sizes': {pkg: (data['physical_size'] if data['physical_size'] is not None else 0) for pkg, data in Q.items()},
+            'logical_sizes': {pkg: (data['logical_size'] if data['logical_size'] is not None else 0) for pkg, data in Q.items()},
+            'total_calls': total_calls,
+            'analyzed_packages': len(Q),
+            'total_time': total_analysis_time,
+            'Q': Q  # 调试用
+        }
+        
+        # 构建依赖树
+        def build_tree(pkg_name, visited=None, max_tree_depth=3):
+            if visited is None:
+                visited = set()
+            
+            if pkg_name in visited or pkg_name not in Q:
+                return {}
+            
+            visited.add(pkg_name)
+            pkg_data = Q[pkg_name]
+            
+            result_tree = {
+                'dependencies': pkg_data['dependencies'],
+                'size': pkg_data['physical_size'] if pkg_data['physical_size'] is not None else 0,
+                'logical_size': pkg_data['logical_size'] if pkg_data['logical_size'] is not None else 0,
+                'children': {}
+            }
+            
+            if len(visited) < max_tree_depth:
+                for dep in pkg_data['dependencies']:
+                    result_tree['children'][dep] = build_tree(dep, visited.copy(), max_tree_depth)
+            
+            return result_tree
+        
+        for pkg in current_packages:
+            result['trees'][pkg] = build_tree(pkg)
+        
+        # 转换layers为list
+        for layer_num in layers:
+            result['layers'][layer_num] = list(layers[layer_num])
+        
+        if interface_mode:
+            result['download_layers'] = result['layers'].copy()
+        return result
+
+    def normalize_package_name(self, package_name):
+        """
+        标准化包名进行比较
+        将下划线转换为连字符，并转换为小写
+        """
+        if not package_name:
+            return ""
+        # 移除版本信息
+        base_name = package_name.split('==')[0].split('>=')[0].split('<=')[0].split('>')[0].split('<')[0].split('!=')[0]
+        normalized = base_name.replace('_', '-').lower().strip()
+        return normalized
+
+    def display_smart_dependency_tree(self, smart_analysis, installed_packages=None):
+        """
+        显示智能依赖分析结果，包含包大小和层级信息
+        
+        Args:
+            smart_analysis: 智能分析结果
+            installed_packages: 已安装包的字典 {package_name: version}
+        """
+        def format_size(size_bytes):
+            """格式化包大小显示"""
+            if size_bytes == 0:
+                return ""
+            elif size_bytes < 1024:
+                return f" ({size_bytes}B)"
+            elif size_bytes < 1024 * 1024:
+                return f" ({size_bytes/1024:.1f}KB)"
+            else:
+                return f" ({size_bytes/(1024*1024):.1f}MB)"
+        
+        def format_logical_size(physical_size, logical_size):
+            """格式化逻辑大小显示（物理大小→逻辑大小）"""
+            if logical_size and logical_size != physical_size and logical_size > physical_size:
+                if logical_size < 1024*1024:
+                    return f" ({physical_size/1024:.1f}KB→{logical_size/1024:.1f}KB)"
+                else:
+                    return f" ({physical_size/(1024*1024):.1f}MB→{logical_size/(1024*1024):.1f}MB)"
+            else:
+                return format_size(physical_size)
+        
+        def is_package_installed(pkg_name):
+            """检查包是否已安装"""
+            if not installed_packages:
+                return False
+            normalized_name = self.normalize_package_name(pkg_name)
+            normalized_installed = {self.normalize_package_name(pkg): pkg for pkg in installed_packages.keys()}
+            return normalized_name in normalized_installed
+        
+        trees = smart_analysis.get('trees', {})
+        package_sizes = smart_analysis.get('package_sizes', {})
+        logical_sizes = smart_analysis.get('logical_sizes', {})
+        layers = smart_analysis.get('layers', {})
+        
+        # 显示每个主包的依赖树
+        for package, tree_data in trees.items():
+            installed_mark = " [√]" if is_package_installed(package) else ""
+            physical_size = package_sizes.get(package, 0)
+            logical_size = logical_sizes.get(package, 0)
+            size_info = format_logical_size(physical_size, logical_size)
+            print(f"{package}{installed_mark}{size_info}")
+            
+            # 显示直接依赖
+            deps = tree_data.get('dependencies', [])
+            if deps:
+                for i, dep in enumerate(deps):
+                    is_last = (i == len(deps) - 1)
+                    connector = "└─" if is_last else "├─"
+                    dep_installed = " [√]" if is_package_installed(dep) else ""
+                    dep_physical = package_sizes.get(dep, 0)
+                    dep_logical = logical_sizes.get(dep, 0)
+                    dep_size = format_logical_size(dep_physical, dep_logical)
+                    print(f"{connector} {dep}{dep_installed}{dep_size}")
+                    
+                    # 显示二级依赖 (Level 2) - 4个空格缩进
+                    child_data = tree_data.get('children', {}).get(dep, {})
+                    child_deps = child_data.get('dependencies', [])
+                    if child_deps:
+                        for j, child_dep in enumerate(child_deps):
+                            is_last_child = (j == len(child_deps) - 1)
+                            if is_last:
+                                child_connector = "    └─" if is_last_child else "    ├─"
+                            else:
+                                child_connector = "│   └─" if is_last_child else "│   ├─"
+                            child_installed = " [√]" if is_package_installed(child_dep) else ""
+                            child_physical = package_sizes.get(child_dep, 0)
+                            child_logical = logical_sizes.get(child_dep, 0)
+                            child_size = format_logical_size(child_physical, child_logical)
+                            print(f"{child_connector} {child_dep}{child_installed}{child_size}")
+            
+        # 显示层级汇总（从Level 1开始）
+        print()
+        for layer_num in sorted(layers.keys()):
+            if layer_num == 0:
+                continue  # 跳过主包层
+            pkgs = layers[layer_num]
+            if pkgs:
+                # 去重并按大小排序
+                unique_pkgs = list(set(pkgs))
+                pkg_with_sizes = [(pkg, package_sizes.get(pkg, 0)) for pkg in unique_pkgs]
+                pkg_with_sizes.sort(key=lambda x: x[1], reverse=True)
+                print(f"\nLevel {layer_num}: {', '.join([f'{pkg}{format_size(size)}' for pkg, size in pkg_with_sizes])}")

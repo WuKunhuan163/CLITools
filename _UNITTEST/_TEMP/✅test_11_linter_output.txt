@@ -1,0 +1,147 @@
+# ============================================================================
+# Test completed at: 2025-12-02 18:07:15 - Status: PASS
+# ============================================================================
+
+test_11_linter (test_gds.GDSTest) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1415.312s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251202_174336_850717_0675f8e6
+正在创建远端测试目录: ~/tmp/gds_test_20251202_174336_850717_0675f8e6
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251202_174336_850717_0675f8e6
+验证测试目录存在: ~/tmp/gds_test_20251202_174336_850717_0675f8e6
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_00eksv4h
+测试环境设置完成
+上传测试文件...
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py"
+验证命令: ['ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_script.py"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py
+命令: 'ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py
+所有验证通过!
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/invalid_script.py"
+验证命令: ['ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/invalid_script.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/invalid_script.py"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/invalid_script.py
+命令: 'ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/invalid_script.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_174336_850717_0675f8e6/invalid_script.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/invalid_script.py
+所有验证通过!
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_config.json"
+验证命令: ['ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_config.json']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_config.json"'
+返回码: 1
+输出: Upload error: ls: ~/tmp/cmd_result_1764669264_8d72e6b5.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 970, in execute_special_command
+    return command.execute(name, args, **kwargs)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py", line 116, in execute
+    result = self.cmd_upload(corrected_source_files, target_path=target_path, force=force)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py", line 660, in cmd_upload
+    call_stack = ''.join(traceback.format_stack()[-3:])  # 获取最近3层调用栈
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 2/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_config.json"'
+返回码: 1
+输出: Upload error: ls: ~/tmp/cmd_result_1764669654_8d72e6b5.json: No such file or directory
+等待结果超时。可能的原因：
+  (1) 使用 'GOOGLE_DRIVE --remount' 重新挂载Google Drive，然后刷新整个网页
+  (2) 更新正确的文件夹/文件ID - 错误可能在直接父目录
+  (3) 检查网络连接，Google Drive API可能缓慢或无法访问. Call stack:   File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/command_executor.py", line 970, in execute_special_command
+    return command.execute(name, args, **kwargs)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py", line 116, in execute
+    result = self.cmd_upload(corrected_source_files, target_path=target_path, force=force)
+  File "/Users/wukunhuan/.local/bin/GOOGLE_DRIVE_PROJ/modules/commands/upload_command.py", line 660, in cmd_upload
+    call_stack = ''.join(traceback.format_stack()[-3:])  # 获取最近3层调用栈
+Error: Upload command failed, return code: 1
+Waiting 1 second before retrying...
+
+尝试 3/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251202_174336_850717_0675f8e6 --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/valid_config.json"'
+返回码: 0
+输出: 
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_config.json
+命令: 'ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_config.json'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_config.json
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_config.json
+所有验证通过!
+测试语法正确的Python文件
+命令: 'linter ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py'
+返回码: 0
+输出: Language: python
+Status: PASS
+Message: Python linting completed with pyflakes
+Warnings:
+  • /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/tmp_jn0d687.py:6:11: f-string is missing placeholders
+测试有样式错误的Python文件
+命令: 'linter ~/tmp/gds_test_20251202_174336_850717_0675f8e6/invalid_script.py'
+返回码: 1
+输出: Language: python
+Status: FAIL
+Message: Python linting completed with pyflakes
+Errors:
+  • /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/tmpr1_v4dzz.py:6:10: invalid syntax
+Warnings:
+  • print(f'Missing closing parenthesis')
+  • ^
+检测到具体的linting问题: ['invalid syntax']
+测试指定Python语言的linter
+命令: 'linter --language python ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_script.py'
+返回码: 0
+输出: Language: python
+Status: PASS
+Message: Python linting completed with pyflakes
+Warnings:
+  • /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/tmp20zz2g4c.py:6:11: f-string is missing placeholders
+测试JSON文件linter
+命令: 'linter ~/tmp/gds_test_20251202_174336_850717_0675f8e6/valid_config.json'
+返回码: 0
+输出: Language: json
+Status: PASS
+Message: JSON linting failed: [Errno 2] No such file or directory: 'jsonlint'
+测试不存在文件的错误处理
+命令: 'linter ~/tmp/gds_test_20251202_174336_850717_0675f8e6/nonexistent_file.py'
+返回码: 1
+输出: Could not read file /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_174336_850717_0675f8e6/nonexistent_file.py: cat: ~/tmp/gds_test_20251202_174336_850717_0675f8e6/nonexistent_file.py: No such file or directory
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

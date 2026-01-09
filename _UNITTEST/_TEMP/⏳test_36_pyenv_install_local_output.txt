@@ -1,0 +1,338 @@
+test_36_pyenv_install_local (test_gds.GDSTest)
+测试pyenv本地下载安装功能 - 动态选择随机版本进行本地下载和远程编译安装 ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251120_204320_094481_12843c69
+正在创建远端测试目录: ~/tmp/gds_test_20251120_204320_094481_12843c69
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+创建测试目录尝试 1/3 失败: 返回码=1
+创建测试目录尝试 2/3 失败: 返回码=1
+已切换到远端测试目录: ~/tmp/gds_test_20251120_204320_094481_12843c69
+验证测试目录存在: ~/tmp/gds_test_20251120_204320_094481_12843c69
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_bvx1ghdb
+测试环境设置完成
+测试pyenv本地下载安装功能（使用随机版本）
+步骤1：获取所有可用的Python版本
+命令: 'pyenv --list'
+返回码: 0
+输出: Available Python versions for installation:
+  2.7.17
+  2.7.18
+  3.0.1
+  2.6.18
+  2.7.16
+  2.6.15
+  2.6.17
+  2.7.15
+  3.0.0
+  2.6.16
+  3.0.2
+  3.2.1
+  3.1.1
+  3.1.0
+  3.3.0
+  3.2.0
+  3.3.1
+  3.2.2
+  3.5.1
+  3.6.0
+  3.6.1
+  3.3.2
+  3.7.0
+  3.7.1
+  3.7.2
+  3.5.0
+  3.7.3
+  3.7.5
+  3.4.0
+  3.7.7
+  3.4.1
+  3.7.8
+  3.7.9
+  3.4.2
+  3.7.4
+  3.5.2
+  3.7.13
+  3.6.2
+  3.7.16
+  3.7.12
+  3.7.17
+  3.8.0
+  3.7.6
+  3.8.1
+  3.7.11
+  3.7.10
+  3.7.15
+  3.7.14
+  3.8.5
+  3.8.2
+  3.8.8
+  3.8.9
+  3.8.10
+  3.8.12
+  3.1.2
+  3.8.6
+  3.8.7
+  3.8.3
+  3.8.4
+  3.8.18
+  3.8.13
+  3.8.19
+  3.8.11
+  3.8.20
+  3.9.0
+  3.9.2
+  3.9.5
+  3.8.14
+  3.9.6
+  3.9.8
+  3.8.15
+  3.9.7
+  3.9.10
+  3.9.9
+  3.9.3
+  3.8.16
+  3.9.13
+  3.9.16
+  3.9.1
+  3.9.4
+  3.9.17
+  3.9.19
+  3.9.18
+  3.9.20
+  3.10.1
+  3.10.2
+  3.10.0
+  3.9.14
+  3.10.6
+  3.9.11
+  3.9.12
+  3.10.9
+  3.10.10
+  3.10.11
+  3.10.12
+  3.10.13
+  3.10.5
+  3.10.14
+  3.9.15
+  3.10.15
+  3.11.0
+  3.11.2
+  3.10.7
+  3.11.5
+  3.11.6
+  3.10.4
+  3.11.7
+  3.11.8
+  3.11.9
+  3.11.11
+  3.11.10
+  3.10.8
+  3.12.0
+  3.12.1
+  3.12.2
+  3.12.3
+  3.12.4
+  3.12.6
+  3.12.7
+  3.12.8
+  3.12.9
+  3.12.10
+  3.12.11
+  3.11.4
+  3.12.12
+  3.11.3
+  3.11.12
+  3.13.0
+  3.13.1
+  3.13.2
+  3.12.5
+  3.13.3
+  3.13.5
+  3.13.7
+  3.13.8
+  3.13.9
+  3.14.0
+  3.10.3
+  3.11.1
+  3.13.4
+  3.8.17
+  3.12.14
+  3.12.13
+  3.13.6
+  3.14.1
+  3.15.0
+  3.14.3
+  3.14.2
+  3.15.1
+  3.15.2
+  3.14.4
+  3.15.3
+  3.15.4
+  3.16.0
+  3.16.2
+  3.16.3
+  3.16.4
+  3.16.1
+  3.17.0
+  3.17.1
+  3.17.2
+  3.17.3
+  3.17.4
+  3.18.0
+  3.18.1
+  3.18.2
+  3.18.3
+  3.18.4
+  3.19.0
+  3.19.2
+  3.19.1
+  3.19.3
+  3.19.4
+  3.20.1
+  3.20.0
+  3.20.2
+  3.20.3
+  3.20.4
+Showing 178 verified versions out of 178 tested.
+从178个可用版本中随机选择的测试版本: 3.8.20
+步骤1.5：检查当前已安装的Python版本
+命令: 'pyenv --versions'
+返回码: 0
+输出: Installed Python versions (8 total):
+  3.10.13
+  3.12.0
+* 3.12.9
+  3.3.1
+  3.7.17
+  3.8.18
+  3.8.19
+  3.9.18
+Current: 3.12.9 (local shell 99a62b9064feac53)
+当前已安装版本:
+Installed Python versions (8 total):
+  3.10.13
+  3.12.0
+* 3.12.9
+  3.3.1
+  3.7.17
+  3.8.18
+  3.8.19
+  3.9.18
+Current: 3.12.9 (local shell 99a62b9064feac53)
+
+
+步骤3：本地下载并安装Python 3.8.20
+注意：这个过程包括本地下载、上传、远程编译，可能需要10-20分钟
+命令: 'pyenv --install-local 3.8.20 --force'
+返回码: 0
+输出: Starting local download and remote installation of Python 3.8.20...
+Step 1/4: Downloading Python 3.8.20 source code locally...
+Downloaded Python-3.8.20.tgz (23.9 MB)
+Step 2/4: Uploading source code to remote REMOTE_ENV...
+检测到 1 个大文件（>10MB），需要手动上传:
+  - Python-3.8.20.tgz (23.9 MB)
+Target remote path: https://drive.google.com/drive/folders/1E6Dw-LZlPF7WT5RV0EhIquDwdP2oZYbY
+Opened the target remote folder in browser
+Local temporary folder: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/GDS_MANUAL_UPLOAD_g0i575ki
+Opened the local temporary folder
+============================================================
+Please drag the files from the opened local temporary folder to the target remote folder!
+Cleaned up the local temporary folder
+Waiting for manually uploaded files to be synchronized...
+Move manually uploaded files to the destination: @/python_install_3.8.20
+Files moved successfully to @/python_install_3.8.20
+Uploaded to /content/drive/MyDrive/REMOTE_ENV/python_install_3.8.20/Python-3.8.20.tgz
+Step 3/4: Extracting and compiling (this may take 10-20 minutes)...
+Step 4/4: Starting background compilation...
+Background task started with ID: 1763643050_2845
+Run the following commands to track the background task status:
+  GDS --bg --status 1763643050_2845    # Check task status
+  GDS --bg --result 1763643050_2845    # View task result
+  GDS --bg --log 1763643050_2845       # View task log
+  GDS --bg --cleanup 1763643050_2845   # Clean up task files
+Background compilation started successfully!
+The compilation will continue in the background.
+This typically takes 10-20 minutes depending on server performance.
+To check installation progress, use the background task commands shown above.
+Background compilation started. Use 'GDS --bg --status <task_id>' to check progress.
+后台安装任务已启动，任务ID: 1763643050_2845
+等待Python 3.8.20后台安装完成（任务ID: 1763643050_2845，超时5400秒）...
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待12秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待84秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待158秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待231秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待305秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待379秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待453秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待528秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+任务仍在运行... 已等待612秒
+命令: '--bg --status 1763643050_2845'
+返回码: 0
+输出: Status: running
+PID: 1763643050_2845 (Real PID: 12922)
+Start time: 2025-11-20T20:50:50.410649
+Log size: 0 bytes

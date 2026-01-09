@@ -1,0 +1,10 @@
+torch
+torchvision
+transformers
+tqdm
+Pillow
+ftfy
+loguru
+albumentations
+opencv-python
+numpy

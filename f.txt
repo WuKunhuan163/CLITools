@@ -1,0 +1,13 @@
+内容：
+USERINPUT工具超时的表现还没有修复！记住预期是：截取文本框里的部分输入（如有）并且提示超时；如果完全没有输入则提示用户无输入，视作一次失败并重试（如果还有重试次数）。现在的表现：
+kans-MacBook-Air:AITerminalTools wukunhuan$ USERINPUT --timeout 10
+Attempt 1/3 failed (User operation failed: Input timeout), retrying...
+Attempt 2/3 failed (User operation failed: User cancelled input), retrying...
+Failed to capture user input. Please run USERINPUT again.
+kans-MacBook-Air:AITerminalTools wukunhuan$ 
+
+
+====
+结果：
+Attempt 1/3 failed (User operation failed: Input timeout), retrying...
+Attempt 2/3 failed (User operation failed: User cancelled input), retrying...

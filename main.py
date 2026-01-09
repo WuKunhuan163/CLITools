@@ -36,7 +36,10 @@ def main():
 
 def install_tool(tool_name):
     project_root = Path(__file__).parent.absolute()
-    tool_dir = project_root / tool_name
+    # Install tools into a 'tool' subdirectory
+    tool_parent_dir = project_root / "tool"
+    tool_parent_dir.mkdir(exist_ok=True)
+    tool_dir = tool_parent_dir / tool_name
     bin_dir = project_root / "bin"
     
     # 0. Validate against global tool.json
@@ -52,15 +55,26 @@ def install_tool(tool_name):
     if not tool_dir.exists():
         print(f"Tool {tool_name} not found locally. Attempting to fetch from 'tool' branch...")
         try:
-            # Try to checkout from origin/tool
-            result = subprocess.run(["git", "checkout", "origin/tool", "--", tool_name], capture_output=True, cwd=str(project_root))
+            # Try to checkout from origin/tool - note the path is tool/<name> in the branch
+            result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
             if result.returncode != 0:
                 # If remote fails, try local tool branch
-                subprocess.run(["git", "checkout", "tool", "--", tool_name], check=True, capture_output=True, cwd=str(project_root))
+                subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
             print(f"Successfully retrieved {tool_name} from 'tool' branch.")
         except subprocess.CalledProcessError as e:
-            print(f"Error retrieving tool {tool_name}: {e}")
-            return
+            # Fallback for old branch structure or if tool is in root
+            try:
+                result = subprocess.run(["git", "checkout", "origin/tool", "--", tool_name], capture_output=True, cwd=str(project_root))
+                if result.returncode == 0:
+                    # Move from root to tool/
+                    shutil.move(str(project_root / tool_name), str(tool_dir))
+                    print(f"Successfully retrieved {tool_name} from 'tool' branch (root) and moved to tool/ folder.")
+                else:
+                    print(f"Error retrieving tool {tool_name}: {e}")
+                    return
+            except Exception:
+                print(f"Error retrieving tool {tool_name}: {e}")
+                return
 
     if not tool_dir.exists():
         print(f"Error: Tool directory {tool_dir} still not found after download attempt.")

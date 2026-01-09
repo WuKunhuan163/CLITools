@@ -1,0 +1,126 @@
+# ============================================================================
+# Test completed at: 2025-12-02 08:01:23 - Status: PASS
+# ============================================================================
+
+test_32_regex (test_gds.GDSTest)
+测试正则表达式验证功能 - 基于实际文件操作 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1207.462s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251202_074112_908122_30feb047
+正在创建远端测试目录: ~/tmp/gds_test_20251202_074112_908122_30feb047
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251202_074112_908122_30feb047
+验证测试目录存在: ~/tmp/gds_test_20251202_074112_908122_30feb047
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_7rsk03mt
+测试环境设置完成
+测试正则表达式验证功能
+准备：创建测试目录和文件
+命令: 'mkdir -p ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test'
+返回码: 0
+输出: 
+命令: 'echo -n "Echo without newline" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/echo_test.txt'
+返回码: 0
+输出: 
+命令: 'printf "Hello World" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/printf_test.txt'
+返回码: 0
+输出: 
+命令: 'echo "Line 1" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/append.txt'
+返回码: 0
+输出: 
+命令: 'echo "Line 2" >> ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/append.txt'
+返回码: 0
+输出: 
+命令: 'echo "pattern line 1" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_source.txt'
+返回码: 0
+输出: 
+命令: 'echo "no match line" >> ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_source.txt'
+返回码: 0
+输出: 
+命令: 'echo "pattern line 2" >> ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_source.txt'
+返回码: 0
+输出: 
+测试1: 基本重定向模式匹配
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/echo_test.txt'
+返回码: 0
+输出: Echo without newline
+测试2: 复杂命令模式匹配
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/printf_test.txt'
+返回码: 0
+输出: Hello World
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/append.txt'
+返回码: 0
+输出: Line 1
+Line 2
+测试3: 文件路径验证模式
+命令: 'echo "# Python script" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/test_script.py'
+返回码: 0
+输出: 
+命令: 'echo "#!/bin/bash" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/test_script.sh'
+返回码: 0
+输出: 
+命令: 'echo "{}" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/config_123.json'
+返回码: 0
+输出: DEBUG [generate_command] INPUT:
+  cmd length: 118
+  has {: True
+  { count: 1
+  capture_result: True
+  cmd preview (first 500 chars): echo "{}" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/config_123.json
+命令: 'ls ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/echo_test.txt'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/echo_test.txt
+命令: 'ls ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/test_script.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/test_script.py
+命令: 'ls ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/test_script.sh'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/test_script.sh
+命令: 'ls ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/config_123.json'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/config_123.json
+测试4: 命令参数解析模式
+命令: 'grep -n "pattern" ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_source.txt > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_result.txt'
+返回码: 0
+输出: Warning: Special command 'grep' detected with redirection. GDS special commands will be executed as standard remote bash commands. 
+DEBUG [generate_command] INPUT:
+  cmd length: 233
+  has {: False
+  { count: 0
+  capture_result: True
+  cmd preview (first 500 chars): grep -n "pattern" /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_source.txt > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_result.txt
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_result.txt'
+返回码: 0
+输出: 1:pattern line 1
+3:pattern line 2
+测试5: 特殊字符转义模式
+命令: 'printf "Tab:\\tNewline:\\n" > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/escape_test.txt'
+返回码: 0
+输出: 
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/escape_test.txt'
+返回码: 0
+输出: Tab:	Newline:
+测试6: 管道和重定向组合模式
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/grep_source.txt | grep "pattern" | wc -l > ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/pipe_result.txt'
+返回码: 0
+输出: 
+命令: 'cat ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test/pipe_result.txt'
+返回码: 0
+输出: 2
+测试7: 文件名和扩展名验证
+测试8: 命令注入防护模式
+清理测试目录
+命令: 'rm -rf ~/tmp/gds_test_20251202_074112_908122_30feb047/regex_test'
+返回码: 0
+输出: 
+正则表达式验证功能测试完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+
