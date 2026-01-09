@@ -1,4 +1,4 @@
-#!/Applications/AITerminalTools/PYTHON_PROJ/python3.10.19/install/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 USERINPUT tkinter版本 (v7)
