@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT tkinter版本 (v7)
-- 增加了失败重试机制（最多3次）
-- 将空提交/取消/闪退视为失败
-- 修正了按钮的左右顺序
-- 按钮使用系统默认风格
-- 修复了音效无法播放的问题
+USERINPUT Tool (v8)
+- Captures multi-line user feedback via Tkinter GUI.
+- Supports timeout with auto-retry logic.
+- Localized via 'translations.json'.
+- Powered by standalone Python environment.
 """
 
 import os
@@ -18,18 +17,32 @@ import time
 import random
 from pathlib import Path
 
-def get_python_exec():
+# Silence Tkinter deprecation warnings
+os.environ['TK_SILENCE_DEPRECATION'] = '1'
+warnings.filterwarnings('ignore')
+
+# Dynamic import of tkinter
+try:
+    import tkinter as tk
+    from tkinter import font as tkFont
+except ImportError:
+    print("Error: Tkinter module not found.", file=sys.stderr)
+    sys.exit(1)
+
+class UserInputRetryableError(Exception):
+    """Exception raised for errors that should trigger a retry (e.g., user cancellation)."""
+    pass
+
+def get_python_exec(version="python3.10.19"):
     """Find the standalone python executable from the PYTHON tool."""
-    # This script is at project_root/USERINPUT/main.py
-    # PYTHON tool is at project_root/PYTHON/proj/python3.10.19/...
     current_dir = Path(__file__).parent.absolute()
     project_root = current_dir.parent
-    python_exec = project_root / "PYTHON" / "proj" / "python3.10.19" / "install" / "bin" / "python3"
+    python_exec = project_root / "PYTHON" / "proj" / "installations" / version / "install" / "bin" / "python3"
     
     if python_exec.exists():
         return str(python_exec)
     
-    # Try importing from PYTHON tool if it exists
+    # Try importing from PYTHON tool utilities if available
     python_utils = project_root / "PYTHON" / "proj" / "utils.py"
     if python_utils.exists():
         try:
@@ -38,30 +51,14 @@ def get_python_exec():
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                return module.get_python_exec()
+                return module.get_python_exec(version)
         except Exception:
             pass
             
-    return sys.executable # Fallback to current python
-
-# 在导入tkinter之前设置环境变量
-os.environ['TK_SILENCE_DEPRECATION'] = '1'
-warnings.filterwarnings('ignore')
-
-# 动态导入tkinter，以处理潜在的显示问题
-try:
-    import tkinter as tk
-    from tkinter import font as tkFont
-except ImportError:
-    print("错误: Tkinter模块未找到。请确保您的Python环境包含Tkinter。", file=sys.stderr)
-    sys.exit(1)
-
-# 自定义一个异常，用于标识可重试的失败情况
-class UserInputRetryableError(Exception):
-    pass
+    return sys.executable # System fallback
 
 def get_project_name():
-    """获取项目名称"""
+    """Retrieve the name of the current project."""
     try:
         current_dir = os.getcwd()
         git_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL, text=True).strip()
@@ -76,7 +73,7 @@ def get_project_name():
         return project_name or "root"
 
 def get_cursor_session_title(custom_id=None):
-    """获取Cursor session标题"""
+    """Generate a title for the Cursor session window."""
     try:
         project_name = get_project_name()
         base_title = f"{project_name} - Agent Mode"
@@ -86,22 +83,19 @@ def get_cursor_session_title(custom_id=None):
 
 def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     """
-    通过在一个独立的Python子进程中运行Tkinter脚本来获取用户输入。
-    如果用户取消或提交空内容，则会引发 UserInputRetryableError。
+    Captures user input via a Tkinter script run in a separate Python process.
     """
-    
-    # Determine tool's proj directory for translations
+    python_exe = get_python_exec()
     current_dir = Path(__file__).parent.absolute()
     proj_dir = current_dir / "proj"
     
-    # 在父进程中计算好音频文件的绝对路径
     try:
         bell_path = proj_dir / "tkinter_bell.mp3"
         bell_path_str_literal = repr(str(bell_path))
     except Exception:
         bell_path_str_literal = "''"
 
-    # 将要作为独立脚本执行的Python代码。
+    # Python script to be executed in the subprocess
     tkinter_script = f'''
 import os
 import sys
@@ -117,7 +111,6 @@ import time
 import subprocess
 import platform
 
-# Add the directory containing 'proj' to sys.path so we can import language_utils
 project_root = Path({repr(str(current_dir.parent))})
 python_proj_dir = project_root / "PYTHON" / "proj"
 if python_proj_dir.exists():
@@ -154,6 +147,7 @@ class TkinterInputWindow:
             self.root.focus_force()
             main_frame = tk.Frame(self.root, padx=15, pady=15)
             main_frame.pack(fill=tk.BOTH, expand=True)
+            
             instruction = _("instruction", "Please enter your feedback:")
             instruction_label = tk.Label(main_frame, text=instruction, font=("Arial", 11), fg="#555")
             instruction_label.pack(pady=(0, 10), anchor='w')
@@ -223,64 +217,68 @@ class TkinterInputWindow:
     
     def start_periodic_focus(self):
         def refocus():
-            if not self.window_closed and self.root:
+            while not self.window_closed:
                 try:
-                    self.root.lift()
-                    self.root.focus_force()
-                    self.root.attributes('-topmost', True)
-                    self.text_widget.focus_set()
-                    self.play_bell()
-                    self.root.after(30000, refocus)
-                except tk.TclError: pass
+                    if self.root:
+                        self.root.lift()
+                        self.root.focus_force()
+                        self.root.attributes('-topmost', True)
+                        self.text_widget.focus_set()
+                        self.play_bell()
+                        self.root.after(30000, refocus)
+                except tk.TclError: break
+                time.sleep(30)
         if self.root: self.root.after(30000, refocus)
-    
+
     def play_bell(self):
-        def play_in_thread():
-            try:
-                audio_file_path = {bell_path_str_literal}
-                if audio_file_path and os.path.exists(audio_file_path) and platform.system() == "Darwin":
-                    subprocess.run(["afplay", audio_file_path], capture_output=True, timeout=2)
-            except: pass
-        threading.Thread(target=play_in_thread, daemon=True).start()
-    
+        bell_path = {bell_path_str_literal}
+        if bell_path and os.path.exists(bell_path):
+            def run_play():
+                try:
+                    if platform.system() == "Darwin":
+                        subprocess.run(["afplay", bell_path], stderr=subprocess.DEVNULL)
+                    elif platform.system() == "Linux":
+                        subprocess.run(["aplay", bell_path], stderr=subprocess.DEVNULL)
+                except Exception: pass
+            threading.Thread(target=run_play, daemon=True).start()
+
     def submit_input(self):
-        if self.window_closed: return
-        self.result = self.text_widget.get("1.0", tk.END).strip() or "用户提交了空内容"
-        self.close_window()
-    
+        user_text = self.text_widget.get("1.0", tk.END).strip()
+        if user_text:
+            self.result = user_text
+            self.close_window()
+        else:
+            self.result = "USER_SUBMITTED_EMPTY"
+            self.close_window()
+
     def cancel_input(self):
-        if self.window_closed: return
-        self.result = "用户取消了输入"
+        self.result = "USER_CANCELLED"
         self.close_window()
-    
+
     def timeout_input(self):
-        if self.window_closed: return
-        try:
-            text_content = self.text_widget.get("1.0", tk.END).strip()
-            timeout_hint = "\\n用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。"
-            self.result = f"{{text_content}}\\n{{timeout_hint}}" if text_content else f"输入超时 ({{self.initial_timeout}}秒)。{{timeout_hint}}"
-        except: 
-            self.result = f"输入超时。"
+        self.result = "TIMEOUT"
         self.close_window()
-    
+
     def close_window(self):
-        if self.window_closed: return
         self.window_closed = True
-        if self.root:
-            try: self.root.destroy()
-            except: pass
-    
+        try:
+            if self.root:
+                self.root.quit()
+                self.root.destroy()
+        except tk.TclError: pass
+
     def show_and_wait(self):
-        if not self.create_window(): return
-        self.root.mainloop()
-        if self.result == "USER_SUBMITTED_EMPTY":
-            print(_("msg_empty", "User submitted empty content"))
-        elif self.result == "USER_CANCELLED":
-            print(_("msg_cancelled", "User cancelled input"))
-        elif self.result == "TIMEOUT":
-            print(_("msg_timeout", "Input timeout"))
-        elif self.result is not None:
-            print(self.result, file=sys.stdout)
+        if self.create_window():
+            self.root.mainloop()
+            if self.result == "USER_SUBMITTED_EMPTY":
+                print(_("msg_empty", "User submitted empty content"))
+            elif self.result == "USER_CANCELLED":
+                print(_("msg_cancelled", "User cancelled input"))
+            elif self.result == "TIMEOUT":
+                print(_("msg_timeout", "Input timeout"))
+            elif self.result:
+                print(self.result)
+            sys.exit(0)
 
 if __name__ == "__main__":
     title_str = {repr(title)}
@@ -290,10 +288,7 @@ if __name__ == "__main__":
     window.show_and_wait()
     '''
     try:
-        # Determine which Python interpreter to use
-        python_exe = get_python_exec()
         watchdog_timeout = 3600 # 1 hour
-
         result = subprocess.run(
             [python_exe, '-c', tkinter_script],
             capture_output=True, text=True, encoding='utf-8', timeout=watchdog_timeout
@@ -301,27 +296,23 @@ if __name__ == "__main__":
 
         if result.returncode != 0:
             error_message = result.stdout.strip() or result.stderr.strip()
-            raise RuntimeError(f"USERINPUT子进程执行失败: {error_message}")
+            raise RuntimeError(f"USERINPUT subprocess failed: {error_message}")
 
         user_input = result.stdout.strip()
         if not user_input:
-             raise RuntimeError("USERINPUT子进程没有返回任何内容。")
+             raise RuntimeError("USERINPUT subprocess returned no output.")
         
-        # 新增逻辑：检查是否为“失败”信号
-        # We need to check both Chinese and English (and localized) failure messages
-        # Better yet, let's look for known failure patterns
         failure_keywords = ["用户提交了空内容", "用户取消了输入", "Input timeout", "User cancelled", "User submitted empty"]
         if any(kw in user_input for kw in failure_keywords):
-            raise UserInputRetryableError(f"用户操作失败: {user_input}")
+            raise UserInputRetryableError(f"User operation failed: {user_input}")
         
         return user_input
 
     except subprocess.TimeoutExpired:
-        raise RuntimeError(f"USERINPUT窗口运行超过 {watchdog_timeout} 秒，已被强制终止。")
-    # 不在此处捕获所有Exception，让它们冒泡到main函数中被重试逻辑处理
+        raise RuntimeError(f"USERINPUT window timed out after {watchdog_timeout} seconds.")
 
 def main():
-    """主函数，包含重试逻辑"""
+    """Main function with retry logic."""
     timeout = 180
     custom_id = None
     hint_text = None
@@ -337,12 +328,11 @@ def main():
             elif arg in ['--help', '-h']:
                 print("Usage: USERINPUT [--timeout SECONDS] [--id CUSTOM_ID] [--hint TEXT]")
                 return 0
-            else: raise ValueError(f"未知参数: {arg}")
+            else: raise ValueError(f"Unknown parameter: {arg}")
     except (IndexError, ValueError) as e:
-        print(f"参数错误: {e}", file=sys.stderr)
+        print(f"Parameter error: {e}", file=sys.stderr)
         return 1
 
-    # --- 新增：重试逻辑 ---
     max_retries = 3
     final_result = None
     
@@ -352,20 +342,16 @@ def main():
                 title=get_cursor_session_title(custom_id), timeout=timeout, hint_text=hint_text
             )
             
-            # 如果成功获取输入，则准备最终结果并跳出循环
             end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
             final_result = result + end_hint
-            break # 成功，退出重试循环
+            break
 
         except (UserInputRetryableError, RuntimeError) as e:
-            # 捕获可重试的失败（空提交、取消、闪退等）
             if attempt < max_retries - 1:
-                # 如果不是最后一次尝试，则打印提示并等待1秒后重试
-                print(f"尝试 {attempt + 1}/{max_retries} 失败 ({e})，正在重试...", file=sys.stderr)
+                print(f"Attempt {attempt + 1}/{max_retries} failed ({e}), retrying...", file=sys.stderr)
                 time.sleep(1)
-            continue # 继续下一次循环
+            continue
 
-    # 循环结束后，检查是否成功获取了结果
     if final_result:
         if platform.system() == "Darwin":
             try:
@@ -375,8 +361,7 @@ def main():
         print(final_result)
         return 0
     else:
-        # 所有尝试都失败了
-        print("获取用户输入失败，请重新执行USERINPUT！", file=sys.stderr)
+        print("Failed to capture user input. Please run USERINPUT again.", file=sys.stderr)
         return 1
 
 if __name__ == "__main__":
