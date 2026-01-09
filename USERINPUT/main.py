@@ -90,11 +90,14 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     如果用户取消或提交空内容，则会引发 UserInputRetryableError。
     """
     
+    # Determine tool's proj directory for translations
+    current_dir = Path(__file__).parent.absolute()
+    proj_dir = current_dir / "proj"
+    
     # 在父进程中计算好音频文件的绝对路径
     try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        bell_path = os.path.join(script_dir, "proj", "tkinter_bell.mp3")
-        bell_path_str_literal = repr(bell_path)
+        bell_path = proj_dir / "tkinter_bell.mp3"
+        bell_path_str_literal = repr(str(bell_path))
     except Exception:
         bell_path_str_literal = "''"
 
@@ -103,6 +106,8 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
 import os
 import sys
 import warnings
+import json
+from pathlib import Path
 warnings.filterwarnings('ignore')
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
 
@@ -111,6 +116,22 @@ import threading
 import time
 import subprocess
 import platform
+
+# Add the directory containing 'proj' to sys.path so we can import language_utils
+project_root = Path({repr(str(current_dir.parent))})
+python_proj_dir = project_root / "PYTHON" / "proj"
+if python_proj_dir.exists():
+    sys.path.append(str(python_proj_dir.parent))
+
+try:
+    from proj.language_utils import get_translation
+except ImportError:
+    def get_translation(d, k, default): return default
+
+TOOL_PROJ_DIR = {repr(str(proj_dir))}
+
+def _(key, default):
+    return get_translation(TOOL_PROJ_DIR, key, default)
 
 class TkinterInputWindow:
     def __init__(self, title, timeout, hint_text):
@@ -133,8 +154,10 @@ class TkinterInputWindow:
             self.root.focus_force()
             main_frame = tk.Frame(self.root, padx=15, pady=15)
             main_frame.pack(fill=tk.BOTH, expand=True)
-            instruction_label = tk.Label(main_frame, text="请在文本框中输入您的反馈:", font=("Arial", 11), fg="#555")
+            instruction = _("instruction", "Please enter your feedback:")
+            instruction_label = tk.Label(main_frame, text=instruction, font=("Arial", 11), fg="#555")
             instruction_label.pack(pady=(0, 10), anchor='w')
+            
             text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
             text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
             scrollbar = tk.Scrollbar(text_frame)
@@ -154,9 +177,12 @@ class TkinterInputWindow:
             default_font = ("Arial", 12)
             submit_font = ("Arial", 13, "bold")
             
-            submit_btn = tk.Button(button_frame, text="提交", command=self.submit_input, font=submit_font)
+            submit_text = _("submit", "Submit")
+            submit_btn = tk.Button(button_frame, text=submit_text, command=self.submit_input, font=submit_font)
             submit_btn.pack(side=tk.RIGHT)
-            add_time_btn = tk.Button(button_frame, text="加时60秒", command=self.add_time, font=default_font)
+            
+            add_time_text = _("add_time", "Add 60s")
+            add_time_btn = tk.Button(button_frame, text=add_time_text, command=self.add_time, font=default_font)
             add_time_btn.pack(side=tk.RIGHT, padx=(0, 10))
             
             self.status_label = tk.Label(button_frame, text="", font=("Arial", 12), fg="black")
@@ -178,13 +204,17 @@ class TkinterInputWindow:
     def add_time(self):
         if self.remaining_time > 0:
             self.remaining_time += 60
-            self.status_label.config(text=f"已加时！剩余: {{self.remaining_time}}秒")
+            added_text = _("time_added", "Time added! Remaining:")
+            try:
+                self.status_label.config(text=f"{{added_text}} {{self.remaining_time}}s")
+            except tk.TclError: pass
 
     def start_timeout_timer(self):
         def update_timer():
+            time_remaining_text = _("time_remaining", "Remaining:")
             while self.remaining_time > 0 and not self.window_closed:
                 try:
-                    self.status_label.config(text=f"剩余时间: {{self.remaining_time}}秒")
+                    self.status_label.config(text=f"{{time_remaining_text}} {{self.remaining_time}}s")
                 except tk.TclError: break
                 time.sleep(1)
                 self.remaining_time -= 1
@@ -201,7 +231,7 @@ class TkinterInputWindow:
                     self.text_widget.focus_set()
                     self.play_bell()
                     self.root.after(30000, refocus)
-                except: pass
+                except tk.TclError: pass
         if self.root: self.root.after(30000, refocus)
     
     def play_bell(self):
@@ -243,7 +273,14 @@ class TkinterInputWindow:
     def show_and_wait(self):
         if not self.create_window(): return
         self.root.mainloop()
-        if self.result is not None: print(self.result, file=sys.stdout)
+        if self.result == "USER_SUBMITTED_EMPTY":
+            print(_("msg_empty", "User submitted empty content"))
+        elif self.result == "USER_CANCELLED":
+            print(_("msg_cancelled", "User cancelled input"))
+        elif self.result == "TIMEOUT":
+            print(_("msg_timeout", "Input timeout"))
+        elif self.result is not None:
+            print(self.result, file=sys.stdout)
 
 if __name__ == "__main__":
     title_str = {repr(title)}
@@ -271,7 +308,10 @@ if __name__ == "__main__":
              raise RuntimeError("USERINPUT子进程没有返回任何内容。")
         
         # 新增逻辑：检查是否为“失败”信号
-        if user_input in ("用户提交了空内容", "用户取消了输入"):
+        # We need to check both Chinese and English (and localized) failure messages
+        # Better yet, let's look for known failure patterns
+        failure_keywords = ["用户提交了空内容", "用户取消了输入", "Input timeout", "User cancelled", "User submitted empty"]
+        if any(kw in user_input for kw in failure_keywords):
             raise UserInputRetryableError(f"用户操作失败: {user_input}")
         
         return user_input
