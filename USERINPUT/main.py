@@ -16,6 +16,33 @@ import subprocess
 import platform
 import time
 import random
+from pathlib import Path
+
+def get_python_exec():
+    """Find the standalone python executable from the PYTHON tool."""
+    # This script is at project_root/USERINPUT/main.py
+    # PYTHON tool is at project_root/PYTHON/proj/python3.10.19/...
+    current_dir = Path(__file__).parent.absolute()
+    project_root = current_dir.parent
+    python_exec = project_root / "PYTHON" / "proj" / "python3.10.19" / "install" / "bin" / "python3"
+    
+    if python_exec.exists():
+        return str(python_exec)
+    
+    # Try importing from PYTHON tool if it exists
+    python_utils = project_root / "PYTHON" / "proj" / "utils.py"
+    if python_utils.exists():
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("python_utils", str(python_utils))
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                return module.get_python_exec()
+        except Exception:
+            pass
+            
+    return sys.executable # Fallback to current python
 
 # 在导入tkinter之前设置环境变量
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
@@ -224,13 +251,14 @@ if __name__ == "__main__":
     hint_text_str = {repr(hint_text)}
     window = TkinterInputWindow(title=title_str, timeout=timeout_int, hint_text=hint_text_str)
     window.show_and_wait()
-'''
+    '''
     try:
-        python_exec = sys.executable
+        # Determine which Python interpreter to use
+        python_exe = get_python_exec()
         watchdog_timeout = 3600 # 1 hour
 
         result = subprocess.run(
-            [python_exec, '-c', tkinter_script],
+            [python_exe, '-c', tkinter_script],
             capture_output=True, text=True, encoding='utf-8', timeout=watchdog_timeout
         )
 
