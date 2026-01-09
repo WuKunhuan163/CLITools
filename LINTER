@@ -1,3 +1,0 @@
-#!/bin/bash
-# LINTER wrapper script
-exec python3 "$(dirname "$0")/LINTER.py" "$@"
