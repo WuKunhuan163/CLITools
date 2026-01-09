@@ -1,7 +1,1 @@
-{
-  "name": "PYPI",
-  "description": "PyPI Package Information Tool",
-  "purpose": "Retrieve package information and dependencies from PyPI",
-  "run_compatible": true,
-  "testable": true
-}
+{"name": "PYPI"}

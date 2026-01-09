@@ -36,19 +36,35 @@ def install_tool(tool_name):
     tool_dir = project_root / tool_name
     bin_dir = project_root / "bin"
     
+    # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
     if not tool_dir.exists():
-        print(f"Error: Tool directory {tool_dir} not found.")
+        print(f"Tool {tool_name} not found locally. Attempting to fetch from 'tool' branch...")
+        try:
+            # Try to checkout from origin/tool
+            result = subprocess.run(["git", "checkout", "origin/tool", "--", tool_name], capture_output=True, cwd=str(project_root))
+            if result.returncode != 0:
+                # If remote fails, try local tool branch
+                subprocess.run(["git", "checkout", "tool", "--", tool_name], check=True, capture_output=True, cwd=str(project_root))
+            print(f"Successfully retrieved {tool_name} from 'tool' branch.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error retrieving tool {tool_name}: {e}")
+            return
+
+    if not tool_dir.exists():
+        print(f"Error: Tool directory {tool_dir} still not found after download attempt.")
         return
 
     main_py = tool_dir / "main.py"
     if not main_py.exists():
-        print(f"Error: {main_py} not found.")
+        # Maybe it's in the root of the tool folder but named differently? 
+        # No, the new structure requires main.py
+        print(f"Error: {main_py} not found in tool directory.")
         return
 
-    # Create bin directory
+    # 2. Create bin directory
     bin_dir.mkdir(exist_ok=True)
     
-    # Create symlink in bin directory
+    # 3. Create symlink in bin directory
     link_path = bin_dir / tool_name
     if link_path.exists() or link_path.is_symlink():
         os.remove(link_path)
