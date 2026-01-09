@@ -175,18 +175,47 @@ def test_tool(tool_name):
         print(f"Error: Tool directory {tool_dir} not found.")
         return
 
-    main_py = tool_dir / "main.py"
-    if not main_py.exists():
-        print(f"Error: {main_py} not found.")
+    # Import TestRunner from proj.test_runner
+    sys.path.append(str(project_root))
+    try:
+        from proj.test_runner import TestRunner
+    except ImportError:
+        print("Error: Could not import TestRunner from proj.test_runner.")
         return
 
-    print(f"Testing tool: {tool_name}")
-    try:
-        # Run tool with --help as a basic test
-        subprocess.run([sys.executable, str(main_py), "--help"], check=True)
-        print(f"Test for {tool_name} passed.")
-    except subprocess.CalledProcessError as e:
-        print(f"Test for {tool_name} failed: {e}")
+    runner = TestRunner(tool_name, project_root)
+    
+    args = sys.argv[3:]
+    list_only = "--list" in args
+    
+    if list_only:
+        runner.list_tests()
+        return
+
+    start_id = None
+    end_id = None
+    max_concurrent = 3
+
+    if "--range" in args:
+        idx = args.index("--range")
+        if idx + 2 < len(args):
+            try:
+                start_id = int(args[idx+1])
+                end_id = int(args[idx+2])
+            except ValueError:
+                print("Error: --range requires two integer arguments.")
+                return
+    
+    if "--max" in args:
+        idx = args.index("--max")
+        if idx + 1 < len(args):
+            try:
+                max_concurrent = int(args[idx+1])
+            except ValueError:
+                print("Error: --max requires an integer argument.")
+                return
+
+    runner.run_tests(start_id, end_id, max_concurrent)
 
 if __name__ == "__main__":
     main()
