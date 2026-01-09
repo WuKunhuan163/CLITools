@@ -3,26 +3,7 @@
   "description": "User Input Script for Cursor AI with tkinter GUI and custom ID support",
   "purpose": "Get user feedback in Cursor AI workflows using a modern tkinter interface with session identification",
   "usage": "USERINPUT [--timeout SECONDS] [--id CUSTOM_ID]",
-  "examples": [
-    "USERINPUT",
-    "USERINPUT --timeout 60",
-    "USERINPUT --id task_review",
-    "USERINPUT --id debug_session --timeout 120"
-  ],
+  "dependencies": ["PYTHON"],
   "run_compatible": true,
-  "testable": false,
-  "test_passed": true,
-  "ai_usable": true,
-  "tool_use_scenario": "When you need to get user feedback in workflows. Use --id parameter to help users distinguish between multiple feedback windows (e.g., --id code_review, --id debug_help, --id final_check)",
-  "features": [
-    "Modern tkinter GUI interface",
-    "Custom ID support for window identification",
-    "Automatic project name detection",
-    "Session information integration",
-    "Dynamic window resizing",
-    "Audio feedback on focus",
-    "Clipboard integration",
-    "IMK message suppression"
-  ]
+  "testable": false
 }
-

@@ -1,0 +1,6 @@
+{
+  "name": "PYTHON",
+  "description": "Python Proxy Tool",
+  "purpose": "Provide a consistent python environment for tools",
+  "run_compatible": true
+}
