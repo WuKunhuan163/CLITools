@@ -22,9 +22,12 @@ from pathlib import Path
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
 warnings.filterwarnings('ignore')
 
+# Use resolve() to get the actual location of the script, even if called via symlink
+current_dir = Path(__file__).resolve().parent
+# project_root is two levels up: tool/USERINPUT -> tool -> root
+project_root = current_dir.parent.parent
+
 # Localization setup
-current_dir = Path(__file__).parent.absolute()
-project_root = current_dir.parent.parent # Root is two levels up since we are in tool/USERINPUT
 python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
 if python_proj_dir.exists():
     sys.path.append(str(python_proj_dir.parent))
@@ -100,8 +103,15 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     except Exception:
         bell_path_str_literal = "''"
 
-    # Python script to be executed in the subprocess
-    tkinter_script = f'''
+    # Define variables to inject into the script
+    inject_project_root = str(project_root)
+    inject_proj_dir = str(proj_dir)
+    inject_title = title
+    inject_timeout = timeout
+    inject_hint = hint_text
+
+    # Python script template - using %-formatting to avoid f-string escaping nightmares
+    tkinter_script = r'''
 import os
 import sys
 import warnings
@@ -116,17 +126,17 @@ import time
 import subprocess
 import platform
 
-project_root = Path({repr(str(project_root))})
-python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
-if python_proj_dir.exists():
-    sys.path.append(str(python_proj_dir.parent))
+PROJECT_ROOT = Path(%(project_root)r)
+PYTHON_PROJ_DIR = PROJECT_ROOT / "tool" / "PYTHON" / "proj"
+if PYTHON_PROJ_DIR.exists():
+    sys.path.append(str(PYTHON_PROJ_DIR.parent))
 
 try:
     from proj.language_utils import get_translation
 except ImportError:
     def get_translation(d, k, default): return default
 
-TOOL_PROJ_DIR = {repr(str(proj_dir))}
+TOOL_PROJ_DIR = %(proj_dir)r
 
 def _(key, default):
     return get_translation(TOOL_PROJ_DIR, key, default)
@@ -197,7 +207,7 @@ class TkinterInputWindow:
             return True
         except Exception:
             import traceback
-            print(f"ERROR: Failed to create Tkinter window.\\n{{traceback.format_exc()}}", file=sys.stdout)
+            print(f"ERROR: Failed to create Tkinter window.\n{traceback.format_exc()}", file=sys.stdout)
             sys.exit(1)
 
     def add_time(self):
@@ -205,7 +215,7 @@ class TkinterInputWindow:
             self.remaining_time += 60
             added_text = _("time_added", "Time added! Remaining:")
             try:
-                self.status_label.config(text=f"{{added_text}} {{self.remaining_time}}s")
+                self.status_label.config(text=f"{added_text} {self.remaining_time}s")
             except tk.TclError: pass
 
     def start_timeout_timer(self):
@@ -213,7 +223,7 @@ class TkinterInputWindow:
             time_remaining_text = _("time_remaining", "Remaining:")
             while self.remaining_time > 0 and not self.window_closed:
                 try:
-                    self.status_label.config(text=f"{{time_remaining_text}} {{self.remaining_time}}s")
+                    self.status_label.config(text=f"{time_remaining_text} {self.remaining_time}s")
                 except tk.TclError: break
                 time.sleep(1)
                 self.remaining_time -= 1
@@ -235,7 +245,7 @@ class TkinterInputWindow:
         if self.root: self.root.after(30000, refocus)
 
     def play_bell(self):
-        bell_path = {bell_path_str_literal}
+        bell_path = %(bell_path)s
         if bell_path and os.path.exists(bell_path):
             def run_play():
                 try:
@@ -248,19 +258,19 @@ class TkinterInputWindow:
 
     def submit_input(self):
         user_text = self.text_widget.get("1.0", tk.END).strip()
-        self.result = {{"status": "success", "data": user_text if user_text else "USER_SUBMITTED_EMPTY"}}
+        self.result = {"status": "success", "data": user_text if user_text else "USER_SUBMITTED_EMPTY"}
         self.close_window()
 
     def cancel_input(self):
-        self.result = {{"status": "cancelled", "data": None}}
+        self.result = {"status": "cancelled", "data": None}
         self.close_window()
 
     def timeout_input(self):
         user_text = self.text_widget.get("1.0", tk.END).strip()
         if user_text:
-            self.result = {{"status": "timeout_with_data", "data": user_text}}
+            self.result = {"status": "timeout_with_data", "data": user_text}
         else:
-            self.result = {{"status": "timeout", "data": None}}
+            self.result = {"status": "timeout", "data": None}
         self.close_window()
 
     def close_window(self):
@@ -276,18 +286,26 @@ class TkinterInputWindow:
             self.root.mainloop()
             # Always output JSON for robust communication
             if self.result:
-                print(f"GDS_USERINPUT_JSON:{{json.dumps(self.result)}}")
+                print("GDS_USERINPUT_JSON:" + json.dumps(self.result))
             else:
-                print(f"GDS_USERINPUT_JSON:{{json.dumps({{'status': 'error', 'data': 'No result'}})}}")
+                print("GDS_USERINPUT_JSON:" + json.dumps({"status": "error", "data": "No result"}))
             sys.exit(0)
 
 if __name__ == "__main__":
-    title_str = {repr(title)}
-    timeout_int = {timeout}
-    hint_text_str = {repr(hint_text)}
+    title_str = %(title)r
+    timeout_int = %(timeout)d
+    hint_text_str = %(hint)r
     window = TkinterInputWindow(title=title_str, timeout=timeout_int, hint_text=hint_text_str)
     window.show_and_wait()
-    '''
+''' % {
+        'project_root': inject_project_root,
+        'proj_dir': inject_proj_dir,
+        'bell_path': bell_path_str_literal,
+        'title': inject_title,
+        'timeout': inject_timeout,
+        'hint': inject_hint
+    }
+
     try:
         watchdog_timeout = 3600 # 1 hour
         result = subprocess.run(
@@ -366,7 +384,7 @@ def main():
                 title=get_cursor_session_title(custom_id), timeout=timeout, hint_text=hint_text
             )
             
-            end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 直到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
+            end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 指到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
             final_result = result + end_hint
             break
 
