@@ -14,7 +14,8 @@
     "status_active": "运行中",
     "status_completed": "已完成",
     "status_failed": "失败",
-    "status_unknown": "未知"
+    "status_unknown": "未知",
+    "full_report_saved": "显示内容被裁切，完整报表已保存至: {path}"
   }
 }
 
