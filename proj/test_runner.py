@@ -58,19 +58,38 @@ class TestRunner:
     def _run_single_test(self, test_file):
         """Run a single test file using unittest."""
         print(f"\n--- Running {test_file.name} ---")
-        # We use subprocess to ensure a clean environment for each test file
-        # Use the tool's bin executable if it exists, otherwise just python3
+        
+        # Use the tool's python executable if it depends on PYTHON
         python_exec = sys.executable
         
-        # Check if we should use the wrapper script in bin/
-        bin_tool = self.project_root / "bin" / self.tool_name
-        env = os.environ.copy()
+        python_tool_dir = self.project_root / "tool" / "PYTHON"
+        python_utils_path = python_tool_dir / "proj" / "utils.py"
         
-        # If it's a wrapper script, it already sets up the environment
-        if bin_tool.exists():
-            # We don't call the tool directly because we want to run the TEST file
-            # But we might want to use the same python environment
-            pass
+        # Check if tool depends on PYTHON
+        depends_on_python = False
+        tool_json_path = self.tool_dir / "tool.json"
+        if tool_json_path.exists():
+            with open(tool_json_path, 'r') as f:
+                try:
+                    tool_data = json.load(f)
+                    if "PYTHON" in tool_data.get("dependencies", []) or self.tool_name == "PYTHON":
+                        depends_on_python = True
+                except Exception:
+                    pass
+
+        if depends_on_python and python_utils_path.exists():
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("python_utils_test", str(python_utils_path))
+                python_utils_test = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(python_utils_test)
+                python_exec = python_utils_test.get_python_exec()
+            except Exception:
+                pass
+
+        env = os.environ.copy()
+        # Add the project root (containing root 'proj') and tool's directory (containing 'proj') to PYTHONPATH
+        env["PYTHONPATH"] = f"{self.project_root}:{self.tool_dir}:{env.get('PYTHONPATH', '')}"
 
         result = subprocess.run([python_exec, "-m", "unittest", str(test_file)], env=env)
         if result.returncode == 0:

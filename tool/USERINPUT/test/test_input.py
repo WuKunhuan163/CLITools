@@ -14,10 +14,10 @@ class TestUserInput(unittest.TestCase):
         if not userinput_bin.exists():
             self.skipTest("USERINPUT bin not found")
 
-        # Run USERINPUT with hint and 0.5s timeout
+        # Run USERINPUT with hint and 2s timeout
         # Expected behavior: it should capture the hint text as partial input
         hint_text = "Automated test hint"
-        cmd = [str(userinput_bin), "--hint", hint_text, "--timeout", "0.5"]
+        cmd = [str(userinput_bin), "--hint", hint_text, "--timeout", "2"]
         
         result = subprocess.run(cmd, capture_output=True, text=True)
         
