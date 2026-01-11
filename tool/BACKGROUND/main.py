@@ -5,24 +5,22 @@ import json
 import argparse
 from pathlib import Path
 
-# Add the directory containing 'proj' to sys.path
+# Use resolve() to get the actual location of the script
 current_dir = Path(__file__).resolve().parent
+# project_root is two levels up: tool/BACKGROUND -> tool -> root
+project_root = current_dir.parent.parent
+
+# Add the directory containing 'proj' to sys.path
 sys.path.append(str(current_dir))
 
 # Localization setup
-project_root = current_dir.parent.parent
-python_tool_dir = project_root / "tool" / "PYTHON"
-if python_tool_dir.exists():
-    sys.path.insert(0, str(python_tool_dir))
-
+# import shared utils from the shared root proj
 try:
-    from proj.language_utils import get_translation
+    from proj.language_utils import get_translation, get_display_width, truncate_to_display_width
 except ImportError:
     def get_translation(d, k, default): return default
-
-# Restore sys.path order for local imports
-if python_tool_dir.exists():
-    sys.path.pop(0)
+    def get_display_width(s): return len(s)
+    def truncate_to_display_width(s, w): return s[:w]
 
 TOOL_PROJ_DIR = current_dir / "proj"
 
@@ -33,7 +31,6 @@ from proj.manager import ProcessManager
 
 def main():
     """主函数"""
-    print(f"DEBUG: BACKGROUND main running with sys.path: {sys.path}")
     parser = argparse.ArgumentParser(
         description='BACKGROUND - 安全的后台进程管理工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -100,11 +97,98 @@ def main():
             else:
                 if processes:
                     print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
-                    print("-" * 80)
+                    
+                    # Try to get terminal width
+                    try:
+                        terminal_width = os.get_terminal_size().columns
+                    except (AttributeError, OSError):
+                        terminal_width = 80
+                    
+                    # Translated headers
+                    status_label = _("status", "Status")
+                    runtime_label = _("runtime", "Runtime")
+                    command_label = _("command", "Command")
+                    
+                    # Column widths - adjust based on terminal width
+                    if terminal_width < 50:
+                        pid_col_width = 8
+                        status_col_width = 8
+                        runtime_col_width = 8
+                    else:
+                        pid_col_width = 12
+                        status_col_width = 12
+                        runtime_col_width = 12
+                    
+                    sep_width = 3 # " | "
+                    
+                    # Calculate available width for command
+                    fixed_width = pid_col_width + sep_width + status_col_width + sep_width + runtime_col_width + sep_width
+                    
+                    if terminal_width > fixed_width + 10:
+                        cmd_width = terminal_width - fixed_width
+                    elif terminal_width > fixed_width:
+                        cmd_width = terminal_width - fixed_width
+                    else:
+                        # Terminal is extremely narrow, we might have to clip even the fixed columns
+                        cmd_width = 0
+                    
+                    total_table_width = fixed_width + (cmd_width + sep_width if cmd_width > 0 else 0)
+                    # For simple display, just use the terminal_width if total is too small
+                    total_table_width = min(total_table_width, terminal_width)
+                    
+                    print("-" * total_table_width)
+                    
+                    # Manual alignment for localized headers
+                    pid_header = "PID: ID"
+                    pid_header = truncate_to_display_width(pid_header, pid_col_width)
+                    pid_header = pid_header + " " * (pid_col_width - get_display_width(pid_header))
+                    
+                    status_header = truncate_to_display_width(status_label, status_col_width)
+                    status_header = status_header + " " * (status_col_width - get_display_width(status_header))
+                    
+                    runtime_header = truncate_to_display_width(runtime_label, runtime_col_width)
+                    runtime_header = runtime_header + " " * (runtime_col_width - get_display_width(runtime_header))
+                    
+                    header = f"{pid_header} | {status_header} | {runtime_header}"
+                    if cmd_width > 0:
+                        header += f" | {command_label}"
+                    
+                    # Final clipping of the header row
+                    print(truncate_to_display_width(header, total_table_width))
+                    print("-" * total_table_width)
+                    
                     for proc in processes:
-                        cmd_display = proc['command'][:20] + "..." if len(proc['command']) > 20 else proc['command']
-                        print(f"PID: {proc['pid']:<8} | Status: {proc['status']:<10} | Runtime: {proc['runtime']:<10} | Command: {cmd_display}")
-                    print("-" * 80)
+                        # Translate status
+                        status_val = proc['status']
+                        translated_status = status_val
+                        if status_val == 'active':
+                            translated_status = _("status_active", "active")
+                        elif status_val == 'completed':
+                            translated_status = _("status_completed", "completed")
+                        elif status_val == 'failed':
+                            translated_status = _("status_failed", "failed")
+                        elif status_val == 'unknown':
+                            translated_status = _("status_unknown", "unknown")
+                        
+                        # Pad PID, translated status and runtime
+                        pid_val = f"PID: {proc['pid']}"
+                        pid_display = truncate_to_display_width(pid_val, pid_col_width)
+                        pid_display = pid_display + " " * (pid_col_width - get_display_width(pid_display))
+                        
+                        status_display = truncate_to_display_width(translated_status, status_col_width)
+                        status_display = status_display + " " * (status_col_width - get_display_width(status_display))
+                        
+                        runtime_display = truncate_to_display_width(proc['runtime'], runtime_col_width)
+                        runtime_display = runtime_display + " " * (runtime_col_width - get_display_width(runtime_display))
+                        
+                        row = f"{pid_display} | {status_display} | {runtime_display}"
+                        if cmd_width > 0:
+                            cmd_display = truncate_to_display_width(proc['command'], cmd_width)
+                            row += f" | {cmd_display}"
+                        
+                        # Final clipping of the row
+                        print(truncate_to_display_width(row, total_table_width))
+                    print("-" * total_table_width)
                 else:
                     print(_("no_active_processes", "No active processes"))
         
@@ -188,13 +272,6 @@ def main():
                     print(f"Error: Process {args.log} not found")
                 sys.exit(1)
         
-        elif args.cleanup:
-            count = manager.cleanup_all()
-            if args.json:
-                print(json.dumps({'success': True, 'action': 'cleanup', 'cleaned_count': count}))
-            else:
-                print(f"Cleaned up {count} process records")
-        
         elif args.wait is not None:
             finished = manager.wait_for_process(args.wait)
             if args.json:
@@ -203,6 +280,13 @@ def main():
                 print(_("wait_finished", "Process {pid} finished").format(pid=args.wait))
             else:
                 print(_("wait_timeout", "Timed out waiting for process {pid}").format(pid=args.wait))
+        
+        elif args.cleanup:
+            count = manager.cleanup_all()
+            if args.json:
+                print(json.dumps({'success': True, 'action': 'cleanup', 'cleaned_count': count}))
+            else:
+                print(f"Cleaned up {count} process records")
         
         elif args.command_args or unknown_args:
             all_args = (args.command_args or []) + (unknown_args or [])
@@ -239,4 +323,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

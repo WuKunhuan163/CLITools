@@ -17,9 +17,9 @@ except ImportError:
 
 # Set up environment
 env = os.environ.copy()
-# Add the tool's directory to PYTHONPATH so it can find its own 'proj'
+# Add the project root (containing root 'proj') and tool's directory (containing 'proj') to PYTHONPATH
 tool_main = Path('/Applications/AITerminalTools/tool/BACKGROUND/main.py')
-env["PYTHONPATH"] = f"{tool_main.parent}:{env.get('PYTHONPATH', '')}"
+env["PYTHONPATH"] = f"{project_root}:{tool_main.parent}:{env.get('PYTHONPATH', '')}"
 
 if __name__ == "__main__":
     result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)

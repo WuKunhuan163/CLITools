@@ -7,7 +7,14 @@
     "process_force_killed": "进程 {pid} 已强制终止",
     "process_not_found": "错误: 未找到进程 {pid}",
     "wait_finished": "进程 {pid} 已结束",
-    "wait_timeout": "等待进程 {pid} 超时"
+    "wait_timeout": "等待进程 {pid} 超时",
+    "status": "状态",
+    "command": "命令",
+    "runtime": "运行时间",
+    "status_active": "运行中",
+    "status_completed": "已完成",
+    "status_failed": "失败",
+    "status_unknown": "未知"
   }
 }
 

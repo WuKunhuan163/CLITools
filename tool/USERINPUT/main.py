@@ -28,10 +28,7 @@ current_dir = Path(__file__).resolve().parent
 project_root = current_dir.parent.parent
 
 # Localization setup
-python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
-if python_proj_dir.exists():
-    sys.path.append(str(python_proj_dir.parent))
-
+# import get_translation from the shared root proj
 try:
     from proj.language_utils import get_translation
 except ImportError:
@@ -127,9 +124,8 @@ import subprocess
 import platform
 
 PROJECT_ROOT = Path(%(project_root)r)
-PYTHON_PROJ_DIR = PROJECT_ROOT / "tool" / "PYTHON" / "proj"
-if PYTHON_PROJ_DIR.exists():
-    sys.path.append(str(PYTHON_PROJ_DIR.parent))
+if PROJECT_ROOT.exists():
+    sys.path.append(str(PROJECT_ROOT))
 
 try:
     from proj.language_utils import get_translation
@@ -155,8 +151,10 @@ class TkinterInputWindow:
 
     def create_window(self):
         try:
-            self.root = tk.Tk()
-            self.root.title(self.title)
+            self.root = tk.Tk(className='USERINPUT')
+            # Ensure title is a string
+            display_title = str(self.title) if self.title else "USERINPUT"
+            self.root.title(display_title)
             self.root.geometry("450x250")
             self.root.attributes('-topmost', True)
             self.root.focus_force()
@@ -393,6 +391,11 @@ def main():
                 print(f"Attempt {attempt + 1}/{max_retries} failed ({e}), retrying...", file=sys.stderr)
                 time.sleep(1)
             continue
+        except Exception as e:
+            print(f"Unexpected error in USERINPUT retry loop: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            break
 
     if final_result:
         if platform.system() == "Darwin":
