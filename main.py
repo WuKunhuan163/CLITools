@@ -32,15 +32,21 @@ def _(key, default, **kwargs):
     return text.format(**kwargs)
 
 def install_tool(tool_name):
-    # Add a blank line between tools for better readability
-    print(_("install_header", "\n--- Installing {name} ---", name=tool_name))
-    
     project_root = Path(__file__).parent.absolute()
     # Install tools into a 'tool' subdirectory
     tool_parent_dir = project_root / "tool"
     tool_parent_dir.mkdir(exist_ok=True)
     tool_dir = tool_parent_dir / tool_name
     bin_dir = project_root / "bin"
+    
+    # Check if already installed
+    link_path = bin_dir / tool_name
+    if tool_dir.exists() and (link_path.exists() or link_path.is_symlink()):
+        print(_("already_installed", "{name} is already installed.", name=tool_name))
+        return
+
+    # Add a blank line between tools for better readability
+    print(_("install_header", "\n--- Installing {name} ---", name=tool_name))
     
     # 0. Validate against global tool.json
     registry_path = project_root / "tool.json"
@@ -90,8 +96,12 @@ def install_tool(tool_name):
             tool_data = json.load(f)
             dependencies = tool_data.get("dependencies", [])
             for dep in dependencies:
-                print(_("installing_dep", "Installing dependency for {name}: {dep}", name=tool_name, dep=dep))
-                install_tool(dep)
+                # Pre-check dependency
+                dep_dir = tool_parent_dir / dep
+                dep_link = bin_dir / dep
+                if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
+                    print(_("installing_dep", "Installing dependency for {name}: {dep}", name=tool_name, dep=dep))
+                    install_tool(dep)
 
     # 2.1 Handle pip dependencies if proj/requirements.txt exists
     requirements_path = tool_dir / "proj" / "requirements.txt"
