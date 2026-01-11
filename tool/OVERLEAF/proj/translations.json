@@ -1,0 +1,24 @@
+{
+  "zh": {
+    "file_not_found": "错误: 未找到文件: {file}",
+    "compiling_start": "正在开始 LaTeX 编译: {name}",
+    "using_portable_tex": "正在使用便携式 TeX: {path}",
+    "compile_success": "LaTeX 编译成功！",
+    "generated_pdf": "生成的 PDF: {path}",
+    "pdf_not_generated": "错误: 未生成 PDF。",
+    "compile_failed": "错误: LaTeX 编译失败！(退出代码: {code})",
+    "compilation_error": "编译过程中出错: {error}",
+    "available_templates": "可用模板:",
+    "no_templates": "未找到模板。",
+    "template_not_found": "未找到模板 '{name}'。",
+    "template_success": "模板 '{name}' 已成功复制到 '{path}'",
+    "overleaf_description": "OVERLEAF - 本地 LaTeX 编译和模板管理",
+    "tex_file_help": "LaTeX 文件路径",
+    "output_dir_help": "生成的 PDF 的输出目录",
+    "template_help": "将模板复制到目标目录",
+    "list_templates_help": "列出所有可用模板",
+    "latex_options_help": "pdflatex 的额外选项",
+    "no_shell_escape_help": "禁用 -shell-escape"
+  }
+}
+
