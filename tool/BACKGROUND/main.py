@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import argparse
+import tempfile
 from pathlib import Path
 
 # Use resolve() to get the actual location of the script
@@ -136,24 +137,30 @@ def main():
                     # For simple display, just use the terminal_width if total is too small
                     total_table_width = min(total_table_width, terminal_width)
                     
+                    is_clipped = False
+                    clipped_rows = []
+                    
                     print("-" * total_table_width)
                     
                     # Manual alignment for localized headers
                     pid_header = "PID: ID"
-                    pid_header = truncate_to_display_width(pid_header, pid_col_width)
-                    pid_header = pid_header + " " * (pid_col_width - get_display_width(pid_header))
+                    pid_header_padded = truncate_to_display_width(pid_header, pid_col_width)
+                    if get_display_width(pid_header) > pid_col_width: is_clipped = True
+                    pid_header_padded = pid_header_padded + " " * (pid_col_width - get_display_width(pid_header_padded))
                     
-                    status_header = truncate_to_display_width(status_label, status_col_width)
-                    status_header = status_header + " " * (status_col_width - get_display_width(status_header))
+                    status_header_padded = truncate_to_display_width(status_label, status_col_width)
+                    if get_display_width(status_label) > status_col_width: is_clipped = True
+                    status_header_padded = status_header_padded + " " * (status_col_width - get_display_width(status_header_padded))
                     
-                    runtime_header = truncate_to_display_width(runtime_label, runtime_col_width)
-                    runtime_header = runtime_header + " " * (runtime_col_width - get_display_width(runtime_header))
+                    runtime_header_padded = truncate_to_display_width(runtime_label, runtime_col_width)
+                    if get_display_width(runtime_label) > runtime_col_width: is_clipped = True
+                    runtime_header_padded = runtime_header_padded + " " * (runtime_col_width - get_display_width(runtime_header_padded))
                     
-                    header = f"{pid_header} | {status_header} | {runtime_header}"
+                    header = f"{pid_header_padded} | {status_header_padded} | {runtime_header_padded}"
                     if cmd_width > 0:
-                        header += f" | {command_label}"
+                        if get_display_width(command_label) > cmd_width: is_clipped = True
+                        header += f" | {truncate_to_display_width(command_label, cmd_width)}"
                     
-                    # Final clipping of the header row
                     print(truncate_to_display_width(header, total_table_width))
                     print("-" * total_table_width)
                     
@@ -172,23 +179,47 @@ def main():
                         
                         # Pad PID, translated status and runtime
                         pid_val = f"PID: {proc['pid']}"
+                        if get_display_width(pid_val) > pid_col_width: is_clipped = True
                         pid_display = truncate_to_display_width(pid_val, pid_col_width)
                         pid_display = pid_display + " " * (pid_col_width - get_display_width(pid_display))
                         
+                        if get_display_width(translated_status) > status_col_width: is_clipped = True
                         status_display = truncate_to_display_width(translated_status, status_col_width)
                         status_display = status_display + " " * (status_col_width - get_display_width(status_display))
                         
+                        if get_display_width(proc['runtime']) > runtime_col_width: is_clipped = True
                         runtime_display = truncate_to_display_width(proc['runtime'], runtime_col_width)
                         runtime_display = runtime_display + " " * (runtime_col_width - get_display_width(runtime_display))
                         
                         row = f"{pid_display} | {status_display} | {runtime_display}"
                         if cmd_width > 0:
+                            if get_display_width(proc['command']) > cmd_width: is_clipped = True
                             cmd_display = truncate_to_display_width(proc['command'], cmd_width)
                             row += f" | {cmd_display}"
                         
-                        # Final clipping of the row
                         print(truncate_to_display_width(row, total_table_width))
+                        
+                        # Store for full report
+                        clipped_rows.append({
+                            'pid': proc['pid'],
+                            'status': translated_status,
+                            'runtime': proc['runtime'],
+                            'command': proc['command']
+                        })
+                        
                     print("-" * total_table_width)
+                    
+                    if is_clipped:
+                        # Create markdown report
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+                            f.write(f"# Background Processes Full Report\n\n")
+                            f.write(f"| PID | {status_label} | {runtime_label} | {command_label} |\n")
+                            f.write(f"| --- | --- | --- | --- |\n")
+                            for row in clipped_rows:
+                                f.write(f"| {row['pid']} | {row['status']} | {row['runtime']} | {row['command']} |\n")
+                            report_path = f.name
+                        
+                        print(_("full_report_saved", "Full report saved to: {path}").format(path=report_path))
                 else:
                     print(_("no_active_processes", "No active processes"))
         
