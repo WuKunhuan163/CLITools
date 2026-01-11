@@ -23,6 +23,7 @@ def main():
   BACKGROUND --list                        # 列出所有活跃进程
   BACKGROUND --kill 12345                  # 终止指定进程
   BACKGROUND --cleanup                     # 清理所有进程
+  BACKGROUND --wait 12345                  # 等待进程结束
   BACKGROUND --max-processes 500           # 设置最大进程数
         """
     )
@@ -55,6 +56,8 @@ def main():
                        help='强制终止指定PID的进程')
     parser.add_argument('--cleanup', action='store_true',
                        help='清理所有管理的后台进程')
+    parser.add_argument('--wait', type=int, metavar='PID',
+                       help='等待指定PID的进程结束')
     
     # JSON输出
     parser.add_argument('--json', action='store_true',
@@ -170,6 +173,15 @@ def main():
                 print(json.dumps({'success': True, 'action': 'cleanup', 'cleaned_count': count}))
             else:
                 print(f"Cleaned up {count} process records")
+        
+        elif args.wait is not None:
+            finished = manager.wait_for_process(args.wait)
+            if args.json:
+                print(json.dumps({'success': finished, 'action': 'wait', 'pid': args.wait}))
+            elif finished:
+                print(f"Process {args.wait} finished")
+            else:
+                print(f"Timed out waiting for process {args.wait}")
         
         elif args.command_args or unknown_args:
             all_args = (args.command_args or []) + (unknown_args or [])

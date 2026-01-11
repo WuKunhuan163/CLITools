@@ -113,12 +113,8 @@ def install_tool(tool_name):
         if tool_json_path.exists():
             with open(tool_json_path, 'r') as f:
                 tool_data = json.load(f)
-                deps = tool_data.get("dependencies", [])
-                print(f"Tool {tool_name} dependencies: {deps}")
-                if "PYTHON" in deps:
+                if "PYTHON" in tool_data.get("dependencies", []):
                     use_wrapper = True
-        else:
-            print(f"Warning: tool.json not found at {tool_json_path}")
         
         if use_wrapper:
             # Create a wrapper script that uses the standalone python

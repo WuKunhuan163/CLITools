@@ -454,6 +454,25 @@ class ProcessManager:
         except Exception as e:
             return f"Error reading log file: {e}"
     
+    def wait_for_process(self, pid: int, timeout: Optional[float] = None) -> bool:
+        """等待进程结束"""
+        pid_str = str(pid)
+        if pid_str not in self.processes:
+            return True
+        
+        try:
+            proc = psutil.Process(pid)
+            # Check if it matches our record
+            if abs(proc.create_time() - self.processes[pid_str]['start_time']) > 1.0:
+                return True
+            
+            proc.wait(timeout=timeout)
+            return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return True
+        except psutil.TimeoutExpired:
+            return False
+
     def get_process_log(self, pid: int) -> Optional[str]:
         """获取进程的日志内容（与get_process_result相同，但语义不同）"""
         return self.get_process_result(pid)
