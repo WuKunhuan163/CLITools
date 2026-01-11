@@ -389,6 +389,24 @@ def _test_tool_with_args(args):
         print(f"{RED}" + _("test_tool_not_found", "Error: Tool directory {path} not found.", path=tool_dir) + f"{RESET}")
         return
 
+    # Default max_concurrent from tool.json or 1
+    max_concurrent = 1
+    tool_json_path = tool_dir / "tool.json"
+    if tool_json_path.exists():
+        try:
+            with open(tool_json_path, 'r') as f:
+                tool_data = json.load(f)
+                max_concurrent = tool_data.get("test_parallel", 1)
+        except Exception:
+            pass
+    
+    # Override with --max if provided
+    if args.max != 3: # default in argparse was 3, but we want 1 if not specified
+        max_concurrent = args.max
+    elif args.max == 3 and not (tool_json_path.exists() and "test_parallel" in tool_data):
+        # If user didn't provide --max and tool.json doesn't have it, use 1
+        max_concurrent = 1
+
     # Import TestRunner from proj.test_runner
     sys.path.append(str(project_root))
     try:
@@ -409,7 +427,7 @@ def _test_tool_with_args(args):
         start_id = args.range[0]
         end_id = args.range[1]
 
-    runner.run_tests(start_id, end_id, args.max)
+    runner.run_tests(start_id, end_id, max_concurrent)
 
 if __name__ == "__main__":
     main()

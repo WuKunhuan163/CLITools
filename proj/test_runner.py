@@ -125,9 +125,12 @@ class TestRunner:
                     # Capture PID from output
                     proc = subprocess.run([str(background_bin), cmd], capture_output=True, text=True)
                     output = proc.stdout
-                    # BACKGROUND output format: "Process started with PID: 12345 (ID: 67890)"
+                    # BACKGROUND output format: "Process started: PID 12345, Log: ..."
                     import re
-                    match = re.search(r"PID: (\d+)", output)
+                    match = re.search(r"PID (\d+)", output)
+                    if not match:
+                        match = re.search(r"PID: (\d+)", output)
+                    
                     if match:
                         pid = match.group(1)
                         active_jobs.append({"pid": pid, "file": test_file})
@@ -143,14 +146,13 @@ class TestRunner:
             # Check for finished jobs
             finished_jobs = []
             for job in active_jobs:
-                # Check status via BACKGROUND --list
                 try:
-                    proc = subprocess.run([str(background_bin), "--list"], capture_output=True, text=True)
-                    # Simple check: if PID is not in --list or status is "Finished"
-                    if job["pid"] not in proc.stdout:
-                        finished_jobs.append(job)
-                    elif f"PID: {job['pid']}" in proc.stdout and "已完成" in proc.stdout: # or "Finished"
-                        finished_jobs.append(job)
+                    # Check if process is still alive using os.kill(pid, 0)
+                    # This is much more reliable than parsing BACKGROUND --list output
+                    os.kill(int(job["pid"]), 0)
+                except OSError:
+                    # Process is finished or doesn't exist
+                    finished_jobs.append(job)
                 except Exception:
                     pass
             
