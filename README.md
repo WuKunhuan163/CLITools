@@ -30,11 +30,11 @@ To get started quickly, follow these steps:
    ```
    Try running the tool directly. This is how your AI agent will communicate with you—by triggering a GUI for immediate feedback, bypassing the limitations of purely text-based interfaces.
 
-4. **Enhance your Agent**:
+4. **Enhance your Agent and Workflow**:
    ```bash
    TOOL rule
    ```
-   Generate the AI tool rules and copy the output to your Cursor settings (`Settings` -> `General` -> `Rules for AI`). This informs the agent about the available tools and how to use them effectively.
+   Generate AI tool rules and integrate them into your environment. For example, in Cursor, you can copy the output to `Settings` -> `General` -> `Rules for AI`. These tools are designed to be used by both AI agents and human developers, creating a synchronized and efficient development experience.
 
 ## Mechanism
 
