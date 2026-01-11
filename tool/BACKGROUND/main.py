@@ -9,6 +9,22 @@ from pathlib import Path
 current_dir = Path(__file__).resolve().parent
 sys.path.append(str(current_dir))
 
+# Localization setup
+project_root = current_dir.parent.parent
+python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
+if python_proj_dir.exists():
+    sys.path.append(str(python_proj_dir.parent))
+
+try:
+    from proj.language_utils import get_translation
+except ImportError:
+    def get_translation(d, k, default): return default
+
+TOOL_PROJ_DIR = current_dir / "proj"
+
+def _(key, default):
+    return get_translation(str(TOOL_PROJ_DIR), key, default)
+
 from proj.manager import ProcessManager
 
 def main():
@@ -78,28 +94,28 @@ def main():
                 print(json.dumps({'success': True, 'processes': processes, 'total_count': len(processes)}, indent=2))
             else:
                 if processes:
-                    print(f"\nActive processes ({len(processes)}):")
+                    print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
                     print("-" * 80)
                     for proc in processes:
                         cmd_display = proc['command'][:20] + "..." if len(proc['command']) > 20 else proc['command']
                         print(f"PID: {proc['pid']:<8} | Status: {proc['status']:<10} | Runtime: {proc['runtime']:<10} | Command: {cmd_display}")
                     print("-" * 80)
                 else:
-                    print("No active processes")
+                    print(_("no_active_processes", "No active processes"))
         
         elif args.kill is not None:
             success = manager.kill_process(args.kill)
             if args.json:
                 print(json.dumps({'success': success, 'action': 'kill', 'pid': args.kill}))
             elif success:
-                print(f"Process {args.kill} terminated")
+                print(_("process_terminated", "Process {pid} terminated").format(pid=args.kill))
         
         elif args.force_kill is not None:
             success = manager.kill_process(args.force_kill, force=True)
             if args.json:
                 print(json.dumps({'success': success, 'action': 'force_kill', 'pid': args.force_kill}))
             elif success:
-                print(f"Process {args.force_kill} force-killed")
+                print(_("process_force_killed", "Process {pid} force-killed").format(pid=args.force_kill))
         
         elif args.status is not None:
             if args.status == 'all':
@@ -108,14 +124,14 @@ def main():
                     print(json.dumps({'success': True, 'action': 'status_all', 'processes': processes, 'total_count': len(processes)}, indent=2))
                 else:
                     if processes:
-                        print(f"\nActive processes ({len(processes)}):")
+                        print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
                         print("-" * 80)
                         for proc in processes:
                             cmd_display = proc['command'][:20] + "..." if len(proc['command']) > 20 else proc['command']
                             print(f"PID: {proc['pid']:<8} | Status: {proc['status']:<10} | Runtime: {proc['runtime']:<10} | Command: {cmd_display}")
                         print("-" * 80)
                     else:
-                        print("No active background processes")
+                        print(_("no_active_processes", "No active background processes"))
             else:
                 try:
                     pid = int(args.status)
@@ -133,7 +149,7 @@ def main():
                         if args.json:
                             print(json.dumps({'success': False, 'action': 'status', 'error': f'Process {pid} not found'}))
                         else:
-                            print(f"Error: Process {pid} not found")
+                            print(_("process_not_found", "Error: Process {pid} not found").format(pid=pid))
                         sys.exit(1)
                 except ValueError:
                     print(f"Error: Invalid PID: {args.status}")
@@ -179,9 +195,9 @@ def main():
             if args.json:
                 print(json.dumps({'success': finished, 'action': 'wait', 'pid': args.wait}))
             elif finished:
-                print(f"Process {args.wait} finished")
+                print(_("wait_finished", "Process {pid} finished").format(pid=args.wait))
             else:
-                print(f"Timed out waiting for process {args.wait}")
+                print(_("wait_timeout", "Timed out waiting for process {pid}").format(pid=args.wait))
         
         elif args.command_args or unknown_args:
             all_args = (args.command_args or []) + (unknown_args or [])
@@ -193,7 +209,7 @@ def main():
                     if args.json:
                         print(json.dumps({'success': True, 'action': 'create', 'pid': pid, 'log_file': log_file, 'command': full_command}))
                     else:
-                        print(f"Process started: PID {pid}, Log: {log_file}")
+                        print(_("process_started", "Process started: PID {pid}, Log: {log_file}").format(pid=pid, log_file=log_file))
                 else:
                     if args.json:
                         print(json.dumps({'success': False, 'action': 'create', 'error': 'Failed to create process'}))
