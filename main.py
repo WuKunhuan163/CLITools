@@ -322,9 +322,68 @@ def generate_ai_rule():
     print("\nNOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal.")
     print("--------------------------")
 
-def test_tool(tool_name):
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=_("tool_description", "AITerminalTools - A unified management system for AI tools."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_("tool_epilog", """
+Examples:
+  TOOL install USERINPUT        # Install a specific tool
+  TOOL test USERINPUT           # Run unit tests for a tool
+  TOOL rule                     # Generate AI agent guidelines
+  TOOL config set-lang zh       # Set global language preference
+        """))
+    
+    subparsers = parser.add_subparsers(dest="command", help=_("subcommand_help", "Available commands"))
+
+    # Install command
+    install_parser = subparsers.add_parser("install", help=_("install_help", "Install a tool and its dependencies"))
+    install_parser.add_argument("tool_name", help=_("install_tool_name_help", "Name of the tool to install"))
+
+    # Test command
+    test_parser = subparsers.add_parser("test", help=_("test_help", "Run unit tests for a tool"))
+    test_parser.add_argument("tool_name", help=_("test_tool_name_help", "Name of the tool to test"))
+    test_parser.add_argument("--list", action="store_true", help=_("test_list_help", "List available tests"))
+    test_parser.add_argument("--range", nargs=2, type=int, metavar=("START", "END"), help=_("test_range_help", "Range of test IDs to run"))
+    test_parser.add_argument("--max", type=int, default=3, help=_("test_max_help", "Maximum concurrent test jobs (default: 3)"))
+
+    # Rule command
+    subparsers.add_parser("rule", help=_("rule_help", "Generate AI agent tool rules"))
+
+    # Config command
+    config_parser = subparsers.add_parser("config", help=_("config_help", "Manage global configurations"))
+    config_subparsers = config_parser.add_subparsers(dest="subcommand", help=_("config_subcommand_help", "Config subcommands"))
+    
+    lang_parser = config_subparsers.add_parser("set-lang", help=_("config_set_lang_help", "Set global language preference"))
+    lang_parser.add_argument("lang_code", help=_("config_lang_code_help", "Language code (e.g., en, zh)"))
+
+    if len(sys.argv) < 2:
+        parser.print_help()
+        sys.exit(0)
+
+    args = parser.parse_args()
+
+    if args.command == "install":
+        install_tool(args.tool_name)
+    elif args.command == "test":
+        # Handle test_tool differently as it was taking sys.argv[3:]
+        # We need to adapt test_tool to use the parsed args
+        _test_tool_with_args(args)
+    elif args.command == "rule":
+        generate_ai_rule()
+    elif args.command == "config":
+        if args.subcommand == "set-lang":
+            update_config("language", args.lang_code)
+        else:
+            config_parser.print_help()
+    else:
+        parser.print_help()
+
+def _test_tool_with_args(args):
     project_root = Path(__file__).parent.absolute()
-    tool_dir = project_root / "tool" / tool_name
+    tool_dir = project_root / "tool" / args.tool_name
     
     if not tool_dir.exists():
         print(f"{RED}" + _("test_tool_not_found", "Error: Tool directory {path} not found.", path=tool_dir) + f"{RESET}")
@@ -338,62 +397,19 @@ def test_tool(tool_name):
         print(f"{RED}" + _("test_runner_import_error", "Error: Could not import TestRunner from proj.test_runner.") + f"{RESET}")
         return
 
-    runner = TestRunner(tool_name, project_root)
+    runner = TestRunner(args.tool_name, project_root)
     
-    args = sys.argv[3:]
-    list_only = "--list" in args
-    
-    if list_only:
+    if args.list:
         runner.list_tests()
         return
 
     start_id = None
     end_id = None
-    max_concurrent = 3
+    if args.range:
+        start_id = args.range[0]
+        end_id = args.range[1]
 
-    if "--range" in args:
-        idx = args.index("--range")
-        if idx + 2 < len(args):
-            try:
-                start_id = int(args[idx+1])
-                end_id = int(args[idx+2])
-            except ValueError:
-                print(f"{RED}" + _("range_error", "Error: --range requires two integer arguments.") + f"{RESET}")
-                return
-    
-    if "--max" in args:
-        idx = args.index("--max")
-        if idx + 1 < len(args):
-            try:
-                max_concurrent = int(args[idx+1])
-            except ValueError:
-                print(f"{RED}" + _("max_error", "Error: --max requires an integer argument.") + f"{RESET}")
-                return
-
-    runner.run_tests(start_id, end_id, max_concurrent)
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: TOOL <command> [args]")
-        print("Commands: install, test, rule, config")
-        sys.exit(1)
-
-    command = sys.argv[1]
-    if command == "install" and len(sys.argv) >= 3:
-        install_tool(sys.argv[2])
-    elif command == "test" and len(sys.argv) >= 3:
-        test_tool(sys.argv[2])
-    elif command == "rule":
-        generate_ai_rule()
-    elif command == "config" and len(sys.argv) >= 4:
-        subcommand = sys.argv[2]
-        if subcommand == "set-lang":
-            update_config("language", sys.argv[3])
-        else:
-            print(f"Unknown config subcommand: {subcommand}")
-    else:
-        print(f"Unknown command or missing arguments: {command}")
-        sys.exit(1)
+    runner.run_tests(start_id, end_id, args.max)
 
 if __name__ == "__main__":
     main()
