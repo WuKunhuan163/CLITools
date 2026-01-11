@@ -7,12 +7,11 @@ import stat
 import shutil
 from pathlib import Path
 
-# ANSI color codes
-GREEN = "\033[32m"
-BOLD = "\033[1m"
-BLUE = "\033[34m"
-YELLOW = "\033[33m"
-RESET = "\033[0m"
+# Try to import colors from proj.config
+try:
+    from proj.config import GREEN, BOLD, BLUE, YELLOW, RESET
+except ImportError:
+    GREEN = BOLD = BLUE = YELLOW = RESET = ""
 
 def install_tool(tool_name):
     # Add a blank line between tools for better readability
@@ -36,14 +35,14 @@ def install_tool(tool_name):
 
     # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
     if not tool_dir.exists():
-        print(f"{BLUE}Tool {tool_name} not found locally. Attempting to fetch from 'tool' branch...{RESET}")
+        print(f"Tool {tool_name} not found locally. Attempting to fetch from 'tool' branch...")
         try:
             # Try to checkout from origin/tool - note the path is tool/<name> in the branch
             result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
             if result.returncode != 0:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
-            print(f"🧰 {GREEN}Successfully retrieved {tool_name} from 'tool' branch.{RESET}")
+            print(f"Successfully retrieved {tool_name} from 'tool' branch.")
         except subprocess.CalledProcessError as e:
             # Fallback for old branch structure or if tool is in root
             try:
@@ -103,12 +102,12 @@ def install_tool(tool_name):
                     
                     if result.returncode != 0:
                         if "PermissionError" in result.stderr or "Operation not permitted" in result.stderr:
-                            print(f"🧰 {YELLOW}Warning: pip install failed due to permissions. This is expected in some sandboxes.{RESET}")
+                            print(f"Warning: pip install failed due to permissions. This is expected in some sandboxes.")
                             print(f"Please try running the installation again with 'all' permissions if you see this error.")
                         else:
-                            print(f"🧰 {YELLOW}Warning: pip install failed with error:\n{result.stderr}{RESET}")
+                            print(f"Warning: pip install failed with error:\n{result.stderr}")
                     else:
-                        print(f"🧰 {GREEN}Successfully installed pip dependencies for {tool_name}.{RESET}")
+                        print(f"Successfully installed pip dependencies for {tool_name}.")
         except Exception as e:
             print(f"🧰 {YELLOW}Warning: Failed to install pip dependencies for {tool_name}: {e}{RESET}")
 
@@ -170,11 +169,11 @@ if __name__ == "__main__":
             with open(link_path, 'w') as f:
                 f.write(wrapper_content)
             os.chmod(link_path, st.st_mode | stat.S_IEXEC)
-            print(f"🧰 {GREEN}Successfully installed {tool_name}: wrapper created at {link_path}{RESET}")
+            print(f"{GREEN}Successfully installed {tool_name}: wrapper created at {link_path}{RESET}")
         else:
             # Traditional symlink
             os.symlink(main_py, link_path)
-            print(f"🧰 {GREEN}Successfully installed {tool_name}: symlink created at {link_path}{RESET}")
+            print(f"{GREEN}Successfully installed {tool_name}: symlink created at {link_path}{RESET}")
         
         # 5. Handle PATH registration
         register_path(bin_dir)
