@@ -63,26 +63,11 @@ def install_tool(tool_name):
     # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
     if not tool_dir.exists():
         print(_("tool_not_found", "Tool {name} not found locally. Attempting to fetch...", name=tool_name))
-        
-        # Determine remote URL if possible
-        remote_url = ""
-        try:
-            remotes = subprocess.run(["git", "remote", "-v"], capture_output=True, text=True, cwd=str(project_root)).stdout
-            for line in remotes.splitlines():
-                if "origin" in line and "(fetch)" in line:
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        base_url = parts[1].replace(".git", "")
-                        remote_url = f"{base_url}/tree/tool/tool/{tool_name}"
-                        break
-        except Exception:
-            pass
-
         try:
             # Try to checkout from origin/tool - note the path is tool/<name> in the branch
             result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
             if result.returncode == 0:
-                print(f"{BOLD}{BLUE}" + _("retrieved_success_remote", "Successfully retrieved {name} from remote '{url}'", name=tool_name, url=remote_url or "origin/tool") + f"{RESET}")
+                print(f"{BOLD}{BLUE}" + _("retrieved_success_remote", "Successfully retrieved {name} from remote '{branch}' branch", name=tool_name, branch="origin/tool") + f"{RESET}")
             else:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
