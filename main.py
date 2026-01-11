@@ -62,14 +62,16 @@ def install_tool(tool_name):
 
     # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
     if not tool_dir.exists():
-        print(_("tool_not_found", "Tool {name} not found locally. Attempting to fetch from 'tool' branch...", name=tool_name))
+        print(_("tool_not_found", "Tool {name} not found locally. Attempting to fetch...", name=tool_name))
         try:
             # Try to checkout from origin/tool - note the path is tool/<name> in the branch
             result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
-            if result.returncode != 0:
+            if result.returncode == 0:
+                print(f"{BOLD}{BLUE}" + _("retrieved_success_remote", "Successfully retrieved {name} from remote '{branch}' branch", name=tool_name, branch="origin/tool") + f"{RESET}")
+            else:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
-            print(f"{BOLD}{BLUE}" + _("retrieved_success", "Successfully retrieved {name}", name=tool_name) + f"{RESET}")
+                print(f"{BOLD}{BLUE}" + _("retrieved_success_local", "Successfully retrieved {name} from local '{branch}' branch", name=tool_name, branch="tool") + f"{RESET}")
         except subprocess.CalledProcessError as e:
             # Fallback for old branch structure or if tool is in root
             try:
