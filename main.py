@@ -63,7 +63,7 @@ def install_tool(tool_name):
                 print(f"Installing dependency for {tool_name}: {dep}")
                 install_tool(dep)
 
-    # 2.1 Handle pip dependencies if requirements.txt exists
+    # 2.1 Handle pip dependencies if proj/requirements.txt exists
     requirements_path = tool_dir / "proj" / "requirements.txt"
     if not requirements_path.exists():
         requirements_path = tool_dir / "requirements.txt"
@@ -84,9 +84,24 @@ def install_tool(tool_name):
                     python_utils_mod = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(python_utils_mod)
                     python_exec = python_utils_mod.get_python_exec()
+                    
                     # Run pip install using the standalone python
-                    subprocess.run([python_exec, "-m", "pip", "install", "-r", str(requirements_path)], check=True)
-                    print(f"Successfully installed pip dependencies for {tool_name}.")
+                    # Capture output to avoid messy errors on screen
+                    result = subprocess.run(
+                        [python_exec, "-m", "pip", "install", "-r", str(requirements_path)],
+                        capture_output=True, text=True
+                    )
+                    
+                    if result.returncode != 0:
+                        if "PermissionError" in result.stderr or "Operation not permitted" in result.stderr:
+                            print(f"Warning: pip install failed due to permissions. This is expected in some sandboxes.")
+                            print(f"Please try running the installation again with 'all' permissions if you see this error.")
+                            # We don't automatically retry with 'all' here because we don't have the mechanism to request it
+                            # from within the script. The AI agent calling this script will handle the retry.
+                        else:
+                            print(f"Warning: pip install failed with error:\n{result.stderr}")
+                    else:
+                        print(f"Successfully installed pip dependencies for {tool_name}.")
         except Exception as e:
             print(f"Warning: Failed to install pip dependencies for {tool_name}: {e}")
 
@@ -137,10 +152,9 @@ except ImportError:
 
 # Set up environment
 env = os.environ.copy()
-# Add the tool's directory and PYTHON tool directory to PYTHONPATH
+# Add the project root (containing root 'proj') and tool's directory (containing 'proj') to PYTHONPATH
 tool_main = Path({repr(str(main_py))})
-python_tool_dir = project_root / "tool" / "PYTHON"
-env["PYTHONPATH"] = f"{{tool_main.parent}}:{{python_tool_dir}}:{{env.get('PYTHONPATH', '')}}"
+env["PYTHONPATH"] = f"{{project_root}}:{{tool_main.parent}}:{{env.get('PYTHONPATH', '')}}"
 
 if __name__ == "__main__":
     result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
@@ -190,6 +204,26 @@ def register_path(bin_dir):
     # Update current session's os.environ
     if str(bin_dir) not in os.environ.get("PATH", ""):
         os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
+
+def update_config(key, value):
+    project_root = Path(__file__).parent.absolute()
+    data_dir = project_root / "data"
+    data_dir.mkdir(exist_ok=True)
+    config_path = data_dir / "global_config.json"
+    
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except Exception:
+            pass
+    
+    config[key] = value
+    
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+    print(f"Global configuration updated: {key} = {value}")
 
 def generate_ai_rule():
     project_root = Path(__file__).parent.absolute()
@@ -275,26 +309,6 @@ def test_tool(tool_name):
                 return
 
     runner.run_tests(start_id, end_id, max_concurrent)
-
-def update_config(key, value):
-    project_root = Path(__file__).parent.absolute()
-    data_dir = project_root / "data"
-    data_dir.mkdir(exist_ok=True)
-    config_path = data_dir / "global_config.json"
-    
-    config = {}
-    if config_path.exists():
-        try:
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-        except Exception:
-            pass
-    
-    config[key] = value
-    
-    with open(config_path, 'w') as f:
-        json.dump(config, f, indent=2)
-    print(f"Global configuration updated: {key} = {value}")
 
 def main():
     if len(sys.argv) < 2:

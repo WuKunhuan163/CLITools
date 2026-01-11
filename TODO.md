@@ -28,7 +28,7 @@ Develop a GUI-based setup interface that is triggered when the user executes `GO
 
 ## Progress
 - [x] Initial structure of GOOGLE_DRIVE --setup (Step 1: Service Account Verification).
-- [x] Created `_PROJ` folders and `requirements.txt` for all tools.
+- [x] Created `proj` folders and `requirements.txt` for all tools.
 - [ ] Implement Step 2 of Setup Wizard: Path Configuration.
 - [ ] Implement Step 3 of Setup Wizard: Final Validation.
 - [ ] Successfully run `GDS echo Hello`.

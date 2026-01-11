@@ -20,7 +20,7 @@
 ### Tool Structure
 每个工具集成在自己的文件夹中（例如 `USERINPUT/`）：
 - `main.py`: 工具主入口。
-- `proj/`: 工具源代码目录（原 `_PROJ`）。
+- `proj/`: 工具源代码目录（原 `proj`）。
 - `data/`: 工具专用数据目录（原 `_DATA`）。
 - `tool.json`: 工具注册表信息（原 `AI_TOOL.json` 对应部分）。
 - `README.md`: 工具详细文档。
