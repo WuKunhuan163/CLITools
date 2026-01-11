@@ -302,24 +302,24 @@ def generate_ai_rule():
         else:
             available_tools.append((name, info))
             
-    print("--- AI AGENT TOOL RULES ---")
-    print("CRITICAL: When developing or performing tasks, always prefer using the following integrated tools instead of writing custom implementations.")
-    print("This ensures consistency, leverages optimized logic, and improves development efficiency.")
-    print("\n[INSTALLED TOOLS - Use these directly]")
+    print(_("rule_header_main", "--- AI AGENT TOOL RULES ---"))
+    print(_("rule_critical_note", "CRITICAL: When developing or performing tasks, always prefer using the following integrated tools instead of writing custom implementations."))
+    print(_("rule_efficiency_note", "This ensures consistency, leverages optimized logic, and improves development efficiency."))
+    print("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
     for name, info in installed_tools:
-        print(f"- {name}: {info.get('description')} (Purpose: {info.get('purpose')})")
+        print(f"- {name}: {info.get('description')} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=info.get('purpose')) + ")")
         
-    print("\n[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]")
+    print("\n" + _("rule_available_header", "[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]"))
     for name, info in available_tools:
-        print(f"- {name}: {info.get('description')} (Purpose: {info.get('purpose')})")
+        print(f"- {name}: {info.get('description')} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=info.get('purpose')) + ")")
         
-    print("\n[LOCALIZATION & DEVELOPMENT GUIDELINES]")
-    print("- **Multi-language Support**: Tools should support localization via a 'proj/translations.json' file.")
-    print("- **Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults.")
-    print("- **Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups.")
-    print("- **Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them.")
+    print("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
+    print("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translations.json' file."))
+    print("- " + _("rule_guideline_2", "**Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults."))
+    print("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups."))
+    print("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     
-    print("\nNOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal.")
+    print("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
     print("--------------------------")
 
 import argparse
