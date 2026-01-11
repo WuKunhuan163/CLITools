@@ -5,6 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 import json
+import re
 
 class TestRunner:
     def __init__(self, tool_name, project_root):
@@ -12,35 +13,58 @@ class TestRunner:
         self.project_root = Path(project_root)
         self.tool_dir = self.project_root / "tool" / tool_name
         self.test_dir = self.tool_dir / "test"
+        self.cache_file = self.test_dir / ".tests_cache.json"
 
     def get_test_files(self):
-        """Find all test_*.py files in the tool's test directory."""
+        """Find all test_*.py files and manage the cache."""
         if not self.test_dir.exists():
             return []
-        return sorted(list(self.test_dir.glob("test_*.py")))
+        
+        # 1. Try to load from cache
+        if self.cache_file.exists():
+            try:
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    cached_files = json.load(f)
+                    # Verify files still exist
+                    test_files = [self.test_dir / f for f in cached_files if (self.test_dir / f).exists()]
+                    if len(test_files) == len(cached_files):
+                        return test_files
+            except Exception:
+                pass
+
+        # 2. Rescan and sort alphabetically
+        test_files = sorted(list(self.test_dir.glob("test_*.py")), key=lambda p: p.name)
+        
+        # 3. Save to cache
+        try:
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump([p.name for p in test_files], f, indent=2)
+        except Exception:
+            pass
+            
+        return test_files
 
     def list_tests(self):
-        """List all available tests for the tool."""
+        """List all available tests for the tool with 0-based indices."""
         test_files = self.get_test_files()
         if not test_files:
             print(f"No tests found for {self.tool_name} in {self.test_dir}")
             return
         
-        print(f"Available tests for {self.tool_name}:")
-        for i, test_file in enumerate(test_files, 1):
+        print(f"Available tests for {self.tool_name} (Indices are 0-based):")
+        for i, test_file in enumerate(test_files):
             print(f"  [{i}] {test_file.name}")
 
-    def run_tests(self, start_id=None, end_id=None, max_concurrent=3):
-        """Run tests, optionally in parallel."""
+    def run_tests(self, start_id=None, end_id=None, max_concurrent=1):
+        """Run tests with inclusive range indexing."""
         test_files = self.get_test_files()
         if not test_files:
             print(f"No tests found for {self.tool_name}")
             return
 
-        # Filter by range if provided
+        # Filter by inclusive range if provided (0-indexed)
         if start_id is not None and end_id is not None:
-            # IDs are 1-indexed for the user
-            test_files = test_files[start_id-1:end_id]
+            test_files = test_files[start_id : end_id + 1]
         
         if not test_files:
             print("No tests selected in the specified range.")
@@ -48,11 +72,11 @@ class TestRunner:
 
         print(f"Running {len(test_files)} tests for {self.tool_name}...")
         
-        if len(test_files) == 1:
+        if len(test_files) == 1 and max_concurrent == 1:
             # Run single test in foreground
             self._run_single_test(test_files[0])
         else:
-            # Run multiple tests in parallel using BACKGROUND if available
+            # Run multiple tests in parallel
             self._run_parallel_tests(test_files, max_concurrent)
 
     def _run_single_test(self, test_file):
@@ -101,7 +125,7 @@ class TestRunner:
         """Run multiple tests in parallel using BACKGROUND tool."""
         background_bin = self.project_root / "bin" / "BACKGROUND"
         if not background_bin.exists():
-            # Fallback to sequential if BACKGROUND is not installed
+            # Fallback to sequential
             print("BACKGROUND tool not found. Falling back to sequential execution.")
             for test_file in test_files:
                 self._run_single_test(test_file)
@@ -109,8 +133,7 @@ class TestRunner:
 
         active_jobs = []
         remaining_files = list(test_files)
-        results = {}
-
+        
         print(f"Parallel execution enabled (max {max_concurrent} concurrent jobs)")
 
         while remaining_files or active_jobs:
@@ -119,25 +142,17 @@ class TestRunner:
                 test_file = remaining_files.pop(0)
                 cmd = f"{sys.executable} -m unittest {test_file}"
                 
-                # Run via BACKGROUND
                 try:
-                    # Use BACKGROUND tool to start the process
-                    # Capture PID from output
                     proc = subprocess.run([str(background_bin), cmd], capture_output=True, text=True)
                     output = proc.stdout
-                    # BACKGROUND output format: "Process started: PID 12345, Log: ..."
-                    import re
-                    match = re.search(r"PID (\d+)", output)
-                    if not match:
-                        match = re.search(r"PID: (\d+)", output)
-                    
+                    # Match "PID 12345" or "PID: 12345"
+                    match = re.search(r"PID:?\s*(\d+)", output)
                     if match:
                         pid = match.group(1)
                         active_jobs.append({"pid": pid, "file": test_file})
                         print(f"Started {test_file.name} (PID: {pid})")
                     else:
                         print(f"Failed to start {test_file.name} via BACKGROUND. Output: {output}")
-                        # Fallback for this one
                         self._run_single_test(test_file)
                 except Exception as e:
                     print(f"Error starting background job: {e}")
@@ -147,11 +162,8 @@ class TestRunner:
             finished_jobs = []
             for job in active_jobs:
                 try:
-                    # Check if process is still alive using os.kill(pid, 0)
-                    # This is much more reliable than parsing BACKGROUND --list output
                     os.kill(int(job["pid"]), 0)
                 except OSError:
-                    # Process is finished or doesn't exist
                     finished_jobs.append(job)
                 except Exception:
                     pass
