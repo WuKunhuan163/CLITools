@@ -126,17 +126,63 @@ def install_tool(tool_name):
     # 3. Create bin directory
     bin_dir.mkdir(exist_ok=True)
     
-    # 4. Create symlink in bin directory
+    # 4. Create entry point in bin directory
     link_path = bin_dir / tool_name
     if link_path.exists() or link_path.is_symlink():
         os.remove(link_path)
     
     try:
-        os.symlink(main_py, link_path)
-        # Ensure main.py is executable
-        st = os.stat(main_py)
-        os.chmod(main_py, st.st_mode | stat.S_IEXEC)
-        print(f"Successfully installed {tool_name}: symlink created at {link_path}")
+        # Check if the tool depends on PYTHON. If so, create a wrapper script.
+        use_wrapper = False
+        if tool_json_path.exists():
+            with open(tool_json_path, 'r') as f:
+                tool_data = json.load(f)
+                if "PYTHON" in tool_data.get("dependencies", []):
+                    use_wrapper = True
+        
+        if use_wrapper:
+            # Create a wrapper script that uses the standalone python
+            python_tool_dir = project_root / "tool" / "PYTHON"
+            python_utils_path = python_tool_dir / "proj" / "utils.py"
+            
+            wrapper_content = f'''#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+from pathlib import Path
+
+# Add the directory containing 'proj' to PYTHONPATH for the subprocess
+project_root = Path({repr(str(project_root))})
+python_tool_dir = project_root / "tool" / "PYTHON"
+sys.path.append(str(python_tool_dir))
+
+try:
+    from proj.utils import get_python_exec
+    python_exec = get_python_exec()
+except ImportError:
+    python_exec = "python3"
+
+# Set up environment
+env = os.environ.copy()
+# Add the tool's directory to PYTHONPATH so it can find its own 'proj'
+tool_main = Path({repr(str(main_py))})
+env["PYTHONPATH"] = f"{{tool_main.parent}}:{{env.get('PYTHONPATH', '')}}"
+
+if __name__ == "__main__":
+    result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
+    sys.exit(result.returncode)
+'''
+            with open(link_path, 'w') as f:
+                f.write(wrapper_content)
+            os.chmod(link_path, st.st_mode | stat.S_IEXEC)
+            print(f"Successfully installed {tool_name}: wrapper created at {link_path}")
+        else:
+            # Traditional symlink
+            os.symlink(main_py, link_path)
+            # Ensure main.py is executable
+            st = os.stat(main_py)
+            os.chmod(main_py, st.st_mode | stat.S_IEXEC)
+            print(f"Successfully installed {tool_name}: symlink created at {link_path}")
         
         # 5. Handle PATH registration
         register_path(bin_dir)
