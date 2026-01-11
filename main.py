@@ -7,11 +7,13 @@ import stat
 import shutil
 from pathlib import Path
 
-# Try to import colors from proj.config
+# Try to import colors and shared utils from proj
 try:
     from proj.config import get_color
+    from proj.language_utils import get_translation
 except ImportError:
     def get_color(name, default="\033[0m"): return default
+    def get_translation(d, k, default): return default
 
 # Define commonly used colors with defaults
 RESET = get_color("RESET", "\033[0m")
@@ -19,10 +21,19 @@ GREEN = get_color("GREEN", RESET)
 BOLD = get_color("BOLD", RESET)
 BLUE = get_color("BLUE", RESET)
 YELLOW = get_color("YELLOW", RESET)
+RED = get_color("RED", RESET)
+
+# Root project directory
+ROOT_PROJECT_ROOT = Path(__file__).parent.absolute()
+SHARED_PROJ_DIR = ROOT_PROJECT_ROOT / "proj"
+
+def _(key, default, **kwargs):
+    text = get_translation(str(SHARED_PROJ_DIR), key, default)
+    return text.format(**kwargs)
 
 def install_tool(tool_name):
     # Add a blank line between tools for better readability
-    print(f"\n--- Installing {tool_name} ---")
+    print(_("install_header", "\n--- Installing {name} ---", name=tool_name))
     
     project_root = Path(__file__).parent.absolute()
     # Install tools into a 'tool' subdirectory
@@ -37,19 +48,22 @@ def install_tool(tool_name):
         with open(registry_path, 'r') as f:
             registry = json.load(f)
             if tool_name not in registry.get("tools", {}):
-                print(f"Error: Tool '{tool_name}' is not in the global registry.")
+                print(f"{RED}" + _("tool_not_in_registry", "Error: Tool '{name}' is not in the global registry.", name=tool_name) + f"{RESET}")
                 return
+    else:
+        print(f"{RED}" + _("registry_error", "Error: Global tool.json not found.") + f"{RESET}")
+        return
 
     # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
     if not tool_dir.exists():
-        print(f"Tool {tool_name} not found locally. Attempting to fetch from 'tool' branch...")
+        print(_("tool_not_found", "Tool {name} not found locally. Attempting to fetch from 'tool' branch...", name=tool_name))
         try:
             # Try to checkout from origin/tool - note the path is tool/<name> in the branch
             result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
             if result.returncode != 0:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
-            print(f"Successfully retrieved {tool_name} from 'tool' branch.")
+            print(f"{BOLD}{BLUE}" + _("retrieved_success", "Successfully retrieved {name}", name=tool_name) + f"{RESET}")
         except subprocess.CalledProcessError as e:
             # Fallback for old branch structure or if tool is in root
             try:
@@ -57,16 +71,16 @@ def install_tool(tool_name):
                 if result.returncode == 0:
                     # Move from root to tool/
                     shutil.move(str(project_root / tool_name), str(tool_dir))
-                    print(f"Successfully retrieved {tool_name} from 'tool' branch (root) and moved to tool/ folder.")
+                    print(_("retrieved_success_root", "Successfully retrieved {name} from 'tool' branch (root) and moved to tool/ folder.", name=tool_name))
                 else:
-                    print(f"Error retrieving tool {tool_name}: {e}")
+                    print(f"{RED}" + _("retrieve_error", "Error retrieving tool {name}: {error}", name=tool_name, error=e) + f"{RESET}")
                     return
-            except Exception:
-                print(f"Error retrieving tool {tool_name}: {e}")
+            except Exception as e2:
+                print(f"{RED}" + _("retrieve_error", "Error retrieving tool {name}: {error}", name=tool_name, error=e2) + f"{RESET}")
                 return
 
     if not tool_dir.exists():
-        print(f"Error: Tool directory {tool_dir} still not found after download attempt.")
+        print(f"{RED}" + _("tool_still_not_found", "Error: Tool directory {name} still not found after download attempt.", name=tool_dir) + f"{RESET}")
         return
 
     # 2. Parse tool.json for dependencies
@@ -76,7 +90,7 @@ def install_tool(tool_name):
             tool_data = json.load(f)
             dependencies = tool_data.get("dependencies", [])
             for dep in dependencies:
-                print(f"Installing dependency for {tool_name}: {dep}")
+                print(_("installing_dep", "Installing dependency for {name}: {dep}", name=tool_name, dep=dep))
                 install_tool(dep)
 
     # 2.1 Handle pip dependencies if proj/requirements.txt exists
@@ -89,7 +103,7 @@ def install_tool(tool_name):
             # Use the installed PYTHON tool to get the python executable
             python_tool_dir = project_root / "tool" / "PYTHON"
             if not python_tool_dir.exists():
-                print(f"{YELLOW}Warning: PYTHON tool not found. Skipping pip dependencies.{RESET}")
+                print(f"{YELLOW}" + _("python_not_found", "Warning: PYTHON tool not found. Skipping pip dependencies.") + f"{RESET}")
             else:
                 # Import get_python_exec from tool/PYTHON/proj/utils.py
                 python_utils_path = python_tool_dir / "proj" / "utils.py"
@@ -109,18 +123,18 @@ def install_tool(tool_name):
                     
                     if result.returncode != 0:
                         if "PermissionError" in result.stderr or "Operation not permitted" in result.stderr:
-                            print(f"Warning: pip install failed due to permissions. This is expected in some sandboxes.")
-                            print(f"Please try running the installation again with 'all' permissions if you see this error.")
+                            print(f"{YELLOW}" + _("pip_warning_permissions", "Warning: pip install failed due to permissions.") + f"{RESET}")
+                            print(_("pip_warning_retry", "Please try running with 'all' permissions."))
                         else:
-                            print(f"Warning: pip install failed with error:\n{result.stderr}")
+                            print(f"{RED}" + _("pip_error", "Warning: pip install failed with error:\n{error}", error=result.stderr) + f"{RESET}")
                     else:
-                        print(f"Successfully installed pip dependencies for {tool_name}.")
+                        print(_("pip_success", "Successfully installed pip dependencies for {name}.", name=tool_name))
         except Exception as e:
-            print(f"Warning: Failed to install pip dependencies for {tool_name}: {e}")
+            print(f"{YELLOW}" + _("pip_failed", "Warning: Failed to install pip dependencies for {name}: {error}", name=tool_name, error=e) + f"{RESET}")
 
     main_py = tool_dir / "main.py"
     if not main_py.exists():
-        print(f"Error: {main_py} not found in tool directory.")
+        print(f"{RED}" + _("tool_main_not_found", "Error: {path} not found in tool directory.", path=main_py) + f"{RESET}")
         return
 
     # 3. Create bin directory
@@ -176,16 +190,16 @@ if __name__ == "__main__":
             with open(link_path, 'w') as f:
                 f.write(wrapper_content)
             os.chmod(link_path, st.st_mode | stat.S_IEXEC)
-            print(f"{GREEN}Successfully installed {tool_name}: wrapper created at {link_path}{RESET}")
+            print(f"{BOLD}{GREEN}" + _("install_success_wrapper", "Successfully installed {name}", name=tool_name) + f"{RESET}" + _("wrapper_created", ": wrapper created at {path}", path=link_path))
         else:
             # Traditional symlink
             os.symlink(main_py, link_path)
-            print(f"{GREEN}Successfully installed {tool_name}: symlink created at {link_path}{RESET}")
+            print(f"{BOLD}{GREEN}" + _("install_success_symlink", "Successfully installed {name}", name=tool_name) + f"{RESET}" + _("symlink_created", ": symlink created at {path}", path=link_path))
         
         # 5. Handle PATH registration
         register_path(bin_dir)
     except OSError as e:
-        print(f"Error creating symlink for {tool_name}: {e}")
+        print(f"{RED}" + _("symlink_error", "Error creating symlink for {name}: {error}", name=tool_name, error=e) + f"{RESET}")
 
 def register_path(bin_dir):
     """Add bin_dir to shell profile if not already present."""
@@ -209,7 +223,7 @@ def register_path(bin_dir):
             if str(bin_dir) not in content:
                 with open(profile, 'a') as f:
                     f.write(export_cmd)
-                print(f"Updated {profile} with PATH.")
+                print(_("updated_path", "Updated {profile} with PATH.", profile=profile))
             else:
                 # Already exists
                 pass
@@ -236,14 +250,14 @@ def update_config(key, value):
     
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
-    print(f"Global configuration updated: {key} = {value}")
+    print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
 def generate_ai_rule():
     project_root = Path(__file__).parent.absolute()
     registry_path = project_root / "tool.json"
     
     if not registry_path.exists():
-        print("Error: Global tool.json not found.")
+        print(f"{RED}" + _("registry_error", "Error: Global tool.json not found.") + f"{RESET}")
         return
 
     with open(registry_path, 'r') as f:
@@ -270,6 +284,12 @@ def generate_ai_rule():
     for name, info in available_tools:
         print(f"- {name}: {info.get('description')} (Purpose: {info.get('purpose')})")
         
+    print("\n[LOCALIZATION & DEVELOPMENT GUIDELINES]")
+    print("- **Multi-language Support**: Tools should support localization via a 'proj/translations.json' file.")
+    print("- **Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults.")
+    print("- **Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups.")
+    print("- **Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them.")
+    
     print("\nNOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal.")
     print("--------------------------")
 
@@ -278,7 +298,7 @@ def test_tool(tool_name):
     tool_dir = project_root / "tool" / tool_name
     
     if not tool_dir.exists():
-        print(f"Error: Tool directory {tool_dir} not found.")
+        print(f"{RED}" + _("test_tool_not_found", "Error: Tool directory {path} not found.", path=tool_dir) + f"{RESET}")
         return
 
     # Import TestRunner from proj.test_runner
@@ -286,7 +306,7 @@ def test_tool(tool_name):
     try:
         from proj.test_runner import TestRunner
     except ImportError:
-        print("Error: Could not import TestRunner from proj.test_runner.")
+        print(f"{RED}" + _("test_runner_import_error", "Error: Could not import TestRunner from proj.test_runner.") + f"{RESET}")
         return
 
     runner = TestRunner(tool_name, project_root)
@@ -309,7 +329,7 @@ def test_tool(tool_name):
                 start_id = int(args[idx+1])
                 end_id = int(args[idx+2])
             except ValueError:
-                print("Error: --range requires two integer arguments.")
+                print(f"{RED}" + _("range_error", "Error: --range requires two integer arguments.") + f"{RESET}")
                 return
     
     if "--max" in args:
@@ -318,7 +338,7 @@ def test_tool(tool_name):
             try:
                 max_concurrent = int(args[idx+1])
             except ValueError:
-                print("Error: --max requires an integer argument.")
+                print(f"{RED}" + _("max_error", "Error: --max requires an integer argument.") + f"{RESET}")
                 return
 
     runner.run_tests(start_id, end_id, max_concurrent)

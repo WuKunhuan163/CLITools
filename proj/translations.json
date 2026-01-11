@@ -1,0 +1,31 @@
+{
+  "zh": {
+    "install_header": "\n--- 正在安装 {name} ---",
+    "tool_not_found": "本地未找到工具 {name}。正在尝试从 'tool' 分支获取...",
+    "retrieved_success": "成功获取 {name}",
+    "retrieved_success_root": "成功从根目录获取 {name} 并移动到 tool/ 文件夹。",
+    "retrieve_error": "获取工具 {name} 出错: {error}",
+    "tool_still_not_found": "错误: 下载尝试后仍未找到工具目录 {name}。",
+    "installing_dep": "正在安装 {name} 的依赖: {dep}",
+    "found_req": "发现 {name} 的 requirements.txt。正在安装 pip 依赖...",
+    "pip_warning_permissions": "警告: 由于权限问题，pip 安装失败。这在某些沙盒中是预期的。",
+    "pip_warning_retry": "如果看到此错误，请尝试使用 'all' 权限重新运行安装。",
+    "pip_error": "警告: pip 安装失败，错误信息:\n{error}",
+    "pip_success": "成功安装 {name} 的 pip 依赖。",
+    "tool_main_not_found": "错误: 在工具目录中未找到 {path}。",
+    "install_success_wrapper": "成功安装 {name}",
+    "install_success_symlink": "成功安装 {name}",
+    "wrapper_created": ": 已在 {path} 创建包装脚本",
+    "symlink_created": ": 已在 {path} 创建符号链接",
+    "symlink_error": "为 {name} 创建符号链接时出错: {error}",
+    "updated_path": "已更新 {profile} 的 PATH。",
+    "config_updated": "全局配置已更新: {key} = {value}",
+    "registry_error": "错误: 全局 tool.json 未找到。",
+    "tool_not_in_registry": "错误: 工具 '{name}' 不在全局注册表中。",
+    "test_tool_not_found": "错误: 工具目录 {path} 未找到。",
+    "test_runner_import_error": "错误: 无法从 proj.test_runner 导入 TestRunner。",
+    "range_error": "错误: --range 需要两个整数参数。",
+    "max_error": "错误: --max 需要一个整数参数。"
+  }
+}
+
