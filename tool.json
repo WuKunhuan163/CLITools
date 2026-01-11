@@ -79,7 +79,7 @@
       "description": "Network performance and connectivity testing.",
       "purpose": "Diagnose connection issues."
     },
-    "BACKGROUND_CMD": {
+    "BACKGROUND": {
       "description": "Manage long-running background processes safely.",
       "purpose": "Run tasks without blocking the agent's execution."
     }
