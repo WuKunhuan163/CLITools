@@ -1,9 +1,0 @@
-{
-  "name": "USERINPUT",
-  "description": "User Input Script for Cursor AI with tkinter GUI and custom ID support",
-  "purpose": "Get user feedback in Cursor AI workflows using a modern tkinter interface with session identification",
-  "usage": "USERINPUT [--timeout SECONDS] [--id CUSTOM_ID]",
-  "dependencies": ["PYTHON"],
-  "run_compatible": true,
-  "testable": false
-}

@@ -1,1 +1,26 @@
-/Applications/AITerminalTools/tool/BACKGROUND/main.py
+#!/usr/bin/env python3
+import sys
+import os
+import subprocess
+from pathlib import Path
+
+# Add the directory containing 'proj' to PYTHONPATH for the subprocess
+project_root = Path('/Applications/AITerminalTools')
+python_tool_dir = project_root / "tool" / "PYTHON"
+sys.path.append(str(python_tool_dir))
+
+try:
+    from proj.utils import get_python_exec
+    python_exec = get_python_exec()
+except ImportError:
+    python_exec = "python3"
+
+# Set up environment
+env = os.environ.copy()
+# Add the tool's directory to PYTHONPATH so it can find its own 'proj'
+tool_main = Path('/Applications/AITerminalTools/tool/BACKGROUND/main.py')
+env["PYTHONPATH"] = f"{tool_main.parent}:{env.get('PYTHONPATH', '')}"
+
+if __name__ == "__main__":
+    result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
+    sys.exit(result.returncode)
