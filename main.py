@@ -83,14 +83,14 @@ def install_tool(tool_name):
             result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
             if result.returncode == 0:
                 branch_info = "origin/tool"
-                url_info = f"：{remote_url}" if remote_url else ""
+                url_info = f": {remote_url}" if remote_url else ""
                 msg = _("retrieved_success_remote_only", "Successfully retrieved {name} tool", name=tool_name)
-                print(f"{BOLD}{BLUE}{msg}{RESET}： " + _("retrieved_from", "remote '{branch}' branch{url}", branch=branch_info, url=url_info))
+                print(f"{BOLD}{BLUE}{msg}{RESET}: " + _("retrieved_from", "remote '{branch}' branch{url}", branch=branch_info, url=url_info))
             else:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
                 msg = _("retrieved_success_local_only", "Successfully retrieved {name} tool", name=tool_name)
-                print(f"{BOLD}{BLUE}{msg}{RESET}： " + _("retrieved_from", "local '{branch}' branch", branch="tool"))
+                print(f"{BOLD}{BLUE}{msg}{RESET}: " + _("retrieved_from", "local '{branch}' branch", branch="tool"))
         except subprocess.CalledProcessError as e:
             # Fallback for old branch structure or if tool is in root
             try:
@@ -99,19 +99,19 @@ def install_tool(tool_name):
                     # Move from root to tool/
                     shutil.move(str(project_root / tool_name), str(tool_dir))
                     msg = _("retrieved_success_root_only", "Successfully retrieved {name} tool", name=tool_name)
-                    print(f"{BOLD}{BLUE}{msg}{RESET}： " + _("moved_to_tool", "from 'tool' branch (root) and moved to tool/ folder."))
+                    print(f"{BOLD}{BLUE}{msg}{RESET}: " + _("moved_to_tool", "from 'tool' branch (root) and moved to tool/ folder."))
                 else:
                     msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-                    print(f"{BOLD}{RED}{msg}{RESET}： " + _("retrieve_error_msg", "Error retrieving: {error}", error=e))
+                    print(f"{BOLD}{RED}{msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e))
                     return
             except Exception as e2:
                 msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-                print(f"{BOLD}{RED}{msg}{RESET}： " + _("retrieve_error_msg", "Error retrieving: {error}", error=e2))
+                print(f"{BOLD}{RED}{msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e2))
                 return
 
     if not tool_dir.exists():
         msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-        print(f"{BOLD}{RED}{msg}{RESET}： " + _("tool_dir_not_found", "Error: Tool directory still not found after download attempt."))
+        print(f"{BOLD}{RED}{msg}{RESET}: " + _("tool_dir_not_found", "Error: Tool directory still not found after download attempt."))
         return
 
     # 2. Parse tool.json for dependencies
@@ -170,7 +170,7 @@ def install_tool(tool_name):
     main_py = tool_dir / "main.py"
     if not main_py.exists():
         msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-        print(f"{BOLD}{RED}{msg}{RESET}： " + _("tool_main_not_found_msg", "Error: {path} not found in tool directory.", path=main_py))
+        print(f"{BOLD}{RED}{msg}{RESET}: " + _("tool_main_not_found_msg", "Error: {path} not found in tool directory.", path=main_py))
         return
 
     # 3. Create bin directory
