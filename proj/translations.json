@@ -1,6 +1,7 @@
 {
   "zh": {
     "install_header": "\n--- 正在安装 {name} ---",
+    "already_installed": "{name} 已经安装。",
     "tool_not_found": "本地未找到工具 {name}。正在尝试从 'tool' 分支获取...",
     "retrieved_success": "成功获取 {name}",
     "retrieved_success_root": "成功从根目录获取 {name} 并移动到 tool/ 文件夹。",
@@ -13,11 +14,9 @@
     "pip_error": "警告: pip 安装失败，错误信息:\n{error}",
     "pip_success": "成功安装 {name} 的 pip 依赖。",
     "tool_main_not_found": "错误: 在工具目录中未找到 {path}。",
-    "install_success_wrapper": "成功安装 {name}",
-    "install_success_symlink": "成功安装 {name}",
-    "wrapper_created": ": 已在 {path} 创建包装脚本",
-    "symlink_created": ": 已在 {path} 创建符号链接",
-    "symlink_error": "为 {name} 创建符号链接时出错: {error}",
+    "install_success": "成功安装 {name}",
+    "shortcut_created": ": 已在 {path} 创建快捷方式",
+    "simlink_error": "为 {name} 创建快捷方式时出错: {error}",
     "updated_path": "已更新 {profile} 的 PATH。",
     "config_updated": "全局配置已更新: {key} = {value}",
     "registry_error": "错误: 全局 tool.json 未找到。",
@@ -28,4 +27,3 @@
     "max_error": "错误: --max 需要一个整数参数。"
   }
 }
-
