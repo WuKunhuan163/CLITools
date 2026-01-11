@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-BACKGROUND_CMD - 安全的后台进程管理工具
-支持创建、监控和管理后台进程，防止系统资源耗尽
-"""
-
 import os
 import sys
 import json
@@ -11,12 +5,10 @@ import time
 import shlex
 import signal
 import psutil
-import argparse
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
 
 class ProcessManager:
     """后台进程管理器"""
@@ -189,7 +181,8 @@ class ProcessManager:
                     shell_cmd,
                     stdout=log_f,
                     stderr=subprocess.STDOUT,
-                    preexec_fn=os.setsid,  # 创建新会话组
+                    # preexec_fn=os.setsid is deprecated, using start_new_session=True instead
+                    start_new_session=True,
                     cwd=os.getcwd(),
                     env=os.environ.copy()
                 )
@@ -211,8 +204,6 @@ class ProcessManager:
             
             # 保存状态
             self.save_state()
-            
-            print(f"Process started: PID {process.pid}, Log: {log_file}")
             
             return process.pid, str(log_file)
             
@@ -319,14 +310,11 @@ class ProcessManager:
                 proc.terminate()  # SIGTERM
                 signal_type = "SIGTERM"
             
-            print(f"Sent {signal_type} to process {pid}")
-            
             # 等待进程结束
             try:
                 proc.wait(timeout=5)
             except psutil.TimeoutExpired:
                 if not force:
-                    print(f"Process {pid} not responding to SIGTERM, trying SIGKILL...")
                     proc.kill()
                     proc.wait(timeout=3)
             
@@ -334,11 +322,9 @@ class ProcessManager:
             del self.processes[pid_str]
             self.save_state()
             
-            print(f"Process {pid} terminated")
             return True
             
         except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-            print(f"Error: Cannot terminate process {pid} - {e}")
             # 从管理列表中移除（进程可能已经死亡）
             if pid_str in self.processes:
                 del self.processes[pid_str]
@@ -472,238 +458,3 @@ class ProcessManager:
         """获取进程的日志内容（与get_process_result相同，但语义不同）"""
         return self.get_process_result(pid)
 
-
-def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(
-        description='BACKGROUND_CMD - 安全的后台进程管理工具',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
-  BACKGROUND_CMD "sleep 60"                    # 使用默认zsh运行命令
-  BACKGROUND_CMD "ls -la" --shell bash         # 使用bash运行命令
-  BACKGROUND_CMD --list                        # 列出所有活跃进程
-  BACKGROUND_CMD --kill 12345                  # 终止指定进程
-  BACKGROUND_CMD --cleanup                     # 清理所有进程
-  BACKGROUND_CMD --max-processes 500           # 设置最大进程数
-        """
-    )
-    
-    # 位置参数 - 使用REMAINDER来捕获所有剩余参数
-    parser.add_argument('command_args', nargs=argparse.REMAINDER, help='要在后台执行的命令')
-    
-    # 可选参数
-    parser.add_argument('--shell', choices=['zsh', 'bash'], default='zsh',
-                       help='使用的shell类型 (默认: zsh)')
-    parser.add_argument('--max-processes', type=int, default=1000,
-                       help='最大同时运行进程数 (默认: 1000)')
-    parser.add_argument('--log-dir', default='~/tmp/background_cmd_logs',
-                       help='日志文件目录 (默认: ~/tmp/background_cmd_logs)')
-    parser.add_argument('--no-alias', action='store_true',
-                       help='不解析shell别名')
-    
-    # 操作参数
-    parser.add_argument('--list', action='store_true',
-                       help='列出所有活跃的后台进程')
-    parser.add_argument('--status', nargs='?', const='all', metavar='PID',
-                       help='查询指定PID进程的状态，无参数时列出所有进程（等同于--list）')
-    parser.add_argument('--result', type=int, metavar='PID',
-                       help='获取指定PID进程的执行结果')
-    parser.add_argument('--log', type=int, metavar='PID',
-                       help='查看指定PID进程的日志')
-    parser.add_argument('--kill', type=int, metavar='PID',
-                       help='终止指定PID的进程')
-    parser.add_argument('--force-kill', type=int, metavar='PID',
-                       help='强制终止指定PID的进程')
-    parser.add_argument('--cleanup', action='store_true',
-                       help='清理所有管理的后台进程')
-    
-    # JSON输出
-    parser.add_argument('--json', action='store_true',
-                       help='以JSON格式输出结果')
-    
-    args, unknown_args = parser.parse_known_args()
-    
-    # 创建进程管理器
-    manager = ProcessManager(
-        max_processes=args.max_processes,
-        log_dir=args.log_dir
-    )
-    
-    try:
-        # 处理各种操作
-        if args.list:
-            processes = manager.list_processes()
-            if args.json:
-                print(json.dumps({
-                    'success': True,
-                    'processes': processes,
-                    'total_count': len(processes)
-                }, indent=2))
-            else:
-                if processes:
-                    print(f"\nActive processes ({len(processes)}):")
-                    print(f"-" * 80)
-                    for proc in processes:
-                        # 截断命令显示，只显示前20个字符
-                        cmd_display = proc['command'][:20] + "..." if len(proc['command']) > 20 else proc['command']
-                        print(f"PID: {proc['pid']:<8} | "
-                              f"Status: {proc['status']:<10} | "
-                              f"Runtime: {proc['runtime']:<10} | "
-                              f"Command: {cmd_display}")
-                    print(f"-" * 80)
-                else:
-                    print(f"No active processes")
-        
-        elif args.kill is not None:
-            success = manager.kill_process(args.kill)
-            if args.json:
-                print(json.dumps({'success': success, 'action': 'kill', 'pid': args.kill}))
-        
-        elif args.force_kill is not None:
-            success = manager.kill_process(args.force_kill, force=True)
-            if args.json:
-                print(json.dumps({'success': success, 'action': 'force_kill', 'pid': args.force_kill}))
-        
-        elif args.status is not None:
-            if args.status == 'all':
-                # --status 无参数时，等同于 --list
-                processes = manager.list_processes()
-                if args.json:
-                    print(json.dumps({
-                        'success': True,
-                        'action': 'status_all',
-                        'processes': processes,
-                        'total_count': len(processes)
-                    }, indent=2))
-                else:
-                    if processes:
-                        print(f"\nActive processes ({len(processes)}):")
-                        print(f"-" * 80)
-                        for proc in processes:
-                            # 截断命令显示，只显示前20个字符
-                            cmd_display = proc['command'][:20] + "..." if len(proc['command']) > 20 else proc['command']
-                            print(f"PID: {proc['pid']:<8} | "
-                                  f"Status: {proc['status']:<10} | "
-                                  f"Runtime: {proc['runtime']:<10} | "
-                                  f"Command: {cmd_display}")
-                        print(f"-" * 80)
-                    else:
-                        print("No active background processes")
-            else:
-                # --status PID 查询指定进程状态
-                try:
-                    pid = int(args.status)
-                    status = manager.get_process_status(pid)
-                    if status:
-                        if args.json:
-                            print(json.dumps({'success': True, 'action': 'status', 'status': status}))
-                        else:
-                            print(f"Process {pid} Status:")
-                            print(f"  Command: {status['command']}")
-                            print(f"  Status: {status['status']}")
-                            if status['is_running']:
-                                print(f"  CPU: {status['cpu_percent']:.1f}%")
-                                print(f"  Memory: {status['memory_mb']:.1f}MB")
-                                print(f"  Runtime: {status['runtime']}")
-                            else:
-                                print(f"  Total runtime: {status['runtime']}")
-                                if status.get('end_time'):
-                                    print(f"  Completed at: {status['end_time']}")
-                            print(f"  Log file: {status['log_file']}")
-                    else:
-                        if args.json:
-                            print(json.dumps({'success': False, 'action': 'status', 'error': f'Process {pid} not found'}))
-                        else:
-                            print(f"Error: Process {pid} not found or has terminated")
-                        sys.exit(1)
-                except ValueError:
-                    if args.json:
-                        print(json.dumps({'success': False, 'action': 'status', 'error': f'Invalid PID: {args.status}'}))
-                    else:
-                        print(f"Error: Invalid PID: {args.status}")
-                    sys.exit(1)
-        
-        elif args.result is not None:
-            result = manager.get_process_result(args.result)
-            if result is not None:
-                if args.json:
-                    print(json.dumps({'success': True, 'action': 'result', 'pid': args.result, 'output': result}))
-                else:
-                    print(result)
-            else:
-                if args.json:
-                    print(json.dumps({'success': False, 'action': 'result', 'error': f'Process {args.result} not found'}))
-                else:
-                    print(f"Error: Process {args.result} not found")
-                sys.exit(1)
-        
-        elif args.log is not None:
-            log_content = manager.get_process_log(args.log)
-            if log_content is not None:
-                if args.json:
-                    print(json.dumps({'success': True, 'action': 'log', 'pid': args.log, 'content': log_content}))
-                else:
-                    print(log_content)
-            else:
-                if args.json:
-                    print(json.dumps({'success': False, 'action': 'log', 'error': f'Process {args.log} not found'}))
-                else:
-                    print(f"Error: Process {args.log} not found")
-                sys.exit(1)
-        
-        elif args.cleanup:
-            count = manager.cleanup_all()
-            if args.json:
-                print(json.dumps({'success': True, 'action': 'cleanup', 'cleaned_count': count}))
-            else:
-                if count > 0:
-                    print(f"Cleaned up {count} process records")
-                else:
-                    print("No processes to clean up")
-        
-        elif args.command_args or unknown_args:
-            # 合并command_args和unknown_args
-            all_args = (args.command_args or []) + (unknown_args or [])
-            if all_args:
-                full_command = ' '.join(all_args)
-            else:
-                parser.print_help()
-                return
-                
-            result = manager.create_process(
-                full_command,
-                shell=args.shell,
-                resolve_aliases=not args.no_alias
-            )
-            
-            if args.json:
-                if result:
-                    pid, log_file = result
-                    print(json.dumps({
-                        'success': True,
-                        'action': 'create',
-                        'pid': pid,
-                        'log_file': log_file,
-                        'command': full_command,
-                        'shell': args.shell
-                    }))
-                else:
-                    print(json.dumps({'success': False, 'action': 'create', 'error': 'Failed to create process'}))
-        
-        else:
-            parser.print_help()
-    
-    except KeyboardInterrupt:
-        print(f"\nOperation interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        if args.json:
-            print(json.dumps({'success': False, 'error': str(e)}))
-        else:
-            print(f"Error: {e}")
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
