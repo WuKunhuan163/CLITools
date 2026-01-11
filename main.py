@@ -90,6 +90,34 @@ def install_tool(tool_name):
                 print(f"Installing dependency for {tool_name}: {dep}")
                 install_tool(dep)
 
+    # 2.1 Handle pip dependencies if requirements.txt exists
+    requirements_path = tool_dir / "proj" / "requirements.txt"
+    if not requirements_path.exists():
+        requirements_path = tool_dir / "requirements.txt"
+    
+    if requirements_path.exists():
+        print(f"Found requirements.txt for {tool_name}. Installing pip dependencies...")
+        try:
+            # Use the installed PYTHON tool to get the python executable
+            sys.path.append(str(project_root))
+            python_tool_dir = project_root / "tool" / "PYTHON"
+            if not python_tool_dir.exists():
+                print("Warning: PYTHON tool not found. Skipping pip dependencies.")
+            else:
+                # Import get_python_exec from tool/PYTHON/proj/utils.py
+                python_utils_path = python_tool_dir / "proj" / "utils.py"
+                if python_utils_path.exists():
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("python_utils_mod", str(python_utils_path))
+                    python_utils_mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(python_utils_mod)
+                    python_exec = python_utils_mod.get_python_exec()
+                    # Run pip install using the standalone python
+                    subprocess.run([python_exec, "-m", "pip", "install", "-r", str(requirements_path)], check=True)
+                    print(f"Successfully installed pip dependencies for {tool_name}.")
+        except Exception as e:
+            print(f"Warning: Failed to install pip dependencies for {tool_name}: {e}")
+
     main_py = tool_dir / "main.py"
     if not main_py.exists():
         print(f"Error: {main_py} not found in tool directory.")
