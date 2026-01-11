@@ -27,8 +27,8 @@ RED = get_color("RED", RESET)
 ROOT_PROJECT_ROOT = Path(__file__).parent.absolute()
 SHARED_PROJ_DIR = ROOT_PROJECT_ROOT / "proj"
 
-def _(key, default, **kwargs):
-    text = get_translation(str(SHARED_PROJ_DIR), key, default)
+def _(translation_key, default, **kwargs):
+    text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
     return text.format(**kwargs)
 
 def install_tool(tool_name):
@@ -46,7 +46,7 @@ def install_tool(tool_name):
         return
 
     # Add a blank line between tools for better readability
-    print(_("install_header", "\n--- Installing {name} ---", name=tool_name))
+    print(_("install_header", "\n--- Installing {name} tool ---", name=tool_name))
     
     # 0. Validate against global tool.json
     registry_path = project_root / "tool.json"
@@ -63,11 +63,28 @@ def install_tool(tool_name):
     # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
     if not tool_dir.exists():
         print(_("tool_not_found", "Tool {name} not found locally. Attempting to fetch...", name=tool_name))
+        
+        # Determine remote URL if possible
+        remote_url = ""
+        try:
+            remotes = subprocess.run(["git", "remote", "-v"], capture_output=True, text=True, cwd=str(project_root)).stdout
+            for line in remotes.splitlines():
+                if "origin" in line and "(fetch)" in line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        base_url = parts[1].replace(".git", "")
+                        remote_url = f"{base_url}/tree/tool/tool/{tool_name}"
+                        break
+        except Exception:
+            pass
+
         try:
             # Try to checkout from origin/tool - note the path is tool/<name> in the branch
             result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
             if result.returncode == 0:
-                print(f"{BOLD}{BLUE}" + _("retrieved_success_remote", "Successfully retrieved {name} from remote '{branch}' branch", name=tool_name, branch="origin/tool") + f"{RESET}")
+                branch_info = "origin/tool"
+                url_info = f" ({remote_url})" if remote_url else ""
+                print(f"{BOLD}{BLUE}" + _("retrieved_success_remote", "Successfully retrieved {name} from remote '{branch}' branch{url}", name=tool_name, branch=branch_info, url=url_info) + f"{RESET}")
             else:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
@@ -206,7 +223,7 @@ if __name__ == "__main__":
             # Traditional symlink
             os.symlink(main_py, link_path)
         
-        print(f"{BOLD}{GREEN}" + _("install_success", "Successfully installed {name}", name=tool_name) + f"{RESET}" + _("shortcut_created", ": shortcut created at {path}", path=link_path))
+        print(f"{BOLD}{GREEN}" + _("install_success", "Successfully installed {name} tool", name=tool_name) + f"{RESET}" + _("shortcut_created", ": shortcut created at {path}", path=link_path))
         
         # 5. Handle PATH registration
         register_path(bin_dir)
