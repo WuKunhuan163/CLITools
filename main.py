@@ -275,10 +275,30 @@ def test_tool(tool_name):
 
     runner.run_tests(start_id, end_id, max_concurrent)
 
+def update_config(key, value):
+    project_root = Path(__file__).parent.absolute()
+    data_dir = project_root / "data"
+    data_dir.mkdir(exist_ok=True)
+    config_path = data_dir / "global_config.json"
+    
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except Exception:
+            pass
+    
+    config[key] = value
+    
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+    print(f"Global configuration updated: {key} = {value}")
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: TOOL <command> [args]")
-        print("Commands: install, test, rule")
+        print("Commands: install, test, rule, config")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -288,6 +308,12 @@ def main():
         test_tool(sys.argv[2])
     elif command == "rule":
         generate_ai_rule()
+    elif command == "config" and len(sys.argv) >= 4:
+        subcommand = sys.argv[2]
+        if subcommand == "set-lang":
+            update_config("language", sys.argv[3])
+        else:
+            print(f"Unknown config subcommand: {subcommand}")
     else:
         print(f"Unknown command or missing arguments: {command}")
         sys.exit(1)
