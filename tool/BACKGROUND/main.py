@@ -209,17 +209,22 @@ def main():
                         
                     print("-" * total_table_width)
                     
+                    # Create markdown report ALWAYS
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+                        f.write(f"# Background Processes Full Report\n\n")
+                        f.write(f"| PID | {status_label} | {runtime_label} | {command_label} |\n")
+                        f.write(f"| --- | --- | --- | --- |\n")
+                        for row in clipped_rows:
+                            f.write(f"| {row['pid']} | {row['status']} | {row['runtime']} | {row['command']} |\n")
+                        report_path = f.name
+                    
                     if is_clipped:
-                        # Create markdown report
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
-                            f.write(f"# Background Processes Full Report\n\n")
-                            f.write(f"| PID | {status_label} | {runtime_label} | {command_label} |\n")
-                            f.write(f"| --- | --- | --- | --- |\n")
-                            for row in clipped_rows:
-                                f.write(f"| {row['pid']} | {row['status']} | {row['runtime']} | {row['command']} |\n")
-                            report_path = f.name
-                        
                         print(_("full_report_saved", "Full report saved to: {path}").format(path=report_path))
+                    else:
+                        # Even if not clipped, still print hiddenly for tests if needed?
+                        # User said "可以在任何时候都保存一个临时文件... 这样子单元测试提取到这个路径"
+                        # To let tests find it, I should print it in a specific format
+                        print(f"BACKGROUND_REPORT_PATH: {report_path}")
                 else:
                     print(_("no_active_processes", "No active processes"))
         

@@ -1,5 +1,5 @@
 [
-  "test_input.py",
-  "test_kill.py",
-  "test_timeout.py"
+  "test_00_input.py",
+  "test_01_kill.py",
+  "test_02_timeout.py"
 ]
