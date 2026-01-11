@@ -3,7 +3,7 @@
     "install_header": "\n--- 正在安装 {name} ---",
     "already_installed": "{name} 已经安装。",
     "tool_not_found": "本地未找到工具 {name}。正在尝试获取...",
-    "retrieved_success_remote": "成功从远端 '{branch}' 分支获取 {name}",
+    "retrieved_success_remote": "成功从远端 '{url}' 获取 {name}",
     "retrieved_success_local": "成功从本地 '{branch}' 分支获取 {name}",
     "retrieved_success_root": "成功从根目录获取 {name} 并移动到 tool/ 文件夹。",
     "retrieve_error": "获取工具 {name} 出错: {error}",
