@@ -34,7 +34,9 @@ To get started quickly, follow these steps:
    ```bash
    TOOL rule
    ```
-   Generate AI tool rules and integrate them into your environment. For example, in Cursor, you can copy the output to `Settings` -> `General` -> `Rules for AI`. These tools are designed to be used by both AI agents and human developers, creating a synchronized and efficient development experience.
+   Generate AI tool rules and integrate them into your environment. For example, in Cursor, you can copy the output to `Settings` -> `General` -> `Rules for AI`.
+   
+   **Note**: These tools are designed to be used by both AI agents and human developers. An agent using a tool to get your feedback (e.g., via `USERINPUT`) does not conflict with you using the same tool for your own tasks. They create a synchronized and efficient development experience.
 
 ## Mechanism
 
