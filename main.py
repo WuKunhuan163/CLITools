@@ -200,16 +200,16 @@ if __name__ == "__main__":
             with open(link_path, 'w') as f:
                 f.write(wrapper_content)
             os.chmod(link_path, st.st_mode | stat.S_IEXEC)
-            print(f"{BOLD}{GREEN}" + _("install_success_wrapper", "Successfully installed {name}", name=tool_name) + f"{RESET}" + _("wrapper_created", ": wrapper created at {path}", path=link_path))
         else:
             # Traditional symlink
             os.symlink(main_py, link_path)
-            print(f"{BOLD}{GREEN}" + _("install_success_symlink", "Successfully installed {name}", name=tool_name) + f"{RESET}" + _("symlink_created", ": symlink created at {path}", path=link_path))
+        
+        print(f"{BOLD}{GREEN}" + _("install_success", "Successfully installed {name}", name=tool_name) + f"{RESET}" + _("shortcut_created", ": shortcut created at {path}", path=link_path))
         
         # 5. Handle PATH registration
         register_path(bin_dir)
     except OSError as e:
-        print(f"{RED}" + _("symlink_error", "Error creating symlink for {name}: {error}", name=tool_name, error=e) + f"{RESET}")
+        print(f"{RED}" + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e) + f"{RESET}")
 
 def register_path(bin_dir):
     """Add bin_dir to shell profile if not already present."""
