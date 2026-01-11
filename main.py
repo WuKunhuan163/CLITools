@@ -1,38 +1,11 @@
 #!/usr/bin/env python3
 import os
 import sys
-import json
-import shutil
 import subprocess
+import json
 import stat
+import shutil
 from pathlib import Path
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: TOOL <command> [args]")
-        print("Commands:")
-        print("  install <tool_name>  - Install a tool")
-        print("  test <tool_name>     - Test a tool")
-        print("  rule                 - Generate AI Agent rules")
-        sys.exit(1)
-
-    command = sys.argv[1]
-    
-    if command == "install":
-        if len(sys.argv) < 3:
-            print("Usage: TOOL install <tool_name>")
-            sys.exit(1)
-        install_tool(sys.argv[2])
-    elif command == "test":
-        if len(sys.argv) < 3:
-            print("Usage: TOOL test <tool_name>")
-            sys.exit(1)
-        test_tool(sys.argv[2])
-    elif command == "rule":
-        generate_ai_rule()
-    else:
-        print(f"Unknown command: {command}")
-        sys.exit(1)
 
 def install_tool(tool_name):
     project_root = Path(__file__).parent.absolute()
@@ -99,7 +72,6 @@ def install_tool(tool_name):
         print(f"Found requirements.txt for {tool_name}. Installing pip dependencies...")
         try:
             # Use the installed PYTHON tool to get the python executable
-            sys.path.append(str(project_root))
             python_tool_dir = project_root / "tool" / "PYTHON"
             if not python_tool_dir.exists():
                 print("Warning: PYTHON tool not found. Skipping pip dependencies.")
@@ -132,6 +104,10 @@ def install_tool(tool_name):
         os.remove(link_path)
     
     try:
+        # Ensure main.py is executable
+        st = os.stat(main_py)
+        os.chmod(main_py, st.st_mode | stat.S_IEXEC)
+
         # Check if the tool depends on PYTHON. If so, create a wrapper script.
         use_wrapper = False
         if tool_json_path.exists():
@@ -142,9 +118,6 @@ def install_tool(tool_name):
         
         if use_wrapper:
             # Create a wrapper script that uses the standalone python
-            python_tool_dir = project_root / "tool" / "PYTHON"
-            python_utils_path = python_tool_dir / "proj" / "utils.py"
-            
             wrapper_content = f'''#!/usr/bin/env python3
 import sys
 import os
@@ -179,9 +152,6 @@ if __name__ == "__main__":
         else:
             # Traditional symlink
             os.symlink(main_py, link_path)
-            # Ensure main.py is executable
-            st = os.stat(main_py)
-            os.chmod(main_py, st.st_mode | stat.S_IEXEC)
             print(f"Successfully installed {tool_name}: symlink created at {link_path}")
         
         # 5. Handle PATH registration
@@ -236,7 +206,7 @@ def generate_ai_rule():
     available_tools = []
     
     for name, info in tools.items():
-        if (project_root / name).exists():
+        if (project_root / "tool" / name).exists():
             installed_tools.append((name, info))
         else:
             available_tools.append((name, info))
@@ -257,7 +227,7 @@ def generate_ai_rule():
 
 def test_tool(tool_name):
     project_root = Path(__file__).parent.absolute()
-    tool_dir = project_root / tool_name
+    tool_dir = project_root / "tool" / tool_name
     
     if not tool_dir.exists():
         print(f"Error: Tool directory {tool_dir} not found.")
@@ -305,6 +275,22 @@ def test_tool(tool_name):
 
     runner.run_tests(start_id, end_id, max_concurrent)
 
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: TOOL <command> [args]")
+        print("Commands: install, test, rule")
+        sys.exit(1)
+
+    command = sys.argv[1]
+    if command == "install" and len(sys.argv) >= 3:
+        install_tool(sys.argv[2])
+    elif command == "test" and len(sys.argv) >= 3:
+        test_tool(sys.argv[2])
+    elif command == "rule":
+        generate_ai_rule()
+    else:
+        print(f"Unknown command or missing arguments: {command}")
+        sys.exit(1)
+
 if __name__ == "__main__":
     main()
-
