@@ -11,14 +11,18 @@ sys.path.append(str(current_dir))
 
 # Localization setup
 project_root = current_dir.parent.parent
-python_proj_dir = project_root / "tool" / "PYTHON" / "proj"
-if python_proj_dir.exists():
-    sys.path.append(str(python_proj_dir.parent))
+python_tool_dir = project_root / "tool" / "PYTHON"
+if python_tool_dir.exists():
+    sys.path.insert(0, str(python_tool_dir))
 
 try:
     from proj.language_utils import get_translation
 except ImportError:
     def get_translation(d, k, default): return default
+
+# Restore sys.path order for local imports
+if python_tool_dir.exists():
+    sys.path.pop(0)
 
 TOOL_PROJ_DIR = current_dir / "proj"
 
@@ -29,6 +33,7 @@ from proj.manager import ProcessManager
 
 def main():
     """主函数"""
+    print(f"DEBUG: BACKGROUND main running with sys.path: {sys.path}")
     parser = argparse.ArgumentParser(
         description='BACKGROUND - 安全的后台进程管理工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
