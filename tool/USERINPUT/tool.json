@@ -4,6 +4,7 @@
   "purpose": "Get user feedback in Cursor AI workflows using a modern tkinter interface with session identification",
   "usage": "USERINPUT [--timeout SECONDS] [--id CUSTOM_ID]",
   "dependencies": ["PYTHON"],
+  "test_parallel": 2,
   "run_compatible": true,
   "testable": false
 }
