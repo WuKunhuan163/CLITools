@@ -10,48 +10,53 @@ Create these tools as modules and have a unified management mechanism.
 
 To get started quickly, follow these steps:
 
-1. **Clone the repository**:
+1. **Clone and Setup**:
    ```bash
    git clone https://github.com/WuKunhuan163/AITerminalTools.git
    cd AITerminalTools
-   ```
-
-2. **Run setup**:
-   ```bash
    ./setup.py
    ```
-   This will register the `TOOL` command in your shell profile. You may need to restart your terminal or run `source ~/.zshrc` (or equivalent).
+   This registers the `TOOL` command. Restart your terminal or source your shell profile to apply changes.
 
-3. **Explore and use tools**:
-   - **Install a tool**: `TOOL install USERINPUT`
-   - **List installed tools**: `TOOL list` (or just check the `tool/` directory)
-   - **Change language**: `TOOL config set-lang zh` (to switch to Chinese)
-   - **Generate AI Rules**: `TOOL rule` (generate guidelines for your AI agents)
+2. **Install a Tool**:
+   ```bash
+   TOOL install USERINPUT
+   ```
+   This fetches the tool and its dependencies (like `PYTHON`) automatically.
 
-The goal is to provide a seamless workflow where you can quickly install tools and equip your AI agents with the necessary rules to use them effectively.
+3. **Experience the Tool**:
+   ```bash
+   USERINPUT --hint "Hello AI world!"
+   ```
+   Try running the tool directly. This is how your AI agent will communicate with you—by triggering a GUI for immediate feedback, bypassing the limitations of purely text-based interfaces.
+
+4. **Enhance your Agent**:
+   ```bash
+   TOOL rule
+   ```
+   Generate the AI tool rules and copy the output to your Cursor settings (`Settings` -> `General` -> `Rules for AI`). This informs the agent about the available tools and how to use them effectively.
 
 ## Mechanism
 
-The project uses a modular management system driven by `main.py` and `setup.py`.
+The project implements a lightweight yet powerful management system for AI-assisted development.
 
-### Core Mechanism
-- **`setup.py`**: Project deployment script. It creates a `TOOL` shortcut in your terminal that points to `main.py` and ensures it's persistently available in your shell profiles.
-- **`main.py`**: The central tool manager.
-  - `TOOL install <NAME>`: Fetches the tool from the `tool` branch, installs its dependencies (including `PYTHON` and `pip` packages), and creates a wrapper script in the `bin/` directory.
-  - `TOOL test <NAME>`: Runs unit tests for the specified tool.
-  - `TOOL rule`: Generates a comprehensive set of rules for AI agents to understand how to use the installed tools.
-  - `TOOL config set-lang <CODE>`: Sets the global language preference for all tools.
+### Tool Acquisition & Isolation
+Tools are not stored in the `main` branch to keep the root directory clean. Instead, they are fetched from a dedicated `tool` branch using `git checkout <branch> -- <path>`. This allows the repository to scale to hundreds of tools without cluttering the main workspace.
 
-### Tool Architecture
-Each tool is a self-contained module in its own directory (e.g., `tool/USERINPUT/`):
-- `main.py`: Entry point for the tool.
-- `proj/`: Source code and localized translations (`translations.json`).
-- `test/`: Unit tests based on the `unittest` framework.
-- `tool.json`: Metadata defining purpose, description, and dependencies.
-- `README.md`: Tool-specific documentation.
+### Dependency Management
+- **Standalone Runtime**: Tools can specify a dependency on the `PYTHON` tool. The manager ensures they run in a dedicated, isolated Python 3.10.19 environment.
+- **Automated Pip Installation**: If a tool contains a `requirements.txt`, the manager automatically installs the necessary packages into the standalone runtime during the installation process.
 
-### Testing Framework
-The `TOOL test` mechanism uses a shared `TestRunner` in the root `proj/` folder. It discovers all `test_*.py` files within a tool's `test/` directory and executes them in a clean environment. For multi-test execution, it can leverage the `BACKGROUND` tool to run tests in parallel, significantly reducing testing time for complex tools like `GOOGLE_DRIVE`.
+### Unified Command Interface
+The `TOOL` command provides a standardized interface for all tool-related operations:
+- **`TOOL install <NAME>`**: Fetches the tool, installs dependencies, and creates a wrapper/shortcut in `bin/`.
+- **`TOOL test <NAME>`**: Executes unit tests using a shared `TestRunner`. It supports parallel execution to speed up testing of complex tools.
+- **`TOOL config set-lang <CODE>`**: Manages global preferences, such as switching the UI language for all tools.
+- **`TOOL rule`**: Dynamically generates AI agent guidelines based on currently installed tools.
 
-### Standalone Python Environment
-To ensure maximum compatibility and avoid dependency conflicts, tools can depend on the `PYTHON` tool. The manager automatically ensures that these tools run within a dedicated Python 3.10.19 environment, complete with its own set of pre-installed libraries and `pip` dependencies.
+### Modular Architecture
+Each tool follows a strict structure:
+- `main.py`: CLI entry point.
+- `proj/`: Core logic and `translations.json` for multi-language support.
+- `test/`: Isolated unit tests using the `unittest` framework.
+- `tool.json`: Metadata and dependency definitions.
