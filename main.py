@@ -137,9 +137,10 @@ except ImportError:
 
 # Set up environment
 env = os.environ.copy()
-# Add the tool's directory to PYTHONPATH so it can find its own 'proj'
+# Add the tool's directory and PYTHON tool directory to PYTHONPATH
 tool_main = Path({repr(str(main_py))})
-env["PYTHONPATH"] = f"{{tool_main.parent}}:{{env.get('PYTHONPATH', '')}}"
+python_tool_dir = project_root / "tool" / "PYTHON"
+env["PYTHONPATH"] = f"{{tool_main.parent}}:{{python_tool_dir}}:{{env.get('PYTHONPATH', '')}}"
 
 if __name__ == "__main__":
     result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
