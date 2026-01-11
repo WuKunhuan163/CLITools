@@ -1,5 +1,35 @@
 # AI Terminal Tools
 
+## Quickstart
+
+To get started quickly, run the following command in your terminal:
+
+```bash
+git clone https://github.com/WuKunhuan163/AITerminalTools.git
+cd AITerminalTools
+./setup.py
+```
+
+After setup, you can use the `TOOL` command to manage your AI tools.
+
+## Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/WuKunhuan163/AITerminalTools.git
+   ```
+2. **Run setup**:
+   ```bash
+   cd AITerminalTools
+   ./setup.py
+   ```
+   This will create a `TOOL` command in your PATH.
+3. **Install tools**:
+   ```bash
+   TOOL install USERINPUT
+   TOOL install BACKGROUND
+   ```
+
 ## Vision
 赋能 AI Agents 更多实用工具，以此提高 AI 与用户共同开发的效率（用户自己也能拥有更好的工作流）。
 
