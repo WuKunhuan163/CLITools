@@ -18,6 +18,7 @@ class TestRunner:
         self.cache_file = self.test_dir / ".tests_cache.json"
         self.results_dir = self.project_root / "data" / "test" / "result"
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.shared_proj_dir = self.project_root / "proj"
         
         # Load colors
         try:
@@ -31,6 +32,14 @@ class TestRunner:
             self.RED = "\033[31m"
             self.BOLD = "\033[1m"
             self.RESET = "\033[0m"
+
+    def _(self, key, default, **kwargs):
+        try:
+            from proj.language_utils import get_translation
+            text = get_translation(str(self.shared_proj_dir), key, default)
+            return text.format(**kwargs)
+        except Exception:
+            return default.format(**kwargs)
 
     def get_test_files(self):
         """Find all test_*.py files and manage the cache."""
@@ -145,7 +154,7 @@ class TestRunner:
         """Run tests with inclusive range indexing and real-time progress."""
         test_files = self.get_test_files()
         if not test_files:
-            print(f"No tests found for {self.tool_name}")
+            print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
             sys.stdout.flush()
             return
 
@@ -153,24 +162,19 @@ class TestRunner:
             test_files = test_files[start_id : end_id + 1]
         
         if not test_files:
-            print("No tests selected in the specified range.")
+            print(self._("test_no_selected", "No tests selected in the specified range."))
             sys.stdout.flush()
             return
 
         total_count = len(test_files)
-        print(f"Running {total_count} tests for {self.tool_name}...")
+        print(self._("test_running", "Running {count} tests for {tool}...", count=total_count, tool=self.tool_name))
         sys.stdout.flush()
         
-        if total_count == 1 and max_concurrent == 1:
-            self._run_single_test(test_files[0], timeout=timeout)
-        else:
-            self._run_parallel_tests(test_files, max_concurrent, timeout=timeout)
+        # Always use the parallel style if possible, but adjust for BACKGROUND
+        self._run_parallel_tests(test_files, max_concurrent, timeout=timeout)
 
-    def _run_single_test(self, test_file, timeout=60):
-        """Run a single test file using unittest."""
-        print(f"\n--- Running {test_file.name} ---")
-        sys.stdout.flush()
-        
+    def _run_single_test_logic(self, test_file, timeout=60):
+        """Internal logic to run a single test and return result."""
         start_time = time.time()
         python_exec = self._get_python_exec()
         
@@ -182,40 +186,51 @@ class TestRunner:
                                    env=env, timeout=timeout, capture_output=True, text=True)
             duration = time.time() - start_time
             if result.returncode == 0:
-                status_str = f"{self.BOLD}{self.GREEN}Success{self.RESET}"
+                return "Success", duration, None, None
             else:
-                status_str = f"{self.BOLD}{self.RED}Failed{self.RESET}"
                 report_path = self._save_result(test_file.name, "Failed", result.stdout + result.stderr)
-                # Short summary of failure from stderr
                 last_line = ""
                 for line in result.stderr.splitlines():
                     if line.strip():
                         last_line = line.strip()
-                print(f"Reason: {last_line}")
-                if report_path:
-                    print(f"Full report: {report_path}")
+                return "Failed", duration, f"(code {result.returncode}) Reason: {last_line}", report_path
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
-            status_str = f"{self.BOLD}{self.RED}Timeout{self.RESET}"
             self._save_result(test_file.name, "Timeout", f"Test timed out after {timeout}s")
-
-        print(f"Result: {status_str} (Duration: {duration:.2f}s)")
-        sys.stdout.flush()
+            return "Timeout", duration, None, None
 
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
-        """Run multiple tests in parallel using BACKGROUND tool with progress updates."""
+        """Run multiple tests with status updates. Supports sequential if needed."""
         background_bin = self.project_root / "bin" / "BACKGROUND"
-        # Avoid nesting BACKGROUND if testing BACKGROUND itself, or if bin not found
-        if not background_bin.exists() or self.tool_name == "BACKGROUND":
-            if self.tool_name == "BACKGROUND":
+        is_background_test = self.tool_name == "BACKGROUND"
+        
+        if not background_bin.exists() or is_background_test:
+            if is_background_test:
                 print("Testing BACKGROUND tool: Parallel execution disabled to avoid self-cleanup issues.")
             else:
                 print("BACKGROUND tool not found. Falling back to sequential execution.")
             sys.stdout.flush()
-            for i, test_file in enumerate(test_files, 1):
-                # We still want to show progress
-                print(f"[{i}/{len(test_files)}] ", end="")
-                self._run_single_test(test_file, timeout=timeout)
+            
+            total_tests = len(test_files)
+            for i, test_file in enumerate(test_files):
+                print(self._("test_starting_sequential", "[{index}/{total}] Starting {file}...", index=i, total=total_tests, file=test_file.name))
+                sys.stdout.flush()
+                
+                status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
+                
+                status_label = self._get_status_label(status_raw)
+                if error_msg:
+                    print(self._("test_finished_with_error", "[{index}/{total}] {status}: {file} {error} (Duration: {duration:.2f}s)", 
+                                 index=i+1, total=total_tests, status=status_label, file=test_file.name, error=error_msg, duration=duration))
+                else:
+                    print(self._("test_finished", "[{index}/{total}] {status}: {file} (Duration: {duration:.2f}s)", 
+                                 index=i+1, total=total_tests, status=status_label, file=test_file.name, duration=duration))
+                
+                if report_path:
+                    print(self._("test_full_report", "  Full report: {path}", path=report_path))
+                sys.stdout.flush()
+            
+            print(self._("test_all_completed", "\nAll tests completed."))
             return
 
         active_jobs = []
@@ -225,15 +240,18 @@ class TestRunner:
         finished_count = 0
         python_exec = self._get_python_exec()
         
-        print(f"Parallel execution enabled (max {max_concurrent} concurrent jobs, timeout {timeout}s)")
+        print(self._("test_parallel_enabled", "Parallel execution enabled (max {max} concurrent jobs, timeout {timeout}s)", max=max_concurrent, timeout=timeout))
         sys.stdout.flush()
 
         while remaining_files or active_jobs:
             while len(active_jobs) < max_concurrent and remaining_files:
                 test_file = remaining_files.pop(0)
+                # Counter starts at 0 for Starting message
+                print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
+                             index=finished_count, total=total_tests, file=test_file.name, pid="..."))
+                
                 started_count += 1
                 start_time = time.time()
-                # Use the correct python_exec and set PYTHONPATH
                 python_path = f"{self.project_root}:{self.tool_dir}"
                 cmd = f"export PYTHONPATH=\"{python_path}:$PYTHONPATH\" && {python_exec} -m unittest {test_file}"
                 
@@ -243,24 +261,23 @@ class TestRunner:
                     match = re.search(r"PID:?\s*(\d+)", output)
                     if match:
                         pid = match.group(1)
+                        # We already printed "Starting", but let's update it with PID if needed. 
+                        # Actually the PID comes very fast.
                         active_jobs.append({
                             "pid": pid, 
                             "file": test_file, 
                             "index": started_count,
                             "start_time": start_time
                         })
-                        print(f"[{started_count}/{total_tests}] Started {test_file.name} (PID: {pid})")
-                        sys.stdout.flush()
                     else:
-                        print(f"[{started_count}/{total_tests}] Failed to start {test_file.name} via BACKGROUND. Output: {output}")
-                        sys.stdout.flush()
-                        self._run_single_test(test_file, timeout=timeout)
+                        # Fallback if BACKGROUND fails
+                        status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
                         finished_count += 1
-                except Exception as e:
-                    print(f"Error starting background job: {e}")
-                    sys.stdout.flush()
-                    self._run_single_test(test_file, timeout=timeout)
+                        self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path)
+                except Exception:
+                    status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
                     finished_count += 1
+                    self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path)
 
             finished_jobs = []
             for job in active_jobs:
@@ -268,9 +285,9 @@ class TestRunner:
                 
                 if duration > timeout:
                     subprocess.run([str(background_bin), "--kill", job["pid"]], capture_output=True)
-                    job["status_label"] = f"{self.BOLD}{self.RED}Timeout{self.RESET}"
-                    job["duration"] = duration
                     self._save_result(job["file"].name, "Timeout", f"Test timed out after {timeout}s")
+                    job["status_raw"] = "Timeout"
+                    job["duration"] = duration
                     finished_jobs.append(job)
                     continue
 
@@ -282,21 +299,17 @@ class TestRunner:
                         if data.get("success") and not data["status"].get("is_running"):
                             ret_code = data["status"].get("return_code")
                             if ret_code == 0:
-                                job["status_label"] = f"{self.BOLD}{self.GREEN}Success{self.RESET}"
+                                job["status_raw"] = "Success"
                             else:
-                                job["status_label"] = f"{self.BOLD}{self.RED}Failed{self.RESET}"
-                                # Get full result
+                                job["status_raw"] = "Failed"
                                 res_full = subprocess.run([str(background_bin), "--result", job["pid"]], capture_output=True, text=True)
                                 report_path = self._save_result(job["file"].name, f"Failed (code {ret_code})", res_full.stdout)
-                                
-                                # Short summary of failure from stdout/stderr
                                 last_line = ""
                                 for line in res_full.stdout.splitlines():
                                     if line.strip():
                                         last_line = line.strip()
-                                job["error_summary"] = f"(code {ret_code}) Reason: {last_line}"
-                                if report_path:
-                                    job["report_path"] = report_path
+                                job["error_msg"] = f"(code {ret_code}) Reason: {last_line}"
+                                job["report_path"] = report_path
                             
                             job["duration"] = duration
                             finished_jobs.append(job)
@@ -304,24 +317,41 @@ class TestRunner:
                     try:
                         os.kill(int(job["pid"]), 0)
                     except OSError:
-                        job["status_label"] = f"{self.BOLD}{self.RED}Unknown{self.RESET}"
+                        job["status_raw"] = "Unknown"
                         job["duration"] = duration
                         finished_jobs.append(job)
             
             for job in finished_jobs:
                 active_jobs.remove(job)
                 finished_count += 1
-                msg = f"[{finished_count}/{total_tests}] Finished {job['file'].name}: {job['status_label']}"
-                if "error_summary" in job:
-                    msg += f" {job['error_summary']}"
-                msg += f" (Duration: {job['duration']:.2f}s)"
-                print(msg)
-                if "report_path" in job:
-                    print(f"  Full report: {job['report_path']}")
-                sys.stdout.flush()
+                self._print_finished(finished_count, total_tests, job["file"].name, job["status_raw"], 
+                                     job["duration"], job.get("error_msg"), job.get("report_path"))
             
             if remaining_files or active_jobs:
                 time.sleep(1)
 
-        print("\nAll tests completed.")
+        print(self._("test_all_completed", "\nAll tests completed."))
+        sys.stdout.flush()
+
+    def _get_status_label(self, status_raw):
+        if status_raw == "Success":
+            return f"{self.BOLD}{self.GREEN}SUCCESS{self.RESET}"
+        elif status_raw == "Failed":
+            return f"{self.BOLD}{self.RED}FAILED{self.RESET}"
+        elif status_raw == "Timeout":
+            return f"{self.BOLD}{self.RED}TIMEOUT{self.RESET}"
+        else:
+            return f"{self.BOLD}{self.RED}{status_raw.upper()}{self.RESET}"
+
+    def _print_finished(self, index, total, file_name, status_raw, duration, error_msg, report_path):
+        status_label = self._get_status_label(status_raw)
+        if error_msg:
+            print(self._("test_finished_with_error", "[{index}/{total}] {status}: {file} {error} (Duration: {duration:.2f}s)", 
+                         index=index, total=total, status=status_label, file=file_name, error=error_msg, duration=duration))
+        else:
+            print(self._("test_finished", "[{index}/{total}] {status}: {file} (Duration: {duration:.2f}s)", 
+                         index=index, total=total, status=status_label, file=file_name, duration=duration))
+        
+        if report_path:
+            print(self._("test_full_report", "  Full report: {path}", path=report_path))
         sys.stdout.flush()
