@@ -49,30 +49,37 @@ class TestRunner:
         test_files = self.get_test_files()
         if not test_files:
             print(f"No tests found for {self.tool_name} in {self.test_dir}")
+            sys.stdout.flush()
             return
         
         print(f"Available tests for {self.tool_name} (Indices are 0-based):")
         for i, test_file in enumerate(test_files):
             print(f"  [{i}] {test_file.name}")
+        sys.stdout.flush()
 
     def run_tests(self, start_id=None, end_id=None, max_concurrent=1):
-        """Run tests with inclusive range indexing."""
+        """Run tests with inclusive range indexing and real-time progress."""
         test_files = self.get_test_files()
         if not test_files:
             print(f"No tests found for {self.tool_name}")
+            sys.stdout.flush()
             return
 
         # Filter by inclusive range if provided (0-indexed)
         if start_id is not None and end_id is not None:
+            # Inclusive indexing: --range 0 0 means first test
             test_files = test_files[start_id : end_id + 1]
         
         if not test_files:
             print("No tests selected in the specified range.")
+            sys.stdout.flush()
             return
 
-        print(f"Running {len(test_files)} tests for {self.tool_name}...")
+        total_count = len(test_files)
+        print(f"Running {total_count} tests for {self.tool_name}...")
+        sys.stdout.flush()
         
-        if len(test_files) == 1 and max_concurrent == 1:
+        if total_count == 1 and max_concurrent == 1:
             # Run single test in foreground
             self._run_single_test(test_files[0])
         else:
@@ -82,6 +89,7 @@ class TestRunner:
     def _run_single_test(self, test_file):
         """Run a single test file using unittest."""
         print(f"\n--- Running {test_file.name} ---")
+        sys.stdout.flush()
         
         # Use the tool's python executable if it depends on PYTHON
         python_exec = sys.executable
@@ -120,26 +128,34 @@ class TestRunner:
             print(f"SUCCESS: {test_file.name}")
         else:
             print(f"FAILED: {test_file.name}")
+        sys.stdout.flush()
 
     def _run_parallel_tests(self, test_files, max_concurrent):
-        """Run multiple tests in parallel using BACKGROUND tool."""
+        """Run multiple tests in parallel using BACKGROUND tool with progress updates."""
         background_bin = self.project_root / "bin" / "BACKGROUND"
         if not background_bin.exists():
             # Fallback to sequential
             print("BACKGROUND tool not found. Falling back to sequential execution.")
-            for test_file in test_files:
+            sys.stdout.flush()
+            for i, test_file in enumerate(test_files, 1):
+                print(f"[{i}/{len(test_files)}] ", end="")
                 self._run_single_test(test_file)
             return
 
         active_jobs = []
         remaining_files = list(test_files)
+        total_tests = len(test_files)
+        started_count = 0
+        finished_count = 0
         
         print(f"Parallel execution enabled (max {max_concurrent} concurrent jobs)")
+        sys.stdout.flush()
 
         while remaining_files or active_jobs:
             # Fill up slots
             while len(active_jobs) < max_concurrent and remaining_files:
                 test_file = remaining_files.pop(0)
+                started_count += 1
                 cmd = f"{sys.executable} -m unittest {test_file}"
                 
                 try:
@@ -149,30 +165,41 @@ class TestRunner:
                     match = re.search(r"PID:?\s*(\d+)", output)
                     if match:
                         pid = match.group(1)
-                        active_jobs.append({"pid": pid, "file": test_file})
-                        print(f"Started {test_file.name} (PID: {pid})")
+                        active_jobs.append({"pid": pid, "file": test_file, "index": started_count})
+                        print(f"[{started_count}/{total_tests}] Started {test_file.name} (PID: {pid})")
+                        sys.stdout.flush()
                     else:
-                        print(f"Failed to start {test_file.name} via BACKGROUND. Output: {output}")
+                        print(f"[{started_count}/{total_tests}] Failed to start {test_file.name} via BACKGROUND. Output: {output}")
+                        sys.stdout.flush()
+                        # Fallback for this one
                         self._run_single_test(test_file)
+                        finished_count += 1
                 except Exception as e:
                     print(f"Error starting background job: {e}")
+                    sys.stdout.flush()
                     self._run_single_test(test_file)
+                    finished_count += 1
 
             # Check for finished jobs
             finished_jobs = []
             for job in active_jobs:
                 try:
+                    # Check if process is still alive using os.kill(pid, 0)
                     os.kill(int(job["pid"]), 0)
                 except OSError:
+                    # Process is finished or doesn't exist
                     finished_jobs.append(job)
                 except Exception:
                     pass
             
             for job in finished_jobs:
                 active_jobs.remove(job)
-                print(f"Finished {job['file'].name}")
+                finished_count += 1
+                print(f"[{finished_count}/{total_tests}] Finished {job['file'].name}")
+                sys.stdout.flush()
             
             if remaining_files or active_jobs:
                 time.sleep(1)
 
         print("\nAll tests completed.")
+        sys.stdout.flush()

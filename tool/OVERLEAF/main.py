@@ -38,17 +38,61 @@ TOOL_PROJ_DIR = current_dir / "proj"
 def _(key, default, **kwargs):
     return get_translation(str(TOOL_PROJ_DIR), key, default).format(**kwargs)
 
-def get_tex_path():
-    """Check for portable TeX distribution in proj/installations."""
-    # TinyTeX usually installs to ~/Library/TinyTeX on macOS
-    # But we want to support a local version if possible
-    local_tex = TOOL_PROJ_DIR / "installations" / "TinyTeX" / "bin" / "universal-darwin"
-    if local_tex.exists():
-        return str(local_tex)
+def get_tinytex_dir():
+    """Get the path to the portable TinyTeX installation."""
+    return TOOL_PROJ_DIR / "installations" / "TinyTeX"
+
+def get_tex_bin_dir():
+    """Find the bin directory within the TinyTeX installation."""
+    tinytex_dir = get_tinytex_dir()
+    if not tinytex_dir.exists():
+        return None
+    
+    # TinyTeX structure on macOS/Linux: bin/<arch>/
+    bin_root = tinytex_dir / "bin"
+    if bin_root.exists():
+        for arch_dir in bin_root.iterdir():
+            if arch_dir.is_dir():
+                return arch_dir
     return None
+
+def ensure_tex():
+    """Ensure TeX is available, either globally or in the local TinyTeX folder."""
+    # 1. Check if pdflatex is in PATH
+    if shutil.which("pdflatex"):
+        return True
+    
+    # 2. Check local TinyTeX
+    tex_bin = get_tex_bin_dir()
+    if tex_bin:
+        os.environ["PATH"] = f"{tex_bin}:{os.environ.get('PATH', '')}"
+        return True
+    
+    # 3. Offer to install TinyTeX
+    print(f"{YELLOW}" + _("tex_not_found", "Warning: TeX distribution not found.") + f"{RESET}")
+    print(_("install_tinytex_prompt", "Installing lightweight TinyTeX to {path}... (This may take a few minutes)").format(path=get_tinytex_dir()))
+    
+    try:
+        import tinytex
+        tinytex.install_tinytex(force=True, dir=str(get_tinytex_dir()))
+        tex_bin = get_tex_bin_dir()
+        if tex_bin:
+            os.environ["PATH"] = f"{tex_bin}:{os.environ.get('PATH', '')}"
+            print(f"{GREEN}{BOLD}" + _("tinytex_installed", "TinyTeX installed successfully!") + f"{RESET}")
+            return True
+    except ImportError:
+        print(f"{RED}" + _("tinytex_module_missing", "Error: 'tinytex' Python module not found. Please install it first.") + f"{RESET}")
+    except Exception as e:
+        print(f"{RED}" + _("tinytex_install_failed", "Error installing TinyTeX: {error}", error=e) + f"{RESET}")
+    
+    return False
 
 def compile_latex(tex_file, output_dir=None, latex_options=None, no_shell_escape=False):
     """编译LaTeX文件"""
+    if not ensure_tex():
+        print(f"{RED}" + _("no_tex_abort", "Error: Cannot proceed without TeX.") + f"{RESET}")
+        return 1
+
     tex_path = Path(tex_file).resolve()
     if not tex_path.exists():
         print(f"{RED}" + _("file_not_found", "Error: File not found: {file}", file=tex_file) + f"{RESET}")
@@ -59,13 +103,6 @@ def compile_latex(tex_file, output_dir=None, latex_options=None, no_shell_escape
     
     directory = tex_path.parent
     
-    # Setup environment with portable TeX if available
-    env = os.environ.copy()
-    portable_tex = get_tex_path()
-    if portable_tex:
-        env["PATH"] = f"{portable_tex}:{env.get('PATH', '')}"
-        print(_("using_portable_tex", "Using portable TeX from {path}", path=portable_tex))
-
     # Build command
     all_options = ['-interaction=nonstopmode']
     if not no_shell_escape:
@@ -77,7 +114,7 @@ def compile_latex(tex_file, output_dir=None, latex_options=None, no_shell_escape
     cmd = ['latexmk', '-pdf', f'-pdflatex={pdflatex_cmd}', f'{filename}.tex']
     
     try:
-        result = subprocess.run(cmd, cwd=str(directory), env=env, text=True)
+        result = subprocess.run(cmd, cwd=str(directory), text=True)
         
         if result.returncode == 0:
             # Success
@@ -158,8 +195,6 @@ def main():
 
     tex_file = args.tex_file
     if not tex_file:
-        # Try to use USERINPUT to get the file path instead of direct tkinter
-        # But for now let's just use the argparse argument or print help
         parser.print_help()
         return 1
 
