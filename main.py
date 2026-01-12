@@ -449,32 +449,44 @@ def _test_tool_with_args(args):
 
 def _audit_lang(lang_code):
     project_root = Path(__file__).parent.absolute()
+    
+    # 1. Print initial "scanning" message with ellipsis
     sys.path.append(str(project_root))
     try:
         from proj.lang_auditor import LangAuditor
     except ImportError:
-        print(f"{RED}" + _("audit_import_error", "Error: Could not import LangAuditor from proj.lang_auditor.") + f"{RESET}")
+        print(f"\n{RED}" + _("audit_import_error", "Error: Could not import LangAuditor.") + f"{RESET}")
         return
 
     auditor = LangAuditor(project_root, lang_code)
-    results, cached = auditor.audit()
     
-    if cached:
-        print(f"{BLUE}" + _("audit_using_cache", "Info: Using cached audit report for {lang}.", lang=lang_code) + f"{RESET}")
+    # 2. Determine if cached or scanning and print the line
+    if auditor.cache_file.exists():
+        msg = _("audit_using_cache", "Using cached audit report for {lang}...", lang=lang_code)
     else:
-        print(f"{GREEN}" + _("audit_scan_complete", "Success: Translation audit scan complete for {lang}.", lang=lang_code) + f"{RESET}")
-
-    summary = results.get("summary", {})
-    print("\n" + _("audit_summary_header", "--- Translation Audit Summary ({lang}) ---", lang=lang_code))
-    print(_("audit_summary_keys", "Keys: {supported}/{total} ({rate} complete)", 
-            supported=summary.get("supported_keys"), total=summary.get("total_keys"), rate=summary.get("completion_rate")))
-    print(_("audit_summary_refs", "References: {supported}/{total}", 
-            supported=summary.get("supported_references"), total=summary.get("total_references")))
+        msg = _("audit_scanning", "Scanning translation coverage for {lang}...", lang=lang_code)
     
-    if summary.get("missing_keys", 0) > 0:
-        print(f"\n{YELLOW}" + _("audit_missing_alert", "Warning: {count} keys are missing translations.", count=summary.get("missing_keys")) + f"{RESET}")
-        
-    print("\n" + _("audit_report_path", "Detailed report saved to: {path}", path=auditor.cache_file))
+    print(f"{BLUE}{msg}{RESET}", end="", flush=True)
+
+    # 3. Perform audit
+    results, cached = auditor.audit()
+    summary = results.get("summary", {})
+    
+    # Replace the ellipsis with completed message if needed, or just move to next line
+    print("\r" + " " * 80 + "\r", end="") # Clear line
+    if cached:
+        msg = _("audit_using_cache_done", "Using cached audit report for {lang}.", lang=lang_code)
+    else:
+        msg = _("audit_scanning_done", "Translation audit scan complete for {lang}.", lang=lang_code)
+    print(f"{BLUE}{msg}{RESET}")
+
+    # 4. Compact output according to user feedback
+    print(_("audit_summary_keys", "Keys: {supported}/{total} support {lang} ({rate})",
+            supported=summary.get("supported_keys"), total=summary.get("total_keys"), lang=lang_code, rate=summary.get("completion_rate_keys")))
+    print(_("audit_summary_refs", "References: {supported}/{total} support {lang} ({rate})",
+            supported=summary.get("supported_references"), total=summary.get("total_references"), lang=lang_code, rate=summary.get("completion_rate_refs")))
+    
+    print(_("audit_report_path", "Detailed report saved to: {path}", path=auditor.cache_file))
 
 if __name__ == "__main__":
     main()
