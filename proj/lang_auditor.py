@@ -78,6 +78,28 @@ class LangAuditor:
             except Exception:
                 continue
 
+        # 1.5 Special case: Add dynamic keys from tool.json
+        registry_path = self.project_root / "tool.json"
+        if registry_path.exists():
+            try:
+                with open(registry_path, 'r', encoding='utf-8') as f:
+                    registry = json.load(f)
+                for tool_name in registry.get("tools", {}):
+                    for key_suffix in ["desc", "purpose"]:
+                        key = f"tool_{tool_name}_{key_suffix}"
+                        if key not in all_keys:
+                            all_keys[key] = {
+                                "count": 1,
+                                "sources": ["tool.json"],
+                                "type": "root"
+                            }
+                        else:
+                            all_keys[key]["count"] += 1
+                            if "tool.json" not in all_keys[key]["sources"]:
+                                all_keys[key]["sources"].append("tool.json")
+            except Exception:
+                pass
+
         translations_cache = {}
         
         def get_translations(path):
