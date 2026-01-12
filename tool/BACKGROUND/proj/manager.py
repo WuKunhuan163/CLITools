@@ -47,6 +47,19 @@ class ProcessManager:
         with open(self.state_file, 'w') as f:
             json.dump(data, f, indent=2)
     
+    def get_exit_code(self, proc_info: Dict) -> Optional[int]:
+        """从退出码文件读取退出码"""
+        exit_code_file = proc_info.get('exit_code_file')
+        if exit_code_file and os.path.exists(exit_code_file):
+            try:
+                with open(exit_code_file, 'r') as f:
+                    content = f.read().strip()
+                    if content:
+                        return int(content)
+            except (ValueError, OSError):
+                pass
+        return None
+
     def cleanup_dead_processes(self):
         """更新已死亡进程的状态，但保留记录"""
         updated = False
@@ -57,18 +70,28 @@ class ProcessManager:
                 if psutil.pid_exists(pid):
                     proc = psutil.Process(pid)
                     if abs(proc.create_time() - proc_info['start_time']) < 1.0:
+                        # Update return code if process just finished
+                        if proc_info.get('status') == 'running' and not proc.is_running():
+                            proc_info['return_code'] = self.get_exit_code(proc_info)
+                            proc_info['status'] = 'completed'
+                            proc_info['end_time'] = datetime.now().isoformat()
+                            updated = True
                         continue  # 进程仍然有效
                 
-                # 进程已死亡或PID被重用，标记为已完成但保留记录
+                # 进程已死亡或PID被重用
                 if proc_info.get('status') != 'completed':
                     proc_info['status'] = 'completed'
+                    if 'return_code' not in proc_info or proc_info['return_code'] is None:
+                        proc_info['return_code'] = self.get_exit_code(proc_info)
                     proc_info['end_time'] = datetime.now().isoformat()
                     updated = True
                     
             except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
-                # 进程已死亡，标记为已完成但保留记录
+                # 进程已死亡，标记为完成
                 if proc_info.get('status') != 'completed':
                     proc_info['status'] = 'completed'
+                    if 'return_code' not in proc_info or proc_info['return_code'] is None:
+                        proc_info['return_code'] = self.get_exit_code(proc_info)
                     proc_info['end_time'] = datetime.now().isoformat()
                     updated = True
         
@@ -164,13 +187,17 @@ class ProcessManager:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
         log_filename = f"bg_cmd_{timestamp}.log"
         log_file = self.log_dir / log_filename
+        exit_code_file = self.log_dir / f"bg_cmd_{timestamp}.exit"
         
         try:
+            # Wrap command to capture exit code
+            wrapped_command = f"({command}); echo $? > {shlex.quote(str(exit_code_file))}"
+            
             # 根据shell类型创建进程
             if shell == 'zsh':
-                shell_cmd = ['zsh', '-c', command]
+                shell_cmd = ['zsh', '-c', wrapped_command]
             elif shell == 'bash':
-                shell_cmd = ['bash', '-c', command]
+                shell_cmd = ['bash', '-c', wrapped_command]
             else:
                 print(f"Error: Unsupported shell type: {shell}")
                 return None
@@ -181,7 +208,6 @@ class ProcessManager:
                     shell_cmd,
                     stdout=log_f,
                     stderr=subprocess.STDOUT,
-                    # preexec_fn=os.setsid is deprecated, using start_new_session=True instead
                     start_new_session=True,
                     cwd=os.getcwd(),
                     env=os.environ.copy()
@@ -197,9 +223,10 @@ class ProcessManager:
                 'shell': shell,
                 'start_time': start_time,
                 'log_file': str(log_file),
+                'exit_code_file': str(exit_code_file),
                 'cwd': os.getcwd(),
                 'created_at': datetime.now().isoformat(),
-                'status': 'running'  # 初始状态为运行中
+                'status': 'running'
             }
             
             # 保存状态
@@ -386,6 +413,7 @@ class ProcessManager:
                 'runtime': str(runtime).split('.')[0],  # 去掉微秒
                 'start_time': start_time.isoformat(),
                 'end_time': end_time_str,
+                'return_code': proc_info.get('return_code'),
                 'log_file': proc_info['log_file'],
                 'cwd': proc_info['cwd'],
                 'is_running': False
@@ -398,6 +426,8 @@ class ProcessManager:
             if abs(proc.create_time() - proc_info['start_time']) > 1.0:
                 # PID被重用，标记为完成
                 proc_info['status'] = 'completed'
+                if 'return_code' not in proc_info:
+                    proc_info['return_code'] = -1
                 proc_info['end_time'] = datetime.now().isoformat()
                 self.save_state()
                 return self.get_process_status(pid)  # 递归调用返回完成状态
@@ -420,6 +450,7 @@ class ProcessManager:
                 'memory_mb': memory_mb,
                 'runtime': str(runtime).split('.')[0],  # 去掉微秒
                 'start_time': start_time.isoformat(),
+                'return_code': self.get_exit_code(proc_info) if not proc.is_running() else None,
                 'log_file': proc_info['log_file'],
                 'cwd': proc_info['cwd'],
                 'is_running': status in ['running', 'sleeping']
@@ -428,6 +459,8 @@ class ProcessManager:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             # 进程已死亡，标记为完成
             proc_info['status'] = 'completed'
+            if 'return_code' not in proc_info or proc_info['return_code'] is None:
+                proc_info['return_code'] = self.get_exit_code(proc_info)
             proc_info['end_time'] = datetime.now().isoformat()
             self.save_state()
             return self.get_process_status(pid)  # 递归调用返回完成状态
