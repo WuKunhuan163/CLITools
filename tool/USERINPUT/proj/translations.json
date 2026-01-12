@@ -1,4 +1,15 @@
 {
+  "en": {
+    "instruction": "Please enter your feedback:",
+    "submit": "Submit",
+    "add_time": "Add 60s",
+    "time_added": "Time added! Remaining:",
+    "time_remaining": "Remaining:",
+    "msg_empty": "User submitted empty content",
+    "msg_timeout": "Input timeout",
+    "msg_cancelled": "User cancelled input",
+    "config_updated": "Configuration updated: focus_interval = {val}s"
+  },
   "zh": {
     "instruction": "请在文本框中输入您的反馈:",
     "submit": "提交",
@@ -7,6 +18,7 @@
     "time_remaining": "剩余时间:",
     "msg_empty": "用户提交了空内容",
     "msg_cancelled": "用户取消了输入",
-    "msg_timeout": "输入超时"
+    "msg_timeout": "输入超时",
+    "config_updated": "配置已更新：聚焦间隔 = {val} 秒"
   }
 }
