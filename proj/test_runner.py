@@ -400,13 +400,17 @@ class TestRunner:
 
     def _get_status_label(self, status_raw):
         if status_raw == "Success":
-            return f"{self.BOLD}{self.GREEN}SUCCESS{self.RESET}"
+            label = self._("test_status_success", "SUCCESS")
+            return f"{self.BOLD}{self.GREEN}{label.upper()}{self.RESET}"
         elif status_raw == "Failed":
-            return f"{self.BOLD}{self.RED}FAILED{self.RESET}"
+            label = self._("test_status_failed", "FAILED")
+            return f"{self.BOLD}{self.RED}{label.upper()}{self.RESET}"
         elif status_raw == "Timeout":
-            return f"{self.BOLD}{self.RED}TIMEOUT{self.RESET}"
+            label = self._("test_status_timeout", "TIMEOUT")
+            return f"{self.BOLD}{self.RED}{label.upper()}{self.RESET}"
         else:
-            return f"{self.BOLD}{self.RED}{status_raw.upper()}{self.RESET}"
+            label = self._("test_status_unknown", status_raw)
+            return f"{self.BOLD}{self.RED}{label.upper()}{self.RESET}"
 
     def _print_finished(self, index, total, file_name, status_raw, duration, error_msg, report_path):
         status_label = self._get_status_label(status_raw)

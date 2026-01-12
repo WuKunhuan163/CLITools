@@ -357,6 +357,10 @@ Examples:
     test_parser.add_argument("--max", type=int, default=3, help=_("test_max_help", "Maximum concurrent test jobs (default: 3)"))
     test_parser.add_argument("--timeout", type=int, default=60, help=_("test_timeout_help", "Timeout for each test in seconds (default: 60)"))
 
+    # Audit command
+    audit_parser = subparsers.add_parser("audit-lang", help=_("audit_help", "Audit language translation coverage"))
+    audit_parser.add_argument("lang_code", help=_("audit_lang_code_help", "Language code to audit (e.g., en, zh)"))
+
     # Rule command
     subparsers.add_parser("rule", help=_("rule_help", "Generate AI agent tool rules"))
 
@@ -380,6 +384,8 @@ Examples:
         install_tool(args.tool_name)
     elif args.command == "test":
         _test_tool_with_args(args)
+    elif args.command == "audit-lang":
+        _audit_lang(args.lang_code)
     elif args.command == "rule":
         generate_ai_rule()
     elif args.command == "config":
@@ -440,6 +446,35 @@ def _test_tool_with_args(args):
         end_id = args.range[1]
 
     runner.run_tests(start_id, end_id, max_concurrent, args.timeout)
+
+def _audit_lang(lang_code):
+    project_root = Path(__file__).parent.absolute()
+    sys.path.append(str(project_root))
+    try:
+        from proj.lang_auditor import LangAuditor
+    except ImportError:
+        print(f"{RED}" + _("audit_import_error", "Error: Could not import LangAuditor from proj.lang_auditor.") + f"{RESET}")
+        return
+
+    auditor = LangAuditor(project_root, lang_code)
+    results, cached = auditor.audit()
+    
+    if cached:
+        print(f"{BLUE}" + _("audit_using_cache", "Info: Using cached audit report for {lang}.", lang=lang_code) + f"{RESET}")
+    else:
+        print(f"{GREEN}" + _("audit_scan_complete", "Success: Translation audit scan complete for {lang}.", lang=lang_code) + f"{RESET}")
+
+    summary = results.get("summary", {})
+    print("\n" + _("audit_summary_header", "--- Translation Audit Summary ({lang}) ---", lang=lang_code))
+    print(_("audit_summary_keys", "Keys: {supported}/{total} ({rate} complete)", 
+            supported=summary.get("supported_keys"), total=summary.get("total_keys"), rate=summary.get("completion_rate")))
+    print(_("audit_summary_refs", "References: {supported}/{total}", 
+            supported=summary.get("supported_references"), total=summary.get("total_references")))
+    
+    if summary.get("missing_keys", 0) > 0:
+        print(f"\n{YELLOW}" + _("audit_missing_alert", "Warning: {count} keys are missing translations.", count=summary.get("missing_keys")) + f"{RESET}")
+        
+    print("\n" + _("audit_report_path", "Detailed report saved to: {path}", path=auditor.cache_file))
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,173 @@
+import os
+import re
+import json
+from pathlib import Path
+from datetime import datetime
+
+class LangAuditor:
+    def __init__(self, project_root, lang_code):
+        self.project_root = Path(project_root)
+        self.lang_code = lang_code
+        self.audit_dir = self.project_root / "data" / "audit"
+        self.audit_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_file = self.audit_dir / f"audit_{lang_code}.json"
+        
+        # Regex patterns for finding translation keys
+        # Pattern 1: _("key", ...)
+        # Pattern 2: get_translation(..., "key", ...)
+        self.patterns = [
+            re.compile(r'_\(\s*["\']([^"\']+)["\']'),
+            re.compile(r'get_translation\([^,]+,\s*["\']([^"\']+)["\']')
+        ]
+
+    def audit(self):
+        """Perform the audit or return cached results."""
+        if self.cache_file.exists():
+            try:
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                return data, True # True means cached
+            except Exception:
+                pass
+        
+        # Perform scan
+        results = self._perform_scan()
+        
+        # Save to cache
+        try:
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump(results, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+            
+        return results, False
+
+    def _perform_scan(self):
+        """Scan project for keys and check translations."""
+        all_keys = {} # key -> {count: int, sources: [path], type: root|tool_name}
+        
+        # 1. Scan for keys in all .py files
+        for py_file in self.project_root.rglob("*.py"):
+            # Skip some directories
+            if any(part in py_file.parts for part in ["venv", ".git", "build", "dist", "tmp", "installations"]):
+                continue
+                
+            try:
+                with open(py_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    
+                # Find keys
+                for pattern in self.patterns:
+                    for match in pattern.finditer(content):
+                        key = match.group(1)
+                        if key not in all_keys:
+                            # Determine type (root or specific tool)
+                            type_val = "root"
+                            for part in py_file.parts:
+                                if part == "tool" and len(py_file.parts) > py_file.parts.index(part) + 1:
+                                    type_val = py_file.parts[py_file.parts.index(part) + 1]
+                                    break
+                            
+                            all_keys[key] = {
+                                "count": 0,
+                                "sources": [],
+                                "type": type_val
+                            }
+                        
+                        all_keys[key]["count"] += 1
+                        rel_path = str(py_file.relative_to(self.project_root))
+                        if rel_path not in all_keys[key]["sources"]:
+                            all_keys[key]["sources"].append(rel_path)
+            except Exception:
+                continue
+
+        # 2. Check translations for each key
+        # Load all translations first
+        translations_cache = {} # path -> json_data
+        
+        def get_translations(path):
+            if path in translations_cache:
+                return translations_cache[path]
+            
+            data = {}
+            if os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                except Exception:
+                    pass
+            translations_cache[path] = data
+            return data
+
+        audit_entries = []
+        supported_keys = 0
+        total_references = 0
+        supported_references = 0
+        
+        for key, info in all_keys.items():
+            is_supported = False
+            trans_file = ""
+            
+            if info["type"] == "root":
+                # Check root translations
+                # 1. proj/translations/<lang>.json
+                root_json_path = self.project_root / "proj" / "translations" / f"{self.lang_code}.json"
+                root_trans = get_translations(str(root_json_path))
+                if key in root_trans:
+                    is_supported = True
+                    trans_file = str(root_json_path.relative_to(self.project_root))
+                else:
+                    # 2. proj/translations.json (monolithic)
+                    mono_json_path = self.project_root / "proj" / "translations.json"
+                    mono_trans = get_translations(str(mono_json_path))
+                    if self.lang_code in mono_trans and key in mono_trans[self.lang_code]:
+                        is_supported = True
+                        trans_file = str(mono_json_path.relative_to(self.project_root))
+                    else:
+                        trans_file = str(root_json_path.relative_to(self.project_root)) # Expected location
+            else:
+                # Check tool translations
+                tool_json_path = self.project_root / "tool" / info["type"] / "proj" / "translations.json"
+                tool_trans = get_translations(str(tool_json_path))
+                if self.lang_code in tool_trans and key in tool_trans[self.lang_code]:
+                    is_supported = True
+                    trans_file = str(tool_json_path.relative_to(self.project_root))
+                elif key in tool_trans and isinstance(tool_trans[key], str):
+                    # Some tools might have flat JSON for one language
+                    is_supported = True
+                    trans_file = str(tool_json_path.relative_to(self.project_root))
+                else:
+                    trans_file = str(tool_json_path.relative_to(self.project_root)) # Expected location
+
+            audit_entries.append({
+                "key": key,
+                "type": info["type"],
+                "count": info["count"],
+                "sources": info["sources"],
+                "supported": is_supported,
+                "translation_file": trans_file
+            })
+            
+            total_references += info["count"]
+            if is_supported:
+                supported_keys += 1
+                supported_references += info["count"]
+
+        # 3. Build summary
+        summary = {
+            "language": self.lang_code,
+            "timestamp": datetime.now().isoformat(),
+            "total_keys": len(audit_entries),
+            "supported_keys": supported_keys,
+            "missing_keys": len(audit_entries) - supported_keys,
+            "total_references": total_references,
+            "supported_references": supported_references,
+            "missing_references": total_references - supported_references,
+            "completion_rate": f"{(supported_keys / len(audit_entries) * 100):.2f}%" if audit_entries else "0%"
+        }
+        
+        return {
+            "summary": summary,
+            "entries": audit_entries
+        }
+

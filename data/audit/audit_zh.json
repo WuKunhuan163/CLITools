@@ -1,0 +1,1408 @@
+{
+  "summary": {
+    "language": "zh",
+    "timestamp": "2026-01-12T15:19:22.786796",
+    "total_keys": 139,
+    "supported_keys": 109,
+    "missing_keys": 30,
+    "total_references": 159,
+    "supported_references": 124,
+    "missing_references": 35,
+    "completion_rate": "78.42%"
+  },
+  "entries": [
+    {
+      "key": "datetime",
+      "type": "root",
+      "count": 4,
+      "sources": [
+        "OPENROUTER.py",
+        "GOOGLE_DRIVE_PROJ/modules/commands/extract_command.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "already_installed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "install_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "tool_not_in_registry",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "registry_error",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "tool_not_found",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "retrieved_success_remote_only",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "retrieved_from",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "retrieved_success_local_only",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "retrieved_success_root_only",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "moved_to_tool",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "install_failed",
+      "type": "root",
+      "count": 4,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "retrieve_error_msg",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "tool_dir_not_found",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "installing_dep",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "python_not_found",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "pip_warning_permissions",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "pip_warning_retry",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "pip_error",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "pip_success",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "pip_failed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "tool_main_not_found_msg",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "install_success",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "shortcut_created",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "shortcut_error",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "updated_path",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_updated",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py",
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_header_main",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_critical_note",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_efficiency_note",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_installed_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_purpose_label",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_available_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_guidelines_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_guideline_1",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_guideline_2",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_guideline_3",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_guideline_4",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_note_execution",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "tool_description",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "tool_epilog",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "subcommand_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "install_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "install_tool_name_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_tool_name_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_list_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_range_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_max_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_timeout_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_lang_code_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "rule_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_subcommand_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_set_lang_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_lang_code_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_test_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "config_test_max_reports_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_tool_not_found",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_runner_import_error",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_import_error",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_using_cache",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_scan_complete",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_summary_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_summary_keys",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_summary_refs",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_missing_alert",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "audit_report_path",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_no_tests",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_no_selected",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_running",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_background_sequential",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_starting_sequential",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_finished_with_error",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_finished",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_full_report",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_all_completed",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_parallel_enabled",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_started",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_status_success",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_status_failed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_status_timeout",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "test_status_unknown",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "key",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/lang_auditor.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "os",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "_UNITTEST/test_gds.py",
+        "_UNITTEST/_DATA/simple_hello.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "active_processes",
+      "type": "BACKGROUND",
+      "count": 2,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "status",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "runtime",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "command",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "status_active",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "status_completed",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "status_failed",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "status_unknown",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "full_report_saved",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "no_active_processes",
+      "type": "BACKGROUND",
+      "count": 2,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "process_terminated",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "process_force_killed",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "process_not_found",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "wait_finished",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "wait_timeout",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "process_started",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json"
+    },
+    {
+      "key": "instruction",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "submit",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "add_time",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "time_added",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "time_remaining",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "msg_empty",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "msg_timeout",
+      "type": "USERINPUT",
+      "count": 2,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "msg_cancelled",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "psutil_not_found",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "instances_stopped",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json"
+    },
+    {
+      "key": "tex_not_found",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": false,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "install_tinytex_prompt",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": false,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "tinytex_installed",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": false,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "tinytex_module_missing",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": false,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "tinytex_install_failed",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": false,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "no_tex_abort",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": false,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "file_not_found",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "compiling_start",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "compile_success",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "generated_pdf",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "pdf_not_generated",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "compile_failed",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "compilation_error",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "template_not_found",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "template_success",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "overleaf_description",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "tex_file_help",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "output_dir_help",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "template_help",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "list_templates_help",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "latex_options_help",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "no_shell_escape_help",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "available_templates",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "no_templates",
+      "type": "OVERLEAF",
+      "count": 1,
+      "sources": [
+        "tool/OVERLEAF/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json"
+    },
+    {
+      "key": "google.colab",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "GOOGLE_DRIVE_PROJ/modules/path_constants.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "time",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "GOOGLE_DRIVE_PROJ/modules/commands/extract_command.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    },
+    {
+      "key": "sys",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "GOOGLE_DRIVE_PROJ/modules/commands/extract_command.py"
+      ],
+      "supported": false,
+      "translation_file": "proj/translations/zh.json"
+    }
+  ]
+}
