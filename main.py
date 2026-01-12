@@ -473,7 +473,10 @@ def _test_tool_with_args(args):
 def _audit_lang(lang_code):
     project_root = Path(__file__).parent.absolute()
     
-    # 1. Print initial "scanning" message with ellipsis
+    # 1. Map lang_code to lang_name
+    lang_name = _(f"lang_name_{lang_code}", lang_code)
+    
+    # 2. Print initial "scanning" message with ellipsis
     sys.path.append(str(project_root))
     try:
         from proj.lang_auditor import LangAuditor
@@ -483,31 +486,48 @@ def _audit_lang(lang_code):
 
     auditor = LangAuditor(project_root, lang_code)
     
-    # 2. Determine if cached or scanning and print the line
     if auditor.cache_file.exists():
-        msg = _("audit_using_cache", "Using cached audit report for {lang}...", lang=lang_code)
+        msg = _("audit_using_cache", "Using cached audit report for {lang} ({lang_name})...", lang=lang_code, lang_name=lang_name)
     else:
-        msg = _("audit_scanning", "Scanning translation coverage for {lang}...", lang=lang_code)
+        msg = _("audit_scanning", "Scanning translation coverage for {lang} ({lang_name})...", lang=lang_code, lang_name=lang_name)
     
     print(f"{BLUE}{msg}{RESET}", end="", flush=True)
 
-    # 3. Perform audit
     results, cached = auditor.audit()
     summary = results.get("summary", {})
     
-    # Replace the ellipsis with completed message if needed, or just move to next line
+    # 3. Completion message (default style)
     print("\r" + " " * 80 + "\r", end="") # Clear line
     if cached:
-        msg = _("audit_using_cache_done", "Using cached audit report for {lang}.", lang=lang_code)
+        msg = _("audit_using_cache_done", "Audit report for {lang} ({lang_name}) retrieved.", lang=lang_code, lang_name=lang_name)
     else:
-        msg = _("audit_scanning_done", "Translation audit scan complete for {lang}.", lang=lang_code)
-    print(f"{BLUE}{msg}{RESET}")
+        msg = _("audit_scanning_done", "Translation audit scan for {lang} ({lang_name}) complete.", lang=lang_code, lang_name=lang_name)
+    print(msg)
 
-    # 4. Compact output according to user feedback
-    print(_("audit_summary_keys", "Keys: {supported}/{total} support {lang} ({rate})",
-            supported=summary.get("supported_keys"), total=summary.get("total_keys"), lang=lang_code, rate=summary.get("completion_rate_keys")))
-    print(_("audit_summary_refs", "References: {supported}/{total} support {lang} ({rate})",
-            supported=summary.get("supported_references"), total=summary.get("total_references"), lang=lang_code, rate=summary.get("completion_rate_refs")))
+    # 4. Helper for colorizing percentages
+    def get_rate_color(rate_str):
+        try:
+            rate_val = float(rate_str.strip('%'))
+            if rate_val >= 100: return f"{BOLD}{GREEN}"
+            if rate_val >= 90: return f"{BOLD}{BLUE}"
+            if rate_val >= 60: return f"{BOLD}{YELLOW}"
+            return f"{BOLD}{RED}"
+        except Exception: return ""
+
+    rate_keys = summary.get("completion_rate_keys", "0%")
+    rate_refs = summary.get("completion_rate_refs", "0%")
+    
+    color_keys = get_rate_color(rate_keys)
+    color_refs = get_rate_color(rate_refs)
+    
+    # 5. Summary output
+    print(_("audit_summary_keys", "{rate} of keys support {lang} ({lang_name}) translation ({supported}/{total})",
+            rate=f"{color_keys}{rate_keys}{RESET}", supported=summary.get("supported_keys"), 
+            total=summary.get("total_keys"), lang=lang_code, lang_name=lang_name))
+            
+    print(_("audit_summary_refs", "{rate} of references support {lang} ({lang_name}) translation ({supported}/{total})",
+            rate=f"{color_refs}{rate_refs}{RESET}", supported=summary.get("supported_references"), 
+            total=summary.get("total_references"), lang=lang_code, lang_name=lang_name))
     
     print(_("audit_report_path", "Detailed report saved to: {path}", path=auditor.cache_file))
 
