@@ -315,12 +315,15 @@ def generate_ai_rule():
     lines.append(_("rule_efficiency_note", "This ensures consistency, leverages optimized logic, and improves development efficiency."))
     lines.append("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
     for name, info in installed_tools:
-        desc = _(f"tool_{name}_desc", info.get('description'))
-        purpose = _(f"tool_{name}_purpose", info.get('purpose'))
+        # Try to get translation from tool's own directory first
+        tool_proj_dir = project_root / "tool" / name / "proj"
+        desc = get_translation(str(tool_proj_dir), f"tool_{name}_desc", info.get('description'))
+        purpose = get_translation(str(tool_proj_dir), f"tool_{name}_purpose", info.get('purpose'))
         lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
     lines.append("\n" + _("rule_available_header", "[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]"))
     for name, info in available_tools:
+        # For available tools (not yet installed locally), we fall back to root or English defaults
         desc = _(f"tool_{name}_desc", info.get('description'))
         purpose = _(f"tool_{name}_purpose", info.get('purpose'))
         lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")

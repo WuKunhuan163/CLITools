@@ -78,20 +78,22 @@ class LangAuditor:
             except Exception:
                 continue
 
-        # 1.5 Special case: Add dynamic keys from tool.json
+        # Special case: Add dynamic keys from tool.json
         registry_path = self.project_root / "tool.json"
         if registry_path.exists():
             try:
                 with open(registry_path, 'r', encoding='utf-8') as f:
                     registry = json.load(f)
                 for tool_name in registry.get("tools", {}):
+                    # Check if tool is installed
+                    is_installed = (self.project_root / "tool" / tool_name).exists()
                     for key_suffix in ["desc", "purpose"]:
                         key = f"tool_{tool_name}_{key_suffix}"
                         if key not in all_keys:
                             all_keys[key] = {
                                 "count": 1,
                                 "sources": ["tool.json"],
-                                "type": "root"
+                                "type": tool_name if is_installed else "root"
                             }
                         else:
                             all_keys[key]["count"] += 1
@@ -140,6 +142,7 @@ class LangAuditor:
                         is_supported = True
                         trans_file = str(mono_json_path.relative_to(self.project_root))
             else:
+                # Check tool-local translations first
                 tool_json_path = self.project_root / "tool" / info["type"] / "proj" / "translations.json"
                 tool_trans = get_translations(str(tool_json_path))
                 logical_path = f"tool/{info['type']}/proj/translations/{self.lang_code}/{key}"
@@ -150,6 +153,13 @@ class LangAuditor:
                 elif key in tool_trans and isinstance(tool_trans[key], str):
                     is_supported = True
                     trans_file = str(tool_json_path.relative_to(self.project_root))
+                else:
+                    # Fallback to root for tool descriptions if missing locally
+                    root_json_path = self.project_root / "proj" / "translations" / f"{self.lang_code}.json"
+                    root_trans = get_translations(str(root_json_path))
+                    if key in root_trans:
+                        is_supported = True
+                        trans_file = str(root_json_path.relative_to(self.project_root))
 
             if not is_supported:
                 missing_translations.append(logical_path)
