@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v8)
+USERINPUT Tool (v9)
 - Captures multi-line user feedback via Tkinter GUI.
 - Supports timeout with auto-retry logic.
 - Localized via 'translations.json'.
 - Powered by standalone Python environment.
+- Configurable periodic refocus interval.
 """
 
 import os
@@ -16,6 +17,7 @@ import platform
 import time
 import random
 import json
+import argparse
 from pathlib import Path
 
 # Silence Tkinter deprecation warnings
@@ -87,6 +89,24 @@ def get_cursor_session_title(custom_id=None):
     except Exception:
         return f"Agent Mode [{custom_id}]" if custom_id else "Agent Mode"
 
+def get_config():
+    """Load configuration from tool's proj directory."""
+    config_path = TOOL_PROJ_DIR / "config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_config(config):
+    """Save configuration to tool's proj directory."""
+    TOOL_PROJ_DIR.mkdir(parents=True, exist_ok=True)
+    config_path = TOOL_PROJ_DIR / "config.json"
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
 def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     """
     Captures user input via a Tkinter script run in a separate Python process.
@@ -94,6 +114,9 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     python_exe = get_python_exec()
     proj_dir = current_dir / "proj"
     
+    config = get_config()
+    focus_interval = config.get("focus_interval", 0) # 0 means disabled
+
     try:
         bell_path = proj_dir / "tkinter_bell.mp3"
         bell_path_str_literal = repr(str(bell_path))
@@ -106,6 +129,7 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     inject_title = title
     inject_timeout = timeout
     inject_hint = hint_text
+    inject_focus_interval = focus_interval
 
     # Python script template - using %-formatting to avoid f-string escaping nightmares
     tkinter_script = r'''
@@ -138,13 +162,14 @@ def _(key, default):
     return get_translation(TOOL_PROJ_DIR, key, default)
 
 class TkinterInputWindow:
-    def __init__(self, title, timeout, hint_text):
+    def __init__(self, title, timeout, hint_text, focus_interval):
         self.root = None
         self.text_widget = None
         self.status_label = None
         self.title = title
         self.initial_timeout = timeout
         self.hint_text = hint_text
+        self.focus_interval = focus_interval
         self.result = None
         self.window_closed = False
         self.remaining_time = self.initial_timeout
@@ -229,6 +254,9 @@ class TkinterInputWindow:
         threading.Thread(target=update_timer, daemon=True).start()
     
     def start_periodic_focus(self):
+        if self.focus_interval <= 0:
+            return
+            
         def refocus():
             if not self.window_closed:
                 try:
@@ -238,9 +266,9 @@ class TkinterInputWindow:
                         self.root.attributes('-topmost', True)
                         self.text_widget.focus_set()
                         self.play_bell()
-                        self.root.after(30000, refocus)
+                        self.root.after(self.focus_interval * 1000, refocus)
                 except tk.TclError: pass
-        if self.root: self.root.after(30000, refocus)
+        if self.root: self.root.after(self.focus_interval * 1000, refocus)
 
     def play_bell(self):
         bell_path = %(bell_path)s
@@ -293,7 +321,8 @@ if __name__ == "__main__":
     title_str = %(title)r
     timeout_int = %(timeout)d
     hint_text_str = %(hint)r
-    window = TkinterInputWindow(title=title_str, timeout=timeout_int, hint_text=hint_text_str)
+    focus_interval_int = %(focus_interval)d
+    window = TkinterInputWindow(title=title_str, timeout=timeout_int, hint_text=hint_text_str, focus_interval=focus_interval_int)
     window.show_and_wait()
 ''' % {
         'project_root': inject_project_root,
@@ -301,7 +330,8 @@ if __name__ == "__main__":
         'bell_path': bell_path_str_literal,
         'title': inject_title,
         'timeout': inject_timeout,
-        'hint': inject_hint
+        'hint': inject_hint,
+        'focus_interval': inject_focus_interval
     }
 
     try:
@@ -353,25 +383,41 @@ if __name__ == "__main__":
 
 def main():
     """Main function with retry logic."""
-    timeout = 180
-    custom_id = None
-    hint_text = None
-    
-    try:
-        args = sys.argv[1:]
-        i = 0
-        while i < len(args):
-            arg = args[i]
-            if arg == '--timeout' and i + 1 < len(args): timeout = int(args[i+1]); i += 2
-            elif arg == '--id' and i + 1 < len(args): custom_id = args[i+1]; i += 2
-            elif arg == '--hint' and i + 1 < len(args): hint_text = args[i+1]; i += 2
-            elif arg in ['--help', '-h']:
-                print("Usage: USERINPUT [--timeout SECONDS] [--id CUSTOM_ID] [--hint TEXT]")
-                return 0
-            else: raise ValueError(f"Unknown parameter: {arg}")
-    except (IndexError, ValueError) as e:
-        print(f"Parameter error: {e}", file=sys.stderr)
-        return 1
+    parser = argparse.ArgumentParser(description="USERINPUT Tool")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Input command (default)
+    input_parser = subparsers.add_parser("input", help="Capture user input")
+    input_parser.add_argument('--timeout', type=int, default=180, help='Timeout in seconds')
+    input_parser.add_argument('--id', type=str, help='Custom ID for title')
+    input_parser.add_argument('--hint', type=str, help='Hint text')
+
+    # Config command
+    config_parser = subparsers.add_parser("config", help="Tool configuration")
+    config_parser.add_argument('--focus-interval', type=int, help='Interval for periodic refocus in seconds')
+
+    # Handle default behavior if no command is specified
+    if len(sys.argv) > 1 and sys.argv[1] not in ["input", "config", "--help", "-h"]:
+        # If it's not a known command, assume it's the old style parameters for 'input'
+        # but argparse handles this better if we just insert 'input'
+        sys.argv.insert(1, "input")
+
+    args = parser.parse_args()
+
+    if args.command == "config":
+        config = get_config()
+        if args.focus_interval is not None:
+            config["focus_interval"] = args.focus_interval
+            save_config(config)
+            print(_("config_updated", "Configuration updated: focus_interval = {val}").format(val=args.focus_interval))
+        else:
+            config_parser.print_help()
+        return 0
+
+    # Default to input command logic
+    timeout = getattr(args, 'timeout', 180)
+    custom_id = getattr(args, 'id', None)
+    hint_text = getattr(args, 'hint', None)
 
     max_retries = 3
     final_result = None
