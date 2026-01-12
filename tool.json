@@ -6,7 +6,7 @@
     },
     "USERINPUT": {
       "description": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
-      "purpose": "Facilitate seamless interaction between AI Agent and user.",
+      "purpose": "Facilitate seamless interaction between AI Agent and user. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
       "dependencies": ["PYTHON"]
     },
     "GOOGLE_DRIVE": {
