@@ -10,7 +10,9 @@
     "msg_cancelled": "User cancelled input",
     "config_updated": "Configuration updated: focus_interval = {val}s",
     "psutil_not_found": "Error: psutil not found. Cannot stop instances safely.",
-    "instances_stopped": "Stopped {count} USERINPUT instance(s)."
+    "instances_stopped": "Stopped {count} USERINPUT instance(s).",
+    "tool_USERINPUT_desc": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
+    "tool_USERINPUT_purpose": "Facilitate seamless interaction between AI Agent and user. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed."
   },
   "zh": {
     "instruction": "请在文本框中输入您的反馈:",
@@ -23,6 +25,8 @@
     "msg_timeout": "输入超时",
     "config_updated": "配置已更新：聚焦间隔 = {val} 秒",
     "psutil_not_found": "错误：未找到 psutil 模块。无法安全停止实例。",
-    "instances_stopped": "已停止 {count} 个 USERINPUT 实例。"
+    "instances_stopped": "已停止 {count} 个 USERINPUT 实例。",
+    "tool_USERINPUT_desc": "基于 Tkinter 的 GUI，用于捕获多行用户反馈和审批。",
+    "tool_USERINPUT_purpose": "促进 AI 代理与用户之间的无缝交互。AI 代理应单独执行此命令，不要与其他命令合并执行，以确保反馈不被遗漏。"
   }
 }

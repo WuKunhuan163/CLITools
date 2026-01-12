@@ -1,4 +1,24 @@
 {
+  "en": {
+    "process_started": "Process started: PID {pid}, Log: {log_file}",
+    "no_active_processes": "No active background processes",
+    "active_processes": "Active processes ({count}):",
+    "process_terminated": "Process {pid} terminated",
+    "process_force_killed": "Process {pid} force killed",
+    "process_not_found": "Error: Process {pid} not found",
+    "wait_finished": "Process {pid} finished",
+    "wait_timeout": "Wait for process {pid} timed out",
+    "status": "Status",
+    "command": "Command",
+    "runtime": "Runtime",
+    "status_active": "Running",
+    "status_completed": "Completed",
+    "status_failed": "Failed",
+    "status_unknown": "Unknown",
+    "full_report_saved": "Output truncated, full report saved to: {path}",
+    "tool_BACKGROUND_desc": "Manage long-running background processes safely.",
+    "tool_BACKGROUND_purpose": "Run tasks without blocking the agent's execution."
+  },
   "zh": {
     "process_started": "进程已启动: PID {pid}, 日志: {log_file}",
     "no_active_processes": "没有活跃的后台进程",
@@ -15,7 +35,8 @@
     "status_completed": "已完成",
     "status_failed": "失败",
     "status_unknown": "未知",
-    "full_report_saved": "显示内容被裁切，完整报表已保存至: {path}"
+    "full_report_saved": "显示内容被裁切，完整报表已保存至: {path}",
+    "tool_BACKGROUND_desc": "安全地管理长期运行的后台进程。",
+    "tool_BACKGROUND_purpose": "运行任务而不阻塞代理的执行。"
   }
 }
-

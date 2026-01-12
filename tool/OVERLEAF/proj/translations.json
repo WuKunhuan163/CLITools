@@ -1,4 +1,27 @@
 {
+  "en": {
+    "file_not_found": "Error: File not found: {file}",
+    "compiling_start": "Starting LaTeX compilation: {name}",
+    "using_portable_tex": "Using portable TeX: {path}",
+    "compile_success": "LaTeX compilation successful!",
+    "generated_pdf": "Generated PDF: {path}",
+    "pdf_not_generated": "Error: PDF not generated.",
+    "compile_failed": "Error: LaTeX compilation failed! (Exit code: {code})",
+    "compilation_error": "Error during compilation: {error}",
+    "available_templates": "Available templates:",
+    "no_templates": "No templates found.",
+    "template_not_found": "Template '{name}' not found.",
+    "template_success": "Template '{name}' successfully copied to '{path}'",
+    "overleaf_description": "OVERLEAF - Local LaTeX compilation and template management",
+    "tex_file_help": "LaTeX file path",
+    "output_dir_help": "Output directory for the generated PDF",
+    "template_help": "Copy a template to target directory",
+    "list_templates_help": "List all available templates",
+    "latex_options_help": "Extra options for pdflatex",
+    "no_shell_escape_help": "Disable -shell-escape",
+    "tool_OVERLEAF_desc": "Local LaTeX compilation and template management.",
+    "tool_OVERLEAF_purpose": "Build PDFs from LaTeX sources easily."
+  },
   "zh": {
     "file_not_found": "错误: 未找到文件: {file}",
     "compiling_start": "正在开始 LaTeX 编译: {name}",
@@ -18,7 +41,8 @@
     "template_help": "将模板复制到目标目录",
     "list_templates_help": "列出所有可用模板",
     "latex_options_help": "pdflatex 的额外选项",
-    "no_shell_escape_help": "禁用 -shell-escape"
+    "no_shell_escape_help": "禁用 -shell-escape",
+    "tool_OVERLEAF_desc": "本地 LaTeX 编译和模板管理。",
+    "tool_OVERLEAF_purpose": "轻松地从 LaTeX 源文件构建 PDF。"
   }
 }
-

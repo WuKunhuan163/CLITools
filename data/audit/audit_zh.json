@@ -1,7 +1,7 @@
 {
   "summary": {
     "language": "zh",
-    "timestamp": "2026-01-12T15:38:25.281378",
+    "timestamp": "2026-01-12T15:42:53.595764",
     "total_keys": 172,
     "supported_keys": 148,
     "missing_keys": 24,
@@ -1515,47 +1515,47 @@
     },
     {
       "key": "tool_PYTHON_desc",
-      "type": "root",
+      "type": "PYTHON",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_PYTHON_desc"
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/tool_PYTHON_desc"
     },
     {
       "key": "tool_PYTHON_purpose",
-      "type": "root",
+      "type": "PYTHON",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_PYTHON_purpose"
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/tool_PYTHON_purpose"
     },
     {
       "key": "tool_USERINPUT_desc",
-      "type": "root",
+      "type": "USERINPUT",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_USERINPUT_desc"
+      "translation_file": "tool/USERINPUT/proj/translations.json",
+      "logical_path": "tool/USERINPUT/proj/translations/zh/tool_USERINPUT_desc"
     },
     {
       "key": "tool_USERINPUT_purpose",
-      "type": "root",
+      "type": "USERINPUT",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_USERINPUT_purpose"
+      "translation_file": "tool/USERINPUT/proj/translations.json",
+      "logical_path": "tool/USERINPUT/proj/translations/zh/tool_USERINPUT_purpose"
     },
     {
       "key": "tool_GOOGLE_DRIVE_desc",
@@ -1779,25 +1779,25 @@
     },
     {
       "key": "tool_OVERLEAF_desc",
-      "type": "root",
+      "type": "OVERLEAF",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_OVERLEAF_desc"
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
+      "logical_path": "tool/OVERLEAF/proj/translations/zh/tool_OVERLEAF_desc"
     },
     {
       "key": "tool_OVERLEAF_purpose",
-      "type": "root",
+      "type": "OVERLEAF",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_OVERLEAF_purpose"
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
+      "logical_path": "tool/OVERLEAF/proj/translations/zh/tool_OVERLEAF_purpose"
     },
     {
       "key": "tool_RUN_desc",
@@ -1911,25 +1911,25 @@
     },
     {
       "key": "tool_BACKGROUND_desc",
-      "type": "root",
+      "type": "BACKGROUND",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_BACKGROUND_desc"
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/zh/tool_BACKGROUND_desc"
     },
     {
       "key": "tool_BACKGROUND_purpose",
-      "type": "root",
+      "type": "BACKGROUND",
       "count": 1,
       "sources": [
         "tool.json"
       ],
       "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/tool_BACKGROUND_purpose"
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/zh/tool_BACKGROUND_purpose"
     }
   ]
 }
