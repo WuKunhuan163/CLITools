@@ -309,25 +309,45 @@ def generate_ai_rule():
         else:
             available_tools.append((name, info))
             
-    print(_("rule_header_main", "--- AI AGENT TOOL RULES ---"))
-    print(_("rule_critical_note", "CRITICAL: When developing or performing tasks, always prefer using the following integrated tools instead of writing custom implementations."))
-    print(_("rule_efficiency_note", "This ensures consistency, leverages optimized logic, and improves development efficiency."))
-    print("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
+    lines = []
+    lines.append(_("rule_header_main", "--- AI AGENT TOOL RULES ---"))
+    lines.append(_("rule_critical_note", "CRITICAL: When developing or performing tasks, always prefer using the following integrated tools instead of writing custom implementations."))
+    lines.append(_("rule_efficiency_note", "This ensures consistency, leverages optimized logic, and improves development efficiency."))
+    lines.append("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
     for name, info in installed_tools:
-        print(f"- {name}: {info.get('description')} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=info.get('purpose')) + ")")
+        desc = _(f"tool_{name}_desc", info.get('description'))
+        purpose = _(f"tool_{name}_purpose", info.get('purpose'))
+        lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
-    print("\n" + _("rule_available_header", "[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]"))
+    lines.append("\n" + _("rule_available_header", "[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]"))
     for name, info in available_tools:
-        print(f"- {name}: {info.get('description')} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=info.get('purpose')) + ")")
+        desc = _(f"tool_{name}_desc", info.get('description'))
+        purpose = _(f"tool_{name}_purpose", info.get('purpose'))
+        lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
-    print("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
-    print("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translations.json' file."))
-    print("- " + _("rule_guideline_2", "**Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults."))
-    print("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups."))
-    print("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
+    lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
+    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translations.json' file."))
+    lines.append("- " + _("rule_guideline_2", "**Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults."))
+    lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups."))
+    lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     
-    print("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
-    print("--------------------------")
+    lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
+    lines.append("--------------------------")
+    
+    output = "\n".join(lines)
+    print(output)
+    
+    # Copy to clipboard
+    if sys.platform == "darwin":
+        try:
+            subprocess.run('pbcopy', input=output, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
+            print(f"\n{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
+        except (FileNotFoundError, subprocess.CalledProcessError): pass
+    elif sys.platform == "linux":
+        try:
+            subprocess.run('xclip -selection clipboard', shell=True, input=output, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
+            print(f"\n{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
+        except (FileNotFoundError, subprocess.CalledProcessError): pass
 
 import argparse
 
