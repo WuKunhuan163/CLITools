@@ -167,10 +167,9 @@ class TestRunner:
             return
 
         total_count = len(test_files)
-        print(self._("test_running", "Running {count} tests for {tool}...", count=total_count, tool=self.tool_name))
+        print(self._("test_running", "Preparing to run {count} tests for {tool}...", count=total_count, tool=self.tool_name))
         sys.stdout.flush()
         
-        # Always use the parallel style if possible, but adjust for BACKGROUND
         self._run_parallel_tests(test_files, max_concurrent, timeout=timeout)
 
     def _run_single_test_logic(self, test_file, timeout=60):
@@ -205,9 +204,9 @@ class TestRunner:
         is_background_test = self.tool_name == "BACKGROUND"
         
         if not background_bin.exists() or is_background_test:
-            if is_background_test:
-                print("Testing BACKGROUND tool: Parallel execution disabled to avoid self-cleanup issues.")
-            else:
+            if is_background_test and max_concurrent > 1:
+                print(self._("test_background_sequential", "Testing BACKGROUND tool: Parallel execution disabled to avoid self-cleanup issues."))
+            elif not background_bin.exists():
                 print("BACKGROUND tool not found. Falling back to sequential execution.")
             sys.stdout.flush()
             
@@ -246,7 +245,7 @@ class TestRunner:
         while remaining_files or active_jobs:
             while len(active_jobs) < max_concurrent and remaining_files:
                 test_file = remaining_files.pop(0)
-                # Counter starts at 0 for Starting message
+                # Counter starts at finished_count for Starting message
                 print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
                              index=finished_count, total=total_tests, file=test_file.name, pid="..."))
                 
@@ -261,8 +260,6 @@ class TestRunner:
                     match = re.search(r"PID:?\s*(\d+)", output)
                     if match:
                         pid = match.group(1)
-                        # We already printed "Starting", but let's update it with PID if needed. 
-                        # Actually the PID comes very fast.
                         active_jobs.append({
                             "pid": pid, 
                             "file": test_file, 
@@ -270,7 +267,6 @@ class TestRunner:
                             "start_time": start_time
                         })
                     else:
-                        # Fallback if BACKGROUND fails
                         status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
                         finished_count += 1
                         self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path)
