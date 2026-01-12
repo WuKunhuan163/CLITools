@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v9)
+USERINPUT Tool (v10)
 - Captures multi-line user feedback via Tkinter GUI.
 - Supports timeout with auto-retry logic.
 - Localized via 'translations.json'.
 - Powered by standalone Python environment.
 - Configurable periodic refocus interval.
+- Graceful signal handling and cleanup interface.
 """
 
 import os
@@ -18,7 +19,14 @@ import time
 import random
 import json
 import argparse
+import signal
 from pathlib import Path
+
+# Try to import psutil for cleanup and process management
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 # Silence Tkinter deprecation warnings
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
@@ -137,6 +145,7 @@ import os
 import sys
 import warnings
 import json
+import signal
 from pathlib import Path
 warnings.filterwarnings('ignore')
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
@@ -177,6 +186,14 @@ class TkinterInputWindow:
     def create_window(self):
         try:
             self.root = tk.Tk(className='USERINPUT')
+            
+            # Graceful exit on SIGTERM/SIGINT
+            def handle_signal(sig, frame):
+                self.close_window()
+                sys.exit(0)
+            signal.signal(signal.SIGTERM, handle_signal)
+            signal.signal(signal.SIGINT, handle_signal)
+
             # Ensure title is a string
             display_title = str(self.title) if self.title else "USERINPUT"
             self.root.title(display_title)
@@ -334,18 +351,38 @@ if __name__ == "__main__":
         'focus_interval': inject_focus_interval
     }
 
+    proc = None
     try:
         watchdog_timeout = 3600 # 1 hour
-        result = subprocess.run(
+        proc = subprocess.Popen(
             [python_exe, '-c', tkinter_script],
-            capture_output=True, text=True, encoding='utf-8', timeout=watchdog_timeout
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
         )
 
-        if result.returncode != 0:
-            error_message = result.stdout.strip() or result.stderr.strip()
+        # Handle signals to terminate subprocess gracefully
+        def handle_main_signal(sig, frame):
+            if proc:
+                proc.terminate()
+                try: proc.wait(timeout=2)
+                except: proc.kill()
+            sys.exit(0)
+        
+        signal.signal(signal.SIGTERM, handle_main_signal)
+        signal.signal(signal.SIGINT, handle_main_signal)
+
+        try:
+            stdout, stderr = proc.communicate(timeout=watchdog_timeout)
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            try: proc.wait(timeout=2)
+            except: proc.kill()
+            raise RuntimeError(f"USERINPUT window timed out after {watchdog_timeout} seconds.")
+
+        if proc.returncode != 0:
+            error_message = stdout.strip() or stderr.strip()
             raise RuntimeError(f"USERINPUT subprocess failed: {error_message}")
 
-        output = result.stdout.strip()
+        output = stdout.strip()
         json_prefix = "GDS_USERINPUT_JSON:"
         json_data = None
         
@@ -378,8 +415,45 @@ if __name__ == "__main__":
         else:
             raise RuntimeError(f"USERINPUT unknown status: {status}")
 
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f"USERINPUT window timed out after {watchdog_timeout} seconds.")
+    finally:
+        # Reset signal handlers
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+def stop_all_instances():
+    """Find and gracefully stop all running USERINPUT instances."""
+    if not psutil:
+        print(_("psutil_not_found", "Error: psutil not found. Cannot stop instances safely."))
+        return 1
+    
+    count = 0
+    current_pid = os.getpid()
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            if proc.info['pid'] == current_pid:
+                continue
+            
+            cmdline = proc.info['cmdline']
+            if cmdline and any('USERINPUT' in part for part in cmdline):
+                # Try to kill children first (the Tkinter processes)
+                for child in proc.children(recursive=True):
+                    try:
+                        child.terminate()
+                        child.wait(timeout=2)
+                    except:
+                        try: child.kill()
+                        except: pass
+                
+                # Terminate the parent
+                proc.terminate()
+                proc.wait(timeout=3)
+                count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    
+    msg = _("instances_stopped", "Stopped {count} USERINPUT instance(s).").format(count=count)
+    print(msg)
+    return 0
 
 def main():
     """Main function with retry logic."""
@@ -396,13 +470,17 @@ def main():
     config_parser = subparsers.add_parser("config", help="Tool configuration")
     config_parser.add_argument('--focus-interval', type=int, help='Interval for periodic refocus in seconds')
 
+    # Stop command
+    subparsers.add_parser("stop", help="Stop all running USERINPUT instances gracefully")
+
     # Handle default behavior if no command is specified
-    if len(sys.argv) > 1 and sys.argv[1] not in ["input", "config", "--help", "-h"]:
-        # If it's not a known command, assume it's the old style parameters for 'input'
-        # but argparse handles this better if we just insert 'input'
+    if len(sys.argv) > 1 and sys.argv[1] not in ["input", "config", "stop", "--help", "-h"]:
         sys.argv.insert(1, "input")
 
     args = parser.parse_args()
+
+    if args.command == "stop":
+        return stop_all_instances()
 
     if args.command == "config":
         config = get_config()

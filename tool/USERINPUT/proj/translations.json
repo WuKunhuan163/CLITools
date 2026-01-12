@@ -8,7 +8,9 @@
     "msg_empty": "User submitted empty content",
     "msg_timeout": "Input timeout",
     "msg_cancelled": "User cancelled input",
-    "config_updated": "Configuration updated: focus_interval = {val}s"
+    "config_updated": "Configuration updated: focus_interval = {val}s",
+    "psutil_not_found": "Error: psutil not found. Cannot stop instances safely.",
+    "instances_stopped": "Stopped {count} USERINPUT instance(s)."
   },
   "zh": {
     "instruction": "请在文本框中输入您的反馈:",
@@ -19,6 +21,8 @@
     "msg_empty": "用户提交了空内容",
     "msg_cancelled": "用户取消了输入",
     "msg_timeout": "输入超时",
-    "config_updated": "配置已更新：聚焦间隔 = {val} 秒"
+    "config_updated": "配置已更新：聚焦间隔 = {val} 秒",
+    "psutil_not_found": "错误：未找到 psutil 模块。无法安全停止实例。",
+    "instances_stopped": "已停止 {count} 个 USERINPUT 实例。"
   }
 }
