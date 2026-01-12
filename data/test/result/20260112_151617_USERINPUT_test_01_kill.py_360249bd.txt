@@ -1,0 +1,27 @@
+Test: test_01_kill.py
+Tool: USERINPUT
+Time: 2026-01-12T15:16:17.601802
+Status: Failed (code 1)
+Python: /Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/bin/python3
+----------------------------------------
+E/Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/lib/python3.10/unittest/case.py:613: ResourceWarning: unclosed file <_io.TextIOWrapper name=3 encoding='UTF-8'>
+  outcome.errors.clear()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/lib/python3.10/unittest/case.py:613: ResourceWarning: unclosed file <_io.TextIOWrapper name=5 encoding='UTF-8'>
+  outcome.errors.clear()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+
+======================================================================
+ERROR: test_kill_and_retry (tool.USERINPUT.test.test_01_kill.TestUserInputKill)
+Test USERINPUT retry logic when the subprocess is killed.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/USERINPUT/test/test_01_kill.py", line 45, in test_kill_and_retry
+    os.kill(child_pid, signal.SIGKILL)
+ProcessLookupError: [Errno 3] No such process
+
+----------------------------------------------------------------------
+Ran 1 test in 9.077s
+
+FAILED (errors=1)
+

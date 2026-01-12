@@ -9,6 +9,12 @@ import re
 import hashlib
 from datetime import datetime
 
+# Try to import psutil for resource cleanup
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 class TestRunner:
     def __init__(self, tool_name, project_root):
         self.tool_name = tool_name
@@ -80,7 +86,7 @@ class TestRunner:
             print(f"  [{i}] {test_file.name}")
         sys.stdout.flush()
 
-    def _save_result(self, test_name, status, content):
+    def _save_result(self, test_name, status, content, python_info=None):
         """Save full test result to a file and perform cleanup."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         content_hash = hashlib.md5(content.encode('utf-8')).hexdigest()[:8]
@@ -93,6 +99,8 @@ class TestRunner:
                 f.write(f"Tool: {self.tool_name}\n")
                 f.write(f"Time: {datetime.now().isoformat()}\n")
                 f.write(f"Status: {status}\n")
+                if python_info:
+                    f.write(f"Python: {python_info}\n")
                 f.write("-" * 40 + "\n")
                 f.write(content)
             
@@ -143,10 +151,13 @@ class TestRunner:
         if depends_on_python and python_utils_path.exists():
             try:
                 import importlib.util
-                spec = importlib.util.spec_from_file_location("python_utils_runner", str(python_utils_path))
+                mod_name = f"python_utils_runner_{self.tool_name}"
+                spec = importlib.util.spec_from_file_location(mod_name, str(python_utils_path))
                 python_utils_runner = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(python_utils_runner)
-                python_exec = python_utils_runner.get_python_exec()
+                standalone_exec = python_utils_runner.get_python_exec()
+                if os.path.exists(standalone_exec):
+                    python_exec = standalone_exec
             except Exception:
                 pass
         return python_exec
@@ -171,7 +182,64 @@ class TestRunner:
         print(self._("test_running", "Preparing to run {count} tests for {tool}...", count=total_count, tool=self.tool_name))
         sys.stdout.flush()
         
-        self._run_parallel_tests(test_files, max_concurrent, timeout=timeout)
+        try:
+            self._run_parallel_tests(test_files, max_concurrent, timeout=timeout)
+        finally:
+            self._cleanup_resources()
+
+    def _cleanup_resources(self):
+        """Recycle resources (like GUI windows or leftover processes) after testing."""
+        if not psutil:
+            return
+            
+        print(f"\nRecycling resources for {self.tool_name}...")
+        sys.stdout.flush()
+        
+        current_pid = os.getpid()
+        count = 0
+        
+        # 1. Graceful cleanup via tool interfaces if available
+        if self.tool_name == "USERINPUT":
+            userinput_bin = self.project_root / "bin" / "USERINPUT"
+            if userinput_bin.exists():
+                subprocess.run([str(userinput_bin), "stop"], capture_output=True)
+        elif self.tool_name == "BACKGROUND":
+            background_bin = self.project_root / "bin" / "BACKGROUND"
+            if background_bin.exists():
+                subprocess.run([str(background_bin), "--cleanup"], capture_output=True)
+
+        # 2. General process sweep
+        # We look for processes running from our project directory that are not us
+        for proc in psutil.process_iter(['pid', 'name', 'cwd', 'cmdline']):
+            try:
+                if proc.info['pid'] == current_pid:
+                    continue
+                
+                # Check if process is running from within our project
+                proc_cwd = proc.info.get('cwd')
+                if proc_cwd and str(self.project_root) in proc_cwd:
+                    # Double check it's related to the current tool or general test artifacts
+                    cmdline = proc.info.get('cmdline')
+                    if cmdline and (self.tool_name in " ".join(cmdline) or "unittest" in " ".join(cmdline)):
+                        # Kill children first
+                        for child in proc.children(recursive=True):
+                            try:
+                                child.terminate()
+                                child.wait(timeout=1)
+                            except:
+                                try: child.kill()
+                                except: pass
+                        
+                        proc.terminate()
+                        try: proc.wait(timeout=2)
+                        except: proc.kill()
+                        count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        
+        if count > 0:
+            print(f"Cleaned up {count} leftover processes.")
+        sys.stdout.flush()
 
     def _run_single_test_logic(self, test_file, timeout=60):
         """Internal logic to run a single test and return result."""
@@ -186,18 +254,18 @@ class TestRunner:
                                    env=env, timeout=timeout, capture_output=True, text=True)
             duration = time.time() - start_time
             if result.returncode == 0:
-                return "Success", duration, None, None
+                return "Success", duration, None, None, python_exec
             else:
-                report_path = self._save_result(test_file.name, "Failed", result.stdout + result.stderr)
+                report_path = self._save_result(test_file.name, "Failed", result.stdout + result.stderr, python_info=python_exec)
                 last_line = ""
                 for line in result.stderr.splitlines():
                     if line.strip():
                         last_line = line.strip()
-                return "Failed", duration, f"(code {result.returncode}) Reason: {last_line}", report_path
+                return "Failed", duration, f"(code {result.returncode}) Reason: {last_line}", report_path, python_exec
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
-            self._save_result(test_file.name, "Timeout", f"Test timed out after {timeout}s")
-            return "Timeout", duration, None, None
+            self._save_result(test_file.name, "Timeout", f"Test timed out after {timeout}s", python_info=python_exec)
+            return "Timeout", duration, None, None, python_exec
 
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
         """Run multiple tests with status updates. Supports sequential if needed."""
@@ -216,7 +284,7 @@ class TestRunner:
                 print(self._("test_starting_sequential", "[{index}/{total}] Starting {file}...", index=i, total=total_tests, file=test_file.name))
                 sys.stdout.flush()
                 
-                status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
+                status_raw, duration, error_msg, report_path, python_exec = self._run_single_test_logic(test_file, timeout=timeout)
                 
                 status_label = self._get_status_label(status_raw)
                 if error_msg:
@@ -246,7 +314,6 @@ class TestRunner:
         while remaining_files or active_jobs:
             while len(active_jobs) < max_concurrent and remaining_files:
                 test_file = remaining_files.pop(0)
-                # Counter starts at finished_count for Starting message
                 print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
                              index=finished_count, total=total_tests, file=test_file.name, pid="..."))
                 
@@ -265,14 +332,15 @@ class TestRunner:
                             "pid": pid, 
                             "file": test_file, 
                             "index": started_count,
-                            "start_time": start_time
+                            "start_time": start_time,
+                            "python_exec": python_exec
                         })
                     else:
-                        status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
+                        status_raw, duration, error_msg, report_path, py_exec = self._run_single_test_logic(test_file, timeout=timeout)
                         finished_count += 1
                         self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path)
                 except Exception:
-                    status_raw, duration, error_msg, report_path = self._run_single_test_logic(test_file, timeout=timeout)
+                    status_raw, duration, error_msg, report_path, py_exec = self._run_single_test_logic(test_file, timeout=timeout)
                     finished_count += 1
                     self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path)
 
@@ -282,7 +350,7 @@ class TestRunner:
                 
                 if duration > timeout:
                     subprocess.run([str(background_bin), "--kill", job["pid"]], capture_output=True)
-                    self._save_result(job["file"].name, "Timeout", f"Test timed out after {timeout}s")
+                    self._save_result(job["file"].name, "Timeout", f"Test timed out after {timeout}s", python_info=job["python_exec"])
                     job["status_raw"] = "Timeout"
                     job["duration"] = duration
                     finished_jobs.append(job)
@@ -300,7 +368,7 @@ class TestRunner:
                             else:
                                 job["status_raw"] = "Failed"
                                 res_full = subprocess.run([str(background_bin), "--result", job["pid"]], capture_output=True, text=True)
-                                report_path = self._save_result(job["file"].name, f"Failed (code {ret_code})", res_full.stdout)
+                                report_path = self._save_result(job["file"].name, f"Failed (code {ret_code})", res_full.stdout, python_info=job["python_exec"])
                                 last_line = ""
                                 for line in res_full.stdout.splitlines():
                                     if line.strip():

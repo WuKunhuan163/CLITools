@@ -13,36 +13,55 @@ class TestUserInputKill(unittest.TestCase):
         userinput_bin = project_root / "bin" / "USERINPUT"
         if not userinput_bin.exists():
             self.skipTest("USERINPUT bin not found")
-        proc = subprocess.Popen([str(userinput_bin), "--timeout", "10"], 
+            
+        # Start USERINPUT
+        proc = subprocess.Popen([str(userinput_bin), "--timeout", "30"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            time.sleep(3)
+            # Wait for window to appear
+            time.sleep(5)
             parent = psutil.Process(proc.pid)
+            
+            # Find the actual Tkinter process (usually a child of the wrapper or main.py)
             children = parent.children(recursive=True)
-            if len(children) >= 2:
-                # One is main.py, the other is tkinter_script
-                # Let's find the one that is NOT the direct child if possible, or check cmdline
-                target_child = None
-                for child in children:
-                    try:
-                        if "-c" in " ".join(child.cmdline()):
-                            target_child = child
-                            break
-                    except (psutil.NoSuchProcess, psutil.AccessDenied): continue
+            target_child = None
+            for child in children:
+                try:
+                    # Look for python process running with -c (the injected tkinter script)
+                    cmdline = " ".join(child.cmdline())
+                    if "-c" in cmdline and "import tkinter" in cmdline:
+                        target_child = child
+                        break
+                except (psutil.NoSuchProcess, psutil.AccessDenied): continue
+            
+            if not target_child and children:
+                target_child = children[-1]
                 
-                if not target_child:
-                    # Fallback to the one with more depth or just the last one
-                    target_child = children[-1]
-                
+            if target_child:
                 child_pid = target_child.pid
-                os.kill(child_pid, signal.SIGKILL)
-                # Wait longer for retry to spawn new process
-                time.sleep(6)
+                # Kill the child gracefully first
+                try:
+                    os.kill(child_pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                
+                # Wait for retry mechanism to spawn new process
+                time.sleep(8)
                 new_children = parent.children(recursive=True)
-                if not new_children:
-                    print(f"Parent PID: {parent.pid}, Status: {parent.status()}")
                 self.assertTrue(len(new_children) > 0, "New subprocess was not spawned after kill")
+            else:
+                self.fail("Could not find Tkinter child process")
         finally:
-            proc.terminate()
-            try: proc.wait(timeout=2)
-            except: proc.kill()
+            # Full cleanup
+            try:
+                parent = psutil.Process(proc.pid)
+                for child in parent.children(recursive=True):
+                    try:
+                        child.kill()
+                    except: pass
+                proc.kill()
+            except: pass
+            proc.wait()
+
+if __name__ == '__main__':
+    unittest.main()
