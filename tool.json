@@ -56,7 +56,8 @@
     },
     "OVERLEAF": {
       "description": "Local LaTeX compilation and template management.",
-      "purpose": "Build PDFs from LaTeX sources easily."
+      "purpose": "Build PDFs from LaTeX sources easily.",
+      "dependencies": ["PYTHON", "USERINPUT"]
     },
     "RUN": {
       "description": "Tool wrapper that captures output in structured JSON.",
@@ -81,7 +82,8 @@
     },
     "BACKGROUND": {
       "description": "Manage long-running background processes safely.",
-      "purpose": "Run tasks without blocking the agent's execution."
+      "purpose": "Run tasks without blocking the agent's execution.",
+      "dependencies": ["PYTHON"]
     }
   }
 }
