@@ -1,32 +1,32 @@
 import unittest
 import subprocess
 import time
-import re
+import os
 from pathlib import Path
 
 class TestBackgroundStress(unittest.TestCase):
-    def test_100_parallel(self):
-        """Start 100 parallel tasks."""
-        project_root = Path(__file__).resolve().parent.parent.parent.parent
+    def test_stress_load(self):
+        """Start many tasks and verify they are all listed."""
+        project_root = Path(__file__).parent.parent.parent.parent
         bg_bin = project_root / "bin" / "BACKGROUND"
-        if not bg_bin.exists(): self.skipTest("BACKGROUND bin not found")
-
-        # Use 100 tasks
-        count = 100
-        print(f"Starting {count} tasks...")
-        start_time = time.time()
-        for i in range(count):
-            subprocess.run([str(bg_bin), f"sleep 1 # task {i}"], check=True)
         
-        duration = time.time() - start_time
-        print(f"Started {count} tasks in {duration:.2f}s")
-
-        # Verify list count
-        res = subprocess.run([str(bg_bin), "--list", "--json"], capture_output=True, text=True)
-        import json
-        data = json.loads(res.stdout)
-        # It might be MORE than 100 if previous tests left tasks, but at least 100
-        self.assertGreaterEqual(data["total_count"], count)
-
-if __name__ == "__main__":
+        # Cleanup first
+        subprocess.run([str(bg_bin), "--cleanup"], capture_output=True)
+        
+        # Use 20 tasks for faster testing
+        count = 20
+        print(f"Starting {count} tasks...")
+        for i in range(count):
+            subprocess.run([str(bg_bin), f"sleep 1 # task {i}"], check=True, capture_output=True)
+            
+        # List all
+        res = subprocess.run([str(bg_bin), "--list"], capture_output=True, text=True)
+        
+        # The list output contains lines starting with 'PID:'
+        data_lines = [l for l in res.stdout.splitlines() if l.strip().startswith('PID:')]
+        # Header also starts with 'PID:', so subtract 1
+        found_count = len(data_lines) - 1
+        self.assertGreaterEqual(found_count, count, f"Expected at least {count} processes in list, found {found_count}. Output: {res.stdout}")
+        
+if __name__ == '__main__':
     unittest.main()

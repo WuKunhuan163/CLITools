@@ -1,0 +1,20 @@
+Test: test_04_stress.py
+Tool: BACKGROUND
+Time: 2026-01-12T14:39:44.601736
+Status: Failed
+----------------------------------------
+Starting 20 tasks...
+F
+======================================================================
+FAIL: test_stress_load (tool.BACKGROUND.test.test_04_stress.TestBackgroundStress)
+Start many tasks and verify they are all listed.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/BACKGROUND/test/test_04_stress.py", line 29, in test_stress_load
+    self.assertGreaterEqual(len(data_lines), count, f"Expected at least {count} processes in list, found {len(data_lines)}")
+AssertionError: 0 not greater than or equal to 20 : Expected at least 20 processes in list, found 0
+
+----------------------------------------------------------------------
+Ran 1 test in 4.753s
+
+FAILED (failures=1)

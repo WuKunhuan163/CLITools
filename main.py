@@ -367,6 +367,9 @@ Examples:
     lang_parser = config_subparsers.add_parser("set-lang", help=_("config_set_lang_help", "Set global language preference"))
     lang_parser.add_argument("lang_code", help=_("config_lang_code_help", "Language code (e.g., en, zh)"))
 
+    test_config_parser = config_subparsers.add_parser("test", help=_("config_test_help", "Test configuration"))
+    test_config_parser.add_argument("--max-reports", type=int, help=_("config_test_max_reports_help", "Maximum number of test reports to keep"))
+
     if len(sys.argv) < 2:
         parser.print_help()
         sys.exit(0)
@@ -376,18 +379,19 @@ Examples:
     if args.command == "install":
         install_tool(args.tool_name)
     elif args.command == "test":
-        # Handle test_tool differently as it was taking sys.argv[3:]
-        # We need to adapt test_tool to use the parsed args
         _test_tool_with_args(args)
     elif args.command == "rule":
         generate_ai_rule()
     elif args.command == "config":
         if args.subcommand == "set-lang":
             update_config("language", args.lang_code)
+        elif args.subcommand == "test":
+            if args.max_reports is not None:
+                update_config("test_max_reports", args.max_reports)
+            else:
+                test_config_parser.print_help()
         else:
             config_parser.print_help()
-    else:
-        parser.print_help()
 
 def _test_tool_with_args(args):
     project_root = Path(__file__).parent.absolute()

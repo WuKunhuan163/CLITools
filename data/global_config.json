@@ -1,3 +1,4 @@
 {
-  "language": "zh"
+  "language": "en",
+  "test_max_reports": 1024
 }

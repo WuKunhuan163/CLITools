@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 import json
 import re
+import hashlib
+from datetime import datetime
 
 class TestRunner:
     def __init__(self, tool_name, project_root):
@@ -14,6 +16,8 @@ class TestRunner:
         self.tool_dir = self.project_root / "tool" / tool_name
         self.test_dir = self.tool_dir / "test"
         self.cache_file = self.test_dir / ".tests_cache.json"
+        self.results_dir = self.project_root / "data" / "test" / "result"
+        self.results_dir.mkdir(parents=True, exist_ok=True)
         
         # Load colors
         try:
@@ -66,6 +70,77 @@ class TestRunner:
             print(f"  [{i}] {test_file.name}")
         sys.stdout.flush()
 
+    def _save_result(self, test_name, status, content):
+        """Save full test result to a file and perform cleanup."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        content_hash = hashlib.md5(content.encode('utf-8')).hexdigest()[:8]
+        filename = f"{timestamp}_{self.tool_name}_{test_name}_{content_hash}.txt"
+        filepath = self.results_dir / filename
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(f"Test: {test_name}\n")
+                f.write(f"Tool: {self.tool_name}\n")
+                f.write(f"Time: {datetime.now().isoformat()}\n")
+                f.write(f"Status: {status}\n")
+                f.write("-" * 40 + "\n")
+                f.write(content)
+            
+            # Cleanup mechanism
+            self._cleanup_reports()
+            return filepath
+        except Exception as e:
+            print(f"Error saving test report: {e}")
+            return None
+
+    def _cleanup_reports(self):
+        """Limit the number of test reports."""
+        max_reports = 1024
+        config_path = self.project_root / "data" / "global_config.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    max_reports = config.get("test_max_reports", 1024)
+            except Exception:
+                pass
+        
+        reports = sorted(list(self.results_dir.glob("*.txt")), key=os.path.getctime)
+        while len(reports) > max_reports:
+            try:
+                old_report = reports.pop(0)
+                old_report.unlink()
+            except Exception:
+                break
+
+    def _get_python_exec(self):
+        """Get the appropriate python executable for the tool."""
+        python_exec = sys.executable
+        python_tool_dir = self.project_root / "tool" / "PYTHON"
+        python_utils_path = python_tool_dir / "proj" / "utils.py"
+        
+        depends_on_python = False
+        tool_json_path = self.tool_dir / "tool.json"
+        if tool_json_path.exists():
+            with open(tool_json_path, 'r') as f:
+                try:
+                    tool_data = json.load(f)
+                    if "PYTHON" in tool_data.get("dependencies", []) or self.tool_name == "PYTHON":
+                        depends_on_python = True
+                except Exception:
+                    pass
+
+        if depends_on_python and python_utils_path.exists():
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("python_utils_runner", str(python_utils_path))
+                python_utils_runner = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(python_utils_runner)
+                python_exec = python_utils_runner.get_python_exec()
+            except Exception:
+                pass
+        return python_exec
+
     def run_tests(self, start_id=None, end_id=None, max_concurrent=1, timeout=60):
         """Run tests with inclusive range indexing and real-time progress."""
         test_files = self.get_test_files()
@@ -97,32 +172,8 @@ class TestRunner:
         sys.stdout.flush()
         
         start_time = time.time()
+        python_exec = self._get_python_exec()
         
-        python_exec = sys.executable
-        python_tool_dir = self.project_root / "tool" / "PYTHON"
-        python_utils_path = python_tool_dir / "proj" / "utils.py"
-        
-        depends_on_python = False
-        tool_json_path = self.tool_dir / "tool.json"
-        if tool_json_path.exists():
-            with open(tool_json_path, 'r') as f:
-                try:
-                    tool_data = json.load(f)
-                    if "PYTHON" in tool_data.get("dependencies", []) or self.tool_name == "PYTHON":
-                        depends_on_python = True
-                except Exception:
-                    pass
-
-        if depends_on_python and python_utils_path.exists():
-            try:
-                import importlib.util
-                spec = importlib.util.spec_from_file_location("python_utils_test", str(python_utils_path))
-                python_utils_test = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(python_utils_test)
-                python_exec = python_utils_test.get_python_exec()
-            except Exception:
-                pass
-
         env = os.environ.copy()
         env["PYTHONPATH"] = f"{self.project_root}:{self.tool_dir}:{env.get('PYTHONPATH', '')}"
 
@@ -134,11 +185,19 @@ class TestRunner:
                 status_str = f"{self.BOLD}{self.GREEN}Success{self.RESET}"
             else:
                 status_str = f"{self.BOLD}{self.RED}Failed{self.RESET}"
-                print(result.stdout)
-                print(result.stderr)
+                report_path = self._save_result(test_file.name, "Failed", result.stdout + result.stderr)
+                # Short summary of failure from stderr
+                last_line = ""
+                for line in result.stderr.splitlines():
+                    if line.strip():
+                        last_line = line.strip()
+                print(f"Reason: {last_line}")
+                if report_path:
+                    print(f"Full report: {report_path}")
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
             status_str = f"{self.BOLD}{self.RED}Timeout{self.RESET}"
+            self._save_result(test_file.name, "Timeout", f"Test timed out after {timeout}s")
 
         print(f"Result: {status_str} (Duration: {duration:.2f}s)")
         sys.stdout.flush()
@@ -146,10 +205,15 @@ class TestRunner:
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
         """Run multiple tests in parallel using BACKGROUND tool with progress updates."""
         background_bin = self.project_root / "bin" / "BACKGROUND"
-        if not background_bin.exists():
-            print("BACKGROUND tool not found. Falling back to sequential execution.")
+        # Avoid nesting BACKGROUND if testing BACKGROUND itself, or if bin not found
+        if not background_bin.exists() or self.tool_name == "BACKGROUND":
+            if self.tool_name == "BACKGROUND":
+                print("Testing BACKGROUND tool: Parallel execution disabled to avoid self-cleanup issues.")
+            else:
+                print("BACKGROUND tool not found. Falling back to sequential execution.")
             sys.stdout.flush()
             for i, test_file in enumerate(test_files, 1):
+                # We still want to show progress
                 print(f"[{i}/{len(test_files)}] ", end="")
                 self._run_single_test(test_file, timeout=timeout)
             return
@@ -159,6 +223,7 @@ class TestRunner:
         total_tests = len(test_files)
         started_count = 0
         finished_count = 0
+        python_exec = self._get_python_exec()
         
         print(f"Parallel execution enabled (max {max_concurrent} concurrent jobs, timeout {timeout}s)")
         sys.stdout.flush()
@@ -168,7 +233,9 @@ class TestRunner:
                 test_file = remaining_files.pop(0)
                 started_count += 1
                 start_time = time.time()
-                cmd = f"{sys.executable} -m unittest {test_file}"
+                # Use the correct python_exec and set PYTHONPATH
+                python_path = f"{self.project_root}:{self.tool_dir}"
+                cmd = f"export PYTHONPATH=\"{python_path}:$PYTHONPATH\" && {python_exec} -m unittest {test_file}"
                 
                 try:
                     proc = subprocess.run([str(background_bin), cmd], capture_output=True, text=True)
@@ -199,17 +266,15 @@ class TestRunner:
             for job in active_jobs:
                 duration = time.time() - job["start_time"]
                 
-                # Check for timeout
                 if duration > timeout:
-                    print(f"[{job['index']}/{total_tests}] {self.BOLD}{self.RED}Timeout{self.RESET} reached for {job['file'].name}. Killing process {job['pid']}...")
                     subprocess.run([str(background_bin), "--kill", job["pid"]], capture_output=True)
-                    job["status"] = f"{self.BOLD}{self.RED}Timeout{self.RESET}"
+                    job["status_label"] = f"{self.BOLD}{self.RED}Timeout{self.RESET}"
                     job["duration"] = duration
+                    self._save_result(job["file"].name, "Timeout", f"Test timed out after {timeout}s")
                     finished_jobs.append(job)
                     continue
 
                 try:
-                    # Use BACKGROUND --status PID --json to get exit code
                     res = subprocess.run([str(background_bin), "--status", job["pid"], "--json"], 
                                        capture_output=True, text=True)
                     if res.returncode == 0:
@@ -217,24 +282,42 @@ class TestRunner:
                         if data.get("success") and not data["status"].get("is_running"):
                             ret_code = data["status"].get("return_code")
                             if ret_code == 0:
-                                job["status"] = f"{self.BOLD}{self.GREEN}Success{self.RESET}"
+                                job["status_label"] = f"{self.BOLD}{self.GREEN}Success{self.RESET}"
                             else:
-                                job["status"] = f"{self.BOLD}{self.RED}Failed{self.RESET} (code {ret_code})"
+                                job["status_label"] = f"{self.BOLD}{self.RED}Failed{self.RESET}"
+                                # Get full result
+                                res_full = subprocess.run([str(background_bin), "--result", job["pid"]], capture_output=True, text=True)
+                                report_path = self._save_result(job["file"].name, f"Failed (code {ret_code})", res_full.stdout)
+                                
+                                # Short summary of failure from stdout/stderr
+                                last_line = ""
+                                for line in res_full.stdout.splitlines():
+                                    if line.strip():
+                                        last_line = line.strip()
+                                job["error_summary"] = f"(code {ret_code}) Reason: {last_line}"
+                                if report_path:
+                                    job["report_path"] = report_path
+                            
                             job["duration"] = duration
                             finished_jobs.append(job)
                 except Exception:
-                    # Fallback to os.kill if BACKGROUND fails
                     try:
                         os.kill(int(job["pid"]), 0)
                     except OSError:
-                        job["status"] = f"{self.BOLD}{self.RED}Unknown{self.RESET}"
+                        job["status_label"] = f"{self.BOLD}{self.RED}Unknown{self.RESET}"
                         job["duration"] = duration
                         finished_jobs.append(job)
             
             for job in finished_jobs:
                 active_jobs.remove(job)
                 finished_count += 1
-                print(f"[{finished_count}/{total_tests}] Finished {job['file'].name}: {job['status']} (Duration: {job['duration']:.2f}s)")
+                msg = f"[{finished_count}/{total_tests}] Finished {job['file'].name}: {job['status_label']}"
+                if "error_summary" in job:
+                    msg += f" {job['error_summary']}"
+                msg += f" (Duration: {job['duration']:.2f}s)"
+                print(msg)
+                if "report_path" in job:
+                    print(f"  Full report: {job['report_path']}")
                 sys.stdout.flush()
             
             if remaining_files or active_jobs:
