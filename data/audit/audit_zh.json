@@ -1,42 +1,17 @@
 {
   "summary": {
     "language": "zh",
-    "timestamp": "2026-01-12T15:42:53.595764",
+    "timestamp": "2026-01-12T15:47:18.918945",
     "total_keys": 172,
-    "supported_keys": 148,
-    "missing_keys": 24,
+    "supported_keys": 172,
+    "missing_keys": 0,
     "total_references": 188,
-    "supported_references": 164,
-    "missing_references": 24,
-    "completion_rate_keys": "86.05%",
-    "completion_rate_refs": "87.23%"
+    "supported_references": 188,
+    "missing_references": 0,
+    "completion_rate_keys": "100.00%",
+    "completion_rate_refs": "100.00%"
   },
-  "missing_translations": [
-    "proj/translations/zh/audit_import_error",
-    "proj/translations/zh/config_help",
-    "proj/translations/zh/config_lang_code_help",
-    "proj/translations/zh/config_set_lang_help",
-    "proj/translations/zh/config_subcommand_help",
-    "proj/translations/zh/install_help",
-    "proj/translations/zh/install_tool_name_help",
-    "proj/translations/zh/pip_failed",
-    "proj/translations/zh/python_not_found",
-    "proj/translations/zh/rule_help",
-    "proj/translations/zh/subcommand_help",
-    "proj/translations/zh/test_help",
-    "proj/translations/zh/test_list_help",
-    "proj/translations/zh/test_max_help",
-    "proj/translations/zh/test_range_help",
-    "proj/translations/zh/test_tool_name_help",
-    "proj/translations/zh/tool_description",
-    "proj/translations/zh/tool_epilog",
-    "tool/OVERLEAF/proj/translations/zh/install_tinytex_prompt",
-    "tool/OVERLEAF/proj/translations/zh/no_tex_abort",
-    "tool/OVERLEAF/proj/translations/zh/tex_not_found",
-    "tool/OVERLEAF/proj/translations/zh/tinytex_install_failed",
-    "tool/OVERLEAF/proj/translations/zh/tinytex_installed",
-    "tool/OVERLEAF/proj/translations/zh/tinytex_module_missing"
-  ],
+  "missing_translations": [],
   "entries": [
     {
       "key": "already_installed",
@@ -199,8 +174,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/python_not_found"
     },
     {
@@ -254,8 +229,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/pip_failed"
     },
     {
@@ -475,8 +450,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/tool_description"
     },
     {
@@ -486,8 +461,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/tool_epilog"
     },
     {
@@ -497,8 +472,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/subcommand_help"
     },
     {
@@ -508,8 +483,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/install_help"
     },
     {
@@ -519,8 +494,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/install_tool_name_help"
     },
     {
@@ -530,8 +505,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_help"
     },
     {
@@ -541,8 +516,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_tool_name_help"
     },
     {
@@ -552,8 +527,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_list_help"
     },
     {
@@ -563,8 +538,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_range_help"
     },
     {
@@ -574,8 +549,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_max_help"
     },
     {
@@ -618,8 +593,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/rule_help"
     },
     {
@@ -629,8 +604,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/config_help"
     },
     {
@@ -640,8 +615,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/config_subcommand_help"
     },
     {
@@ -651,8 +626,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/config_set_lang_help"
     },
     {
@@ -662,8 +637,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/config_lang_code_help"
     },
     {
@@ -717,8 +692,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/audit_import_error"
     },
     {
@@ -1256,8 +1231,8 @@
       "sources": [
         "tool/OVERLEAF/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/zh/tex_not_found"
     },
     {
@@ -1267,8 +1242,8 @@
       "sources": [
         "tool/OVERLEAF/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/zh/install_tinytex_prompt"
     },
     {
@@ -1278,8 +1253,8 @@
       "sources": [
         "tool/OVERLEAF/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/zh/tinytex_installed"
     },
     {
@@ -1289,8 +1264,8 @@
       "sources": [
         "tool/OVERLEAF/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/zh/tinytex_module_missing"
     },
     {
@@ -1300,8 +1275,8 @@
       "sources": [
         "tool/OVERLEAF/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/zh/tinytex_install_failed"
     },
     {
@@ -1311,8 +1286,8 @@
       "sources": [
         "tool/OVERLEAF/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/zh/no_tex_abort"
     },
     {

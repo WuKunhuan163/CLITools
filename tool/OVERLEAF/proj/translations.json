@@ -19,6 +19,12 @@
     "list_templates_help": "List all available templates",
     "latex_options_help": "Extra options for pdflatex",
     "no_shell_escape_help": "Disable -shell-escape",
+    "install_tinytex_prompt": "Installing TinyTeX to run LaTeX portably...",
+    "no_tex_abort": "No valid TeX system found, aborting compilation.",
+    "tex_not_found": "Error: pdflatex executable not found even after installation.",
+    "tinytex_install_failed": "TinyTeX installation failed: {error}",
+    "tinytex_installed": "TinyTeX successfully installed at: {path}",
+    "tinytex_module_missing": "Missing TinyTeX module. Please run 'pip install tinytex'.",
     "tool_OVERLEAF_desc": "Local LaTeX compilation and template management.",
     "tool_OVERLEAF_purpose": "Build PDFs from LaTeX sources easily."
   },
@@ -42,6 +48,12 @@
     "list_templates_help": "列出所有可用模板",
     "latex_options_help": "pdflatex 的额外选项",
     "no_shell_escape_help": "禁用 -shell-escape",
+    "install_tinytex_prompt": "正在安装 TinyTeX 以便携式方式运行 LaTeX...",
+    "no_tex_abort": "未找到有效的 TeX 系统，编译中止。",
+    "tex_not_found": "错误: 即使安装后也未找到 pdflatex 可执行文件。",
+    "tinytex_install_failed": "TinyTeX 安装失败: {error}",
+    "tinytex_installed": "TinyTeX 已成功安装在: {path}",
+    "tinytex_module_missing": "缺少 tinytex 模块。请运行 'pip install tinytex'。",
     "tool_OVERLEAF_desc": "本地 LaTeX 编译和模板管理。",
     "tool_OVERLEAF_purpose": "轻松地从 LaTeX 源文件构建 PDF。"
   }

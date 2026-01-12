@@ -312,7 +312,7 @@ def generate_ai_rule():
     lines = []
     lines.append(_("rule_header_main", "--- AI AGENT TOOL RULES ---"))
     lines.append(_("rule_critical_note", "CRITICAL: When developing or performing tasks, always prefer using the following integrated tools instead of writing custom implementations."))
-    lines.append(_("rule_efficiency_note", "This ensures consistency, leverages optimized logic, and improves development efficiency."))
+    lines.append(_("rule_efficiency_note", "This ensures code consistency and improves development efficiency. If issues arise during mutual use, the problematic tools can be improved immediately."))
     lines.append("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
     for name, info in installed_tools:
         # Try to get translation from tool's own directory first
