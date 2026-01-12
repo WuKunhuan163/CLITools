@@ -46,21 +46,22 @@ class TestRunner:
         if not self.test_dir.exists():
             return []
         
+        current_files = sorted([p.name for p in self.test_dir.glob("test_*.py")])
+        
         if self.cache_file.exists():
             try:
                 with open(self.cache_file, 'r', encoding='utf-8') as f:
                     cached_files = json.load(f)
-                    test_files = [self.test_dir / f for f in cached_files if (self.test_dir / f).exists()]
-                    if len(test_files) == len(cached_files):
-                        return test_files
+                    if cached_files == current_files:
+                        return [self.test_dir / f for f in cached_files]
             except Exception:
                 pass
 
-        test_files = sorted(list(self.test_dir.glob("test_*.py")), key=lambda p: p.name)
+        test_files = [self.test_dir / f for f in current_files]
         
         try:
             with open(self.cache_file, 'w', encoding='utf-8') as f:
-                json.dump([p.name for p in test_files], f, indent=2)
+                json.dump(current_files, f, indent=2)
         except Exception:
             pass
             
