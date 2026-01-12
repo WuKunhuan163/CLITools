@@ -29,6 +29,8 @@
   "range_error": "错误: --range 需要两个整数参数。",
     "max_error": "错误: --max 需要一个整数参数。",
     "test_timeout_help": "每个测试的超时时间（秒，默认：60）",
+    "config_test_help": "测试配置",
+    "config_test_max_reports_help": "保留的最大测试报告数量",
     "rule_header_main": "--- AI 代理工具规则 ---",
   "rule_critical_note": "重要: 在开发或执行任务时，务必优先使用以下集成工具，而不是编写自定义实现。",
   "rule_efficiency_note": "这可以确保一致性，利用优化的逻辑，并提高开发效率。",

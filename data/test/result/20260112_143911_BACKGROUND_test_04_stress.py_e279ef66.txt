@@ -1,0 +1,6 @@
+Test: test_04_stress.py
+Tool: BACKGROUND
+Time: 2026-01-12T14:39:11.961151
+Status: Timeout
+----------------------------------------
+Test timed out after 120s
