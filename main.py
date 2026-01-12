@@ -355,6 +355,7 @@ Examples:
     test_parser.add_argument("--list", action="store_true", help=_("test_list_help", "List available tests"))
     test_parser.add_argument("--range", nargs=2, type=int, metavar=("START", "END"), help=_("test_range_help", "Range of test IDs to run"))
     test_parser.add_argument("--max", type=int, default=3, help=_("test_max_help", "Maximum concurrent test jobs (default: 3)"))
+    test_parser.add_argument("--timeout", type=int, default=60, help=_("test_timeout_help", "Timeout for each test in seconds (default: 60)"))
 
     # Rule command
     subparsers.add_parser("rule", help=_("rule_help", "Generate AI agent tool rules"))
@@ -434,7 +435,7 @@ def _test_tool_with_args(args):
         start_id = args.range[0]
         end_id = args.range[1]
 
-    runner.run_tests(start_id, end_id, max_concurrent)
+    runner.run_tests(start_id, end_id, max_concurrent, args.timeout)
 
 if __name__ == "__main__":
     main()

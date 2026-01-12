@@ -19,7 +19,7 @@ class TestBackgroundFlow(unittest.TestCase):
 
         # Check status (should be active or completed)
         res = subprocess.run([str(bg_bin), "--status", str(pid)], capture_output=True, text=True)
-        self.assertIn("PID", res.stdout)
+        self.assertIn(str(pid), res.stdout)
 
         # Wait
         time.sleep(3)
