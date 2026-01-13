@@ -38,8 +38,8 @@
     "compile_failed": "错误: LaTeX 编译失败! (退出代码: {code})",
     "compilation_error": "编译过程中出错: {error}",
     "available_templates": "可用模板:",
-    "no_templates": "未找到模板。",
-    "template_not_found": "未找到模板 '{name}'。",
+    "no_templates": "未找到模板. ",
+    "template_not_found": "未找到模板 '{name}'. ",
     "template_success": "模板 '{name}' 已成功复制到 '{path}'",
     "overleaf_description": "OVERLEAF - 本地 LaTeX 编译和模板管理",
     "tex_file_help": "LaTeX 文件路径",
@@ -49,12 +49,12 @@
     "latex_options_help": "pdflatex 的额外选项",
     "no_shell_escape_help": "禁用 -shell-escape",
     "install_tinytex_prompt": "正在安装 TinyTeX 以便携式方式运行 LaTeX...",
-    "no_tex_abort": "未找到有效的 TeX 系统，编译中止。",
-    "tex_not_found": "错误: 即使安装后也未找到 pdflatex 可执行文件。",
+    "no_tex_abort": "未找到有效的 TeX 系统，编译中止. ",
+    "tex_not_found": "错误: 即使安装后也未找到 pdflatex 可执行文件. ",
     "tinytex_install_failed": "TinyTeX 安装失败: {error}",
     "tinytex_installed": "TinyTeX 已成功安装在: {path}",
-    "tinytex_module_missing": "缺少 tinytex 模块。请运行 'pip install tinytex'。",
-    "tool_OVERLEAF_desc": "本地 LaTeX 编译和模板管理。",
-    "tool_OVERLEAF_purpose": "轻松地从 LaTeX 源文件构建 PDF。"
+    "tinytex_module_missing": "缺少 tinytex 模块. 请运行 'pip install tinytex'. ",
+    "tool_OVERLEAF_desc": "本地 LaTeX 编译和模板管理. ",
+    "tool_OVERLEAF_purpose": "轻松地从 LaTeX 源文件构建 PDF. "
   }
 }
