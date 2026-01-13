@@ -20,7 +20,16 @@ class TestRunner:
         try:
             from proj.language_utils import get_translation
             from proj.config import get_color
-            self._ = lambda k, d, **kwargs: get_translation(str(self.project_root / "proj"), k, d).format(**kwargs)
+            
+            def lookup(key, default, **kwargs):
+                # Try tool-specific first
+                res = get_translation(str(self.tool_dir / "proj"), key, None)
+                if res is None:
+                    # Fallback to root
+                    res = get_translation(str(self.project_root / "proj"), key, default)
+                return res.format(**kwargs)
+            
+            self._ = lookup
             self.colors = {
                 "GREEN": get_color("GREEN", "\033[32m"),
                 "BOLD": get_color("BOLD", "\033[1m"),
