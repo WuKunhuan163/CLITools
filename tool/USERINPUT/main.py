@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v10)
+USERINPUT Tool (v11)
 - Captures multi-line user feedback via Tkinter GUI.
+- Inherits from ToolBase for dependency management.
 - Supports timeout with auto-retry logic.
 - Localized via 'translations.json'.
 - Powered by standalone Python environment.
-- Configurable periodic refocus interval.
-- Graceful signal handling and cleanup interface.
 """
 
 import os
@@ -22,26 +21,28 @@ import argparse
 import signal
 from pathlib import Path
 
-# Try to import psutil for cleanup and process management
-try:
-    import psutil
-except ImportError:
-    psutil = None
-
 # Silence Tkinter deprecation warnings
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
 warnings.filterwarnings('ignore')
 
-# Use resolve() to get the actual location of the script, even if called via symlink
 current_dir = Path(__file__).resolve().parent
-# project_root is two levels up: tool/USERINPUT -> tool -> root
-project_root = current_dir.parent.parent
 
-# Localization setup
-# import get_translation from the shared root proj
 try:
+    from proj.tool_base import ToolBase
+    from proj.gui_utils import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
     from proj.language_utils import get_translation
 except ImportError:
+    # Fallback for manual execution or if PYTHONPATH is not set
+    class ToolBase:
+        def __init__(self, name):
+            self.tool_name = name
+            self.project_root = Path(__file__).resolve().parent.parent.parent
+            self.script_dir = Path(__file__).resolve().parent
+        def check_dependencies(self): return True
+        def setup_gui(self): pass
+    def setup_gui_environment(): pass
+    def get_safe_python_for_gui(): return sys.executable
+    def is_sandboxed(): return False
     def get_translation(d, k, default): return default
 
 TOOL_PROJ_DIR = current_dir / "proj"
@@ -53,464 +54,50 @@ class UserInputRetryableError(Exception):
     """Exception raised for errors that should trigger a retry (e.g., user cancellation)."""
     pass
 
-def get_python_exec(version="python3.10.19"):
-    """Find the standalone python executable from the PYTHON tool."""
-    # On macOS, prioritize the system/environment python3 to avoid issues with debug builds
-    # and to ensure better integration with the window server.
-    if platform.system() == "Darwin":
-        try:
-            # Use real path to avoid shim issues and framework build problems
-            real_path = subprocess.check_output(["python3", "-c", "import sys; import tkinter; print(sys._base_executable)"], 
-                                             stderr=subprocess.DEVNULL, text=True).strip()
-            if real_path:
-                return real_path
-        except Exception:
-            pass
+class UserInputTool(ToolBase):
+    def __init__(self):
+        super().__init__("USERINPUT")
 
-    python_exec = project_root / "tool" / "PYTHON" / "proj" / "installations" / version / "install" / "bin" / "python3"
-    
-    if python_exec.exists():
-        return str(python_exec)
-    
-    # Try importing from PYTHON tool utilities if available
-    python_utils = project_root / "tool" / "PYTHON" / "proj" / "utils.py"
-    if python_utils.exists():
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("python_utils", str(python_utils))
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                return module.get_python_exec(version)
-        except Exception:
-            pass
-            
-    return sys.executable # System fallback
+    def get_python_exe(self, version="python3.10.19"):
+        """Find a working python executable for GUI."""
+        if os.environ.get("USERINPUT_DEBUG") == "1":
+            print(f"DEBUG: Searching for python version: {version}")
+
+        # 1. Try Tool's specific version
+        python_exec = self.project_root / "tool" / "PYTHON" / "proj" / "install" / version / "install" / "bin" / "python3"
+        if python_exec.exists():
+            if os.environ.get("USERINPUT_DEBUG") == "1":
+                print(f"DEBUG: Found tool python at: {python_exec}")
+            return str(python_exec)
+
+        # 2. Try safe python from gui_utils
+        safe_py = get_safe_python_for_gui()
+        if safe_py and os.path.exists(safe_py) and safe_py != sys.executable:
+            if os.environ.get("USERINPUT_DEBUG") == "1":
+                print(f"DEBUG: Using safe python for GUI: {safe_py}")
+            return safe_py
+
+        if os.environ.get("USERINPUT_DEBUG") == "1":
+            print(f"DEBUG: Falling back to sys.executable: {sys.executable}")
+        return sys.executable
+
+def get_python_exec(version="python3.10.19"):
+    return UserInputTool().get_python_exe(version)
 
 def get_project_name():
     """Retrieve the name of the current project."""
     try:
         git_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL, text=True).strip()
         if git_root:
-            project_name = os.path.basename(git_root)
-        else:
-            project_name = os.path.basename(os.getcwd())
-        return project_name or "root"
+            return os.path.basename(git_root)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        project_name = os.path.basename(os.getcwd())
-        return project_name or "root"
+        pass
+    return os.path.basename(os.getcwd()) or "root"
 
 def get_cursor_session_title(custom_id=None):
-    """Generate a title for the Cursor session window."""
-    try:
-        project_name = get_project_name()
-        base_title = f"{project_name} - Agent Mode"
-        return f"{base_title} [{custom_id}]" if custom_id else base_title
-    except Exception:
-        return f"Agent Mode [{custom_id}]" if custom_id else "Agent Mode"
-
-def get_config():
-    """Load configuration from tool's proj directory."""
-    config_path = TOOL_PROJ_DIR / "config.json"
-    if config_path.exists():
-        try:
-            with open(config_path, 'r') as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
-
-def save_config(config):
-    """Save configuration to tool's proj directory."""
-    TOOL_PROJ_DIR.mkdir(parents=True, exist_ok=True)
-    config_path = TOOL_PROJ_DIR / "config.json"
-    with open(config_path, 'w') as f:
-        json.dump(config, f, indent=2)
-
-def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
-    """
-    Captures user input via a Tkinter script run in a separate Python process.
-    """
-    python_exe = get_python_exec()
-    proj_dir = current_dir / "proj"
-    
-    config = get_config()
-    focus_interval = config.get("focus_interval", 0) # 0 means disabled
-    
-    try:
-        bell_path = proj_dir / "tkinter_bell.mp3"
-        bell_path_str_literal = repr(str(bell_path))
-    except Exception:
-        bell_path_str_literal = "''"
-
-    # Define variables to inject into the script
-    inject_project_root = str(project_root)
-    inject_proj_dir = str(proj_dir)
-    inject_title = title
-    inject_timeout = timeout
-    inject_hint = hint_text
-    inject_focus_interval = focus_interval
-
-    # Python script template - using %-formatting to avoid f-string escaping nightmares
-    tkinter_script = r'''
-import os
-import sys
-import warnings
-import json
-import signal
-from pathlib import Path
-warnings.filterwarnings('ignore')
-os.environ['TK_SILENCE_DEPRECATION'] = '1'
-
-import tkinter as tk
-import threading
-import time
-import subprocess
-import platform
-
-PROJECT_ROOT = Path(%(project_root)r)
-if PROJECT_ROOT.exists():
-    sys.path.append(str(PROJECT_ROOT))
-
-try:
-    from proj.language_utils import get_translation
-except ImportError:
-    def get_translation(d, k, default): return default
-
-TOOL_PROJ_DIR = %(proj_dir)r
-
-def _(key, default):
-    return get_translation(TOOL_PROJ_DIR, key, default)
-
-class TkinterInputWindow:
-    def __init__(self, title, timeout, hint_text, focus_interval):
-        self.root = None
-        self.text_widget = None
-        self.status_label = None
-        self.title = title
-        self.initial_timeout = timeout
-        self.hint_text = hint_text
-        self.focus_interval = focus_interval
-        self.result = None
-        self.window_closed = False
-        self.remaining_time = self.initial_timeout
-
-    def create_window(self):
-        try:
-            # Set a default app name for macOS to avoid 'aString != nil' crash in AppKit
-            if platform.system() == "Darwin":
-                import ctypes
-                import ctypes.util
-                prog_name = "USERINPUT"
-                
-                # Attempt to set process name at C level
-                try:
-                    libc = ctypes.CDLL(ctypes.util.find_library('c'))
-                    libc.setprogname(prog_name.encode('utf-8'))
-                except Exception: pass
-                
-                # Ensure sys.argv[0] is not empty
-                if not sys.argv or not sys.argv[0]:
-                    sys.argv = [prog_name]
-                
-                # Some macOS environments require these to be set
-                os.environ['RESOURCE_NAME'] = prog_name
-                os.environ['TK_APP_NAME'] = prog_name
-                
-                # Spoof bundle ID to avoid some sandbox display issues
-                if '__CFBundleIdentifier' not in os.environ:
-                    os.environ['__CFBundleIdentifier'] = 'com.apple.Terminal'
-
-                # className sets the resource class and app name in Tcl/Tk
-                self.root = tk.Tk(className=prog_name)
-                
-                # Force the app name in Tcl directly
-                try:
-                    self.root.tk.call('tk', 'appname', prog_name)
-                except Exception: pass
-                
-                try:
-                    self.root.createcommand('tk::mac::Quit', self.cancel_input)
-                except Exception: pass
-            else:
-                self.root = tk.Tk()
-            
-            # Graceful exit on SIGTERM/SIGINT
-            def handle_signal(sig, frame):
-                self.close_window()
-                sys.exit(0)
-            signal.signal(signal.SIGTERM, handle_signal)
-            signal.signal(signal.SIGINT, handle_signal)
-
-            # Ensure title is a string
-            display_title = str(self.title) if self.title else "USERINPUT"
-            self.root.title(display_title)
-            self.root.geometry("450x250")
-            self.root.attributes('-topmost', True)
-            self.root.focus_force()
-            main_frame = tk.Frame(self.root, padx=15, pady=15)
-            main_frame.pack(fill=tk.BOTH, expand=True)
-            
-            instruction = _("instruction", "Please enter your feedback:")
-            instruction_label = tk.Label(main_frame, text=instruction, font=("Arial", 11), fg="#555")
-            instruction_label.pack(pady=(0, 10), anchor='w')
-            
-            text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
-            text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
-            scrollbar = tk.Scrollbar(text_frame)
-            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-            self.text_widget = tk.Text(
-                text_frame, wrap=tk.WORD, height=8, font=("Arial", 12), bg="#f8f9fa",
-                fg="#333", insertbackground="#007acc", selectbackground="#007acc",
-                relief=tk.FLAT, borderwidth=0, yscrollcommand=scrollbar.set
-            )
-            self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            scrollbar.config(command=self.text_widget.yview)
-            if self.hint_text:
-                self.text_widget.insert("1.0", self.hint_text)
-            button_frame = tk.Frame(main_frame)
-            button_frame.pack(fill=tk.X, pady=(0, 10))
-            
-            default_font = ("Arial", 12)
-            submit_font = ("Arial", 13, "bold")
-            
-            submit_text = _("submit", "Submit")
-            submit_btn = tk.Button(button_frame, text=submit_text, command=self.submit_input, font=submit_font)
-            submit_btn.pack(side=tk.RIGHT)
-            
-            add_time_text = _("add_time", "Add 60s")
-            add_time_btn = tk.Button(button_frame, text=add_time_text, command=self.add_time, font=default_font)
-            add_time_btn.pack(side=tk.RIGHT, padx=(0, 10))
-            
-            self.status_label = tk.Label(button_frame, text="", font=("Arial", 12), fg="black")
-            self.status_label.pack(side=tk.LEFT)
-            self.root.bind('<Control-Return>', lambda e: self.submit_input())
-            self.root.bind('<Command-Return>', lambda e: self.submit_input())
-            self.root.bind('<Escape>', lambda e: self.cancel_input())
-            self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)
-            self.text_widget.focus_set()
-            self.start_timeout_timer()
-            self.start_periodic_focus()
-            self.play_bell()
-            return True
-        except Exception:
-            import traceback
-            print(f"ERROR: Failed to create Tkinter window.\n{traceback.format_exc()}", file=sys.stdout)
-            sys.exit(1)
-
-    def add_time(self):
-        if self.remaining_time > 0:
-            self.remaining_time += 60
-            added_text = _("time_added", "Time added! Remaining:")
-            try:
-                self.status_label.config(text=f"{added_text} {self.remaining_time}s")
-            except tk.TclError: pass
-
-    def start_timeout_timer(self):
-        def update_timer():
-            time_remaining_text = _("time_remaining", "Remaining:")
-            while self.remaining_time > 0 and not self.window_closed:
-                try:
-                    self.status_label.config(text=f"{time_remaining_text} {self.remaining_time}s")
-                except tk.TclError: break
-                time.sleep(1)
-                self.remaining_time -= 1
-            if not self.window_closed: self.timeout_input()
-        threading.Thread(target=update_timer, daemon=True).start()
-    
-    def start_periodic_focus(self):
-        if self.focus_interval <= 0:
-            return
-            
-        def refocus():
-            if not self.window_closed:
-                try:
-                    if self.root:
-                        self.root.lift()
-                        self.root.focus_force()
-                        self.root.attributes('-topmost', True)
-                        self.text_widget.focus_set()
-                        self.play_bell()
-                        self.root.after(self.focus_interval * 1000, refocus)
-                except tk.TclError: pass
-        if self.root: self.root.after(self.focus_interval * 1000, refocus)
-
-    def play_bell(self):
-        bell_path = %(bell_path)s
-        if self.root:
-            try:
-                self.root.bell()
-            except tk.TclError: pass
-            
-        if bell_path and os.path.exists(bell_path):
-            def run_play():
-                try:
-                    if platform.system() == "Darwin":
-                        subprocess.run(["afplay", bell_path], stderr=subprocess.DEVNULL)
-                    elif platform.system() == "Linux":
-                        subprocess.run(["aplay", bell_path], stderr=subprocess.DEVNULL)
-                except Exception: pass
-            threading.Thread(target=run_play, daemon=True).start()
-
-    def submit_input(self):
-        user_text = self.text_widget.get("1.0", tk.END).strip()
-        self.result = {"status": "success", "data": user_text if user_text else "USER_SUBMITTED_EMPTY"}
-        self.close_window()
-
-    def cancel_input(self):
-        self.result = {"status": "cancelled", "data": None}
-        self.close_window()
-
-    def timeout_input(self):
-        user_text = self.text_widget.get("1.0", tk.END).strip()
-        if user_text:
-            self.result = {"status": "timeout_with_data", "data": user_text}
-        else:
-            self.result = {"status": "timeout", "data": None}
-        self.close_window()
-
-    def close_window(self):
-        self.window_closed = True
-        try:
-            if self.root:
-                self.root.quit()
-                self.root.destroy()
-        except tk.TclError: pass
-
-    def show_and_wait(self):
-        if self.create_window():
-            self.root.mainloop()
-            # Always output JSON for robust communication
-            if self.result:
-                print("GDS_USERINPUT_JSON:" + json.dumps(self.result))
-            else:
-                print("GDS_USERINPUT_JSON:" + json.dumps({"status": "error", "data": "No result"}))
-            sys.exit(0)
-
-if __name__ == "__main__":
-    title_str = %(title)r
-    timeout_int = %(timeout)d
-    hint_text_str = %(hint)r
-    focus_interval_int = %(focus_interval)d
-    window = TkinterInputWindow(title=title_str, timeout=timeout_int, hint_text=hint_text_str, focus_interval=focus_interval_int)
-    window.show_and_wait()
-''' % {
-        'project_root': inject_project_root,
-        'proj_dir': inject_proj_dir,
-        'bell_path': bell_path_str_literal,
-        'title': inject_title,
-        'timeout': inject_timeout,
-        'hint': inject_hint,
-        'focus_interval': inject_focus_interval
-    }
-
-    proc = None
-    try:
-        watchdog_timeout = 3600 # 1 hour
-        proc = subprocess.Popen(
-            [python_exe, '-c', tkinter_script],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
-        )
-
-        # Handle signals to terminate subprocess gracefully
-        def handle_main_signal(sig, frame):
-            if proc:
-                proc.terminate()
-                try: proc.wait(timeout=2)
-                except: proc.kill()
-            sys.exit(0)
-        
-        signal.signal(signal.SIGTERM, handle_main_signal)
-        signal.signal(signal.SIGINT, handle_main_signal)
-
-        try:
-            stdout, stderr = proc.communicate(timeout=watchdog_timeout)
-        except subprocess.TimeoutExpired:
-            proc.terminate()
-            try: proc.wait(timeout=2)
-            except: proc.kill()
-            raise RuntimeError(f"USERINPUT window timed out after {watchdog_timeout} seconds.")
-
-        if proc.returncode != 0:
-            error_message = stderr.strip() or stdout.strip()
-            # If still empty, provide return code
-            if not error_message:
-                error_message = f"Process exited with code {proc.returncode}"
-            parsed_error = parse_gui_error(error_message)
-            raise RuntimeError(parsed_error)
-
-        output = stdout.strip()
-        json_prefix = "GDS_USERINPUT_JSON:"
-        json_data = None
-        
-        for line in output.splitlines():
-            if line.startswith(json_prefix):
-                try:
-                    json_data = json.loads(line[len(json_prefix):])
-                    break
-                except json.JSONDecodeError:
-                    continue
-        
-        if not json_data:
-            raise RuntimeError(f"USERINPUT subprocess returned no valid JSON output. Raw output: {output}")
-
-        status = json_data.get("status")
-        data = json_data.get("data")
-
-        if status == "success":
-            if data == "USER_SUBMITTED_EMPTY":
-                raise UserInputRetryableError(_("msg_empty", "User submitted empty content"))
-            return data
-        elif status == "timeout_with_data":
-            # Capturing partial input on timeout
-            print(_("msg_timeout", "Input timeout") + f" (Captured partial input)")
-            return data
-        elif status == "timeout":
-            raise UserInputRetryableError(_("msg_timeout", "Input timeout"))
-        elif status == "cancelled":
-            raise UserInputRetryableError(_("msg_cancelled", "User cancelled input"))
-        else:
-            raise RuntimeError(f"USERINPUT unknown status: {status}")
-
-    finally:
-        # Reset signal handlers
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-def stop_all_instances():
-    """Find and gracefully stop all running USERINPUT instances."""
-    if not psutil:
-        print(_("psutil_not_found", "Error: psutil not found. Cannot stop instances safely."))
-        return 1
-    
-    count = 0
-    current_pid = os.getpid()
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        try:
-            if proc.info['pid'] == current_pid:
-                continue
-            
-            cmdline = proc.info['cmdline']
-            if cmdline and any('USERINPUT' in part for part in cmdline):
-                # Try to kill children first (the Tkinter processes)
-                for child in proc.children(recursive=True):
-                    try:
-                        child.terminate()
-                        child.wait(timeout=2)
-                    except:
-                        try: child.kill()
-                        except: pass
-                
-                # Terminate the parent
-                proc.terminate()
-                proc.wait(timeout=3)
-                count += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-    
-    msg = _("instances_stopped", "Stopped {count} USERINPUT instance(s).").format(count=count)
-    print(msg)
-    return 0
+    project_name = get_project_name()
+    base_title = f"{project_name} - Agent Mode"
+    return f"{base_title} [{custom_id}]" if custom_id else base_title
 
 def parse_gui_error(error_output):
     """Parse raw stderr output from the GUI process and return a human-readable message."""
@@ -518,104 +105,225 @@ def parse_gui_error(error_output):
         return "Unknown error (empty output)"
         
     if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output:
-        return _("err_sandbox", "GUI connection failed. Likely due to sandbox restrictions.")
+        return _("err_sandbox", "Likely due to sandbox restrictions.")
     
     if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output:
-        # If it crashed with this specific macOS error, it's almost always a system/sandbox issue
-        return _("err_sandbox", "GUI connection failed. Likely due to sandbox restrictions.")
+        return _("err_sandbox", "Likely due to sandbox restrictions.")
         
     if "no display name" in error_output or "could not connect to display" in error_output:
         return _("err_no_display", "No display found. Cannot start GUI.")
     
     if "exited with code" in error_output:
-        # Check for common crash codes
-        if "-6" in error_output: # SIGABRT
-            return _("err_sandbox", "GUI crashed (SIGABRT). Likely due to sandbox restrictions.")
+        if "-6" in error_output or " 6" in error_output:
+            return _("err_sandbox", "GUI crashed. Likely due to sandbox restrictions.")
         return _("err_sandbox", f"GUI process failed. {error_output}")
         
-    # Return the first 5 lines of the error if it doesn't match known patterns
+    if platform.system() == "Darwin":
+        return _("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
+
     lines = error_output.splitlines()
-    if len(lines) > 5:
-        return "\n".join(lines[:5]) + "\n... (truncated)"
-    return error_output
+    return "\n".join(lines[:5]) + ("\n... (truncated)" if len(lines) > 5 else "")
+
+def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
+    tool = UserInputTool()
+    if not tool.check_dependencies():
+        raise RuntimeError("Missing dependencies for USERINPUT")
+
+    python_exe = tool.get_python_exe()
+    proj_dir = str(tool.script_dir / "proj")
+    
+    # Python script template
+    tkinter_script = r'''
+import os
+import sys
+import json
+import signal
+import time
+import threading
+import subprocess
+import platform
+from pathlib import Path
+
+# Try to import shared utils
+PROJECT_ROOT = Path(%(project_root)r)
+if PROJECT_ROOT.exists():
+    sys.path.append(str(PROJECT_ROOT))
+
+try:
+    from proj.language_utils import get_translation
+    from proj.gui_utils import setup_gui_environment
+except ImportError:
+    def get_translation(d, k, default): return default
+    def setup_gui_environment(): pass
+
+import tkinter as tk
+
+TOOL_PROJ_DIR = %(proj_dir)r
+
+def _(key, default):
+    return get_translation(TOOL_PROJ_DIR, key, default)
+
+class TkinterInputWindow:
+    def __init__(self, title, timeout, hint_text):
+        self.root = None
+        self.text_widget = None
+        self.title = title
+        self.remaining_time = timeout
+        self.hint_text = hint_text
+        self.result = None
+        self.window_closed = False
+
+    def create_window(self):
+        try:
+            setup_gui_environment()
+            prog_name = "USERINPUT"
+            
+            if platform.system() == "Darwin":
+                self.root = tk.Tk(className=prog_name)
+                try: self.root.tk.call('tk', 'appname', prog_name)
+                except: pass
+            else:
+                self.root = tk.Tk()
+
+            self.root.title(str(self.title))
+            self.root.geometry("450x250")
+            self.root.attributes('-topmost', True)
+            self.root.focus_force()
+            
+            main_frame = tk.Frame(self.root, padx=15, pady=15)
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            tk.Label(main_frame, text=_("instruction", "Please enter your feedback:"), font=("Arial", 11), fg="#555").pack(pady=(0, 10), anchor='w')
+            
+            text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
+            text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+            scrollbar = tk.Scrollbar(text_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=8, font=("Arial", 12), bg="#f8f9fa", yscrollcommand=scrollbar.set)
+            self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.config(command=self.text_widget.yview)
+            if self.hint_text: self.text_widget.insert("1.0", self.hint_text)
+            
+            button_frame = tk.Frame(main_frame)
+            button_frame.pack(fill=tk.X)
+            
+            tk.Button(button_frame, text=_("submit", "Submit"), command=self.submit_input, font=("Arial", 13, "bold")).pack(side=tk.RIGHT)
+            tk.Button(button_frame, text=_("add_time", "Add 60s"), command=lambda: self.add_time(60), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
+            
+            self.status_label = tk.Label(button_frame, text="", font=("Arial", 12))
+            self.status_label.pack(side=tk.LEFT)
+            
+            self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)
+            self.text_widget.focus_set()
+            self.start_timer()
+            return True
+        except Exception as e:
+            print(f"ERROR: Tkinter init failed: {e}")
+            return False
+
+    def add_time(self, seconds):
+        self.remaining_time += seconds
+
+    def start_timer(self):
+        def tick():
+            while self.remaining_time > 0 and not self.window_closed:
+                try: self.status_label.config(text=f"{_('time_remaining', 'Remaining:')} {self.remaining_time}s")
+                except: break
+                time.sleep(1)
+                self.remaining_time -= 1
+            if not self.window_closed: self.timeout_input()
+        threading.Thread(target=tick, daemon=True).start()
+
+    def submit_input(self):
+        text = self.text_widget.get("1.0", tk.END).strip()
+        self.result = {"status": "success", "data": text if text else "USER_SUBMITTED_EMPTY"}
+        self.close()
+
+    def cancel_input(self):
+        self.result = {"status": "cancelled", "data": None}
+        self.close()
+
+    def timeout_input(self):
+        text = self.text_widget.get("1.0", tk.END).strip()
+        self.result = {"status": "timeout", "data": text if text else None}
+        self.close()
+
+    def close(self):
+        self.window_closed = True
+        try:
+            if self.root: self.root.destroy()
+        except: pass
+
+    def run(self):
+        if self.create_window():
+            self.root.mainloop()
+            print("GDS_USERINPUT_JSON:" + json.dumps(self.result or {"status": "error", "data": "No result"}))
+
+if __name__ == "__main__":
+    window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r)
+    window.run()
+''' % {
+        'project_root': str(tool.project_root),
+        'proj_dir': proj_dir,
+        'title': title,
+        'timeout': timeout,
+        'hint': hint_text
+    }
+
+    try:
+        proc = subprocess.Popen(
+            [python_exe, '-c', tkinter_script],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
+        )
+        stdout, stderr = proc.communicate(timeout=timeout + 30)
+        
+        if proc.returncode != 0:
+            raise RuntimeError(parse_gui_error(stderr or stdout))
+
+        for line in stdout.splitlines():
+            if line.startswith("GDS_USERINPUT_JSON:"):
+                res = json.loads(line[len("GDS_USERINPUT_JSON:"):])
+                if res['status'] == 'success':
+                    if res['data'] == 'USER_SUBMITTED_EMPTY':
+                        raise UserInputRetryableError(_("msg_empty", "Empty content"))
+                    return res['data']
+                elif res['status'] == 'cancelled':
+                    raise UserInputRetryableError(_("msg_cancelled", "Cancelled"))
+                elif res['status'] == 'timeout':
+                    if res['data']: return res['data']
+                    raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+        
+        raise RuntimeError("No valid response from GUI")
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise UserInputRetryableError(_("msg_timeout", "Timeout"))
 
 def main():
-    """Main function with retry logic."""
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
-    subparsers = parser.add_subparsers(dest="command")
-
-    # Input command (default)
-    input_parser = subparsers.add_parser("input", help="Capture user input")
-    input_parser.add_argument('--timeout', type=int, default=180, help='Timeout in seconds')
-    input_parser.add_argument('--id', type=str, help='Custom ID for title')
-    input_parser.add_argument('--hint', type=str, help='Hint text')
-
-    # Config command
-    config_parser = subparsers.add_parser("config", help="Tool configuration")
-    config_parser.add_argument('--focus-interval', type=int, help='Interval for periodic refocus in seconds')
-
-    # Stop command
-    subparsers.add_parser("stop", help="Stop all running USERINPUT instances gracefully")
-
-    # Handle default behavior if no command is specified
-    if len(sys.argv) > 1 and sys.argv[1] not in ["input", "config", "stop", "--help", "-h"]:
-        sys.argv.insert(1, "input")
-
+    parser.add_argument('--timeout', type=int, default=180)
+    parser.add_argument('--id', type=str)
+    parser.add_argument('--hint', type=str)
     args = parser.parse_args()
 
-    if args.command == "stop":
-        return stop_all_instances()
-
-    if args.command == "config":
-        config = get_config()
-        if args.focus_interval is not None:
-            config["focus_interval"] = args.focus_interval
-            save_config(config)
-            print(_("config_updated", "Configuration updated: focus_interval = {val}").format(val=args.focus_interval))
-        else:
-            config_parser.print_help()
-        return 0
-
-    # Default to input command logic
-    timeout = getattr(args, 'timeout', 180)
-    custom_id = getattr(args, 'id', None)
-    hint_text = getattr(args, 'hint', None)
-
     max_retries = 3
-    final_result = None
-    
     for attempt in range(max_retries):
         try:
-            result = get_user_input_tkinter(
-                title=get_cursor_session_title(custom_id), timeout=timeout, hint_text=hint_text
-            )
+            result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
             
             end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 指到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
-            final_result = result + end_hint
-            break
-
+            print(result + end_hint)
+            
+            if platform.system() == "Darwin":
+                try: subprocess.run('pbcopy', input=result + end_hint, text=True, encoding='utf-8', check=True)
+                except: pass
+            return 0
         except (UserInputRetryableError, RuntimeError) as e:
             if attempt < max_retries - 1:
-                print(f"Attempt {attempt + 1}/{max_retries} failed ({e}), retrying...", file=sys.stderr)
+                print(f"Attempt {attempt+1} failed: {e}. Retrying...", file=sys.stderr)
                 time.sleep(1)
-            continue
-        except Exception as e:
-            print(f"Unexpected error in USERINPUT retry loop: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            break
-
-    if final_result:
-        if platform.system() == "Darwin":
-            try:
-                subprocess.run('pbcopy', input=final_result, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
-            except (FileNotFoundError, subprocess.CalledProcessError): pass
-        
-        print(final_result)
-        return 0
-    else:
-        print("Failed to capture user input. Please run USERINPUT again.", file=sys.stderr)
-        return 1
+                continue
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
 
 if __name__ == "__main__":
     sys.exit(main())
