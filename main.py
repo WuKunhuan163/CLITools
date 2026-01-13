@@ -419,7 +419,7 @@ Examples:
 
     # Test command
     test_parser = subparsers.add_parser("test", help=_("test_help", "Run unit tests for a tool"))
-    test_parser.add_argument("tool_name", help=_("test_tool_name_help", "Name of the tool to test"))
+    test_parser.add_argument("tool_name", nargs="?", default="root", help=_("test_tool_name_help", "Name of the tool to test (default: root)"))
     test_parser.add_argument("--list", action="store_true", help=_("test_list_help", "List available tests"))
     test_parser.add_argument("--range", nargs=2, type=int, metavar=("START", "END"), help=_("test_range_help", "Range of test IDs to run"))
     test_parser.add_argument("--max", type=int, default=3, help=_("test_max_help", "Maximum concurrent test jobs (default: 3)"))
@@ -491,7 +491,11 @@ Examples:
 
 def _test_tool_with_args(args):
     project_root = Path(__file__).parent.absolute()
-    tool_dir = project_root / "tool" / args.tool_name
+    
+    if args.tool_name == "root":
+        tool_dir = project_root
+    else:
+        tool_dir = project_root / "tool" / args.tool_name
     
     if not tool_dir.exists():
         print(f"{RED}" + _("test_tool_not_found", "Error: Tool directory {path} not found.", path=tool_dir) + f"{RESET}")

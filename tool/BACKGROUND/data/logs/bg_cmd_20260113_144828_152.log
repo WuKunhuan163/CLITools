@@ -1,0 +1,12 @@
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+
+Short table output:
+ID  Name     Status    [0m
+-----------------------
+1   Alice    Active    [0m
+2   Bob      Inactive  [0m
+3   Charlie  Pending   [0m

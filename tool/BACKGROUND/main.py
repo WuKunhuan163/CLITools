@@ -113,8 +113,9 @@ def main():
                     status_label = _("status", "Status")
                     runtime_label = _("runtime", "Runtime")
                     command_label = _("command", "Command")
+                    pid_label = _("pid", "PID")
                     
-                    headers = ["PID", status_label, runtime_label, command_label]
+                    headers = [pid_label, status_label, runtime_label, command_label]
                     table_rows = []
                     
                     for proc in processes:
@@ -131,7 +132,7 @@ def main():
                             translated_status = _("status_unknown", "unknown")
                         
                         table_rows.append([
-                            f"PID: {proc['pid']}",
+                            str(proc['pid']),
                             translated_status,
                             proc['runtime'],
                             proc['command']
@@ -149,7 +150,7 @@ def main():
                     is_rtl = current_lang in ["ar", "he", "fa"]
 
                     table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="background", is_rtl=is_rtl)
-                    print(table_str)
+                    print(table_str + "\n")
                     
                     if report_path:
                         # Full report is always saved to report_path by format_table if truncated
@@ -177,17 +178,69 @@ def main():
         
         elif args.status is not None:
             if args.status == 'all':
+                # Use the same logic as --list
+                args.list = True
+                # Fall through to the next logic block? No, it's already inside if/elif.
+                # I'll just copy the logic or refactor.
                 processes = manager.list_processes()
                 if args.json:
                     print(json.dumps({'success': True, 'action': 'status_all', 'processes': processes, 'total_count': len(processes)}, indent=2))
                 else:
                     if processes:
                         print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
-                        print("-" * 80)
+                        
+                        try:
+                            terminal_width = os.get_terminal_size().columns
+                        except (AttributeError, OSError):
+                            terminal_width = 80
+                        
+                        # Translated headers
+                        status_label = _("status", "Status")
+                        runtime_label = _("runtime", "Runtime")
+                        command_label = _("command", "Command")
+                        pid_label = _("pid", "PID")
+                        
+                        headers = [pid_label, status_label, runtime_label, command_label]
+                        table_rows = []
+                        
                         for proc in processes:
-                            cmd_display = proc['command'][:20] + "..." if len(proc['command']) > 20 else proc['command']
-                            print(f"PID: {proc['pid']:<8} | Status: {proc['status']:<10} | Runtime: {proc['runtime']:<10} | Command: {cmd_display}")
-                        print("-" * 80)
+                            # Translate status
+                            status_val = proc['status']
+                            translated_status = status_val
+                            if status_val == 'active':
+                                translated_status = _("status_active", "active")
+                            elif status_val == 'completed':
+                                translated_status = _("status_completed", "completed")
+                            elif status_val == 'failed':
+                                translated_status = _("status_failed", "failed")
+                            elif status_val == 'unknown':
+                                translated_status = _("status_unknown", "unknown")
+                            
+                            table_rows.append([
+                                str(proc['pid']),
+                                translated_status,
+                                proc['runtime'],
+                                proc['command']
+                            ])
+
+                        # Detect if RTL
+                        current_lang = os.environ.get("TOOL_LANGUAGE")
+                        if not current_lang:
+                            config_path = project_root / "data" / "global_config.json"
+                            if config_path.exists():
+                                try:
+                                    with open(config_path, 'r') as f:
+                                        current_lang = json.load(f).get("language", "en")
+                                except Exception: pass
+                        is_rtl = current_lang in ["ar", "he", "fa"]
+
+                        table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="background", is_rtl=is_rtl)
+                        print(table_str + "\n")
+                        
+                        if report_path:
+                            if "..." in table_str:
+                                print(_("full_report_saved", "Full report saved to: {path}").format(path=report_path))
+                            print(f"BACKGROUND_REPORT_PATH: {report_path}")
                     else:
                         print(_("no_active_processes", "No active background processes"))
             else:

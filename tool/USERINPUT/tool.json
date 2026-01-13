@@ -1,7 +1,7 @@
 {
   "name": "USERINPUT",
-  "description": "User Input Script for Cursor AI with tkinter GUI and custom ID support",
-  "purpose": "Get user feedback in Cursor AI workflows using a modern tkinter interface with session identification. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
+  "description": "User Input Script for Cursor AI with tkinter GUI. AI agents should execute USERINPUT separately to avoid output conflicts.",
+  "purpose": "Get user feedback in Cursor AI workflows using a modern tkinter interface. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
   "usage": "USERINPUT [--timeout SECONDS] [--id CUSTOM_ID] [--hint TEXT]",
   "dependencies": ["PYTHON"],
   "test_parallel": 3,

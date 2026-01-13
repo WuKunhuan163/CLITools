@@ -9,10 +9,10 @@ from pathlib import Path
 def get_display_width(text):
     """
     Calculate the display width of a string, considering multi-byte characters
-    and ignoring ANSI escape sequences.
+    and ignoring ANSI escape sequences and RTL markers.
     """
-    # Strip ANSI escape sequences
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    # Strip ANSI escape sequences and RTL markers (\u202b, \u202c)
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|[\u202b\u202c]')
     stripped_text = ansi_escape.sub('', text)
     
     width = 0
@@ -27,7 +27,7 @@ def get_display_width(text):
 def truncate_to_display_width(text, max_width):
     """
     Truncate a string to a specific display width, taking multi-byte characters 
-    and ANSI escape sequences into account.
+    and ANSI escape sequences/RTL markers into account.
     """
     current_width = 0
     result = ""
@@ -43,6 +43,12 @@ def truncate_to_display_width(text, max_width):
                 continue
         
         char = text[i]
+        # Ignore RTL markers for width calculation
+        if char in ('\u202b', '\u202c'):
+            result += char
+            i += 1
+            continue
+
         eaw = unicodedata.east_asian_width(char)
         char_width = 2 if eaw in ('W', 'F') else 1
         
@@ -84,86 +90,93 @@ def get_rate_color(rate_str, colors=None):
 
 def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
     """
-    Formats a table with alignment and optional truncation.
+    Formats a table with double-line box-drawing characters and optional truncation.
     If truncated, saves the full table to a Markdown file.
     """
     if not headers or not rows:
         return "", None
 
     num_cols = len(headers)
-    col_widths = [get_display_width(h) for h in headers]
+    
+    # Calculate initial column widths based on maximum content width
+    # We add 2 for padding (one space on each side)
+    col_widths = [get_display_width(str(h)) + 2 for h in headers]
     for row in rows:
         for i in range(min(num_cols, len(row))):
-            col_widths[i] = max(col_widths[i], get_display_width(str(row[i])))
+            col_widths[i] = max(col_widths[i], get_display_width(str(row[i])) + 2)
 
-    col_widths = [w + 2 for w in col_widths]
+    # Calculate overhead from borders: num_cols + 1 vertical bars
+    border_overhead = num_cols + 1
     
-    total_width = sum(col_widths)
     is_truncated = False
-    if max_width and total_width > max_width:
-        is_truncated = True
-    
-    def get_line(data_row, widths, truncate=False):
-        if not truncate:
-            line_parts = []
-            row_to_show = list(reversed(data_row)) if is_rtl else data_row
-            widths_to_show = list(reversed(widths)) if is_rtl else widths
-            for i, val in enumerate(row_to_show):
-                val_str = str(val)
-                w = widths_to_show[i]
-                padding = " " * (w - get_display_width(val_str))
-                line_parts.append(f"{val_str}{padding}")
-            line = "".join(line_parts)
-            if is_rtl:
-                return f"\u202b{line}\u202c\x1B[0m"
-            return line + "\x1B[0m"
+    if max_width:
+        total_width_with_borders = sum(col_widths) + border_overhead
+        if total_width_with_borders > max_width:
+            is_truncated = True
+            
+            # Simple left-to-right priority truncation for columns
+            # Ensure each column has at least 5 display width (border + space + char/ellipses + space)
+            # which means col_width >= 4 (padding + content)
+            available_for_content = max_width - border_overhead
+            new_col_widths = []
+            remaining_width = available_for_content
+            
+            for i in range(num_cols):
+                # Min width for a column is 4 (e.g., " A " or "...")
+                min_w = 4
+                cols_left = num_cols - 1 - i
+                needed_for_others = cols_left * min_w
+                
+                if i == num_cols - 1:
+                    new_col_widths.append(max(min_w, remaining_width))
+                else:
+                    if col_widths[i] <= remaining_width - needed_for_others:
+                        new_col_widths.append(col_widths[i])
+                        remaining_width -= col_widths[i]
+                    else:
+                        take = max(min_w, remaining_width - needed_for_others)
+                        new_col_widths.append(take)
+                        remaining_width -= take
+            col_widths = new_col_widths
 
-        # Truncation logic: prioritize columns from left to right (logical order)
-        # But display them according to is_rtl
-        available_width = max_width
-        column_contents = []
-        
+    def get_data_line(data_row, widths):
+        parts = []
         for i in range(num_cols):
             val_str = str(data_row[i])
             w = widths[i]
+            # Content width is w - 2 (for padding)
+            content_w = w - 2
             
-            if available_width <= 0:
-                break # No more columns can be shown
-                
-            if i == num_cols - 1 or w > available_width:
-                # Last column or too wide: truncate
-                if available_width > 3:
-                    val_str = truncate_to_display_width(val_str, available_width - 3) + "..."
+            if get_display_width(val_str) > content_w:
+                if content_w > 3:
+                    display_str = truncate_to_display_width(val_str, content_w - 3) + "..."
                 else:
-                    val_str = truncate_to_display_width(val_str, available_width)
-                
-                padding = " " * (available_width - get_display_width(val_str))
-                column_contents.append(f"{val_str}{padding}")
-                available_width = 0
-                break
+                    display_str = truncate_to_display_width(val_str, content_w)
             else:
-                padding = " " * (w - get_display_width(val_str))
-                column_contents.append(f"{val_str}{padding}")
-                available_width -= w
-        
-        # Now we have column_contents in logical order. 
-        # For RTL, we reverse them for display.
-        if is_rtl:
-            column_contents.reverse()
+                display_str = val_str
             
-        line = "".join(column_contents)
+            padding = " " * (content_w - get_display_width(display_str))
+            parts.append(f" {display_str}{padding} ")
+        
+        line = "║" + "║".join(parts) + "║"
         if is_rtl:
             return f"\u202b{line}\u202c\x1B[0m"
         return line + "\x1B[0m"
 
+    # Construct borders
+    top_border = "╔" + "╦".join(["═" * w for w in col_widths]) + "╗"
+    sep_border = "╠" + "╬".join(["═" * w for w in col_widths]) + "╣"
+    bottom_border = "╚" + "╩".join(["═" * w for w in col_widths]) + "╝"
+
     formatted_lines = []
-    formatted_lines.append(get_line(headers, col_widths, is_truncated))
-    
-    table_real_width = min(total_width, max_width) if max_width else total_width
-    formatted_lines.append("-" * table_real_width)
-    
+    formatted_lines.append(top_border)
+    formatted_lines.append(get_data_line(headers, col_widths))
+    formatted_lines.append(sep_border)
     for row in rows:
-        formatted_lines.append(get_line(row, col_widths, is_truncated))
+        # Handle cases where row might have fewer columns than headers
+        full_row = list(row) + [""] * (num_cols - len(row))
+        formatted_lines.append(get_data_line(full_row, col_widths))
+    formatted_lines.append(bottom_border)
 
     report_path = None
     if is_truncated:
@@ -185,23 +198,24 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
             with open(report_file, 'w', encoding='utf-8') as f:
                 f.write("\n".join(md_lines))
             report_path = str(report_file)
-            
-            # Cleanup old reports in this sub-directory (limit 100)
             cleanup_old_files(report_root, "*.md", limit=100)
         except Exception:
             pass
 
     return "\n".join(formatted_lines), report_path
 
-def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=50):
+def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=None):
     """
     Cleans up old files in a directory if the limit is exceeded.
-    Deletes the oldest batch_size files.
+    Deletes the oldest batch_size files (default: limit // 2).
     """
     try:
         target_path = Path(target_dir)
         if not target_path.exists():
             return
+            
+        if batch_size is None:
+            batch_size = max(1, limit // 2)
             
         files = sorted(list(target_path.glob(pattern)), key=os.path.getmtime)
         if len(files) > limit:
