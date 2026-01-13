@@ -2,53 +2,17 @@
 """
 DOWNLOAD.py - Resource Download Tool
 Downloads resources from URLs to specified destination folders
-Python version with RUN environment detection
 """
 
 import os
 import sys
-import json
-import hashlib
 import requests
 from pathlib import Path
 from urllib.parse import urlparse, unquote
-from typing import Optional
 
 # 加载环境变量
 from dotenv import load_dotenv
 load_dotenv()
-
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        # 确保输出目录存在
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
 
 def get_filename_from_url(url: str) -> str:
     """从URL中提取文件名"""
@@ -61,21 +25,12 @@ def get_filename_from_url(url: str) -> str:
     
     return filename
 
-def download_file(url: str, destination: str, command_identifier=None):
+def download_file(url: str, destination: str):
     """下载文件"""
     
     # 验证URL
     if not url.startswith(('http://', 'https://')):
-        error_data = {
-            "success": False,
-            "error": f"Invalid URL: {url}",
-            "url": url
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: Invalid URL: {url}")
+        print(f"Error: Invalid URL: {url}")
         return 1
     
     # 处理目标路径
@@ -88,9 +43,8 @@ def download_file(url: str, destination: str, command_identifier=None):
     # 确保目标目录存在
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     
-    if not is_run_environment(command_identifier):
-        print(f"Downloading: {url}")
-        print(f"Destination: {dest_path}")
+    print(f"Downloading: {url}")
+    print(f"Destination: {dest_path}")
     
     try:
         # 创建会话
@@ -114,58 +68,24 @@ def download_file(url: str, destination: str, command_identifier=None):
                     f.write(chunk)
                     downloaded_size += len(chunk)
                     
-                    # 显示进度（仅在直接调用时）
-                    # 使用\r回到行首实现进度条覆盖更新，避免重复显示
-                    if not is_run_environment(command_identifier) and total_size > 0:
+                    # 显示进度
+                    if total_size > 0:
                         progress = (downloaded_size / total_size) * 100
                         print(f"\rProgress: {progress:.1f}% ({downloaded_size}/{total_size} bytes)", end='', flush=True)
         
-        if not is_run_environment(command_identifier):
-            print()  # 换行，确保进度显示结束
-            print(f"Download completed successfully!")
-            print(f"File saved to: {dest_path}")
-            print(f"Size: {downloaded_size} bytes")
-        
-        success_data = {
-            "success": True,
-            "message": "Download completed successfully",
-            "url": url,
-            "destination": str(dest_path),
-            "size": downloaded_size,
-            "content_type": response.headers.get('content-type', 'unknown')
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(success_data, command_identifier)
+        print()  # 换行，确保进度显示结束
+        print(f"Download completed successfully!")
+        print(f"File saved to: {dest_path}")
+        print(f"Size: {downloaded_size} bytes")
         
         return 0
         
     except requests.exceptions.RequestException as e:
-        error_data = {
-            "success": False,
-            "error": f"Download failed: {str(e)}",
-            "url": url,
-            "destination": str(dest_path)
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"\nError: Download failed: {e}")
+        print(f"\nError: Download failed: {e}")
         return 1
     
     except Exception as e:
-        error_data = {
-            "success": False,
-            "error": f"Unexpected error: {str(e)}",
-            "url": url,
-            "destination": str(dest_path)
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"\nError: Unexpected error: {e}")
+        print(f"\nError: Unexpected error: {e}")
         return 1
 
 def show_help():
@@ -197,45 +117,23 @@ This tool will:
 
 def main():
     """主函数"""
-    # 获取执行上下文和command_identifier
     args = sys.argv[1:]
-    command_identifier = None
-    
-    # 检查是否被RUN调用（第一个参数是command_identifier）
-    if args and is_run_environment(args[0]):
-        command_identifier = args[0]
-        args = args[1:]  # 移除command_identifier，保留实际参数
     
     if len(args) == 0:
-        if is_run_environment(command_identifier):
-            error_data = {
-                "success": False,
-                "error": "No URL provided. Usage: DOWNLOAD <url> [destination]"
-            }
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: No URL provided")
-            print(f"Usage: DOWNLOAD <url> [destination]")
-            print(f"Use --help for more information")
+        print(f"Error: No URL provided")
+        print(f"Usage: DOWNLOAD <url> [destination]")
+        print(f"Use --help for more information")
         return 1
     
     if args[0] in ['--help', '-h']:
-        if is_run_environment(command_identifier):
-            help_data = {
-                "success": True,
-                "message": "Help information",
-                "help": "DOWNLOAD - Resource Download Tool"
-            }
-            write_to_json_output(help_data, command_identifier)
-        else:
-            show_help()
+        show_help()
         return 0
     
     # 获取URL和目标路径
     url = args[0]
     destination = args[1] if len(args) > 1 else '.'
     
-    return download_file(url, destination, command_identifier)
+    return download_file(url, destination)
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

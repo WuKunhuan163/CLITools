@@ -9,7 +9,6 @@ from pathlib import Path
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
 from dotenv import load_dotenv
 load_dotenv()
-from .system_utils import is_run_environment
 
 def get_local_hf_token():
     """
@@ -152,43 +151,34 @@ fi
 """
         
         # 3. 通过tkinter显示远端命令供用户执行
-        if is_run_environment(command_identifier):
+        # 非RUN环境，使用subprocess方法显示窗口
+        # show_remote_command_window现在在remote_commands中，需要通过main_instance访问
+        
+        # HuggingFace credentials setup is not implemented yet
+        # Just return a simple interface response
+        result = {
+            "action": "success",
+            "message": "HuggingFace credentials setup interface not implemented"
+        }
+        
+        # 转换结果格式
+        if result["action"] == "success":
             return {
                 "success": True,
-                "message": "HuggingFace remote setup command generated",
                 "remote_command": remote_setup_commands.strip(),
                 "token_configured": True,
-                "instructions": "Execute the remote_command in your remote terminal to set up HuggingFace credentials"
+                "message": "HuggingFace credentials setup completed"
+            }
+        elif result["action"] == "copy":
+            return {
+                "success": True,
+                "remote_command": remote_setup_commands.strip(),
+                "token_configured": True,
+                "message": "Command copied to clipboard, please manually execute"
             }
         else:
-            # 非RUN环境，使用subprocess方法显示窗口
-            # show_remote_command_window现在在remote_commands中，需要通过main_instance访问
-            
-            # HuggingFace credentials setup is not implemented yet
-            # Just return a simple interface response
-            result = {
-                "action": "success",
-                "message": "HuggingFace credentials setup interface not implemented"
-            }
-            
-            # 转换结果格式
-            if result["action"] == "success":
-                return {
-                    "success": True,
-                    "remote_command": remote_setup_commands.strip(),
-                    "token_configured": True,
-                    "message": "HuggingFace credentials setup completed"
-                }
-            elif result["action"] == "copy":
-                return {
-                    "success": True,
-                    "remote_command": remote_setup_commands.strip(),
-                    "token_configured": True,
-                    "message": "Command copied to clipboard, please manually execute"
-                }
-            else:
-                # 让上层处理错误并显示完整traceback
-                raise Exception(f"HuggingFace setup failed with result: {result}")
+            # 让上层处理错误并显示完整traceback
+            raise Exception(f"HuggingFace setup failed with result: {result}")
             
     except Exception as e:
         return {"success": False, "error": f"Failed to setup remote HF credentials: {str(e)}"}
@@ -253,17 +243,9 @@ fi
 echo "🏁 HuggingFace configuration test completed"
 """
         
-        if is_run_environment(command_identifier):
-            return {
-                "success": True,
-                "message": "HuggingFace test command generated",
-                "test_command": test_command.strip(),
-                "instructions": "Execute the test_command in your remote terminal to verify HuggingFace setup"
-            }
-        else: 
-            from .shell_commands import handle_multiple_commands
-            result = handle_multiple_commands(f'bash -c "{test_command}"', command_identifier)
-            return result
+        from .shell_commands import handle_multiple_commands
+        result = handle_multiple_commands(f'bash -c "{test_command}"', command_identifier)
+        return result
             
     except Exception as e:
         return {"success": False, "error": f"Failed to test remote HF setup: {str(e)}"}

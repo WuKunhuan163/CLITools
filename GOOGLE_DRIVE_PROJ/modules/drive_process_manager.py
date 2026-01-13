@@ -6,12 +6,6 @@ Google Drive - Drive Process Manager Module
 import subprocess
 import time
 import warnings
-warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
-from dotenv import load_dotenv
-load_dotenv()
-
-# 导入工具函数
-from .system_utils import is_run_environment, write_to_json_output
 
 # 全局常量
 def is_google_drive_running():
@@ -39,17 +33,7 @@ def shutdown_google_drive(command_identifier=None):
     """关闭Google Drive Desktop"""
     try:
         if not is_google_drive_running():
-            result_data = {
-                "success": True,
-                "message": "Google Drive is already stopped",
-                "action": "shutdown",
-                "was_running": False
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(result_data, command_identifier)
-            else:
-                print(result_data["message"])
+            print("Google Drive is already stopped")
             return 0
         
         # 尝试优雅关闭
@@ -61,12 +45,8 @@ def shutdown_google_drive(command_identifier=None):
         
         # 检查是否成功关闭
         if not is_google_drive_running():
-            result_data = {
-                "success": True,
-                "message": "Google Drive has been closed",
-                "action": "shutdown",
-                "was_running": True
-            }
+            print("Google Drive has been closed")
+            return 0
         else:
             pids = get_google_drive_processes()
             for pid in pids:
@@ -75,75 +55,31 @@ def shutdown_google_drive(command_identifier=None):
             time.sleep(1)
             
             if not is_google_drive_running():
-                result_data = {
-                    "success": True,
-                    "message": "Google Drive has been closed",
-                    "action": "shutdown",
-                    "was_running": True,
-                    "forced": True
-                }
+                print("Google Drive has been closed")
+                return 0
             else:
-                result_data = {
-                    "success": False,
-                    "error": "Cannot close Google Drive",
-                    "action": "shutdown"
-                }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(result_data, command_identifier)
-        else:
-            print(result_data.get("message", result_data.get("error")))
-        
-        return 0 if result_data["success"] else 1
+                print("Cannot close Google Drive")
+                return 1
                 
     except Exception as e:
-        error_data = {
-            "success": False,
-            "error": f"关闭 Google Drive 时出错: {e}",
-            "action": "shutdown"
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(error_data["error_info"])
+        print(f"关闭 Google Drive 时出错: {e}")
         return 1
 
 def launch_google_drive(command_identifier=None):
     """启动Google Drive Desktop"""
     try:
         if is_google_drive_running():
-            result_data = {
-                "success": True,
-                "message": "Google Drive 已经在运行",
-                "action": "launch",
-                "was_running": True
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(result_data, command_identifier)
-            else:
-                print(result_data["message"])
+            print("Google Drive 已经在运行")
             return 0
         
-        if not is_run_environment(command_identifier):
-            print(f"Launching Google Drive...")
+        print(f"Launching Google Drive...")
         
         # 启动Google Drive
         result = subprocess.run(['open', '-a', 'Google Drive'], 
                               capture_output=True, text=True)
         
         if result.returncode != 0:
-            result_data = {
-                "success": False,
-                "error": f"Failed to launch Google Drive: {result.stderr}",
-                "action": "launch"
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(result_data, command_identifier)
-            else:
-                print(result_data["error_info"])
+            print(f"Failed to launch Google Drive: {result.stderr}")
             return 1
         
         # 等待启动
@@ -151,75 +87,30 @@ def launch_google_drive(command_identifier=None):
         for i in range(max_wait):
             time.sleep(1)
             if is_google_drive_running():
-                result_data = {
-                    "success": True,
-                    "message": f"Google Drive has been launched (startup time {i+1} seconds)",
-                    "action": "launch",
-                    "was_running": False,
-                    "startup_time": i+1
-                }
-                
-                if is_run_environment(command_identifier):
-                    write_to_json_output(result_data, command_identifier)
-                else:
-                    print(result_data["message"])
+                print(f"Google Drive has been launched (startup time {i+1} seconds)")
                 return 0
         
         # 超时但可能已启动
         if is_google_drive_running():
-            result_data = {
-                "success": True,
-                "message": "Google Drive has been launched (startup time longer)",
-                "action": "launch",
-                "was_running": False,
-                "startup_time": max_wait
-            }
+            print("Google Drive has been launched (startup time longer)")
+            return 0
         else:
-            result_data = {
-                "success": False,
-                "error": "Google Drive startup timeout",
-                "action": "launch"
-            }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(result_data, command_identifier)
-        else:
-            print(result_data.get("message", result_data.get("error")))
-        
-        return 0 if result_data["success"] else 1
+            print("Google Drive startup timeout")
+            return 1
             
     except Exception as e:
-        error_data = {
-            "success": False,
-            "error": f"启动 Google Drive 时出错: {e}",
-            "action": "launch"
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(error_data["error_info"])
+        print(f"启动 Google Drive 时出错: {e}")
         return 1
 
 def restart_google_drive(command_identifier=None):
     """重启Google Drive Desktop"""
     try:
-        if not is_run_environment(command_identifier):
-            print(f"Restarting Google Drive...")
+        print(f"Restarting Google Drive...")
         
         # 先关闭
         shutdown_result = shutdown_google_drive(command_identifier)
         if shutdown_result != 0:
-            error_data = {
-                "success": False,
-                "error": "Restart failed - shutdown phase failed",
-                "action": "restart"
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(error_data, command_identifier)
-            else:
-                print(error_data["error_info"])
+            print("Restart failed - shutdown phase failed")
             return 1
         
         # 等待一下确保完全关闭
@@ -228,39 +119,12 @@ def restart_google_drive(command_identifier=None):
         # 再启动
         launch_result = launch_google_drive(command_identifier)
         if launch_result != 0:
-            error_data = {
-                "success": False,
-                "error": "Restart failed - launch phase failed",
-                "action": "restart"
-            }
-            
-            if is_run_environment(command_identifier):
-                write_to_json_output(error_data, command_identifier)
-            else:
-                print(error_data["error_info"])
+            print("Restart failed - launch phase failed")
             return 1
         
-        result_data = {
-            "success": True,
-            "message": "Google Drive has been restarted",
-            "action": "restart"
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(result_data, command_identifier)
-        else:
-            print(result_data["message"])
+        print("Google Drive has been restarted")
         return 0
         
     except Exception as e:
-        error_data = {
-            "success": False,
-            "error": f"Restart Google Drive failed: {e}",
-            "action": "restart"
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(error_data["error_info"])
+        print(f"Restart Google Drive failed: {e}")
         return 1

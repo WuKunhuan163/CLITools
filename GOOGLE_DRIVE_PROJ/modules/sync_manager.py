@@ -36,7 +36,6 @@ import json
 import shutil
 from pathlib import Path
 from .command_executor import debug_print
-from .system_utils import is_run_environment, write_to_json_output
 from .drive_api_service import test_drive_folder_access, extract_folder_id_from_url
 
 class SyncManager:
@@ -330,16 +329,6 @@ def set_local_sync_dir(command_identifier=None):
         config = load_sync_config()
         current_local = config.get("local_equivalent", "未设置")
         
-        if is_run_environment(command_identifier):
-            # RUN环境下返回交互式设置信息
-            write_to_json_output({
-                "success": True,
-                "action": "interactive_setup",
-                "current_local_equivalent": current_local,
-                "instructions": "请在终端中运行: GOOGLE_DRIVE --desktop --set-local-sync-dir"
-            }, command_identifier)
-            return 0
-        
         print(f"设置本地同步目录")
         print(f"=" * 50)
         print(f"当前设置: {current_local}")
@@ -379,10 +368,7 @@ def set_local_sync_dir(command_identifier=None):
         return 1
     except Exception as e:
         error_msg = f"Error setting local sync directory: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(f"Error: {error_msg}")
+        print(f"Error: {error_msg}")
         return 1
 
 def set_global_sync_dir(command_identifier=None):
@@ -392,17 +378,6 @@ def set_global_sync_dir(command_identifier=None):
         config = load_sync_config()
         current_drive = config.get("drive_equivalent", "未设置")
         current_folder_id = config.get("drive_equivalent_folder_id", "未设置")
-        
-        if is_run_environment(command_identifier):
-            # RUN环境下返回交互式设置信息
-            write_to_json_output({
-                "success": True,
-                "action": "interactive_setup",
-                "current_drive_equivalent": current_drive,
-                "current_folder_id": current_folder_id,
-                "instructions": "请在终端中运行: GOOGLE_DRIVE --desktop --set-global-sync-dir"
-            }, command_identifier)
-            return 0
         
         print(f"设置全局同步目录")
         print(f"=" * 50)
@@ -481,10 +456,7 @@ def set_global_sync_dir(command_identifier=None):
         return 1
     except Exception as e:
         error_msg = f"Error setting global sync directory: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(f"Error: {error_msg}")
+        print(f"Error: {error_msg}")
         return 1
 
 def get_google_drive_status(command_identifier=None):
@@ -504,12 +476,9 @@ def get_google_drive_status(command_identifier=None):
             "message": f"Google Drive {'正在运行' if running else '未运行'} ({len(processes)} 个进程)"
         }
         
-        if is_run_environment(command_identifier):
-            write_to_json_output(result_data, command_identifier)
-        else:
-            print(result_data["message"])
-            if running and processes:
-                print(f"进程ID: {', '.join(processes)}")
+        print(result_data["message"])
+        if running and processes:
+            print(f"进程ID: {', '.join(processes)}")
         return 0
         
     except Exception as e:
@@ -518,8 +487,5 @@ def get_google_drive_status(command_identifier=None):
             "error": f"获取状态时出错: {e}"
         }
         
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(error_data["error"])
+        print(error_data["error"])
         return 1

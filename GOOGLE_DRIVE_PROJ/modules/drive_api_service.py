@@ -8,12 +8,6 @@ import subprocess
 import warnings
 import re
 from pathlib import Path
-warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
-from dotenv import load_dotenv
-load_dotenv()
-
-# 导入工具函数
-from .system_utils import is_run_environment, write_to_json_output
 
 def extract_folder_id_from_url(url):
     """从Google Drive文件夹URL中提取文件夹ID"""
@@ -54,10 +48,7 @@ def test_api_connection(command_identifier=None):
         api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
         if not api_service_path.exists():
             error_msg = "Error: API service file not found, please run GOOGLE_DRIVE --console-setup"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
         
         # 运行API测试
@@ -67,37 +58,21 @@ def test_api_connection(command_identifier=None):
         
         if result.returncode == 0:
             success_msg = "Google Drive API connection test successful"
-            if is_run_environment(command_identifier):
-                write_to_json_output({
-                    "success": True,
-                    "message": success_msg,
-                    "output": result.stdout
-                }, command_identifier)
-            else:
-                print(success_msg)
-                print(result.stdout)
+            print(success_msg)
+            print(result.stdout)
             return 0
         else:
             error_msg = f"Error: API connection test failed: {result.stderr}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
             
     except subprocess.TimeoutExpired:
         timeout_msg = "API test timeout"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": timeout_msg}, command_identifier)
-        else:
-            print(timeout_msg)
+        print(timeout_msg)
         return 1
     except Exception as e:
         error_msg = f"Error: Error testing API connection: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(error_msg)
+        print(error_msg)
         return 1
 
 def list_drive_files(command_identifier=None, max_results=10):
@@ -107,10 +82,7 @@ def list_drive_files(command_identifier=None, max_results=10):
         api_service_path = Path(__file__).parent.parent / "google_drive_api.py"
         if not api_service_path.exists():
             error_msg = "Error: API service file not found, please run GOOGLE_DRIVE --console-setup"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
         
         # 动态导入API服务
@@ -124,37 +96,23 @@ def list_drive_files(command_identifier=None, max_results=10):
         result = drive_service.list_files(max_results=max_results)
         
         if result['success']:
-            if is_run_environment(command_identifier):
-                write_to_json_output({
-                    "success": True,
-                    "message": f"Found {result['count']} files",
-                    "files": result['files'],
-                    "count": result['count']
-                }, command_identifier)
-            else:
-                print(f"Google Drive file list (first {max_results} files):")
-                print(f"-" * 50)
-                for file in result['files']:
-                    file_type = "📁" if file['mimeType'] == 'application/vnd.google-apps.folder' else "📄"
-                    print(f"{file_type} {file['name']}")
-                    print(f"ID: {file['id']}")
-                    print(f"Type: {file['mimeType']}")
-                    if 'size' in file:
-                        print(f"Size: {file['size']} bytes")
-                    print()
+            print(f"Google Drive file list (first {max_results} files):")
+            print(f"-" * 50)
+            for file in result['files']:
+                file_type = "📁" if file['mimeType'] == 'application/vnd.google-apps.folder' else "📄"
+                print(f"{file_type} {file['name']}")
+                print(f"ID: {file['id']}")
+                print(f"Type: {file['mimeType']}")
+                if 'size' in file:
+                    print(f"Size: {file['size']} bytes")
+                print()
             return 0
         else:
             error_msg = f"Error: Listing files failed: {result['error']}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
             
     except Exception as e:
         error_msg = f"Error: Error listing Drive files: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(error_msg)
+        print(error_msg)
         return 1

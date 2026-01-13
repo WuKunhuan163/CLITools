@@ -263,17 +263,12 @@ def show_unified_help(context="command_line", command_identifier=None):
         context: "command_line" for --help, "shell" for shell help
         command_identifier: For RUN environment support
     """
-    from . import is_run_environment, write_to_json_output
-    
     if context == "shell":
         help_text = format_help_for_shell_mode()
     else:
         help_text = format_help_for_command_line()
     
-    if is_run_environment(command_identifier):
-        write_to_json_output({"success": True, "help": help_text}, command_identifier)
-    else:
-        print(help_text)
+    print(help_text)
     
     return 0
 

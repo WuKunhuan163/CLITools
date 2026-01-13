@@ -2,51 +2,16 @@
 """
 FILEDIALOG.py - File Selection Tool
 Opens a tkinter file selection dialog to let users specify certain types of files
-Python version with RUN environment detection
 """
 
 import os
 import sys
-import json
-import hashlib
 from pathlib import Path
 from typing import Optional, List, Tuple
 
 # 加载环境变量
 from dotenv import load_dotenv
 load_dotenv()
-
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        # 确保输出目录存在
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
 
 def parse_file_types(file_types_str: str) -> List[Tuple[str, str]]:
     """解析文件类型字符串，返回文件类型列表"""
@@ -181,14 +146,7 @@ This tool will:
 
 def main():
     """主函数"""
-    # 获取执行上下文和command_identifier
     args = sys.argv[1:]
-    command_identifier = None
-    
-    # 检查是否被RUN调用（第一个参数是command_identifier）
-    if args and is_run_environment(args[0]):
-        command_identifier = args[0]
-        args = args[1:]  # 移除command_identifier，保留实际参数
     
     # 默认参数
     file_types_str = "all"
@@ -202,15 +160,7 @@ def main():
         arg = args[i]
         
         if arg in ['--help', '-h']:
-            if is_run_environment(command_identifier):
-                help_data = {
-                    "success": True,
-                    "message": "Help information",
-                    "help": "FILEDIALOG - File Selection Tool"
-                }
-                write_to_json_output(help_data, command_identifier)
-            else:
-                show_help()
+            show_help()
             return 0
             
         elif arg == '--types':
@@ -218,12 +168,7 @@ def main():
                 file_types_str = args[i + 1]
                 i += 2
             else:
-                error_msg = "Error: --types requires a value"
-                if is_run_environment(command_identifier):
-                    error_data = {"success": False, "error": error_msg}
-                    write_to_json_output(error_data, command_identifier)
-                else:
-                    print(f"Error: {error_msg}")
+                print("Error: --types requires a value")
                 return 1
                 
         elif arg == '--title':
@@ -231,12 +176,7 @@ def main():
                 title = args[i + 1]
                 i += 2
             else:
-                error_msg = "Error: --title requires a value"
-                if is_run_environment(command_identifier):
-                    error_data = {"success": False, "error": error_msg}
-                    write_to_json_output(error_data, command_identifier)
-                else:
-                    print(f"Error: {error_msg}")
+                print("Error: --title requires a value")
                 return 1
                 
         elif arg == '--dir':
@@ -244,12 +184,7 @@ def main():
                 initial_dir = args[i + 1]
                 i += 2
             else:
-                error_msg = "Error: --dir requires a value"
-                if is_run_environment(command_identifier):
-                    error_data = {"success": False, "error": error_msg}
-                    write_to_json_output(error_data, command_identifier)
-                else:
-                    print(f"Error: {error_msg}")
+                print("Error: --dir requires a value")
                 return 1
                 
         elif arg == '--multiple':
@@ -257,23 +192,13 @@ def main():
             i += 1
             
         else:
-            error_msg = f"Error: Unknown argument '{arg}'"
-            if is_run_environment(command_identifier):
-                error_data = {"success": False, "error": error_msg}
-                write_to_json_output(error_data, command_identifier)
-            else:
-                print(f"Error: {error_msg}")
-                print(f"Use --help for usage information")
+            print(f"Error: Unknown argument '{arg}'")
+            print(f"Use --help for usage information")
             return 1
     
     # 验证初始目录
     if initial_dir and not os.path.exists(initial_dir):
-        error_msg = f"Error: Directory '{initial_dir}' does not exist"
-        if is_run_environment(command_identifier):
-            error_data = {"success": False, "error": error_msg}
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: {error_msg}")
+        print(f"Error: Directory '{initial_dir}' does not exist")
         return 1
     
     # 解析文件类型
@@ -285,72 +210,32 @@ def main():
         
         if selected is None:
             # 用户取消了选择
-            if is_run_environment(command_identifier):
-                result_data = {
-                    "success": False,
-                    "message": "File selection cancelled by user",
-                    "selected_files": None
-                }
-                write_to_json_output(result_data, command_identifier)
-            else:
-                print(f"Error:  File selection cancelled")
+            print(f"Error:  File selection cancelled")
             return 1
         
         # 处理选择结果
         if multiple:
             if not selected:
                 # 没有选择任何文件
-                if is_run_environment(command_identifier):
-                    result_data = {
-                        "success": False,
-                        "message": "No files selected",
-                        "selected_files": []
-                    }
-                    write_to_json_output(result_data, command_identifier)
-                else:
-                    print(f"Error:  No files selected")
+                print(f"Error:  No files selected")
                 return 1
             else:
                 # 选择了多个文件
-                if is_run_environment(command_identifier):
-                    result_data = {
-                        "success": True,
-                        "message": f"Selected {len(selected)} file(s)",
-                        "selected_files": selected,
-                        "file_count": len(selected)
-                    }
-                    write_to_json_output(result_data, command_identifier)
-                else:
-                    print(f"Selected {len(selected)} file(s):")
-                    for i, file_path in enumerate(selected, 1):
-                        print(f"  {i}. {file_path}")
+                print(f"Selected {len(selected)} file(s):")
+                for i, file_path in enumerate(selected, 1):
+                    print(f"  {i}. {file_path}")
         else:
             # 单个文件选择
-            if is_run_environment(command_identifier):
-                result_data = {
-                    "success": True,
-                    "message": "File selected successfully",
-                    "selected_file": selected,
-                    "file_name": os.path.basename(selected),
-                    "file_size": os.path.getsize(selected) if os.path.exists(selected) else 0
-                }
-                write_to_json_output(result_data, command_identifier)
-            else:
-                print(f"Selected file: {selected}")
-                if os.path.exists(selected):
-                    file_size = os.path.getsize(selected)
-                    print(f"   File size: {file_size} bytes")
+            print(f"Selected file: {selected}")
+            if os.path.exists(selected):
+                file_size = os.path.getsize(selected)
+                print(f"   File size: {file_size} bytes")
         
         return 0
         
     except Exception as e:
-        error_msg = f"Error during file selection: {str(e)}"
-        if is_run_environment(command_identifier):
-            error_data = {"success": False, "error": error_msg}
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: {error_msg}")
+        print(f"Error during file selection: {str(e)}")
         return 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

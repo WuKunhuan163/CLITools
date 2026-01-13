@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 导入必要的工具函数
-from .system_utils import is_run_environment, write_to_json_output
 from .remote_shell_manager import RemoteShellManager
 
 # 创建全局shell管理器实例
@@ -35,35 +34,18 @@ def shell_pwd(command_identifier=None):
         
         if not current_shell:
             error_msg = "No active remote shell, please create or switch to a shell"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
         
         current_path = current_shell.get("current_path", "~")
         
-        result_data = {
-            "success": True,
-            "current_path": current_path,
-            "shell_id": current_shell["id"],
-            "shell_name": current_shell["name"],
-            "home_url": HOME_URL
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(result_data, command_identifier)
-        else:
-            print(current_path)
+        print(current_path)
         
         return 0
         
     except Exception as e:
         error_msg = f"Error getting current path: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(error_msg)
+        print(error_msg)
         return 1
 
 def split_pipe_command(shell_cmd):
@@ -132,10 +114,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None, shell_instance=None
                 shell = GoogleDriveShell()
             except Exception as e:
                 error_msg = f"Failed to get GoogleDriveShell instance: {e}"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
         
         # 修复：直接将整个pipe命令作为远程命令执行，而不是本地模拟
@@ -145,10 +124,7 @@ def handle_pipe_commands(shell_cmd, command_identifier=None, shell_instance=None
             current_shell = shell.get_current_shell()
             if not current_shell:
                 error_msg = "No active shell found for pipe command execution"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
             
             # 使用远程命令执行接口直接执行整个pipe命令
@@ -169,22 +145,11 @@ def handle_pipe_commands(shell_cmd, command_identifier=None, shell_instance=None
                     exit_code = result.get("exit_code", 0)
                 
                 if stdout:
-                    if not is_run_environment(command_identifier):
-                        print(stdout, end="")
-                    elif is_run_environment(command_identifier):
-                        # 在RUN环境下，将输出写入JSON
-                        write_to_json_output({
-                            "success": True,
-                            "stdout": stdout,
-                            "stderr": stderr,
-                            "exit_code": exit_code
-                        }, command_identifier)
-                        return exit_code
+                    print(stdout, end="")
                         
                 if stderr:
-                    if not is_run_environment(command_identifier):
-                        import sys
-                        print(stderr, end="", file=sys.stderr)
+                    import sys
+                    print(stderr, end="", file=sys.stderr)
                         
                 return exit_code
             else:
@@ -192,18 +157,12 @@ def handle_pipe_commands(shell_cmd, command_identifier=None, shell_instance=None
                 
         except Exception as e:
             error_msg = f"Error executing pipe command remotely: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
         
     except Exception as e:
         error_msg = f"Error executing pipe commands: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(f"{error_msg}")
+        print(f"{error_msg}")
         return 1
 
 def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=None):
@@ -273,10 +232,7 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                 current_shell = get_current_shell()
                 if not current_shell:
                     error_msg = "No active shell found"
-                    if is_run_environment(command_identifier):
-                        write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                    else:
-                        print(error_msg)
+                    print(error_msg)
                     return 1
                 
                 result = shell.execute_command_interface("bash", ["-c", compound_cmd], original_user_command=shell_cmd)
@@ -287,20 +243,15 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                     exit_code = data.get("exit_code") if "exit_code" in data else result.get("exit_code", 0)
                     
                     if stdout:
-                        if not is_run_environment(command_identifier):
-                            print(stdout, end="")
+                        print(stdout, end="")
                     if stderr:
-                        if not is_run_environment(command_identifier):
-                            print(stderr, end="", file=sys.stderr)
+                        print(stderr, end="", file=sys.stderr)
                     return exit_code
                 else:
                     return result if isinstance(result, int) else 0
             except Exception as e:
                 error_msg = f"Error executing compound command: {e}"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
         
         # 否则，逐个执行命令（原有逻辑）
@@ -333,16 +284,14 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
                         last_result = 1
                         
                 except Exception as e:
-                    if not is_run_environment(command_identifier):
-                        print(f"Error executing command: {e}")
+                    print(f"Error executing command: {e}")
                     last_result = 1
             else:
                 # 跳过命令
-                if not is_run_environment(command_identifier):
-                    if operator == '&&':
-                        print(f"\n- Skipped command {i+1}/{len(commands_with_operators)} (previous command failed): {cmd}")
-                    elif operator == '||':
-                        print(f"\n- Skipped command {i+1}/{len(commands_with_operators)} (previous command succeeded): {cmd}")
+                if operator == '&&':
+                    print(f"\n- Skipped command {i+1}/{len(commands_with_operators)} (previous command failed): {cmd}")
+                elif operator == '||':
+                    print(f"\n- Skipped command {i+1}/{len(commands_with_operators)} (previous command succeeded): {cmd}")
             
             results.append(last_result)
         
@@ -352,8 +301,5 @@ def handle_multiple_commands(shell_cmd, command_identifier=None, shell_instance=
         
     except Exception as e:
         error_msg = f"Error executing multiple commands: {e}"
-        if is_run_environment(command_identifier):
-            write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-        else:
-            print(f"{error_msg}")
+        print(f"{error_msg}")
         return 1

@@ -9,7 +9,6 @@ import hashlib
 import time
 import uuid
 from pathlib import Path
-from .system_utils import is_run_environment, write_to_json_output
 
 import warnings
 warnings.filterwarnings('ignore', message='urllib3 v2 only supports OpenSSL 1.1.1+')
@@ -111,37 +110,20 @@ class RemoteShellManager:
             # 保存配置
             if self.save_shells(shells_data):
                 success_msg = f"Remote shell created successfully"
-                result_data = {
-                    "success": True,
-                    "message": success_msg,
-                    "shell_id": shell_id,
-                    "shell_name": name,
-                    "folder_id": folder_id,
-                    "created_time": created_time
-                }
                 
-                if is_run_environment(command_identifier):
-                    self.write_to_json_output(result_data, command_identifier)
-                else:
-                    print(success_msg)
-                    print(f"Shell ID: {shell_id}")
-                    print(f"Shell name: {name}")
-                    print(f"Folder ID: {folder_id or 'root'}")
-                    print(f"Created time: {created_time}")
+                print(success_msg)
+                print(f"Shell ID: {shell_id}")
+                print(f"Shell name: {name}")
+                print(f"Folder ID: {folder_id or 'root'}")
+                print(f"Created time: {created_time}")
                 return 0
             else:
                 error_msg = "Error: Save remote shell config failed"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
         except Exception as e:
             error_msg = f"Error: Create remote shell failed: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
 
     def list_shells(self, command_identifier=None):
@@ -153,40 +135,19 @@ class RemoteShellManager:
             
             if not shells:
                 no_shells_msg = "No remote shells found"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({
-                        "success": True,
-                        "message": no_shells_msg,
-                        "shells": [],
-                        "count": 0,
-                        "active_shell": None
-                    }, command_identifier)
-                else:
-                    print(no_shells_msg)
+                print(no_shells_msg)
                 return 0
             
-            if is_run_environment(command_identifier):
-                write_to_json_output({
-                    "success": True,
-                    "message": f"Found {len(shells)} remote shells",
-                    "shells": list(shells.values()),
-                    "count": len(shells),
-                    "active_shell": active_shell
-                }, command_identifier)
-            else:
-                print(f"Total {len(shells)} shells:")
-                for shell_id, shell_config in shells.items():
-                    is_active = "*" if shell_id == active_shell else " "
-                    print(f"{is_active} {shell_config['name']} (ID: {shell_id})")
+            print(f"Total {len(shells)} shells:")
+            for shell_id, shell_config in shells.items():
+                is_active = "*" if shell_id == active_shell else " "
+                print(f"{is_active} {shell_config['name']} (ID: {shell_id})")
             
             return 0
             
         except Exception as e:
             error_msg = f"Error listing remote shells: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
 
     def terminate_shell(self, shell_id, command_identifier=None):
@@ -196,10 +157,7 @@ class RemoteShellManager:
             
             if shell_id not in shells_data["shells"]:
                 error_msg = f"Cannot find shell ID: {shell_id}"
-                if is_run_environment(self.command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
             
             shell_config = shells_data["shells"][shell_id]
@@ -220,33 +178,16 @@ class RemoteShellManager:
             
             # 保存配置
             if self.save_shells(shells_data):
-                result_data = {
-                    "success": True,
-                    "terminated_shell_id": shell_id,
-                    "terminated_shell_name": shell_name,
-                    "new_active_shell": shells_data["active_shell"],
-                    "remaining_shells": len(shells_data["shells"])
-                }
-                
-                if is_run_environment(self.command_identifier):
-                    write_to_json_output(result_data, self.command_identifier)
-                else:
-                    print(f"Shell ID deleted: {shell_id}")
+                print(f"Shell ID deleted: {shell_id}")
                 return 0
             else:
                 error_msg = "Failed to save shell configuration"
-                if is_run_environment(self.command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
                 
         except Exception as e:
             error_msg = f"Error terminating remote shell: {e}"
-            if is_run_environment(self.command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
 
     def checkout_shell(self, shell_id, command_identifier=None):
@@ -256,10 +197,7 @@ class RemoteShellManager:
             
             if shell_id not in shells_data["shells"]:
                 error_msg = f"Cannot find shell ID: {shell_id}"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
             
             shell_config = shells_data["shells"][shell_id]
@@ -274,32 +212,16 @@ class RemoteShellManager:
             
             # 保存配置
             if self.save_shells(shells_data):
-                result_data = {
-                    "success": True,
-                    "shell_id": shell_id,
-                    "shell_name": shell_name,
-                    "message": f"Switched to shell: {shell_name} ({shell_id})"
-                }
-                
-                if is_run_environment(command_identifier):
-                    write_to_json_output(result_data, command_identifier)
-                else:
-                    print(f"Switched to shell: {shell_name} ({shell_id})")
+                print(f"Switched to shell: {shell_name} ({shell_id})")
                 return 0
             else:
                 error_msg = "Failed to save shell configuration"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
                 
         except Exception as e:
             error_msg = f"Error checking out remote shell: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
 
     def exit_shell(self, command_identifier=None):
@@ -309,10 +231,7 @@ class RemoteShellManager:
             
             if not current_shell:
                 error_msg = "Error: No active remote shell"
-                if is_run_environment(self.command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, self.command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
             
             # 清除活跃shell
@@ -321,32 +240,16 @@ class RemoteShellManager:
             
             if self.save_shells(shells_data):
                 success_msg = f"Exited remote shell: {current_shell['name']}"
-                result_data = {
-                    "success": True,
-                    "message": success_msg,
-                    "exited_shell": current_shell['name'],
-                    "shell_id": current_shell['id']
-                }
-                
-                if is_run_environment(command_identifier):
-                    write_to_json_output(result_data, self.command_identifier)
-                else:
-                    print(success_msg)
+                print(success_msg)
                 return 0
             else:
                 error_msg = "Error: Save shell state failed"
-                if is_run_environment(command_identifier):
-                    write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                else:
-                    print(error_msg)
+                print(error_msg)
                 return 1
                 
         except Exception as e:
             error_msg = f"Error: {e}"  # 简化错误消息，让上层error handler处理
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
 
     def get_current_shell(self):
@@ -470,27 +373,12 @@ class RemoteShellManager:
                 create_result = self.create_shell("default_shell", None, None)
                 if create_result != 0:
                     error_msg = "Error: Failed to create default shell"
-                    if is_run_environment(command_identifier):
-                        write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-                    else:
-                        print(error_msg)
+                    print(error_msg)
                     return 1
                 current_shell = self.get_current_shell()
             
-            if is_run_environment(command_identifier):
-                # 在RUN环境下，返回shell信息
-                result_data = {
-                    "success": True,
-                    "message": "Shell mode started",
-                    "shell_info": current_shell,
-                    "current_path": current_shell.get("current_path", "~"),
-                    "available_commands": ["pwd", "ls", "mkdir", "cd", "rm", "help", "exit"]
-                }
-                write_to_json_output(result_data, command_identifier)
-                return 0
-            else:
-                # 在直接执行模式下，启动交互式shell
-                import sys
+            # 在直接执行模式下，启动交互式shell
+            import sys
                 
                 # 检测是否是管道输入模式，如果是则禁用direct feedback
                 is_pipe_mode = not sys.stdin.isatty()
@@ -579,10 +467,7 @@ class RemoteShellManager:
             
         except Exception as e:
             error_msg = f"Error starting shell mode: {e}"
-            if is_run_environment(command_identifier):
-                write_to_json_output({"success": False, "error": error_msg}, command_identifier)
-            else:
-                print(error_msg)
+            print(error_msg)
             return 1
 
 

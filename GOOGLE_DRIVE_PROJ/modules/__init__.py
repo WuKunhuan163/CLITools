@@ -10,7 +10,6 @@ from .remote_shell_manager import *
 from .drive_api_service import *
 from .shell_commands import *
 from .hf_credentials_manager import *
-from .system_utils import is_run_environment, write_to_json_output
 
 # 导入原有的Google Drive Shell系统类
 try:
@@ -47,6 +46,4 @@ __all__ = [
     "RemoteShellManager",
     "DriveApiService",
     "HfCredentialsManager",
-    "is_run_environment",
-    "write_to_json_output",
 ]

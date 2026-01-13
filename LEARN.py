@@ -108,37 +108,6 @@ def normalize_parameters(args):
         
     return args
 
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
-
 def clear_terminal():
     """Clear the terminal screen."""
     os.system('clear' if os.name == 'posix' else 'cls')
@@ -1101,24 +1070,8 @@ def extract_response_data(response_data):
                 else:
                     response_content = output_content
             else:
-                # output是纯文本，但检查是否有RUN_DATA_FILE
+                # output是纯文本
                 response_content = output_content
-                # 尝试从RUN_DATA_FILE中读取token信息
-                if '_RUN_DATA_file' in response_data:
-                    try:
-                        import json
-                        with open(response_data['_RUN_DATA_file'], 'r', encoding='utf-8') as f:
-                            run_data = json.load(f)
-                            if 'usage' in run_data:
-                                usage = run_data['usage']
-                                usage_info = {
-                                    'input_tokens': usage.get('input_tokens', 0),
-                                    'output_tokens': usage.get('output_tokens', 0),
-                                    'total_tokens': usage.get('total_tokens', 0),
-                                    'cost': run_data.get('cost', 0)
-                                }
-                    except (FileNotFoundError, json.JSONDecodeError, KeyError):
-                        pass
         except json.JSONDecodeError:
             # 如果解析失败，直接使用output内容
             response_content = response_data['output']
@@ -2695,14 +2648,6 @@ def main():
     
     # 获取command_identifier
     args = sys.argv[1:]
-    command_identifier = None
-    
-    # 检查是否被RUN调用（第一个参数是command_identifier）
-    if args and is_run_environment(args[0]):
-        command_identifier = args[0]
-        args = args[1:]  # 移除command_identifier，保留实际参数
-        # 重新构建sys.argv以供argparse使用
-        sys.argv = [sys.argv[0]] + args
     
     # Check if running in interactive mode (no arguments)
     if len(args) == 0:
