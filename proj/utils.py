@@ -104,34 +104,54 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
         is_truncated = True
     
     def get_line(data_row, widths, truncate=False):
-        parts = []
-        if is_rtl:
-            ordered_data = list(reversed(data_row))
-            ordered_widths = list(reversed(widths))
-        else:
-            ordered_data = data_row
-            ordered_widths = widths
+        if not truncate:
+            line_parts = []
+            row_to_show = list(reversed(data_row)) if is_rtl else data_row
+            widths_to_show = list(reversed(widths)) if is_rtl else widths
+            for i, val in enumerate(row_to_show):
+                val_str = str(val)
+                w = widths_to_show[i]
+                padding = " " * (w - get_display_width(val_str))
+                line_parts.append(f"{val_str}{padding}")
+            line = "".join(line_parts)
+            if is_rtl:
+                return f"\u202b{line}\u202c\x1B[0m"
+            return line + "\x1B[0m"
 
-        current_total = 0
-        for i, val in enumerate(ordered_data):
-            val_str = str(val)
-            w = ordered_widths[i]
+        # Truncation logic: prioritize columns from left to right (logical order)
+        # But display them according to is_rtl
+        available_width = max_width
+        column_contents = []
+        
+        for i in range(num_cols):
+            val_str = str(data_row[i])
+            w = widths[i]
             
-            if truncate and current_total + w > max_width:
-                available = max_width - current_total
-                if available > 3:
-                    val_str = truncate_to_display_width(val_str, available - 3) + "..."
-                    parts.append(f"{val_str:<{available}}")
-                elif available > 0:
-                    val_str = truncate_to_display_width(val_str, available)
-                    parts.append(f"{val_str:<{available}}")
+            if available_width <= 0:
+                break # No more columns can be shown
+                
+            if i == num_cols - 1 or w > available_width:
+                # Last column or too wide: truncate
+                if available_width > 3:
+                    val_str = truncate_to_display_width(val_str, available_width - 3) + "..."
+                else:
+                    val_str = truncate_to_display_width(val_str, available_width)
+                
+                padding = " " * (available_width - get_display_width(val_str))
+                column_contents.append(f"{val_str}{padding}")
+                available_width = 0
                 break
+            else:
+                padding = " " * (w - get_display_width(val_str))
+                column_contents.append(f"{val_str}{padding}")
+                available_width -= w
+        
+        # Now we have column_contents in logical order. 
+        # For RTL, we reverse them for display.
+        if is_rtl:
+            column_contents.reverse()
             
-            padding = " " * (w - get_display_width(val_str))
-            parts.append(f"{val_str}{padding}")
-            current_total += w
-            
-        line = "".join(parts)
+        line = "".join(column_contents)
         if is_rtl:
             return f"\u202b{line}\u202c\x1B[0m"
         return line + "\x1B[0m"
