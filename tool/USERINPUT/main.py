@@ -124,7 +124,7 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     
     config = get_config()
     focus_interval = config.get("focus_interval", 0) # 0 means disabled
-
+    
     try:
         bell_path = proj_dir / "tkinter_bell.mp3"
         bell_path_str_literal = repr(str(bell_path))
@@ -185,7 +185,13 @@ class TkinterInputWindow:
 
     def create_window(self):
         try:
-            self.root = tk.Tk(className='USERINPUT')
+            self.root = tk.Tk()
+            
+            # Set a default app name for macOS to avoid 'aString != nil' crash
+            if platform.system() == "Darwin":
+                try:
+                    self.root.createcommand('tk::mac::Quit', self.cancel_input)
+                except: pass
             
             # Graceful exit on SIGTERM/SIGINT
             def handle_signal(sig, frame):
@@ -289,6 +295,11 @@ class TkinterInputWindow:
 
     def play_bell(self):
         bell_path = %(bell_path)s
+        if self.root:
+            try:
+                self.root.bell()
+            except tk.TclError: pass
+            
         if bell_path and os.path.exists(bell_path):
             def run_play():
                 try:
@@ -395,7 +406,7 @@ if __name__ == "__main__":
                     continue
         
         if not json_data:
-             raise RuntimeError(f"USERINPUT subprocess returned no valid JSON output. Raw output: {output}")
+            raise RuntimeError(f"USERINPUT subprocess returned no valid JSON output. Raw output: {output}")
 
         status = json_data.get("status")
         data = json_data.get("data")

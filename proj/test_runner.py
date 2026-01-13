@@ -12,7 +12,10 @@ class TestRunner:
     def __init__(self, tool_name, project_root):
         self.tool_name = tool_name
         self.project_root = Path(project_root)
-        self.tool_dir = self.project_root / "tool" / tool_name
+        if tool_name == "root":
+            self.tool_dir = self.project_root
+        else:
+            self.tool_dir = self.project_root / "tool" / tool_name
         self.cache_file = self.tool_dir / "test" / ".tests_cache.json"
         
         # Try to import shared utils
@@ -156,7 +159,7 @@ class TestRunner:
         except Exception:
             return None
 
-    def _cleanup_old_reports(self, result_dir, limit=1024, batch_size=512):
+    def _cleanup_old_reports(self, result_dir, limit=1024, batch_size=None):
         # Allow global config to override limit
         config_path = self.project_root / "data" / "global_config.json"
         if config_path.exists():
@@ -164,6 +167,9 @@ class TestRunner:
                 with open(config_path, 'r') as f:
                     limit = json.load(f).get("test_max_reports", limit)
             except Exception: pass
+            
+        if batch_size is None:
+            batch_size = max(1, limit // 2)
             
         reports = sorted(list(result_dir.glob("*.txt")), key=os.path.getmtime)
         if len(reports) > limit:

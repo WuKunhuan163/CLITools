@@ -15,6 +15,8 @@
     "status_completed": "已完成",
     "status_failed": "失败",
     "status_unknown": "未知",
+    "pid": "PID",
+    "pid_label": "{pid}",
     "full_report_saved": "显示内容被裁切, 完整报表已保存至: {path}",
     "tool_BACKGROUND_desc": "安全地管理长期运行的后台进程.",
     "tool_BACKGROUND_purpose": "运行任务而不阻塞代理的执行."
