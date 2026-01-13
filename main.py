@@ -511,10 +511,10 @@ def sync_branches():
         except Exception: pass
     
     if not has_changes:
-        print(f"{GREEN}No changes to sync. Re-synchronizing 'test' branch from 'main'...{RESET}")
+        print(f"{GREEN}No core changes to sync. Re-synchronizing 'test' branch from 'main'...{RESET}")
         commands = [
-            ["git", "branch", "-D", "test"],
             ["git", "checkout", "main"],
+            ["git", "branch", "-D", "test"],
             ["git", "checkout", "-b", "test"],
             ["git", "checkout", current_branch]
         ]
