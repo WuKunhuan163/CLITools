@@ -11,6 +11,9 @@
     "config_updated": "配置已更新: 聚焦间隔 = {val} 秒",
     "psutil_not_found": "错误: 未找到 psutil 模块. 无法安全停止实例. ",
     "instances_stopped": "已停止 {count} 个 USERINPUT 实例. ",
+    "err_sandbox": "GUI 连接失败。这可能是由于沙盒限制（如 Cursor 的 'Run sandbox' 模式）或缺少窗口服务器访问权限导致的。请尝试在非沙盒模式下运行，或直接在终端中手动执行 USERINPUT。",
+    "err_macos_crash": "macOS GUI 初始化崩溃。请确保您在标准的终端会话中运行。",
+    "err_no_display": "未发现显示设备。无法启动 GUI 窗口。",
     "tool_USERINPUT_desc": "基于 Tkinter 的 GUI, 用于捕获多行用户反馈和审批. ",
     "tool_USERINPUT_purpose": "促进 AI 代理与用户之间的无缝交互! AI 代理应单独执行此命令, 不要与其他命令合并执行, 以确保反馈不被遗漏. "
   }

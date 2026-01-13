@@ -201,7 +201,7 @@ class TkinterInputWindow:
             if platform.system() == "Darwin":
                 import ctypes
                 import ctypes.util
-                prog_name = "Userinput"
+                prog_name = "USERINPUT"
                 
                 # Attempt to set process name at C level
                 try:
@@ -432,8 +432,9 @@ if __name__ == "__main__":
             raise RuntimeError(f"USERINPUT window timed out after {watchdog_timeout} seconds.")
 
         if proc.returncode != 0:
-            error_message = stdout.strip() or stderr.strip()
-            raise RuntimeError(f"USERINPUT subprocess failed: {error_message}")
+            error_message = stderr.strip() or stdout.strip()
+            parsed_error = parse_gui_error(error_message)
+            raise RuntimeError(parsed_error)
 
         output = stdout.strip()
         json_prefix = "GDS_USERINPUT_JSON:"
@@ -507,6 +508,27 @@ def stop_all_instances():
     msg = _("instances_stopped", "Stopped {count} USERINPUT instance(s).").format(count=count)
     print(msg)
     return 0
+
+def parse_gui_error(error_output):
+    """Parse raw stderr output from the GUI process and return a human-readable message."""
+    if not error_output:
+        return "Unknown error (empty output)"
+        
+    if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output:
+        return _("err_sandbox", "GUI connection failed. Likely due to sandbox restrictions.")
+    
+    if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output:
+        # If it crashed with this specific macOS error, it's almost always a system/sandbox issue
+        return _("err_sandbox", "GUI connection failed. Likely due to sandbox restrictions.")
+        
+    if "no display name" in error_output or "could not connect to display" in error_output:
+        return _("err_no_display", "No display found. Cannot start GUI.")
+        
+    # Return the first 5 lines of the error if it doesn't match known patterns
+    lines = error_output.splitlines()
+    if len(lines) > 5:
+        return "\n".join(lines[:5]) + "\n... (truncated)"
+    return error_output
 
 def main():
     """Main function with retry logic."""
