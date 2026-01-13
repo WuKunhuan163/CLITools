@@ -169,5 +169,7 @@
   "sync_uncommitted": "分支 '{branch}' 中有未提交的更改。请先提交它们。",
   "not_git_repo": "不是 Git 仓库。",
   "pip_success_label": "成功",
-  "install_success_label": "成功"
+  "install_success_label": "成功",
+  "missing_deps_reinstall": "工具 '{name}' 已安装但缺少依赖。正在重新安装...",
+  "already_installed": "{name} 工具已经安装。"
 }
