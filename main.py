@@ -274,6 +274,50 @@ def update_config(key, value):
     data_dir.mkdir(exist_ok=True)
     config_path = data_dir / "global_config.json"
     
+    if key == "language":
+        # Validate language code
+        lang = value.lower()
+        if lang != "en":
+            # Check if audit file or translation file exists
+            audit_path = project_root / "data" / "audit" / "lang" / f"audit_{lang}.json"
+            trans_path = project_root / "proj" / "translations" / f"{lang}.json"
+            if not audit_path.exists() and not trans_path.exists():
+                # Suggest similar languages
+                try:
+                    from proj.utils import get_close_matches
+                    from proj.lang_auditor import LangAuditor
+                    auditor = LangAuditor(project_root)
+                    audited_langs = auditor.list_audited_languages()
+                    possibilities = ["en"] + audited_langs
+                    matches = get_close_matches(lang, possibilities)
+                    
+                    error_label = f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}"
+                    
+                    en_names = {
+                        "en": "English", "zh": "Chinese", "ar": "Arabic", "he": "Hebrew",
+                        "fa": "Persian", "ja": "Japanese", "ko": "Korean", "fr": "French",
+                        "de": "German", "es": "Spanish", "it": "Italian", "ru": "Russian"
+                    }
+
+                    if matches:
+                        msg = _("lang_error_not_found", "Language '{lang}' not found. Did you mean: {matches}?", lang=lang, matches=", ".join(matches))
+                        print(f"{error_label}: {msg}")
+                        print(_("lang_suggest_list", "You can also use 'TOOL lang --list' to see all supported languages."))
+                    else:
+                        all_langs = []
+                        for l in possibilities:
+                            name = en_names.get(l, l)
+                            localized_name = get_translation(str(SHARED_PROJ_DIR), f"lang_name_{l}", name)
+                            all_langs.append(f"{localized_name}({l})")
+                        
+                        msg = _("lang_error_not_found_no_suggest", "Language '{lang}' not found. Supported: {all}", lang=lang, all=", ".join(all_langs))
+                        print(f"{error_label}: {msg}")
+                except Exception as e:
+                    error_label = f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}"
+                    msg = _("lang_error_not_found_simple", "Language '{lang}' not found.", lang=lang)
+                    print(f"{error_label}: {msg}")
+                return # Abort update
+    
     config = {}
     if config_path.exists():
         try:
@@ -356,6 +400,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(
+        prog="TOOL",
         description=_("tool_description", "AITerminalTools - A unified management system for AI tools."),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_("tool_epilog", """
@@ -363,7 +408,7 @@ Examples:
   TOOL install USERINPUT        # Install a specific tool
   TOOL test USERINPUT           # Run unit tests for a tool
   TOOL rule                     # Generate AI agent guidelines
-  TOOL config set-lang zh       # Set global language preference
+  TOOL lang set zh              # Set global language preference
         """))
     
     subparsers = parser.add_subparsers(dest="command", help=_("subcommand_help", "Available commands"))
@@ -384,6 +429,19 @@ Examples:
     audit_parser = subparsers.add_parser("audit-lang", help=_("audit_help", "Audit language translation coverage"))
     audit_parser.add_argument("lang_code", help=_("audit_lang_code_help", "Language code to audit (e.g., en, zh)"))
 
+    # Lang command
+    lang_root_parser = subparsers.add_parser("lang", help=_("lang_help", "Manage display language"))
+    # Add optional arguments for --set and --list to support the user's desired syntax
+    lang_root_parser.add_argument("--set", dest="lang_set_val", help=_("lang_set_help", "Set display language"))
+    lang_root_parser.add_argument("--list", dest="lang_list", action="store_true", help=_("lang_list_help", "List supported languages and their coverage"))
+    
+    lang_subparsers = lang_root_parser.add_subparsers(dest="lang_command", help=_("lang_subcommand_help", "Language subcommands"))
+    
+    lang_set_parser = lang_subparsers.add_parser("set", help=_("lang_set_help", "Set display language"))
+    lang_set_parser.add_argument("lang_code", help=_("lang_code_help", "Language code (e.g., en, zh, ar)"))
+    
+    lang_subparsers.add_parser("list", help=_("lang_list_help", "List supported languages and their coverage"))
+
     # Rule command
     subparsers.add_parser("rule", help=_("rule_help", "Generate AI agent tool rules"))
 
@@ -391,8 +449,8 @@ Examples:
     config_parser = subparsers.add_parser("config", help=_("config_help", "Manage global configurations"))
     config_subparsers = config_parser.add_subparsers(dest="subcommand", help=_("config_subcommand_help", "Config subcommands"))
     
-    lang_parser = config_subparsers.add_parser("set-lang", help=_("config_set_lang_help", "Set global language preference"))
-    lang_parser.add_argument("lang_code", help=_("config_lang_code_help", "Language code (e.g., en, zh)"))
+    config_lang_parser = config_subparsers.add_parser("set-lang", help=_("config_set_lang_help", "Set global language preference"))
+    config_lang_parser.add_argument("lang_code", help=_("config_lang_code_help", "Language code (e.g., en, zh)"))
 
     test_config_parser = config_subparsers.add_parser("test", help=_("config_test_help", "Test configuration"))
     test_config_parser.add_argument("--max-reports", type=int, help=_("config_test_max_reports_help", "Maximum number of test reports to keep"))
@@ -409,6 +467,15 @@ Examples:
         _test_tool_with_args(args)
     elif args.command == "audit-lang":
         _audit_lang(args.lang_code)
+    elif args.command == "lang":
+        if args.lang_set_val:
+            update_config("language", args.lang_set_val)
+        elif args.lang_list or args.lang_command == "list":
+            _list_languages()
+        elif args.lang_command == "set":
+            update_config("language", args.lang_code)
+        else:
+            lang_root_parser.print_help()
     elif args.command == "rule":
         generate_ai_rule()
     elif args.command == "config":
@@ -480,6 +547,7 @@ def _audit_lang(lang_code):
     sys.path.append(str(project_root))
     try:
         from proj.lang_auditor import LangAuditor
+        from proj.utils import get_rate_color
     except ImportError:
         print(f"\n{RED}" + _("audit_import_error", "Error: Could not import LangAuditor.") + f"{RESET}")
         return
@@ -493,32 +561,25 @@ def _audit_lang(lang_code):
     
     print(f"{BLUE}{msg}{RESET}", end="", flush=True)
 
-    results, cached = auditor.audit()
+    results, _unused = auditor.audit()
     summary = results.get("summary", {})
     
     # 3. Completion message (default style)
     print("\r" + " " * 80 + "\r", end="") # Clear line
-    if cached:
+    if _unused:
         msg = _("audit_using_cache_done", "Audit report for {lang} ({lang_name}) retrieved.", lang=lang_code, lang_name=lang_name)
     else:
         msg = _("audit_scanning_done", "Translation audit scan for {lang} ({lang_name}) complete.", lang=lang_code, lang_name=lang_name)
     print(msg)
 
-    # 4. Helper for colorizing percentages
-    def get_rate_color(rate_str):
-        try:
-            rate_val = float(rate_str.strip('%'))
-            if rate_val >= 100: return f"{BOLD}{GREEN}"
-            if rate_val >= 90: return f"{BOLD}{BLUE}"
-            if rate_val >= 60: return f"{BOLD}{YELLOW}"
-            return f"{BOLD}{RED}"
-        except Exception: return ""
-
+    # 4. Colorize percentages using threshold logic from utils
+    colors_dict = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET}
+    
     rate_keys = summary.get("completion_rate_keys", "0%")
     rate_refs = summary.get("completion_rate_refs", "0%")
     
-    color_keys = get_rate_color(rate_keys)
-    color_refs = get_rate_color(rate_refs)
+    color_keys = get_rate_color(rate_keys, colors_dict)
+    color_refs = get_rate_color(rate_refs, colors_dict)
     
     # 5. Summary output
     print(_("audit_summary_keys", "{rate} of keys support {lang} ({lang_name}) translation ({supported}/{total})",
@@ -530,6 +591,145 @@ def _audit_lang(lang_code):
             total=summary.get("total_references"), lang=lang_code, lang_name=lang_name))
     
     print(_("audit_report_path", "Detailed report saved to: {path}", path=auditor.cache_file))
+
+    # 6. Cache warning and force re-scan tip if using cache
+    if _unused:
+        warning_label = f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}"
+        warning_msg = _("audit_cache_warning", "This is a cached report and may not reflect recent changes.")
+        tip = _("audit_force_tip", "To force a re-scan: rm {path} && TOOL audit-lang {lang}", path=auditor.cache_file, lang=lang_code)
+        print(f"{warning_label}: {warning_msg}")
+        print(tip)
+
+def _list_languages():
+    project_root = Path(__file__).parent.absolute()
+    sys.path.append(str(project_root))
+    
+    try:
+        from proj.lang_auditor import LangAuditor
+        from proj.utils import get_rate_color, get_display_width
+    except ImportError:
+        print(f"{RED}" + _("audit_import_error", "Error: Could not import LangAuditor.") + f"{RESET}")
+        return
+
+    auditor = LangAuditor(project_root)
+    audited_langs = auditor.list_audited_languages()
+    
+    # Global config for current language
+    current_lang = "en"
+    config_path = project_root / "data" / "global_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                current_lang = json.load(f).get("language", "en")
+        except Exception: pass
+
+    # Prepare data for table
+    rows = []
+    
+    # Language names mapping for English defaults
+    en_names = {
+        "en": "English",
+        "zh": "Chinese",
+        "ar": "Arabic",
+        "he": "Hebrew",
+        "fa": "Persian",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "fr": "French",
+        "de": "German",
+        "es": "Spanish",
+        "it": "Italian",
+        "ru": "Russian"
+    }
+
+    # Always include English
+    rows.append({
+        "code": "en",
+        "name": _("lang_name_en", "English"),
+        "keys": _("lang_default", "default"),
+        "refs": _("lang_default", "default"),
+        "is_current": current_lang == "en"
+    })
+    
+    colors_dict = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET}
+
+    for lang in audited_langs:
+        if lang == "en": continue
+        
+        default_name = en_names.get(lang, lang)
+        lang_name = _(f"lang_name_{lang}", default_name)
+        
+        # Load audit data
+        results, _unused = LangAuditor(project_root, lang).audit()
+        summary = results.get("summary", {})
+        
+        rate_keys = summary.get("completion_rate_keys", "0%")
+        rate_refs = summary.get("completion_rate_refs", "0%")
+        
+        color_keys = get_rate_color(rate_keys, colors_dict)
+        color_refs = get_rate_color(rate_refs, colors_dict)
+        
+        rows.append({
+            "code": lang,
+            "name": lang_name,
+            "keys": f"{color_keys}{rate_keys}{RESET}",
+            "refs": f"{color_refs}{rate_refs}{RESET}",
+            "is_current": current_lang == lang
+        })
+
+    # Print Table
+    header_name = _("lang_table_name", "Language")
+    header_keys = _("lang_table_keys", "Key Coverage")
+    header_refs = _("lang_table_refs", "Ref Coverage")
+    
+    headers = [header_name, header_keys, header_refs]
+    table_rows = []
+    
+    for r in rows:
+        indicator = " *" if r["is_current"] else ""
+        table_rows.append([
+            f"{r['name']}({r['code']})",
+            r["keys"],
+            r["refs"] + indicator
+        ])
+
+    print("\n" + _("lang_list_header", "Supported Languages:"))
+    
+    try:
+        terminal_width = os.get_terminal_size().columns
+    except (AttributeError, OSError):
+        terminal_width = 80
+
+    from proj.utils import format_table
+    is_rtl = current_lang in ["ar", "he", "fa"]
+    table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="lang", is_rtl=is_rtl)
+    print(table_str)
+    
+    if report_path and "..." in table_str:
+        print("\n" + _("full_report_saved", "Full report saved to: {path}", path=report_path))
+    
+    print("\n" + _("lang_table_footer_star", "*: current language"))
+    print(_("lang_table_footer_keys", "Keys: Total number of unique translation strings found in code."))
+    print(_("lang_table_footer_refs", "References: Total number of times translation strings are used in code."))
+    
+    print("\n" + _("lang_audit_instruction", "To audit a specific language coverage: TOOL audit-lang <lang_code>"))
+    
+    # Dynamic dev instruction with example
+    example_lang = "zh" if "zh" in audited_langs else (audited_langs[0] if audited_langs else "en")
+    example_path = f"proj/translations/<lang_code>/already_installed"
+    if example_lang != "en":
+        try:
+            results, _unused_cached = LangAuditor(project_root, example_lang).audit()
+            if results.get("missing_translations"):
+                example_path = results["missing_translations"][0]
+            elif results.get("entries"):
+                example_path = results["entries"][0].get("logical_path", example_path)
+        except Exception: pass
+
+    # Replace <lang_code> in example path for clarity
+    example_path = example_path.replace(example_lang, "<lang_code>")
+    
+    print(_("lang_dev_instruction", "To support a new language: Run audit for the new language (e.g., TOOL audit-lang <lang_code>), then create translations JSONs based on each entry in the 'missing_translations' field of the detailed report JSON. For example, if you see logical path '{path}', create/edit the corresponding JSON file and add the key with its translation.", path=example_path))
 
 if __name__ == "__main__":
     main()

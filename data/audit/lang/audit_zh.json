@@ -1,17 +1,19 @@
 {
   "summary": {
     "language": "zh",
-    "timestamp": "2026-01-12T15:47:18.918945",
-    "total_keys": 172,
-    "supported_keys": 172,
-    "missing_keys": 0,
-    "total_references": 188,
-    "supported_references": 188,
-    "missing_references": 0,
-    "completion_rate_keys": "100.00%",
-    "completion_rate_refs": "100.00%"
+    "timestamp": "2026-01-13T13:37:01.535052",
+    "total_keys": 202,
+    "supported_keys": 201,
+    "missing_keys": 1,
+    "total_references": 228,
+    "supported_references": 227,
+    "missing_references": 1,
+    "completion_rate_keys": "99.50%",
+    "completion_rate_refs": "99.56%"
   },
-  "missing_translations": [],
+  "missing_translations": [
+    "proj/translations/zh/test_list_header"
+  ],
   "entries": [
     {
       "key": "already_installed",
@@ -287,6 +289,61 @@
       "supported": true,
       "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/updated_path"
+    },
+    {
+      "key": "error_label",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/error_label"
+    },
+    {
+      "key": "lang_error_not_found",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_error_not_found"
+    },
+    {
+      "key": "lang_suggest_list",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_suggest_list"
+    },
+    {
+      "key": "lang_error_not_found_no_suggest",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_error_not_found_no_suggest"
+    },
+    {
+      "key": "lang_error_not_found_simple",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_error_not_found_simple"
     },
     {
       "key": "config_updated",
@@ -587,6 +644,61 @@
       "logical_path": "proj/translations/zh/audit_lang_code_help"
     },
     {
+      "key": "lang_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_help"
+    },
+    {
+      "key": "lang_set_help",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_set_help"
+    },
+    {
+      "key": "lang_list_help",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_list_help"
+    },
+    {
+      "key": "lang_subcommand_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_subcommand_help"
+    },
+    {
+      "key": "lang_code_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_code_help"
+    },
+    {
       "key": "rule_help",
       "type": "root",
       "count": 1,
@@ -688,7 +800,7 @@
     {
       "key": "audit_import_error",
       "type": "root",
-      "count": 1,
+      "count": 2,
       "sources": [
         "main.py"
       ],
@@ -774,15 +886,192 @@
       "logical_path": "proj/translations/zh/audit_report_path"
     },
     {
-      "key": "test_no_tests",
+      "key": "warning_label",
       "type": "root",
       "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/warning_label"
+    },
+    {
+      "key": "audit_cache_warning",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/audit_cache_warning"
+    },
+    {
+      "key": "audit_force_tip",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/audit_force_tip"
+    },
+    {
+      "key": "lang_name_en",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_name_en"
+    },
+    {
+      "key": "lang_default",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_default"
+    },
+    {
+      "key": "lang_table_name",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_table_name"
+    },
+    {
+      "key": "lang_table_keys",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_table_keys"
+    },
+    {
+      "key": "lang_table_refs",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_table_refs"
+    },
+    {
+      "key": "lang_list_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_list_header"
+    },
+    {
+      "key": "full_report_saved",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py",
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/full_report_saved"
+    },
+    {
+      "key": "lang_table_footer_star",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_table_footer_star"
+    },
+    {
+      "key": "lang_table_footer_keys",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_table_footer_keys"
+    },
+    {
+      "key": "lang_table_footer_refs",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_table_footer_refs"
+    },
+    {
+      "key": "lang_audit_instruction",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_audit_instruction"
+    },
+    {
+      "key": "lang_dev_instruction",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/lang_dev_instruction"
+    },
+    {
+      "key": "test_no_tests",
+      "type": "root",
+      "count": 2,
       "sources": [
         "proj/test_runner.py"
       ],
       "supported": true,
       "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_no_tests"
+    },
+    {
+      "key": "test_list_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": false,
+      "translation_file": "",
+      "logical_path": "proj/translations/zh/test_list_header"
     },
     {
       "key": "test_no_selected",
@@ -805,6 +1094,50 @@
       "supported": true,
       "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_running"
+    },
+    {
+      "key": "test_status_success",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/test_status_success"
+    },
+    {
+      "key": "test_status_failed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/test_status_failed"
+    },
+    {
+      "key": "test_status_timeout",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/test_status_timeout"
+    },
+    {
+      "key": "test_status_unknown",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/zh.json",
+      "logical_path": "proj/translations/zh/test_status_unknown"
     },
     {
       "key": "test_background_sequential",
@@ -886,57 +1219,13 @@
     {
       "key": "test_started",
       "type": "root",
-      "count": 1,
+      "count": 3,
       "sources": [
         "proj/test_runner.py"
       ],
       "supported": true,
       "translation_file": "proj/translations/zh.json",
       "logical_path": "proj/translations/zh/test_started"
-    },
-    {
-      "key": "test_status_success",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/test_status_success"
-    },
-    {
-      "key": "test_status_failed",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/test_status_failed"
-    },
-    {
-      "key": "test_status_timeout",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/test_status_timeout"
-    },
-    {
-      "key": "test_status_unknown",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": true,
-      "translation_file": "proj/translations/zh.json",
-      "logical_path": "proj/translations/zh/test_status_unknown"
     },
     {
       "key": "active_processes",
@@ -1025,17 +1314,6 @@
       "supported": true,
       "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/zh/status_unknown"
-    },
-    {
-      "key": "full_report_saved",
-      "type": "BACKGROUND",
-      "count": 1,
-      "sources": [
-        "tool/BACKGROUND/main.py"
-      ],
-      "supported": true,
-      "translation_file": "tool/BACKGROUND/proj/translations.json",
-      "logical_path": "tool/BACKGROUND/proj/translations/zh/full_report_saved"
     },
     {
       "key": "no_active_processes",
@@ -1223,6 +1501,61 @@
       "supported": true,
       "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/zh/instances_stopped"
+    },
+    {
+      "key": "python_version_not_supported",
+      "type": "PYTHON",
+      "count": 1,
+      "sources": [
+        "tool/PYTHON/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/python_version_not_supported"
+    },
+    {
+      "key": "python_already_installed",
+      "type": "PYTHON",
+      "count": 1,
+      "sources": [
+        "tool/PYTHON/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/python_already_installed"
+    },
+    {
+      "key": "python_installing",
+      "type": "PYTHON",
+      "count": 1,
+      "sources": [
+        "tool/PYTHON/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/python_installing"
+    },
+    {
+      "key": "python_install_success",
+      "type": "PYTHON",
+      "count": 1,
+      "sources": [
+        "tool/PYTHON/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/python_install_success"
+    },
+    {
+      "key": "python_install_failed",
+      "type": "PYTHON",
+      "count": 2,
+      "sources": [
+        "tool/PYTHON/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/zh/python_install_failed"
     },
     {
       "key": "tex_not_found",

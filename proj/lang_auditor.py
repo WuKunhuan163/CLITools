@@ -5,12 +5,15 @@ from pathlib import Path
 from datetime import datetime
 
 class LangAuditor:
-    def __init__(self, project_root, lang_code):
+    def __init__(self, project_root, lang_code=None):
         self.project_root = Path(project_root)
         self.lang_code = lang_code
-        self.audit_dir = self.project_root / "data" / "audit"
+        self.audit_dir = self.project_root / "data" / "audit" / "lang"
         self.audit_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_file = self.audit_dir / f"audit_{lang_code}.json"
+        if lang_code:
+            self.cache_file = self.audit_dir / f"audit_{lang_code}.json"
+        else:
+            self.cache_file = None
         
         # Regex patterns for finding translation keys
         # Use \b to avoid matching __import__ or other functions ending in _
@@ -19,9 +22,12 @@ class LangAuditor:
             re.compile(r'\bget_translation\([^,]+,\s*["\']([^"\']+)["\']')
         ]
 
-    def audit(self):
+    def audit(self, force_scan=False):
         """Perform the audit or return cached results."""
-        if self.cache_file.exists():
+        if not self.lang_code:
+            raise ValueError("lang_code must be specified for audit()")
+
+        if not force_scan and self.cache_file.exists():
             try:
                 with open(self.cache_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -40,6 +46,14 @@ class LangAuditor:
             pass
             
         return results, False
+
+    def list_audited_languages(self):
+        """List all languages that have audit files."""
+        langs = []
+        for audit_file in self.audit_dir.glob("audit_*.json"):
+            lang_code = audit_file.name[6:-5] # audit_<lang>.json
+            langs.append(lang_code)
+        return sorted(langs)
 
     def _perform_scan(self):
         """Scan project for keys and check translations."""

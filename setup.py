@@ -7,7 +7,9 @@ from pathlib import Path
 def setup():
     project_root = Path(__file__).parent.absolute()
     main_py = project_root / "main.py"
-    tool_link = project_root / "TOOL"
+    bin_dir = project_root / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    tool_bin = bin_dir / "TOOL"
     
     # 1. Ensure main.py is executable
     if main_py.exists():
@@ -16,8 +18,22 @@ def setup():
     else:
         print(f"Error: {main_py} not found. Please create main.py first.")
         sys.exit(1)
+
+    # 2. Create bin/TOOL wrapper script
+    # This wrapper script calls main.py with all arguments
+    wrapper_content = f"""#!/bin/bash
+exec python3 "{main_py}" "$@"
+"""
+    try:
+        with open(tool_bin, 'w') as f:
+            f.write(wrapper_content)
+        st = os.stat(tool_bin)
+        os.chmod(tool_bin, st.st_mode | stat.S_IEXEC)
+        print(f"Successfully created wrapper script: {tool_bin} -> {main_py}")
+    except Exception as e:
+        print(f"Error creating wrapper script: {e}")
         
-    # 2. Create TOOL alias in shell profiles for persistence
+    # 3. Create TOOL alias in shell profiles for persistence (as a fallback/convenience)
     home = Path.home()
     profiles = [
         home / ".zshrc",
@@ -25,7 +41,8 @@ def setup():
         home / ".bashrc"
     ]
 
-    alias_cmd = f"alias TOOL='python3 {main_py}'"
+    # Use the bin/TOOL as the target for the alias
+    alias_cmd = f"alias TOOL='{tool_bin}'"
     
     for profile in profiles:
         try:
@@ -33,17 +50,15 @@ def setup():
                 with open(profile, 'r') as f:
                     content = f.read()
                 
-                # Check if alias already exists (any version of it)
                 if f"alias TOOL=" not in content:
                     with open(profile, 'a') as f:
                         f.write(f"\n{alias_cmd}\n")
                     print(f"Successfully added TOOL alias to {profile}")
                 else:
-                    # Update existing alias if it's different
+                    # Update existing alias
                     import re
                     pattern = r"alias TOOL=['\"].*?['\"]"
-                    # If it matches exactly, do nothing
-                    if f"'{main_py}'" in content or f"\"{main_py}\"" in content:
+                    if str(tool_bin) in content:
                         print(f"TOOL alias already correct in {profile}")
                     else:
                         new_content = re.sub(pattern, alias_cmd, content)
@@ -52,32 +67,28 @@ def setup():
                                 f.write(new_content)
                             print(f"Updated TOOL alias in {profile}")
                         else:
-                            # Fallback if pattern didn't match perfectly but "alias TOOL=" exists
                             with open(profile, 'a') as f:
                                 f.write(f"\n{alias_cmd}\n")
-                            print(f"Added new TOOL alias to {profile} (existing one was different)")
-            else:
-                # Optional: create file and add alias if it's a known profile name?
-                # For now, just skip if it doesn't exist
-                pass
+                            print(f"Added new TOOL alias to {profile}")
+            
+            # Also ensure bin_dir is in PATH
+            if str(bin_dir) not in os.environ.get("PATH", ""):
+                export_cmd = f'\nexport PATH="{bin_dir}:$PATH"\n'
+                with open(profile, 'r') as f:
+                    p_content = f.read()
+                if str(bin_dir) not in p_content:
+                    with open(profile, 'a') as f:
+                        f.write(export_cmd)
+                    print(f"Added {bin_dir} to PATH in {profile}")
+
         except Exception as e:
             print(f"Warning: Could not update {profile}: {e}")
 
-    # 3. Create TOOL symlink (legacy compatibility)
-    if tool_link.exists() or tool_link.is_symlink():
-        os.remove(tool_link)
-    
-    try:
-        os.symlink(main_py, tool_link)
-        print(f"Successfully created symlink: TOOL -> {main_py}")
-    except OSError as e:
-        print(f"Error creating symlink: {e}")
-
-    # 4. Create global data directory
-    data_dir = project_root / "data"
-    data_dir.mkdir(exist_ok=True)
-    print(f"Ensured data directory exists: {data_dir}")
+    # 4. Create global data directories
+    for sub in ["audit/lang", "table/tmp", "test/result"]:
+        d = project_root / "data" / sub
+        d.mkdir(parents=True, exist_ok=True)
+        print(f"Ensured directory exists: {d}")
 
 if __name__ == "__main__":
     setup()
-

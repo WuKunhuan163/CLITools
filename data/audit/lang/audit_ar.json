@@ -1,15 +1,15 @@
 {
   "summary": {
     "language": "ar",
-    "timestamp": "2026-01-12T15:55:13.789235",
-    "total_keys": 172,
-    "supported_keys": 1,
-    "missing_keys": 171,
-    "total_references": 188,
-    "supported_references": 1,
-    "missing_references": 187,
-    "completion_rate_keys": "0.58%",
-    "completion_rate_refs": "0.53%"
+    "timestamp": "2026-01-12T16:31:55.335510",
+    "total_keys": 186,
+    "supported_keys": 17,
+    "missing_keys": 169,
+    "total_references": 204,
+    "supported_references": 18,
+    "missing_references": 186,
+    "completion_rate_keys": "9.14%",
+    "completion_rate_refs": "8.82%"
   },
   "missing_translations": [
     "proj/translations/ar/already_installed",
@@ -18,7 +18,7 @@
     "proj/translations/ar/audit_lang_code_help",
     "proj/translations/ar/audit_report_path",
     "proj/translations/ar/audit_scanning",
-    "proj/translations/ar/audit_scanning_done",
+    "proj/translations/ar/audit_summary_keys",
     "proj/translations/ar/audit_summary_refs",
     "proj/translations/ar/audit_using_cache",
     "proj/translations/ar/audit_using_cache_done",
@@ -169,8 +169,6 @@
     "tool/OVERLEAF/proj/translations/ar/tinytex_module_missing",
     "tool/OVERLEAF/proj/translations/ar/tool_OVERLEAF_desc",
     "tool/OVERLEAF/proj/translations/ar/tool_OVERLEAF_purpose",
-    "tool/PYTHON/proj/translations/ar/tool_PYTHON_desc",
-    "tool/PYTHON/proj/translations/ar/tool_PYTHON_purpose",
     "tool/USERINPUT/proj/translations/ar/add_time",
     "tool/USERINPUT/proj/translations/ar/instances_stopped",
     "tool/USERINPUT/proj/translations/ar/instruction",
@@ -759,6 +757,61 @@
       "logical_path": "proj/translations/ar/audit_lang_code_help"
     },
     {
+      "key": "lang_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_help"
+    },
+    {
+      "key": "lang_subcommand_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_subcommand_help"
+    },
+    {
+      "key": "lang_set_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_set_help"
+    },
+    {
+      "key": "lang_code_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_code_help"
+    },
+    {
+      "key": "lang_list_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_list_help"
+    },
+    {
       "key": "rule_help",
       "type": "root",
       "count": 1,
@@ -860,7 +913,7 @@
     {
       "key": "audit_import_error",
       "type": "root",
-      "count": 1,
+      "count": 2,
       "sources": [
         "main.py"
       ],
@@ -908,8 +961,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_scanning_done"
     },
     {
@@ -919,8 +972,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": true,
-      "translation_file": "proj/translations/ar.json",
+      "supported": false,
+      "translation_file": "",
       "logical_path": "proj/translations/ar/audit_summary_keys"
     },
     {
@@ -944,6 +997,105 @@
       "supported": false,
       "translation_file": "",
       "logical_path": "proj/translations/ar/audit_report_path"
+    },
+    {
+      "key": "lang_name_en",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_name_en"
+    },
+    {
+      "key": "lang_default",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_default"
+    },
+    {
+      "key": "lang_table_name",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_table_name"
+    },
+    {
+      "key": "lang_table_keys",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_table_keys"
+    },
+    {
+      "key": "lang_table_refs",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_table_refs"
+    },
+    {
+      "key": "lang_list_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_list_header"
+    },
+    {
+      "key": "lang_table_footer_star",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_table_footer_star"
+    },
+    {
+      "key": "lang_table_footer_keys",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_table_footer_keys"
+    },
+    {
+      "key": "lang_table_footer_refs",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_table_footer_refs"
     },
     {
       "key": "test_no_tests",
@@ -1667,8 +1819,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
       "logical_path": "tool/PYTHON/proj/translations/ar/tool_PYTHON_desc"
     },
     {
@@ -1678,8 +1830,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
       "logical_path": "tool/PYTHON/proj/translations/ar/tool_PYTHON_purpose"
     },
     {

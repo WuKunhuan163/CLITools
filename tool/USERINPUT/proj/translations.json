@@ -1,19 +1,4 @@
 {
-  "en": {
-    "instruction": "Please enter your feedback:",
-    "submit": "Submit",
-    "add_time": "Add 60s",
-    "time_added": "Time added! Remaining:",
-    "time_remaining": "Remaining:",
-    "msg_empty": "User submitted empty content",
-    "msg_timeout": "Input timeout",
-    "msg_cancelled": "User cancelled input",
-    "config_updated": "Configuration updated: focus_interval = {val}s",
-    "psutil_not_found": "Error: psutil not found. Cannot stop instances safely.",
-    "instances_stopped": "Stopped {count} USERINPUT instance(s).",
-    "tool_USERINPUT_desc": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
-    "tool_USERINPUT_purpose": "Facilitate seamless interaction between AI Agent and user. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed."
-  },
   "zh": {
     "instruction": "请在文本框中输入您的反馈:",
     "submit": "提交",
