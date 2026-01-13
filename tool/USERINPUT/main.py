@@ -55,6 +55,16 @@ class UserInputRetryableError(Exception):
 
 def get_python_exec(version="python3.10.19"):
     """Find the standalone python executable from the PYTHON tool."""
+    # On macOS, prioritize the system/environment python3 to avoid issues with debug builds
+    # and to ensure better integration with the window server.
+    if platform.system() == "Darwin":
+        try:
+            # Check if 'python3' is available and has tkinter
+            subprocess.check_call(["python3", "-c", "import tkinter"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return "python3"
+        except Exception:
+            pass
+
     python_exec = project_root / "tool" / "PYTHON" / "proj" / "installations" / version / "install" / "bin" / "python3"
     
     if python_exec.exists():
