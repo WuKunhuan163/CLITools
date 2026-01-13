@@ -185,13 +185,16 @@ class TkinterInputWindow:
 
     def create_window(self):
         try:
-            self.root = tk.Tk()
-            
-            # Set a default app name for macOS to avoid 'aString != nil' crash
+            # Set a default app name for macOS to avoid 'aString != nil' crash in AppKit
             if platform.system() == "Darwin":
+                if not sys.argv or not sys.argv[0]:
+                    sys.argv = ["USERINPUT"]
+                self.root = tk.Tk(className='USERINPUT')
                 try:
                     self.root.createcommand('tk::mac::Quit', self.cancel_input)
                 except: pass
+            else:
+                self.root = tk.Tk()
             
             # Graceful exit on SIGTERM/SIGINT
             def handle_signal(sig, frame):
