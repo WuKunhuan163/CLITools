@@ -42,8 +42,25 @@ def install_tool(tool_name):
     # Check if already installed
     link_path = bin_dir / tool_name
     if tool_dir.exists() and (link_path.exists() or link_path.is_symlink()):
-        print(_("already_installed", "{name} is already installed.", name=tool_name))
-        return
+        # Even if installed, check if dependencies are missing
+        missing_dep = False
+        tool_json_path = tool_dir / "tool.json"
+        if tool_json_path.exists():
+            with open(tool_json_path, 'r') as f:
+                tool_data = json.load(f)
+                dependencies = tool_data.get("dependencies", [])
+                for dep in dependencies:
+                    dep_dir = tool_parent_dir / dep
+                    dep_link = bin_dir / dep
+                    if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
+                        missing_dep = True
+                        break
+        
+        if not missing_dep:
+            print(f"{BOLD}{GREEN}" + _("install_success_label", "Success") + f"{RESET}: " + _("already_installed", "{name} is already installed.", name=tool_name))
+            return
+        else:
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_reinstall", "Tool '{name}' is installed but missing dependencies. Re-installing...", name=tool_name))
 
     # Add a blank line between tools for better readability
     print(_("install_header", "\n--- Installing {name} tool ---", name=tool_name))
