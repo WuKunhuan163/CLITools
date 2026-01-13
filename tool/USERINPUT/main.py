@@ -253,14 +253,24 @@ class TkinterInputWindow:
         def refocus():
             if not self.window_closed and self.root:
                 try:
-                    self.root.lift()
-                    self.root.focus_force()
-                    self.root.attributes('-topmost', True)
-                    self.text_widget.focus_set()
-                    self.play_bell()
-                except tk.TclError: pass
-                self.root.after(self.focus_interval * 1000, refocus)
-        if self.root: self.root.after(self.focus_interval * 1000, refocus)
+                    try: self.root.lift()
+                    except: pass
+                    try: self.root.focus_force()
+                    except: pass
+                    try: self.root.attributes('-topmost', True)
+                    except: pass
+                    try: self.text_widget.focus_set()
+                    except: pass
+                    try: self.play_bell()
+                    except: pass
+                except Exception: pass
+                
+                if not self.window_closed and self.root:
+                    try: self.root.after(self.focus_interval * 1000, refocus)
+                    except: pass
+        if self.root:
+            try: self.root.after(self.focus_interval * 1000, refocus)
+            except: pass
 
     def play_bell(self):
         if self.root:
@@ -270,9 +280,9 @@ class TkinterInputWindow:
             def run_play():
                 try:
                     if platform.system() == "Darwin":
-                        subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL)
+                        subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
                     elif platform.system() == "Linux":
-                        subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL)
+                        subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
                 except: pass
             threading.Thread(target=run_play, daemon=True).start()
 
