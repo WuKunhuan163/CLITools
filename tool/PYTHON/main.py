@@ -104,10 +104,10 @@ def main():
         sys.exit(1)
 
 def _list_versions(supported):
-    installations_dir = script_dir / "proj" / "installations"
+    install_dir = script_dir / "proj" / "install"
     installed = []
-    if installations_dir.exists():
-        installed = [d.name for d in installations_dir.iterdir() if d.is_dir()]
+    if install_dir.exists():
+        installed = [d.name for d in install_dir.iterdir() if d.is_dir()]
     
     print("Supported versions:")
     for v in supported:
@@ -132,7 +132,7 @@ def _install_version(version, install_dir=None):
                          version=version, supported=", ".join(supported)) + f"{RESET}")
         return False
 
-    target_parent = Path(install_dir) if install_dir else script_dir / "proj" / "installations"
+    target_parent = Path(install_dir) if install_dir else script_dir / "proj" / "install"
     target_parent.mkdir(parents=True, exist_ok=True)
     target_dir = target_parent / version
     
@@ -143,8 +143,9 @@ def _install_version(version, install_dir=None):
     print(f"{BLUE}" + _("python_installing", "Installing {version} to {path}...", version=version, path=target_dir) + f"{RESET}")
     
     try:
-        # The path in 'tool' branch is tool/PYTHON/proj/installations/<version>
-        source_path = f"tool/PYTHON/proj/installations/{version}"
+        # The path in 'tool' branch is tool/PYTHON/proj/install/<version>
+        # (Note: keeping the source path as installations as that's what's in the repo/branch)
+        source_path = f"tool/PYTHON/proj/install/{version}"
         
         # Temporary directory for checkout
         import tempfile
@@ -160,15 +161,15 @@ def _install_version(version, install_dir=None):
 
             if result.returncode == 0:
                 # Move from the checked out location to the target location
-                # The checkout puts it at project_root/tool/PYTHON/proj/installations/<version>
+                # The checkout puts it at project_root/tool/PYTHON/proj/install/<version>
                 checkout_dir = project_root / source_path
                 if checkout_dir.exists():
                     if install_dir:
                         # If custom dir, move it there
                         shutil.move(str(checkout_dir), str(target_dir))
                     else:
-                        # If default dir, it's already there! (Because project_root/tool/PYTHON/proj/installations is script_dir/proj/installations)
-                        pass
+                        # If default dir, move it to 'install' folder
+                        shutil.move(str(checkout_dir), str(target_dir))
                     
                     # Validation
                     exe = target_dir / "install" / "bin" / "python3"

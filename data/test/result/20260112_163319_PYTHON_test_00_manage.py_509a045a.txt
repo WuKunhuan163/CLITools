@@ -2,7 +2,7 @@ Test: test_00_manage.py
 Tool: PYTHON
 Time: 2026-01-12T16:33:19.860470
 Status: Failed (code 1)
-Python: /Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/bin/python3
+Python: /Applications/AITerminalTools/tool/PYTHON/proj/install/python3.10.19/install/bin/python3
 ----------------------------------------
 E
 ======================================================================
@@ -10,7 +10,7 @@ ERROR: /Applications/AITerminalTools/tool/PYTHON/test/test_00_manage (unittest.l
 ----------------------------------------------------------------------
 ImportError: Failed to import test module: /Applications/AITerminalTools/tool/PYTHON/test/test_00_manage
 Traceback (most recent call last):
-  File "/Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/lib/python3.10/unittest/loader.py", line 154, in loadTestsFromName
+  File "/Applications/AITerminalTools/tool/PYTHON/proj/install/python3.10.19/install/lib/python3.10/unittest/loader.py", line 154, in loadTestsFromName
     module = __import__(module_name)
 ModuleNotFoundError: No module named '/Applications/AITerminalTools/tool/PYTHON/test/test_00_manage'
 

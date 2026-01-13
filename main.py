@@ -205,11 +205,25 @@ from pathlib import Path
 # Add the directory containing 'proj' to PYTHONPATH for the subprocess
 project_root = Path({repr(str(project_root))})
 python_tool_dir = project_root / "tool" / "PYTHON"
+
+if not python_tool_dir.exists():
+    print(f"\033[31m错误: 工具 'PYTHON' 未安装.\033[0m")
+    print(f"该工具 '{tool_name}' 依赖于 PYTHON 工具。")
+    print(f"请先运行: TOOL install PYTHON")
+    sys.exit(1)
+
 sys.path.append(str(python_tool_dir))
 
 try:
     from proj.utils import get_python_exec
     python_exec = get_python_exec()
+    if not os.path.exists(python_exec) and python_exec != "python3":
+         print(f"\033[33m警告: 在 {{python_exec}} 未找到首选的 Python 执行文件。\033[0m")
+         print(f"正在尝试通过 {{tool_name}} 的设置程序进行恢复...")
+         setup_py = project_root / "tool" / {repr(tool_name)} / "setup.py"
+         if setup_py.exists():
+             subprocess.run([sys.executable, str(setup_py)], cwd=str(project_root))
+             python_exec = get_python_exec() # Retry
 except ImportError:
     python_exec = "python3"
 
@@ -236,6 +250,56 @@ if __name__ == "__main__":
         register_path(bin_dir)
     except OSError as e:
         print(f"{RED}" + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e) + f"{RESET}")
+
+    # 6. Run tool setup if setup.py exists
+    setup_py = tool_dir / "setup.py"
+    if setup_py.exists():
+        print(_("running_setup", "Running setup for {name} tool...", name=tool_name))
+        try:
+            # Run setup.py using the system python3
+            subprocess.run([sys.executable, str(setup_py)], check=True, cwd=str(project_root))
+            print(_("setup_success", "Successfully ran setup for {name} tool.", name=tool_name))
+        except Exception as e:
+            print(f"{YELLOW}" + _("setup_failed", "Warning: Setup for {name} tool failed: {error}", name=tool_name, error=e) + f"{RESET}")
+
+def uninstall_tool(tool_name, force_yes=False):
+    project_root = Path(__file__).parent.absolute()
+    tool_dir = project_root / "tool" / tool_name
+    bin_dir = project_root / "bin"
+    link_path = bin_dir / tool_name
+    
+    if not tool_dir.exists():
+        print(f"{RED}" + _("tool_not_found_local", "Error: Tool '{name}' is not installed.", name=tool_name) + f"{RESET}")
+        return
+
+    if not force_yes:
+        if sys.stdin.isatty():
+            confirm = input(_("confirm_uninstall", "Are you sure you want to uninstall '{name}'? (y/N): ", name=tool_name))
+            if confirm.lower() not in ['y', 'yes']:
+                print(_("uninstall_cancelled", "Uninstall cancelled."))
+                return
+        else:
+            print(_("non_interactive_skip", "Non-interactive session, skipping confirmation. Use -y to force."))
+            return
+
+    print(_("uninstalling_header", "Uninstalling {name} tool...", name=tool_name))
+    
+    # 1. Remove from bin
+    if link_path.exists() or link_path.is_symlink():
+        try:
+            os.remove(link_path)
+            print(_("removed_shortcut", "Removed shortcut at {path}", path=link_path))
+        except Exception as e:
+            print(f"{RED}" + _("remove_shortcut_failed", "Failed to remove shortcut: {error}", error=e) + f"{RESET}")
+
+    # 2. Remove tool directory
+    try:
+        shutil.rmtree(tool_dir)
+        print(_("removed_tool_dir", "Removed tool directory at {path}", path=tool_dir))
+    except Exception as e:
+        print(f"{RED}" + _("remove_tool_dir_failed", "Failed to remove tool directory: {error}", error=e) + f"{RESET}")
+
+    print(f"{BOLD}{GREEN}" + _("uninstall_success", "Successfully uninstalled {name} tool.", name=tool_name) + f"{RESET}")
 
 def register_path(bin_dir):
     """Add bin_dir to shell profile if not already present."""
@@ -417,6 +481,11 @@ Examples:
     install_parser = subparsers.add_parser("install", help=_("install_help", "Install a tool and its dependencies"))
     install_parser.add_argument("tool_name", help=_("install_tool_name_help", "Name of the tool to install"))
 
+    # Uninstall command
+    uninstall_parser = subparsers.add_parser("uninstall", help=_("uninstall_help", "Uninstall a tool"))
+    uninstall_parser.add_argument("tool_name", help=_("uninstall_tool_name_help", "Name of the tool to uninstall"))
+    uninstall_parser.add_argument("-y", "--yes", action="store_true", help=_("uninstall_yes_help", "Don't ask for confirmation"))
+
     # Test command
     test_parser = subparsers.add_parser("test", help=_("test_help", "Run unit tests for a tool"))
     test_parser.add_argument("tool_name", nargs="?", default="root", help=_("test_tool_name_help", "Name of the tool to test (default: root)"))
@@ -463,6 +532,8 @@ Examples:
 
     if args.command == "install":
         install_tool(args.tool_name)
+    elif args.command == "uninstall":
+        uninstall_tool(args.tool_name, args.yes)
     elif args.command == "test":
         _test_tool_with_args(args)
     elif args.command == "audit-lang":
