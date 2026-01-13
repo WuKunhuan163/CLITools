@@ -9,9 +9,20 @@ class TestUserInputTimeout(unittest.TestCase):
         userinput_bin = project_root / "bin" / "USERINPUT"
         if not userinput_bin.exists():
             self.skipTest("USERINPUT bin not found")
+        
+        # Determine language to check correct strings
+        lang = os.environ.get("TOOL_LANGUAGE", "en").lower()
+        if lang == "zh":
+            attempt_pattern = "尝试 {index} 失败"
+            failed_pattern = "捕获用户输入失败"
+        else:
+            attempt_pattern = "Attempt {index} failed"
+            failed_pattern = "Failed to capture user input"
+
         cmd = [str(userinput_bin), "--timeout", "1"]
         result = subprocess.run(cmd, capture_output=True, text=True)
-        self.assertIn("Attempt 1/3 failed", result.stderr)
-        self.assertIn("Attempt 2/3 failed", result.stderr)
-        self.assertIn("Failed to capture user input", result.stderr)
+        
+        self.assertIn(attempt_pattern.format(index=1), result.stderr)
+        self.assertIn(attempt_pattern.format(index=2), result.stderr)
+        self.assertIn(failed_pattern, result.stderr)
         self.assertNotEqual(result.returncode, 0)
