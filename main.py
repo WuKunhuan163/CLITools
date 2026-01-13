@@ -137,9 +137,9 @@ def install_tool(tool_name):
         try:
             # Use the installed PYTHON tool to get the python executable
             python_tool_dir = project_root / "tool" / "PYTHON"
-        if not python_tool_dir.exists():
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("python_not_found", "PYTHON tool not found. Skipping pip dependencies."))
-        else:
+            if not python_tool_dir.exists():
+                print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("python_not_found", "PYTHON tool not found. Skipping pip dependencies."))
+            else:
                 # Import get_python_exec from tool/PYTHON/proj/utils.py
                 python_utils_path = python_tool_dir / "proj" / "utils.py"
                 if python_utils_path.exists():
