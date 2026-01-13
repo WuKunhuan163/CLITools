@@ -57,11 +57,13 @@ def main():
                        help='使用的shell类型 (默认: zsh)')
     parser.add_argument('--max-processes', type=int, default=1000,
                        help='最大同时运行进程数 (默认: 1000)')
-    parser.add_argument('--log-dir', default='~/tmp/background_logs',
-                       help='日志文件目录 (默认: ~/tmp/background_logs)')
+    parser.add_argument('--log-dir', default=None,
+                       help='日志文件目录 (默认: tool/BACKGROUND/data/logs)')
+    parser.add_argument('--max-log-files', type=int, default=1000,
+                       help='最大保留日志文件数 (默认: 1000)')
     parser.add_argument('--no-alias', action='store_true',
                        help='不解析shell别名')
-    
+
     # 操作参数
     parser.add_argument('--list', action='store_true',
                        help='列出所有活跃的后台进程')
@@ -89,9 +91,10 @@ def main():
     # 创建进程管理器
     manager = ProcessManager(
         max_processes=args.max_processes,
-        log_dir=args.log_dir
+        log_dir=args.log_dir,
+        max_log_files=args.max_log_files
     )
-    
+
     try:
         if args.list:
             processes = manager.list_processes()

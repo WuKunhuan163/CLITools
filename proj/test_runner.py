@@ -33,6 +33,14 @@ class TestRunner:
             self._ = lambda k, d, **kwargs: d.format(**kwargs)
             self.colors = {k: "" for k in ["GREEN", "BOLD", "RED", "BLUE", "YELLOW", "RESET"]}
 
+        self.dependencies = []
+        tool_json_path = self.tool_dir / "tool.json"
+        if tool_json_path.exists():
+            try:
+                with open(tool_json_path, 'r') as f:
+                    self.dependencies = json.load(f).get("dependencies", [])
+            except Exception: pass
+
     def list_tests(self):
         tests = self._get_test_files()
         if not tests:
@@ -100,18 +108,18 @@ class TestRunner:
 
     def _get_python_exec(self):
         # Check if the tool has a specific python environment
-        tool_json = self.tool_dir / "tool.json"
-        if tool_json.exists():
-            try:
-                with open(tool_json, 'r') as f:
-                    data = json.load(f)
-                if "PYTHON" in data.get("dependencies", []):
-                    # Use the standalone python
-                    sys.path.append(str(self.project_root / "tool" / "PYTHON"))
-                    from proj.utils import get_python_exec
-                    return get_python_exec()
-            except Exception:
-                pass
+        if "PYTHON" in self.dependencies:
+            python_utils_path = self.project_root / "tool" / "PYTHON" / "proj" / "utils.py"
+            if python_utils_path.exists():
+                try:
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("python_tool_utils", str(python_utils_path))
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        return module.get_python_exec()
+                except Exception:
+                    pass
         return sys.executable
 
     def _save_result(self, test_name, status, full_output, python_info=None):
@@ -139,22 +147,49 @@ class TestRunner:
         except Exception:
             return None
 
-    def _cleanup_old_reports(self, result_dir):
-        # Default limit is 1024
-        limit = 1024
+    def _cleanup_old_reports(self, result_dir, limit=1024, batch_size=512):
+        # Allow global config to override limit
         config_path = self.project_root / "data" / "global_config.json"
         if config_path.exists():
             try:
                 with open(config_path, 'r') as f:
-                    limit = json.load(f).get("test_max_reports", 1024)
+                    limit = json.load(f).get("test_max_reports", limit)
             except Exception: pass
             
         reports = sorted(list(result_dir.glob("*.txt")), key=os.path.getmtime)
         if len(reports) > limit:
-            for i in range(len(reports) - limit):
+            # Cleanup batch_size files (default half of limit)
+            for i in range(min(len(reports), batch_size)):
                 try:
                     os.remove(reports[i])
                 except Exception: pass
+
+    def _get_error_reason(self, output):
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        if not lines:
+            return "No output"
+        
+        # Search for specific markers in reverse order
+        markers = ["AssertionError:", "ModuleNotFoundError:", "TypeError:", "ValueError:", "RuntimeError:"]
+        for line in reversed(lines):
+            for marker in markers:
+                if marker in line:
+                    # Return from marker onwards
+                    idx = line.find(marker)
+                    reason = line[idx:]
+                    return reason[:100] + "..." if len(reason) > 100 else reason
+        
+        # Search for any line containing "Error:"
+        for line in reversed(lines):
+            if "Error:" in line:
+                return line[:100] + "..." if len(line) > 100 else line
+
+        # If nothing specific found, return the last line (but skip the common 'FAILED' summary if possible)
+        for line in reversed(lines):
+            if not line.startswith("FAILED ("):
+                return line[:100] + "..." if len(line) > 100 else line
+        
+        return lines[-1][:100] + "..." if len(lines[-1]) > 100 else lines[-1]
 
     def _get_status_label(self, status):
         if status == "Success":
@@ -165,7 +200,7 @@ class TestRunner:
             return f"{self.colors['BOLD']}{self.colors['RED']}{self._('test_status_timeout', 'Timeout')}{self.colors['RESET']}"
         return f"{self.colors['BOLD']}{self._('test_status_unknown', 'Unknown')}{self.colors['RESET']}"
 
-    def _run_single_test_logic(self, test_file, timeout=60):
+    def _run_single_test_logic(self, test_file, timeout=60, index=None, total=None):
         """Internal logic to run a single test and return result."""
         start_time = time.time()
         python_exec = self._get_python_exec()
@@ -179,20 +214,20 @@ class TestRunner:
                                    env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             pid = proc.pid
             
-            # Since we want to show PID in sequential mode, we don't print here, 
-            # but the caller can access pid if needed.
+            if index is not None and total is not None:
+                print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
+                             index=index, total=total, file=test_file.name, pid=pid))
+                sys.stdout.flush()
             
             stdout, stderr = proc.communicate(timeout=timeout)
             duration = time.time() - start_time
             if proc.returncode == 0:
                 return "Success", duration, None, None, python_exec, pid
             else:
-                report_path = self._save_result(test_file.name, "Failed", stdout + stderr, python_info=python_exec)
-                last_line = ""
-                for line in stderr.splitlines():
-                    if line.strip():
-                        last_line = line.strip()
-                return "Failed", duration, f"(code {proc.returncode}) Reason: {last_line}", report_path, python_exec, pid
+                full_output = stdout + stderr
+                report_path = self._save_result(test_file.name, "Failed", full_output, python_info=python_exec)
+                reason = self._get_error_reason(full_output)
+                return "Failed", duration, f"(code {proc.returncode}) Reason: {reason}", report_path, python_exec, pid
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
             self._save_result(test_file.name, "Timeout", f"Test timed out after {timeout}s", python_info=python_exec)
@@ -215,18 +250,11 @@ class TestRunner:
             
             total_tests = len(test_files)
             for i, test_file in enumerate(test_files):
-                # Print starting without PID first, then update it if possible
-                # In sequential mode, we can get PID from Popen inside _run_single_test_logic
-                # But to show it *while* running, we'd need to change the logic.
-                # For sequential, let's just run it and show PID in finished message or similar.
+                # We now pass index and total to _run_single_test_logic so it can print Starting message with PID
+                status_raw, duration, error_msg, report_path, python_exec, pid = self._run_single_test_logic(test_file, timeout=timeout, 
+                                                                                                           index=i, total=total_tests)
                 
-                # Actually, let's just print it.
-                print(self._("test_starting_sequential", "[{index}/{total}] Starting {file}...", index=i, total=total_tests, file=test_file.name), end="", flush=True)
-                
-                status_raw, duration, error_msg, report_path, python_exec, pid = self._run_single_test_logic(test_file, timeout=timeout)
-                
-                # Clear "Starting" and print finished
-                print("\r" + " " * 80 + "\r", end="")
+                # Clear previous line if needed? No, _run_single_test_logic prints a full line now.
                 status_label = self._get_status_label(status_raw)
                 pid_str = f" (PID: {pid})" if pid else ""
                 if error_msg:
@@ -263,11 +291,19 @@ class TestRunner:
                 cmd = f"export PYTHONPATH=\"{python_path}:$PYTHONPATH\" && {python_exec} {test_file}"
                 
                 try:
-                    proc = subprocess.run([str(background_bin), cmd], capture_output=True, text=True)
+                    proc = subprocess.run([str(background_bin), "--json", cmd], capture_output=True, text=True)
                     output = proc.stdout
-                    match = re.search(r"PID:?\s*(\d+)", output)
-                    if match:
-                        pid = match.group(1)
+                    data = None
+                    for line in output.splitlines():
+                        if line.strip().startswith("{"):
+                            try:
+                                data = json.loads(line)
+                                break
+                            except json.JSONDecodeError:
+                                continue
+                    
+                    if data and data.get("success"):
+                        pid = str(data.get("pid"))
                         print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
                                      index=finished_count, total=total_tests, file=test_file.name, pid=pid))
                         
@@ -279,16 +315,16 @@ class TestRunner:
                             "python_exec": python_exec
                         })
                     else:
-                        print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
-                                     index=finished_count, total=total_tests, file=test_file.name, pid="???"))
-                        # If failed to start in background, run it here
-                        status_raw, duration, error_msg, report_path, py_exec, pid = self._run_single_test_logic(test_file, timeout=timeout)
+                        # If BACKGROUND failed or returned no PID, fall back to sequential
+                        # We don't print "Starting (PID: ???)" yet
+                        status_raw, duration, error_msg, report_path, py_exec, pid = self._run_single_test_logic(test_file, timeout=timeout, 
+                                                                                                               index=finished_count, total=total_tests)
                         finished_count += 1
                         self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path, pid)
                 except Exception:
-                    print(self._("test_started", "[{index}/{total}] Starting {file} (PID: {pid})", 
-                                 index=finished_count, total=total_tests, file=test_file.name, pid="ERR"))
-                    status_raw, duration, error_msg, report_path, py_exec, pid = self._run_single_test_logic(test_file, timeout=timeout)
+                    # If BACKGROUND failed or returned no PID, fall back to sequential
+                    status_raw, duration, error_msg, report_path, py_exec, pid = self._run_single_test_logic(test_file, timeout=timeout, 
+                                                                                                           index=finished_count, total=total_tests)
                     finished_count += 1
                     self._print_finished(finished_count, total_tests, test_file.name, status_raw, duration, error_msg, report_path, pid)
 
@@ -317,11 +353,8 @@ class TestRunner:
                                 job["status_raw"] = "Failed"
                                 res_full = subprocess.run([str(background_bin), "--result", job["pid"]], capture_output=True, text=True)
                                 report_path = self._save_result(job["file"].name, f"Failed (code {ret_code})", res_full.stdout, python_info=job["python_exec"])
-                                last_line = ""
-                                for line in res_full.stdout.splitlines():
-                                    if line.strip():
-                                        last_line = line.strip()
-                                job["error_msg"] = f"(code {ret_code}) Reason: {last_line}"
+                                reason = self._get_error_reason(res_full.stdout)
+                                job["error_msg"] = f"(code {ret_code}) Reason: {reason}"
                                 job["report_path"] = report_path
                             
                             job["duration"] = duration

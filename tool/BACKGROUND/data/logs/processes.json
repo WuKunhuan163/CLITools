@@ -1,0 +1,29 @@
+{
+  "processes": {
+    "24296": {
+      "command": "sleep 1",
+      "shell": "zsh",
+      "start_time": 1768283801.990263,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260113_135641_988.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260113_135641_988.exit",
+      "cwd": "/Applications/AITerminalTools/tool/PYTHON/tmp",
+      "created_at": "2026-01-13T13:56:41.991644",
+      "status": "completed",
+      "return_code": 0,
+      "end_time": "2026-01-13T13:56:48.032132"
+    },
+    "24376": {
+      "command": "export PYTHONPATH=\"/Applications/AITerminalTools:/Applications/AITerminalTools/tool/USERINPUT:$PYTHONPATH\" && /Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/bin/python3 /Applications/AITerminalTools/tool/USERINPUT/test/test_01_kill.py",
+      "shell": "zsh",
+      "start_time": 1768283808.036019,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260113_135648_034.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260113_135648_034.exit",
+      "cwd": "/Applications/AITerminalTools/tool/PYTHON/tmp",
+      "created_at": "2026-01-13T13:56:48.037903",
+      "status": "completed",
+      "return_code": 0,
+      "end_time": "2026-01-13T13:57:01.907894"
+    }
+  },
+  "last_updated": "2026-01-13T13:57:01.907909"
+}

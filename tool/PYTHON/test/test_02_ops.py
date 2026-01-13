@@ -15,6 +15,15 @@ class TestPythonOps(unittest.TestCase):
         result = subprocess.run([str(self.python_tool), "--py-version", "python3.10.19", "-c", code], capture_output=True, text=True)
         self.assertIn("Python 3.10", result.stdout)
 
+    def test_python_executable_path(self):
+        """Verify that the tool uses the standalone executable, not the system one."""
+        version = "python3.10.19"
+        code = "import sys; print(sys.executable)"
+        result = subprocess.run([str(self.python_tool), "--py-version", version, "-c", code], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        # The output should contain our installations directory
+        self.assertIn("tool/PYTHON/proj/installations/python3.10.19", result.stdout)
+
     def test_pip_install(self):
         """Test pip install in the standalone environment."""
         # We'll try to install a very small package like 'requests' or 'six'

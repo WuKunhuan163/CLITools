@@ -1,0 +1,11 @@
+/Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/lib/python3.10/unittest/case.py:549: ResourceWarning: unclosed file <_io.TextIOWrapper name=3 encoding='UTF-8'>
+  method()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/lib/python3.10/unittest/case.py:549: ResourceWarning: unclosed file <_io.TextIOWrapper name=5 encoding='UTF-8'>
+  method()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+----------------------------------------------------------------------
+Ran 1 test in 13.054s
+
+OK
