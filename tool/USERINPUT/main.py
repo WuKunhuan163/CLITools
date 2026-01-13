@@ -70,16 +70,10 @@ class UserInputTool(ToolBase):
                 print(f"DEBUG: Found tool python at: {python_exec}")
             return str(python_exec)
 
-        # 2. Try safe python from gui_utils
-        safe_py = get_safe_python_for_gui()
-        if safe_py and os.path.exists(safe_py) and safe_py != sys.executable:
-            if os.environ.get("USERINPUT_DEBUG") == "1":
-                print(f"DEBUG: Using safe python for GUI: {safe_py}")
-            return safe_py
-
-        if os.environ.get("USERINPUT_DEBUG") == "1":
-            print(f"DEBUG: Falling back to sys.executable: {sys.executable}")
-        return sys.executable
+        # DO NOT FALLBACK TO SYSTEM PYTHON IF PYTHON TOOL IS MISSING
+        print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' ({version}) 未找到，无法启动 GUI。")
+        print(f"请运行: TOOL install USERINPUT (它将自动安装 PYTHON 依赖)")
+        sys.exit(1)
 
 def get_python_exec(version="python3.10.19"):
     return UserInputTool().get_python_exe(version)

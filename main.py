@@ -207,7 +207,7 @@ project_root = Path({repr(str(project_root))})
 python_tool_dir = project_root / "tool" / "PYTHON"
 
 if not python_tool_dir.exists():
-    print(f"\033[31m错误: 工具 'PYTHON' 未安装.\033[0m")
+    print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' 未安装.")
     print(f"该工具 '{tool_name}' 依赖于 PYTHON 工具。")
     print(f"请先运行: TOOL install PYTHON")
     sys.exit(1)
@@ -460,6 +460,91 @@ def generate_ai_rule():
             print(f"\n{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
         except (FileNotFoundError, subprocess.CalledProcessError): pass
 
+def sync_branches():
+    """Synchronize core files from 'tool' to 'main', then overwrite 'test' with 'main'."""
+    project_root = Path(__file__).parent.absolute()
+    core_files = [
+        "main.py",
+        "setup.py",
+        "README.md",
+        ".gitignore",
+        ".gitattributes",
+        "proj",
+        "test"
+    ]
+    
+    # Get current branch
+    try:
+        current_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+    except subprocess.CalledProcessError:
+        print(f"{RED}Error: Not a git repository.{RESET}")
+        return
+
+    if current_branch != "tool":
+        print(f"{YELLOW}Warning: Sync should ideally be initiated from the 'tool' branch. Current branch is '{current_branch}'.{RESET}")
+        confirm = input("Continue anyway? (y/N): ")
+        if confirm.lower() not in ['y', 'yes']:
+            print("Sync cancelled.")
+            return
+
+    print(f"{BLUE}Starting synchronization...{RESET}")
+    
+    # 1. Commit any changes in current branch first
+    try:
+        status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+        if status:
+            print(f"{YELLOW}There are uncommitted changes in '{current_branch}'. Please commit them first.{RESET}")
+            return
+    except subprocess.CalledProcessError: pass
+
+    # 2. Sync to main
+    print(f"Syncing core files to 'main' branch...")
+    
+    # Check if there are changes to sync by comparing with main
+    has_changes = False
+    for f in core_files:
+        try:
+            diff = subprocess.run(["git", "diff", "--quiet", "main", "--", f], cwd=str(project_root)).returncode
+            if diff != 0:
+                has_changes = True
+                break
+        except Exception: pass
+    
+    if not has_changes:
+        print(f"{GREEN}No changes to sync. Re-synchronizing 'test' branch from 'main'...{RESET}")
+        commands = [
+            ["git", "branch", "-D", "test"],
+            ["git", "checkout", "main"],
+            ["git", "checkout", "-b", "test"],
+            ["git", "checkout", current_branch]
+        ]
+    else:
+        commands = [
+            ["git", "checkout", "main"],
+            ["git", "checkout", current_branch, "--"] + core_files,
+            ["git", "commit", "-m", f"Sync core files from {current_branch} branch"],
+            ["git", "branch", "-D", "test"],
+            ["git", "checkout", "-b", "test"],
+            ["git", "checkout", current_branch]
+        ]
+    
+    for cmd in commands:
+        try:
+            if cmd[0] == "git" and cmd[1] == "branch" and cmd[2] == "-D":
+                # Ignore error if test branch doesn't exist
+                subprocess.run(cmd, stderr=subprocess.DEVNULL, cwd=str(project_root))
+            else:
+                subprocess.run(cmd, check=True, cwd=str(project_root))
+        except subprocess.CalledProcessError as e:
+            print(f"{RED}Error during sync at step {' '.join(cmd)}: {e}{RESET}")
+            # Try to return to original branch
+            subprocess.run(["git", "checkout", current_branch], stderr=subprocess.DEVNULL, cwd=str(project_root))
+            return
+
+    print(f"{GREEN}Synchronization complete!{RESET}")
+    print(f"Core files synced: {', '.join(core_files)}")
+    print("Branch 'main' updated and 'test' branch recreated from 'main'.")
+
 import argparse
 
 def main():
@@ -514,6 +599,9 @@ Examples:
     # Rule command
     subparsers.add_parser("rule", help=_("rule_help", "Generate AI agent tool rules"))
 
+    # Sync command
+    subparsers.add_parser("sync", help="Synchronize core files across tool, main, and test branches")
+
     # Config command
     config_parser = subparsers.add_parser("config", help=_("config_help", "Manage global configurations"))
     config_subparsers = config_parser.add_subparsers(dest="subcommand", help=_("config_subcommand_help", "Config subcommands"))
@@ -549,6 +637,8 @@ Examples:
             lang_root_parser.print_help()
     elif args.command == "rule":
         generate_ai_rule()
+    elif args.command == "sync":
+        sync_branches()
     elif args.command == "config":
         if args.subcommand == "set-lang":
             update_config("language", args.lang_code)

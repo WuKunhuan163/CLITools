@@ -33,8 +33,8 @@ class ToolBase:
                 missing.append(dep)
         
         if missing:
-            print(f"\033[31mError: Missing dependencies for '{self.tool_name}': {', '.join(missing)}\033[0m")
-            print(f"Please run: TOOL install {self.tool_name}")
+            print(f"\033[1;31m错误\033[0m: 工具 '{self.tool_name}' 缺少依赖: {', '.join(missing)}")
+            print(f"请运行: TOOL install {self.tool_name}")
             return False
         return True
 
