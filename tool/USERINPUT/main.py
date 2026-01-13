@@ -59,9 +59,11 @@ def get_python_exec(version="python3.10.19"):
     # and to ensure better integration with the window server.
     if platform.system() == "Darwin":
         try:
-            # Check if 'python3' is available and has tkinter
-            subprocess.check_call(["python3", "-c", "import tkinter"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return "python3"
+            # Use real path to avoid shim issues and framework build problems
+            real_path = subprocess.check_output(["python3", "-c", "import sys; import tkinter; print(sys._base_executable)"], 
+                                             stderr=subprocess.DEVNULL, text=True).strip()
+            if real_path:
+                return real_path
         except Exception:
             pass
 
@@ -199,7 +201,7 @@ class TkinterInputWindow:
             if platform.system() == "Darwin":
                 import ctypes
                 import ctypes.util
-                prog_name = "USERINPUT"
+                prog_name = "Userinput"
                 
                 # Attempt to set process name at C level
                 try:
@@ -210,6 +212,10 @@ class TkinterInputWindow:
                 # Ensure sys.argv[0] is not empty
                 if not sys.argv or not sys.argv[0]:
                     sys.argv = [prog_name]
+                
+                # Some macOS environments require these to be set
+                os.environ['RESOURCE_NAME'] = prog_name
+                os.environ['TK_APP_NAME'] = prog_name
                 
                 # Spoof bundle ID to avoid some sandbox display issues
                 if '__CFBundleIdentifier' not in os.environ:
