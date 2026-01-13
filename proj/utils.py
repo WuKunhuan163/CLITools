@@ -112,8 +112,8 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
     if max_width:
         total_width_with_borders = sum(col_widths) + border_overhead
         if total_width_with_borders > max_width:
-        is_truncated = True
-    
+            is_truncated = True
+            
             # Simple left-to-right priority truncation for columns
             # Ensure each column has at least 5 display width (border + space + char/ellipses + space)
             # which means col_width >= 4 (padding + content)

@@ -659,7 +659,7 @@ Examples:
         elif args.lang_command == "set":
             update_config("language", args.lang_code)
         else:
-            lang_root_parser.print_help()
+            _show_current_language()
     elif args.command == "rule":
         generate_ai_rule()
     elif args.command == "sync":
@@ -790,6 +790,29 @@ def _audit_lang(lang_code):
         print(f"{warning_label}: {warning_msg}")
         print(tip)
 
+def _show_current_language():
+    """Display the current language and its code."""
+    project_root = Path(__file__).parent.absolute()
+    # 1. Get language from config
+    current_lang = "en"
+    config_path = project_root / "data" / "global_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                current_lang = json.load(f).get("language", "en")
+        except Exception: pass
+    
+    # 2. Get localized name
+    en_names = {
+        "en": "English", "zh": "Chinese", "ar": "Arabic", "he": "Hebrew",
+        "fa": "Persian", "ja": "Japanese", "ko": "Korean", "fr": "French",
+        "de": "German", "es": "Spanish", "it": "Italian", "ru": "Russian"
+    }
+    default_name = en_names.get(current_lang, current_lang)
+    localized_name = _(f"lang_name_{current_lang}", default_name)
+    
+    print(f"{localized_name} ({current_lang})")
+
 def _list_languages():
     project_root = Path(__file__).parent.absolute()
     sys.path.append(str(project_root))
@@ -798,7 +821,7 @@ def _list_languages():
         from proj.lang_auditor import LangAuditor
         from proj.utils import get_rate_color, get_display_width
     except ImportError:
-        print(f"{RED}" + _("audit_import_error", "Error: Could not import LangAuditor.") + f"{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("audit_import_error", "Could not import LangAuditor."))
         return
 
     auditor = LangAuditor(project_root)

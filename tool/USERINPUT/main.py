@@ -224,7 +224,8 @@ class TkinterInputWindow:
             button_frame.pack(fill=tk.X)
             
             tk.Button(button_frame, text=_("submit", "Submit"), command=self.submit_input, font=("Arial", 13, "bold")).pack(side=tk.RIGHT)
-            tk.Button(button_frame, text=_("add_time", f"Add {self.time_increment}s"), command=lambda: self.add_time(self.time_increment), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
+            add_time_text = _("add_time", "Add {seconds}s").format(seconds=self.time_increment)
+            tk.Button(button_frame, text=add_time_text, command=lambda: self.add_time(self.time_increment), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
             
             self.status_label = tk.Label(button_frame, text="", font=("Arial", 12))
             self.status_label.pack(side=tk.LEFT)
@@ -241,6 +242,13 @@ class TkinterInputWindow:
 
     def add_time(self, seconds):
         self.remaining_time += seconds
+        try:
+            # Show feedback that time was added
+            added_msg = _("time_added", "Time added! Remaining:")
+            self.status_label.config(text=f"{added_msg} {self.remaining_time}s", fg="blue")
+            # Reset color after 2 seconds
+            self.root.after(2000, lambda: self.status_label.config(fg="black") if not self.window_closed else None)
+        except: pass
 
     def start_timer(self):
         def tick():
@@ -382,10 +390,12 @@ def main():
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
             if attempt < max_retries - 1:
-                print(f"Attempt {attempt+1} failed: {e}. Retrying...", file=sys.stderr)
+                msg = _("msg_attempt_failed", "Attempt {index} failed: {error}. Retrying...").format(index=attempt+1, error=e)
+                print(msg, file=sys.stderr)
                 time.sleep(1)
                 continue
-            print(f"Error: {e}", file=sys.stderr)
+            final_err = _("msg_failed_capture", "Failed to capture user input: {error}").format(error=e)
+            print(f"Error: {final_err}", file=sys.stderr)
             return 1
 
 if __name__ == "__main__":
