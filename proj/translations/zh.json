@@ -171,5 +171,7 @@
   "pip_success_label": "成功",
   "install_success_label": "成功",
   "missing_deps_reinstall": "工具 '{name}' 已安装但缺少依赖。正在重新安装...",
-  "already_installed": "{name} 工具已经安装。"
+  "already_installed": "{name} 工具已经安装。",
+  "remove_shortcut_failed": "删除快捷方式失败: {error}",
+  "remove_tool_dir_failed": "删除工具目录失败: {error}"
 }

@@ -227,6 +227,7 @@ if not python_tool_dir.exists():
     print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' 未安装.")
     print(f"该工具 '{tool_name}' 依赖于 PYTHON 工具。")
     print(f"请先运行: TOOL install PYTHON")
+    print(f"然后再运行: TOOL install {tool_name} (以恢复依赖版本)")
     sys.exit(1)
 
 sys.path.append(str(python_tool_dir))
@@ -266,7 +267,7 @@ if __name__ == "__main__":
         # 5. Handle PATH registration
         register_path(bin_dir)
     except OSError as e:
-        print(f"{RED}" + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e) + f"{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e))
 
     # 6. Run tool setup if setup.py exists
     setup_py = tool_dir / "setup.py"
@@ -275,9 +276,9 @@ if __name__ == "__main__":
         try:
             # Run setup.py using the system python3
             subprocess.run([sys.executable, str(setup_py)], check=True, cwd=str(project_root))
-            print(_("setup_success", "Successfully ran setup for {name} tool.", name=tool_name))
+            print(f"{BOLD}{GREEN}" + _("install_success_label", "Success") + f"{RESET}: " + _("setup_success", "Successfully ran setup for {name} tool.", name=tool_name))
         except Exception as e:
-            print(f"{YELLOW}" + _("setup_failed", "Warning: Setup for {name} tool failed: {error}", name=tool_name, error=e) + f"{RESET}")
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("setup_failed", "Warning: Setup for {name} tool failed: {error}", name=tool_name, error=e))
 
 def uninstall_tool(tool_name, force_yes=False):
     project_root = Path(__file__).parent.absolute()
@@ -286,7 +287,7 @@ def uninstall_tool(tool_name, force_yes=False):
     link_path = bin_dir / tool_name
     
     if not tool_dir.exists():
-        print(f"{RED}" + _("tool_not_found_local", "Error: Tool '{name}' is not installed.", name=tool_name) + f"{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("tool_not_found_local", "Tool '{name}' is not installed.", name=tool_name))
         return
 
     if not force_yes:
@@ -307,14 +308,14 @@ def uninstall_tool(tool_name, force_yes=False):
             os.remove(link_path)
             print(_("removed_shortcut", "Removed shortcut at {path}", path=link_path))
         except Exception as e:
-            print(f"{RED}" + _("remove_shortcut_failed", "Failed to remove shortcut: {error}", error=e) + f"{RESET}")
+            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("remove_shortcut_failed", "Failed to remove shortcut: {error}", error=e))
 
     # 2. Remove tool directory
     try:
         shutil.rmtree(tool_dir)
         print(_("removed_tool_dir", "Removed tool directory at {path}", path=tool_dir))
     except Exception as e:
-        print(f"{RED}" + _("remove_tool_dir_failed", "Failed to remove tool directory: {error}", error=e) + f"{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("remove_tool_dir_failed", "Failed to remove tool directory: {error}", error=e))
 
     print(f"{BOLD}{GREEN}" + _("uninstall_success", "Successfully uninstalled {name} tool.", name=tool_name) + f"{RESET}")
 
@@ -418,7 +419,7 @@ def generate_ai_rule():
     registry_path = project_root / "tool.json"
     
     if not registry_path.exists():
-        print(f"{RED}" + _("registry_error", "Error: Global tool.json not found.") + f"{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("registry_error", "Global tool.json not found."))
         return
 
     with open(registry_path, 'r') as f:
@@ -469,12 +470,12 @@ def generate_ai_rule():
     if sys.platform == "darwin":
         try:
             subprocess.run('pbcopy', input=output, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
-            print(f"\n{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
+            print(f"\n{BOLD}{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
         except (FileNotFoundError, subprocess.CalledProcessError): pass
     elif sys.platform == "linux":
         try:
             subprocess.run('xclip -selection clipboard', shell=True, input=output, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
-            print(f"\n{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
+            print(f"\n{BOLD}{BLUE}" + _("rule_copied", "Rules have been copied to clipboard.") + f"{RESET}")
         except (FileNotFoundError, subprocess.CalledProcessError): pass
 
 def sync_branches():
