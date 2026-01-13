@@ -118,6 +118,13 @@ def parse_gui_error(error_output):
     lines = error_output.splitlines()
     return "\n".join(lines[:5]) + ("\n... (truncated)" if len(lines) > 5 else "")
 
+def get_config():
+    config_path = current_dir / "proj" / "config.json"
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    return {}
+
 def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     tool = UserInputTool()
     if not tool.check_dependencies():
@@ -126,6 +133,15 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     python_exe = tool.get_python_exe()
     proj_dir = str(tool.script_dir / "proj")
     
+    config = get_config()
+    focus_interval = config.get("focus_interval", 90)
+    
+    try:
+        bell_path = Path(proj_dir) / "tkinter_bell.mp3"
+        bell_path_str_literal = repr(str(bell_path))
+    except Exception:
+        bell_path_str_literal = "''"
+
     # Python script template
     tkinter_script = r'''
 import os
@@ -158,12 +174,14 @@ def _(key, default):
     return get_translation(TOOL_PROJ_DIR, key, default)
 
 class TkinterInputWindow:
-    def __init__(self, title, timeout, hint_text):
+    def __init__(self, title, timeout, hint_text, focus_interval, bell_path):
         self.root = None
         self.text_widget = None
         self.title = title
         self.remaining_time = timeout
         self.hint_text = hint_text
+        self.focus_interval = focus_interval
+        self.bell_path = bell_path
         self.result = None
         self.window_closed = False
 
@@ -210,6 +228,8 @@ class TkinterInputWindow:
             self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)
             self.text_widget.focus_set()
             self.start_timer()
+            self.start_periodic_focus()
+            self.play_bell()
             return True
         except Exception as e:
             print(f"ERROR: Tkinter init failed: {e}")
@@ -227,6 +247,34 @@ class TkinterInputWindow:
                 self.remaining_time -= 1
             if not self.window_closed: self.timeout_input()
         threading.Thread(target=tick, daemon=True).start()
+
+    def start_periodic_focus(self):
+        if self.focus_interval <= 0: return
+        def refocus():
+            if not self.window_closed and self.root:
+                try:
+                    self.root.lift()
+                    self.root.focus_force()
+                    self.root.attributes('-topmost', True)
+                    self.text_widget.focus_set()
+                    self.play_bell()
+                except tk.TclError: pass
+                self.root.after(self.focus_interval * 1000, refocus)
+        if self.root: self.root.after(self.focus_interval * 1000, refocus)
+
+    def play_bell(self):
+        if self.root:
+            try: self.root.bell()
+            except: pass
+        if self.bell_path and os.path.exists(self.bell_path):
+            def run_play():
+                try:
+                    if platform.system() == "Darwin":
+                        subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL)
+                    elif platform.system() == "Linux":
+                        subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL)
+                except: pass
+            threading.Thread(target=run_play, daemon=True).start()
 
     def submit_input(self):
         text = self.text_widget.get("1.0", tk.END).strip()
@@ -254,14 +302,16 @@ class TkinterInputWindow:
             print("GDS_USERINPUT_JSON:" + json.dumps(self.result or {"status": "error", "data": "No result"}))
 
 if __name__ == "__main__":
-    window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r)
+    window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r)
     window.run()
 ''' % {
         'project_root': str(tool.project_root),
         'proj_dir': proj_dir,
         'title': title,
         'timeout': timeout,
-        'hint': hint_text
+        'hint': hint_text,
+        'focus_interval': focus_interval,
+        'bell_path': str(bell_path) if bell_path and bell_path.exists() else ''
     }
 
     try:
@@ -269,7 +319,9 @@ if __name__ == "__main__":
             [python_exe, '-c', tkinter_script],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
         )
-        stdout, stderr = proc.communicate(timeout=timeout + 30)
+        # Use a much longer timeout for communicate to allow for user adding time in GUI
+        # The GUI manages its own internal timeout and will exit when it expires.
+        stdout, stderr = proc.communicate(timeout=timeout + 3600) 
         
         if proc.returncode != 0:
             raise RuntimeError(parse_gui_error(stderr or stdout))
