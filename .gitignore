@@ -1,7 +1,11 @@
-*_DATA
-.DS_Store
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-*.egg-info/
+# Ignore everything
+/*
+
+# Except these
+!/main.py
+!/setup.py
+!/README.md
+!/.gitignore
+!/.gitattributes
+!/proj
+!/test
