@@ -154,5 +154,20 @@
   "lang_error_not_found_simple": "语言 '{lang}' 未找到. ",
   "lang_suggest_list": "您也可以使用 'TOOL lang --list' 来查看所有支持的语言. ",
   "audit_cache_warning": "这是缓存的报告, 可能无法反映最近的更改.",
-  "full_report_saved": "显示内容被裁切, 完整报表已保存至: {path}"
+  "full_report_saved": "显示内容被裁切, 完整报表已保存至: {path}",
+  "sync_starting_label": "正在启动同步",
+  "sync_to_main": "正在同步核心文件到 'main' 分支...",
+  "sync_no_changes_label": "核心文件无变动",
+  "sync_re-sync_test": "正在从 'main' 重新同步 'test' 分支...",
+  "sync_complete_label": "同步完成",
+  "sync_files_synced": "已同步的核心文件: {files}",
+  "sync_branches_updated": "'main' 分支已更新，'test' 分支已从 'main' 重新创建。",
+  "sync_error_label": "同步时出错",
+  "sync_warning_branch": "同步建议从 'tool' 分支发起。当前分支为 '{branch}'。",
+  "sync_confirm": "是否继续？(y/N): ",
+  "sync_cancelled": "同步已取消。",
+  "sync_uncommitted": "分支 '{branch}' 中有未提交的更改。请先提交它们。",
+  "not_git_repo": "不是 Git 仓库。",
+  "pip_success_label": "成功",
+  "install_success_label": "成功"
 }

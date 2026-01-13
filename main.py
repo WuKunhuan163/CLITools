@@ -54,10 +54,10 @@ def install_tool(tool_name):
         with open(registry_path, 'r') as f:
             registry = json.load(f)
             if tool_name not in registry.get("tools", {}):
-                print(f"{RED}" + _("tool_not_in_registry", "Error: Tool '{name}' is not in the global registry.", name=tool_name) + f"{RESET}")
+                print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=tool_name))
                 return
     else:
-        print(f"{RED}" + _("registry_error", "Error: Global tool.json not found.") + f"{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("registry_error", "Global tool.json not found."))
         return
 
     # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
@@ -137,9 +137,9 @@ def install_tool(tool_name):
         try:
             # Use the installed PYTHON tool to get the python executable
             python_tool_dir = project_root / "tool" / "PYTHON"
-            if not python_tool_dir.exists():
-                print(f"{YELLOW}" + _("python_not_found", "Warning: PYTHON tool not found. Skipping pip dependencies.") + f"{RESET}")
-            else:
+        if not python_tool_dir.exists():
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("python_not_found", "PYTHON tool not found. Skipping pip dependencies."))
+        else:
                 # Import get_python_exec from tool/PYTHON/proj/utils.py
                 python_utils_path = python_tool_dir / "proj" / "utils.py"
                 if python_utils_path.exists():
@@ -158,14 +158,14 @@ def install_tool(tool_name):
                     
                     if result.returncode != 0:
                         if "PermissionError" in result.stderr or "Operation not permitted" in result.stderr:
-                            print(f"{YELLOW}" + _("pip_warning_permissions", "Warning: pip install failed due to permissions.") + f"{RESET}")
+                            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("pip_warning_permissions", "Warning: pip install failed due to permissions."))
                             print(_("pip_warning_retry", "Please try running with 'all' permissions."))
                         else:
-                            print(f"{RED}" + _("pip_error", "Warning: pip install failed with error:\n{error}", error=result.stderr) + f"{RESET}")
+                            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("pip_error", "Warning: pip install failed with error:\n{error}", error=result.stderr))
                     else:
-                        print(_("pip_success", "Successfully installed pip dependencies for {name} tool.", name=tool_name))
+                        print(f"{BOLD}{GREEN}" + _("pip_success_label", "Success") + f"{RESET}: " + _("pip_success", "Successfully installed pip dependencies for {name} tool.", name=tool_name))
         except Exception as e:
-            print(f"{YELLOW}" + _("pip_failed", "Warning: Failed to install pip dependencies for {name} tool: {error}", name=tool_name, error=e) + f"{RESET}")
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("pip_failed", "Failed to install pip dependencies for {name} tool: {error}", name=tool_name, error=e))
 
     main_py = tool_dir / "main.py"
     if not main_py.exists():
@@ -218,7 +218,7 @@ try:
     from proj.utils import get_python_exec
     python_exec = get_python_exec()
     if not os.path.exists(python_exec) and python_exec != "python3":
-         print(f"\033[33m警告: 在 {{python_exec}} 未找到首选的 Python 执行文件。\033[0m")
+         print(f"\033[1;33m警告\033[0m: 在 {{python_exec}} 未找到首选的 Python 执行文件。")
          print(f"正在尝试通过 {{tool_name}} 的设置程序进行恢复...")
          setup_py = project_root / "tool" / {repr(tool_name)} / "setup.py"
          if setup_py.exists():
@@ -244,7 +244,7 @@ if __name__ == "__main__":
             # Traditional symlink
             os.symlink(main_py, link_path)
         
-        print(f"{BOLD}{GREEN}" + _("install_success", "Successfully installed {name} tool", name=tool_name) + f"{RESET}" + _("shortcut_created", ": shortcut created at {path}", path=link_path))
+        print(f"{BOLD}{GREEN}" + _("install_success_label", "Success") + f"{RESET}: " + _("install_success", "Successfully installed {name} tool", name=tool_name) + _("shortcut_created", ": shortcut created at {path}", path=link_path))
         
         # 5. Handle PATH registration
         register_path(bin_dir)
@@ -477,33 +477,35 @@ def sync_branches():
     try:
         current_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except subprocess.CalledProcessError:
-        print(f"{RED}Error: Not a git repository.{RESET}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return
 
     if current_branch != "tool":
-        print(f"{YELLOW}Warning: Sync should ideally be initiated from the 'tool' branch. Current branch is '{current_branch}'.{RESET}")
-        confirm = input("Continue anyway? (y/N): ")
+        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_warning_branch", "Sync should ideally be initiated from the 'tool' branch. Current branch is '{branch}'.", branch=current_branch))
+        confirm = input(_("sync_confirm", "Continue anyway? (y/N): "))
         if confirm.lower() not in ['y', 'yes']:
-            print("Sync cancelled.")
+            print(_("sync_cancelled", "Sync cancelled."))
             return
 
-    print(f"{BLUE}Starting synchronization...{RESET}")
+    print(f"{BOLD}{BLUE}" + _("sync_starting_label", "Starting synchronization") + f"{RESET}...")
     
     # 1. Commit any changes in current branch first
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            print(f"{YELLOW}There are uncommitted changes in '{current_branch}'. Please commit them first.{RESET}")
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_uncommitted", "There are uncommitted changes in '{branch}'. Please commit them first.", branch=current_branch))
             return
     except subprocess.CalledProcessError: pass
 
     # 2. Sync to main
-    print(f"Syncing core files to 'main' branch...")
+    print(_("sync_to_main", "Syncing core files to 'main' branch..."))
     
     # Check if there are changes to sync by comparing with main
     has_changes = False
     for f in core_files:
         try:
+            # Check if file/dir exists first
+            if not (project_root / f).exists(): continue
             diff = subprocess.run(["git", "diff", "--quiet", "main", "--", f], cwd=str(project_root)).returncode
             if diff != 0:
                 has_changes = True
@@ -511,7 +513,7 @@ def sync_branches():
         except Exception: pass
     
     if not has_changes:
-        print(f"{GREEN}No core changes to sync. Re-synchronizing 'test' branch from 'main'...{RESET}")
+        print(f"{BOLD}{GREEN}" + _("sync_no_changes_label", "No core changes to sync") + f"{RESET}. " + _("sync_re-sync_test", "Re-synchronizing 'test' branch from 'main'..."))
         commands = [
             ["git", "checkout", "main"],
             ["git", "branch", "-D", "test"],
@@ -533,17 +535,22 @@ def sync_branches():
             if cmd[0] == "git" and cmd[1] == "branch" and cmd[2] == "-D":
                 # Ignore error if test branch doesn't exist
                 subprocess.run(cmd, stderr=subprocess.DEVNULL, cwd=str(project_root))
+            elif cmd[0] == "git" and cmd[1] == "commit":
+                # Special handling for commit to avoid "nothing to commit" error if it somehow happens
+                res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
+                if res.returncode != 0 and "nothing to commit" not in res.stdout:
+                    raise subprocess.CalledProcessError(res.returncode, cmd, res.stdout, res.stderr)
             else:
                 subprocess.run(cmd, check=True, cwd=str(project_root))
         except subprocess.CalledProcessError as e:
-            print(f"{RED}Error during sync at step {' '.join(cmd)}: {e}{RESET}")
+            print(f"{BOLD}{RED}" + _("sync_error_label", "Error during sync") + f"{RESET} at step {' '.join(cmd)}: {e}")
             # Try to return to original branch
             subprocess.run(["git", "checkout", current_branch], stderr=subprocess.DEVNULL, cwd=str(project_root))
             return
 
-    print(f"{GREEN}Synchronization complete!{RESET}")
-    print(f"Core files synced: {', '.join(core_files)}")
-    print("Branch 'main' updated and 'test' branch recreated from 'main'.")
+    print(f"{BOLD}{GREEN}" + _("sync_complete_label", "Synchronization complete") + f"{RESET}!")
+    print(_("sync_files_synced", "Core files synced: {files}", files=', '.join(core_files)))
+    print(_("sync_branches_updated", "Branch 'main' updated and 'test' branch recreated from 'main'."))
 
 import argparse
 
