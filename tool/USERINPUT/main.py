@@ -433,6 +433,9 @@ if __name__ == "__main__":
 
         if proc.returncode != 0:
             error_message = stderr.strip() or stdout.strip()
+            # If still empty, provide return code
+            if not error_message:
+                error_message = f"Process exited with code {proc.returncode}"
             parsed_error = parse_gui_error(error_message)
             raise RuntimeError(parsed_error)
 
@@ -523,6 +526,12 @@ def parse_gui_error(error_output):
         
     if "no display name" in error_output or "could not connect to display" in error_output:
         return _("err_no_display", "No display found. Cannot start GUI.")
+    
+    if "exited with code" in error_output:
+        # Check for common crash codes
+        if "-6" in error_output: # SIGABRT
+            return _("err_sandbox", "GUI crashed (SIGABRT). Likely due to sandbox restrictions.")
+        return _("err_sandbox", f"GUI process failed. {error_output}")
         
     # Return the first 5 lines of the error if it doesn't match known patterns
     lines = error_output.splitlines()
