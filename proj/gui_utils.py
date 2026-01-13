@@ -61,10 +61,16 @@ def setup_gui_environment():
         os.environ['RESOURCE_NAME'] = prog_name
         os.environ['TK_APP_NAME'] = prog_name
         
-        # Spoofing bundle ID can sometimes cause issues in newer macOS sandboxes
-        # if the spoofed ID doesn't match the actual process signature.
-        # if is_sandboxed():
-        #     os.environ['__CFBundleIdentifier'] = 'com.apple.Terminal'
+        # NSInternalInconsistencyException: aString != nil fix
+        # Ensure sys.argv[0] is not empty as it's used for app name
+        if not sys.argv or not sys.argv[0] or sys.argv[0] == '-c':
+            sys.argv = [prog_name] + sys.argv[1:] if sys.argv else [prog_name]
+
+        # Spoofing bundle ID can sometimes help bypass display restrictions
+        if is_sandboxed():
+            # Safari is usually allowed to have windows even in tight sandboxes
+            if '__CFBundleIdentifier' not in os.environ:
+                os.environ['__CFBundleIdentifier'] = 'com.apple.Safari'
             
     # Add other platforms if needed
     pass
