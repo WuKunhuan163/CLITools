@@ -13,9 +13,16 @@ from typing import Dict, List, Optional, Tuple
 class ProcessManager:
     """后台进程管理器"""
     
-    def __init__(self, max_processes: int = 1000, log_dir: str = "~/tmp/background_cmd_logs"):
+    def __init__(self, max_processes: int = 1000, log_dir: str = None, max_log_files: int = 1000):
         self.max_processes = max_processes
-        self.log_dir = Path(os.path.expanduser(log_dir))
+        self.max_log_files = max_log_files
+        
+        if log_dir is None:
+            # Default to tool/BACKGROUND/data/logs
+            self.log_dir = Path(__file__).resolve().parent.parent / "data" / "logs"
+        else:
+            self.log_dir = Path(os.path.expanduser(log_dir))
+            
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         # 进程状态文件
@@ -167,6 +174,31 @@ class ProcessManager:
         
         return command
     
+    def _cleanup_old_logs(self, limit=None, batch_size=None):
+        """删除旧日志，保持文件总数在限制内"""
+        if limit is None:
+            limit = self.max_log_files
+        if batch_size is None:
+            batch_size = limit // 2
+            
+        try:
+            # 获取所有 .log 和 .exit 文件
+            log_files = sorted(list(self.log_dir.glob("bg_cmd_*.log")), key=os.path.getmtime)
+            exit_files = {f.stem: f for f in self.log_dir.glob("bg_cmd_*.exit")}
+            
+            if len(log_files) > limit:
+                # 一次性清理 batch_size 个
+                for i in range(min(len(log_files), batch_size)):
+                    log_file = log_files[i]
+                    # 删除 log 文件
+                    log_file.unlink(missing_ok=True)
+                    # 同时删除对应的 exit 文件
+                    exit_file = exit_files.get(log_file.stem)
+                    if exit_file:
+                        exit_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
     def create_process(self, command: str, shell: str = 'zsh', 
                       resolve_aliases: bool = True) -> Optional[Tuple[int, str]]:
         """创建后台进程"""
@@ -178,6 +210,9 @@ class ProcessManager:
         
         # 清理死亡进程
         self.cleanup_dead_processes()
+        
+        # 清理旧日志
+        self._cleanup_old_logs()
         
         # 解析别名
         if resolve_aliases:

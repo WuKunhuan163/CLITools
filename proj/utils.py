@@ -165,10 +165,33 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
             with open(report_file, 'w', encoding='utf-8') as f:
                 f.write("\n".join(md_lines))
             report_path = str(report_file)
+            
+            # Cleanup old reports in this sub-directory (limit 100)
+            cleanup_old_files(report_root, "*.md", limit=100)
         except Exception:
             pass
 
     return "\n".join(formatted_lines), report_path
+
+def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=50):
+    """
+    Cleans up old files in a directory if the limit is exceeded.
+    Deletes the oldest batch_size files.
+    """
+    try:
+        target_path = Path(target_dir)
+        if not target_path.exists():
+            return
+            
+        files = sorted(list(target_path.glob(pattern)), key=os.path.getmtime)
+        if len(files) > limit:
+            for i in range(min(len(files), batch_size)):
+                try:
+                    files[i].unlink(missing_ok=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 def get_close_matches(word, possibilities, n=3, cutoff=0.6):
     """
