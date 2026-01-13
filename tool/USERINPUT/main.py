@@ -135,6 +135,7 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     
     config = get_config()
     focus_interval = config.get("focus_interval", 90)
+    time_increment = 60  # Unified time increment in seconds
     
     try:
         bell_path = Path(proj_dir) / "tkinter_bell.mp3"
@@ -174,7 +175,7 @@ def _(key, default):
     return get_translation(TOOL_PROJ_DIR, key, default)
 
 class TkinterInputWindow:
-    def __init__(self, title, timeout, hint_text, focus_interval, bell_path):
+    def __init__(self, title, timeout, hint_text, focus_interval, bell_path, time_increment):
         self.root = None
         self.text_widget = None
         self.title = title
@@ -182,6 +183,7 @@ class TkinterInputWindow:
         self.hint_text = hint_text
         self.focus_interval = focus_interval
         self.bell_path = bell_path
+        self.time_increment = time_increment
         self.result = None
         self.window_closed = False
 
@@ -220,7 +222,7 @@ class TkinterInputWindow:
             button_frame.pack(fill=tk.X)
             
             tk.Button(button_frame, text=_("submit", "Submit"), command=self.submit_input, font=("Arial", 13, "bold")).pack(side=tk.RIGHT)
-            tk.Button(button_frame, text=_("add_time", "Add 60s"), command=lambda: self.add_time(60), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
+            tk.Button(button_frame, text=_("add_time", f"Add {self.time_increment}s"), command=lambda: self.add_time(self.time_increment), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
             
             self.status_label = tk.Label(button_frame, text="", font=("Arial", 12))
             self.status_label.pack(side=tk.LEFT)
@@ -312,7 +314,7 @@ class TkinterInputWindow:
             print("GDS_USERINPUT_JSON:" + json.dumps(self.result or {"status": "error", "data": "No result"}))
 
 if __name__ == "__main__":
-    window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r)
+    window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r, %(time_increment)d)
     window.run()
 ''' % {
         'project_root': str(tool.project_root),
@@ -321,7 +323,8 @@ if __name__ == "__main__":
         'timeout': timeout,
         'hint': hint_text,
         'focus_interval': focus_interval,
-        'bell_path': str(bell_path) if bell_path and bell_path.exists() else ''
+        'bell_path': str(bell_path) if bell_path and bell_path.exists() else '',
+        'time_increment': time_increment
     }
 
     try:
@@ -331,7 +334,9 @@ if __name__ == "__main__":
         )
         # Use a much longer timeout for communicate to allow for user adding time in GUI
         # The GUI manages its own internal timeout and will exit when it expires.
-        stdout, stderr = proc.communicate(timeout=timeout + 3600) 
+        # We use a large buffer (3600s) to allow for multiple 'Add 60s' clicks.
+        parent_timeout = timeout + 3600 
+        stdout, stderr = proc.communicate(timeout=parent_timeout) 
         
         if proc.returncode != 0:
             raise RuntimeError(parse_gui_error(stderr or stdout))
