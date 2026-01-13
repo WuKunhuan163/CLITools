@@ -1,7 +1,0 @@
-{
-  "name": "BACKGROUND",
-  "description": "Safe background process management tool",
-  "purpose": "Run tasks without blocking the agent's execution.",
-  "main_script": "main.py",
-  "dependencies": ["PYTHON"]
-}

@@ -1,8 +1,0 @@
-{
-  "name": "OVERLEAF",
-  "version": "1.1.0",
-  "description": "Local LaTeX compilation and template management with GUI support.",
-  "purpose": "Build PDFs from LaTeX sources easily without needing a full TeX distribution installed globally.",
-  "dependencies": ["PYTHON", "USERINPUT"]
-}
-

@@ -13,7 +13,7 @@
       "end_time": "2026-01-13T13:56:48.032132"
     },
     "24376": {
-      "command": "export PYTHONPATH=\"/Applications/AITerminalTools:/Applications/AITerminalTools/tool/USERINPUT:$PYTHONPATH\" && /Applications/AITerminalTools/tool/PYTHON/proj/installations/python3.10.19/install/bin/python3 /Applications/AITerminalTools/tool/USERINPUT/test/test_01_kill.py",
+      "command": "export PYTHONPATH=\"/Applications/AITerminalTools:/Applications/AITerminalTools/tool/USERINPUT:$PYTHONPATH\" && /Applications/AITerminalTools/tool/PYTHON/proj/install/python3.10.19/install/bin/python3 /Applications/AITerminalTools/tool/USERINPUT/test/test_01_kill.py",
       "shell": "zsh",
       "start_time": 1768283808.036019,
       "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260113_135648_034.log",
