@@ -143,9 +143,8 @@ def _install_version(version, install_dir=None):
     print(f"{BLUE}" + _("python_installing", "Installing {version} to {path}...", version=version, path=target_dir) + f"{RESET}")
     
     try:
-        # The path in 'tool' branch is tool/PYTHON/proj/install/<version>
-        # (Note: keeping the source path as installations as that's what's in the repo/branch)
-        source_path = f"tool/PYTHON/proj/install/{version}"
+        # The path in 'tool' branch is now in the 'resource' store
+        source_path = f"resource/tool/PYTHON/proj/install/{version}"
         
         # Temporary directory for checkout
         import tempfile
