@@ -17,11 +17,13 @@ sys.path.append(str(current_dir))
 # Localization setup
 # import shared utils from the shared root proj
 try:
-    from proj.language_utils import get_translation, get_display_width, truncate_to_display_width
+    from proj.language_utils import get_translation
+    from proj.utils import get_display_width, truncate_to_display_width, format_table
 except ImportError:
     def get_translation(d, k, default): return default
     def get_display_width(s): return len(s)
     def truncate_to_display_width(s, w): return s[:w]
+    def format_table(h, r, **kwargs): return "\n".join([" | ".join(h)] + [" | ".join(map(str, row)) for row in r]), None
 
 TOOL_PROJ_DIR = current_dir / "proj"
 
@@ -99,7 +101,6 @@ def main():
                 if processes:
                     print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
                     
-                    # Try to get terminal width
                     try:
                         terminal_width = os.get_terminal_size().columns
                     except (AttributeError, OSError):
@@ -110,59 +111,8 @@ def main():
                     runtime_label = _("runtime", "Runtime")
                     command_label = _("command", "Command")
                     
-                    # Column widths - adjust based on terminal width
-                    if terminal_width < 50:
-                        pid_col_width = 8
-                        status_col_width = 8
-                        runtime_col_width = 8
-                    else:
-                        pid_col_width = 12
-                        status_col_width = 12
-                        runtime_col_width = 12
-                    
-                    sep_width = 3 # " | "
-                    
-                    # Calculate available width for command
-                    fixed_width = pid_col_width + sep_width + status_col_width + sep_width + runtime_col_width + sep_width
-                    
-                    if terminal_width > fixed_width + 10:
-                        cmd_width = terminal_width - fixed_width
-                    elif terminal_width > fixed_width:
-                        cmd_width = terminal_width - fixed_width
-                    else:
-                        # Terminal is extremely narrow, we might have to clip even the fixed columns
-                        cmd_width = 0
-                    
-                    total_table_width = fixed_width + (cmd_width + sep_width if cmd_width > 0 else 0)
-                    # For simple display, just use the terminal_width if total is too small
-                    total_table_width = min(total_table_width, terminal_width)
-                    
-                    is_clipped = False
-                    clipped_rows = []
-                    
-                    print("-" * total_table_width)
-                    
-                    # Manual alignment for localized headers
-                    pid_header = "PID: ID"
-                    pid_header_padded = truncate_to_display_width(pid_header, pid_col_width)
-                    if get_display_width(pid_header) > pid_col_width: is_clipped = True
-                    pid_header_padded = pid_header_padded + " " * (pid_col_width - get_display_width(pid_header_padded))
-                    
-                    status_header_padded = truncate_to_display_width(status_label, status_col_width)
-                    if get_display_width(status_label) > status_col_width: is_clipped = True
-                    status_header_padded = status_header_padded + " " * (status_col_width - get_display_width(status_header_padded))
-                    
-                    runtime_header_padded = truncate_to_display_width(runtime_label, runtime_col_width)
-                    if get_display_width(runtime_label) > runtime_col_width: is_clipped = True
-                    runtime_header_padded = runtime_header_padded + " " * (runtime_col_width - get_display_width(runtime_header_padded))
-                    
-                    header = f"{pid_header_padded} | {status_header_padded} | {runtime_header_padded}"
-                    if cmd_width > 0:
-                        if get_display_width(command_label) > cmd_width: is_clipped = True
-                        header += f" | {truncate_to_display_width(command_label, cmd_width)}"
-                    
-                    print(truncate_to_display_width(header, total_table_width))
-                    print("-" * total_table_width)
+                    headers = ["PID", status_label, runtime_label, command_label]
+                    table_rows = []
                     
                     for proc in processes:
                         # Translate status
@@ -177,53 +127,33 @@ def main():
                         elif status_val == 'unknown':
                             translated_status = _("status_unknown", "unknown")
                         
-                        # Pad PID, translated status and runtime
-                        pid_val = f"PID: {proc['pid']}"
-                        if get_display_width(pid_val) > pid_col_width: is_clipped = True
-                        pid_display = truncate_to_display_width(pid_val, pid_col_width)
-                        pid_display = pid_display + " " * (pid_col_width - get_display_width(pid_display))
-                        
-                        if get_display_width(translated_status) > status_col_width: is_clipped = True
-                        status_display = truncate_to_display_width(translated_status, status_col_width)
-                        status_display = status_display + " " * (status_col_width - get_display_width(status_display))
-                        
-                        if get_display_width(proc['runtime']) > runtime_col_width: is_clipped = True
-                        runtime_display = truncate_to_display_width(proc['runtime'], runtime_col_width)
-                        runtime_display = runtime_display + " " * (runtime_col_width - get_display_width(runtime_display))
-                        
-                        row = f"{pid_display} | {status_display} | {runtime_display}"
-                        if cmd_width > 0:
-                            if get_display_width(proc['command']) > cmd_width: is_clipped = True
-                            cmd_display = truncate_to_display_width(proc['command'], cmd_width)
-                            row += f" | {cmd_display}"
-                        
-                        print(truncate_to_display_width(row, total_table_width))
-                        
-                        # Store for full report
-                        clipped_rows.append({
-                            'pid': proc['pid'],
-                            'status': translated_status,
-                            'runtime': proc['runtime'],
-                            'command': proc['command']
-                        })
-                        
-                    print("-" * total_table_width)
+                        table_rows.append([
+                            f"PID: {proc['pid']}",
+                            translated_status,
+                            proc['runtime'],
+                            proc['command']
+                        ])
+
+                    # Detect if RTL
+                    current_lang = os.environ.get("TOOL_LANGUAGE")
+                    if not current_lang:
+                        config_path = project_root / "data" / "global_config.json"
+                        if config_path.exists():
+                            try:
+                                with open(config_path, 'r') as f:
+                                    current_lang = json.load(f).get("language", "en")
+                            except Exception: pass
+                    is_rtl = current_lang in ["ar", "he", "fa"]
+
+                    table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="background", is_rtl=is_rtl)
+                    print(table_str)
                     
-                    # Create markdown report ALWAYS
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
-                        f.write(f"# Background Processes Full Report\n\n")
-                        f.write(f"| PID | {status_label} | {runtime_label} | {command_label} |\n")
-                        f.write(f"| --- | --- | --- | --- |\n")
-                        for row in clipped_rows:
-                            f.write(f"| {row['pid']} | {row['status']} | {row['runtime']} | {row['command']} |\n")
-                        report_path = f.name
-                    
-                    if is_clipped:
-                        print(_("full_report_saved", "Full report saved to: {path}").format(path=report_path))
-                    else:
-                        # Even if not clipped, still print hiddenly for tests if needed?
-                        # User said "可以在任何时候都保存一个临时文件... 这样子单元测试提取到这个路径"
-                        # To let tests find it, I should print it in a specific format
+                    if report_path:
+                        # Full report is always saved to report_path by format_table if truncated
+                        if "..." in table_str: # Simple way to check truncation
+                            print(_("full_report_saved", "Full report saved to: {path}").format(path=report_path))
+                        
+                        # Always print for tests
                         print(f"BACKGROUND_REPORT_PATH: {report_path}")
                 else:
                     print(_("no_active_processes", "No active processes"))

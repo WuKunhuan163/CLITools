@@ -1,5 +1,25 @@
 {
   "lang_name_ar": "العربية",
-  "audit_summary_keys": "{rate} من المفاتيح تدعم ترجمة {lang} ({lang_name}) ({supported}/{total})"
+  "lang_name_en": "الإنجليزية",
+  "lang_name_zh": "الصينية",
+  "lang_list_header": "اللغات المدعومة:",
+  "lang_table_name": "اللغة",
+  "lang_table_keys": "تغطية المفاتيح",
+  "lang_table_refs": "تغطية المراجع",
+  "lang_default": "افتراضي",
+  "lang_table_footer_star": "*: اللغة الحالية",
+  "lang_table_footer_keys": "المفاتيح: إجمالي عدد سلاسل الترجمة الفريدة الموجودة في الكود.",
+  "lang_table_footer_refs": "المراجع: إجمالي عدد المرات التي تم فيها استخدام سلاسل الترجمة في الكود.",
+  "lang_audit_instruction": "لتدقيق تغطية لغة معينة: TOOL audit-lang <lang_code>",
+  "lang_dev_instruction": "لدعم لغة جديدة: قم بتشغيل التدقيق للرمز الجديد، ثم قم بإنشاء ملفات JSON للترجمة بناءً على المفاتيح المفقودة والمسارات المنطقية المذكورة في تقرير التدقيق.",
+  "audit_scanning_done": "اكتمل فحص تدقيق الترجمة لـ {lang} ({lang_name}).",
+  "lang_help": "إدارة لغة العرض",
+  "lang_subcommand_help": "الأوامر الفرعية للغة",
+  "lang_set_help": "تعيين لغة العرض",
+  "lang_code_help": "رمز اللغة (مثلاً: en, zh, ar)",
+  "lang_list_help": "قائمة اللغات المدعومة وتغطيتها",
+  "error_label": "خطأ",
+  "warning_label": "تحذير",
+  "audit_cache_warning": "هذا تقرير مخزن مؤقتًا وقد لا يعكس التغييرات الأخيرة.",
+  "full_report_saved": "تم اقتطاع العرض، تم حفظ التقرير الكامل في: {path}"
 }
-
