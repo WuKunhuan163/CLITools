@@ -187,12 +187,35 @@ class TkinterInputWindow:
         try:
             # Set a default app name for macOS to avoid 'aString != nil' crash in AppKit
             if platform.system() == "Darwin":
+                import ctypes
+                import ctypes.util
+                prog_name = "USERINPUT"
+                
+                # Attempt to set process name at C level
+                try:
+                    libc = ctypes.CDLL(ctypes.util.find_library('c'))
+                    libc.setprogname(prog_name.encode('utf-8'))
+                except Exception: pass
+                
+                # Ensure sys.argv[0] is not empty
                 if not sys.argv or not sys.argv[0]:
-                    sys.argv = ["USERINPUT"]
-                self.root = tk.Tk(className='USERINPUT')
+                    sys.argv = [prog_name]
+                
+                # Spoof bundle ID to avoid some sandbox display issues
+                if '__CFBundleIdentifier' not in os.environ:
+                    os.environ['__CFBundleIdentifier'] = 'com.apple.Terminal'
+
+                # className sets the resource class and app name in Tcl/Tk
+                self.root = tk.Tk(className=prog_name)
+                
+                # Force the app name in Tcl directly
+                try:
+                    self.root.tk.call('tk', 'appname', prog_name)
+                except Exception: pass
+                
                 try:
                     self.root.createcommand('tk::mac::Quit', self.cancel_input)
-                except: pass
+                except Exception: pass
             else:
                 self.root = tk.Tk()
             
