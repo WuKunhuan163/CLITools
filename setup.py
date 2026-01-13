@@ -59,7 +59,7 @@ exec python3 "{main_py}" "$@"
                     import re
                     pattern = r"alias TOOL=['\"].*?['\"]"
                     if str(tool_bin) in content:
-                        print(f"TOOL alias already correct in {profile}")
+                        pass
                     else:
                         new_content = re.sub(pattern, alias_cmd, content)
                         if new_content != content:
@@ -83,12 +83,6 @@ exec python3 "{main_py}" "$@"
 
         except Exception as e:
             print(f"Warning: Could not update {profile}: {e}")
-
-    # 4. Create global data directories
-    for sub in ["audit/lang", "table/tmp", "test/result"]:
-        d = project_root / "data" / sub
-        d.mkdir(parents=True, exist_ok=True)
-        print(f"Ensured directory exists: {d}")
 
 if __name__ == "__main__":
     setup()

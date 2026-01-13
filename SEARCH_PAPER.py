@@ -381,13 +381,13 @@ class MultiPlatformPaperSearcher:
             authors, venue, pub_date = [], "", ""
             if authors_elem:
                 text = authors_elem.get_text()
-                parts = text.split(' - ')
-                if len(parts) >= 2:
+                    parts = text.split(' - ')
+                    if len(parts) >= 2:
                     authors = [a.strip() for a in parts[0].split(',')]
-                    venue_text = parts[1]
-                    venue_match = re.search(r'^([^,]+)', venue_text)
+                        venue_text = parts[1]
+                            venue_match = re.search(r'^([^,]+)', venue_text)
                     if venue_match: venue = venue_match.group(1).strip()
-                    date_match = re.search(r'(\d{4})', venue_text)
+                            date_match = re.search(r'(\d{4})', venue_text)
                     if date_match: pub_date = date_match.group(1)
             
             abstract_elem = entry.find('div', class_='gs_rs')
@@ -445,7 +445,7 @@ class MultiPlatformPaperSearcher:
         result_file = self.results_dir / f"search_results_{timestamp}.json"
         with open(result_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        
+
         for paper in result.get("papers", []):
             paper_title = re.sub(r'[^\w\s-]', '', paper.get("title", "untitled")).replace(" ", "_")
             paper_file = self.papers_dir / f"{paper_title}.json"
@@ -486,9 +486,9 @@ def main():
     sources = args.sources.split(',') if args.sources else None
     
     if query is None:
-        print(f"Search query: ", file=sys.stderr, end="")
-        query = input().strip()
-        if not query:
+                 print(f"Search query: ", file=sys.stderr, end="")
+            query = input().strip()
+            if not query:
             return 1
             
     searcher = MultiPlatformPaperSearcher()
@@ -501,4 +501,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main()) 

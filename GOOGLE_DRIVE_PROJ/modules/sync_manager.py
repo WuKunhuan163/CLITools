@@ -368,7 +368,7 @@ def set_local_sync_dir(command_identifier=None):
         return 1
     except Exception as e:
         error_msg = f"Error setting local sync directory: {e}"
-        print(f"Error: {error_msg}")
+            print(f"Error: {error_msg}")
         return 1
 
 def set_global_sync_dir(command_identifier=None):
@@ -456,7 +456,7 @@ def set_global_sync_dir(command_identifier=None):
         return 1
     except Exception as e:
         error_msg = f"Error setting global sync directory: {e}"
-        print(f"Error: {error_msg}")
+            print(f"Error: {error_msg}")
         return 1
 
 def get_google_drive_status(command_identifier=None):
@@ -476,9 +476,9 @@ def get_google_drive_status(command_identifier=None):
             "message": f"Google Drive {'正在运行' if running else '未运行'} ({len(processes)} 个进程)"
         }
         
-        print(result_data["message"])
-        if running and processes:
-            print(f"进程ID: {', '.join(processes)}")
+            print(result_data["message"])
+            if running and processes:
+                print(f"进程ID: {', '.join(processes)}")
         return 0
         
     except Exception as e:
@@ -487,5 +487,5 @@ def get_google_drive_status(command_identifier=None):
             "error": f"获取状态时出错: {e}"
         }
         
-        print(error_data["error"])
+            print(error_data["error"])
         return 1

@@ -1732,11 +1732,11 @@ def main(args=None):
             extractor = PDFExtractor()
             success, message = extractor.extract_pdf(pdf_file)
             
-            print(f"{message}")
+                    print(f"{message}")
             return 0 if success else 1
-        else:
-            print(f"Error: No PDF file specified")
-            print(f"Use --help for usage information")
+            else:
+                print(f"Error: No PDF file specified")
+                print(f"Use --help for usage information")
             return 1
     
     # 解析参数
@@ -1759,7 +1759,7 @@ def main(args=None):
         arg = args[i]
         
         if arg in ['--help', '-h']:
-            show_help()
+                show_help()
             return 0
         elif arg == '--page':
             if i + 1 < len(args):
@@ -1863,7 +1863,7 @@ def main(args=None):
                 return 1
         elif arg.startswith('-'):
             print(f"Unknown option: {arg}")
-            print(f"Use --help for usage information")
+                print(f"Use --help for usage information")
             return 1
         else:
             if pdf_file is None:
@@ -1877,7 +1877,7 @@ def main(args=None):
     if clean_data:
         extractor = PDFExtractor()
         success, message = extractor.clean_data()
-        print(f"{message}")
+                print(f"{message}")
         return 0 if success else 1
     
     # 处理完整流程模式
@@ -1902,7 +1902,7 @@ def main(args=None):
             result1 = subprocess.run(step1_cmd, capture_output=True, text=True, check=False)
             
             if result1.returncode != 0:
-                print(f"PDF extraction failed: {result1.stderr}")
+                    print(f"PDF extraction failed: {result1.stderr}")
                 return 1
             
             print(f" PDF extraction completed")
@@ -1942,21 +1942,21 @@ def main(args=None):
                 result2 = subprocess.run(step2_cmd, capture_output=True, text=True, check=False)
                 
                 if result2.returncode == 0:
-                    print(f"Full pipeline completed: {pdf_file} -> {md_file}")
+                        print(f"Full pipeline completed: {pdf_file} -> {md_file}")
                     return 0
                 else:
                     # 即使后处理失败，PDF提取已成功
-                    print(f"PDF extraction completed, but post-processing failed: {md_file}")
-                    print(f"You can later use EXTRACT_PDF --post to manually perform post-processing")
-                    print(f"Post-processing error: {result2.stderr}")
+                        print(f"PDF extraction completed, but post-processing failed: {md_file}")
+                        print(f"You can later use EXTRACT_PDF --post to manually perform post-processing")
+                        print(f"Post-processing error: {result2.stderr}")
                     return 0
             else:
                 # markdown文件不存在
-                print(f"PDF extraction completed, but markdown file not found: {md_file}")
+                    print(f"PDF extraction completed, but markdown file not found: {md_file}")
                 return 0
                 
         except Exception as e:
-            print(f"Full pipeline execution failed: {str(e)}")
+                print(f"Full pipeline execution failed: {str(e)}")
             return 1
     
     # 处理后处理模式
@@ -1965,16 +1965,16 @@ def main(args=None):
         success = processor.process_file(post_file, post_type, post_ids, post_prompt, force=post_force, timeout_multi=post_timeout_multi)
         
         if success:
-            print(f"Post-processing completed: {post_file}")
+                print(f"Post-processing completed: {post_file}")
             return 0
-        else:
-            print(f"Post-processing failed: {post_file}")
+            else:
+                print(f"Post-processing failed: {post_file}")
             return 1
     
     # 检查是否提供了PDF文件
     if pdf_file is None:
         print("Error: No PDF file specified")
-        print(f"Use --help for usage information")
+            print(f"Use --help for usage information")
         return 1
     
     # 执行PDF提取
@@ -1982,10 +1982,10 @@ def main(args=None):
     success, message = extractor.extract_pdf(pdf_file, page_spec, output_dir, engine_mode)
     
     if success:
-        print(f"{message}")
+            print(f"{message}")
         return 0
-    else:
-        print(f"{message}")
+        else:
+            print(f"{message}")
         return 1
 
 def cleanup_images_folder():

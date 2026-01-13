@@ -112,8 +112,8 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
     if max_width:
         total_width_with_borders = sum(col_widths) + border_overhead
         if total_width_with_borders > max_width:
-            is_truncated = True
-            
+        is_truncated = True
+    
             # Simple left-to-right priority truncation for columns
             # Ensure each column has at least 5 display width (border + space + char/ellipses + space)
             # which means col_width >= 4 (padding + content)
@@ -146,7 +146,7 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
             w = widths[i]
             # Content width is w - 2 (for padding)
             content_w = w - 2
-            
+                
             if get_display_width(val_str) > content_w:
                 if content_w > 3:
                     display_str = truncate_to_display_width(val_str, content_w - 3) + "..."
