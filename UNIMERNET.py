@@ -8,21 +8,13 @@ import os
 import sys
 import json
 import argparse
-import tempfile
-import shutil
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 # 加载环境变量
 from dotenv import load_dotenv
 load_dotenv()
-
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
 
 # Add UNIMERNET_PROJ to path
 UNIMERNET_PROJ_PATH = Path(__file__).parent / "UNIMERNET_PROJ"
@@ -204,8 +196,6 @@ class UnimerNetProcessor:
                 "error": f"UnimerNet processing failed: {str(e)}"
             }
     
-
-    
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         if not self.cache_system:
@@ -215,17 +205,6 @@ class UnimerNetProcessor:
 
 def main():
     """Main CLI interface for UNIMERNET"""
-    # 获取command_identifier
-    args_list = sys.argv[1:]
-    command_identifier = None
-    
-    # 检查是否被RUN调用（第一个参数是command_identifier）
-    if args_list and is_run_environment(args_list[0]):
-        command_identifier = args_list[0]
-        args_list = args_list[1:]  # 移除command_identifier，保留实际参数
-        # 重新构建sys.argv以供argparse使用
-        sys.argv = [sys.argv[0]] + args_list
-    
     parser = argparse.ArgumentParser(
         description="UNIMERNET - UnimerNet Formula and Table Recognition Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -336,8 +315,7 @@ def main():
         )
         
         # Output result
-        # Use JSON format if explicitly requested, for file output, OR if running in RUN environment
-        if args.json or args.output or is_run_environment(command_identifier):
+        if args.json or args.output:
             output_text = json.dumps(result, indent=2)
         else:
             if result.get("success"):
@@ -359,4 +337,4 @@ Result:
         print(output_text)
 
 if __name__ == "__main__":
-    main() 
+    main()

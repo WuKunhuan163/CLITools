@@ -79,107 +79,6 @@ USERINPUT displays a modern tkinter GUI window:
 - Countdown timer showing remaining time
 - IMK message suppression for clean operation
 
-### 4. Enhanced Text Input
-
-USERINPUT supports rich text input through GUI:
-- Multiline text input with scrollable text area
-- Click "提交" button or press Ctrl+Enter to submit
-- Dynamic text area resizing based on window size
-- Automatic focus management and periodic refocus
-- Clipboard integration (results copied to clipboard)
-
-### 5. Session Information
-
-USERINPUT automatically detects and displays:
-- Current project name (from git root or working directory)
-- Cursor session information (CURSOR_TRACE_ID)
-- Process identification (PID)
-- Timestamp information for session tracking
-- Custom ID integration for multi-window scenarios
-
-## Use Cases for AI Agents
-
-### 1. Requesting Approval
-
-```bash
-# AI agent modified files and requests approval
-echo "Modified 5 files. Review changes:"
-git diff
-USERINPUT --timeout 120 --hint "Type 'approve' to continue or provide feedback"
-```
-
-### 2. Handling Uncertainty
-
-```bash
-# AI agent is uncertain about which approach to take
-echo "Found two possible solutions:"
-echo "1. Use async/await approach"
-echo "2. Use callback approach"
-USERINPUT --hint "Which approach should I use? (1 or 2)"
-```
-
-### 3. Waiting for External Actions
-
-```bash
-# AI agent needs user to complete an external task
-echo "Please manually test the deployed application"
-USERINPUT --timeout 300 --hint "Type 'done' when testing is complete"
-```
-
-### 4. Iterative Development
-
-```bash
-# AI agent completed a subtask and waits for next instruction
-echo "Database schema created successfully"
-USERINPUT --hint "What should I work on next?"
-```
-
-## Output Format
-
-USERINPUT outputs the user's input directly to stdout:
-
-```bash
-$ USERINPUT --hint "Enter project name"
-================
-Agent Mode
-================
-
-Hint provided: Enter project name
-
-Enter your next prompt. Press Ctrl+D (EOF) when done.
-my-awesome-project
-```
-
-Result: The string `my-awesome-project` is returned.
-
-### Timeout Output
-
-If timeout is reached:
-
-```bash
-================
-输入超时 (60秒)。
-用户还在测试代码，或者准备给你的反馈。如果你没有得到指导你下一步工作的信息，请通过再次执行USERINPUT等待用户，不要直接结束。
-```
-
-## Integration with RUN Tool
-
-USERINPUT integrates seamlessly with the RUN tool:
-
-```bash
-# In a RUN script
-RUN my_agent_task.sh
-# Inside my_agent_task.sh:
-USERINPUT --hint "Approve the deployment?"
-```
-
-USERINPUT automatically detects RUN environment and displays:
-- RUN identifier
-- Output file path
-- Enhanced context information
-
-## Best Practices
-
 ### For AI Agents
 
 1. **Always use timeout**: Prevent indefinite waiting
@@ -233,7 +132,6 @@ USERINPUT automatically detects RUN environment and displays:
 ### Environment Detection
 
 USERINPUT automatically detects:
-- RUN environment (via `RUN_IDENTIFIER` environment variable)
 - Project name (from git repository root)
 - Current working directory
 
@@ -340,7 +238,6 @@ USERINPUT --timeout 300  # 5 minutes
 
 ## See Also
 
-- **RUN**: Task execution and management tool
 - **BACKGROUND_CMD**: Background command execution
 - **AI_TOOL**: AI tool registry and management
 

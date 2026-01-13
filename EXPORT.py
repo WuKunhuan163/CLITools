@@ -2,53 +2,18 @@
 """
 EXPORT.py - Environment Variable Export Tool
 Exports environment variables and writes to multiple shell configuration files
-Python version with RUN environment detection
 """
 
 import os
 import sys
-import json
-import hashlib
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 
 # 加载环境变量
 from dotenv import load_dotenv
 load_dotenv()
 
-
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    return False
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        # 确保输出目录存在
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
 
 def update_shell_configs():
     """更新shell配置文件（source所有配置文件）"""
@@ -96,9 +61,7 @@ def copy_to_clipboard(text):
             result = subprocess.run(["clip"], input=text.encode(), check=True, shell=True, capture_output=True)
             return True
         return False
-    except subprocess.CalledProcessError as e:
-        return False
-    except Exception as e:
+    except Exception:
         return False
 
 def copy_source_commands_to_clipboard(updated_files):
@@ -233,21 +196,12 @@ def add_export_statement(lines: List[str], var_name: str, var_value: str) -> Lis
     lines.append(export_line)
     return lines
 
-def remove_variable(var_name: str, command_identifier=None):
+def remove_variable(var_name: str):
     """移除环境变量并从配置文件中删除"""
     
     # 验证变量名
     if not var_name or not var_name.replace('_', '').isalnum():
-        error_data = {
-            "success": False,
-            "error": f"Invalid variable name: {var_name}",
-            "variable": var_name
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: Invalid variable name: {var_name}")
+        print(f"Error: Invalid variable name: {var_name}")
         return 1
     
     # 获取配置文件
@@ -282,29 +236,16 @@ def remove_variable(var_name: str, command_identifier=None):
                 
         except Exception as e:
             failed_files.append(str(config_file))
-            if not is_run_environment(command_identifier):
-                print(f"Error: Error updating {config_file}: {e}")
+            print(f"Error: Error updating {config_file}: {e}")
     
-    # 准备结果
-    result_data = {
-        "success": len(failed_files) == 0,
-        "variable": var_name,
-        "updated_files": updated_files,
-        "failed_files": failed_files,
-        "message": f"Removed {var_name} from {len(updated_files)} files" if len(failed_files) == 0 else f"Failed to remove from {len(failed_files)} files"
-    }
-    
-    if is_run_environment(command_identifier):
-        write_to_json_output(result_data, command_identifier)
+    if len(failed_files) == 0:
+        print(f"Successfully removed {var_name} from {len(updated_files)} configuration files!")
+        for file in updated_files:
+            print(f"- {file}")
     else:
-        if len(failed_files) == 0:
-            print(f"Successfully removed {var_name} from {len(updated_files)} configuration files!")
-            for file in updated_files:
-                print(f"- {file}")
-        else:
-            print(f"Warning: Partially successful: removed from {len(updated_files)} files, failed on {len(failed_files)} files")
-            for file in failed_files:
-                print(f"- {file}")
+        print(f"Warning: Partially successful: removed from {len(updated_files)} files, failed on {len(failed_files)} files")
+        for file in failed_files:
+            print(f"- {file}")
     
     return 0 if len(failed_files) == 0 else 1
 
@@ -325,21 +266,12 @@ def remove_export_statement(lines: List[str], var_name: str) -> List[str]:
     
     return new_lines
 
-def export_variable(var_name: str, var_value: str, command_identifier=None):
+def export_variable(var_name: str, var_value: str):
     """导出环境变量并写入配置文件"""
     
     # 验证变量名
     if not var_name or not var_name.replace('_', '').isalnum():
-        error_data = {
-            "success": False,
-            "error": f"Invalid variable name: {var_name}",
-            "variable": var_name
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: Invalid variable name: {var_name}")
+        print(f"Error: Invalid variable name: {var_name}")
         return 1
     
     # 获取配置文件
@@ -374,46 +306,23 @@ def export_variable(var_name: str, var_value: str, command_identifier=None):
         except Exception as e:
             failed_files.append(f"{config_file} ({str(e)})")
     
-    # 创建结果
     if updated_files:
-        success_data = {
-            "success": True,
-            "message": f"Environment variable {var_name} exported successfully",
-            "variable": var_name,
-            "value": var_value,
-            "updated_files": updated_files,
-            "failed_files": failed_files if failed_files else None
-        }
+        print(f"Successfully exported {var_name}='{var_value}'")
+        print(f"Updated files: {', '.join(updated_files)}")
+        if failed_files:
+            print(f"Error: Failed files: {', '.join(failed_files)}")
         
-        if is_run_environment(command_identifier):
-            write_to_json_output(success_data, command_identifier)
-        else:
-            print(f"Successfully exported {var_name}='{var_value}'")
-            print(f"Updated files: {', '.join(updated_files)}")
-            if failed_files:
-                print(f"Error: Failed files: {', '.join(failed_files)}")
-            
-            # 自动在当前shell中设置环境变量
-            os.environ[var_name] = var_value
-            print(f"Environment variable set in current session")
-            print(f"Note: Changes will persist in new terminal sessions")
-            
-            # 生成source命令并复制到剪贴板
-            copy_source_commands_to_clipboard(updated_files)
+        # 自动在当前shell中设置环境变量
+        os.environ[var_name] = var_value
+        print(f"Environment variable set in current session")
+        print(f"Note: Changes will persist in new terminal sessions")
+        
+        # 生成source命令并复制到剪贴板
+        copy_source_commands_to_clipboard(updated_files)
         return 0
     else:
-        error_data = {
-            "success": False,
-            "error": "Failed to update any configuration files",
-            "variable": var_name,
-            "failed_files": failed_files
-        }
-        
-        if is_run_environment(command_identifier):
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: Failed to update any configuration files")
-            print(f"Failed files: {', '.join(failed_files)}")
+        print(f"Error: Failed to update any configuration files")
+        print(f"Failed files: {', '.join(failed_files)}")
         return 1
 
 def show_help():
@@ -453,71 +362,33 @@ to apply changes in new sessions. Use --update to apply changes immediately."""
 
 def main():
     """主函数"""
-    # 获取执行上下文和command_identifier
     args = sys.argv[1:]
-    command_identifier = None
-    
-    # 检查是否被RUN调用（第一个参数是command_identifier）
-    if args and is_run_environment(args[0]):
-        command_identifier = args[0]
-        args = args[1:]  # 移除command_identifier，保留实际参数
     
     if len(args) == 0:
-        if is_run_environment(command_identifier):
-            error_data = {
-                "success": False,
-                "error": "No arguments provided. Usage: EXPORT <variable_name> <value>"
-            }
-            write_to_json_output(error_data, command_identifier)
-        else:
-            print(f"Error: No arguments provided")
-            print(f"Usage: EXPORT <variable_name> <value>")
-            print(f"Use --help for more information")
+        print(f"Error: No arguments provided")
+        print(f"Usage: EXPORT <variable_name> <value>")
+        print(f"Use --help for more information")
         return 1
     
     if len(args) == 1:
         if args[0] in ['--help', '-h']:
-            if is_run_environment(command_identifier):
-                help_data = {
-                    "success": True,
-                    "message": "Help information",
-                    "help": "EXPORT - Environment Variable Export Tool"
-                }
-                write_to_json_output(help_data, command_identifier)
-            else:
-                show_help()
+            show_help()
             return 0
         elif args[0] == '--update':
-            if is_run_environment(command_identifier):
-                success = update_shell_configs()
-                output_data = {
-                    "success": success,
-                    "message": "Configuration files updated" if success else "Failed to update configuration files"
-                }
-                write_to_json_output(output_data, command_identifier)
-                return 0 if success else 1
-            else:
-                print(f"Updating shell configuration files...")
-                success = update_shell_configs()
-                return 0 if success else 1
+            print(f"Updating shell configuration files...")
+            success = update_shell_configs()
+            return 0 if success else 1
         else:
-            if is_run_environment(command_identifier):
-                error_data = {
-                    "success": False,
-                    "error": "Missing value. Usage: EXPORT <variable_name> <value> or EXPORT --remove <variable_name>"
-                }
-                write_to_json_output(error_data, command_identifier)
-            else:
-                print(f"Error: Missing value")
-                print(f"Usage: EXPORT <variable_name> <value>")
-                print(f"       EXPORT --remove <variable_name>")
-                print(f"       EXPORT --undo <variable_name>")
+            print(f"Error: Missing value")
+            print(f"Usage: EXPORT <variable_name> <value>")
+            print(f"       EXPORT --remove <variable_name>")
+            print(f"       EXPORT --undo <variable_name>")
             return 1
     
     if len(args) == 2:
         if args[0] in ['--remove', '--undo', '-r']:
             var_name = args[1]
-            return remove_variable(var_name, command_identifier)
+            return remove_variable(var_name)
     
     if len(args) >= 2:
         var_name = args[0]
@@ -527,9 +398,9 @@ def main():
         if len(args) > 2:
             var_value = ' '.join(args[1:])
         
-        return export_variable(var_name, var_value, command_identifier)
+        return export_variable(var_name, var_value)
     
     return 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

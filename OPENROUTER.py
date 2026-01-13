@@ -2,7 +2,7 @@
 """
 OPENROUTER.py - OpenRouter API 调用工具
 支持指定查询、模型、API密钥等参数，获取AI回复
-修改版本：支持新的模型数据结构，包含费率和context length信息
+支持新的模型数据结构，包含费率和context length信息
 """
 
 import os
@@ -16,13 +16,6 @@ from typing import Dict, Any, Optional, List, Union
 # 加载环境变量
 from dotenv import load_dotenv
 load_dotenv()
-
-def is_run_environment(command_identifier=None):
-    """Check if running in RUN environment by checking environment variables"""
-    if command_identifier:
-        return os.environ.get(f'RUN_IDENTIFIER_{command_identifier}') == 'True'
-    # 检查通用的RUN环境变量
-    return bool(os.environ.get('RUN_DATA_FILE') or os.environ.get('RUN_IDENTIFIER'))
 
 # 模型配置文件路径
 MODELS_CONFIG_FILE = Path(__file__).parent / "OPENROUTER_PROJ" / "openrouter_models.json"
@@ -507,7 +500,6 @@ def get_model_info(model_id: str) -> Optional[Dict[str, Any]]:
 
 def get_suggested_max_tokens(model_id: str, user_max_tokens: Optional[int] = None) -> int:
     """根据模型的context length建议合适的max tokens（1/4安全值）"""
-    """Suggest appropriate max tokens based on the model's context length (1/4 safety value)"""
     model_info = get_model_info(model_id)
     if not model_info:
         return user_max_tokens or 1000
@@ -522,32 +514,6 @@ def get_suggested_max_tokens(model_id: str, user_max_tokens: Optional[int] = Non
         return min(user_max_tokens, suggested_tokens)
     
     return suggested_tokens
-
-def write_to_json_output(data, command_identifier=None):
-    """将结果写入到指定的 JSON 输出文件中"""
-    if not is_run_environment(command_identifier):
-        return False
-    
-    # Get the specific output file for this command identifier
-    if command_identifier:
-        output_file = os.environ.get(f'RUN_DATA_FILE_{command_identifier}')
-    else:
-        output_file = os.environ.get('RUN_DATA_FILE')
-    
-    if not output_file:
-        return False
-    
-    try:
-        from pathlib import Path
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"Error writing to JSON output file: {e}")
-        return False
 
 
 def create_json_output(success: bool, message: str, **kwargs) -> Dict[str, Any]:
@@ -565,39 +531,22 @@ def list_models():
     models = load_models()
     useable_models = get_useable_models()
     
-    if is_run_environment():
-        # 在RUN环境下返回JSON格式的模型列表（只返回可用模型）
-        model_data = create_json_output(
-            True, 
-            "Command executed successfully", 
-            models=useable_models,
-            total_count=len(useable_models),
-            default_model=useable_models[0] if useable_models else None,
-            model_details={model_id: models[model_id] for model_id in useable_models}
-        )
+    # 在普通环境下显示格式化的模型列表（只显示可用模型）
+    print(f"Available models list:")
+    print(f"=" * 40)
+    for i, model_id in enumerate(useable_models, 1):
+        info = models[model_id]
+        input_cost = info.get('input_cost_per_1m', 0)
+        output_cost = info.get('output_cost_per_1m', 0)
+        context_length = info.get('context_length', 0)
         
-        if 'RUN_DATA_FILE' in os.environ:
-            with open(os.environ['RUN_DATA_FILE'], 'w', encoding='utf-8') as f:
-                json.dump(model_data, f, ensure_ascii=False, indent=2)
-        
-        print(json.dumps(model_data, ensure_ascii=False, indent=2))
-    else:
-        # 在普通环境下显示格式化的模型列表（只显示可用模型）
-        print(f"Available models list:")
-        print(f"=" * 40)
-        for i, model_id in enumerate(useable_models, 1):
-            info = models[model_id]
-            input_cost = info.get('input_cost_per_1m', 0)
-            output_cost = info.get('output_cost_per_1m', 0)
-            context_length = info.get('context_length', 0)
-            
-            print(f"{i:2d}. {model_id}")
-            print(f"    Rate: input ${input_cost:.2f}/1M, output ${output_cost:.2f}/1M")
-            print(f"    Context length: {context_length:,} tokens")
-            print()
-        
-        print(f"Total: {len(useable_models)} available models")
-        print(f"Default model: {useable_models[0] if useable_models else 'None'}")
+        print(f"{i:2d}. {model_id}")
+        print(f"    Rate: input ${input_cost:.2f}/1M, output ${output_cost:.2f}/1M")
+        print(f"    Context length: {context_length:,} tokens")
+        print()
+    
+    print(f"Total: {len(useable_models)} available models")
+    print(f"Default model: {useable_models[0] if useable_models else 'None'}")
 
 
 def calculate_cost(input_tokens: int, output_tokens: int, model_id: str) -> float:
@@ -612,7 +561,7 @@ def calculate_cost(input_tokens: int, output_tokens: int, model_id: str) -> floa
     return input_cost + output_cost
 
 
-def call_openrouter_api(query: str, model: str = None, api_key: str = None, max_tokens: int = None, temperature: float = 0.7, output_dir: str = None, command_identifier: str = None) -> Union[str, Dict[str, Any]]:
+def call_openrouter_api(query: str, model: str = None, api_key: str = None, max_tokens: int = None, temperature: float = 0.7) -> Union[str, Dict[str, Any]]:
     """
     调用OpenRouter API获取回复
     
@@ -633,7 +582,7 @@ def call_openrouter_api(query: str, model: str = None, api_key: str = None, max_
     if not api_key:
         return {
             "success": False,
-            "error": "No API key provided. Use --update-key to set API key, set OPENROUTER_API_KEY environment variable, or use --key parameter"
+            "error": "No API key provided. Set OPENROUTER_API_KEY environment variable, or use --key parameter"
         }
     
     # 获取模型
@@ -642,7 +591,7 @@ def call_openrouter_api(query: str, model: str = None, api_key: str = None, max_
         if not useable_models:
             return {
                 "success": False,
-                "error": "No useable models available. Please run update_openrouter_models.py to update model information."
+                "error": "No useable models available."
             }
         model = useable_models[0]
     
@@ -764,9 +713,6 @@ Examples:
 
   OPENROUTER --list
   OPENROUTER --default "qwen/qwen3-235b-a22b-07-25:free"
-  OPENROUTER --default "qwen/qwen3-235b-a22b-07-25:free,google/gemini-2.5-flash-lite-preview-06-17"
-  OPENROUTER --default "model1 model2 model3"
-  OPENROUTER --add "qwen/qwen3-235b-a22b-07-25:free"
   OPENROUTER --add "moonshotai/kimi-k2:free" --temp-key "sk-or-v1-..."
   OPENROUTER --remove "old-model"
   OPENROUTER --test-connection
@@ -774,8 +720,7 @@ Examples:
 Environment Variables:
   OPENROUTER_API_KEY    默认API密钥
 
-Note: 只有标记为可用(useable=true)的模型才会显示在列表中。
-      运行 fetch_openrouter_models.py 来更新模型信息和费率。
+Note: 只有标记为可用(useable=true)的模型才会显示在列表中.
 """
 
     parser = argparse.ArgumentParser(description="OpenRouter API 调用工具", add_help=False)
@@ -824,26 +769,21 @@ Note: 只有标记为可用(useable=true)的模型才会显示在列表中。
     if args.test_connection:
         result = test_connection(args.key, args.model)
         
-        # 检查是否在RUN环境中
-        if is_run_environment():
-            # RUN模式：输出JSON
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+        # 普通模式：输出格式化文本
+        print(f"OpenRouter API connection test results:")
+        print()
+        
+        for test_result in result["results"]:
+            print(f"{test_result['test']}: {test_result['message']}")
+        
+        print()
+        summary = result["summary"]
+        if result["success"]:
+            print(f"Summary: connection test successful - {summary['successful']}/{summary['total_tests']} passed")
+            if summary['warnings'] > 0:
+                print(f"Warning: {summary['warnings']} items need attention")
         else:
-            # 普通模式：输出格式化文本
-            print(f"OpenRouter API connection test results:")
-            print()
-            
-            for test_result in result["results"]:
-                print(f"{test_result['test']}: {test_result['message']}")
-            
-            print()
-            summary = result["summary"]
-            if result["success"]:
-                print(f"Summary: connection test successful - {summary['successful']}/{summary['total_tests']} passed")
-                if summary['warnings'] > 0:
-                    print(f"Warning: {summary['warnings']} items need attention")
-            else:
-                print(f"Error: Summary: connection test failed - {summary['errors']} errors, {summary['warnings']} warnings")
+            print(f"Error: Summary: connection test failed - {summary['errors']} errors, {summary['warnings']} warnings")
                 
         return
     
@@ -893,7 +833,7 @@ Note: 只有标记为可用(useable=true)的模型才会显示在列表中。
             output_path.mkdir(parents=True, exist_ok=True)
             
             # 生成文件名：openrouter_YYYYMMDD_HHMMSS.txt
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = output_path / f"openrouter_{timestamp}.txt"
             
             # 写入回复内容和元数据
@@ -906,26 +846,18 @@ Note: 只有标记为可用(useable=true)的模型才会显示在列表中。
                 f.write("-" * 50 + "\n\n")
                 f.write(result['content'])
             
-            result['output_file'] = str(output_file)
             print(f"Reply saved to: {output_file}", file=sys.stderr)
             
         except Exception as e:
             print(f"Warning: Saving to output directory failed: {e}", file=sys.stderr)
     
-    if is_run_environment():
-        # 在RUN环境下输出JSON格式
-        if 'RUN_DATA_FILE' in os.environ:
-            with open(os.environ['RUN_DATA_FILE'], 'w', encoding='utf-8') as f:
-                json.dump(result, f, ensure_ascii=False, indent=2)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+    # 输出结果
+    if result['success']:
+        print(result['content'])
     else:
-        # 在普通环境下输出格式化结果
-        if result['success']:
-            print(result['content'])
-        else:
-            print(f"Error: Error: {result['error']}", file=sys.stderr)
-            sys.exit(1)
+        print(f"Error: {result['error']}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    main() 
+    main()

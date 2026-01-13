@@ -475,46 +475,6 @@ def test_tool_structure():
     
     print(f"test_tool_structure passed")
 
-def test_run_environment_compatibility():
-    """Test compatibility with RUN environment"""
-    tool_path = Path(__file__).parent.parent / "GOOGLE_DRIVE.py"
-    
-    # Create a temporary RUN environment simulation
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # Set up mock RUN environment variables
-        env = os.environ.copy()
-        test_id = "test_12345"
-        output_file = os.path.join(temp_dir, "output.json")
-        
-        env[f'RUN_IDENTIFIER_{test_id}'] = 'True'
-        env[f'RUN_DATA_FILE_{test_id}'] = output_file
-        
-        # Test help command in RUN environment
-        result = subprocess.run(
-            [sys.executable, str(tool_path), test_id, "--help"],
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=10
-        )
-        
-        # Should return successfully
-        assert result.returncode == 0, "RUN environment help should return exit code 0"
-        
-        # Should create output file
-        assert os.path.exists(output_file), "RUN environment should create output file"
-        
-        # Output file should contain valid JSON
-        try:
-            with open(output_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                assert isinstance(data, dict), "Output should be valid JSON object"
-                assert "success" in data, "Output should contain success field"
-        except json.JSONDecodeError:
-            raise AssertionError("Output file should contain valid JSON")
-    
-    print(f"test_run_environment_compatibility passed")
-
 # Test management and execution
 
 # ===== 新增的全面测试函数 =====
@@ -969,7 +929,6 @@ ALL_GOOGLE_DRIVE_TESTS = [
     test_desktop_status_option,
     test_list_shell,
     test_tool_structure,
-    test_run_environment_compatibility,
     # New comprehensive tests
     test_shell_echo,
     test_shell_ls,
