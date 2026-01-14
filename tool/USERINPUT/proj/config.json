@@ -1,3 +1,4 @@
 {
-  "focus_interval": 90
+  "focus_interval": 90,
+  "time_increment": 60
 }

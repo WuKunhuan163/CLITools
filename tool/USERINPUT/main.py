@@ -74,7 +74,8 @@ class UserInputTool(ToolBase):
         print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' ({version}) 未找到，无法启动 GUI。")
         print(f"该工具 '{self.tool_name}' 依赖于 PYTHON 工具。")
         print(f"请先运行: TOOL install PYTHON")
-        print(f"然后再运行: TOOL install {self.tool_name} (以恢复依赖版本)")
+        print(f"然后再运行: PYTHON install {version.replace('python', '')}")
+        print(f"最后再运行: TOOL install {self.tool_name} (以恢复依赖版本)")
         sys.exit(1)
 
 def get_python_exec(version="python3.10.19"):
@@ -137,7 +138,8 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     
     config = get_config()
     focus_interval = config.get("focus_interval", 90)
-    time_increment = 60  # Unified time increment in seconds
+    # Unified time increment in seconds (parameterized)
+    time_increment = config.get("time_increment", 60)
     
     try:
         bell_path = Path(proj_dir) / "tkinter_bell.mp3"
