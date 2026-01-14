@@ -98,11 +98,18 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
 
     num_cols = len(headers)
     
+    # If RTL, reverse columns for display
+    display_headers = list(reversed(headers)) if is_rtl else headers
+    display_rows = []
+    for row in rows:
+        full_row = list(row) + [""] * (num_cols - len(row))
+        display_rows.append(list(reversed(full_row)) if is_rtl else full_row)
+
     # Calculate initial column widths based on maximum content width
     # We add 2 for padding (one space on each side)
-    col_widths = [get_display_width(str(h)) + 2 for h in headers]
-    for row in rows:
-        for i in range(min(num_cols, len(row))):
+    col_widths = [get_display_width(str(h)) + 2 for h in display_headers]
+    for row in display_rows:
+        for i in range(num_cols):
             col_widths[i] = max(col_widths[i], get_display_width(str(row[i])) + 2)
 
     # Calculate overhead from borders: num_cols + 1 vertical bars
@@ -160,22 +167,26 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
         
         line = "║" + "║".join(parts) + "║"
         if is_rtl:
+            # Wrap in RTL markers to ensure correct display in RTL-capable terminals
+            return f"\u202b{line}\u202c\x1B[0m"
+        return line + "\x1B[0m"
+
+    def wrap_rtl(line):
+        if is_rtl:
             return f"\u202b{line}\u202c\x1B[0m"
         return line + "\x1B[0m"
 
     # Construct borders
-    top_border = "╔" + "╦".join(["═" * w for w in col_widths]) + "╗"
-    sep_border = "╠" + "╬".join(["═" * w for w in col_widths]) + "╣"
-    bottom_border = "╚" + "╩".join(["═" * w for w in col_widths]) + "╝"
+    top_border = wrap_rtl("╔" + "╦".join(["═" * w for w in col_widths]) + "╗")
+    sep_border = wrap_rtl("╠" + "╬".join(["═" * w for w in col_widths]) + "╣")
+    bottom_border = wrap_rtl("╚" + "╩".join(["═" * w for w in col_widths]) + "╝")
 
     formatted_lines = []
     formatted_lines.append(top_border)
-    formatted_lines.append(get_data_line(headers, col_widths))
+    formatted_lines.append(get_data_line(display_headers, col_widths))
     formatted_lines.append(sep_border)
-    for row in rows:
-        # Handle cases where row might have fewer columns than headers
-        full_row = list(row) + [""] * (num_cols - len(row))
-        formatted_lines.append(get_data_line(full_row, col_widths))
+    for row in display_rows:
+        formatted_lines.append(get_data_line(row, col_widths))
     formatted_lines.append(bottom_border)
 
     report_path = None

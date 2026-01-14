@@ -227,7 +227,8 @@ if not python_tool_dir.exists():
     print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' 未安装.")
     print(f"该工具 '{tool_name}' 依赖于 PYTHON 工具。")
     print(f"请先运行: TOOL install PYTHON")
-    print(f"然后再运行: TOOL install {tool_name} (以恢复依赖版本)")
+    print(f"然后再运行: PYTHON install 3.10.19")
+    print(f"最后再运行: TOOL install {tool_name} (以恢复依赖版本)")
     sys.exit(1)
 
 sys.path.append(str(python_tool_dir))
@@ -459,6 +460,8 @@ def generate_ai_rule():
     lines.append("- " + _("rule_guideline_2", "**Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults."))
     lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
+    lines.append("- " + _("rule_guideline_5", "**Color Style**: Use bold colored labels at the beginning of lines for status messages (e.g., `\\033[1;31mError\\033[0m: Message`). Keep color usage minimal and bold all color codes."))
+    lines.append("- " + _("rule_guideline_6", "**Localization**: Always use the `_()` translation helper. Non-English translations belong in `proj/translations/*.json`. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files."))
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
     lines.append("--------------------------")
@@ -505,8 +508,6 @@ def sync_branches():
             print(_("sync_cancelled", "Sync cancelled."))
             return
 
-    print(f"{BOLD}{BLUE}" + _("sync_starting_label", "Starting synchronization") + f"{RESET}...")
-    
     # 1. Commit any changes in current branch first
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
@@ -516,7 +517,9 @@ def sync_branches():
     except subprocess.CalledProcessError: pass
 
     # 2. Sync to main
-    print(_("sync_to_main", "Syncing core files to 'main' branch..."))
+    print(f"{BOLD}{BLUE}" + _("sync_to_main_label", "正在同步") + f"{RESET}到 'main' 分支...")
+    
+    # Check if there are changes to sync by comparing with main
     
     # Check if there are changes to sync by comparing with main
     has_changes = False

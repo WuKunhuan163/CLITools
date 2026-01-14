@@ -6,3 +6,10 @@
 .DS_Store
 .pytest_cache/
 __pycache__/
+
+# Tool-specific ignores
+/tool/PYTHON/proj/install/
+/tool/PYTHON/proj/installations/
+/data/
+/bin/
+/tmp/
