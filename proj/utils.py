@@ -88,15 +88,17 @@ def get_rate_color(rate_str, colors=None):
     except Exception:
         return ""
 
-def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
+def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False, full_display_cols=None):
     """
     Formats a table with double-line box-drawing characters and optional truncation.
     If truncated, saves the full table to a Markdown file.
+    full_display_cols: List of header names that should be prioritized for full display.
     """
     if not headers or not rows:
         return "", None
 
     num_cols = len(headers)
+    full_display_cols = full_display_cols or []
     
     # If RTL, reverse columns for display
     display_headers = list(reversed(headers)) if is_rtl else headers
@@ -123,37 +125,48 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
             
             # Ensure each column has at least enough width for its header or a minimum
             available_for_content = max_width - border_overhead
-            new_col_widths = []
+            new_col_widths = [0] * num_cols
             remaining_width = available_for_content
             
-            # First pass: assign minimum widths (max of header width or 4)
+            # First pass: assign full width to prioritized columns
+            for i in range(num_cols):
+                h_name = display_headers[i]
+                if h_name in full_display_cols:
+                    take = min(col_widths[i], remaining_width - (num_cols - 1 - i) * 4)
+                    take = max(take, 4)
+                    new_col_widths[i] = take
+                    remaining_width -= take
+            
+            # Second pass: assign minimum widths to remaining columns
             min_widths = []
             for i in range(num_cols):
+                if new_col_widths[i] > 0:
+                    min_widths.append(new_col_widths[i])
+                    continue
                 # Header width + padding
                 h_w = get_display_width(str(display_headers[i])) + 2
                 min_widths.append(min(h_w, 10)) # Cap min width to 10
             
             total_min_width = sum(min_widths)
-            if total_min_width > available_for_content:
-                # If even minimum widths don't fit, we have to scale down everything
-                scale = available_for_content / total_min_width
-                min_widths = [max(4, int(w * scale)) for w in min_widths]
+            # Re-adjust remaining_width if we were too aggressive in pass 1
+            # But here we just proceed to distribution.
             
-            # Second pass: distribute remaining width
+            # Third pass: distribute remaining width
             for i in range(num_cols):
+                if new_col_widths[i] > 0:
+                    continue
+                    
                 min_w = min_widths[i]
-                cols_left = num_cols - 1 - i
-                # Sum of min widths of remaining columns
-                needed_for_others = sum(min_widths[i+1:])
+                cols_left_to_fill = sum(1 for j in range(i+1, num_cols) if new_col_widths[j] == 0)
+                needed_for_others = sum(min_widths[j] for j in range(i+1, num_cols) if new_col_widths[j] == 0)
                 
-                if i == num_cols - 1:
-                    new_col_widths.append(max(min_w, remaining_width))
+                if cols_left_to_fill == 0:
+                    new_col_widths[i] = max(min_w, remaining_width)
                 else:
-                    # Give it what it wants, but leave enough for others
                     ideal_w = col_widths[i]
                     take = min(ideal_w, remaining_width - needed_for_others)
                     take = max(take, min_w)
-                    new_col_widths.append(take)
+                    new_col_widths[i] = take
                     remaining_width -= take
             col_widths = new_col_widths
 
