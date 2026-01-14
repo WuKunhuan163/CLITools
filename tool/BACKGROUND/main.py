@@ -122,8 +122,10 @@ def main():
                         # Translate status
                         status_val = proc['status']
                         translated_status = status_val
-                        if status_val == 'active':
+                        if status_val in ['active', 'running']:
                             translated_status = _("status_active", "active")
+                        elif status_val == 'sleeping':
+                            translated_status = _("status_sleeping", "sleeping")
                         elif status_val == 'completed':
                             translated_status = _("status_completed", "completed")
                         elif status_val == 'failed':
