@@ -149,7 +149,14 @@ def main():
                             except Exception: pass
                     is_rtl = current_lang in ["ar", "he", "fa"]
 
-                    table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="background", is_rtl=is_rtl)
+                    # Prioritize PID column for full display
+                    table_str, report_path = format_table(
+                        headers, table_rows, 
+                        max_width=terminal_width, 
+                        save_dir="background", 
+                        is_rtl=is_rtl,
+                        full_display_cols=[pid_label]
+                    )
                     print(table_str + "\n")
                     
                     if report_path:
