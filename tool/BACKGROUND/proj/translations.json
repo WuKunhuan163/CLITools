@@ -20,5 +20,27 @@
     "full_report_saved": "显示内容被裁切, 完整报表已保存至: {path}",
     "tool_BACKGROUND_desc": "安全地管理长期运行的后台进程.",
     "tool_BACKGROUND_purpose": "运行任务而不阻塞代理的执行."
+  },
+  "ar": {
+    "process_started": "بدأت العملية: PID {pid}، السجل: {log_file}",
+    "no_active_processes": "لا توجد عمليات نشطة في الخلفية",
+    "active_processes": "العمليات النشطة ({count}):",
+    "process_terminated": "تم إنهاء العملية {pid}",
+    "process_force_killed": "تم إنهاء العملية {pid} قسراً",
+    "process_not_found": "خطأ: لم يتم العثور على العملية {pid}",
+    "wait_finished": "انتهت العملية {pid}",
+    "wait_timeout": "انتهت مهلة انتظار العملية {pid}",
+    "status": "الحالة",
+    "command": "الأمر",
+    "runtime": "وقت التشغيل",
+    "status_active": "نشط",
+    "status_completed": "مكتمل",
+    "status_failed": "فاشل",
+    "status_unknown": "غير معروف",
+    "pid": "PID",
+    "pid_label": "{pid}",
+    "full_report_saved": "تم اقتطاع العرض، تم حفظ التقرير الكامل في: {path}",
+    "tool_BACKGROUND_desc": "إدارة العمليات طويلة الأمد في الخلفية بأمان.",
+    "tool_BACKGROUND_purpose": "تشغيل المهام دون حظر تنفيذ العميل."
   }
 }
