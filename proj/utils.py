@@ -121,29 +121,40 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", is_rtl=False):
         if total_width_with_borders > max_width:
             is_truncated = True
             
-            # Simple left-to-right priority truncation for columns
-            # Ensure each column has at least 5 display width (border + space + char/ellipses + space)
-            # which means col_width >= 4 (padding + content)
+            # Ensure each column has at least enough width for its header or a minimum
             available_for_content = max_width - border_overhead
             new_col_widths = []
             remaining_width = available_for_content
             
+            # First pass: assign minimum widths (max of header width or 4)
+            min_widths = []
             for i in range(num_cols):
-                # Min width for a column is 4 (e.g., " A " or "...")
-                min_w = 4
+                # Header width + padding
+                h_w = get_display_width(str(display_headers[i])) + 2
+                min_widths.append(min(h_w, 10)) # Cap min width to 10
+            
+            total_min_width = sum(min_widths)
+            if total_min_width > available_for_content:
+                # If even minimum widths don't fit, we have to scale down everything
+                scale = available_for_content / total_min_width
+                min_widths = [max(4, int(w * scale)) for w in min_widths]
+            
+            # Second pass: distribute remaining width
+            for i in range(num_cols):
+                min_w = min_widths[i]
                 cols_left = num_cols - 1 - i
-                needed_for_others = cols_left * min_w
+                # Sum of min widths of remaining columns
+                needed_for_others = sum(min_widths[i+1:])
                 
                 if i == num_cols - 1:
                     new_col_widths.append(max(min_w, remaining_width))
                 else:
-                    if col_widths[i] <= remaining_width - needed_for_others:
-                        new_col_widths.append(col_widths[i])
-                        remaining_width -= col_widths[i]
-                    else:
-                        take = max(min_w, remaining_width - needed_for_others)
-                        new_col_widths.append(take)
-                        remaining_width -= take
+                    # Give it what it wants, but leave enough for others
+                    ideal_w = col_widths[i]
+                    take = min(ideal_w, remaining_width - needed_for_others)
+                    take = max(take, min_w)
+                    new_col_widths.append(take)
+                    remaining_width -= take
             col_widths = new_col_widths
 
     def get_data_line(data_row, widths):

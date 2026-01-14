@@ -35,9 +35,9 @@ from proj.manager import ProcessManager
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(
-        description='BACKGROUND - 安全的后台进程管理工具',
+        description=_('tool_BACKGROUND_desc', 'BACKGROUND - 安全的后台进程管理工具'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=_('tool_epilog_example', """
 示例:
   BACKGROUND "sleep 60"                    # 使用默认zsh运行命令
   BACKGROUND "ls -la" --shell bash         # 使用bash运行命令
@@ -46,45 +46,45 @@ def main():
   BACKGROUND --cleanup                     # 清理所有进程
   BACKGROUND --wait 12345                  # 等待进程结束
   BACKGROUND --max-processes 500           # 设置最大进程数
-        """
+        """)
     )
     
     # 位置参数
-    parser.add_argument('command_args', nargs=argparse.REMAINDER, help='要在后台执行的命令')
+    parser.add_argument('command_args', nargs=argparse.REMAINDER, help=_('command_args_help', '要在后台执行的命令'))
     
     # 可选参数
     parser.add_argument('--shell', choices=['zsh', 'bash'], default='zsh',
-                       help='使用的shell类型 (默认: zsh)')
+                       help=_('shell_help', '使用的shell类型 (默认: zsh)'))
     parser.add_argument('--max-processes', type=int, default=1000,
-                       help='最大同时运行进程数 (默认: 1000)')
+                       help=_('max_processes_help', '最大同时运行进程数 (默认: 1000)'))
     parser.add_argument('--log-dir', default=None,
-                       help='日志文件目录 (默认: tool/BACKGROUND/data/logs)')
+                       help=_('log_dir_help', '日志文件目录 (默认: tool/BACKGROUND/data/logs)'))
     parser.add_argument('--max-log-files', type=int, default=1000,
-                       help='最大保留日志文件数 (默认: 1000)')
+                       help=_('max_log_files_help', '最大保留日志文件数 (默认: 1000)'))
     parser.add_argument('--no-alias', action='store_true',
-                       help='不解析shell别名')
+                       help=_('no_alias_help', '不解析shell别名'))
 
     # 操作参数
     parser.add_argument('--list', action='store_true',
-                       help='列出所有活跃的后台进程')
+                       help=_('list_help', '列出所有活跃的后台进程'))
     parser.add_argument('--status', nargs='?', const='all', metavar='PID',
-                       help='查询指定PID进程的状态，无参数时列出所有进程（等同于--list）')
+                       help=_('status_help', '查询指定PID进程的状态，无参数时列出所有进程（等同于--list）'))
     parser.add_argument('--result', type=int, metavar='PID',
-                       help='获取指定PID进程的执行结果')
+                       help=_('result_help', '获取指定PID进程的执行结果'))
     parser.add_argument('--log', type=int, metavar='PID',
-                       help='查看指定PID进程的日志')
+                       help=_('log_help', '查看指定PID进程의日志'))
     parser.add_argument('--kill', type=int, metavar='PID',
-                       help='终止指定PID的进程')
+                       help=_('kill_help', '终止指定PID的进程'))
     parser.add_argument('--force-kill', type=int, metavar='PID',
-                       help='强制终止指定PID的进程')
+                       help=_('force_kill_help', '强制终止指定PID的进程'))
     parser.add_argument('--cleanup', action='store_true',
-                       help='清理所有管理的后台进程')
+                       help=_('cleanup_help', '清理所有管理的后台进程'))
     parser.add_argument('--wait', type=int, metavar='PID',
-                       help='等待指定PID的进程结束')
+                       help=_('wait_help', '等待指定PID的进程结束'))
     
     # JSON输出
     parser.add_argument('--json', action='store_true',
-                       help='以JSON格式输出结果')
+                       help=_('json_help', '以JSON格式输出结果'))
     
     args, unknown_args = parser.parse_known_args()
     
