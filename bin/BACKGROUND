@@ -9,11 +9,8 @@ project_root = Path('/Applications/AITerminalTools')
 python_tool_dir = project_root / "tool" / "PYTHON"
 sys.path.append(str(python_tool_dir))
 
-try:
-    from proj.utils import get_python_exec
-    python_exec = get_python_exec()
-except ImportError:
-    python_exec = "python3"
+# Use system python3 for BACKGROUND tool as it needs psutil and other system-level deps
+python_exec = "python3"
 
 # Set up environment
 env = os.environ.copy()
