@@ -14,10 +14,12 @@ This tool provides a managed, standalone Python environment to ensure compatibil
   - `PYTHON --py-install <version>`: Install a specific version from the local repository branch.
 
 ## Supported Versions
-Currently deployed versions (automatically matched to your OS):
-- `python3.9.2`, `python3.8.8`, `python3.9.0`, `python3.8.6`, `python3.7.9`, `python3.8.3`, `python3.7.7`
+Automatically matched to your OS and architecture:
 - `python3.10.19`
-- `python3.8.5`, `python3.8.2`, `python3.7.5`, `python3.7.4`, `python3.7.3`
+- `python3.9.x` (Resolves to 3.9.5)
+- `python3.8.x` (Resolves to 3.8.10)
+- `python3.7.x` (Resolves to 3.7.9)
+- And many maintenance/legacy versions (3.9.0-3.9.4, 3.8.2-3.8.9, 3.7.3-3.7.7)
 
 ## Implementation Details
 ### Standalone Environment
