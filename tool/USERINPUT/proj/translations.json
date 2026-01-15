@@ -14,7 +14,13 @@
     "tool_USERINPUT_desc": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
     "tool_USERINPUT_purpose": "Facilitate seamless interaction between AI Agent and user! AI Agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
     "msg_attempt_failed": "Attempt {index} failed: {error}. Retrying...",
-    "msg_failed_capture": "Failed to capture user input: {error}"
+    "msg_failed_capture": "Failed to capture user input: {error}",
+    "label_error": "Error",
+    "err_python_missing": "Tool 'PYTHON' ({version}) not found, cannot start GUI.",
+    "err_dependency_hint": "This tool '{name}' depends on the PYTHON tool.",
+    "err_install_python_tool": "Please run: TOOL install PYTHON",
+    "err_install_python_ver": "Then run: PYTHON --py-install {version}",
+    "err_run_setup": "Finally, run the tool's setup: python3 {setup_path}"
   },
   "zh": {
     "instruction": "请在文本框中输入您的反馈:",
@@ -31,7 +37,13 @@
     "tool_USERINPUT_desc": "基于 Tkinter 的 GUI, 用于捕获多行用户反馈和审批. ",
     "tool_USERINPUT_purpose": "促进 AI 代理与用户之间的无缝交互! AI 代理应单独执行此命令, 不要与其他命令合并执行, 以确保反馈不被遗漏. ",
     "msg_attempt_failed": "尝试 {index} 失败: {error}. 正在重试...",
-    "msg_failed_capture": "捕获用户输入失败: {error}"
+    "msg_failed_capture": "捕获用户输入失败: {error}",
+    "label_error": "错误",
+    "err_python_missing": "工具 'PYTHON' ({version}) 未找到，无法启动 GUI。",
+    "err_dependency_hint": "该工具 '{name}' 依赖于 PYTHON 工具。",
+    "err_install_python_tool": "请先运行: TOOL install PYTHON",
+    "err_install_python_ver": "然后再运行: PYTHON --py-install {version}",
+    "err_run_setup": "最后，运行该工具的 setup: python3 {setup_path}"
   },
   "ar": {
     "instruction": "يرجى إدخال ملاحظاتك في المربع:",
@@ -48,6 +60,12 @@
     "tool_USERINPUT_desc": "واجهة رسومية تعتمد على Tkinter لالتقاط ملاحظات المستخدم وموافقاته متعددة الأسطر.",
     "tool_USERINPUT_purpose": "تسهيل التفاعل السلس بين عميل الذكاء الاصطناعي والمستخدم! يجب على عميل الذكاء الاصطناعي تنفيذ هذا الأمر بشكل منفصل، وليس مع أوامر أخرى، لضمان عدم تفويت الملاحظات.",
     "msg_attempt_failed": "فشلت المحاولة {index}: {error}. جارٍ إعادة المحاولة...",
-    "msg_failed_capture": "فشل التقاط إدخال المستخدم: {error}"
+    "msg_failed_capture": "فشل التقاط إدخال المستخدم: {error}",
+    "label_error": "خطأ",
+    "err_python_missing": "أداة 'PYTHON' ({version}) غير موجودة ، لا يمكن بدء واجهة المستخدم الرسومية.",
+    "err_dependency_hint": "تعتمد هذه الأداة '{name}' على أداة PYTHON.",
+    "err_install_python_tool": "يرجى تشغيل: TOOL install PYTHON",
+    "err_install_python_ver": "ثم قم بتشغيل: PYTHON --py-install {version}",
+    "err_run_setup": "أخيرًا ، قم بتشغيل إعداد الأداة: python3 {setup_path}"
   }
 }

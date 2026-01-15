@@ -2312,5 +2312,1114 @@
       }
     ],
     "timestamp": "2026-01-15T16:14:37.514912"
+  },
+  "20241206": {
+    "assets": [
+      {
+        "name": "cpython-3.13.1+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-apple-darwin-freethreaded+debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-apple-darwin-freethreaded+debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-i686-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-i686-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-pc-windows-msvc-shared-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-pc-windows-msvc-shared-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-aarch64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-aarch64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-aarch64-apple-darwin-freethreaded+debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-aarch64-apple-darwin-freethreaded+debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-i686-pc-windows-msvc-shared-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-i686-pc-windows-msvc-shared-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-aarch64-apple-darwin-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-aarch64-apple-darwin-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-i686-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v2-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v2-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v3-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v2-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64_v3-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-aarch64-apple-darwin-debug-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-unknown-linux-gnu-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64_v4-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64_v3-unknown-linux-musl-debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.9.21+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.9.21+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.9.21",
+        "minor": "3.9",
+        "patch": 21,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-i686-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-x86"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-aarch64-apple-darwin-pgo-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "macos-arm64"
+      },
+      {
+        "name": "cpython-3.10.16+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.10.16+20241206-x86_64-pc-windows-msvc-shared-pgo-full.tar.zst",
+        "version": "3.10.16",
+        "minor": "3.10",
+        "patch": 16,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-pc-windows-msvc-pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "windows-amd64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v4-unknown-linux-musl-noopt-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-freethreaded+debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-freethreaded+debug-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "linux64"
+      },
+      {
+        "name": "cpython-3.12.8+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64_v4-unknown-linux-musl-lto-full.tar.zst",
+        "version": "3.12.8",
+        "minor": "3.12",
+        "patch": 8,
+        "platform": "linux64-musl"
+      },
+      {
+        "name": "cpython-3.11.11+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.11.11+20241206-x86_64-apple-darwin-debug-full.tar.zst",
+        "version": "3.11.11",
+        "minor": "3.11",
+        "patch": 11,
+        "platform": "macos"
+      },
+      {
+        "name": "cpython-3.13.1+20241206-x86_64-apple-darwin-freethreaded+pgo-full.tar.zst",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-apple-darwin-freethreaded+pgo-full.tar.zst",
+        "version": "3.13.1",
+        "minor": "3.13",
+        "patch": 1,
+        "platform": "macos"
+      }
+    ],
+    "timestamp": "2026-01-15T17:20:52.818008"
   }
 }
