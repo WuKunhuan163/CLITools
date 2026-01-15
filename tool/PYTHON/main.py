@@ -80,9 +80,14 @@ def main():
             # Expand shorthand to latest version in the branch
             v_num = arg[1:]
             if v_num == "3.9":
-                shorthand_version = "python3.9.0"
+                if (install_root / f"python3.9.2-{tag}").exists():
+                    shorthand_version = "python3.9.2"
+                else:
+                    shorthand_version = "python3.9.0"
             elif v_num == "3.8":
-                if (install_root / f"python3.8.6-{tag}").exists():
+                if (install_root / f"python3.8.8-{tag}").exists():
+                    shorthand_version = "python3.8.8"
+                elif (install_root / f"python3.8.6-{tag}").exists():
                     shorthand_version = "python3.8.6"
                 elif (install_root / f"python3.8.5-{tag}").exists():
                     shorthand_version = "python3.8.5"
