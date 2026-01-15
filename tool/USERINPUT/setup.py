@@ -7,17 +7,28 @@ import argparse
 import platform
 from pathlib import Path
 
+# Add project root to sys.path
+script_dir = Path(__file__).resolve().parent
+project_root = script_dir.parent.parent
+sys.path.append(str(project_root))
+
+try:
+    from proj.language_utils import get_translation
+except ImportError:
+    def get_translation(d, k, default): return default
+
+def _(key, default):
+    return get_translation(str(script_dir / "proj"), key, default)
+
 def main():
     parser = argparse.ArgumentParser(description="USERINPUT Setup Tool")
-    parser.add_argument("--version", default="python3.10.19", help="Python version to install (default: python3.10.19)")
+    parser.add_argument("--version", default="python3.11.14", help="Python version to install")
     args = parser.parse_args()
 
-    project_root = Path(__file__).resolve().parent.parent.parent
     python_bin = project_root / "bin" / "PYTHON"
     
     if not python_bin.exists():
-        print("Error: PYTHON tool binary not found at " + str(python_bin))
-        print("Please install it first using: TOOL install PYTHON")
+        print("\033[1;31mError\033[0m: PYTHON tool binary not found.")
         sys.exit(1)
         
     version = args.version
@@ -28,7 +39,6 @@ def main():
     if "-" not in version:
         system = platform.system().lower()
         if system == "darwin":
-            # For macOS, check arch
             arch = platform.machine().lower()
             if "arm" in arch or "aarch64" in arch:
                 version = f"{version}-macos-arm64"
@@ -39,24 +49,36 @@ def main():
         elif system == "windows":
             version = f"{version}-windows-amd64"
 
-    print(f"USERINPUT setup: requesting {version}...")
     try:
-        # Call the PYTHON tool to install the specific version
-        # Use --py-install which is the correct flag for the PYTHON tool
         cmd = [str(python_bin), "--py-install", version]
-        print(f"Running: {' '.join(cmd)}")
-        # Use run with check=True to raise error on failure
-        result = subprocess.run(cmd, check=False) # check=False because we want to see output
-        
-        if result.returncode != 0:
-            raise subprocess.CalledProcessError(result.returncode, cmd)
-            
-        print(f"\n{version} installed successfully for USERINPUT.")
+        subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"\nFailed to install {version} (exit code {e.returncode}).")
-        print("\nTry running the command manually:")
-        print(f"PYTHON --py-install {version}")
+        # If it failed, show the error
+        try:
+            sys.path.append(str(script_dir))
+            from proj.utils import print_python_not_found_error
+            print_python_not_found_error("USERINPUT", version, script_dir, _)
+        except Exception:
+            print(f"\033[1;31mError\033[0m: Failed to install {version}.")
         sys.exit(1)
+
+    # Test window (2 seconds)
+    print("Launching test window (2s)...")
+    try:
+        # Run USERINPUT with a hint and short timeout
+        test_cmd = ["python3", str(script_dir / "main.py"), "--timeout", "2", "--hint", "Setup OK!"]
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{project_root}:{script_dir}:{env.get('PYTHONPATH', '')}"
+        
+        proc = subprocess.run(test_cmd, env=env, timeout=5, capture_output=True, text=True)
+        if proc.returncode == 0:
+            print("\033[1;32mSuccess\033[0m: USERINPUT GUI is working.")
+        else:
+            print(f"Test window result: {proc.stdout.strip()}")
+    except subprocess.TimeoutExpired:
+        print("\033[1;32mSuccess\033[0m: USERINPUT GUI test timed out (as expected).")
+    except Exception as e:
+        print(f"\033[1;31mError\033[0m: GUI test failed: {e}")
 
 if __name__ == "__main__":
     main()

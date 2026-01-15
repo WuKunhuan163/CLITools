@@ -115,8 +115,8 @@ def main():
         return
 
     if args.py_install:
-        _install_version(args.py_install, args.py_dir)
-        return
+        success = _install_version(args.py_install, args.py_dir)
+        sys.exit(0 if success else 1)
 
     # Determine which python to use:
     # 1. Command line --py-version
@@ -204,7 +204,8 @@ def _install_version(version, install_dir=None):
     target_dir = target_parent / version
     
     if target_dir.exists():
-        print(f"{YELLOW}" + _("python_already_installed", "{version} is already installed at {path}", version=version, path=target_dir) + f"{RESET}")
+        already_label = _("python_already_installed", "{version} is already installed at {path}", version=version, path=target_dir)
+        print(f"{GREEN}{BOLD}{already_label}{RESET}")
         return True
 
     installing_label = _("label_installing", "Installing")
@@ -220,6 +221,7 @@ def _install_version(version, install_dir=None):
         
         # 1. Check if resource already exists on disk (Local/Same branch optimization)
         resource_ready = False
+        zst_files = []
         if full_source_path.exists() and list(full_source_path.glob("*.tar.zst")):
             print(_("python_using_local_resource", "Using locally available resource for {version}...", version=version))
             resource_ready = True
@@ -227,6 +229,9 @@ def _install_version(version, install_dir=None):
         # 2. If not on disk, try to fetch from git
         if not resource_ready:
             print(_("python_fetching_resource", "Fetching resources for {version} from git...", version=version))
+            # Fetch first to ensure origin/tool is up to date
+            subprocess.run(["git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
+            
             # Try origin/tool first
             cmd = ["git", "checkout", "origin/tool", "--", source_dir_rel]
             result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
@@ -253,42 +258,59 @@ def _install_version(version, install_dir=None):
                         asset = meta.get("asset")
                         if release and asset:
                             download_url = f"https://github.com/astral-sh/python-build-standalone/releases/download/{release}/{asset}"
-                            print(f"{BLUE}Resource missing locally. Downloading from GitHub...{RESET}")
+                            print(f"{BLUE}Resource metadata found. Downloading from GitHub...{RESET}")
                             print(f"URL: {download_url}")
+                            full_source_path.mkdir(parents=True, exist_ok=True)
                             zst_path = full_source_path / asset
                             subprocess.run(["curl", "-L", download_url, "-o", str(zst_path)], check=True)
                             zst_files = [zst_path]
                     except Exception as e:
                         print(f"{YELLOW}Direct download failed: {e}{RESET}")
 
-            if not zst_files:
-                error_label = _("label_error", "Error")
-                print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_exec_not_found", "No .tar.zst found in {source_dir_rel}", source_dir_rel=source_dir_rel))
-                return False
-            
-            source_zst = zst_files[0]
-            # Perform integrated extraction
-            if extract_resource(source_zst, target_dir):
-                # Success - Astral builds extract to a 'python' folder
-                inner_dir = target_dir / "python"
-                if inner_dir.exists():
-                    for item in inner_dir.iterdir():
-                        shutil.move(str(item), str(target_dir / item.name))
-                    inner_dir.rmdir()
-                
-                # Wrap in 'install' folder for utils.py consistency
-                install_wrapper = target_dir / "install"
-                install_wrapper.mkdir(exist_ok=True)
-                for item in list(target_dir.iterdir()):
-                    if item.name != "install":
-                        shutil.move(str(item), str(install_wrapper / item.name))
+        # 3. If still not ready, try calling install.py to fetch/install directly
+        if not zst_files:
+            print(f"{BLUE}Resource not found in project. Attempting to fetch from GitHub releases...{RESET}")
+            install_script = script_dir / "proj" / "install.py"
+            if install_script.exists():
+                # Extract version and platform from the version tag (e.g. python3.10.19-macos-arm64)
+                v_match = re.search(r"python([\d\.]+)-(.*)", version)
+                if v_match:
+                    v_num = v_match.group(1)
+                    v_plat = v_match.group(2)
+                    cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
+                    print(f"Running: {' '.join(cmd)}")
+                    subprocess.run(cmd)
+                    
+                    # Check if it was installed by the script
+                    if (target_parent / version).exists():
+                        return True
 
-                success_label = _("label_success", "Successfully installed")
-                print(f"{GREEN}{BOLD}{success_label} {version}{RESET} " + _("python_install_success", "to {path}", version=version, path=target_dir).replace(f"成功安装 {version} ", "").replace(f"تم تثبيت {version} بنجاح ", "").replace(f"Successfully installed {version} ", ""))
-                return True
+        if not zst_files:
+            error_label = _("label_error", "Error")
+            print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_install_failed", "Failed to obtain resource for {version}.", version=version))
+            return False
+            
+        source_zst = zst_files[0]
+        # Perform integrated extraction
+        if extract_resource(source_zst, target_dir):
+            # Success - Astral builds extract to a 'python' folder
+            inner_dir = target_dir / "python"
+            if inner_dir.exists():
+                for item in inner_dir.iterdir():
+                    shutil.move(str(item), str(target_dir / item.name))
+                inner_dir.rmdir()
+            
+            # Wrap in 'install' folder for utils.py consistency
+            install_wrapper = target_dir / "install"
+            install_wrapper.mkdir(exist_ok=True)
+            for item in list(target_dir.iterdir()):
+                if item.name != "install":
+                    shutil.move(str(item), str(install_wrapper / item.name))
+
+            success_label = _("label_success", "Successfully installed")
+            print(f"{GREEN}{BOLD}{success_label} {version}{RESET} " + _("python_install_success", "to {path}", version=version, path=target_dir).replace(f"成功安装 {version} ", "").replace(f"تم تثبيت {version} بنجاح ", "").replace(f"Successfully installed {version} ", ""))
+            return True
         
-        error_label = _("label_error", "Error")
-        print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_install_failed", "Failed to obtain resource for {version}. Check if it exists in 'tool' branch resource/ folder.", version=version, error="Resource not found"))
         return False
             
     except Exception as e:
