@@ -8,7 +8,7 @@ __pycache__/
 .pytest_cache/
 
 # Tool-specific ignores
-/tool/PYTHON/proj/installations/
+/tool/PYTHON/proj/install/
 /tool/*/data/logs/
 /tool/*/data/audit/
 /data/
