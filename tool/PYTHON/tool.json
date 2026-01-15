@@ -44,7 +44,17 @@
     "python3.8.5-linux64-musl",
     "python3.8.5-macos",
     "python3.8.5-windows-amd64",
-    "python3.8.5-windows-x86"
+    "python3.8.5-windows-x86",
+    "python3.8.6-linux64",
+    "python3.8.6-linux64-musl",
+    "python3.8.6-macos",
+    "python3.8.6-windows-amd64",
+    "python3.8.6-windows-x86",
+    "python3.9.0-linux64",
+    "python3.9.0-linux64-musl",
+    "python3.9.0-macos",
+    "python3.9.0-windows-amd64",
+    "python3.9.0-windows-x86"
   ],
-  "default_version": "python3.8.5"
+  "default_version": "python3.9.0"
 }
