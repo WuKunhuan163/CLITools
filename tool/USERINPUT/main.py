@@ -60,20 +60,29 @@ class UserInputTool(ToolBase):
     def __init__(self):
         super().__init__("USERINPUT")
 
-    def get_python_exe(self, version="python3.10.19"):
+    def get_python_exe(self, version="python3.11.14"):
         """Find a working python executable for GUI."""
         if os.environ.get("USERINPUT_DEBUG") == "1":
             print(f"DEBUG: Searching for python version: {version}", flush=True)
 
         # Try to resolve using same logic as PYTHON tool if possible
         system_tag = "macos"
-        if sys.platform == "linux": system_tag = "linux64" # Simplified
-        elif sys.platform == "win32": system_tag = "windows-amd64"
+        machine = platform.machine().lower()
+        if sys.platform == "darwin":
+            if "arm" in machine or "aarch64" in machine:
+                system_tag = "macos-arm64"
+            else:
+                system_tag = "macos"
+        elif sys.platform == "linux": 
+            system_tag = "linux64" # Simplified
+        elif sys.platform == "win32": 
+            system_tag = "windows-amd64"
 
         possible_dirs = [
             version,
             f"{version}-{system_tag}",
-            f"{version}-macos", # Force macos check
+            f"{version}-macos-arm64",
+            f"{version}-macos",
             f"{version}-linux64",
             f"{version}-linux64-musl",
         ]
@@ -89,16 +98,18 @@ class UserInputTool(ToolBase):
             if python_exec_win.exists():
                 return str(python_exec_win)
 
-        # DO NOT FALLBACK TO SYSTEM PYTHON IF PYTHON TOOL IS MISSING
-        error_label = _("label_error", "Error")
-        print(f"\033[1;31m{error_label}\033[0m: 工具 'PYTHON' ({version}) 未找到，无法启动 GUI。", flush=True)
-        print(f"该工具 '{self.tool_name}' 依赖于 PYTHON 工具。", flush=True)
-        print(f"请先运行: TOOL install PYTHON", flush=True)
-        print(f"然后再运行: PYTHON install {version.replace('python', '')}", flush=True)
-        print(f"最后再运行: TOOL install {self.tool_name} (以恢复依赖版本)", flush=True)
+        # Use shared utility for error reporting
+        try:
+            from proj.utils import print_python_not_found_error
+            print_python_not_found_error(self.tool_name, version, self.script_dir, _)
+        except ImportError:
+            # Fallback if utility missing
+            error_label = _("label_error", "Error")
+            print(f"\033[1;31m{error_label}\033[0m: Python tool '{version}' not found.", flush=True)
+        
         sys.exit(1)
 
-def get_python_exec(version="python3.10.19"):
+def get_python_exec(version="python3.11.14"):
     return UserInputTool().get_python_exe(version)
 
 def get_project_name():
@@ -243,7 +254,7 @@ class TkinterInputWindow:
             scrollbar = tk.Scrollbar(text_frame)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
             
-            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=("Arial", 12), bg="#f8f9fa", yscrollcommand=scrollbar.set)
+            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=("Arial", 10), bg="#f8f9fa", yscrollcommand=scrollbar.set)
             self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             scrollbar.config(command=self.text_widget.yview)
             
