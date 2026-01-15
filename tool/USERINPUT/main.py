@@ -243,7 +243,7 @@ class TkinterInputWindow:
             scrollbar = tk.Scrollbar(text_frame)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
             
-            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=8, font=("Arial", 10), bg="#f8f9fa", yscrollcommand=scrollbar.set)
+            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=("Arial", 12), bg="#f8f9fa", yscrollcommand=scrollbar.set)
             self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             scrollbar.config(command=self.text_widget.yview)
             
