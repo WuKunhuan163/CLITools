@@ -27,6 +27,14 @@ RED = get_color("RED", RESET)
 ROOT_PROJECT_ROOT = Path(__file__).parent.absolute()
 SHARED_PROJ_DIR = ROOT_PROJECT_ROOT / "proj"
 
+# Try to initialize RTL support and override built-in print
+try:
+    from proj.utils import smart_print, set_rtl_mode
+    import builtins
+    builtins.print = smart_print
+except ImportError:
+    def set_rtl_mode(enabled): pass
+
 def _(translation_key, default, **kwargs):
     text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
     return text.format(**kwargs)
@@ -576,6 +584,19 @@ def sync_branches():
 import argparse
 
 def main():
+    # 1. Initialize RTL mode based on current language
+    current_lang = os.environ.get("TOOL_LANGUAGE")
+    if not current_lang:
+        config_path = ROOT_PROJECT_ROOT / "data" / "global_config.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    current_lang = json.load(f).get("language", "en")
+            except Exception: pass
+    
+    if current_lang in ["ar", "he", "fa"]:
+        set_rtl_mode(True)
+
     parser = argparse.ArgumentParser(
         prog="TOOL",
         description=_("tool_description", "AITerminalTools - A unified management system for AI tools."),
@@ -917,8 +938,7 @@ def _list_languages():
         terminal_width = 80
 
     from proj.utils import format_table
-    is_rtl = current_lang in ["ar", "he", "fa"]
-    table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="lang", is_rtl=is_rtl)
+    table_str, report_path = format_table(headers, table_rows, max_width=terminal_width, save_dir="lang")
     print(table_str)
     
     if report_path and "..." in table_str:
