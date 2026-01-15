@@ -77,10 +77,14 @@ def main():
 
     for arg in raw_args:
         if arg.startswith("@3."):
-            # Expand shorthand: @3.7 -> python3.7.4 (latest) or python3.7.3
+            # Expand shorthand: @3.8 -> python3.8.3, @3.7 -> python3.7.7
             v_num = arg[1:]
-            if v_num == "3.7":
-                if (install_root / f"python3.7.4-{tag}").exists():
+            if v_num == "3.8":
+                shorthand_version = "python3.8.3"
+            elif v_num == "3.7":
+                if (install_root / f"python3.7.7-{tag}").exists():
+                    shorthand_version = "python3.7.7"
+                elif (install_root / f"python3.7.4-{tag}").exists():
                     shorthand_version = "python3.7.4"
                 else:
                     shorthand_version = "python3.7.3"
