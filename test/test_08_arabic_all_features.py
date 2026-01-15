@@ -35,23 +35,26 @@ class TestArabicAllFeatures(unittest.TestCase):
         
         # Simulate format_table with terminal width constraint
         # We manually call format_table with is_rtl=True
-        output_tuple = format_table(headers, rows, is_rtl=True)
+        from proj.utils import set_rtl_mode
+        set_rtl_mode(True)
+        output_tuple = format_table(headers, rows)
         output = output_tuple[0]
         print("\n--- Arabic Table (Standard) ---")
         print(output)
         
-        self.assertIn("\u202b", output) # RTL marker
+        # Check for Arabic text
         self.assertIn("الاسم", output)
         
         # Scenario 2: ANSI colors
         rows_colored = [
             ["\033[1;32mأداة\033[0m", "وصف ملون", "\033[1;31mخطأ\033[0m"]
         ]
-        output_colored_tuple = format_table(headers, rows_colored, is_rtl=True)
+        output_colored_tuple = format_table(headers, rows_colored)
         output_colored = output_colored_tuple[0]
         print("\n--- Arabic Table (Colored) ---")
         print(output_colored)
         self.assertIn("\033[1;32m", output_colored)
+        set_rtl_mode(False)
         
     def test_09_arabic_command_output(self):
         """(9) 测试 TOOL lang list 在阿拉伯语环境下的输出。"""

@@ -19,23 +19,18 @@ class TestArabicTable(unittest.TestCase):
         ]
         
         # Test RTL display
-        table_str, report_path = format_table(headers, rows, is_rtl=True)
+        from proj.utils import set_rtl_mode
+        set_rtl_mode(True)
+        table_str, report_path = format_table(headers, rows)
         lines = table_str.splitlines()
         
-        # Verify RTL markers are present in header and data rows (but not separator)
-        self.assertIn("\u202b", lines[1])
-        self.assertIn("\u202c", lines[1])
-        self.assertIn("\u202b", lines[3])
-        self.assertIn("\u202c", lines[3])
-        
-        # Verify all lines have the same display width (ignoring markers)
+        # Verify consistent width (ignoring markers which are now handled by print)
         widths = [get_display_width(line) for line in lines]
         self.assertTrue(all(w == widths[0] for w in widths), f"Widths are not consistent: {widths}")
         
         print("\nArabic (RTL) table output:")
-        # Note: Terminal might not render RTL correctly depending on environment, 
-        # but we check the presence of markers and consistent width.
         print(table_str)
+        set_rtl_mode(False)
 
 if __name__ == "__main__":
     unittest.main()
