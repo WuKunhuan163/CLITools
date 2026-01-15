@@ -1,188 +1,29 @@
 {
   "summary": {
     "language": "ar",
-    "timestamp": "2026-01-12T16:31:55.335510",
-    "total_keys": 186,
-    "supported_keys": 17,
-    "missing_keys": 169,
-    "total_references": 204,
-    "supported_references": 18,
-    "missing_references": 186,
-    "completion_rate_keys": "9.14%",
-    "completion_rate_refs": "8.82%"
+    "timestamp": "2026-01-15T07:59:52.505663",
+    "total_keys": 230,
+    "supported_keys": 230,
+    "missing_keys": 0,
+    "total_references": 287,
+    "supported_references": 287,
+    "missing_references": 0,
+    "completion_rate_keys": "100.00%",
+    "completion_rate_refs": "100.00%"
   },
-  "missing_translations": [
-    "proj/translations/ar/already_installed",
-    "proj/translations/ar/audit_help",
-    "proj/translations/ar/audit_import_error",
-    "proj/translations/ar/audit_lang_code_help",
-    "proj/translations/ar/audit_report_path",
-    "proj/translations/ar/audit_scanning",
-    "proj/translations/ar/audit_summary_keys",
-    "proj/translations/ar/audit_summary_refs",
-    "proj/translations/ar/audit_using_cache",
-    "proj/translations/ar/audit_using_cache_done",
-    "proj/translations/ar/config_help",
-    "proj/translations/ar/config_lang_code_help",
-    "proj/translations/ar/config_set_lang_help",
-    "proj/translations/ar/config_subcommand_help",
-    "proj/translations/ar/config_test_help",
-    "proj/translations/ar/config_test_max_reports_help",
-    "proj/translations/ar/config_updated",
-    "proj/translations/ar/install_failed",
-    "proj/translations/ar/install_header",
-    "proj/translations/ar/install_help",
-    "proj/translations/ar/install_success",
-    "proj/translations/ar/install_tool_name_help",
-    "proj/translations/ar/installing_dep",
-    "proj/translations/ar/moved_to_tool",
-    "proj/translations/ar/pip_error",
-    "proj/translations/ar/pip_failed",
-    "proj/translations/ar/pip_success",
-    "proj/translations/ar/pip_warning_permissions",
-    "proj/translations/ar/pip_warning_retry",
-    "proj/translations/ar/python_not_found",
-    "proj/translations/ar/registry_error",
-    "proj/translations/ar/retrieve_error_msg",
-    "proj/translations/ar/retrieved_from",
-    "proj/translations/ar/retrieved_success_local_only",
-    "proj/translations/ar/retrieved_success_remote_only",
-    "proj/translations/ar/retrieved_success_root_only",
-    "proj/translations/ar/rule_available_header",
-    "proj/translations/ar/rule_copied",
-    "proj/translations/ar/rule_critical_note",
-    "proj/translations/ar/rule_efficiency_note",
-    "proj/translations/ar/rule_guideline_1",
-    "proj/translations/ar/rule_guideline_2",
-    "proj/translations/ar/rule_guideline_3",
-    "proj/translations/ar/rule_guideline_4",
-    "proj/translations/ar/rule_guidelines_header",
-    "proj/translations/ar/rule_header_main",
-    "proj/translations/ar/rule_help",
-    "proj/translations/ar/rule_installed_header",
-    "proj/translations/ar/rule_note_execution",
-    "proj/translations/ar/rule_purpose_label",
-    "proj/translations/ar/shortcut_created",
-    "proj/translations/ar/shortcut_error",
-    "proj/translations/ar/subcommand_help",
-    "proj/translations/ar/test_all_completed",
-    "proj/translations/ar/test_background_sequential",
-    "proj/translations/ar/test_finished",
-    "proj/translations/ar/test_finished_with_error",
-    "proj/translations/ar/test_full_report",
-    "proj/translations/ar/test_help",
-    "proj/translations/ar/test_list_help",
-    "proj/translations/ar/test_max_help",
-    "proj/translations/ar/test_no_selected",
-    "proj/translations/ar/test_no_tests",
-    "proj/translations/ar/test_parallel_enabled",
-    "proj/translations/ar/test_range_help",
-    "proj/translations/ar/test_runner_import_error",
-    "proj/translations/ar/test_running",
-    "proj/translations/ar/test_started",
-    "proj/translations/ar/test_starting_sequential",
-    "proj/translations/ar/test_status_failed",
-    "proj/translations/ar/test_status_success",
-    "proj/translations/ar/test_status_timeout",
-    "proj/translations/ar/test_status_unknown",
-    "proj/translations/ar/test_timeout_help",
-    "proj/translations/ar/test_tool_name_help",
-    "proj/translations/ar/test_tool_not_found",
-    "proj/translations/ar/tool_ALIAS_desc",
-    "proj/translations/ar/tool_ALIAS_purpose",
-    "proj/translations/ar/tool_DOWNLOAD_desc",
-    "proj/translations/ar/tool_DOWNLOAD_purpose",
-    "proj/translations/ar/tool_EXPORT_desc",
-    "proj/translations/ar/tool_EXPORT_purpose",
-    "proj/translations/ar/tool_EXTRACT_IMG_desc",
-    "proj/translations/ar/tool_EXTRACT_IMG_purpose",
-    "proj/translations/ar/tool_EXTRACT_PDF_desc",
-    "proj/translations/ar/tool_EXTRACT_PDF_purpose",
-    "proj/translations/ar/tool_FILEDIALOG_desc",
-    "proj/translations/ar/tool_FILEDIALOG_purpose",
-    "proj/translations/ar/tool_GOOGLE_DRIVE_desc",
-    "proj/translations/ar/tool_GOOGLE_DRIVE_purpose",
-    "proj/translations/ar/tool_IMG2TEXT_desc",
-    "proj/translations/ar/tool_IMG2TEXT_purpose",
-    "proj/translations/ar/tool_LEARN_desc",
-    "proj/translations/ar/tool_LEARN_purpose",
-    "proj/translations/ar/tool_LINTER_desc",
-    "proj/translations/ar/tool_LINTER_purpose",
-    "proj/translations/ar/tool_NETWORK_desc",
-    "proj/translations/ar/tool_NETWORK_purpose",
-    "proj/translations/ar/tool_OPENROUTER_desc",
-    "proj/translations/ar/tool_OPENROUTER_purpose",
-    "proj/translations/ar/tool_RUN_desc",
-    "proj/translations/ar/tool_RUN_purpose",
-    "proj/translations/ar/tool_SEARCH_PAPER_desc",
-    "proj/translations/ar/tool_SEARCH_PAPER_purpose",
-    "proj/translations/ar/tool_UNIMERNET_desc",
-    "proj/translations/ar/tool_UNIMERNET_purpose",
-    "proj/translations/ar/tool_description",
-    "proj/translations/ar/tool_dir_not_found",
-    "proj/translations/ar/tool_epilog",
-    "proj/translations/ar/tool_main_not_found_msg",
-    "proj/translations/ar/tool_not_found",
-    "proj/translations/ar/tool_not_in_registry",
-    "proj/translations/ar/updated_path",
-    "tool/BACKGROUND/proj/translations/ar/active_processes",
-    "tool/BACKGROUND/proj/translations/ar/command",
-    "tool/BACKGROUND/proj/translations/ar/full_report_saved",
-    "tool/BACKGROUND/proj/translations/ar/no_active_processes",
-    "tool/BACKGROUND/proj/translations/ar/process_force_killed",
-    "tool/BACKGROUND/proj/translations/ar/process_not_found",
-    "tool/BACKGROUND/proj/translations/ar/process_started",
-    "tool/BACKGROUND/proj/translations/ar/process_terminated",
-    "tool/BACKGROUND/proj/translations/ar/runtime",
-    "tool/BACKGROUND/proj/translations/ar/status",
-    "tool/BACKGROUND/proj/translations/ar/status_active",
-    "tool/BACKGROUND/proj/translations/ar/status_completed",
-    "tool/BACKGROUND/proj/translations/ar/status_failed",
-    "tool/BACKGROUND/proj/translations/ar/status_unknown",
-    "tool/BACKGROUND/proj/translations/ar/tool_BACKGROUND_desc",
-    "tool/BACKGROUND/proj/translations/ar/tool_BACKGROUND_purpose",
-    "tool/BACKGROUND/proj/translations/ar/wait_finished",
-    "tool/BACKGROUND/proj/translations/ar/wait_timeout",
-    "tool/OVERLEAF/proj/translations/ar/available_templates",
-    "tool/OVERLEAF/proj/translations/ar/compilation_error",
-    "tool/OVERLEAF/proj/translations/ar/compile_failed",
-    "tool/OVERLEAF/proj/translations/ar/compile_success",
-    "tool/OVERLEAF/proj/translations/ar/compiling_start",
-    "tool/OVERLEAF/proj/translations/ar/file_not_found",
-    "tool/OVERLEAF/proj/translations/ar/generated_pdf",
-    "tool/OVERLEAF/proj/translations/ar/install_tinytex_prompt",
-    "tool/OVERLEAF/proj/translations/ar/latex_options_help",
-    "tool/OVERLEAF/proj/translations/ar/list_templates_help",
-    "tool/OVERLEAF/proj/translations/ar/no_shell_escape_help",
-    "tool/OVERLEAF/proj/translations/ar/no_templates",
-    "tool/OVERLEAF/proj/translations/ar/no_tex_abort",
-    "tool/OVERLEAF/proj/translations/ar/output_dir_help",
-    "tool/OVERLEAF/proj/translations/ar/overleaf_description",
-    "tool/OVERLEAF/proj/translations/ar/pdf_not_generated",
-    "tool/OVERLEAF/proj/translations/ar/template_help",
-    "tool/OVERLEAF/proj/translations/ar/template_not_found",
-    "tool/OVERLEAF/proj/translations/ar/template_success",
-    "tool/OVERLEAF/proj/translations/ar/tex_file_help",
-    "tool/OVERLEAF/proj/translations/ar/tex_not_found",
-    "tool/OVERLEAF/proj/translations/ar/tinytex_install_failed",
-    "tool/OVERLEAF/proj/translations/ar/tinytex_installed",
-    "tool/OVERLEAF/proj/translations/ar/tinytex_module_missing",
-    "tool/OVERLEAF/proj/translations/ar/tool_OVERLEAF_desc",
-    "tool/OVERLEAF/proj/translations/ar/tool_OVERLEAF_purpose",
-    "tool/USERINPUT/proj/translations/ar/add_time",
-    "tool/USERINPUT/proj/translations/ar/instances_stopped",
-    "tool/USERINPUT/proj/translations/ar/instruction",
-    "tool/USERINPUT/proj/translations/ar/msg_cancelled",
-    "tool/USERINPUT/proj/translations/ar/msg_empty",
-    "tool/USERINPUT/proj/translations/ar/msg_timeout",
-    "tool/USERINPUT/proj/translations/ar/psutil_not_found",
-    "tool/USERINPUT/proj/translations/ar/submit",
-    "tool/USERINPUT/proj/translations/ar/time_added",
-    "tool/USERINPUT/proj/translations/ar/time_remaining",
-    "tool/USERINPUT/proj/translations/ar/tool_USERINPUT_desc",
-    "tool/USERINPUT/proj/translations/ar/tool_USERINPUT_purpose"
-  ],
+  "missing_translations": [],
   "entries": [
+    {
+      "key": "install_success_label",
+      "type": "root",
+      "count": 3,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/install_success_label"
+    },
     {
       "key": "already_installed",
       "type": "root",
@@ -190,9 +31,31 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/already_installed"
+    },
+    {
+      "key": "warning_label",
+      "type": "root",
+      "count": 8,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/warning_label"
+    },
+    {
+      "key": "missing_deps_reinstall",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/missing_deps_reinstall"
     },
     {
       "key": "install_header",
@@ -201,9 +64,20 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/install_header"
+    },
+    {
+      "key": "error_label",
+      "type": "root",
+      "count": 12,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/error_label"
     },
     {
       "key": "tool_not_in_registry",
@@ -212,8 +86,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_not_in_registry"
     },
     {
@@ -223,8 +97,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/registry_error"
     },
     {
@@ -234,8 +108,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_not_found"
     },
     {
@@ -245,8 +119,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/retrieved_success_remote_only"
     },
     {
@@ -256,8 +130,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/retrieved_from"
     },
     {
@@ -267,8 +141,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/retrieved_success_local_only"
     },
     {
@@ -278,8 +152,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/retrieved_success_root_only"
     },
     {
@@ -289,8 +163,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/moved_to_tool"
     },
     {
@@ -300,8 +174,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/install_failed"
     },
     {
@@ -311,8 +185,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/retrieve_error_msg"
     },
     {
@@ -322,8 +196,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_dir_not_found"
     },
     {
@@ -333,8 +207,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/installing_dep"
     },
     {
@@ -344,8 +218,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/python_not_found"
     },
     {
@@ -355,8 +229,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/pip_warning_permissions"
     },
     {
@@ -366,8 +240,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/pip_warning_retry"
     },
     {
@@ -377,9 +251,20 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/pip_error"
+    },
+    {
+      "key": "pip_success_label",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/pip_success_label"
     },
     {
       "key": "pip_success",
@@ -388,8 +273,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/pip_success"
     },
     {
@@ -399,8 +284,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/pip_failed"
     },
     {
@@ -410,8 +295,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_main_not_found_msg"
     },
     {
@@ -421,8 +306,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/install_success"
     },
     {
@@ -432,8 +317,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/shortcut_created"
     },
     {
@@ -443,9 +328,152 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/shortcut_error"
+    },
+    {
+      "key": "running_setup",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/running_setup"
+    },
+    {
+      "key": "setup_success",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/setup_success"
+    },
+    {
+      "key": "setup_failed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/setup_failed"
+    },
+    {
+      "key": "tool_not_found_local",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/tool_not_found_local"
+    },
+    {
+      "key": "confirm_uninstall",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/confirm_uninstall"
+    },
+    {
+      "key": "uninstall_cancelled",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/uninstall_cancelled"
+    },
+    {
+      "key": "non_interactive_skip",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/non_interactive_skip"
+    },
+    {
+      "key": "uninstalling_header",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/uninstalling_header"
+    },
+    {
+      "key": "removed_shortcut",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/removed_shortcut"
+    },
+    {
+      "key": "remove_shortcut_failed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/remove_shortcut_failed"
+    },
+    {
+      "key": "removed_tool_dir",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/removed_tool_dir"
+    },
+    {
+      "key": "remove_tool_dir_failed",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/remove_tool_dir_failed"
+    },
+    {
+      "key": "uninstall_success",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/uninstall_success"
     },
     {
       "key": "updated_path",
@@ -454,20 +482,63 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/updated_path"
+    },
+    {
+      "key": "lang_error_not_found",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_error_not_found"
+    },
+    {
+      "key": "lang_suggest_list",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_suggest_list"
+    },
+    {
+      "key": "lang_error_not_found_no_suggest",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_error_not_found_no_suggest"
+    },
+    {
+      "key": "lang_error_not_found_simple",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_error_not_found_simple"
     },
     {
       "key": "config_updated",
       "type": "root",
-      "count": 2,
+      "count": 1,
       "sources": [
-        "main.py",
-        "tool/USERINPUT/main.py"
+        "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_updated"
     },
     {
@@ -477,8 +548,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_header_main"
     },
     {
@@ -488,8 +559,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_critical_note"
     },
     {
@@ -499,8 +570,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_efficiency_note"
     },
     {
@@ -510,8 +581,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_installed_header"
     },
     {
@@ -521,8 +592,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_purpose_label"
     },
     {
@@ -532,8 +603,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_available_header"
     },
     {
@@ -543,8 +614,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_guidelines_header"
     },
     {
@@ -554,8 +625,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_guideline_1"
     },
     {
@@ -565,8 +636,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_guideline_2"
     },
     {
@@ -576,8 +647,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_guideline_3"
     },
     {
@@ -587,9 +658,31 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_guideline_4"
+    },
+    {
+      "key": "rule_guideline_5",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/rule_guideline_5"
+    },
+    {
+      "key": "rule_guideline_6",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/rule_guideline_6"
     },
     {
       "key": "rule_note_execution",
@@ -598,8 +691,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_note_execution"
     },
     {
@@ -609,9 +702,141 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/rule_copied"
+    },
+    {
+      "key": "not_git_repo",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/not_git_repo"
+    },
+    {
+      "key": "sync_warning_branch",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_warning_branch"
+    },
+    {
+      "key": "sync_confirm",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_confirm"
+    },
+    {
+      "key": "sync_cancelled",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_cancelled"
+    },
+    {
+      "key": "sync_uncommitted",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_uncommitted"
+    },
+    {
+      "key": "sync_to_main_label",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_to_main_label"
+    },
+    {
+      "key": "sync_no_changes_label",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_no_changes_label"
+    },
+    {
+      "key": "sync_re-sync_test",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_re-sync_test"
+    },
+    {
+      "key": "sync_error_label",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_error_label"
+    },
+    {
+      "key": "sync_complete_label",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_complete_label"
+    },
+    {
+      "key": "sync_files_synced",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_files_synced"
+    },
+    {
+      "key": "sync_branches_updated",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/sync_branches_updated"
     },
     {
       "key": "tool_description",
@@ -620,8 +845,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_description"
     },
     {
@@ -631,8 +856,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_epilog"
     },
     {
@@ -642,8 +867,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/subcommand_help"
     },
     {
@@ -653,8 +878,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/install_help"
     },
     {
@@ -664,9 +889,42 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/install_tool_name_help"
+    },
+    {
+      "key": "uninstall_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/uninstall_help"
+    },
+    {
+      "key": "uninstall_tool_name_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/uninstall_tool_name_help"
+    },
+    {
+      "key": "uninstall_yes_help",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/uninstall_yes_help"
     },
     {
       "key": "test_help",
@@ -675,8 +933,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_help"
     },
     {
@@ -686,8 +944,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_tool_name_help"
     },
     {
@@ -697,8 +955,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_list_help"
     },
     {
@@ -708,8 +966,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_range_help"
     },
     {
@@ -719,8 +977,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_max_help"
     },
     {
@@ -730,8 +988,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_timeout_help"
     },
     {
@@ -741,8 +999,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_help"
     },
     {
@@ -752,8 +1010,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_lang_code_help"
     },
     {
@@ -768,6 +1026,28 @@
       "logical_path": "proj/translations/ar/lang_help"
     },
     {
+      "key": "lang_set_help",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_set_help"
+    },
+    {
+      "key": "lang_list_help",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_list_help"
+    },
+    {
       "key": "lang_subcommand_help",
       "type": "root",
       "count": 1,
@@ -777,17 +1057,6 @@
       "supported": true,
       "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/lang_subcommand_help"
-    },
-    {
-      "key": "lang_set_help",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "main.py"
-      ],
-      "supported": true,
-      "translation_file": "proj/translations/ar.json",
-      "logical_path": "proj/translations/ar/lang_set_help"
     },
     {
       "key": "lang_code_help",
@@ -801,7 +1070,7 @@
       "logical_path": "proj/translations/ar/lang_code_help"
     },
     {
-      "key": "lang_list_help",
+      "key": "rule_help",
       "type": "root",
       "count": 1,
       "sources": [
@@ -809,17 +1078,6 @@
       ],
       "supported": true,
       "translation_file": "proj/translations/ar.json",
-      "logical_path": "proj/translations/ar/lang_list_help"
-    },
-    {
-      "key": "rule_help",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
       "logical_path": "proj/translations/ar/rule_help"
     },
     {
@@ -829,8 +1087,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_help"
     },
     {
@@ -840,8 +1098,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_subcommand_help"
     },
     {
@@ -851,8 +1109,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_set_lang_help"
     },
     {
@@ -862,8 +1120,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_lang_code_help"
     },
     {
@@ -873,8 +1131,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_test_help"
     },
     {
@@ -884,8 +1142,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/config_test_max_reports_help"
     },
     {
@@ -895,8 +1153,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_tool_not_found"
     },
     {
@@ -906,8 +1164,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_runner_import_error"
     },
     {
@@ -917,8 +1175,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_import_error"
     },
     {
@@ -928,8 +1186,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_using_cache"
     },
     {
@@ -939,8 +1197,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_scanning"
     },
     {
@@ -950,8 +1208,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_using_cache_done"
     },
     {
@@ -972,8 +1230,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_summary_keys"
     },
     {
@@ -983,8 +1241,8 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_summary_refs"
     },
     {
@@ -994,9 +1252,31 @@
       "sources": [
         "main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/audit_report_path"
+    },
+    {
+      "key": "audit_cache_warning",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/audit_cache_warning"
+    },
+    {
+      "key": "audit_force_tip",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/audit_force_tip"
     },
     {
       "key": "lang_name_en",
@@ -1065,6 +1345,18 @@
       "logical_path": "proj/translations/ar/lang_list_header"
     },
     {
+      "key": "full_report_saved",
+      "type": "root",
+      "count": 3,
+      "sources": [
+        "main.py",
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/full_report_saved"
+    },
+    {
       "key": "lang_table_footer_star",
       "type": "root",
       "count": 1,
@@ -1098,15 +1390,48 @@
       "logical_path": "proj/translations/ar/lang_table_footer_refs"
     },
     {
+      "key": "lang_audit_instruction",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_audit_instruction"
+    },
+    {
+      "key": "lang_dev_instruction",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/lang_dev_instruction"
+    },
+    {
       "key": "test_no_tests",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_no_tests"
+    },
+    {
+      "key": "test_list_header",
       "type": "root",
       "count": 1,
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_no_tests"
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_list_header"
     },
     {
       "key": "test_no_selected",
@@ -1115,8 +1440,8 @@
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_no_selected"
     },
     {
@@ -1126,97 +1451,9 @@
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_running"
-    },
-    {
-      "key": "test_background_sequential",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_background_sequential"
-    },
-    {
-      "key": "test_starting_sequential",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_starting_sequential"
-    },
-    {
-      "key": "test_finished_with_error",
-      "type": "root",
-      "count": 2,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_finished_with_error"
-    },
-    {
-      "key": "test_finished",
-      "type": "root",
-      "count": 2,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_finished"
-    },
-    {
-      "key": "test_full_report",
-      "type": "root",
-      "count": 2,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_full_report"
-    },
-    {
-      "key": "test_all_completed",
-      "type": "root",
-      "count": 2,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_all_completed"
-    },
-    {
-      "key": "test_parallel_enabled",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_parallel_enabled"
-    },
-    {
-      "key": "test_started",
-      "type": "root",
-      "count": 1,
-      "sources": [
-        "proj/test_runner.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "proj/translations/ar/test_started"
     },
     {
       "key": "test_status_success",
@@ -1225,8 +1462,8 @@
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_status_success"
     },
     {
@@ -1236,8 +1473,8 @@
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_status_failed"
     },
     {
@@ -1247,8 +1484,8 @@
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_status_timeout"
     },
     {
@@ -1258,9 +1495,274 @@
       "sources": [
         "proj/test_runner.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/test_status_unknown"
+    },
+    {
+      "key": "test_started",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_started"
+    },
+    {
+      "key": "test_background_sequential",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_background_sequential"
+    },
+    {
+      "key": "test_finished_with_error",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_finished_with_error"
+    },
+    {
+      "key": "test_finished",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_finished"
+    },
+    {
+      "key": "test_full_report",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_full_report"
+    },
+    {
+      "key": "test_all_completed",
+      "type": "root",
+      "count": 2,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_all_completed"
+    },
+    {
+      "key": "test_parallel_enabled",
+      "type": "root",
+      "count": 1,
+      "sources": [
+        "proj/test_runner.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "proj/translations/ar/test_parallel_enabled"
+    },
+    {
+      "key": "tool_BACKGROUND_desc",
+      "type": "BACKGROUND",
+      "count": 2,
+      "sources": [
+        "tool/BACKGROUND/main.py",
+        "tool.json"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/tool_BACKGROUND_desc"
+    },
+    {
+      "key": "tool_epilog_example",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/tool_epilog_example"
+    },
+    {
+      "key": "command_args_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/command_args_help"
+    },
+    {
+      "key": "shell_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/shell_help"
+    },
+    {
+      "key": "max_processes_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/max_processes_help"
+    },
+    {
+      "key": "log_dir_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/log_dir_help"
+    },
+    {
+      "key": "max_log_files_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/max_log_files_help"
+    },
+    {
+      "key": "no_alias_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/no_alias_help"
+    },
+    {
+      "key": "list_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/list_help"
+    },
+    {
+      "key": "status_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/status_help"
+    },
+    {
+      "key": "result_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/result_help"
+    },
+    {
+      "key": "log_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/log_help"
+    },
+    {
+      "key": "kill_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/kill_help"
+    },
+    {
+      "key": "force_kill_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/force_kill_help"
+    },
+    {
+      "key": "cleanup_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/cleanup_help"
+    },
+    {
+      "key": "wait_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/wait_help"
+    },
+    {
+      "key": "json_help",
+      "type": "BACKGROUND",
+      "count": 1,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/json_help"
     },
     {
       "key": "active_processes",
@@ -1269,97 +1771,108 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/active_processes"
     },
     {
       "key": "status",
       "type": "BACKGROUND",
-      "count": 1,
+      "count": 2,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/status"
     },
     {
       "key": "runtime",
       "type": "BACKGROUND",
-      "count": 1,
+      "count": 2,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/runtime"
     },
     {
       "key": "command",
       "type": "BACKGROUND",
-      "count": 1,
+      "count": 2,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/command"
+    },
+    {
+      "key": "pid",
+      "type": "BACKGROUND",
+      "count": 2,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/pid"
     },
     {
       "key": "status_active",
       "type": "BACKGROUND",
-      "count": 1,
+      "count": 2,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/status_active"
     },
     {
-      "key": "status_completed",
+      "key": "status_sleeping",
       "type": "BACKGROUND",
       "count": 1,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
+      "logical_path": "tool/BACKGROUND/proj/translations/ar/status_sleeping"
+    },
+    {
+      "key": "status_completed",
+      "type": "BACKGROUND",
+      "count": 2,
+      "sources": [
+        "tool/BACKGROUND/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/status_completed"
     },
     {
       "key": "status_failed",
       "type": "BACKGROUND",
-      "count": 1,
+      "count": 2,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/status_failed"
     },
     {
       "key": "status_unknown",
       "type": "BACKGROUND",
-      "count": 1,
+      "count": 2,
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/status_unknown"
-    },
-    {
-      "key": "full_report_saved",
-      "type": "BACKGROUND",
-      "count": 1,
-      "sources": [
-        "tool/BACKGROUND/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/BACKGROUND/proj/translations/ar/full_report_saved"
     },
     {
       "key": "no_active_processes",
@@ -1368,8 +1881,8 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/no_active_processes"
     },
     {
@@ -1379,8 +1892,8 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/process_terminated"
     },
     {
@@ -1390,8 +1903,8 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/process_force_killed"
     },
     {
@@ -1401,8 +1914,8 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/process_not_found"
     },
     {
@@ -1412,8 +1925,8 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/wait_finished"
     },
     {
@@ -1423,8 +1936,8 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/wait_timeout"
     },
     {
@@ -1434,9 +1947,31 @@
       "sources": [
         "tool/BACKGROUND/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/process_started"
+    },
+    {
+      "key": "err_sandbox",
+      "type": "USERINPUT",
+      "count": 5,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "tool/USERINPUT/proj/translations/ar/err_sandbox"
+    },
+    {
+      "key": "err_no_display",
+      "type": "USERINPUT",
+      "count": 1,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
+      "logical_path": "tool/USERINPUT/proj/translations/ar/err_no_display"
     },
     {
       "key": "instruction",
@@ -1445,8 +1980,8 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/instruction"
     },
     {
@@ -1456,8 +1991,8 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/submit"
     },
     {
@@ -1467,8 +2002,8 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/add_time"
     },
     {
@@ -1478,8 +2013,8 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/time_added"
     },
     {
@@ -1489,8 +2024,8 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/time_remaining"
     },
     {
@@ -1500,20 +2035,9 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/msg_empty"
-    },
-    {
-      "key": "msg_timeout",
-      "type": "USERINPUT",
-      "count": 2,
-      "sources": [
-        "tool/USERINPUT/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/USERINPUT/proj/translations/ar/msg_timeout"
     },
     {
       "key": "msg_cancelled",
@@ -1522,295 +2046,97 @@
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/msg_cancelled"
     },
     {
-      "key": "psutil_not_found",
+      "key": "msg_timeout",
+      "type": "USERINPUT",
+      "count": 2,
+      "sources": [
+        "tool/USERINPUT/main.py"
+      ],
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
+      "logical_path": "tool/USERINPUT/proj/translations/ar/msg_timeout"
+    },
+    {
+      "key": "msg_attempt_failed",
       "type": "USERINPUT",
       "count": 1,
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/USERINPUT/proj/translations/ar/psutil_not_found"
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
+      "logical_path": "tool/USERINPUT/proj/translations/ar/msg_attempt_failed"
     },
     {
-      "key": "instances_stopped",
+      "key": "msg_failed_capture",
       "type": "USERINPUT",
       "count": 1,
       "sources": [
         "tool/USERINPUT/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/USERINPUT/proj/translations/ar/instances_stopped"
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
+      "logical_path": "tool/USERINPUT/proj/translations/ar/msg_failed_capture"
     },
     {
-      "key": "tex_not_found",
-      "type": "OVERLEAF",
+      "key": "python_version_not_supported",
+      "type": "PYTHON",
       "count": 1,
       "sources": [
-        "tool/OVERLEAF/main.py"
+        "tool/PYTHON/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/tex_not_found"
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/ar/python_version_not_supported"
     },
     {
-      "key": "install_tinytex_prompt",
-      "type": "OVERLEAF",
+      "key": "python_already_installed",
+      "type": "PYTHON",
       "count": 1,
       "sources": [
-        "tool/OVERLEAF/main.py"
+        "tool/PYTHON/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/install_tinytex_prompt"
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/ar/python_already_installed"
     },
     {
-      "key": "tinytex_installed",
-      "type": "OVERLEAF",
+      "key": "python_installing",
+      "type": "PYTHON",
       "count": 1,
       "sources": [
-        "tool/OVERLEAF/main.py"
+        "tool/PYTHON/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/tinytex_installed"
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/ar/python_installing"
     },
     {
-      "key": "tinytex_module_missing",
-      "type": "OVERLEAF",
+      "key": "python_install_success",
+      "type": "PYTHON",
       "count": 1,
       "sources": [
-        "tool/OVERLEAF/main.py"
+        "tool/PYTHON/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/tinytex_module_missing"
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/ar/python_install_success"
     },
     {
-      "key": "tinytex_install_failed",
-      "type": "OVERLEAF",
-      "count": 1,
+      "key": "python_install_failed",
+      "type": "PYTHON",
+      "count": 2,
       "sources": [
-        "tool/OVERLEAF/main.py"
+        "tool/PYTHON/main.py"
       ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/tinytex_install_failed"
-    },
-    {
-      "key": "no_tex_abort",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/no_tex_abort"
-    },
-    {
-      "key": "file_not_found",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/file_not_found"
-    },
-    {
-      "key": "compiling_start",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/compiling_start"
-    },
-    {
-      "key": "compile_success",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/compile_success"
-    },
-    {
-      "key": "generated_pdf",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/generated_pdf"
-    },
-    {
-      "key": "pdf_not_generated",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/pdf_not_generated"
-    },
-    {
-      "key": "compile_failed",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/compile_failed"
-    },
-    {
-      "key": "compilation_error",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/compilation_error"
-    },
-    {
-      "key": "template_not_found",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/template_not_found"
-    },
-    {
-      "key": "template_success",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/template_success"
-    },
-    {
-      "key": "overleaf_description",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/overleaf_description"
-    },
-    {
-      "key": "tex_file_help",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/tex_file_help"
-    },
-    {
-      "key": "output_dir_help",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/output_dir_help"
-    },
-    {
-      "key": "template_help",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/template_help"
-    },
-    {
-      "key": "list_templates_help",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/list_templates_help"
-    },
-    {
-      "key": "latex_options_help",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/latex_options_help"
-    },
-    {
-      "key": "no_shell_escape_help",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/no_shell_escape_help"
-    },
-    {
-      "key": "available_templates",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/available_templates"
-    },
-    {
-      "key": "no_templates",
-      "type": "OVERLEAF",
-      "count": 1,
-      "sources": [
-        "tool/OVERLEAF/main.py"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/OVERLEAF/proj/translations/ar/no_templates"
+      "supported": true,
+      "translation_file": "tool/PYTHON/proj/translations.json",
+      "logical_path": "tool/PYTHON/proj/translations/ar/python_install_failed"
     },
     {
       "key": "tool_PYTHON_desc",
@@ -1841,8 +2167,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/tool_USERINPUT_desc"
     },
     {
@@ -1852,8 +2178,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/USERINPUT/proj/translations.json",
       "logical_path": "tool/USERINPUT/proj/translations/ar/tool_USERINPUT_purpose"
     },
     {
@@ -1863,8 +2189,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_GOOGLE_DRIVE_desc"
     },
     {
@@ -1874,8 +2200,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_GOOGLE_DRIVE_purpose"
     },
     {
@@ -1885,8 +2211,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_ALIAS_desc"
     },
     {
@@ -1896,8 +2222,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_ALIAS_purpose"
     },
     {
@@ -1907,8 +2233,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_DOWNLOAD_desc"
     },
     {
@@ -1918,8 +2244,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_DOWNLOAD_purpose"
     },
     {
@@ -1929,8 +2255,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_EXPORT_desc"
     },
     {
@@ -1940,8 +2266,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_EXPORT_purpose"
     },
     {
@@ -1951,8 +2277,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_EXTRACT_PDF_desc"
     },
     {
@@ -1962,8 +2288,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_EXTRACT_PDF_purpose"
     },
     {
@@ -1973,8 +2299,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_EXTRACT_IMG_desc"
     },
     {
@@ -1984,8 +2310,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_EXTRACT_IMG_purpose"
     },
     {
@@ -1995,8 +2321,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_FILEDIALOG_desc"
     },
     {
@@ -2006,8 +2332,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_FILEDIALOG_purpose"
     },
     {
@@ -2017,8 +2343,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_IMG2TEXT_desc"
     },
     {
@@ -2028,8 +2354,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_IMG2TEXT_purpose"
     },
     {
@@ -2039,8 +2365,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_LEARN_desc"
     },
     {
@@ -2050,8 +2376,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_LEARN_purpose"
     },
     {
@@ -2061,8 +2387,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_OPENROUTER_desc"
     },
     {
@@ -2072,8 +2398,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_OPENROUTER_purpose"
     },
     {
@@ -2083,8 +2409,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/ar/tool_OVERLEAF_desc"
     },
     {
@@ -2094,8 +2420,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/OVERLEAF/proj/translations.json",
       "logical_path": "tool/OVERLEAF/proj/translations/ar/tool_OVERLEAF_purpose"
     },
     {
@@ -2105,8 +2431,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_RUN_desc"
     },
     {
@@ -2116,8 +2442,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_RUN_purpose"
     },
     {
@@ -2127,8 +2453,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_SEARCH_PAPER_desc"
     },
     {
@@ -2138,8 +2464,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_SEARCH_PAPER_purpose"
     },
     {
@@ -2149,8 +2475,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_UNIMERNET_desc"
     },
     {
@@ -2160,8 +2486,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_UNIMERNET_purpose"
     },
     {
@@ -2171,8 +2497,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_LINTER_desc"
     },
     {
@@ -2182,8 +2508,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_LINTER_purpose"
     },
     {
@@ -2193,8 +2519,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_NETWORK_desc"
     },
     {
@@ -2204,20 +2530,9 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "proj/translations/ar.json",
       "logical_path": "proj/translations/ar/tool_NETWORK_purpose"
-    },
-    {
-      "key": "tool_BACKGROUND_desc",
-      "type": "BACKGROUND",
-      "count": 1,
-      "sources": [
-        "tool.json"
-      ],
-      "supported": false,
-      "translation_file": "",
-      "logical_path": "tool/BACKGROUND/proj/translations/ar/tool_BACKGROUND_desc"
     },
     {
       "key": "tool_BACKGROUND_purpose",
@@ -2226,8 +2541,8 @@
       "sources": [
         "tool.json"
       ],
-      "supported": false,
-      "translation_file": "",
+      "supported": true,
+      "translation_file": "tool/BACKGROUND/proj/translations.json",
       "logical_path": "tool/BACKGROUND/proj/translations/ar/tool_BACKGROUND_purpose"
     }
   ]
