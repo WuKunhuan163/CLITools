@@ -4,7 +4,6 @@
   "purpose": "Provide consistent, isolated Python runtime environments for tools and projects.",
   "run_compatible": true,
   "supported_versions": [
-    "python3.10.19",
     "python3.7.3-linux64",
     "python3.7.3-linux64-musl",
     "python3.7.3-macos",
