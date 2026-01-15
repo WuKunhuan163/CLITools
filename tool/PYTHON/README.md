@@ -1,27 +1,36 @@
 # PYTHON Tool
 
 ## Description
-This tool provides a managed, standalone Python 3.10 environment to ensure compatibility for GUI tools (like USERINPUT) and other dependency-heavy utilities.
+This tool provides a managed, standalone Python environment to ensure compatibility across different tools and projects. It supports multiple Python versions and automatically selects the appropriate build for your current operating system.
 
 ## Usage
-- **As a proxy**: Use 'PYTHON <args>' to execute commands using the managed Python environment.
-- **As a utility library**: Other tools can import 'proj.utils' or 'proj.language_utils' to leverage shared functionality.
+- **As a proxy**: Use `PYTHON <args>` to execute commands using the managed Python environment.
+- **Specifying Version**:
+  - **Shorthand**: Use `@3.x` as the first argument (e.g., `PYTHON @3.7 -c "..."`).
+  - **Command flag**: Use `--py-version <version>`.
+  - **Environment variable**: Set `PY_VERSION` (e.g., `PY_VERSION=python3.7.3-macos PYTHON ...`).
+- **Management**:
+  - `PYTHON --py-list`: List supported and installed versions.
+  - `PYTHON --py-install <version>`: Install a specific version from the local repository branch.
 
-## Managed Installations
-Python versions are stored in 'proj/installations/'. Supported versions include:
-- python3.10.19 (Default)
-- python3.11.14
-- python3.12.12
-- python3.13.11
-- python3.14.2
+## Supported Versions
+Currently deployed versions (automatically matched to your OS):
+- `python3.10.19` (Default)
+- `python3.7.4` (Available for macos, linux64, linux64-musl, windows-amd64, windows-x86)
+- `python3.7.3` (Available for macos, linux64, linux64-musl, windows-amd64, windows-x86)
 
-Each installation includes:
-- `install/`: The actual Python environment.
-- `PYTHON.json`: A comprehensive build manifest provided by `python-build-standalone`. It contains detailed metadata about the build process, configuration variables (`python_config_vars`), library links, and extension module information. This is useful for debugging and for tools that need to understand the underlying Python configuration.
-- `licenses/`: License information for CPython and its dependencies.
+## Implementation Details
+### Standalone Environment
+Python versions are stored in `proj/install/`. Each installation includes:
+- `install/`: The self-contained Python environment.
+- `PYTHON.json`: Build manifest with detailed metadata.
+- `README.md`: Instructions for manual download and extraction.
 
-## Deployment Strategy
-To avoid remote access issues, standalone Python distributions are "deployed" by adding them to the `tool` branch of this repository. When a specific version is requested (via `--py-install`), it is retrieved locally from that branch using `git checkout`.
+### Automatic System Detection
+The tool automatically detects your OS and kernel to select the best-matching build. For example, on a Mac, `PYTHON @3.7` will resolve to `python3.7.3-macos`.
+
+### Proxy Logic
+All arguments not captured by the manager are passed directly to the selected Python executable. When running a standalone build, `PYTHONHOME` and `PATH` are automatically configured to avoid library conflicts and warnings.
 
 ## Language Support
-Includes 'proj.language_utils' for tool localization based on the 'TOOL_LANGUAGE' environment variable.
+Includes `proj.language_utils` for tool localization based on the `TOOL_LANGUAGE` environment variable.

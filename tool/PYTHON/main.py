@@ -63,12 +63,40 @@ def main():
     parser.add_argument("--py-dir", help="Specify installation directory")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
 
+    # Shorthand version detection: if the first unknown argument starts with @3.x, use it as version
+    raw_args = sys.argv[1:]
+    shorthand_version = None
+    remaining_raw_args = []
+    
+    # Simple manual check for @3.x shorthand to allow it to be at any position 
+    # but usually it's the first one.
+    filtered_args = []
+    from proj.utils import get_system_tag
+    tag = get_system_tag()
+    install_root = script_dir / "proj" / "install"
+
+    for arg in raw_args:
+        if arg.startswith("@3."):
+            # Expand shorthand: @3.7 -> python3.7.4 (latest) or python3.7.3
+            v_num = arg[1:]
+            if v_num == "3.7":
+                if (install_root / f"python3.7.4-{tag}").exists():
+                    shorthand_version = "python3.7.4"
+                else:
+                    shorthand_version = "python3.7.3"
+            else:
+                # Direct match attempt for others like @3.10
+                shorthand_version = f"python{v_num}"
+        else:
+            filtered_args.append(arg)
+
     # We want to pass all other arguments to the underlying python
-    args, unknown = parser.parse_known_args()
+    args, unknown = parser.parse_known_args(filtered_args)
 
     if args.help:
         parser.print_help()
-        print("\nAll other arguments will be passed to the selected Python executable.")
+        print("\nShorthand: Use @3.x (e.g., @3.7) to specify version quickly.")
+        print("All other arguments will be passed to the selected Python executable.")
         return
 
     if args.py_list:
@@ -79,8 +107,12 @@ def main():
         _install_version(args.py_install, args.py_dir)
         return
 
-    # Determine which python to use
-    selected_version = args.py_version or default_version
+    # Determine which python to use:
+    # 1. Command line --py-version
+    # 2. Shorthand @3.x
+    # 3. Environment variable PY_VERSION
+    # 4. Default version from tool.json
+    selected_version = args.py_version or shorthand_version or os.environ.get("PY_VERSION") or default_version
     python_exec = get_python_exec(selected_version)
     
     if not os.path.exists(python_exec) and python_exec != "python3":
@@ -89,6 +121,24 @@ def main():
 
     # Set up environment for the subprocess
     env = os.environ.copy()
+    
+    # If we are using a standalone python, set PYTHONHOME to avoid warnings
+    # and ensure it finds its own libraries.
+    # python_exec is .../proj/install/{version}/install/bin/python3
+    if "proj/install/" in python_exec:
+        exec_path = Path(python_exec)
+        # For Unix: bin is in install/, for Windows: python.exe is in install/
+        if exec_path.name == "python.exe":
+            python_home = exec_path.parent
+        else:
+            python_home = exec_path.parent.parent
+        
+        env["PYTHONHOME"] = str(python_home)
+        
+        # Also ensure the standalone bin is in PATH
+        current_path = env.get("PATH", "")
+        env["PATH"] = f"{python_home}/bin:{current_path}"
+
     python_path = env.get("PYTHONPATH", "")
     new_paths = f"{project_root}:{script_dir}"
     if python_path:
@@ -99,6 +149,7 @@ def main():
     # Execute
     cmd = [python_exec] + unknown
     try:
+        # Use subprocess.run without shell=True to pass arguments safely
         subprocess.run(cmd, env=env)
     except KeyboardInterrupt:
         sys.exit(1)
