@@ -16,3 +16,7 @@ __pycache__/
 /tmp/
 *.log
 *.exit
+
+# Only track metadata, not the heavy binaries
+/resource/tool/PYTHON/proj/install/*.tar.zst
+!/resource/tool/PYTHON/proj/install/*.json

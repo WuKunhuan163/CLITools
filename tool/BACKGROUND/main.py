@@ -19,11 +19,19 @@ sys.path.append(str(current_dir))
 try:
     from proj.language_utils import get_translation
     from proj.utils import get_display_width, truncate_to_display_width, format_table
+    from proj.config import get_color
 except ImportError:
+    def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default
     def get_display_width(s): return len(s)
     def truncate_to_display_width(s, w): return s[:w]
     def format_table(h, r, **kwargs): return "\n".join([" | ".join(h)] + [" | ".join(map(str, row)) for row in r]), None
+
+RESET = get_color("RESET", "\033[0m")
+GREEN = get_color("GREEN", RESET)
+BOLD = get_color("BOLD", RESET)
+BLUE = get_color("BLUE", RESET)
+RED = get_color("RED", RESET)
 
 TOOL_PROJ_DIR = current_dir / "proj"
 
@@ -102,7 +110,7 @@ def main():
                 print(json.dumps({'success': True, 'processes': processes, 'total_count': len(processes)}, indent=2))
             else:
                 if processes:
-                    print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
+                    print("\n" + _("all_processes", "All processes ({count}):").format(count=len(processes)))
                     
                     try:
                         terminal_width = os.get_terminal_size().columns
@@ -119,19 +127,19 @@ def main():
                     table_rows = []
                     
                     for proc in processes:
-                        # Translate status
+                        # Translate status with colors
                         status_val = proc['status']
-                        translated_status = status_val
-                        if status_val in ['active', 'running']:
-                            translated_status = _("status_active", "active")
-                        elif status_val == 'sleeping':
-                            translated_status = _("status_sleeping", "sleeping")
+                        if status_val in ['active', 'running', 'sleeping']:
+                            label = _("status_active", "running")
+                            translated_status = f"{BLUE}{BOLD}{label}{RESET}"
                         elif status_val == 'completed':
-                            translated_status = _("status_completed", "completed")
-                        elif status_val == 'failed':
-                            translated_status = _("status_failed", "failed")
-                        elif status_val == 'unknown':
-                            translated_status = _("status_unknown", "unknown")
+                            label = _("status_completed", "completed")
+                            translated_status = f"{GREEN}{BOLD}{label}{RESET}"
+                        else:
+                            # failed, unknown, etc.
+                            status_key = f"status_{status_val}"
+                            label = _(status_key, status_val)
+                            translated_status = f"{RED}{BOLD}{label}{RESET}"
                         
                         table_rows.append([
                             str(proc['pid']),
@@ -184,7 +192,7 @@ def main():
                     print(json.dumps({'success': True, 'action': 'status_all', 'processes': processes, 'total_count': len(processes)}, indent=2))
                 else:
                     if processes:
-                        print("\n" + _("active_processes", "Active processes ({count}):").format(count=len(processes)))
+                        print("\n" + _("all_processes", "All processes ({count}):").format(count=len(processes)))
                         
                         try:
                             terminal_width = os.get_terminal_size().columns
@@ -201,17 +209,19 @@ def main():
                         table_rows = []
                         
                         for proc in processes:
-                            # Translate status
+                            # Translate status with colors
                             status_val = proc['status']
-                            translated_status = status_val
-                            if status_val == 'active':
-                                translated_status = _("status_active", "active")
+                            if status_val in ['active', 'running', 'sleeping']:
+                                label = _("status_active", "running")
+                                translated_status = f"{BLUE}{BOLD}{label}{RESET}"
                             elif status_val == 'completed':
-                                translated_status = _("status_completed", "completed")
-                            elif status_val == 'failed':
-                                translated_status = _("status_failed", "failed")
-                            elif status_val == 'unknown':
-                                translated_status = _("status_unknown", "unknown")
+                                label = _("status_completed", "completed")
+                                translated_status = f"{GREEN}{BOLD}{label}{RESET}"
+                            else:
+                                # failed, unknown, etc.
+                                status_key = f"status_{status_val}"
+                                label = _(status_key, status_val)
+                                translated_status = f"{RED}{BOLD}{label}{RESET}"
                             
                             table_rows.append([
                                 str(proc['pid']),
@@ -312,7 +322,12 @@ def main():
                     if args.json:
                         print(json.dumps({'success': True, 'action': 'create', 'pid': pid, 'log_file': log_file, 'command': full_command}))
                     else:
-                        print(_("process_started", "Process started: PID {pid}, Log: {log_file}").format(pid=pid, log_file=log_file))
+                        label = _("label_process_started", "Process started")
+                        full_msg = _("process_started", "Process started: PID {pid}, Log: {log_file}").format(pid=pid, log_file=log_file)
+                        if full_msg.startswith(label):
+                            print(f"{BLUE}{BOLD}{label}{RESET}" + full_msg[len(label):])
+                        else:
+                            print(full_msg)
                 else:
                     if args.json:
                         print(json.dumps({'success': False, 'action': 'create', 'error': 'Failed to create process'}))
