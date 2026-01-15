@@ -2,14 +2,18 @@
 *.pyc
 *.pyo
 *.egg-info/
+__pycache__/
 
 .DS_Store
 .pytest_cache/
-__pycache__/
 
 # Tool-specific ignores
 /tool/PYTHON/proj/install/
 /tool/PYTHON/proj/installations/
+/tool/*/data/logs/
+/tool/*/data/audit/
 /data/
 /bin/
 /tmp/
+*.log
+*.exit
