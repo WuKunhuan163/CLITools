@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v11)
+USERINPUT Tool (v15)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Supports timeout with auto-retry logic.
@@ -19,6 +19,8 @@ import random
 import json
 import argparse
 import signal
+import traceback
+import threading
 from pathlib import Path
 
 # Silence Tkinter deprecation warnings
@@ -61,21 +63,39 @@ class UserInputTool(ToolBase):
     def get_python_exe(self, version="python3.10.19"):
         """Find a working python executable for GUI."""
         if os.environ.get("USERINPUT_DEBUG") == "1":
-            print(f"DEBUG: Searching for python version: {version}")
+            print(f"DEBUG: Searching for python version: {version}", flush=True)
 
-        # 1. Try Tool's specific version
-        python_exec = self.project_root / "tool" / "PYTHON" / "proj" / "install" / version / "install" / "bin" / "python3"
-        if python_exec.exists():
-            if os.environ.get("USERINPUT_DEBUG") == "1":
-                print(f"DEBUG: Found tool python at: {python_exec}")
-            return str(python_exec)
+        # Try to resolve using same logic as PYTHON tool if possible
+        system_tag = "macos"
+        if sys.platform == "linux": system_tag = "linux64" # Simplified
+        elif sys.platform == "win32": system_tag = "windows-amd64"
+
+        possible_dirs = [
+            version,
+            f"{version}-{system_tag}",
+            f"{version}-macos", # Force macos check
+            f"{version}-linux64",
+            f"{version}-linux64-musl",
+        ]
+
+        install_root = self.project_root / "tool" / "PYTHON" / "proj" / "install"
+        for d in possible_dirs:
+            # Unix path
+            python_exec = install_root / d / "install" / "bin" / "python3"
+            if python_exec.exists():
+                return str(python_exec)
+            # Windows path
+            python_exec_win = install_root / d / "install" / "python.exe"
+            if python_exec_win.exists():
+                return str(python_exec_win)
 
         # DO NOT FALLBACK TO SYSTEM PYTHON IF PYTHON TOOL IS MISSING
-        print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' ({version}) 未找到，无法启动 GUI。")
-        print(f"该工具 '{self.tool_name}' 依赖于 PYTHON 工具。")
-        print(f"请先运行: TOOL install PYTHON")
-        print(f"然后再运行: PYTHON install {version.replace('python', '')}")
-        print(f"最后再运行: TOOL install {self.tool_name} (以恢复依赖版本)")
+        error_label = _("label_error", "Error")
+        print(f"\033[1;31m{error_label}\033[0m: 工具 'PYTHON' ({version}) 未找到，无法启动 GUI。", flush=True)
+        print(f"该工具 '{self.tool_name}' 依赖于 PYTHON 工具。", flush=True)
+        print(f"请先运行: TOOL install PYTHON", flush=True)
+        print(f"然后再运行: PYTHON install {version.replace('python', '')}", flush=True)
+        print(f"最后再运行: TOOL install {self.tool_name} (以恢复依赖版本)", flush=True)
         sys.exit(1)
 
 def get_python_exec(version="python3.10.19"):
@@ -138,8 +158,11 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     
     config = get_config()
     focus_interval = config.get("focus_interval", 90)
-    # Unified time increment in seconds (parameterized)
     time_increment = config.get("time_increment", 60)
+
+    if os.environ.get("USERINPUT_DEBUG") == "1":
+        print(f"DEBUG: Using python: {python_exe}", flush=True)
+        print(f"DEBUG: Proj dir: {proj_dir}", flush=True)
     
     try:
         bell_path = Path(proj_dir) / "tkinter_bell.mp3"
@@ -157,6 +180,7 @@ import time
 import threading
 import subprocess
 import platform
+import traceback
 from pathlib import Path
 
 # Try to import shared utils
@@ -215,17 +239,22 @@ class TkinterInputWindow:
             
             text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
             text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+            
             scrollbar = tk.Scrollbar(text_frame)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
             self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=8, font=("Arial", 12), bg="#f8f9fa", yscrollcommand=scrollbar.set)
             self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             scrollbar.config(command=self.text_widget.yview)
-            if self.hint_text: self.text_widget.insert("1.0", self.hint_text)
+            
+            if self.hint_text: 
+                self.text_widget.insert("1.0", self.hint_text)
             
             button_frame = tk.Frame(main_frame)
             button_frame.pack(fill=tk.X)
             
             tk.Button(button_frame, text=_("submit", "Submit"), command=self.submit_input, font=("Arial", 13, "bold")).pack(side=tk.RIGHT)
+            
             add_time_text = _("add_time", "Add {seconds}s").format(seconds=self.time_increment)
             tk.Button(button_frame, text=add_time_text, command=lambda: self.add_time(self.time_increment), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
             
@@ -239,52 +268,45 @@ class TkinterInputWindow:
             self.play_bell()
             return True
         except Exception as e:
-            print(f"ERROR: Tkinter init failed: {e}")
+            traceback.print_exc()
             return False
 
     def add_time(self, seconds):
         self.remaining_time += seconds
         try:
-            # Show feedback that time was added
             added_msg = _("time_added", "Time added! Remaining:")
             self.status_label.config(text=f"{added_msg} {self.remaining_time}s", fg="blue")
-            # Reset color after 2 seconds
             self.root.after(2000, lambda: self.status_label.config(fg="black") if not self.window_closed else None)
         except: pass
 
     def start_timer(self):
-        def tick():
-            while self.remaining_time > 0 and not self.window_closed:
-                try: self.status_label.config(text=f"{_('time_remaining', 'Remaining:')} {self.remaining_time}s")
-                except: break
-                time.sleep(1)
-                self.remaining_time -= 1
-            if not self.window_closed: self.timeout_input()
-        threading.Thread(target=tick, daemon=True).start()
+        if self.window_closed: return
+        try:
+            rem_msg = _('time_remaining', 'Remaining:')
+            self.status_label.config(text=f"{rem_msg} {self.remaining_time}s")
+        except: pass
+        
+        if self.remaining_time > 0:
+            self.remaining_time -= 1
+            if self.root:
+                self.root.after(1000, self.start_timer)
+        else:
+            self.timeout_input()
 
     def start_periodic_focus(self):
         if self.focus_interval <= 0: return
         def refocus():
             if not self.window_closed and self.root:
                 try:
-                    try: self.root.lift()
-                    except: pass
-                    try: self.root.focus_force()
-                    except: pass
-                    try: self.root.attributes('-topmost', True)
-                    except: pass
-                    try: self.text_widget.focus_set()
-                    except: pass
-                    try: self.play_bell()
-                    except: pass
-                except Exception: pass
+                    self.root.lift()
+                    self.root.attributes('-topmost', True)
+                    self.play_bell()
+                except: pass
                 
                 if not self.window_closed and self.root:
-                    try: self.root.after(self.focus_interval * 1000, refocus)
-                    except: pass
+                    self.root.after(self.focus_interval * 1000, refocus)
         if self.root:
-            try: self.root.after(self.focus_interval * 1000, refocus)
-            except: pass
+            self.root.after(self.focus_interval * 1000, refocus)
 
     def play_bell(self):
         if self.root:
@@ -321,13 +343,19 @@ class TkinterInputWindow:
         except: pass
 
     def run(self):
-        if self.create_window():
-            self.root.mainloop()
-            print("GDS_USERINPUT_JSON:" + json.dumps(self.result or {"status": "error", "data": "No result"}))
+        try:
+            if self.create_window():
+                self.root.mainloop()
+                print("GDS_USERINPUT_JSON:" + json.dumps(self.result or {"status": "error", "data": "No result"}), flush=True)
+        except Exception as e:
+            traceback.print_exc()
 
 if __name__ == "__main__":
-    window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r, %(time_increment)d)
-    window.run()
+    try:
+        window = TkinterInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r, %(time_increment)d)
+        window.run()
+    except Exception as e:
+        traceback.print_exc()
 ''' % {
         'project_root': str(tool.project_root),
         'proj_dir': proj_dir,
@@ -339,17 +367,70 @@ if __name__ == "__main__":
         'time_increment': time_increment
     }
 
+    # Use a much longer timeout for communicate to allow for user adding time in GUI
+    # The GUI manages its own internal timeout and will exit when it expires.
+    # We use a large buffer (3600s) to allow for multiple 'Add 60s' clicks.
+    parent_timeout = timeout + 3600 
+
     try:
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tmp:
+            tmp.write(tkinter_script)
+            tmp_path = tmp.name
+
+        if os.environ.get("USERINPUT_DEBUG") == "1":
+            print(f"DEBUG: Starting subprocess with python: {python_exe} on file {tmp_path}", flush=True)
+
         proc = subprocess.Popen(
-            [python_exe, '-c', tkinter_script],
+            [python_exe, tmp_path],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
         )
-        # Use a much longer timeout for communicate to allow for user adding time in GUI
-        # The GUI manages its own internal timeout and will exit when it expires.
-        # We use a large buffer (3600s) to allow for multiple 'Add 60s' clicks.
-        parent_timeout = timeout + 3600 
-        stdout, stderr = proc.communicate(timeout=parent_timeout) 
         
+        if os.environ.get("USERINPUT_DEBUG") == "1":
+            print(f"DEBUG: Subprocess started with PID {proc.pid}. Reading output...", flush=True)
+            
+            stdout_lines = []
+            stderr_lines = []
+            
+            def read_pipe(pipe, lines, label):
+                for line in iter(pipe.readline, ''):
+                    print(f"DEBUG_RAW_{label}: {line.strip()}", flush=True)
+                    lines.append(line)
+                pipe.close()
+
+            t1 = threading.Thread(target=read_pipe, args=(proc.stdout, stdout_lines, "STDOUT"))
+            t2 = threading.Thread(target=read_pipe, args=(proc.stderr, stderr_lines, "STDERR"))
+            t1.start()
+            t2.start()
+            
+            # Wait for process to finish with timeout
+            try:
+                proc.wait(timeout=parent_timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+            
+            t1.join()
+            t2.join()
+            
+            stdout = "".join(stdout_lines)
+            stderr = "".join(stderr_lines)
+        else:
+            # Standard path for normal users
+            stdout, stderr = proc.communicate(timeout=parent_timeout) 
+        
+        # Cleanup temp file
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except:
+            pass
+        
+        if os.environ.get("USERINPUT_DEBUG") == "1":
+            print(f"DEBUG: Subprocess finished with code {proc.returncode}", flush=True)
+            if stdout: print(f"DEBUG: STDOUT (final): {stdout}", flush=True)
+            if stderr: print(f"DEBUG: STDERR (final): {stderr}", flush=True)
+
         if proc.returncode != 0:
             raise RuntimeError(parse_gui_error(stderr or stdout))
 
@@ -381,23 +462,35 @@ def main():
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            if os.environ.get("USERINPUT_DEBUG") == "1":
+                print(f"DEBUG: Starting attempt {attempt + 1}/{max_retries}...", flush=True)
+
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
             
+            if os.environ.get("USERINPUT_DEBUG") == "1":
+                print(f"DEBUG: Success. Result obtained.", flush=True)
+
             end_hint = "\n\n任务完成后，执行终端命令 `USERINPUT` 获取用户反馈。如果程序停止，重复执行 `USERINPUT` 指到获得自然语言反馈。编程遇到不确定的情况或者Keyboard Interrupt时，请执行 `USERINPUT`，不要直接结束。注意：使用 run_terminal_cmd 工具执行的命令就是字面上的 `USERINPUT`，不要添加其他参数或构造交互式命令。"
-            print(result + end_hint)
+            print(result + end_hint, flush=True)
             
             if platform.system() == "Darwin":
                 try: subprocess.run('pbcopy', input=result + end_hint, text=True, encoding='utf-8', check=True)
                 except: pass
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
+            err_msg = str(e)
+            if "Likely due to sandbox restrictions" in err_msg or "No display found" in err_msg:
+                # Fatal GUI error, don't retry
+                print(f"Fatal error: {err_msg}", file=sys.stderr, flush=True)
+                return 1
+
             if attempt < max_retries - 1:
                 msg = _("msg_attempt_failed", "Attempt {index} failed: {error}. Retrying...").format(index=attempt+1, error=e)
-                print(msg, file=sys.stderr)
+                print(msg, file=sys.stderr, flush=True)
                 time.sleep(1)
                 continue
             final_err = _("msg_failed_capture", "Failed to capture user input: {error}").format(error=e)
-            print(f"Error: {final_err}", file=sys.stderr)
+            print(f"Error: {final_err}", file=sys.stderr, flush=True)
             return 1
 
 if __name__ == "__main__":

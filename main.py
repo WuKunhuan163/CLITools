@@ -468,7 +468,7 @@ def generate_ai_rule():
     lines.append("- " + _("rule_guideline_2", "**Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults."))
     lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
-    lines.append("- " + _("rule_guideline_5", "**Color Style**: Use bold colored labels at the beginning of lines for status messages (e.g., `\\033[1;31mError\\033[0m: Message`). Keep color usage minimal and bold all color codes."))
+    lines.append("- " + _("rule_guideline_5", "**Color Style**: Use bold colored labels at the beginning of lines for status messages. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` instead of hardcoding escape sequences. Keep color usage minimal and ensure all color codes are bolded."))
     lines.append("- " + _("rule_guideline_6", "**Localization**: Always use the `_()` translation helper. Non-English translations belong in `proj/translations/*.json`. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files."))
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))

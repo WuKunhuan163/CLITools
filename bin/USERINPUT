@@ -9,25 +9,31 @@ project_root = Path('/Applications/AITerminalTools')
 python_tool_dir = project_root / "tool" / "PYTHON"
 
 if not python_tool_dir.exists():
-    print(f"[1;31m错误[0m: 工具 'PYTHON' 未安装.")
+    print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' 未安装.")
     print(f"该工具 'USERINPUT' 依赖于 PYTHON 工具。")
     print(f"请先运行: TOOL install PYTHON")
     print(f"然后再运行: TOOL install USERINPUT (以恢复依赖版本)")
     sys.exit(1)
 
-sys.path.append(str(python_tool_dir))
+# Prioritize the tool's proj directory to find its specific utils.py
+# Use insert(0) to ensure it comes before any root proj in PYTHONPATH
+sys.path.insert(0, str(python_tool_dir))
 
 try:
+    # Clear any cached 'proj' modules to ensure we load from the new path
+    if 'proj.utils' in sys.modules: del sys.modules['proj.utils']
+    if 'proj' in sys.modules: del sys.modules['proj']
+    
     from proj.utils import get_python_exec
     python_exec = get_python_exec()
     if not os.path.exists(python_exec) and python_exec != "python3":
-         print(f"[1;33m警告[0m: 在 {python_exec} 未找到首选的 Python 执行文件。")
-         print(f"正在尝试通过 {tool_name} 的设置程序进行恢复...")
+         print(f"\033[1;33m警告\033[0m: 在 {python_exec} 未找到首选的 Python 执行文件。")
+         print(f"正在尝试进行恢复...")
          setup_py = project_root / "tool" / 'USERINPUT' / "setup.py"
          if setup_py.exists():
              subprocess.run([sys.executable, str(setup_py)], cwd=str(project_root))
              python_exec = get_python_exec() # Retry
-except ImportError:
+except (ImportError, AttributeError):
     python_exec = "python3"
 
 # Set up environment

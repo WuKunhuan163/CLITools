@@ -24,10 +24,20 @@ def get_safe_python_for_gui():
     # Specifically version 3.10.19 which supports tkinter
     version = "python3.10.19"
     project_root = Path(__file__).resolve().parent.parent
-    python_exec = project_root / "tool" / "PYTHON" / "proj" / "install" / version / "install" / "bin" / "python3"
     
-    if python_exec.exists():
-        return str(python_exec)
+    # Same logic as USERINPUT for flexibility
+    system_tag = "macos"
+    if sys.platform == "linux": system_tag = "linux64"
+    elif sys.platform == "win32": system_tag = "windows-amd64"
+
+    possible_dirs = [version, f"{version}-{system_tag}", f"{version}-macos", f"{version}-linux64"]
+    install_root = project_root / "tool" / "PYTHON" / "proj" / "install"
+    
+    for d in possible_dirs:
+        python_exec = install_root / d / "install" / "bin" / "python3"
+        if python_exec.exists(): return str(python_exec)
+        python_exec_win = install_root / d / "install" / "python.exe"
+        if python_exec_win.exists(): return str(python_exec_win)
     
     # Try importing from PYTHON tool utilities if available
     python_utils = project_root / "tool" / "PYTHON" / "proj" / "utils.py"
@@ -65,12 +75,6 @@ def setup_gui_environment():
         # Ensure sys.argv[0] is not empty as it's used for app name
         if not sys.argv or not sys.argv[0] or sys.argv[0] == '-c':
             sys.argv = [prog_name] + sys.argv[1:] if sys.argv else [prog_name]
-
-        # Spoofing bundle ID can sometimes help bypass display restrictions
-        if is_sandboxed():
-            # Safari is usually allowed to have windows even in tight sandboxes
-            if '__CFBundleIdentifier' not in os.environ:
-                os.environ['__CFBundleIdentifier'] = 'com.apple.Safari'
             
     # Add other platforms if needed
     pass
