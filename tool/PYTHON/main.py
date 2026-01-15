@@ -161,15 +161,19 @@ def _list_versions(supported):
         installed = [d.name for d in install_dir.iterdir() if d.is_dir()]
     
     print("Supported versions:")
+    missing = []
     for v in supported:
-        status = " (installed)" if v in installed else ""
+        # Check if any installation matches this supported version prefix
+        is_installed = any(inst.startswith(v) for inst in installed)
+        status = " (installed)" if is_installed else ""
         print(f"  - {v}{status}")
+        if not is_installed:
+            missing.append(v)
     
-    if installed:
-        print("\nInstalled but not in official supported list:")
-        for v in installed:
-            if v not in supported:
-                print(f"  - {v}")
+    if missing:
+        print(f"\nTo install a missing version: PYTHON --py-install {missing[0]}")
+    
+    print("\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'.")
 
 def _install_version(version, install_dir=None):
     """
