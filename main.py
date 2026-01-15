@@ -363,7 +363,7 @@ def update_config(key, value):
     project_root = Path(__file__).parent.absolute()
     data_dir = project_root / "data"
     data_dir.mkdir(exist_ok=True)
-    config_path = data_dir / "global_config.json"
+    config_path = data_dir / "config.json"
     
     if key == "language":
         # Validate language code
@@ -587,7 +587,7 @@ def main():
     # 1. Initialize RTL mode based on current language
     current_lang = os.environ.get("TOOL_LANGUAGE")
     if not current_lang:
-        config_path = ROOT_PROJECT_ROOT / "data" / "global_config.json"
+        config_path = ROOT_PROJECT_ROOT / "data" / "config.json"
         if config_path.exists():
             try:
                 with open(config_path, 'r') as f:
@@ -819,7 +819,7 @@ def _show_current_language():
     project_root = Path(__file__).parent.absolute()
     # 1. Get language from config
     current_lang = "en"
-    config_path = project_root / "data" / "global_config.json"
+    config_path = project_root / "data" / "config.json"
     if config_path.exists():
         try:
             with open(config_path, 'r') as f:
@@ -853,7 +853,7 @@ def _list_languages():
     
     # Global config for current language
     current_lang = "en"
-    config_path = project_root / "data" / "global_config.json"
+    config_path = project_root / "data" / "config.json"
     if config_path.exists():
         try:
             with open(config_path, 'r') as f:

@@ -15,7 +15,7 @@ def get_translation(tool_proj_dir, key, default_text):
             # language_utils.py is in proj/
             current_file = Path(__file__).resolve()
             project_root = current_file.parent.parent
-            config_path = project_root / "data" / "global_config.json"
+            config_path = project_root / "data" / "config.json"
             
             if config_path.exists():
                 with open(config_path, 'r') as f:

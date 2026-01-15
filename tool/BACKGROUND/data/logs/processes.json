@@ -1,37 +1,45 @@
 {
   "processes": {
-    "4536": {
-      "command": "sleep 20",
+    "28240": {
+      "command": "python3 -u tool/PYTHON/proj/update_resources.py --since 20251201",
       "shell": "zsh",
-      "start_time": 1768445065.998129,
-      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_104425_995.log",
-      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_104425_995.exit",
+      "start_time": 1768462288.849669,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153128_848.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153128_848.exit",
       "cwd": "/Applications/AITerminalTools",
-      "created_at": "2026-01-15T10:44:26.001858",
-      "status": "completed",
-      "return_code": 0,
-      "end_time": "2026-01-15T10:57:42.944012"
-    },
-    "13935": {
-      "command": "python3 -u tmp/batch_deploy.py",
-      "shell": "zsh",
-      "start_time": 1768459496.871825,
-      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_144456_871.log",
-      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_144456_871.exit",
-      "cwd": "/Applications/AITerminalTools",
-      "created_at": "2026-01-15T14:44:56.873350",
+      "created_at": "2026-01-15T15:31:28.853145",
       "status": "running"
     },
-    "15905": {
-      "command": "python3 -u tmp/batch_deploy.py",
+    "28392": {
+      "command": "python3 /Applications/AITerminalTools/tool/PYTHON/proj/update_resources.py --worker-deploy '{\"v_tag\": \"python3.12.12-linux64-musl\", \"info\": {\"tag\": \"20260114\", \"patch\": 12, \"version\": \"3.12.12\", \"asset\": \"cpython-3.12.12+20260114-x86_64-unknown-linux-musl-noopt+static-full.tar.zst\", \"url\": \"https://github.com/astral-sh/python-build-standalone/releases/download/20260114/cpython-3.12.12+20260114-x86_64-unknown-linux-musl-noopt+static-full.tar.zst\"}}'",
       "shell": "zsh",
-      "start_time": 1768460135.001453,
-      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_145535_000.log",
-      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_145535_000.exit",
+      "start_time": 1768462290.403905,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153130_403.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153130_403.exit",
       "cwd": "/Applications/AITerminalTools",
-      "created_at": "2026-01-15T14:55:35.003193",
+      "created_at": "2026-01-15T15:31:30.405438",
+      "status": "running"
+    },
+    "28467": {
+      "command": "python3 /Applications/AITerminalTools/tool/PYTHON/proj/update_resources.py --worker-deploy '{\"v_tag\": \"python3.14.2-linux64-musl\", \"info\": {\"tag\": \"20260114\", \"patch\": 2, \"version\": \"3.14.2\", \"asset\": \"cpython-3.14.2+20260114-x86_64-unknown-linux-musl-noopt-full.tar.zst\", \"url\": \"https://github.com/astral-sh/python-build-standalone/releases/download/20260114/cpython-3.14.2+20260114-x86_64-unknown-linux-musl-noopt-full.tar.zst\"}}'",
+      "shell": "zsh",
+      "start_time": 1768462290.601984,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153130_601.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153130_601.exit",
+      "cwd": "/Applications/AITerminalTools",
+      "created_at": "2026-01-15T15:31:30.603863",
+      "status": "running"
+    },
+    "28543": {
+      "command": "python3 /Applications/AITerminalTools/tool/PYTHON/proj/update_resources.py --worker-deploy '{\"v_tag\": \"python3.15.0-windows-arm64\", \"info\": {\"tag\": \"20260114\", \"patch\": 0, \"version\": \"3.15.0\", \"asset\": \"cpython-3.15.0a5+20260114-aarch64-pc-windows-msvc-pgo-full.tar.zst\", \"url\": \"https://github.com/astral-sh/python-build-standalone/releases/download/20260114/cpython-3.15.0a5+20260114-aarch64-pc-windows-msvc-pgo-full.tar.zst\"}}'",
+      "shell": "zsh",
+      "start_time": 1768462290.803951,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153130_803.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260115_153130_803.exit",
+      "cwd": "/Applications/AITerminalTools",
+      "created_at": "2026-01-15T15:31:30.806074",
       "status": "running"
     }
   },
-  "last_updated": "2026-01-15T14:55:35.003223"
+  "last_updated": "2026-01-15T15:31:30.806199"
 }
