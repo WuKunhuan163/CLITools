@@ -16,7 +16,7 @@ This tool provides a managed, standalone Python environment to ensure compatibil
 ## Supported Versions
 Currently deployed versions (automatically matched to your OS):
 - `python3.8.3` (Default)
-- `python3.7.7` (Updated release)
+- `python3.8.2`, `python3.7.7` (Updated release)
 - `python3.10.19`
 - `python3.7.5`, `python3.7.4`, `python3.7.3` (Available for macos, linux64, linux64-musl, windows-amd64, windows-x86)
 

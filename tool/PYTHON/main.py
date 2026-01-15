@@ -80,7 +80,10 @@ def main():
             # Expand shorthand: @3.8 -> python3.8.3, @3.7 -> python3.7.7
             v_num = arg[1:]
             if v_num == "3.8":
-                shorthand_version = "python3.8.3"
+                if (install_root / f"python3.8.3-{tag}").exists():
+                    shorthand_version = "python3.8.3"
+                else:
+                    shorthand_version = "python3.8.2"
             elif v_num == "3.7":
                 if (install_root / f"python3.7.7-{tag}").exists():
                     shorthand_version = "python3.7.7"
