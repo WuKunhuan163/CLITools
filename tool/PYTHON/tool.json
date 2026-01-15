@@ -9,7 +9,12 @@
     "python3.7.3-linux64-musl",
     "python3.7.3-macos",
     "python3.7.3-windows-amd64",
-    "python3.7.3-windows-x86"
+    "python3.7.3-windows-x86",
+    "python3.7.4-linux64",
+    "python3.7.4-linux64-musl",
+    "python3.7.4-macos",
+    "python3.7.4-windows-amd64",
+    "python3.7.4-windows-x86"
   ],
   "default_version": "python3.10.19"
 }
