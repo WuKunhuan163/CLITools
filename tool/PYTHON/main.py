@@ -106,8 +106,8 @@ def main():
 
     if args.help:
         parser.print_help()
-        print("\nShorthand: Use @3.x (e.g., @3.7) to specify version quickly.")
-        print("All other arguments will be passed to the selected Python executable.")
+        print(_("python_shorthand_hint", "\nShorthand: Use @3.x (e.g., @3.7) to specify version quickly."))
+        print(_("python_pass_args_hint", "All other arguments will be passed to the selected Python executable."))
         return
 
     if args.py_list:
@@ -171,20 +171,20 @@ def _list_versions(supported):
     if install_dir.exists():
         installed = [d.name for d in install_dir.iterdir() if d.is_dir()]
     
-    print("Supported versions:")
+    print(_("python_supported_versions", "Supported versions:"))
     missing = []
     for v in supported:
         # Check if any installation matches this supported version prefix
         is_installed = any(inst.startswith(v) for inst in installed)
-        status = " (installed)" if is_installed else ""
+        status = f" ({_('python_status_installed', 'installed')})" if is_installed else ""
         print(f"  - {v}{status}")
         if not is_installed:
             missing.append(v)
     
     if missing:
-        print(f"\nTo install a missing version: PYTHON --py-install {missing[0]}")
+        print(_("python_install_missing_hint", "\nTo install a missing version: PYTHON --py-install {version}", version=missing[0]))
     
-    print("\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'.")
+    print(_("python_set_default_hint", "\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'."))
 
 def _install_version(version, install_dir=None):
     """
@@ -194,8 +194,9 @@ def _install_version(version, install_dir=None):
     config = get_config()
     supported = config.get("supported_versions", [])
     if version not in supported:
-        print(f"{RED}" + _("python_version_not_supported", "Error: Version {version} is not supported. Supported: {supported}", 
-                         version=version, supported=", ".join(supported)) + f"{RESET}")
+        error_label = _("label_error", "Error")
+        print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_version_not_supported", "Version {version} is not supported. Supported: {supported}", 
+                         version=version, supported=", ".join(supported)))
         return False
 
     target_parent = Path(install_dir) if install_dir else script_dir / "proj" / "install"
@@ -206,50 +207,93 @@ def _install_version(version, install_dir=None):
         print(f"{YELLOW}" + _("python_already_installed", "{version} is already installed at {path}", version=version, path=target_dir) + f"{RESET}")
         return True
 
-    print(f"{BLUE}" + _("python_installing", "Installing {version} to {path}...", version=version, path=target_dir) + f"{RESET}")
+    installing_label = _("label_installing", "Installing")
+    print(f"{BLUE}{BOLD}{installing_label} {version}{RESET} " + _("python_installing", "to {path}...", version=version, path=target_dir).replace(f"正在安装 {version} ", "").replace(f"جاري تثبيت {version} ", "").replace(f"Installing {version} ", ""))
     
     try:
-        # The path in 'tool' branch is now in the 'resource' store
-        source_path = f"resource/tool/PYTHON/proj/install/{version}"
+        # The path in 'tool' branch is now a directory containing a .tar.zst and PYTHON.json
+        source_dir_rel = f"resource/tool/PYTHON/proj/install/{version}"
+        full_source_path = project_root / source_dir_rel
         
-        # Temporary directory for checkout
         import tempfile
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # We use git checkout from origin/tool
-            cmd = ["git", "checkout", "origin/tool", "--", source_path]
+        from proj.utils import extract_resource
+        
+        # 1. Check if resource already exists on disk (Local/Same branch optimization)
+        resource_ready = False
+        if full_source_path.exists() and list(full_source_path.glob("*.tar.zst")):
+            print(_("python_using_local_resource", "Using locally available resource for {version}...", version=version))
+            resource_ready = True
+        
+        # 2. If not on disk, try to fetch from git
+        if not resource_ready:
+            print(_("python_fetching_resource", "Fetching resources for {version} from git...", version=version))
+            # Try origin/tool first
+            cmd = ["git", "checkout", "origin/tool", "--", source_dir_rel]
             result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
             
             if result.returncode != 0:
                 # Try local 'tool' branch fallback
-                cmd = ["git", "checkout", "tool", "--", source_path]
+                cmd = ["git", "checkout", "tool", "--", source_dir_rel]
                 result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
-
-            if result.returncode == 0:
-                # Move from the checked out location to the target location
-                # The checkout puts it at project_root/tool/PYTHON/proj/install/<version>
-                checkout_dir = project_root / source_path
-                if checkout_dir.exists():
-                    if install_dir:
-                        # If custom dir, move it there
-                        shutil.move(str(checkout_dir), str(target_dir))
-                    else:
-                        # If default dir, move it to 'install' folder
-                        shutil.move(str(checkout_dir), str(target_dir))
-                    
-                    # Validation
-                    exe = target_dir / "install" / "bin" / "python3"
-                    if exe.exists():
-                        res = subprocess.run([str(exe), "--version"], capture_output=True, text=True)
-                        if res.returncode == 0:
-                            print(f"{GREEN}" + _("python_install_success", "Successfully installed {version} to {path}", version=version, path=target_dir) + f"{RESET}")
-                            print(f"Validation: {res.stdout.strip()}")
-                            return True
             
-            print(f"{RED}" + _("python_install_failed", "Failed to install {version}: {error}", version=version, error=result.stderr.decode()) + f"{RESET}")
-            return False
+            if result.returncode == 0 and full_source_path.exists():
+                resource_ready = True
+
+        if resource_ready:
+            # Find the .tar.zst file
+            zst_files = list(full_source_path.glob("*.tar.zst"))
+            if not zst_files:
+                # If metadata exists but zst is missing, try direct download
+                json_path = full_source_path / "PYTHON.json"
+                if json_path.exists():
+                    try:
+                        with open(json_path, "r") as f:
+                            meta = json.load(f)
+                        release = meta.get("release")
+                        asset = meta.get("asset")
+                        if release and asset:
+                            download_url = f"https://github.com/astral-sh/python-build-standalone/releases/download/{release}/{asset}"
+                            print(f"{BLUE}Resource missing locally. Downloading from GitHub...{RESET}")
+                            print(f"URL: {download_url}")
+                            zst_path = full_source_path / asset
+                            subprocess.run(["curl", "-L", download_url, "-o", str(zst_path)], check=True)
+                            zst_files = [zst_path]
+                    except Exception as e:
+                        print(f"{YELLOW}Direct download failed: {e}{RESET}")
+
+            if not zst_files:
+                error_label = _("label_error", "Error")
+                print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_exec_not_found", "No .tar.zst found in {source_dir_rel}", source_dir_rel=source_dir_rel))
+                return False
+            
+            source_zst = zst_files[0]
+            # Perform integrated extraction
+            if extract_resource(source_zst, target_dir):
+                # Success - Astral builds extract to a 'python' folder
+                inner_dir = target_dir / "python"
+                if inner_dir.exists():
+                    for item in inner_dir.iterdir():
+                        shutil.move(str(item), str(target_dir / item.name))
+                    inner_dir.rmdir()
+                
+                # Wrap in 'install' folder for utils.py consistency
+                install_wrapper = target_dir / "install"
+                install_wrapper.mkdir(exist_ok=True)
+                for item in list(target_dir.iterdir()):
+                    if item.name != "install":
+                        shutil.move(str(item), str(install_wrapper / item.name))
+
+                success_label = _("label_success", "Successfully installed")
+                print(f"{GREEN}{BOLD}{success_label} {version}{RESET} " + _("python_install_success", "to {path}", version=version, path=target_dir).replace(f"成功安装 {version} ", "").replace(f"تم تثبيت {version} بنجاح ", "").replace(f"Successfully installed {version} ", ""))
+                return True
+        
+        error_label = _("label_error", "Error")
+        print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_install_failed", "Failed to obtain resource for {version}. Check if it exists in 'tool' branch resource/ folder.", version=version, error="Resource not found"))
+        return False
             
     except Exception as e:
-        print(f"{RED}" + _("python_install_failed", "Failed to install {version}: {error}", version=version, error=str(e)) + f"{RESET}")
+        error_label = _("label_error", "Error")
+        print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_install_failed", "Failed to install {version}: {error}", version=version, error=str(e)))
         return False
 
 if __name__ == "__main__":
