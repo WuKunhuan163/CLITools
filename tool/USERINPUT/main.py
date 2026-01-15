@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v15)
+USERINPUT Tool (v16)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Supports timeout with auto-retry logic.
@@ -235,15 +235,15 @@ class TkinterInputWindow:
             main_frame = tk.Frame(self.root, padx=15, pady=15)
             main_frame.pack(fill=tk.BOTH, expand=True)
             
-            tk.Label(main_frame, text=_("instruction", "Please enter your feedback:"), font=("Arial", 11), fg="#555").pack(pady=(0, 10), anchor='w')
+            tk.Label(main_frame, text=_("instruction", "Please enter your feedback:"), font=("Arial", 10), fg="#555").pack(pady=(0, 10), anchor='w')
             
             text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
-            text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+            text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
             
             scrollbar = tk.Scrollbar(text_frame)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
             
-            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=8, font=("Arial", 12), bg="#f8f9fa", yscrollcommand=scrollbar.set)
+            self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=8, font=("Arial", 10), bg="#f8f9fa", yscrollcommand=scrollbar.set)
             self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             scrollbar.config(command=self.text_widget.yview)
             
@@ -253,12 +253,12 @@ class TkinterInputWindow:
             button_frame = tk.Frame(main_frame)
             button_frame.pack(fill=tk.X)
             
-            tk.Button(button_frame, text=_("submit", "Submit"), command=self.submit_input, font=("Arial", 13, "bold")).pack(side=tk.RIGHT)
+            tk.Button(button_frame, text=_("submit", "Submit"), command=self.submit_input, font=("Arial", 10, "bold")).pack(side=tk.RIGHT)
             
             add_time_text = _("add_time", "Add {seconds}s").format(seconds=self.time_increment)
-            tk.Button(button_frame, text=add_time_text, command=lambda: self.add_time(self.time_increment), font=("Arial", 12)).pack(side=tk.RIGHT, padx=(0, 10))
+            tk.Button(button_frame, text=add_time_text, command=lambda: self.add_time(self.time_increment), font=("Arial", 10)).pack(side=tk.RIGHT, padx=(0, 10))
             
-            self.status_label = tk.Label(button_frame, text="", font=("Arial", 12))
+            self.status_label = tk.Label(button_frame, text="", font=("Arial", 11))
             self.status_label.pack(side=tk.LEFT)
             
             self.root.protocol("WM_DELETE_WINDOW", self.cancel_input)

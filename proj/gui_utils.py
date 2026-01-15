@@ -75,6 +75,10 @@ def setup_gui_environment():
         # Ensure sys.argv[0] is not empty as it's used for app name
         if not sys.argv or not sys.argv[0] or sys.argv[0] == '-c':
             sys.argv = [prog_name] + sys.argv[1:] if sys.argv else [prog_name]
+
+        # Spoofing bundle ID can help with HiDPI scaling and display restrictions
+        if is_sandboxed() or '__CFBundleIdentifier' not in os.environ:
+            os.environ['__CFBundleIdentifier'] = 'com.apple.Safari'
             
     # Add other platforms if needed
     pass
