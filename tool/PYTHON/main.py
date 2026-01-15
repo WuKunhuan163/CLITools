@@ -5,6 +5,7 @@ import os
 import json
 import argparse
 import shutil
+import re
 from pathlib import Path
 
 # Use resolve() to get the actual location of the script
@@ -77,36 +78,26 @@ def main():
 
     for arg in raw_args:
         if arg.startswith("@3."):
-            # Expand shorthand to latest version in the branch
-            v_num = arg[1:]
-            if v_num == "3.9":
-                if (install_root / f"python3.9.2-{tag}").exists():
-                    shorthand_version = "python3.9.2"
-                else:
-                    shorthand_version = "python3.9.0"
-            elif v_num == "3.8":
-                if (install_root / f"python3.8.8-{tag}").exists():
-                    shorthand_version = "python3.8.8"
-                elif (install_root / f"python3.8.6-{tag}").exists():
-                    shorthand_version = "python3.8.6"
-                elif (install_root / f"python3.8.5-{tag}").exists():
-                    shorthand_version = "python3.8.5"
-                elif (install_root / f"python3.8.3-{tag}").exists():
-                    shorthand_version = "python3.8.3"
-                else:
-                    shorthand_version = "python3.8.2"
-            elif v_num == "3.7":
-                if (install_root / f"python3.7.9-{tag}").exists():
-                    shorthand_version = "python3.7.9"
-                elif (install_root / f"python3.7.7-{tag}").exists():
-                    shorthand_version = "python3.7.7"
-                elif (install_root / f"python3.7.4-{tag}").exists():
-                    shorthand_version = "python3.7.4"
-                else:
-                    shorthand_version = "python3.7.3"
+            # Expand shorthand to latest patch version in the branch
+            v_minor = arg[1:] # e.g. "3.8"
+            
+            # Find all matching versions in install_root
+            pattern = f"python{v_minor}."
+            
+            def version_key(v_str):
+                # Extract numbers from "python3.8.10" -> [3, 8, 10]
+                return [int(x) for x in re.findall(r"\d+", v_str)]
+
+            matching_dirs = [d.name.split("-")[0] for d in install_root.iterdir() 
+                            if d.is_dir() and d.name.startswith(pattern)]
+            
+            if matching_dirs:
+                # Sort numerically
+                matching_dirs.sort(key=version_key, reverse=True)
+                shorthand_version = matching_dirs[0]
             else:
-                # Direct match attempt for others like @3.10
-                shorthand_version = f"python{v_num}"
+                # Fallback to direct match attempt for others
+                shorthand_version = f"python{v_minor}"
         else:
             filtered_args.append(arg)
 
