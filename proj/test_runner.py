@@ -161,7 +161,7 @@ class TestRunner:
 
     def _cleanup_old_reports(self, result_dir, limit=1024, batch_size=None):
         # Allow global config to override limit
-        config_path = self.project_root / "data" / "global_config.json"
+        config_path = self.project_root / "data" / "config.json"
         if config_path.exists():
             try:
                 with open(config_path, 'r') as f:
