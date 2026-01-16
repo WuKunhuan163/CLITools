@@ -31,7 +31,7 @@ current_dir = Path(__file__).resolve().parent
 
 try:
     from proj.tool_base import ToolBase
-    from proj.gui_utils import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
+    from proj.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
     from proj.language_utils import get_translation
 except ImportError:
     # Fallback for manual execution or if PYTHONPATH is not set
@@ -212,7 +212,7 @@ if PROJECT_ROOT.exists():
 
 try:
     from proj.language_utils import get_translation
-    from proj.gui_utils import setup_gui_environment
+    from proj.gui import setup_gui_environment
 except ImportError:
     def get_translation(d, k, default): return default
     def setup_gui_environment(): pass
