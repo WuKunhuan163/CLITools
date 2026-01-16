@@ -4,13 +4,22 @@ import os
 import re
 from pathlib import Path
 
-def run_git_command(args, cwd=None, capture_output=True, text=True):
+def run_git_command(args, cwd=None, capture_output=True, text=True, silent=False):
     """Executes a git command and returns the result."""
     try:
         result = subprocess.run(["git"] + args, cwd=cwd, capture_output=capture_output, text=text)
+        if result.returncode != 0 and not silent:
+            # More friendly error message
+            err = result.stderr.strip() if result.stderr else "Unknown error"
+            if "pathspec" in err and "did not match any files" in err:
+                # Common scenario where file is already gone
+                pass 
+            else:
+                print(f"\033[1;33mGit Info\033[0m: 'git {' '.join(args)}' returned code {result.returncode}. {err}")
         return result
     except Exception as e:
-        print(f"Git command failed: git {' '.join(args)}. Error: {e}")
+        if not silent:
+            print(f"\033[1;31mGit Error\033[0m: Failed to execute 'git {' '.join(args)}'. Error: {e}")
         return None
 
 def get_remote_url(remote="origin", cwd=None):
