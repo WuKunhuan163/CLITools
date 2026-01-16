@@ -382,7 +382,7 @@ def update_config(key, value):
         if lang != "en":
             # Check if audit file or translation file exists
             audit_path = project_root / "data" / "audit" / "lang" / f"audit_{lang}.json"
-            trans_path = project_root / "proj" / "translations" / f"{lang}.json"
+            trans_path = project_root / "proj" / "translation" / f"{lang}.json"
             if not audit_path.exists() and not trans_path.exists():
                 # Suggest similar languages
                 try:

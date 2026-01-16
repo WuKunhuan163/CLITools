@@ -142,7 +142,7 @@ class LangAuditor:
             logical_path = ""
             
             if info["type"] == "root":
-                root_json_path = self.project_root / "proj" / "translations" / f"{self.lang_code}.json"
+                root_json_path = self.project_root / "proj" / "translation" / f"{self.lang_code}.json"
                 root_trans = get_translations(str(root_json_path))
                 logical_path = f"proj/translation/{self.lang_code}/{key}"
                 
@@ -150,14 +150,14 @@ class LangAuditor:
                     is_supported = True
                     trans_file = str(root_json_path.relative_to(self.project_root))
                 else:
-                    mono_json_path = self.project_root / "proj" / "translations.json"
+                    mono_json_path = self.project_root / "proj" / "translation.json"
                     mono_trans = get_translations(str(mono_json_path))
                     if self.lang_code in mono_trans and key in mono_trans[self.lang_code]:
                         is_supported = True
                         trans_file = str(mono_json_path.relative_to(self.project_root))
             else:
                 # Check tool-local translations first
-                tool_json_path = self.project_root / "tool" / info["type"] / "proj" / "translations.json"
+                tool_json_path = self.project_root / "tool" / info["type"] / "proj" / "translation.json"
                 tool_trans = get_translations(str(tool_json_path))
                 logical_path = f"tool/{info['type']}/proj/translation/{self.lang_code}/{key}"
                 
@@ -169,7 +169,7 @@ class LangAuditor:
                     trans_file = str(tool_json_path.relative_to(self.project_root))
                 else:
                     # Fallback to root for tool descriptions if missing locally
-                    root_json_path = self.project_root / "proj" / "translations" / f"{self.lang_code}.json"
+                    root_json_path = self.project_root / "proj" / "translation" / f"{self.lang_code}.json"
                     root_trans = get_translations(str(root_json_path))
                     if key in root_trans:
                         is_supported = True

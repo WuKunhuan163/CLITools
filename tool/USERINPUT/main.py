@@ -5,7 +5,7 @@ USERINPUT Tool (v16)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Supports timeout with auto-retry logic.
-- Localized via 'translations.json'.
+- Localized via 'translation.json'.
 - Powered by standalone Python environment.
 """
 
