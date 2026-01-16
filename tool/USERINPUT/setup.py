@@ -13,7 +13,7 @@ project_root = script_dir.parent.parent
 sys.path.append(str(project_root))
 
 try:
-    from proj.language_utils import get_translation
+    from proj.lang.utils import get_translation
 except ImportError:
     def get_translation(d, k, default): return default
 

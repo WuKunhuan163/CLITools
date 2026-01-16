@@ -81,7 +81,7 @@ class ToolBase:
     def get_translation(self, key, default):
         """Get tool-specific translation with fallback."""
         try:
-            from proj.language_utils import get_translation
+            from proj.lang.utils import get_translation
             return get_translation(str(self.script_dir / "proj"), key, default)
         except ImportError:
             return default

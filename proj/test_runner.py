@@ -21,7 +21,7 @@ class TestRunner:
         # Try to import shared utils
         sys.path.append(str(self.project_root))
         try:
-            from proj.language_utils import get_translation
+            from proj.lang.utils import get_translation
             from proj.config import get_color
             
             def lookup(key, default, **kwargs):

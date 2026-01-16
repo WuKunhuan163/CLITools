@@ -16,12 +16,13 @@ project_root = script_dir.parent.parent
 # Add the directory containing 'proj' to sys.path
 sys.path.append(str(script_dir))
 from proj.utils import get_python_exec
+from proj.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT
 
 # Try to import colors and shared utils from root proj
 sys.path.append(str(project_root))
 try:
     from proj.config import get_color
-    from proj.language_utils import get_translation
+    from proj.lang.utils import get_translation
     from proj.tool_base import ToolBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
@@ -39,14 +40,14 @@ except ImportError:
                     sys.exit(0)
             return False
 
-# Root shared proj for translations
+# Root shared proj for translation
 SHARED_PROJ_DIR = project_root / "proj"
 
 def _(translation_key, default, **kwargs):
-    # Try tool-specific translations first
+    # Try tool-specific translation first
     text = get_translation(str(script_dir), translation_key, None)
     if text is None:
-        # Fallback to root translations
+        # Fallback to root translation
         text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
     return text.format(**kwargs)
 
@@ -99,7 +100,7 @@ def main():
     filtered_args = []
     from proj.utils import get_system_tag
     tag = get_system_tag()
-    install_root = script_dir / "proj" / "install"
+    install_root = INSTALL_DIR
 
     for arg in raw_args:
         if arg.startswith("@3."):
@@ -174,8 +175,8 @@ def main():
     
     # If we are using a standalone python, set PYTHONHOME to avoid warnings
     # and ensure it finds its own libraries.
-    # python_exec is .../proj/install/{version}/install/bin/python3
-    if "proj/install/" in python_exec:
+    # python_exec is .../data/install/{version}/install/bin/python3
+    if "data/install/" in python_exec:
         exec_path = Path(python_exec)
         # For Unix: bin is in install/, for Windows: python.exe is in install/
         if exec_path.name == "python.exe":
@@ -208,7 +209,7 @@ def _uninstall_version(version, install_dir=None):
     """
     Uninstalls a specific Python version or all versions.
     """
-    install_root = Path(install_dir) if install_dir else script_dir / "proj" / "install"
+    install_root = Path(install_dir) if install_dir else INSTALL_DIR
     
     if version == "all":
         if install_root.exists():
@@ -232,10 +233,9 @@ def _uninstall_version(version, install_dir=None):
         print(f"{RED}{BOLD}Error{RESET}: Version {version} is not installed.")
 
 def _list_versions(supported):
-    install_dir = script_dir / "proj" / "install"
     installed = []
-    if install_dir.exists():
-        installed = [d.name for d in install_dir.iterdir() if d.is_dir()]
+    if INSTALL_DIR.exists():
+        installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
     
     print(_("python_supported_versions", "Supported versions:"))
     missing = []
@@ -265,7 +265,7 @@ def _install_version(version, install_dir=None):
                          version=version, supported=", ".join(supported)))
         return False
 
-    target_parent = Path(install_dir) if install_dir else script_dir / "proj" / "install"
+    target_parent = Path(install_dir) if install_dir else INSTALL_DIR
     target_parent.mkdir(parents=True, exist_ok=True)
     target_dir = target_parent / version
     
@@ -276,8 +276,9 @@ def _install_version(version, install_dir=None):
 
     try:
         # The path in 'tool' branch is now a directory containing a .tar.zst and PYTHON.json
-        source_dir_rel = f"resource/tool/PYTHON/proj/install/{version}"
-        full_source_path = project_root / source_dir_rel
+        # Calculate relative path to project root for resource
+        source_dir_rel = str(RESOURCE_ROOT.relative_to(project_root) / version)
+        full_source_path = RESOURCE_ROOT / version
         
         import tempfile
         from proj.utils import extract_resource

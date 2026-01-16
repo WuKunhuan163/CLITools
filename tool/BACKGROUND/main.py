@@ -17,7 +17,7 @@ sys.path.append(str(current_dir))
 # Localization setup
 # import shared utils from the shared root proj
 try:
-    from proj.language_utils import get_translation
+    from proj.lang.utils import get_translation
     from proj.utils import get_display_width, truncate_to_display_width, format_table
     from proj.config import get_color
 except ImportError:

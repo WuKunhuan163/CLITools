@@ -10,10 +10,19 @@ from pathlib import Path
 # Try to import colors and shared utils from proj
 try:
     from proj.config import get_color
-    from proj.language_utils import get_translation
+    from proj.lang.utils import get_translation
+    from proj.audit.utils import AuditManager, AuditBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default
+    class AuditManager:
+        def __init__(self, d, **kwargs): pass
+        def load(self, n): return {}
+        def save(self, n, d): pass
+        def print_cache_warning(self, **kwargs): pass
+    class AuditBase:
+        def __init__(self, am): pass
+        def handle_force(self, a): pass
 
 # Define commonly used colors with defaults
 RESET = get_color("RESET", "\033[0m")
@@ -477,7 +486,7 @@ def generate_ai_rule():
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
     lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translation.json' file."))
     lines.append("- " + _("rule_guideline_2", "**Fallback & Localization**: Always use the `_()` helper. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files. If a translation for the user's preferred language (via 'TOOL_LANGUAGE') is missing, the tool must fallback to these defaults."))
-    lines.append("- " + _("rule_guideline_3", "**Shared Utils**: Leverage `PYTHON` tool's `proj.language_utils` or the project's root `proj/` for consistent shared logic and translations."))
+    lines.append("- " + _("rule_guideline_3", "**Shared Utils**: Leverage `PYTHON` tool's `proj.language_utils` or the project's root `proj/` for consistent shared logic and translation."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Place bold status labels (e.g., Successfully, Installing) at the beginning of lines. Use **Blue Bold** for active/normal progress (including Uninstalling) and **Yellow Bold** only for warnings. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` and ensure they are always bolded."))
     
@@ -641,6 +650,7 @@ Examples:
     # Audit command
     audit_parser = subparsers.add_parser("audit-lang", help=_("audit_help", "Audit language translation coverage"))
     audit_parser.add_argument("lang_code", help=_("audit_lang_code_help", "Language code to audit (e.g., en, zh)"))
+    audit_parser.add_argument("--force", action="store_true", help=_("audit_force_help", "Force a full re-scan"))
 
     # Lang command
     lang_root_parser = subparsers.add_parser("lang", help=_("lang_help", "Manage display language"))
@@ -684,7 +694,7 @@ Examples:
     elif args.command == "test":
         _test_tool_with_args(args)
     elif args.command == "audit-lang":
-        _audit_lang(args.lang_code)
+        _audit_lang(args.lang_code, force=args.force)
     elif args.command == "lang":
         if args.lang_set_val:
             update_config("language", args.lang_set_val)
@@ -761,7 +771,7 @@ def _test_tool_with_args(args):
 
     runner.run_tests(start_id, end_id, max_concurrent, args.timeout)
 
-def _audit_lang(lang_code):
+def _audit_lang(lang_code, force=False):
     project_root = Path(__file__).parent.absolute()
     
     # 1. Map lang_code to lang_name
@@ -770,11 +780,17 @@ def _audit_lang(lang_code):
     # 2. Print initial "scanning" message with ellipsis
     sys.path.append(str(project_root))
     try:
-        from proj.lang_auditor import LangAuditor
+        from proj.lang.audit import LangAuditor
         from proj.utils import get_rate_color
     except ImportError:
         print(f"\n{RED}" + _("audit_import_error", "Error: Could not import LangAuditor.") + f"{RESET}")
         return
+
+    # Handle --force
+    if force:
+        audit_file = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
+        if audit_file.exists():
+            audit_file.unlink()
 
     auditor = LangAuditor(project_root, lang_code)
     
@@ -818,11 +834,10 @@ def _audit_lang(lang_code):
 
     # 6. Cache warning and force re-scan tip if using cache
     if _unused:
-        warning_label = f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}"
-        warning_msg = _("audit_cache_warning", "This is a cached report and may not reflect recent changes.")
-        tip = _("audit_force_tip", "To force a re-scan: rm {path} && TOOL audit-lang {lang}", path=auditor.cache_file, lang=lang_code)
-        print(f"{warning_label}: {warning_msg}")
-        print(tip)
+        audit_dir = project_root / "data" / "audit" / "lang"
+        audit_mgr = AuditManager(audit_dir, component_name="LANG_AUDIT", audit_command=f"TOOL audit-lang {lang_code}")
+        # Note: --force is handled at the beginning of audit_lang_coverage
+        audit_mgr.print_cache_warning()
 
 def _show_current_language():
     """Display the current language and its code."""
@@ -966,8 +981,8 @@ def _list_languages():
     if example_lang != "en":
         try:
             results, _unused_cached = LangAuditor(project_root, example_lang).audit()
-            if results.get("missing_translations"):
-                example_path = results["missing_translations"][0]
+            if results.get("missing_translation"):
+                example_path = results["missing_translation"][0]
             elif results.get("entries"):
                 example_path = results["entries"][0].get("logical_path", example_path)
         except Exception: pass
@@ -975,7 +990,7 @@ def _list_languages():
     # Replace <lang_code> in example path for clarity
     example_path = example_path.replace(example_lang, "<lang_code>")
     
-    print(_("lang_dev_instruction", "To support a new language: Run audit for the new language (e.g., TOOL audit-lang <lang_code>), then create translations JSONs based on each entry in the 'missing_translations' field of the detailed report JSON. For example, if you see logical path '{path}', create/edit the corresponding JSON file and add the key with its translation.", path=example_path))
+    print(_("lang_dev_instruction", "To support a new language: Run audit for the new language (e.g., TOOL audit-lang <lang_code>), then create translation JSONs based on each entry in the 'missing_translation' field of the detailed report JSON. For example, if you see logical path '{path}', create/edit the corresponding JSON file and add the key with its translation.", path=example_path))
 
 if __name__ == "__main__":
     main()
