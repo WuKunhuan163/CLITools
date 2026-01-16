@@ -14,7 +14,7 @@ def get_python_not_found_hint(tool_name, version, script_dir, _func):
         _func("err_python_not_found_hint_1", "The tool '{tool_name}' depends on the PYTHON tool.").format(tool_name=tool_name),
         _func("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"),
         _func("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=v_clean),
-        _func("err_python_not_found_hint_4", "Finally, run the tool's setup: python3 {setup_path}").format(setup_path=setup_path)
+        _func("err_python_not_found_hint_4", "Finally, run the tool's setup: {tool_name} setup").format(tool_name=tool_name)
     ]
     return hints
 

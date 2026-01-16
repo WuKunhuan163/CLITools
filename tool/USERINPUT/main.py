@@ -42,6 +42,13 @@ except ImportError:
             self.script_dir = Path(__file__).resolve().parent
         def check_dependencies(self): return True
         def setup_gui(self): pass
+        def handle_command_line(self):
+            if len(sys.argv) > 1 and sys.argv[1] == "setup":
+                setup_script = self.script_dir / "setup.py"
+                if setup_script.exists():
+                    subprocess.run([sys.executable, str(setup_script)] + sys.argv[2:])
+                    sys.exit(0)
+            return False
     def setup_gui_environment(): pass
     def get_safe_python_for_gui(): return sys.executable
     def is_sandboxed(): return False
@@ -60,8 +67,12 @@ class UserInputTool(ToolBase):
     def __init__(self):
         super().__init__("USERINPUT")
 
-    def get_python_exe(self, version="python3.11.14"):
+    def get_python_exe(self, version=None):
         """Find a working python executable for GUI."""
+        if not version:
+            config = get_config()
+            version = config.get("python_version", "python3.11.14")
+
         if os.environ.get("USERINPUT_DEBUG") == "1":
             print(f"DEBUG: Searching for python version: {version}", flush=True)
 
@@ -109,7 +120,7 @@ class UserInputTool(ToolBase):
         
         sys.exit(1)
 
-def get_python_exec(version="python3.11.14"):
+def get_python_exec(version=None):
     return UserInputTool().get_python_exe(version)
 
 def get_project_name():
@@ -465,10 +476,20 @@ if __name__ == "__main__":
 
 def main():
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
+    parser.add_argument('command', nargs='?', help="Command to run (e.g. setup)")
     parser.add_argument('--timeout', type=int, default=180)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
-    args = parser.parse_args()
+    
+    # Use ToolBase to handle 'setup' command
+    tool = UserInputTool()
+    if tool.handle_command_line():
+        return 0
+
+    args, unknown = parser.parse_known_args()
+    if args.command == "setup": # Fallback if handle_command_line didn't exit
+        tool.run_setup()
+        return 0
 
     max_retries = 3
     for attempt in range(max_retries):

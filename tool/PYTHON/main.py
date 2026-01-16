@@ -22,9 +22,22 @@ sys.path.append(str(project_root))
 try:
     from proj.config import get_color
     from proj.language_utils import get_translation
+    from proj.tool_base import ToolBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default
+    class ToolBase:
+        def __init__(self, name):
+            self.tool_name = name
+            self.script_dir = Path(__file__).resolve().parent
+            self.project_root = self.script_dir.parent.parent
+        def handle_command_line(self):
+            if len(sys.argv) > 1 and sys.argv[1] == "setup":
+                setup_script = self.script_dir / "setup.py"
+                if setup_script.exists():
+                    subprocess.run([sys.executable, str(setup_script)] + sys.argv[2:])
+                    sys.exit(0)
+            return False
 
 # Root shared proj for translations
 SHARED_PROJ_DIR = project_root / "proj"
@@ -45,6 +58,11 @@ BLUE = get_color("BLUE", RESET)
 YELLOW = get_color("YELLOW", RESET)
 RED = get_color("RED", RESET)
 
+def print_erasable(msg):
+    # \r: move to start, \033[K: clear from cursor to end
+    sys.stdout.write(f"\r\033[K{msg}")
+    sys.stdout.flush()
+
 def get_config():
     config_path = script_dir / "tool.json"
     if config_path.exists():
@@ -53,6 +71,11 @@ def get_config():
     return {}
 
 def main():
+    # Use ToolBase for common command handling (like setup)
+    tool = ToolBase("PYTHON")
+    if tool.handle_command_line():
+        return
+
     config = get_config()
     supported_versions = config.get("supported_versions", [])
     default_version = config.get("default_version", "python3.10.19")
@@ -61,6 +84,8 @@ def main():
     parser.add_argument("--py-version", help="Specify Python version to use")
     parser.add_argument("--py-list", action="store_true", help="List supported and installed versions")
     parser.add_argument("--py-install", help="Install a specific Python version")
+    parser.add_argument("--py-uninstall", help="Uninstall a specific Python version (use 'all' for all versions)")
+    parser.add_argument("--py-update", action="store_true", help="Update Python resources from GitHub releases")
     parser.add_argument("--py-dir", help="Specify installation directory")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
 
@@ -118,6 +143,20 @@ def main():
         success = _install_version(args.py_install, args.py_dir)
         sys.exit(0 if success else 1)
 
+    if args.py_uninstall:
+        _uninstall_version(args.py_uninstall, args.py_dir)
+        sys.exit(0)
+
+    if args.py_update:
+        update_script = script_dir / "proj" / "update.py"
+        if update_script.exists():
+            # Pass all unknown args to the update script
+            subprocess.run([sys.executable, str(update_script)] + unknown)
+            sys.exit(0)
+        else:
+            print(f"{RED}{BOLD}Error{RESET}: Update script not found.")
+            sys.exit(1)
+
     # Determine which python to use:
     # 1. Command line --py-version
     # 2. Shorthand @3.x
@@ -165,6 +204,33 @@ def main():
     except KeyboardInterrupt:
         sys.exit(1)
 
+def _uninstall_version(version, install_dir=None):
+    """
+    Uninstalls a specific Python version or all versions.
+    """
+    install_root = Path(install_dir) if install_dir else script_dir / "proj" / "install"
+    
+    if version == "all":
+        if install_root.exists():
+            msg = f"{BLUE}{BOLD}Uninstalling all versions{RESET}..."
+            print_erasable(msg)
+            for d in install_root.iterdir():
+                if d.is_dir():
+                    shutil.rmtree(d)
+            sys.stdout.write("\r\033[K")
+            print(f"{GREEN}{BOLD}Successfully uninstalled all versions.{RESET}")
+        return
+
+    target_dir = install_root / version
+    if target_dir.exists():
+        msg = f"{BLUE}{BOLD}Uninstalling {version}{RESET}..."
+        print_erasable(msg)
+        shutil.rmtree(target_dir)
+        sys.stdout.write("\r\033[K")
+        print(f"{GREEN}{BOLD}Successfully uninstalled {version}.{RESET}")
+    else:
+        print(f"{RED}{BOLD}Error{RESET}: Version {version} is not installed.")
+
 def _list_versions(supported):
     install_dir = script_dir / "proj" / "install"
     installed = []
@@ -204,13 +270,10 @@ def _install_version(version, install_dir=None):
     target_dir = target_parent / version
     
     if target_dir.exists():
-        already_label = _("python_already_installed", "{version} is already installed at {path}", version=version, path=target_dir)
-        print(f"{GREEN}{BOLD}{already_label}{RESET}")
+        already_label = _("python_already_installed", "{version} is already installed", version=version)
+        print(f"{GREEN}{BOLD}{already_label}{RESET} at {target_dir}")
         return True
 
-    installing_label = _("label_installing", "Installing")
-    print(f"{BLUE}{BOLD}{installing_label} {version}{RESET} " + _("python_installing", "to {path}...", version=version, path=target_dir).replace(f"正在安装 {version} ", "").replace(f"جاري تثبيت {version} ", "").replace(f"Installing {version} ", ""))
-    
     try:
         # The path in 'tool' branch is now a directory containing a .tar.zst and PYTHON.json
         source_dir_rel = f"resource/tool/PYTHON/proj/install/{version}"
@@ -222,13 +285,16 @@ def _install_version(version, install_dir=None):
         # 1. Check if resource already exists on disk (Local/Same branch optimization)
         resource_ready = False
         zst_files = []
+        
         if full_source_path.exists() and list(full_source_path.glob("*.tar.zst")):
-            print(_("python_using_local_resource", "Using locally available resource for {version}...", version=version))
+            msg = _("python_installing_local", "Installing {version} from local resource...", version=version)
+            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
             resource_ready = True
         
         # 2. If not on disk, try to fetch from git
         if not resource_ready:
-            print(_("python_fetching_resource", "Fetching resources for {version} from git...", version=version))
+            msg = _("python_fetching_resource", "Fetching resources for {version} from git...", version=version)
+            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
             # Fetch first to ensure origin/tool is up to date
             subprocess.run(["git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
             
@@ -258,18 +324,21 @@ def _install_version(version, install_dir=None):
                         asset = meta.get("asset")
                         if release and asset:
                             download_url = f"https://github.com/astral-sh/python-build-standalone/releases/download/{release}/{asset}"
-                            print(f"{BLUE}Resource metadata found. Downloading from GitHub...{RESET}")
-                            print(f"URL: {download_url}")
+                            msg = _("python_installing_remote", "Installing {version} from GitHub...", version=version)
+                            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+                            
                             full_source_path.mkdir(parents=True, exist_ok=True)
                             zst_path = full_source_path / asset
-                            subprocess.run(["curl", "-L", download_url, "-o", str(zst_path)], check=True)
+                            subprocess.run(["curl", "-L", download_url, "-o", str(zst_path)], capture_output=True, check=True)
                             zst_files = [zst_path]
-                    except Exception as e:
-                        print(f"{YELLOW}Direct download failed: {e}{RESET}")
+                    except Exception:
+                        pass
 
         # 3. If still not ready, try calling install.py to fetch/install directly
         if not zst_files:
-            print(f"{BLUE}Resource not found in project. Attempting to fetch from GitHub releases...{RESET}")
+            msg = _("python_installing_remote", "Installing {version} from GitHub...", version=version)
+            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+            
             install_script = script_dir / "proj" / "install.py"
             if install_script.exists():
                 # Extract version and platform from the version tag (e.g. python3.10.19-macos-arm64)
@@ -278,21 +347,30 @@ def _install_version(version, install_dir=None):
                     v_num = v_match.group(1)
                     v_plat = v_match.group(2)
                     cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
-                    print(f"Running: {' '.join(cmd)}")
-                    subprocess.run(cmd)
+                    subprocess.run(cmd, capture_output=True)
                     
                     # Check if it was installed by the script
                     if (target_parent / version).exists():
+                        # Clear line and print final success
+                        sys.stdout.write("\r\033[K")
+                        success_msg = _("python_install_success", "Successfully installed {version}", version=version)
+                        print(f"{GREEN}{BOLD}{success_msg}{RESET}")
                         return True
 
         if not zst_files:
+            sys.stdout.write("\r\033[K")
             error_label = _("label_error", "Error")
             print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_install_failed", "Failed to obtain resource for {version}.", version=version))
             return False
             
         source_zst = zst_files[0]
+        
+        # Erasable extraction message
+        msg = _("python_extracting_v", "Extracting {version}...", version=version)
+        print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+        
         # Perform integrated extraction
-        if extract_resource(source_zst, target_dir):
+        if extract_resource(source_zst, target_dir, silent=True):
             # Success - Astral builds extract to a 'python' folder
             inner_dir = target_dir / "python"
             if inner_dir.exists():
@@ -307,10 +385,13 @@ def _install_version(version, install_dir=None):
                 if item.name != "install":
                     shutil.move(str(item), str(install_wrapper / item.name))
 
-            success_label = _("label_success", "Successfully installed")
-            print(f"{GREEN}{BOLD}{success_label} {version}{RESET} " + _("python_install_success", "to {path}", version=version, path=target_dir).replace(f"成功安装 {version} ", "").replace(f"تم تثبيت {version} بنجاح ", "").replace(f"Successfully installed {version} ", ""))
+            # Clear line and print final success
+            sys.stdout.write("\r\033[K")
+            success_msg = _("python_install_success", "Successfully installed {version}", version=version)
+            print(f"{GREEN}{BOLD}{success_msg}{RESET}")
             return True
         
+        sys.stdout.write("\r\033[K")
         return False
             
     except Exception as e:

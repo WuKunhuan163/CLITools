@@ -55,6 +55,29 @@ class ToolBase:
         cmd = [str(bin_path)] + args
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
+    def handle_command_line(self):
+        """
+        Process command line arguments. 
+        If 'setup' is the first argument, run the tool's setup.py.
+        Returns True if a command was handled and the tool should exit.
+        """
+        if len(sys.argv) > 1 and sys.argv[1] == "setup":
+            self.run_setup()
+            return True
+        return False
+
+    def run_setup(self):
+        """Execute the tool's setup.py script."""
+        setup_script = self.script_dir / "setup.py"
+        if not setup_script.exists():
+            print(f"\033[1;31m错误\033[0m: 工具 '{self.tool_name}' 没有 setup.py 脚本。")
+            sys.exit(1)
+        
+        print(f"--- 正在执行 {self.tool_name} 的安装脚本 ---", flush=True)
+        # Use current python to run setup.py
+        result = subprocess.run([sys.executable, str(setup_script)] + sys.argv[2:])
+        sys.exit(result.returncode)
+
     def get_translation(self, key, default):
         """Get tool-specific translation with fallback."""
         try:

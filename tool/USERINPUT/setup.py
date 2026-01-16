@@ -21,8 +21,17 @@ def _(key, default):
     return get_translation(str(script_dir / "proj"), key, default)
 
 def main():
+    # Load config to get default python version
+    config_path = script_dir / "proj" / "config.json"
+    default_version = "python3.11.14"
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                default_version = json.load(f).get("python_version", default_version)
+        except Exception: pass
+
     parser = argparse.ArgumentParser(description="USERINPUT Setup Tool")
-    parser.add_argument("--version", default="python3.11.14", help="Python version to install")
+    parser.add_argument("--version", default=default_version, help="Python version to install")
     args = parser.parse_args()
 
     python_bin = project_root / "bin" / "PYTHON"
