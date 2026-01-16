@@ -64,14 +64,16 @@ def install_tool(tool_name):
                         missing_dep = True
                         break
         
-        if not missing_dep:
-            print(f"{BOLD}{GREEN}" + _("install_success_label", "Success") + f"{RESET}: " + _("already_installed", "{name} is already installed.", name=tool_name))
-            return
-        else:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_reinstall", "Tool '{name}' is installed but missing dependencies. Re-installing...", name=tool_name))
+    if not missing_dep:
+        success_label = _("install_success_label", "Success")
+        print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("already_installed", "{name} is already installed.", name=tool_name))
+        return
+    else:
+        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_reinstall", "Tool '{name}' is installed but missing dependencies. Re-installing...", name=tool_name))
 
     # Add a blank line between tools for better readability
-    print(_("install_header", "\n--- Installing {name} tool ---", name=tool_name))
+    install_header = _("install_header", "\n--- Installing {name} tool ---", name=tool_name)
+    print(f"{BLUE}{BOLD}{install_header}{RESET}")
     
     # 0. Validate against global tool.json
     registry_path = project_root / "tool.json"
@@ -109,13 +111,13 @@ def install_tool(tool_name):
             if result.returncode == 0:
                 branch_info = "origin/tool"
                 url_info = f": {remote_url}" if remote_url else ""
-                msg = _("retrieved_success_remote_only", "Successfully retrieved {name} tool", name=tool_name)
-                print(f"{BOLD}{BLUE}{msg}{RESET}: " + _("retrieved_from", "remote '{branch}' branch{url}", branch=branch_info, url=url_info))
+                success_msg = _("retrieved_success_remote_only", "Successfully retrieved {name} tool", name=tool_name)
+                print(f"{BOLD}{GREEN}{success_msg}{RESET}: " + _("retrieved_from", "remote '{branch}' branch{url}", branch=branch_info, url=url_info))
             else:
                 # If remote fails, try local tool branch
                 subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
-                msg = _("retrieved_success_local_only", "Successfully retrieved {name} tool", name=tool_name)
-                print(f"{BOLD}{BLUE}{msg}{RESET}: " + _("retrieved_from", "local '{branch}' branch", branch="tool"))
+                success_msg = _("retrieved_success_local_only", "Successfully retrieved {name} tool", name=tool_name)
+                print(f"{BOLD}{GREEN}{success_msg}{RESET}: " + _("retrieved_from", "local '{branch}' branch", branch="tool"))
         except subprocess.CalledProcessError as e:
             # Fallback for old branch structure or if tool is in root
             try:
@@ -123,20 +125,20 @@ def install_tool(tool_name):
                 if result.returncode == 0:
                     # Move from root to tool/
                     shutil.move(str(project_root / tool_name), str(tool_dir))
-                    msg = _("retrieved_success_root_only", "Successfully retrieved {name} tool", name=tool_name)
-                    print(f"{BOLD}{BLUE}{msg}{RESET}: " + _("moved_to_tool", "from 'tool' branch (root) and moved to tool/ folder."))
+                    success_msg = _("retrieved_success_root_only", "Successfully retrieved {name} tool", name=tool_name)
+                    print(f"{BOLD}{GREEN}{success_msg}{RESET}: " + _("moved_to_tool", "from 'tool' branch (root) and moved to tool/ folder."))
                 else:
-                    msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-                    print(f"{BOLD}{RED}{msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e))
+                    fail_msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
+                    print(f"{BOLD}{RED}{fail_msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e))
                     return
             except Exception as e2:
-                msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-                print(f"{BOLD}{RED}{msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e2))
+                fail_msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
+                print(f"{BOLD}{RED}{fail_msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e2))
                 return
 
     if not tool_dir.exists():
-        msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-        print(f"{BOLD}{RED}{msg}{RESET}: " + _("tool_dir_not_found", "Error: Tool directory still not found after download attempt."))
+        fail_msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
+        print(f"{BOLD}{RED}{fail_msg}{RESET}: " + _("tool_dir_not_found", "Error: Tool directory still not found after download attempt."))
         return
 
     # 2. Parse tool.json for dependencies
@@ -150,7 +152,8 @@ def install_tool(tool_name):
                 dep_dir = tool_parent_dir / dep
                 dep_link = bin_dir / dep
                 if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
-                    print(_("installing_dep", "Installing dependency for {name} tool: {dep} tool", name=tool_name, dep=dep))
+                    dep_msg = _("installing_dep", "Installing dependency for {name} tool: {dep} tool", name=tool_name, dep=dep)
+                    print(f"{BLUE}{BOLD}{dep_msg}{RESET}")
                     install_tool(dep)
 
     # 2.1 Handle pip dependencies if proj/requirements.txt exists
@@ -163,7 +166,8 @@ def install_tool(tool_name):
             # Use the installed PYTHON tool to get the python executable
             python_tool_dir = project_root / "tool" / "PYTHON"
             if not python_tool_dir.exists():
-                print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("python_not_found", "PYTHON tool not found. Skipping pip dependencies."))
+                warning_label = _("warning_label", "Warning")
+                print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("python_not_found", "PYTHON tool not found. Skipping pip dependencies."))
             else:
                 # Import get_python_exec from tool/PYTHON/proj/utils.py
                 python_utils_path = python_tool_dir / "proj" / "utils.py"
@@ -183,14 +187,18 @@ def install_tool(tool_name):
                     
                     if result.returncode != 0:
                         if "PermissionError" in result.stderr or "Operation not permitted" in result.stderr:
-                            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("pip_warning_permissions", "Warning: pip install failed due to permissions."))
+                            warning_label = _("warning_label", "Warning")
+                            print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("pip_warning_permissions", "Warning: pip install failed due to permissions."))
                             print(_("pip_warning_retry", "Please try running with 'all' permissions."))
                         else:
-                            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("pip_error", "Warning: pip install failed with error:\n{error}", error=result.stderr))
+                            error_label = _("error_label", "Error")
+                            print(f"{BOLD}{RED}{error_label}{RESET}: " + _("pip_error", "Warning: pip install failed with error:\n{error}", error=result.stderr))
                     else:
-                        print(f"{BOLD}{GREEN}" + _("pip_success_label", "Success") + f"{RESET}: " + _("pip_success", "Successfully installed pip dependencies for {name} tool.", name=tool_name))
+                        success_label = _("pip_success_label", "Success")
+                        print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("pip_success", "Successfully installed pip dependencies for {name} tool.", name=tool_name))
         except Exception as e:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("pip_failed", "Failed to install pip dependencies for {name} tool: {error}", name=tool_name, error=e))
+            warning_label = _("warning_label", "Warning")
+            print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("pip_failed", "Failed to install pip dependencies for {name} tool: {error}", name=tool_name, error=e))
 
     main_py = tool_dir / "main.py"
     if not main_py.exists():
@@ -271,7 +279,8 @@ if __name__ == "__main__":
             # Traditional symlink
             os.symlink(main_py, link_path)
         
-        print(f"{BOLD}{GREEN}" + _("install_success_label", "Success") + f"{RESET}: " + _("install_success", "Successfully installed {name} tool", name=tool_name) + _("shortcut_created", ": shortcut created at {path}", path=link_path))
+        success_label = _("install_success_label", "Success")
+        print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("install_success", "Successfully installed {name} tool", name=tool_name) + _("shortcut_created", ": shortcut created at {path}", path=link_path))
         
         # 5. Handle PATH registration
         register_path(bin_dir)
@@ -309,7 +318,8 @@ def uninstall_tool(tool_name, force_yes=False):
             print(_("non_interactive_skip", "Non-interactive session, skipping confirmation. Use -y to force."))
             return
 
-    print(_("uninstalling_header", "Uninstalling {name} tool...", name=tool_name))
+    un_msg = _("uninstalling_header", "Uninstalling {name} tool...", name=tool_name)
+    print(f"{BLUE}{BOLD}{un_msg}{RESET}")
     
     # 1. Remove from bin
     if link_path.exists() or link_path.is_symlink():
@@ -326,7 +336,8 @@ def uninstall_tool(tool_name, force_yes=False):
     except Exception as e:
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("remove_tool_dir_failed", "Failed to remove tool directory: {error}", error=e))
 
-    print(f"{BOLD}{GREEN}" + _("uninstall_success", "Successfully uninstalled {name} tool.", name=tool_name) + f"{RESET}")
+    success_label = _("install_success_label", "Success")
+    print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("uninstall_success", "Successfully uninstalled {name} tool.", name=tool_name))
 
 def register_path(bin_dir):
     """Add bin_dir to shell profile if not already present."""
@@ -465,11 +476,10 @@ def generate_ai_rule():
         
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
     lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translations.json' file."))
-    lines.append("- " + _("rule_guideline_2", "**Fallback Mechanism**: Tools must have hardcoded English defaults. If a translation for the user's preferred language (provided via the 'TOOL_LANGUAGE' environment variable) is missing, the tool should fallback to these defaults."))
-    lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage 'PYTHON' tool's 'proj.language_utils' for consistent translation lookups."))
+    lines.append("- " + _("rule_guideline_2", "**Fallback & Localization**: Always use the `_()` helper. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files. If a translation for the user's preferred language (via 'TOOL_LANGUAGE') is missing, the tool must fallback to these defaults."))
+    lines.append("- " + _("rule_guideline_3", "**Shared Utils**: Leverage `PYTHON` tool's `proj.language_utils` or the project's root `proj/` for consistent shared logic and translations."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
-    lines.append("- " + _("rule_guideline_5", "**Color Style**: Use bold colored labels at the beginning of lines for status messages. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` instead of hardcoding escape sequences. Keep color usage minimal and ensure all color codes are bolded."))
-    lines.append("- " + _("rule_guideline_6", "**Localization**: Always use the `_()` translation helper. Non-English translations belong in `proj/translations/*.json`. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files."))
+    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Place bold status labels (e.g., Successfully, Installing) at the beginning of lines. Use **Blue Bold** for active/normal progress (including Uninstalling) and **Yellow Bold** only for warnings. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` and ensure they are always bolded."))
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
     lines.append("--------------------------")
