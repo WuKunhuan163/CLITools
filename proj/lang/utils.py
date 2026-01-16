@@ -4,7 +4,7 @@ from pathlib import Path
 
 def get_translation(tool_proj_dir, key, default_text):
     """
-    Looks up a translation for a given key in translations.json, 
+    Looks up a translation for a given key in translation.json, 
     or in a translations directory structure.
     """
     # 1. Try to get preferred language from global config or env
@@ -34,8 +34,8 @@ def get_translation(tool_proj_dir, key, default_text):
     
     tool_proj_path = Path(tool_proj_dir)
     
-    # 2. Try the monolithic translations.json (legacy/standard)
-    translations_path = tool_proj_path / "translations.json"
+    # 2. Try the monolithic translation.json (legacy/standard)
+    translations_path = tool_proj_path / "translation.json"
     if translations_path.exists():
         try:
             with open(translations_path, 'r', encoding='utf-8') as f:
@@ -47,7 +47,7 @@ def get_translation(tool_proj_dir, key, default_text):
             pass
 
     # 3. Try the directory-based translations
-    translations_dir = tool_proj_path / "translations"
+    translations_dir = tool_proj_path / "translation"
     if translations_dir.exists():
         # 3a. Try <lang>.json in translations/ directory
         lang_json_path = translations_dir / f"{lang}.json"
