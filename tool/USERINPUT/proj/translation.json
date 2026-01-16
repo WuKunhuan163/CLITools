@@ -43,7 +43,9 @@
     "err_python_not_found_hint_1": "工具 '{tool_name}' 依赖于 PYTHON 工具。",
     "err_python_not_found_hint_2": "请运行: TOOL install PYTHON",
     "err_python_not_found_hint_3": "然后运行: PYTHON --py-install {version}",
-    "err_python_not_found_hint_4": "最后，运行该工具的 setup: python3 {setup_path}"
+    "err_python_not_found_hint_4": "最后，运行该工具的 setup: python3 {setup_path}",
+    "err_no_display": "错误: 未找到显示。GUI 需要桌面环境。",
+    "err_sandbox": "错误: 无法在没有 'all' 权限的沙盒中运行 GUI。"
   },
   "ar": {
     "instruction": "يرجى إدخال ملاحظاتك في المربع:",
@@ -66,6 +68,8 @@
     "err_python_not_found_hint_1": "الأداة '{tool_name}' تعتمد على أداة PYTHON.",
     "err_python_not_found_hint_2": "يرجى التشغيل: TOOL install PYTHON",
     "err_python_not_found_hint_3": "ثم التشغيل: PYTHON --py-install {version}",
-    "err_python_not_found_hint_4": "أخيرًا، قم بتشغيل إعداد الأداة: python3 {setup_path}"
+    "err_python_not_found_hint_4": "أخيرًا، قم بتشغيل إعداد الأداة: python3 {setup_path}",
+    "err_no_display": "خطأ: لم يتم العثور على شاشة عرض. واجهة المستخدم الرسومية تتطلب بيئة سطح مكتب.",
+    "err_sandbox": "خطأ: لا يمكن تشغيل واجهة المستخدم الرسومية في وضع الحماية بدون أذونات 'all'."
   }
 }

@@ -56,7 +56,7 @@ class LangAuditor:
         return sorted(langs)
 
     def _perform_scan(self):
-        """Scan project for keys and check translations."""
+        """Scan project for keys and check translation."""
         all_keys = {} # key -> {count: int, sources: [path], type: root|tool_name}
         
         for py_file in self.project_root.rglob("*.py"):
@@ -116,22 +116,22 @@ class LangAuditor:
             except Exception:
                 pass
 
-        translations_cache = {}
+        translation_cache = {}
         
-        def get_translations(path):
-            if path in translations_cache:
-                return translations_cache[path]
+        def get_translation_data(path):
+            if path in translation_cache:
+                return translation_cache[path]
             data = {}
             if os.path.exists(path):
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                 except Exception: pass
-            translations_cache[path] = data
+            translation_cache[path] = data
             return data
 
         audit_entries = []
-        missing_translations = []
+        missing_translation = []
         supported_keys = 0
         total_references = 0
         supported_references = 0
@@ -143,7 +143,7 @@ class LangAuditor:
             
             if info["type"] == "root":
                 root_json_path = self.project_root / "proj" / "translation" / f"{self.lang_code}.json"
-                root_trans = get_translations(str(root_json_path))
+                root_trans = get_translation_data(str(root_json_path))
                 logical_path = f"proj/translation/{self.lang_code}/{key}"
                 
                 if key in root_trans:
@@ -151,14 +151,14 @@ class LangAuditor:
                     trans_file = str(root_json_path.relative_to(self.project_root))
                 else:
                     mono_json_path = self.project_root / "proj" / "translation.json"
-                    mono_trans = get_translations(str(mono_json_path))
+                    mono_trans = get_translation_data(str(mono_json_path))
                     if self.lang_code in mono_trans and key in mono_trans[self.lang_code]:
                         is_supported = True
                         trans_file = str(mono_json_path.relative_to(self.project_root))
             else:
-                # Check tool-local translations first
+                # Check tool-local translation first
                 tool_json_path = self.project_root / "tool" / info["type"] / "proj" / "translation.json"
-                tool_trans = get_translations(str(tool_json_path))
+                tool_trans = get_translation_data(str(tool_json_path))
                 logical_path = f"tool/{info['type']}/proj/translation/{self.lang_code}/{key}"
                 
                 if self.lang_code in tool_trans and key in tool_trans[self.lang_code]:
@@ -170,13 +170,13 @@ class LangAuditor:
                 else:
                     # Fallback to root for tool descriptions if missing locally
                     root_json_path = self.project_root / "proj" / "translation" / f"{self.lang_code}.json"
-                    root_trans = get_translations(str(root_json_path))
+                    root_trans = get_translation_data(str(root_json_path))
                     if key in root_trans:
                         is_supported = True
                         trans_file = str(root_json_path.relative_to(self.project_root))
 
             if not is_supported:
-                missing_translations.append(logical_path)
+                missing_translation.append(logical_path)
 
             audit_entries.append({
                 "key": key,
@@ -208,6 +208,6 @@ class LangAuditor:
         
         return {
             "summary": summary,
-            "missing_translations": sorted(missing_translations),
+            "missing_translation": sorted(missing_translation),
             "entries": audit_entries
         }

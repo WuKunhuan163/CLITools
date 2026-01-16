@@ -31,7 +31,7 @@ def get_safe_python_for_gui():
     elif sys.platform == "win32": system_tag = "windows-amd64"
 
     possible_dirs = [version, f"{version}-{system_tag}", f"{version}-macos", f"{version}-linux64"]
-    install_root = project_root / "tool" / "PYTHON" / "proj" / "install"
+    install_root = project_root / "tool" / "PYTHON" / "data" / "install"
     
     for d in possible_dirs:
         python_exec = install_root / d / "install" / "bin" / "python3"

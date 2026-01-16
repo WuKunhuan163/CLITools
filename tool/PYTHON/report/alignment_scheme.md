@@ -4,11 +4,11 @@ This document outlines the architecture and alignment strategy for the PYTHON pr
 
 ## 1. Resource Architecture (Download Separation)
 To keep the tool branches clean and ensure efficient deployment, we use a separated resource store:
-- **Resource Store**: `resource/tool/PYTHON/proj/install/`
-  - Contains full standalone Python builds (ZST/TAR) and their metadata.
-  - Tracked in the `tool` branch.
-- **Local Installation**: `tool/PYTHON/proj/install/`
-  - Contains actual extracted Python environments.
+    - **Resource Store**: `resource/tool/PYTHON/data/install/`
+      - Contains full standalone Python builds (ZST/TAR) and their metadata.
+      - Tracked in the `tool` branch.
+    - **Local Installation**: `tool/PYTHON/data/install/`
+      - Contains actual extracted Python environments.
   - Ignored by `.gitignore`.
   - Populated on-demand via `PYTHON --py-install <version>`.
 

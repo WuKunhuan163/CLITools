@@ -32,7 +32,7 @@ current_dir = Path(__file__).resolve().parent
 try:
     from proj.tool_base import ToolBase
     from proj.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
-    from proj.language_utils import get_translation
+    from proj.lang.utils import get_translation
 except ImportError:
     # Fallback for manual execution or if PYTHONPATH is not set
     class ToolBase:
@@ -98,7 +98,7 @@ class UserInputTool(ToolBase):
             f"{version}-linux64-musl",
         ]
 
-        install_root = self.project_root / "tool" / "PYTHON" / "proj" / "install"
+        install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
         for d in possible_dirs:
             # Unix path
             python_exec = install_root / d / "install" / "bin" / "python3"
@@ -211,7 +211,7 @@ if PROJECT_ROOT.exists():
     sys.path.append(str(PROJECT_ROOT))
 
 try:
-    from proj.language_utils import get_translation
+    from proj.lang.utils import get_translation
     from proj.gui import setup_gui_environment
 except ImportError:
     def get_translation(d, k, default): return default

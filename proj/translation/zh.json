@@ -144,7 +144,7 @@
   "lang_table_footer_keys": "词条: 代码中发现的唯一翻译字符串总数.",
   "lang_table_footer_refs": "引用: 翻译字符串在代码中被使用的总次数.",
   "lang_audit_instruction": "审计特定语言的覆盖率: TOOL audit-lang <lang_code>",
-  "lang_dev_instruction": "开发新语言: 为新语言运行审计 (例如 TOOL audit-lang <lang_code>), 然后根据详细报告 JSON 中的 'missing_translations' 字段里的每一条逻辑路径创建翻译. 例如, 如果看到逻辑路径 '{path}', 请在相应 JSON 文件中添加该键及其翻译. 可以参考现有语言的 JSON 文件格式.",
+  "lang_dev_instruction": "开发新语言: 为新语言运行审计 (例如 TOOL audit-lang <lang_code>), 然后根据详细报告 JSON 中的 'missing_translation' 字段里的每一条逻辑路径创建翻译. 例如, 如果看到逻辑路径 '{path}', 请在相应 JSON 文件中添加该键及其翻译. 可以参考现有语言的 JSON 文件格式.",
   "lang_name_zh": "中文",
   "lang_name_en": "English",
   "lang_name_ar": "العربية",
@@ -158,6 +158,7 @@
   "full_report_saved": "显示内容被裁切, 完整报表已保存至: {path}",
   "sync_starting_label": "正在启动同步",
   "sync_to_main": "正在同步核心文件到 'main' 分支...",
+  "sync_to_main_label": "正在同步",
   "sync_no_changes_label": "核心文件无变动",
   "sync_re-sync_test": "正在从 'main' 重新同步 'test' 分支...",
   "sync_complete_label": "同步完成",
@@ -174,5 +175,10 @@
   "missing_deps_reinstall": "工具 '{name}' 已安装但缺少依赖。正在重新安装...",
   "already_installed": "{name} 工具已经安装。",
   "remove_shortcut_failed": "删除快捷方式失败: {error}",
-  "remove_tool_dir_failed": "删除工具目录失败: {error}"
+  "remove_tool_dir_failed": "删除工具目录失败: {error}",
+  "audit_force_help": "强制刷新缓存",
+  "test_list_header": "可用测试:",
+  "uninstall_help": "卸载工具",
+  "uninstall_tool_name_help": "要卸载的工具名称",
+  "uninstall_yes_help": "不提示确认"
 }
