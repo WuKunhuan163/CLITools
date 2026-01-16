@@ -144,7 +144,7 @@ class LangAuditor:
             if info["type"] == "root":
                 root_json_path = self.project_root / "proj" / "translations" / f"{self.lang_code}.json"
                 root_trans = get_translations(str(root_json_path))
-                logical_path = f"proj/translations/{self.lang_code}/{key}"
+                logical_path = f"proj/translation/{self.lang_code}/{key}"
                 
                 if key in root_trans:
                     is_supported = True
@@ -159,7 +159,7 @@ class LangAuditor:
                 # Check tool-local translations first
                 tool_json_path = self.project_root / "tool" / info["type"] / "proj" / "translations.json"
                 tool_trans = get_translations(str(tool_json_path))
-                logical_path = f"tool/{info['type']}/proj/translations/{self.lang_code}/{key}"
+                logical_path = f"tool/{info['type']}/proj/translation/{self.lang_code}/{key}"
                 
                 if self.lang_code in tool_trans and key in tool_trans[self.lang_code]:
                     is_supported = True

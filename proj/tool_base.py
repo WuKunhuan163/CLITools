@@ -89,7 +89,7 @@ class ToolBase:
     def setup_gui(self):
         """Centralized GUI environment setup."""
         try:
-            from proj.gui_utils import setup_gui_environment
+            from proj.gui import setup_gui_environment
             setup_gui_environment()
         except ImportError:
             pass

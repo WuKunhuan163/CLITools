@@ -368,3 +368,53 @@ def get_close_matches(word, possibilities, n=3, cutoff=0.6):
     Returns a list of the best "good enough" matches.
     """
     return difflib.get_close_matches(word, possibilities, n=n, cutoff=cutoff)
+
+class AuditManager:
+    """
+    Manages audit/cache files for various components.
+    Unified logic for caching and warning users.
+    """
+    def __init__(self, audit_dir, component_name=None):
+        self.audit_dir = Path(audit_dir)
+        self.audit_dir.mkdir(parents=True, exist_ok=True)
+        self.component_name = component_name
+
+    def get_path(self, name):
+        if not name.endswith(".json"):
+            name = f"{name}.json"
+        return self.audit_dir / name
+
+    def load(self, name):
+        path = self.get_path(name)
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def save(self, name, data):
+        path = self.get_path(name)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception:
+            return False
+
+    def print_cache_warning(self):
+        """Prints a standardized warning when cache is used."""
+        BOLD = "\033[1m"
+        YELLOW = "\033[33m"
+        RESET = "\033[0m"
+        
+        # We try to use translations if available via the component's _()
+        warning_label = f"{BOLD}{YELLOW}Warning{RESET}"
+        msg = "Using cached data. To force refresh, clear the audit/cache directory."
+        
+        # If we are in a tool context, we might have access to its translations
+        # For now, print a generic but correctly formatted message
+        print(f"{warning_label}: {msg}")
+        if self.component_name:
+            print(f"  Cache location: {self.audit_dir}")

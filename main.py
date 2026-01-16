@@ -475,7 +475,7 @@ def generate_ai_rule():
         lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
-    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translations.json' file."))
+    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translation.json' file."))
     lines.append("- " + _("rule_guideline_2", "**Fallback & Localization**: Always use the `_()` helper. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files. If a translation for the user's preferred language (via 'TOOL_LANGUAGE') is missing, the tool must fallback to these defaults."))
     lines.append("- " + _("rule_guideline_3", "**Shared Utils**: Leverage `PYTHON` tool's `proj.language_utils` or the project's root `proj/` for consistent shared logic and translations."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
@@ -962,7 +962,7 @@ def _list_languages():
     
     # Dynamic dev instruction with example
     example_lang = "zh" if "zh" in audited_langs else (audited_langs[0] if audited_langs else "en")
-    example_path = f"proj/translations/<lang_code>/already_installed"
+    example_path = f"proj/translation/<lang_code>/already_installed"
     if example_lang != "en":
         try:
             results, _unused_cached = LangAuditor(project_root, example_lang).audit()
