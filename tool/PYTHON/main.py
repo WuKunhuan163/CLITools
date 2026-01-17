@@ -13,10 +13,10 @@ script_dir = Path(__file__).resolve().parent
 # project_root is two levels up: tool/PYTHON -> tool -> root
 project_root = script_dir.parent.parent
 
-# Add the directory containing 'proj' to sys.path
+# Add the directory containing 'core' to sys.path
 sys.path.append(str(script_dir))
-from proj.utils import get_python_exec
-from proj.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT
+from core.utils import get_python_exec, extract_resource
+from core.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
 # Try to import colors and shared utils from root proj
 sys.path.append(str(project_root))
@@ -45,7 +45,7 @@ SHARED_PROJ_DIR = project_root / "proj"
 
 def _(translation_key, default, **kwargs):
     # Try tool-specific translation first
-    text = get_translation(str(script_dir), translation_key, None)
+    text = get_translation(str(script_dir / "core"), translation_key, None)
     if text is None:
         # Fallback to root translation
         text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
@@ -98,7 +98,7 @@ def main():
     # Simple manual check for @3.x shorthand to allow it to be at any position 
     # but usually it's the first one.
     filtered_args = []
-    from proj.utils import get_system_tag
+    from core.utils import get_system_tag
     tag = get_system_tag()
     install_root = INSTALL_DIR
 
@@ -149,7 +149,7 @@ def main():
         sys.exit(0)
 
     if args.py_update:
-        update_script = script_dir / "proj" / "update.py"
+        update_script = script_dir / "core" / "update.py"
         if update_script.exists():
             # Pass all unknown args to the update script
             subprocess.run([sys.executable, str(update_script)] + unknown)
@@ -176,7 +176,7 @@ def main():
     # If we are using a standalone python, set PYTHONHOME to avoid warnings
     # and ensure it finds its own libraries.
     # python_exec is .../data/install/{version}/install/bin/python3
-    if "data/install/" in python_exec:
+    if get_rel_install_path() in python_exec:
         exec_path = Path(python_exec)
         # For Unix: bin is in install/, for Windows: python.exe is in install/
         if exec_path.name == "python.exe":
@@ -281,7 +281,7 @@ def _install_version(version, install_dir=None):
         full_source_path = RESOURCE_ROOT / version
         
         import tempfile
-        from proj.utils import extract_resource
+        from core.utils import extract_resource
         
         # 1. Check if resource already exists on disk (Local/Same branch optimization)
         resource_ready = False
@@ -340,7 +340,7 @@ def _install_version(version, install_dir=None):
             msg = _("python_installing_remote", "Installing {version} from GitHub...", version=version)
             print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
             
-            install_script = script_dir / "proj" / "install.py"
+            install_script = script_dir / "core" / "install.py"
             if install_script.exists():
                 # Extract version and platform from the version tag (e.g. python3.10.19-macos-arm64)
                 v_match = re.search(r"python([\d\.]+)-(.*)", version)
