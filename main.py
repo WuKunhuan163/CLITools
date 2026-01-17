@@ -395,7 +395,7 @@ def sync_branches():
             else:
                 subprocess.run(cmd, check=True, cwd=str(project_root))
             
-            if cmd == ["git", "checkout", "main"]:
+            if cmd[:3] == ["git", "checkout", current_branch]:
                 gitignore_content = """# Deny all
 *
 # Allow specific files
@@ -415,9 +415,12 @@ def sync_branches():
 """
                 with open(project_root / ".gitignore", 'w') as f: f.write(gitignore_content)
                 subprocess.run(["git", "add", ".gitignore"], cwd=str(project_root), check=True)
-                try: subprocess.run(["git", "commit", "-m", "Apply restricted .gitignore to main"], cwd=str(project_root), check=True)
-                except: pass # nothing to commit
+                
                 for d in ["data", "tmp", "tool", "resource"]:
+                    p = project_root / d
+                    if p.exists() and p.is_dir():
+                        shutil.rmtree(p)
+                        subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
                     p = project_root / d
                     if p.exists() and p.is_dir():
                         shutil.rmtree(p)
