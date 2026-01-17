@@ -1,22 +1,28 @@
-*_DATA
-*.pyc
-*.pyo
-*.egg-info/
-__pycache__/
+# Ignore everything by default
+/*
 
-.DS_Store
-.pytest_cache/
+# But track these core folders and files
+!/main.py
+!/setup.py
+!/tool.json
+!/README.md
+!/proj/
+!/bin/
+!/test/
+!/todo/
+!/tool/
+!/.gitignore
+!/.gitattributes
 
-# Tool-specific ignores
-/tool/PYTHON/proj/install/
-/tool/*/data/logs/
-/tool/*/data/audit/
-/data/
-/bin/
-/tmp/
-*.log
-*.exit
+# Within tool, ignore data and logs but track the code
+/tool/*/data/
+/tool/*/logs/
+!/tool/*/
 
-# Only track metadata, not the heavy binaries
-/resource/tool/PYTHON/proj/install/**/*.tar.zst
-!/resource/tool/PYTHON/proj/install/**/*.json
+# Within proj, ignore pycache
+**/__pycache__/
+
+# Keep gitignore and gitattributes
+!.gitignore
+!.gitattributes
+
