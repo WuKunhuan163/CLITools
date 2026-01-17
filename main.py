@@ -523,7 +523,8 @@ def sync_branches():
         ".gitignore",
         ".gitattributes",
         "proj",
-        "test"
+        "test",
+        "todo"
     ]
     
     # Get current branch
@@ -532,15 +533,11 @@ def sync_branches():
     except subprocess.CalledProcessError:
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return
+    
+    # Use a restricted .gitignore for main
+    restricted_gitignore = project_root / ".gitignore_restricted"
 
-    if current_branch != "tool":
-        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_warning_branch", "Sync should ideally be initiated from the 'tool' branch. Current branch is '{branch}'.", branch=current_branch))
-        confirm = input(_("sync_confirm", "Continue anyway? (y/N): "))
-        if confirm.lower() not in ['y', 'yes']:
-            print(_("sync_cancelled", "Sync cancelled."))
-            return
-
-    # 1. Commit any changes in current branch first
+    # 1. Check for uncommitted changes
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
@@ -551,45 +548,67 @@ def sync_branches():
     # 2. Sync to main
     print(f"{BOLD}{BLUE}" + _("sync_to_main_label", "正在同步") + f"{RESET}到 'main' 分支...")
     
-    # Use a restricted .gitignore for main
-    restricted_gitignore = project_root / ".gitignore_restricted"
+    # Check if there are changes to sync by comparing with main
+    has_changes = False
+    for f in core_files:
+        try:
+            if not (project_root / f).exists(): continue
+            diff = subprocess.run(["git", "diff", "--quiet", "main", "--", f], cwd=str(project_root)).returncode
+            if diff != 0:
+                has_changes = True
+                break
+        except Exception: pass
     
     if not has_changes:
-        # ...
+        print(f"{BOLD}{GREEN}" + _("sync_no_changes_label", "No core changes to sync") + f"{RESET}. " + _("sync_re-sync_test", "Re-synchronizing 'test' branch from 'main'..."))
+        commands = [
+            ["git", "checkout", "main"],
+            ["git", "branch", "-D", "test"],
+            ["git", "checkout", "-b", "test"],
+            ["git", "checkout", current_branch]
+        ]
     else:
-        # Before switching branches, we need to make sure .gitignore_restricted is available in main
-        # But it's already in tool, so we can just copy it.
-        
         commands = [
             ["git", "checkout", "main"],
             ["git", "checkout", current_branch, "--"] + core_files,
-            # Special step: replace .gitignore with restricted version
+            # Special action to swap .gitignore will be handled in the loop
+            ["git", "commit", "-m", f"Sync core files from {current_branch} branch"],
+            ["git", "branch", "-D", "test"],
+            ["git", "checkout", "-b", "test"],
+            ["git", "checkout", current_branch]
         ]
-        
-        # After checkout, replace .gitignore
-        # I'll handle this in the command loop
     
     for cmd in commands:
         try:
             if cmd[0] == "git" and cmd[1] == "branch" and cmd[2] == "-D":
-                # Ignore error if test branch doesn't exist
                 subprocess.run(cmd, stderr=subprocess.DEVNULL, cwd=str(project_root))
             elif cmd[0] == "git" and cmd[1] == "commit":
-                # Special handling for commit to avoid "nothing to commit" error if it somehow happens
                 res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
                 if res.returncode != 0 and "nothing to commit" not in res.stdout:
                     raise subprocess.CalledProcessError(res.returncode, cmd, res.stdout, res.stderr)
             else:
                 subprocess.run(cmd, check=True, cwd=str(project_root))
+            
+            # Special logic after switching to main
+            if cmd == ["git", "checkout", "main"]:
+                for d in ["data", "tmp", "tool"]:
+                    p = project_root / d
+                    if p.exists() and p.is_dir():
+                        shutil.rmtree(p)
+                        subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+
+            # After checking out core files to main, swap the .gitignore
+            if cmd == ["git", "checkout", current_branch, "--"] + core_files:
+                if restricted_gitignore.exists():
+                    shutil.copy(restricted_gitignore, project_root / ".gitignore")
+                    subprocess.run(["git", "add", ".gitignore"], cwd=str(project_root), check=True)
+
         except subprocess.CalledProcessError as e:
             print(f"{BOLD}{RED}" + _("sync_error_label", "Error during sync") + f"{RESET} at step {' '.join(cmd)}: {e}")
-            # Try to return to original branch
             subprocess.run(["git", "checkout", current_branch], stderr=subprocess.DEVNULL, cwd=str(project_root))
             return
 
     print(f"{BOLD}{GREEN}" + _("sync_complete_label", "Synchronization complete") + f"{RESET}!")
-    print(_("sync_files_synced", "Core files synced: {files}", files=', '.join(core_files)))
-    print(_("sync_branches_updated", "Branch 'main' updated and 'test' branch recreated from 'main'."))
 
 import argparse
 
