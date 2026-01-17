@@ -242,8 +242,9 @@ def push_step(asset, tag, worker_id, manager):
                 
             if success:
                 shutil.rmtree(res_dir)
-                yield StepResult(_("python_migrated_success", "Successfully migrated {version} from {tag}.", version=v_tag, tag=tag), 
-                                state=WorkerState.SUCCESS, is_final=True)
+                success_label = f"{BOLD}{GREEN}Successfully migrated{RESET}"
+                msg = f"{success_label} {v_tag} from {BOLD}{tag}{RESET}."
+                yield StepResult(msg, state=WorkerState.SUCCESS, is_final=True)
             else:
                 error_msg = f"{BOLD}{RED}Push failed{RESET} for {v_tag}"
                 yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
@@ -315,13 +316,13 @@ def main():
                 if not args.all_latest and not args.version: break
 
         if not to_migrate:
-            print(f"{BOLD}{GREEN}Remote up to date for {tag}.{RESET}")
+            print(f"{BOLD}Remote up to date for {tag}.{RESET}")
             continue
 
-        found_msg = _("python_found_assets_to_migrate", "Found {count} assets to migrate", count=len(to_migrate))
-        release_msg = _("label_to", "to") # reuse label_to or add new one? Actually release part is simple
-        v_display_tags = [regularize_version_name(a['version'], a['platform']) for a in to_migrate]
-        print(f"{BOLD}{BLUE}{found_msg}{RESET} from release {BOLD}{tag}{RESET}: {', '.join(v_display_tags)}")
+        asset_count = len(to_migrate)
+        asset_word = "asset" if asset_count == 1 else "assets"
+        found_label = f"{BOLD}Found {asset_count} {asset_word}{RESET}"
+        print(f"{found_label} to migrate from release {BOLD}{tag}{RESET}: {', '.join(v_display_tags)}")
         
         manager = MultiLineManager()
         task_queue = Queue()
