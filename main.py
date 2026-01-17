@@ -489,11 +489,10 @@ def generate_ai_rule():
         
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
     lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translation.json' file."))
-    lines.append("- " + _("rule_guideline_2", "**Fallback & Localization**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. If a translation for the user's preferred language (provided via 'TOOL_LANGUAGE' environment variable) is missing, the tool must fall back to these code-embedded defaults."))
-    lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage the `PYTHON` tool's `proj.lang.utils` or the project root `proj/` for consistent shared logic and translations across tools."))
+    lines.append("- " + _("rule_guideline_2", "**Fallback & Testing**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. Testing MUST be done on the 'test' branch; after each test, the 'test' branch should be re-synced from 'main'."))
+    lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `proj/` directory to avoid duplicate implementations across different tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
-    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Place bold status labels (e.g., Successfully, Installing) at the beginning of lines. Use **Blue Bold** for active/normal progress (including Uninstalling) and **Yellow Bold** only for warnings. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` and ensure they are always bolded."))
-    lines.append("- " + _("rule_guideline_6", "**Testing & Branching**: Always perform testing on the 'test' branch. After each test, ensure the 'test' branch is cleaned up and synchronized by overwriting it with the 'main' branch content."))
+    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Only the status label (e.g., **Successfully**) should be colored and bolded. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `proj.config.get_color`."))
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
     lines.append("--------------------------")
@@ -534,9 +533,6 @@ def sync_branches():
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return
     
-    # Use a restricted .gitignore for main
-    restricted_gitignore = project_root / ".gitignore_restricted"
-
     # 1. Check for uncommitted changes
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
@@ -546,37 +542,17 @@ def sync_branches():
     except subprocess.CalledProcessError: pass
 
     # 2. Sync to main
-    print(f"{BOLD}{BLUE}" + _("sync_to_main_label", "正在同步") + f"{RESET}到 'main' 分支...")
+    sync_label = _("sync_to_main_label", "Syncing")
+    print(f"{BOLD}{BLUE}{sync_label}{RESET} to 'main' branch...")
     
-    # Check if there are changes to sync by comparing with main
-    has_changes = False
-    for f in core_files:
-        try:
-            if not (project_root / f).exists(): continue
-            diff = subprocess.run(["git", "diff", "--quiet", "main", "--", f], cwd=str(project_root)).returncode
-            if diff != 0:
-                has_changes = True
-                break
-        except Exception: pass
-    
-    if not has_changes:
-        print(f"{BOLD}{GREEN}" + _("sync_no_changes_label", "No core changes to sync") + f"{RESET}. " + _("sync_re-sync_test", "Re-synchronizing 'test' branch from 'main'..."))
-        commands = [
-            ["git", "checkout", "main"],
-            ["git", "branch", "-D", "test"],
-            ["git", "checkout", "-b", "test"],
-            ["git", "checkout", current_branch]
-        ]
-    else:
-        commands = [
-            ["git", "checkout", "main"],
-            ["git", "checkout", current_branch, "--"] + core_files,
-            # Special action to swap .gitignore will be handled in the loop
-            ["git", "commit", "-m", f"Sync core files from {current_branch} branch"],
-            ["git", "branch", "-D", "test"],
-            ["git", "checkout", "-b", "test"],
-            ["git", "checkout", current_branch]
-        ]
+    commands = [
+        ["git", "checkout", "main"],
+        ["git", "checkout", current_branch, "--"] + core_files,
+        ["git", "commit", "-m", f"Sync core files from {current_branch} branch"],
+        ["git", "branch", "-D", "test"],
+        ["git", "checkout", "-b", "test"],
+        ["git", "checkout", current_branch]
+    ]
     
     for cmd in commands:
         try:
@@ -591,11 +567,41 @@ def sync_branches():
             
             # Special logic after switching to main
             if cmd == ["git", "checkout", "main"]:
-                for d in ["data", "tmp", "tool"]:
+                # Ensure main has restricted .gitignore
+                gitignore_content = """# Deny all
+*
+# Allow specific files
+!README.md
+!main.py
+!setup.py
+!tool.json
+!bin/
+!bin/**
+!proj/
+!proj/**
+!test/
+!test/**
+!todo/
+!todo/**
+!.gitignore
+"""
+                with open(project_root / ".gitignore", 'w') as f:
+                    f.write(gitignore_content)
+                
+                # Cleanup unwanted folders in main
+                for d in ["data", "tmp", "tool", "resource"]:
                     p = project_root / d
                     if p.exists() and p.is_dir():
                         shutil.rmtree(p)
                         subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        except subprocess.CalledProcessError as e:
+            error_label = _("error_label", "Error")
+            print(f"{BOLD}{RED}{error_label}{RESET}: Command failed: {' '.join(cmd)}")
+            print(f"Details: {e.output}")
+            return
+
+    success_status = _("sync_success_status", "Successfully synced")
+    print(f"{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on 'test'.")
 
             # After checking out core files to main, swap the .gitignore
             if cmd == ["git", "checkout", current_branch, "--"] + core_files:
