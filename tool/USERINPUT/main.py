@@ -77,6 +77,14 @@ class UserInputTool(ToolBase):
             print(f"DEBUG: Searching for python version: {version}", flush=True)
 
         # Try to resolve using same logic as PYTHON tool if possible
+        try:
+            sys.path.append(str(self.project_root / "tool" / "PYTHON" / "proj"))
+            from config import INSTALL_DIR
+            install_root = INSTALL_DIR
+        except ImportError:
+            # Fallback path if config not available
+            install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
+
         system_tag = "macos"
         machine = platform.machine().lower()
         if sys.platform == "darwin":
@@ -98,7 +106,6 @@ class UserInputTool(ToolBase):
             f"{version}-linux64-musl",
         ]
 
-        install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
         for d in possible_dirs:
             # Unix path
             python_exec = install_root / d / "install" / "bin" / "python3"
@@ -119,6 +126,10 @@ class UserInputTool(ToolBase):
             print(f"\033[1;31m{error_label}\033[0m: Python tool '{version}' not found.", flush=True)
         
         sys.exit(1)
+
+    def get_ai_instruction(self):
+        """Returns the localized instruction for the AI Agent."""
+        return _("ai_instruction", "After task completion, execute the terminal command `USERINPUT` to get user feedback. If the program stops, repeat `USERINPUT` until natural language feedback is obtained. When encountering uncertain situations or KeyboardInterrupt during programming, please execute `USERINPUT`, do not end directly. Note: The command executed by the run_terminal_cmd tool is literally `USERINPUT`, do not add other parameters or construct interactive commands.")
 
 def get_python_exec(version=None):
     return UserInputTool().get_python_exe(version)

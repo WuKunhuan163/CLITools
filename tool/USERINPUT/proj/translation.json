@@ -1,27 +1,4 @@
 {
-  "en": {
-    "instruction": "Please enter your feedback in the box:",
-    "submit": "Submit",
-    "add_time": "Add {seconds}s",
-    "time_added": "Time added! Remaining:",
-    "time_remaining": "Time remaining:",
-    "msg_empty": "User submitted empty content",
-    "msg_cancelled": "User cancelled input",
-    "msg_timeout": "Input timed out",
-    "config_updated": "Config updated: focus_interval = {val} seconds",
-    "psutil_not_found": "Error: psutil module not found. Cannot stop instances safely.",
-    "instances_stopped": "Stopped {count} USERINPUT instances.",
-    "tool_USERINPUT_desc": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
-    "tool_USERINPUT_purpose": "Facilitate seamless interaction between AI Agent and user! AI Agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
-    "msg_attempt_failed": "Attempt {index} failed: {error}. Retrying...",
-    "msg_failed_capture": "Failed to capture user input: {error}",
-    "label_error": "Error",
-    "err_python_not_found": "Python tool '{version}' not found, cannot launch GUI.",
-    "err_python_not_found_hint_1": "The tool '{tool_name}' depends on the PYTHON tool.",
-    "err_python_not_found_hint_2": "Please run: TOOL install PYTHON",
-    "err_python_not_found_hint_3": "Then run: PYTHON --py-install {version}",
-    "err_python_not_found_hint_4": "Finally, run the tool's setup: python3 {setup_path}"
-  },
   "zh": {
     "instruction": "请在文本框中输入您的反馈:",
     "submit": "提交",
@@ -45,7 +22,8 @@
     "err_python_not_found_hint_3": "然后运行: PYTHON --py-install {version}",
     "err_python_not_found_hint_4": "最后，运行该工具的 setup: python3 {setup_path}",
     "err_no_display": "错误: 未找到显示。GUI 需要桌面环境。",
-    "err_sandbox": "错误: 无法在没有 'all' 权限的沙盒中运行 GUI。"
+    "err_sandbox": "错误: 无法在没有 'all' 权限的沙盒中运行 GUI。",
+    "ai_instruction": "关键提示：任务完成后，你必须【实际执行】终端命令 `USERINPUT` 以获取用户反馈。如果程序停止，请重复执行 `USERINPUT` 直到获得自然语言反馈。严禁仅在口头上说要执行，必须通过 `run_terminal_cmd` 真正调用该工具。注意：执行的命令就是字面上的 `USERINPUT`。"
   },
   "ar": {
     "instruction": "يرجى إدخال ملاحظاتك في المربع:",
@@ -70,6 +48,7 @@
     "err_python_not_found_hint_3": "ثم التشغيل: PYTHON --py-install {version}",
     "err_python_not_found_hint_4": "أخيرًا، قم بتشغيل إعداد الأداة: python3 {setup_path}",
     "err_no_display": "خطأ: لم يتم العثور على شاشة عرض. واجهة المستخدم الرسومية تتطلب بيئة سطح مكتب.",
-    "err_sandbox": "خطأ: لا يمكن تشغيل واجهة المستخدم الرسومية في وضع الحماية بدون أذونات 'all'."
+    "err_sandbox": "خطأ: لا يمكن تشغيل واجهة المستخدم الرسومية في وضع الحماية بدون أذونات 'all'.",
+    "ai_instruction": "تنبيه هام: بمجرد اكتمال المهمة، يجب عليك تنفيذ أمر الطرفية `USERINPUT` للحصول على ملاحظات المستخدم. إذا توقف البرنامج، كرر `USERINPUT` حتى يتم الحصول على ملاحظات باللغة الطبيعية. لا تكتفِ بالقول إنك ستقوم بتشغيله؛ يجب عليك فعلياً استدعاء الأداة. ملاحظة: استخدم `run_terminal_cmd` مع الأمر الحرفي `USERINPUT`."
   }
 }

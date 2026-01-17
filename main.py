@@ -485,8 +485,8 @@ def generate_ai_rule():
         
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
     lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translation.json' file."))
-    lines.append("- " + _("rule_guideline_2", "**Fallback & Localization**: Always use the `_()` helper. English strings MUST be the default arguments in code; DO NOT include an 'en' section in translation files. If a translation for the user's preferred language (via 'TOOL_LANGUAGE') is missing, the tool must fallback to these defaults."))
-    lines.append("- " + _("rule_guideline_3", "**Shared Utils**: Leverage `PYTHON` tool's `proj.language_utils` or the project's root `proj/` for consistent shared logic and translation."))
+    lines.append("- " + _("rule_guideline_2", "**Fallback & Localization**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. If a translation for the user's preferred language (provided via 'TOOL_LANGUAGE' environment variable) is missing, the tool must fall back to these code-embedded defaults."))
+    lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage the `PYTHON` tool's `proj.lang.utils` or the project root `proj/` for consistent shared logic and translations across tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Place bold status labels (e.g., Successfully, Installing) at the beginning of lines. Use **Blue Bold** for active/normal progress (including Uninstalling) and **Yellow Bold** only for warnings. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` and ensure they are always bolded."))
     

@@ -12,9 +12,9 @@ def get_translation(tool_proj_dir, key, default_text):
     
     if not lang:
         try:
-            # language_utils.py is in proj/
+            # language_utils.py is in proj/lang/
             current_file = Path(__file__).resolve()
-            project_root = current_file.parent.parent
+            project_root = current_file.parent.parent.parent
             config_path = project_root / "data" / "config.json"
             
             if config_path.exists():

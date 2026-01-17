@@ -2,10 +2,121 @@ import os
 import sys
 import re
 import json
+import time
+import subprocess
 import unicodedata
 import difflib
 import builtins
+import platform
 from pathlib import Path
+
+def get_system_tag():
+    """Detect current system tag for Python downloads."""
+    system = sys.platform
+    machine = platform.machine().lower()
+    if system == "darwin":
+        return "macos-arm64" if "arm" in machine or "aarch64" in machine else "macos"
+    if system == "linux":
+        try:
+            # Check for musl (alpine)
+            with open("/etc/os-release", "r") as f:
+                if "alpine" in f.read().lower(): return "linux64-musl"
+        except: pass
+        return "linux64"
+    if system == "win32":
+        if "arm" in machine: return "windows-arm64"
+        return "windows-amd64" if "64" in machine else "windows-x86"
+    return "unknown"
+
+def regularize_version_name(version, platform=None):
+    """Standardize version name to 'pythonX.Y.Z-platform'."""
+    if not version.startswith("python"):
+        version = f"python{version}"
+    if "-" in version:
+        version = version.split("-")[0]
+    tag = platform or get_system_tag()
+    return f"{version}-{tag}"
+
+def extract_resource(source_zst, target_dir, silent=False):
+    """Integrated zst + tar extraction."""
+    target_dir.mkdir(parents=True, exist_ok=True)
+    if not silent:
+        print(f"Extracting {source_zst.name}...")
+    
+    if sys.platform != "win32":
+        try:
+            # Try tar with built-in zstd support
+            res = subprocess.run(["tar", "--zstd", "-xf", str(source_zst), "-C", str(target_dir)], capture_output=True)
+            if res.returncode == 0: return True
+            # Fallback: unzstd pipe
+            cmd = f"unzstd -c {source_zst} | tar -xf - -C {target_dir}"
+            res = subprocess.run(cmd, shell=True, capture_output=True)
+            if res.returncode == 0: return True
+        except: pass
+    return False
+
+def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
+    """Clean text-based progress parsing."""
+    if manager and worker_id:
+        manager.update(worker_id, f"{prefix}: 0%")
+    else:
+        sys.stdout.write(f"\r\033[K{prefix}: 0%")
+        sys.stdout.flush()
+
+    env = os.environ.copy()
+    env["LC_ALL"] = "C"
+    
+    process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1, env=env, universal_newlines=True)
+    
+    last_print = 0
+    max_percent = 0.0
+    re_percent = re.compile(r'(\d+(?:\.\d+)?)%')
+    
+    try:
+        partial_line = ""
+        while True:
+            char = process.stderr.read(1)
+            if not char: break
+            if char in ['\r', '\n']:
+                line = partial_line.strip()
+                partial_line = ""
+                if not line: continue
+                match = re_percent.search(line)
+                if match:
+                    try:
+                        curr = float(match.group(1))
+                        max_percent = max(max_percent, curr)
+                    except: pass
+                elif cmd[0] == "curl":
+                    parts = line.split()
+                    if len(parts) >= 1 and parts[0].isdigit():
+                        try:
+                            max_percent = max(max_percent, float(parts[0]))
+                        except: pass
+
+                curr_time = time.time()
+                if curr_time - last_print >= interval:
+                    percent_str = f"{max_percent:.1f}%"
+                    extra = ""
+                    speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
+                    if speed_match: extra = f" ({speed_match.group(1)})"
+                    
+                    status = f"{prefix}: {percent_str}{extra}"
+                    if manager and worker_id:
+                        manager.update(worker_id, status)
+                    else:
+                        sys.stdout.write(f"\r\033[K{status}")
+                        sys.stdout.flush()
+                    last_print = curr_time
+            else:
+                partial_line += char
+    finally:
+        process.wait()
+    
+    if process.returncode == 0:
+        if manager and worker_id: manager.update(worker_id, f"{prefix}: 100%")
+        else: sys.stdout.write(f"\r\033[K{prefix}: 100%\n"); sys.stdout.flush()
+    return process.returncode == 0
 
 # Global state for RTL mode
 _GLOBAL_RTL_MODE = False
@@ -363,8 +474,115 @@ def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=None):
     except Exception:
         pass
 
-def get_close_matches(word, possibilities, n=3, cutoff=0.6):
+def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     """
-    Returns a list of the best "good enough" matches.
+    Runs a command and parses its stderr for percentage progress.
+    Updates an erasable line (via sys.stdout.write or MultiLineManager).
+    Ensures NO raw output from the command leaks to the terminal.
+    Uses simple text format: 'Prefix: XX% (Speed)'
     """
-    return difflib.get_close_matches(word, possibilities, n=n, cutoff=cutoff)
+    if cmd[0] == "curl":
+        # Force a simple numeric progress if possible, or just parse default
+        cmd = [arg for arg in cmd if arg not in ["-#", "--progress-bar", "-s", "--silent"]]
+    elif "git" in cmd[0] and "push" in cmd:
+        if "--progress" not in cmd:
+            cmd.append("--progress")
+
+    # Initial progress display
+    initial_text = f"{prefix}: 0%"
+    if manager and worker_id:
+        manager.update(worker_id, initial_text)
+    else:
+        sys.stdout.write(f"\r\033[K{initial_text}")
+        sys.stdout.flush()
+
+    env = os.environ.copy()
+    env["LC_ALL"] = "C"
+    
+    # Start process with captured stderr. Use universal_newlines=True for easier string reading.
+    process = subprocess.Popen(
+        cmd, 
+        stdout=subprocess.DEVNULL, 
+        stderr=subprocess.PIPE, 
+        text=True, 
+        bufsize=1, 
+        env=env,
+        universal_newlines=True
+    )
+    
+    last_print = 0
+    max_percent = 0.0
+    re_percent = re.compile(r'(\d+(?:\.\d+)?)%')
+    
+    try:
+        partial_line = ""
+        while True:
+            # Read character by character to handle \r updates
+            char = process.stderr.read(1)
+            if not char:
+                break
+            
+            if char in ['\r', '\n']:
+                line = partial_line.strip()
+                partial_line = ""
+                if not line:
+                    continue
+                
+                # Parse percentage
+                match = re_percent.search(line)
+                if match:
+                    try:
+                        curr_percent = float(match.group(1))
+                        max_percent = max(max_percent, curr_percent)
+                    except ValueError: pass
+                elif cmd[0] == "curl":
+                    parts = line.split()
+                    if len(parts) >= 1 and parts[0].isdigit():
+                        try:
+                            curr_percent = float(parts[0])
+                            max_percent = max(max_percent, curr_percent)
+                        except ValueError: pass
+
+                # Update display at intervals
+                curr_time = time.time()
+                if curr_time - last_print >= interval:
+                    percent_str = f"{max_percent:.1f}%"
+                    
+                    # Speed detection
+                    extra = ""
+                    speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
+                    if speed_match:
+                        extra = f" ({speed_match.group(1)})"
+                    elif cmd[0] == "curl":
+                        parts = line.split()
+                        if len(parts) >= 7:
+                            for p in parts[6:]:
+                                if any(c.isdigit() for c in p) and any(u in p.upper() for u in ['K', 'M', 'G']):
+                                    extra = f" ({p}/s)"
+                                    break
+                    
+                    status_text = f"{prefix}: {percent_str}{extra}"
+                    if manager and worker_id:
+                        manager.update(worker_id, status_text)
+                    else:
+                        sys.stdout.write(f"\r\033[K{status_text}")
+                        sys.stdout.flush()
+                    last_print = curr_time
+            else:
+                partial_line += char
+    finally:
+        process.wait()
+    
+    if process.returncode == 0:
+        final_text = f"{prefix}: 100%"
+        if manager and worker_id:
+            manager.update(worker_id, final_text)
+        else:
+            sys.stdout.write(f"\r\033[K{final_text}\n")
+            sys.stdout.flush()
+    else:
+        if not manager:
+            sys.stdout.write(f"\r\033[K")
+            sys.stdout.flush()
+        
+    return process.returncode == 0
