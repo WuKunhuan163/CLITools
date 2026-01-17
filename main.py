@@ -451,12 +451,6 @@ def sync_branches():
 
     success_status = _("sync_success_status", "Successfully synced")
     print(f"{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on 'test'.")
-        except subprocess.CalledProcessError as e:
-            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Command failed: {' '.join(cmd)}")
-            return
-
-    success_status = _("sync_success_status", "Successfully synced")
-    print(f"{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on 'test'.")
 
 def generate_ai_rule():
     project_root = Path(__file__).parent.absolute()
