@@ -49,22 +49,30 @@ except ImportError as e:
         def execute(self, t): pass
     class TuringTask:
         def __init__(self, n, s): pass
-    class WorkerState: SUCCESS="SUCCESS"; ERROR="ERROR"; EXIT="EXIT"
+    class WorkerState: SUCCESS="SUCCESS"; ERROR="ERROR"; EXIT="EXIT"; CONTINUE="CONTINUE"
     class StepResult:
-        def __init__(self, d, s=None, is_final=False): self.display_text=d; self.state=s; self.is_final=is_final
+        def __init__(self, d, state=None, is_final=False): self.display_text=d; self.state=state; self.is_final=is_final
+    class AuditManager:
+        def __init__(self, d, **kwargs): self.audit_dir = Path(d)
+        def load(self, n): return {}
+        def save(self, n, d): pass
+        def print_cache_warning(self, **kwargs): pass
     DATA_DIR = Path("data")
     AUDIT_DIR = Path("data/audit")
     RESOURCE_ROOT = Path("resource")
     TMP_INSTALL_DIR = Path("tmp/install")
     DEFAULT_CONCURRENCY = 1
+    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
-    # Build full command for cache warning
-    full_cmd = "PYTHON --py-update"
-    if len(sys.argv) > 1:
-        full_cmd += " " + " ".join(sys.argv[1:])
-    
-    global audit
-    audit = AuditManager(AUDIT_DIR, component_name="PYTHON_UPDATE", audit_command=full_cmd)
+PYTHON_TOOL_DIR = project_root / "tool" / "PYTHON"
+
+# Build full command for cache warning
+full_cmd = "PYTHON --py-update"
+if len(sys.argv) > 1:
+    # Filter out internal flags if any, but usually we just want what user typed
+    full_cmd += " " + " ".join(sys.argv[1:])
+
+audit = AuditManager(AUDIT_DIR, component_name="PYTHON_UPDATE", audit_command=full_cmd)
 
 TMP_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
 RESOURCE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -291,7 +299,24 @@ def main():
     remote_resources = get_remote_resources()
     
     if args.list:
-        # ... (list logic)
+        matrix = {}
+        scan_label = f"{BOLD}{BLUE}Scanning{RESET}"
+        for i, tag in enumerate(tags):
+            print_erasable(f"{scan_label}: {tag} ({i+1}/{len(tags)})")
+            assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
+            for a in assets:
+                v_tag = regularize_version_name(a['version'], a['platform'])
+                if v_tag not in matrix: matrix[v_tag] = []
+                matrix[v_tag].append(tag)
+        sys.stdout.write("\r\033[K")
+        
+        sorted_versions = sorted(matrix.keys(), reverse=args.reverse)
+        
+        if args.simple:
+            print(",".join(sorted_versions))
+        else:
+            for v in sorted_versions:
+                print(f"{v}:{','.join(matrix[v])}")
         return
 
     if args.all_latest and not args.tag:
@@ -337,6 +362,7 @@ def main():
         asset_count = len(to_migrate)
         asset_word = "asset" if asset_count == 1 else "assets"
         found_label = f"{BOLD}Found {asset_count} {asset_word}{RESET}"
+        v_display_tags = [regularize_version_name(a['version'], a['platform']) for a in to_migrate]
         print(f"{found_label} to migrate from release {BOLD}{tag}{RESET}: {', '.join(v_display_tags)}")
         
         manager = MultiLineManager()
