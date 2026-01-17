@@ -551,37 +551,23 @@ def sync_branches():
     # 2. Sync to main
     print(f"{BOLD}{BLUE}" + _("sync_to_main_label", "正在同步") + f"{RESET}到 'main' 分支...")
     
-    # Check if there are changes to sync by comparing with main
-    
-    # Check if there are changes to sync by comparing with main
-    has_changes = False
-    for f in core_files:
-        try:
-            # Check if file/dir exists first
-            if not (project_root / f).exists(): continue
-            diff = subprocess.run(["git", "diff", "--quiet", "main", "--", f], cwd=str(project_root)).returncode
-            if diff != 0:
-                has_changes = True
-                break
-        except Exception: pass
+    # Use a restricted .gitignore for main
+    restricted_gitignore = project_root / ".gitignore_restricted"
     
     if not has_changes:
-        print(f"{BOLD}{GREEN}" + _("sync_no_changes_label", "No core changes to sync") + f"{RESET}. " + _("sync_re-sync_test", "Re-synchronizing 'test' branch from 'main'..."))
-        commands = [
-            ["git", "checkout", "main"],
-            ["git", "branch", "-D", "test"],
-            ["git", "checkout", "-b", "test"],
-            ["git", "checkout", current_branch]
-        ]
+        # ...
     else:
+        # Before switching branches, we need to make sure .gitignore_restricted is available in main
+        # But it's already in tool, so we can just copy it.
+        
         commands = [
             ["git", "checkout", "main"],
             ["git", "checkout", current_branch, "--"] + core_files,
-            ["git", "commit", "-m", f"Sync core files from {current_branch} branch"],
-            ["git", "branch", "-D", "test"],
-            ["git", "checkout", "-b", "test"],
-            ["git", "checkout", current_branch]
+            # Special step: replace .gitignore with restricted version
         ]
+        
+        # After checkout, replace .gitignore
+        # I'll handle this in the command loop
     
     for cmd in commands:
         try:

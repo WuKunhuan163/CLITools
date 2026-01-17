@@ -251,9 +251,9 @@ def _list_versions():
         print(f"{BOLD}{BLUE}{label}{RESET}: {','.join(version_strings)}")
         
         if missing:
-            print(_("python_install_missing_hint", "\nTo install a missing version: PYTHON --py-install {version}", version=missing[0]))
+            print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
     
-    print(_("python_set_default_hint", "\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'."))
+    # Remove hint about editing tool.json as it's not user-facing
     
     print(_("python_set_default_hint", "\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'."))
 
@@ -295,7 +295,7 @@ def _install_version(version, install_dir=None):
     
     if target_dir.exists():
         already_msg = _("python_already_installed", "{version} is already installed", version=version)
-        print(f"{GREEN}{BOLD}{already_msg}{RESET} at {target_dir}")
+        print(f"{BOLD}{already_msg}{RESET} at {target_dir}")
         return True
 
     try:

@@ -58,8 +58,13 @@ except ImportError as e:
     TMP_INSTALL_DIR = Path("tmp/install")
     DEFAULT_CONCURRENCY = 1
 
-PYTHON_TOOL_DIR = project_root / "tool" / "PYTHON"
-audit = AuditManager(AUDIT_DIR, component_name="PYTHON_UPDATE", audit_command="PYTHON --py-update")
+    # Build full command for cache warning
+    full_cmd = "PYTHON --py-update"
+    if len(sys.argv) > 1:
+        full_cmd += " " + " ".join(sys.argv[1:])
+    
+    global audit
+    audit = AuditManager(AUDIT_DIR, component_name="PYTHON_UPDATE", audit_command=full_cmd)
 
 TMP_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
 RESOURCE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -97,11 +102,19 @@ def resolve_platform(asset_name):
             return platform
     return None
 
+_warning_printed = False
+
+def print_cache_warning_once():
+    global _warning_printed
+    if not _warning_printed:
+        audit.print_cache_warning()
+        _warning_printed = True
+
 def get_release_tags(use_cache=True):
     if use_cache:
         cache = audit.load("tags_cache")
         if cache and "tags" in cache and (datetime.now() - datetime.fromisoformat(cache["timestamp"])).days < 1:
-            audit.print_cache_warning()
+            print_cache_warning_once()
             return cache["tags"]
 
     fetch_msg = _("python_fetching_releases", "Fetching releases from GitHub project {owner} ({url})...", 
@@ -125,6 +138,8 @@ def get_release_tags(use_cache=True):
 def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
     cache = audit.load(f"assets_{tag}")
     if use_cache and cache and "assets" in cache:
+        if not silent:
+            print_cache_warning_once()
         return cache["assets"]
 
     if not silent and status_msg:
@@ -227,7 +242,7 @@ def push_step(asset, tag, worker_id, manager):
             # 4. Git
             rel_path = res_dir.relative_to(PROJECT_ROOT)
             prefix = f"{BOLD}{BLUE}Pushing{RESET} {v_tag}"
-            manager.update(worker_id, f"{prefix}: 0%")
+            manager.update(worker_id, f"{prefix}: 0.0%")
             
             subprocess.run(["git", "add", str(rel_path / "PYTHON.json")], cwd=str(PROJECT_ROOT), capture_output=True)
             subprocess.run(["git", "add", "-f", str(rel_path / asset["name"])], cwd=str(PROJECT_ROOT), capture_output=True)
