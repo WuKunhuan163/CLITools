@@ -265,8 +265,9 @@ def push_step(asset, tag, worker_id, manager):
                 
             if success:
                 shutil.rmtree(res_dir)
-                success_label = f"{BOLD}{GREEN}Successfully migrated{RESET}"
-                msg = f"{success_label} {v_tag} from {BOLD}{tag}{RESET}."
+                success_status = _("python_migrated_success_status", "Successfully migrated")
+                from_label = _("label_from", "from")
+                msg = f"{BOLD}{GREEN}{success_status}{RESET} {v_tag} {from_label} {BOLD}{tag}{RESET}."
                 yield StepResult(msg, state=WorkerState.SUCCESS, is_final=True)
             else:
                 error_msg = f"{BOLD}{RED}Push failed{RESET} for {v_tag}"
@@ -360,10 +361,11 @@ def main():
             continue
 
         asset_count = len(to_migrate)
-        asset_word = "asset" if asset_count == 1 else "assets"
-        found_label = f"{BOLD}Found {asset_count} {asset_word}{RESET}"
+        asset_word = _("label_asset", "asset") if asset_count == 1 else _("label_assets", "assets")
+        found_label = _("python_found_assets_count", "Found {count} {word}", count=asset_count, word=asset_word)
         v_display_tags = [regularize_version_name(a['version'], a['platform']) for a in to_migrate]
-        print(f"{found_label} to migrate from release {BOLD}{tag}{RESET}: {', '.join(v_display_tags)}")
+        to_msg = _("label_to_migrate", "to migrate from release")
+        print(f"{BOLD}{found_label}{RESET} {to_msg} {BOLD}{tag}{RESET}: {', '.join(v_display_tags)}")
         
         manager = MultiLineManager()
         task_queue = Queue()

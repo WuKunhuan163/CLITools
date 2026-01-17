@@ -465,6 +465,11 @@ def generate_ai_rule():
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Only the status label (e.g., **Successfully**) should be colored and bolded. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `proj.config.get_color`."))
     
+    # 7. Add USERINPUT execution rule
+    userinput_core_dir = project_root / "tool" / "USERINPUT" / "proj"
+    ai_instr = get_translation(str(userinput_core_dir), "ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+    lines.append("\n" + ai_instr)
+    
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
     lines.append("--------------------------")
     
@@ -514,6 +519,15 @@ def _audit_lang(lang_code, force=False):
     print(_("audit_summary_refs", "{rate} of references support {lang} ({lang_name}) translation ({supported}/{total})", rate=f"{cr}{rr}{RESET}", supported=summary.get("supported_references"), total=summary.get("total_references"), lang=lang_code, lang_name=lang_name))
     if cached:
         AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL audit-lang {lang_code}").print_cache_warning()
+
+def _show_current_language():
+    """Display the current language and its code."""
+    project_root = Path(__file__).parent.absolute()
+    current_lang = "en"
+    config_path = project_root / "data" / "config.json"
+    if config_path.exists():
+        with open(config_path, 'r') as f: current_lang = json.load(f).get("language", "en")
+    print(f"{_(f'lang_name_{current_lang}', current_lang)} ({current_lang})")
 
 def _list_languages():
     project_root = Path(__file__).parent.absolute()
@@ -574,6 +588,7 @@ def main():
     elif args.command == "lang":
         if args.set: update_config("language", args.set)
         elif args.list: _list_languages()
+        else: _show_current_language()
     elif args.command == "rule": generate_ai_rule()
     elif args.command == "sync": sync_branches()
 
