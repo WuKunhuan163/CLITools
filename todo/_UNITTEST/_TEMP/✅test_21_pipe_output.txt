@@ -1,0 +1,140 @@
+# ============================================================================
+# Test completed at: 2025-11-18 16:57:08 - Status: PASS
+# ============================================================================
+
+test_21_pipe (test_gds.GDSTest) ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_164525_172253_50aafa8b
+正在创建远端测试目录: ~/tmp/gds_test_20251118_164525_172253_50aafa8b
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_164525_172253_50aafa8b
+验证测试目录存在: ~/tmp/gds_test_20251118_164525_172253_50aafa8b
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_7wmw9tpo
+测试环境设置完成
+命令: 'echo "hello world" | grep hello'
+返回码: 0
+输出: hello world
+命令: 'echo "test content" > ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'echo "test content" > ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ECHO_CMD_E5A9B2C3 QUOTED_STR_7E84CFAA REDIR_GT_2B791960 ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤1 - placeholders数量: 3
+    QUOTED_STR_7E84CFAA -> '"test content"'
+    ECHO_CMD_E5A9B2C3 -> 'echo'
+    REDIR_GT_2B791960 -> '>'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ECHO_CMD_E5A9B2C3 QUOTED_STR_7E84CFAA REDIR_GT_2B791960 ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash命令: 'echo ECHO_CMD_E5A9B2C3 QUOTED_STR_7E84CFAA REDIR_GT_2B791960 ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash展开后: 'ECHO_CMD_E5A9B2C3 QUOTED_STR_7E84CFAA REDIR_GT_2B791960 /Users/wukunhuan/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ECHO_CMD_E5A9B2C3 QUOTED_STR_7E84CFAA REDIR_GT_2B791960 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤7 - 最终结果: 'echo "test content" > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+================================================================================
+命令: 'ls -la ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls -la ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls -la ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls -la ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash命令: 'echo ls -la ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash展开后: 'ls -la /Users/wukunhuan/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls -la /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤7 - 最终结果: 'ls -la /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+================================================================================
+-rw------- 1 root root 13 Nov 18 08:50 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt
+创建文件后目录内容: 
+================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls -la ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls -la ~/tmp/gds_te
+命令: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+================================================================================
+~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b | grep pipe_test.txt'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b | grep pipe_test.txt'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b REDIR_PIPE_F52750CC grep pipe_test.txt'
+  步骤1 - placeholders数量: 1
+    REDIR_PIPE_F52750CC -> '|'
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b REDIR_PIPE_F52750CC grep pipe_test.txt'
+  步骤4 - bash命令: 'echo ls ~/tmp/gds_test_20251118_164525_172253_50aafa8b REDIR_PIPE_F52750CC grep pipe_test.txt'
+  步骤4 - bash展开后: 'ls /Users/wukunhuan/tmp/gds_test_20251118_164525_172253_50aafa8b REDIR_PIPE_F52750CC grep pipe_test.txt'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b REDIR_PIPE_F52750CC grep pipe_test.txt'
+  步骤7 - 最终结果: 'ls /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b | grep pipe_test.txt'
+================================================================================
+pipe_test.txt
+命令: 'rm ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+返回码: 0
+输出: ================================================================================
+DEBUG expand_paths_with_bash:
+  原始命令: 'rm ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  placeholder: '~'
+  placeholder_value: '/content/drive/MyDrive/REMOTE_ROOT'
+  步骤1 - 保护后: 'rm ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤1 - placeholders数量: 0
+  步骤2 - placeholder是~，不需要保护
+  步骤3 - 替换'~'为~: 'rm ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash命令: 'echo rm ~/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤4 - bash展开后: 'rm /Users/wukunhuan/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤5 - 替换home('/Users/wukunhuan')为target: 'rm /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+  步骤7 - 最终结果: 'rm /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_164525_172253_50aafa8b/pipe_test.txt'
+================================================================================
+命令: 'echo -e "apple\\nbanana\\napple\\ncherry" | sort | uniq'
+返回码: 0
+输出: DEBUG 检测到echo -e包装，提取内部命令: "apple\nbanana\napple\ncherry" | sort | uniq
+apple
+banana
+cherry
+命令: 'echo -e "line1\\nline2\\nline3\\nline4\\nline5" | head -n 3'
+返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 699.699s
+
+OK
+输出: DEBUG 检测到echo -e包装，提取内部命令: "line1\nline2\nline3\nline4\nline5" | head -n 3
+line1
+line2
+line3
+命令: 'echo -e "line1\\nline2\\nline3\\nline4\\nline5" | tail -n 2'
+返回码: 0
+输出: DEBUG 检测到echo -e包装，提取内部命令: "line1\nline2\nline3\nline4\nline5" | tail -n 2
+line4
+line5
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

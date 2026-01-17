@@ -1,0 +1,201 @@
+# ============================================================================
+# Test completed at: 2025-11-18 09:52:59 - Status: PASS
+# ============================================================================
+
+test_17_python (test_gds.GDSTest) ... 设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_094447_429275_c439db2d
+正在创建远端测试目录: ~/tmp/gds_test_20251118_094447_429275_c439db2d
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_094447_429275_c439db2d
+验证测试目录存在: ~/tmp/gds_test_20251118_094447_429275_c439db2d
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_66bzceo9
+测试环境设置完成
+阶段1: 创建测试项目
+命令: 'mkdir -p ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_project'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094447_429275_c439db2d/test_project"'
+=====================
+Remote real output: 
+=====================
+命令: 'echo \'# Test project main file\nimport sys\nfrom datetime import datetime\n\ndef main():\n    print(f\'"\'"\'Test project started\'"\'"\')\n    print(f\'"\'"\'Current time: {datetime.now()}\'"\'"\')\n    print("Python version:", sys.version)\n    \n    # Simple data processing\n    data = [1, 2, 3, 4, 5]\n    result = {\n        "count": len(data),\n        "sum": sum(data),\n        "average": sum(data) / len(data)\n    }\n    print(f\'"\'"\'Processing result: {result}\'"\'"\')\n    print(f\'"\'"\'Test project completed\'"\'"\')\n\nif __name__ == "__main__":\n    main()\n\' > ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_project/main.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+echo '# Test project main file
+import sys
+from datetime import datetime
+def main():
+    print(f'"'"'Test project started'"'"')
+    print(f'"'"'Current time: {datetime.now()}'"'"')
+    print("Python version:", sys.version)
+    
+    # Simple data processing
+    data = [1, 2, 3, 4, 5]
+    result = {
+        "count": len(data),
+        "sum": sum(data),
+        "average": sum(data) / len(data)
+    }
+    print(f'"'"'Processing result: {result}'"'"')
+    print(f'"'"'Test project completed'"'"')
+if __name__ == "__main__":
+    main()
+' > /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094447_429275_c439db2d/test_project/main.py
+=====================
+Remote real output: 
+=====================
+命令: 'ls ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_project/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_project/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+阶段2: 代码执行测试
+
+执行带重试的upload命令: upload --target-dir ~/tmp/gds_test_20251118_094447_429275_c439db2d --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_simple_hello.py"
+验证命令: ['ls ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py']
+最大重试次数: 3
+
+尝试 1/3
+命令: 'upload --target-dir ~/tmp/gds_test_20251118_094447_429275_c439db2d --force "/Users/wukunhuan/.local/bin/_UNITTEST/_DATA/test_simple_hello.py"'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c '
+# 创建目录
+mkdir -p "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094447_429275_c439db2d"
+# 移动文件（带重试机制）
+for attempt in $(seq 1 30); do
+    if mv "/content/drive/Othercomputers/我的 MacBook Air/Google Drive/test_simple_hello.py" "/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094447_429275_c439db2d" 2>/dev/null; then
+        break
+    elif [ "$attempt" -eq 30 ]; then
+        echo "Error: gds_test_20251118_094447_429275_c439db2d move failed, still failed after 30 retries" >&2
+        exit 1
+    else
+        sleep 1
+    fi
+done
+clear
+echo "✅执行完成"'
+=====================
+Remote real output: 
+=====================
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证命令 1: ls ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py
+命令: 'ls ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+验证成功: ls ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py
+所有验证通过!
+命令: 'python ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'source /content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh 2>/dev/null || true && python3 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094447_429275_c439db2d/test_simple_hello.py'
+=====================
+Remote real output: 
+=====================
+Hello from remote project
+Current working directory: /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094817_647608_b17b64a5
+Python version: 3.12.12 (main, Oct 10 2025, 08:52:57) [GCC 11.4.0]
+命令: 'python -c "print(\\"Hello from Python code!\\"); import os; print(os.getcwd())"'
+返回码: 0
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 491.176s
+
+OK
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'mkdir -p /content/drive/MyDrive/REMOTE_ROOT/tmp && \
+            echo "cHJpbnQoIkhlbGxvIGZyb20gUHl0aG9uIGNvZGUhIik7IGltcG9ydCBvczsgcHJpbnQob3MuZ2V0Y3dkKCkp" > "/content/drive/MyDrive/REMOTE_ROOT/tmp/python_code_1763430650_0f16.b64" && \
+            source /content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh 2>/dev/null || true
+            
+            # 在远程环境中智能选择Python可执行文件
+            # 1. 检查是否有pyenv设置的Python版本
+            PYTHON_EXEC="python3"  # 默认
+            PYTHON_BASE_PATH="/content/drive/MyDrive/REMOTE_ENV/python"
+            STATE_FILE="$PYTHON_BASE_PATH/python_states.json"
+            
+            # 获取当前shell ID
+            SHELL_ID="99a62b9064feac53"
+            
+            # 如果状态文件存在，尝试读取Python版本设置
+            if [ -f "$STATE_FILE" ]; then
+                # 优先检查local版本
+                LOCAL_VERSION=$(python3 -c "
+import json, sys
+try:
+    with open('"'"'$STATE_FILE'"'"', '"'"'r'"'"') as f:
+        states = json.load(f)
+    print(states.get('"'"'shell_${SHELL_ID}'"'"', '"'"''"'"'))
+except:
+    pass
+" 2>/dev/null || echo "")
+                
+                # 如果没有local版本，检查global版本
+                if [ -z "$LOCAL_VERSION" ]; then
+                    GLOBAL_VERSION=$(python3 -c "
+import json, sys
+try:
+    with open('"'"'$STATE_FILE'"'"', '"'"'r'"'"') as f:
+        states = json.load(f)
+    print(states.get('"'"'global'"'"', '"'"''"'"'))
+except:
+    pass
+" 2>/dev/null || echo "")
+                    CURRENT_VERSION="$GLOBAL_VERSION"
+                else
+                    CURRENT_VERSION="$LOCAL_VERSION"
+                fi
+                
+                # 如果找到了版本设置，检查对应的Python是否存在
+                if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" != "system" ]; then
+                    PYENV_PYTHON="$PYTHON_BASE_PATH/$CURRENT_VERSION/bin/python3"
+                    if [ -f "$PYENV_PYTHON" ]; then
+                        # 尝试修复权限问题
+                        chmod +x "$PYENV_PYTHON" 2>/dev/null || true
+                        if [ -x "$PYENV_PYTHON" ]; then
+                            PYTHON_EXEC="$PYENV_PYTHON"
+                        fi
+                    fi
+                fi
+            fi
+            
+            # 执行Python代码 (修复版本：避免exec嵌套)
+            # 直接从base64文件解码并作为脚本执行，而不是通过exec
+            base64 -d "/content/drive/MyDrive/REMOTE_ROOT/tmp/python_code_1763430650_0f16.b64" | $PYTHON_EXEC
+            PYTHON_EXIT_CODE=$?
+            
+            # 清理临时文件
+            rm -f "/content/drive/MyDrive/REMOTE_ROOT/tmp/python_code_1763430650_0f16.b64"
+            
+            # 返回Python脚本的退出码
+            exit $PYTHON_EXIT_CODE'
+=====================
+Remote real output: 
+=====================
+Hello from Python code!
+/content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094817_647608_b17b64a5
+命令: 'cd ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_project && python ~/tmp/gds_test_20251118_094447_429275_c439db2d/test_project/main.py'
+返回码: 0
+输出: User command preview [in f-string]: 
+=====================
+bash -c 'source /content/drive/MyDrive/REMOTE_ENV/venv/venv_pythonpath.sh 2>/dev/null || true && python3 /content/drive/MyDrive/REMOTE_ROOT/tmp/gds_test_20251118_094447_429275_c439db2d/test_project/main.py'
+=====================
+Remote real output: 
+=====================
+Test project started
+Current time: 2025-11-18 01:52:28.910753
+Python version: 3.12.12 (main, Oct 10 2025, 08:52:57) [GCC 11.4.0]
+Processing result: {'count': 5, 'sum': 15, 'average': 3.0}
+Test project completed
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

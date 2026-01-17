@@ -1,0 +1,141 @@
+# ============================================================================
+# Test completed at: 2025-11-30 20:53:20 - Status: FAIL
+# ============================================================================
+
+test_29_pyenv_version_change (test_gds.GDSTest)
+测试pyenv版本切换 - 通过wget检测可用版本并随机选择进行测试 ... FAIL
+
+======================================================================
+FAIL: test_29_pyenv_version_change (test_gds.GDSTest)
+测试pyenv版本切换 - 通过wget检测可用版本并随机选择进行测试
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 922, in gds
+    self.assertEqual(result.returncode, 0, f"命令执行失败")
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 194, in assertEqual
+    super().assertEqual(first, second, msg)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/case.py", line 831, in assertEqual
+    assertion_func(first, second, msg=msg)
+AssertionError: 1 != 0 : 命令执行失败
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 4664, in test_29_pyenv_version_change
+    # 检查当前已安装的版本
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 928, in gds
+    self.fail(f'命令执行异常: {command} - {e}')
+  File "/Users/wukunhuan/.local/bin/_UNITTEST/test_gds.py", line 244, in fail
+    super().fail(msg)
+AssertionError: 命令执行异常: ['pyenv', '--install-bg', '3.10.8', '--force'] - 1 != 0 : 命令执行失败
+
+----------------------------------------------------------------------
+Ran 1 test in 268.063s
+
+FAILED (failures=1)
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
+正在创建远端测试目录: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
+验证测试目录存在: ~/tmp/gds_test_20251130_204848_706221_039b1a5e
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_6crhq40b
+测试环境设置完成
+测试pyenv版本切换（使用随机可用版本）
+步骤1：通过wget检测可用的Python版本（探测范围：3.7.x - 3.11.x）
+命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.7.0/Python-3.7.0.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
+返回码: 0
+输出: EXISTS
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  Found: Python 3.7.0
+命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
+返回码: 0
+输出: EXISTS
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  Found: Python 3.8.2
+命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.9.12/Python-3.9.12.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
+返回码: 0
+输出: EXISTS
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  Found: Python 3.9.12
+命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.10.8/Python-3.10.8.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
+返回码: 0
+输出: EXISTS
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  Found: Python 3.10.8
+命令: 'bash -c \'wget --spider -q https://www.python.org/ftp/python/3.11.2/Python-3.11.2.tgz 2>&1 && echo \'"\'"\'EXISTS\'"\'"\' || echo \'"\'"\'NOT_FOUND\'"\'"\'\''
+返回码: 0
+输出: EXISTS
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+  Found: Python 3.11.2
+
+检测到 5 个可用的Python版本: ['3.7.0', '3.8.2', '3.9.12', '3.10.8', '3.11.2']
+从5个可用版本中随机选择的测试版本: 3.10.8 和 3.9.12
+步骤1.5：检查当前已安装的Python版本
+命令: 'pyenv --versions'
+返回码: 0
+输出: Installed Python versions (11 total):
+  3.10.13
+  3.10.14
+  3.11.0
+* 3.11.7
+  3.12.0
+  3.12.1
+  3.12.9
+  3.8.18
+  3.8.19
+  3.9.0
+  3.9.18
+Current: 3.11.7 (local shell 99a62b9064feac53)
+当前已安装版本:
+Installed Python versions (11 total):
+  3.10.13
+  3.10.14
+  3.11.0
+* 3.11.7
+  3.12.0
+  3.12.1
+  3.12.9
+  3.8.18
+  3.8.19
+  3.9.0
+  3.9.18
+Current: 3.11.7 (local shell 99a62b9064feac53)
+
+
+步骤2：后台安装Python 3.10.8（使用--force强制重新安装）
+命令: 'pyenv --install-bg 3.10.8 --force'
+返回码: 1
+输出: pyenv --install-bg is deprecated. Use --install instead (now uses open-style installation with visible progress).
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第1次...
+返回码: 1
+输出: pyenv --install-bg is deprecated. Use --install instead (now uses open-style installation with visible progress).
+🔄 检测到预期与实际不符（预期成功: True, 实际成功: False），准备重试...
+重试第2次...
+返回码: 1
+输出: pyenv --install-bg is deprecated. Use --install instead (now uses open-style installation with visible progress).
+
+======================================================================
+❌❌❌ ASSERTION FAILED ❌❌❌
+======================================================================
+📍 Expected: 0
+📍 Got:      1
+💬 Message:  命令执行失败
+======================================================================
+
+命令执行异常: 1 != 0 : 命令执行失败
+
+======================================================================
+❌❌❌ TEST FAILED ❌❌❌
+======================================================================
+💬 Message: 命令执行异常: ['pyenv', '--install-bg', '3.10.8', '--force'] - 1 != 0 : 命令执行失败
+======================================================================
+
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

@@ -1,0 +1,136 @@
+# ============================================================================
+# Test completed at: 2025-11-18 15:37:01 - Status: PASS
+# ============================================================================
+
+test_31_pyenv_invalid_versions (test_gds.GDSTest)
+测试pyenv边缘情况和无效版本处理 ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 131.599s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251118_153447_455215_598ffac0
+正在创建远端测试目录: ~/tmp/gds_test_20251118_153447_455215_598ffac0
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251118_153447_455215_598ffac0
+验证测试目录存在: ~/tmp/gds_test_20251118_153447_455215_598ffac0
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_zhjps_lw
+测试环境设置完成
+测试pyenv边缘情况和无效版本处理
+
+步骤1：测试无效命令选项
+命令: 'pyenv --invalid-option'
+返回码: 1
+输出: Unknown pyenv command: --invalid-option. Supported commands: --install, --install-bg, --uninstall, --list-available, --update-cache, --global, --local, --version, --versions
+
+步骤2：测试极端版本号
+命令: 'pyenv --global 0.0.1'
+返回码: 1
+输出: Python 0.0.1 is not installed. Use 'pyenv --install 0.0.1' first.
+命令: 'pyenv --local 0.0.1'
+返回码: 1
+输出: Python 0.0.1 is not installed. Use 'pyenv --install 0.0.1' first.
+命令: 'pyenv --install 0.0.1'
+返回码: 1
+输出: Installing Python 0.0.1...
+Final installation path: /content/drive/MyDrive/REMOTE_ENV/python/0.0.1
+This may take several minutes...
+Error installing Python 0.0.1: 'CommandExecutor' object has no attribute 'execute_remote_script'
+命令: 'pyenv --uninstall 0.0.1'
+返回码: 1
+输出: Python 0.0.1 is not installed
+命令: 'pyenv --global 99.99.99'
+返回码: 1
+输出: Python 99.99.99 is not installed. Use 'pyenv --install 99.99.99' first.
+命令: 'pyenv --local 99.99.99'
+返回码: 1
+输出: Python 99.99.99 is not installed. Use 'pyenv --install 99.99.99' first.
+命令: 'pyenv --install 99.99.99'
+返回码: 1
+输出: Installing Python 99.99.99...
+Final installation path: /content/drive/MyDrive/REMOTE_ENV/python/99.99.99
+This may take several minutes...
+Error installing Python 99.99.99: 'CommandExecutor' object has no attribute 'execute_remote_script'
+命令: 'pyenv --uninstall 99.99.99'
+返回码: 1
+输出: Python 99.99.99 is not installed
+命令: 'pyenv --global 3.99.999'
+返回码: 1
+输出: Python 3.99.999 is not installed. Use 'pyenv --install 3.99.999' first.
+命令: 'pyenv --local 3.99.999'
+返回码: 1
+输出: Python 3.99.999 is not installed. Use 'pyenv --install 3.99.999' first.
+命令: 'pyenv --install 3.99.999'
+返回码: 1
+输出: Installing Python 3.99.999...
+Final installation path: /content/drive/MyDrive/REMOTE_ENV/python/3.99.999
+This may take several minutes...
+Error installing Python 3.99.999: 'CommandExecutor' object has no attribute 'execute_remote_script'
+命令: 'pyenv --uninstall 3.99.999'
+返回码: 1
+输出: Python 3.99.999 is not installed
+
+步骤3：测试超长版本号
+命令: 'pyenv --global 3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1'
+返回码: 1
+输出: Python 3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1 is not installed. Use 'pyenv --install 3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1' first.
+命令: 'pyenv --install 3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1'
+返回码: 1
+输出: Installing Python 3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1...
+Final installation path: /content/drive/MyDrive/REMOTE_ENV/python/3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1
+This may take several minutes...
+Error installing Python 3.9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999.1: 'CommandExecutor' object has no attribute 'execute_remote_script'
+
+步骤4：测试特殊字符版本号
+命令: 'pyenv --global 3.9.1-alpha'
+返回码: 1
+输出: Invalid Python version format: '3.9.1-alpha'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: 'pyenv --install 3.9.1-alpha'
+返回码: 1
+输出: Invalid Python version format: '3.9.1-alpha'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: 'pyenv --global 3.9.1+build'
+返回码: 1
+输出: Invalid Python version format: '3.9.1+build'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: 'pyenv --install 3.9.1+build'
+返回码: 1
+输出: Invalid Python version format: '3.9.1+build'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --global '3.9.1~rc1'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1~rc1'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --install '3.9.1~rc1'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1~rc1'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --global '3.9.1 with spaces'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1 with spaces'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --install '3.9.1 with spaces'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1 with spaces'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --global '3.9.1;injection'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1;injection'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --install '3.9.1;injection'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1;injection'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --global '3.9.1|pipe'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1|pipe'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --install '3.9.1|pipe'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1|pipe'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --global '3.9.1&background'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1&background'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+命令: "pyenv --install '3.9.1&background'"
+返回码: 1
+输出: Invalid Python version format: '3.9.1&background'. Expected format: x.y.z (e.g., 3.9.18) or special identifiers like 'system'
+
+pyenv边缘情况测试完成
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+

@@ -1,0 +1,70 @@
+# ============================================================================
+# Test completed at: 2025-12-02 13:00:27 - Status: PASS
+# ============================================================================
+
+test_04_file_ops_mixed (test_gds.GDSTest) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 717.257s
+
+OK
+设置GDS全面测试环境...
+清理Python缓存和pytest缓存...
+Python缓存和pytest缓存已清理
+远端测试目录: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4
+正在创建远端测试目录: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4
+使用测试模式，窗口将只显示复制指令和执行完成按钮
+已切换到远端测试目录: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4
+验证测试目录存在: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4
+本地临时目录: /var/folders/w0/m02j_xv925sg34708rb2xgzr0000gn/T/gds_test_local_ozyu_znx
+测试环境设置完成
+命令: 'mkdir -p ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/utils'
+返回码: 0
+输出: 
+命令: 'echo "# Main module" > ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/main.py'
+返回码: 0
+输出: 
+命令: 'echo "# Utilities" > ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/utils/helpers.py'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/utils/helpers.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/utils/helpers.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls -R ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project'
+返回码: 0
+输出: src/
+utils/
+helpers.py
+main.py
+命令: 'mv ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/main.py ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/main.py'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/main.py'
+返回码: 0
+输出: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/main.py
+🔄 检测到预期与实际不符（预期成功: False, 实际成功: True），准备重试...
+命令: 'ls ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/main.py'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/src/main.py: No such file or directory
+命令: 'rm ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/main.py'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/main.py'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project/main.py: No such file or directory
+命令: 'rm -rf ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project'
+返回码: 0
+输出: 
+命令: 'ls ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project'
+返回码: 1
+输出: ls: ~/tmp/gds_test_20251202_124827_674429_9d3d7ed4/advanced_project: No such file or directory
+
+======================================================================
+🏁 GDS测试套件执行完成
+======================================================================
+
