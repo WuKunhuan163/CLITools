@@ -37,11 +37,15 @@ class AuditManager:
         except Exception:
             return False
 
-    def print_cache_warning(self, custom_command=None):
+    def print_cache_warning(self, custom_command=None, silent=False):
         """Prints a standardized warning when cache is used."""
-        BOLD = "\033[1m"
-        YELLOW = "\033[33m"
-        RESET = "\033[0m"
+        if silent:
+            return
+            
+        from proj.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        YELLOW = get_color("YELLOW", "\033[33m")
+        RESET = get_color("RESET", "\033[0m")
         
         warning_label = f"{BOLD}{YELLOW}Warning{RESET}"
         

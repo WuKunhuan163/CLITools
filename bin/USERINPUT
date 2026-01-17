@@ -1,47 +1,16 @@
 #!/usr/bin/env python3
-import sys
-import os
-import subprocess
+import sys, os, subprocess
 from pathlib import Path
-
-# Add the directory containing 'proj' to PYTHONPATH for the subprocess
-project_root = Path('/Applications/AITerminalTools')
-python_tool_dir = project_root / "tool" / "PYTHON"
-
-if not python_tool_dir.exists():
-    print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' 未安装.")
-    print(f"该工具 'USERINPUT' 依赖于 PYTHON 工具。")
-    print(f"请先运行: TOOL install PYTHON")
-    print(f"然后再运行: TOOL install USERINPUT (以恢复依赖版本)")
-    sys.exit(1)
-
-# Prioritize the tool's proj directory to find its specific utils.py
-# Use insert(0) to ensure it comes before any root proj in PYTHONPATH
-sys.path.insert(0, str(python_tool_dir))
-
+root = Path('/Applications/AITerminalTools')
+py_tool = root / "tool" / "PYTHON"
+if not py_tool.exists(): print("Error: PYTHON tool missing."); sys.exit(1)
+sys.path.append(str(py_tool))
 try:
-    # Clear any cached 'proj' modules to ensure we load from the new path
-    if 'proj.utils' in sys.modules: del sys.modules['proj.utils']
-    if 'proj' in sys.modules: del sys.modules['proj']
-    
-    from proj.utils import get_python_exec
-    python_exec = get_python_exec()
-    if not os.path.exists(python_exec) and python_exec != "python3":
-         print(f"\033[1;33m警告\033[0m: 在 {python_exec} 未找到首选的 Python 执行文件。")
-         print(f"正在尝试进行恢复...")
-         setup_py = project_root / "tool" / 'USERINPUT' / "setup.py"
-         if setup_py.exists():
-             subprocess.run([sys.executable, str(setup_py)], cwd=str(project_root))
-             python_exec = get_python_exec() # Retry
-except (ImportError, AttributeError):
-    python_exec = "python3"
-
-# Set up environment
+    from core.utils import get_python_exec
+    py_exec = get_python_exec()
+except: py_exec = "python3"
 env = os.environ.copy()
-# Add the project root (containing root 'proj') and tool's directory (containing 'proj') to PYTHONPATH
-tool_main = Path('/Applications/AITerminalTools/tool/USERINPUT/main.py')
-env["PYTHONPATH"] = f"{project_root}:{tool_main.parent}:{env.get('PYTHONPATH', '')}"
-
+main = Path('/Applications/AITerminalTools/tool/USERINPUT/main.py')
+env["PYTHONPATH"] = f"{root}:{main.parent}:{env.get('PYTHONPATH', '')}"
 if __name__ == "__main__":
-    result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
-    sys.exit(result.returncode)
+    sys.exit(subprocess.run([py_exec, str(main)] + sys.argv[1:], env=env).returncode)

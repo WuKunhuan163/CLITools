@@ -18,27 +18,11 @@ sys.path.append(str(script_dir))
 from core.utils import get_python_exec, extract_resource
 from core.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
-# Try to import colors and shared utils from root proj
+# Import colors and shared utils from root proj
 sys.path.append(str(project_root))
-try:
-    from proj.config import get_color
-    from proj.lang.utils import get_translation
-    from proj.tool_base import ToolBase
-except ImportError:
-    def get_color(name, default="\033[0m"): return default
-    def get_translation(d, k, default): return default
-    class ToolBase:
-        def __init__(self, name):
-            self.tool_name = name
-            self.script_dir = Path(__file__).resolve().parent
-            self.project_root = self.script_dir.parent.parent
-        def handle_command_line(self):
-            if len(sys.argv) > 1 and sys.argv[1] == "setup":
-                setup_script = self.script_dir / "setup.py"
-                if setup_script.exists():
-                    subprocess.run([sys.executable, str(setup_script)] + sys.argv[2:])
-                    sys.exit(0)
-            return False
+from proj.config import get_color
+from proj.lang.utils import get_translation
+from proj.tool.base import ToolBase
 
 # Root shared proj for translation
 SHARED_PROJ_DIR = project_root / "proj"
@@ -75,6 +59,9 @@ def _get_remote_versions():
     """Fetches the list of versions available in the remote 'tool' branch."""
     versions = []
     rel_path = RESOURCE_ROOT.relative_to(project_root)
+    
+    # Always fetch latest info
+    subprocess.run(["git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
     
     # Check origin/tool first
     cmd = ["git", "ls-tree", "-r", "--name-only", "origin/tool", str(rel_path)]
@@ -283,25 +270,34 @@ def _install_version(version, install_dir=None):
         v = version
         if v.startswith("python"): v = v[6:]
         
-        # Try version-tag
-        candidate = f"{v}-{tag}"
-        if candidate in remote_versions:
-            final_version = candidate
+        # If the input already contains the tag, use it as is for fuzzy match
+        if v.endswith(tag):
+            matches = [s for s in remote_versions if s == v]
         else:
-            # Try fuzzy match (e.g., 3.10 -> 3.10.15-macos-arm64)
-            matches = [s for s in remote_versions if s.startswith(v) and s.endswith(tag)]
-            if matches:
-                matches.sort(key=len, reverse=True)
-                final_version = matches[0]
+            # Try version-tag
+            candidate = f"{v}-{tag}"
+            if candidate in remote_versions:
+                final_version = candidate
+                matches = [candidate]
             else:
-                final_version = None
+                # Try fuzzy match (e.g., 3.10 -> 3.10.15-macos-arm64)
+                matches = [s for s in remote_versions if s.startswith(v) and s.endswith(tag)]
+        
+        if matches:
+            matches.sort(key=len, reverse=True)
+            final_version = matches[0]
+        else:
+            final_version = None
 
     if not final_version:
         error_label = _("label_error", "Error")
         if remote_versions:
             msg = _("python_version_not_supported", "Version {version} is not found in remote 'tool' branch.", version=version)
-            print(f"{RED}{BOLD}{error_label}{RESET}: {msg}")
-            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to migrate it from astral-sh builds.", v=version.split('-')[0]))
+            print(f"{BOLD}{RED}{error_label}{RESET}: {msg}")
+            v_base = version.split('-')[0]
+            if v_base.startswith("python"): v_base = v_base[6:]
+            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to migrate it from astral-sh builds.", v=v_base))
+            print(_("python_install_after_update_hint", "Then run: PYTHON --py-install {v}-{tag}", v=v_base, tag=tag))
         else:
             print(f"{RED}{BOLD}{error_label}{RESET}: No versions found on remote 'tool' branch.")
             print(_("python_update_initial_hint", "Please run 'PYTHON --py-update' first to migrate Python builds."))
@@ -373,7 +369,7 @@ def _install_version(version, install_dir=None):
                 if v_match:
                     v_num = v_match.group(1)
                     v_plat = v_match.group(2)
-                    cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
+                    cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1", "--silent-cache"]
                     subprocess.run(cmd, capture_output=True)
                     if (target_parent / version).exists():
                         sys.stdout.write("\r\033[K")

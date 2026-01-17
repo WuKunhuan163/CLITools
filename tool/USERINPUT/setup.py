@@ -31,7 +31,7 @@ def main():
         except Exception: pass
 
     parser = argparse.ArgumentParser(description="USERINPUT Setup Tool")
-    parser.add_argument("--version", default=default_version, help="Python version to install")
+    parser.add_argument("--py-version", default=default_version, help="Python version to install")
     args = parser.parse_args()
 
     python_bin = project_root / "bin" / "PYTHON"
@@ -40,7 +40,7 @@ def main():
         print("\033[1;31mError\033[0m: PYTHON tool binary not found.")
         sys.exit(1)
         
-    version = args.version
+    version = args.py_version
     if not version.startswith("python"):
         version = f"python{version}"
 

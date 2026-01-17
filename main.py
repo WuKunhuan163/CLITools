@@ -7,49 +7,26 @@ import stat
 import shutil
 from pathlib import Path
 
-# Color codes
-RED = "\033[31m"
-GREEN = "\033[32m"
-YELLOW = "\033[33m"
-BLUE = "\033[34m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
+# Import colors and shared utils from proj
+from proj.config import get_color
+from proj.lang.utils import get_translation
+from proj.audit.utils import AuditManager, AuditBase
 
-# Try to import colors and shared utils from proj
-try:
-    from proj.config import get_color
-    from proj.lang.utils import get_translation
-    from proj.audit.utils import AuditManager, AuditBase
-    
-    RESET = get_color("RESET", "\033[0m")
-    GREEN = get_color("GREEN", "\033[32m")
-    BOLD = get_color("BOLD", "\033[1m")
-    BLUE = get_color("BLUE", "\033[34m")
-    YELLOW = get_color("YELLOW", "\033[33m")
-    RED = get_color("RED", "\033[31m")
-except ImportError:
-    def get_color(name, default="\033[0m"): return default
-    def get_translation(d, k, default): return default
-    class AuditManager:
-        def __init__(self, d, **kwargs): pass
-        def load(self, n): return {}
-        def save(self, n, d): pass
-        def print_cache_warning(self, **kwargs): pass
-    class AuditBase:
-        def __init__(self, am): pass
-        def handle_force(self, a): pass
+RESET = get_color("RESET", "\033[0m")
+GREEN = get_color("GREEN", "\033[32m")
+BOLD = get_color("BOLD", "\033[1m")
+BLUE = get_color("BLUE", "\033[34m")
+YELLOW = get_color("YELLOW", "\033[33m")
+RED = get_color("RED", "\033[31m")
 
 # Root project directory
 ROOT_PROJECT_ROOT = Path(__file__).parent.absolute()
 SHARED_PROJ_DIR = ROOT_PROJECT_ROOT / "proj"
 
-# Try to initialize RTL support and override built-in print
-try:
-    from proj.utils import smart_print, set_rtl_mode
-    import builtins
-    builtins.print = smart_print
-except ImportError:
-    def set_rtl_mode(enabled): pass
+# Initialize RTL support and override built-in print
+from proj.utils import smart_print, set_rtl_mode
+import builtins
+builtins.print = smart_print
 
 def _(translation_key, default, **kwargs):
     text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
@@ -57,7 +34,6 @@ def _(translation_key, default, **kwargs):
 
 def install_tool(tool_name):
     project_root = Path(__file__).parent.absolute()
-    # Install tools into a 'tool' subdirectory
     tool_parent_dir = project_root / "tool"
     tool_parent_dir.mkdir(exist_ok=True)
     tool_dir = tool_parent_dir / tool_name
@@ -85,195 +61,18 @@ def install_tool(tool_name):
             print(f"{BOLD}{GREEN}{success_status}{RESET}: " + _("already_installed", "{name} is already installed.", name=tool_name))
             return
         else:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_reinstall", "Tool '{name}' is installed but missing dependencies. Re-installing...", name=tool_name))
-
-    # Add a blank line between tools for better readability
-    install_header = _("install_header", "\n--- Installing {name} tool ---", name=tool_name)
-    print(f"{BLUE}{BOLD}{install_header}{RESET}")
-    
-    # 0. Validate against global tool.json
-    registry_path = project_root / "tool.json"
-    if registry_path.exists():
-        with open(registry_path, 'r') as f:
-            registry = json.load(f)
-            if tool_name not in registry.get("tools", {}):
-                print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=tool_name))
-                return
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_repair", "Tool '{name}' is missing dependencies. Repairing...", name=tool_name))
     else:
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("registry_error", "Global tool.json not found."))
-        return
+        # Not installed at all, start installation header if needed, but ToolEngine handles sub-steps
+        pass
 
-    # 1. If tool directory doesn't exist, try to download from GitHub 'tool' branch
-    if not tool_dir.exists():
-        print(_("tool_not_found", "Tool {name} not found locally. Attempting to fetch...", name=tool_name))
-        
-        try:
-            # Try to checkout from origin/tool - note the path is tool/<name> in the branch
-            result = subprocess.run(["git", "checkout", "origin/tool", "--", f"tool/{tool_name}"], capture_output=True, cwd=str(project_root))
-            if result.returncode == 0:
-                success_status = _("python_install_success_status", "Successfully retrieved")
-                print(f"{BOLD}{GREEN}{success_status}{RESET} {tool_name} " + _("retrieved_from", "from remote '{branch}' branch", branch="origin/tool"))
-            else:
-                # If remote fails, try local tool branch
-                subprocess.run(["git", "checkout", "tool", "--", f"tool/{tool_name}"], check=True, capture_output=True, cwd=str(project_root))
-                success_status = _("python_install_success_status", "Successfully retrieved")
-                print(f"{BOLD}{GREEN}{success_status}{RESET} {tool_name} " + _("retrieved_from", "from local '{branch}' branch", branch="tool"))
-        except subprocess.CalledProcessError as e:
-            fail_msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-            print(f"{BOLD}{RED}{fail_msg}{RESET}: " + _("retrieve_error_msg", "Error retrieving: {error}", error=e))
-            return
-
-    if not tool_dir.exists():
-        fail_msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-        print(f"{BOLD}{RED}{fail_msg}{RESET}: " + _("tool_dir_not_found", "Error: Tool directory still not found after download attempt."))
-        return
-
-    # 2. Parse tool.json for dependencies
-    tool_json_path = tool_dir / "tool.json"
-    if tool_json_path.exists():
-        with open(tool_json_path, 'r') as f:
-            tool_data = json.load(f)
-            dependencies = tool_data.get("dependencies", [])
-            for dep in dependencies:
-                # Pre-check dependency
-                dep_dir = tool_parent_dir / dep
-                dep_link = bin_dir / dep
-                if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
-                    dep_msg = _("installing_dep", "Installing dependency for {name} tool: {dep} tool", name=tool_name, dep=dep)
-                    print(f"{BLUE}{BOLD}{dep_msg}{RESET}")
-                    install_tool(dep)
-
-    # 3. Handle pip dependencies if proj/requirements.txt exists
-    requirements_path = tool_dir / "core" / "requirements.txt"
-    if not requirements_path.exists():
-        requirements_path = tool_dir / "requirements.txt"
-    
-    if requirements_path.exists():
-        try:
-            # Use the installed PYTHON tool to get the python executable
-            python_tool_dir = project_root / "tool" / "PYTHON"
-            if not python_tool_dir.exists():
-                warning_label = _("warning_label", "Warning")
-                print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("python_not_found", "PYTHON tool not found. Skipping pip dependencies."))
-            else:
-                # Import get_python_exec from tool/PYTHON/core/utils.py
-                python_utils_path = python_tool_dir / "core" / "utils.py"
-                if python_utils_path.exists():
-                    import importlib.util
-                    spec = importlib.util.spec_from_file_location("python_utils_mod", str(python_utils_path))
-                    python_utils_mod = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(python_utils_mod)
-                    python_exec = python_utils_mod.get_python_exec()
-                    
-                    # Run pip install using the standalone python
-                    result = subprocess.run(
-                        [python_exec, "-m", "pip", "install", "-r", str(requirements_path)],
-                        capture_output=True, text=True
-                    )
-                    
-                    if result.returncode != 0:
-                        error_label = _("error_label", "Error")
-                        print(f"{BOLD}{RED}{error_label}{RESET}: " + _("pip_error", "Warning: pip install failed with error:\n{error}", error=result.stderr))
-                    else:
-                        success_status = _("python_install_success_status", "Successfully installed")
-                        print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("pip_success", "pip dependencies for {name} tool.", name=tool_name))
-        except Exception as e:
-            warning_label = _("warning_label", "Warning")
-            print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("pip_failed", "Failed to install pip dependencies for {name} tool: {error}", name=tool_name, error=e))
-
-    main_py = tool_dir / "main.py"
-    if not main_py.exists():
-        msg = _("install_failed", "Failed to install {name} tool", name=tool_name)
-        print(f"{BOLD}{RED}{msg}{RESET}: " + _("tool_main_not_found_msg", "Error: {path} not found in tool directory.", path=main_py))
-        return
-
-    # 4. Create entry point in bin directory
-    bin_dir.mkdir(exist_ok=True)
-    link_path = bin_dir / tool_name
-    if link_path.exists() or link_path.is_symlink():
-        os.remove(link_path)
-    
-    try:
-        # Ensure main.py is executable
-        st = os.stat(main_py)
-        os.chmod(main_py, st.st_mode | stat.S_IEXEC)
-
-        # Check if the tool depends on PYTHON. If so, create a wrapper script.
-        use_wrapper = False
-        if tool_json_path.exists():
-            with open(tool_json_path, 'r') as f:
-                tool_data = json.load(f)
-                if "PYTHON" in tool_data.get("dependencies", []):
-                    use_wrapper = True
-        
-        if use_wrapper:
-            wrapper_content = f'''#!/usr/bin/env python3
-import sys
-import os
-import subprocess
-from pathlib import Path
-
-# Add the directory containing 'proj' to PYTHONPATH for the subprocess
-project_root = Path({repr(str(project_root))})
-python_tool_dir = project_root / "tool" / "PYTHON"
-
-if not python_tool_dir.exists():
-    print(f"\033[1;31m错误\033[0m: 工具 'PYTHON' 未安装.")
-    print(f"该工具 '{tool_name}' 依赖于 PYTHON 工具。")
-    print(f"请先运行: TOOL install PYTHON")
-    print(f"然后再运行: PYTHON --py-install 3.10.19")
-    print(f"最后再运行: TOOL install {tool_name} (以恢复依赖版本)")
-    sys.exit(1)
-
-sys.path.append(str(python_tool_dir))
-
-try:
-    from core.utils import get_python_exec
-    python_exec = get_python_exec()
-except ImportError:
-    python_exec = "python3"
-
-# Set up environment
-env = os.environ.copy()
-tool_main = Path({repr(str(main_py))})
-env["PYTHONPATH"] = f"{{project_root}}:{{tool_main.parent}}:{{env.get('PYTHONPATH', '')}}"
-
-if __name__ == "__main__":
-    result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
-    sys.exit(result.returncode)
-'''
-            with open(link_path, 'w') as f:
-                f.write(wrapper_content)
-            os.chmod(link_path, st.st_mode | stat.S_IEXEC)
-        else:
-            os.symlink(main_py, link_path)
-        
-        success_status = _("python_install_success_status", "Successfully installed")
-        print(f"{BOLD}{GREEN}{success_status}{RESET} {tool_name}" + _("shortcut_created", ": shortcut created at {path}", path=link_path))
-        
-        register_path(bin_dir)
-    except OSError as e:
-        error_label = _("error_label", "Error")
-        print(f"{BOLD}{RED}{error_label}{RESET}: " + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e))
-
-    # 5. Run tool setup if setup.py exists
-    setup_py = tool_dir / "setup.py"
-    if setup_py.exists():
-        action_label = _("label_fetching", "Running")
-        print(f"{BLUE}{BOLD}{action_label}{RESET} " + _("running_setup", "setup for {name} tool...", name=tool_name))
-        try:
-            subprocess.run([sys.executable, str(setup_py)], check=True, cwd=str(project_root))
-            success_status = _("python_install_success_status", "Successfully ran")
-            print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("setup_success", "setup for {name} tool.", name=tool_name))
-        except Exception as e:
-            warning_label = _("warning_label", "Warning")
-            print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("setup_failed", "Setup for {name} tool failed: {error}", name=tool_name, error=e))
+    from proj.tool.setup.engine import ToolEngine
+    engine = ToolEngine(tool_name, project_root)
+    engine.install()
 
 def uninstall_tool(tool_name, force_yes=False):
     project_root = Path(__file__).parent.absolute()
     tool_dir = project_root / "tool" / tool_name
-    bin_dir = project_root / "bin"
-    link_path = bin_dir / tool_name
     
     if not tool_dir.exists():
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("tool_not_found_local", "Tool '{name}' is not installed.", name=tool_name))
@@ -289,24 +88,9 @@ def uninstall_tool(tool_name, force_yes=False):
             print(_("non_interactive_skip", "Non-interactive session, skipping confirmation. Use -y to force."))
             return
 
-    un_msg = _("uninstalling_header", "Uninstalling {name} tool...", name=tool_name)
-    print(f"{BLUE}{BOLD}{un_msg}{RESET}")
-    
-    if link_path.exists() or link_path.is_symlink():
-        try:
-            os.remove(link_path)
-            print(_("removed_shortcut", "Removed shortcut at {path}", path=link_path))
-        except Exception as e:
-            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("remove_shortcut_failed", "Failed to remove shortcut: {error}", error=e))
-
-    try:
-        shutil.rmtree(tool_dir)
-        print(_("removed_tool_dir", "Removed tool directory at {path}", path=tool_dir))
-    except Exception as e:
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("remove_tool_dir_failed", "Failed to remove tool directory: {error}", error=e))
-
-    success_status = _("uninstall_success_status", "Successfully uninstalled")
-    print(f"{BOLD}{GREEN}{success_status}{RESET} {tool_name}")
+    from proj.tool.setup.engine import ToolEngine
+    engine = ToolEngine(tool_name, project_root)
+    engine.uninstall()
 
 def register_path(bin_dir):
     home = Path.home()
@@ -354,7 +138,7 @@ def update_config(key, value):
     with open(config_path, 'w') as f: json.dump(config, f, indent=2)
     print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
-def sync_branches():
+def _dev_sync():
     """Synchronize core files from 'tool' to 'main', then overwrite 'test' with 'main'."""
     project_root = Path(__file__).parent.absolute()
     core_files = ["main.py", "setup.py", "tool.json", "README.md", ".gitignore", ".gitattributes", "proj", "bin", "test", "todo"]
@@ -380,7 +164,7 @@ def sync_branches():
     except subprocess.CalledProcessError: pass
 
     sync_label = _("sync_to_main_label", "Syncing")
-    print(f"{BOLD}{BLUE}{sync_label}{RESET} to 'main' branch...")
+    print(f"\r\033[K{BOLD}{BLUE}{sync_label}{RESET} to 'main' branch...", end="", flush=True)
     
     commands = [
         ["git", "checkout", "main"],
@@ -403,37 +187,14 @@ def sync_branches():
                 subprocess.run(cmd, check=True, cwd=str(project_root))
             
             if cmd == ["git", "checkout", "main"] or cmd == ["git", "checkout", "-b", "test"]:
-                # Apply the restricted .gitignore
-                gitignore_content = """# Ignore everything by default
-/*
-
-# But track these core folders and files
-!/main.py
-!/setup.py
-!/tool.json
-!/README.md
-!/proj/
-!/bin/
-!/test/
-!/todo/
-!/tool/
-!/.gitignore
-!/.gitattributes
-
-# Within tool, ignore data and logs but track the code
-/tool/*/data/
-/tool/*/logs/
-!/tool/*/
-
-# Within proj, ignore pycache
-**/__pycache__/
-
-# Keep gitignore and gitattributes
-!.gitignore
-!.gitattributes
-"""
-                with open(project_root / ".gitignore", 'w') as f: f.write(gitignore_content)
-                subprocess.run(["git", "add", ".gitignore"], cwd=str(project_root), check=True)
+                # Apply the restricted .gitignore from templates
+                init_dir = project_root / "proj" / "init"
+                if (init_dir / ".gitignore").exists():
+                    shutil.copy(init_dir / ".gitignore", project_root / ".gitignore")
+                if (init_dir / ".gitattributes").exists():
+                    shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
+                
+                subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
                 
                 # Clean up development folders
                 for d in ["data", "tmp", "tool", "resource"]:
@@ -446,11 +207,243 @@ def sync_branches():
                     subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root), check=True)
 
         except subprocess.CalledProcessError as e:
-            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Command failed: {' '.join(cmd)}")
+            print(f"\n{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Command failed: {' '.join(cmd)}")
             return
 
     success_status = _("sync_success_status", "Successfully synced")
-    print(f"{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on 'test'.")
+    print(f"\r\033[K{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on the 'test' branch.")
+
+def _dev_reset():
+    """Reset main and test branches to a clean state using templates."""
+    project_root = Path(__file__).parent.absolute()
+    try:
+        current = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        if current != "tool":
+            print(f"{BOLD}{YELLOW}Warning{RESET}: Reset is recommended from 'tool' branch.")
+            
+        subprocess.run(["git", "checkout", "main"], cwd=str(project_root), check=True)
+        
+        init_dir = project_root / "proj" / "init"
+        if (init_dir / ".gitignore").exists():
+            shutil.copy(init_dir / ".gitignore", project_root / ".gitignore")
+        if (init_dir / ".gitattributes").exists():
+            shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
+            
+        subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
+        subprocess.run(["git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root))
+        
+        for d in ["data", "tmp", "tool", "resource"]:
+            p = project_root / d
+            if p.exists() and p.is_dir():
+                shutil.rmtree(p)
+                subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        
+        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root))
+        subprocess.run(["git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        subprocess.run(["git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
+        subprocess.run(["git", "checkout", current], cwd=str(project_root), check=True)
+        
+        print(f"{BOLD}{GREEN}Successfully reset{RESET} main and test branches.")
+    except Exception as e:
+        print(f"{BOLD}{RED}Error{RESET}: Reset failed: {e}")
+
+def _dev_enter(branch, force=False):
+    """Switch to main or test branch safely."""
+    project_root = Path(__file__).parent.absolute()
+    cmd = ["git", "checkout", branch]
+    try:
+        if force:
+            subprocess.run(["git", "checkout", "-f", branch], cwd=str(project_root), check=True)
+        else:
+            res = subprocess.run(cmd, cwd=str(project_root))
+            if res.returncode != 0:
+                print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to switch branch. Use --force to discard local changes.")
+    except Exception as e:
+        print(f"{BOLD}{RED}Error{RESET}: {e}")
+
+def _tool_requirements():
+    return {
+        "files": ["main.py", "setup.py", "tool.json", "README.md"],
+        "dirs": ["core", "proj/translation"]
+    }
+
+def _dev_sanity_check(tool_name, fix=False):
+    project_root = Path(__file__).parent.absolute()
+    tool_dir = project_root / "tool" / tool_name
+    if not tool_dir.exists():
+        print(f"Error: Tool '{tool_name}' not found.")
+        return False
+    
+    reqs = _tool_requirements()
+    missing = []
+    for f in reqs["files"]:
+        if not (tool_dir / f).exists(): missing.append(f)
+    for d in reqs["dirs"]:
+        if not (tool_dir / d).exists(): missing.append(d)
+    
+    if fix and missing:
+        if "core" in missing:
+            (tool_dir / "core").mkdir(exist_ok=True)
+            print(f"Fixed: Created core/ directory for '{tool_name}'")
+            missing.remove("core")
+        
+        if "proj/translation" in missing:
+            trans_json = tool_dir / "proj" / "translation.json"
+            trans_dir = tool_dir / "proj" / "translation"
+            if trans_json.exists():
+                trans_dir.mkdir(parents=True, exist_ok=True)
+                try:
+                    with open(trans_json, 'r') as f:
+                        data = json.load(f)
+                        for lang, items in data.items():
+                            with open(trans_dir / f"{lang}.json", 'w') as lf:
+                                json.dump(items, lf, indent=2)
+                    print(f"Fixed: Converted proj/translation.json to proj/translation/ directory for '{tool_name}'")
+                    missing.remove("proj/translation")
+                except Exception as e:
+                    print(f"Error fixing translation: {e}")
+            else:
+                trans_dir.mkdir(parents=True, exist_ok=True)
+                print(f"Fixed: Created empty proj/translation/ directory for '{tool_name}'")
+                missing.remove("proj/translation")
+        
+        # Re-check remaining files
+        for f in list(missing):
+            if f == "README.md":
+                with open(tool_dir / "README.md", 'w') as f_out:
+                    f_out.write(f"# {tool_name}\n\n{tool_name} tool.")
+                print(f"Fixed: Created basic README.md for '{tool_name}'")
+                missing.remove("README.md")
+            elif f == "tool.json":
+                # Create a minimal tool.json
+                reg_path = project_root / "tool.json"
+                info = {}
+                if reg_path.exists():
+                    with open(reg_path, 'r') as f_reg:
+                        info = json.load(f_reg).get("tools", {}).get(tool_name, {})
+                
+                minimal_tool_json = {
+                    "name": tool_name,
+                    "version": "1.0.0",
+                    "description": info.get("description", f"Tool {tool_name}"),
+                    "purpose": info.get("purpose", ""),
+                    "dependencies": []
+                }
+                with open(tool_dir / "tool.json", 'w') as f_out:
+                    json.dump(minimal_tool_json, f_out, indent=2)
+                print(f"Fixed: Created minimal tool.json for '{tool_name}'")
+                missing.remove("tool.json")
+
+    if missing:
+        print(f"{BOLD}{RED}Sanity check failed{RESET} for '{tool_name}': Missing {', '.join(missing)}")
+        return False
+    
+    print(f"{BOLD}{GREEN}Sanity check passed{RESET} for '{tool_name}'.")
+    return True
+
+def _dev_create(tool_name):
+    """Create a new tool template."""
+    project_root = Path(__file__).parent.absolute()
+    tool_dir = project_root / "tool" / tool_name
+    
+    try:
+        subprocess.run(["git", "checkout", "tool"], cwd=str(project_root), check=True)
+    except: pass
+    
+    if tool_dir.exists():
+        print(f"{BOLD}{RED}Error{RESET}: Tool '{tool_name}' already exists.")
+        return
+    
+    tool_dir.mkdir(parents=True)
+    (tool_dir / "core").mkdir()
+    (tool_dir / "proj" / "translation").mkdir(parents=True)
+    
+    main_content = f'''#!/usr/bin/env python3
+import sys
+import argparse
+from pathlib import Path
+
+# Add project root to sys.path
+script_dir = Path(__file__).resolve().parent
+project_root = script_dir.parent.parent
+sys.path.append(str(project_root))
+
+from proj.tool.base import ToolBase
+from proj.config import get_color
+
+def main():
+    tool = ToolBase("{tool_name}")
+    if tool.handle_command_line(): return
+    
+    parser = argparse.ArgumentParser(description="Tool {tool_name}")
+    parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
+    args, unknown = parser.parse_known_args()
+    
+    if args.demo:
+        BOLD = get_color("BOLD")
+        GREEN = get_color("GREEN")
+        BLUE = get_color("BLUE")
+        RESET = get_color("RESET")
+        print(f"{{BOLD}}{{BLUE}}Progressing{{RESET}}... {{BOLD}}{{GREEN}}Successfully{{RESET}} finished!")
+        return
+
+    print("Hello World!")
+
+if __name__ == "__main__":
+    main()
+'''
+    with open(tool_dir / "main.py", 'w') as f: f.write(main_content)
+    os.chmod(tool_dir / "main.py", 0o755)
+    
+    setup_content = f'''#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
+project_root = script_dir.parent.parent
+sys.path.append(str(project_root))
+
+def main():
+    print("--- Running setup for {tool_name} ---")
+    print("Setup complete.")
+
+if __name__ == "__main__":
+    main()
+'''
+    with open(tool_dir / "setup.py", 'w') as f: f.write(setup_content)
+    
+    tool_json = {
+        "name": tool_name,
+        "version": "1.0.0",
+        "description": f"Template tool {tool_name}",
+        "purpose": "Showcase tool development guidelines",
+        "dependencies": ["PYTHON"]
+    }
+    with open(tool_dir / "tool.json", 'w') as f: json.dump(tool_json, f, indent=2)
+    
+    with open(tool_dir / "README.md", 'w') as f: f.write(f"# {tool_name}\n\n{tool_name} tool template.")
+    
+    # Update global tool.json
+    registry_path = project_root / "tool.json"
+    if registry_path.exists():
+        try:
+            with open(registry_path, 'r') as f: registry = json.load(f)
+            if tool_name not in registry.get("tools", {}):
+                registry.get("tools", {})[tool_name] = {
+                    "description": tool_json["description"],
+                    "purpose": tool_json["purpose"]
+                }
+                with open(registry_path, 'w') as f: json.dump(registry, f, indent=2)
+        except: pass
+    
+    # Demo translation
+    zh_trans = {"hello": "你好, 世界!"}
+    ar_trans = {"hello": "مرحباً بالعالم!"}
+    with open(tool_dir / "proj" / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
+    with open(tool_dir / "proj" / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
+    
+    print(f"{BOLD}{GREEN}Successfully created{RESET} tool template at {tool_dir}")
+    _dev_sanity_check(tool_name)
 
 def generate_ai_rule():
     project_root = Path(__file__).parent.absolute()
@@ -511,7 +504,7 @@ def _test_tool_with_args(args):
             max_concurrent = data.get("test_parallel", 1)
     if args.max != 3: max_concurrent = args.max
     sys.path.append(str(project_root))
-    from proj.test_runner import TestRunner
+    from proj.test.runner import TestRunner
     runner = TestRunner(args.tool_name, project_root)
     if args.list: runner.list_tests()
     else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
@@ -595,8 +588,26 @@ def main():
     lang_parser = subparsers.add_parser("lang")
     lang_parser.add_argument("--set")
     lang_parser.add_argument("--list", action="store_true")
+    
+    dev_parser = subparsers.add_parser("dev", help="Developer commands")
+    dev_subparsers = dev_parser.add_subparsers(dest="dev_command")
+    
+    dev_subparsers.add_parser("sync", help="Sync tool branch to main and test")
+    
+    reset_parser = dev_subparsers.add_parser("reset", help="Reset main/test branches using templates")
+    
+    enter_parser = dev_subparsers.add_parser("enter", help="Switch to test or main branch")
+    enter_parser.add_argument("branch", choices=["main", "test"])
+    enter_parser.add_argument("-f", "--force", action="store_true", help="Force switch (discard changes)")
+    
+    create_parser = dev_subparsers.add_parser("create", help="Create a new tool template")
+    create_parser.add_argument("tool_name", help="Name of the new tool")
+    
+    sanity_parser = dev_subparsers.add_parser("sanity-check", help="Run sanity check on a tool")
+    sanity_parser.add_argument("tool_name", help="Name of the tool to check")
+    sanity_parser.add_argument("--fix", action="store_true", help="Try to fix sanity issues")
+    
     subparsers.add_parser("rule")
-    subparsers.add_parser("sync")
     if len(sys.argv) < 2:
         parser.print_help()
         return
@@ -610,7 +621,12 @@ def main():
         elif args.list: _list_languages()
         else: _show_current_language()
     elif args.command == "rule": generate_ai_rule()
-    elif args.command == "sync": sync_branches()
+    elif args.command == "dev":
+        if args.dev_command == "sync": _dev_sync()
+        elif args.dev_command == "reset": _dev_reset()
+        elif args.dev_command == "enter": _dev_enter(args.branch, args.force)
+        elif args.dev_command == "create": _dev_create(args.tool_name)
+        elif args.dev_command == "sanity-check": _dev_sanity_check(args.tool_name, args.fix)
 
 if __name__ == "__main__":
     main()

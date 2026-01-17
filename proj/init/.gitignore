@@ -1,0 +1,28 @@
+# Ignore everything by default
+/*
+
+# But track these core folders and files
+!/main.py
+!/setup.py
+!/tool.json
+!/README.md
+!/proj/
+!/bin/
+!/test/
+!/todo/
+!/tool/
+!/.gitignore
+!/.gitattributes
+
+# Within tool, ignore data and logs but track the code
+/tool/*/data/
+/tool/*/logs/
+!/tool/*/
+
+# Within proj, ignore pycache
+**/__pycache__/
+
+# Keep gitignore and gitattributes
+!.gitignore
+!.gitattributes
+
