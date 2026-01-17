@@ -111,6 +111,7 @@ def main():
     parser.add_argument("--py-list", action="store_true", help="List supported and installed versions")
     parser.add_argument("--py-install", help="Install a specific Python version")
     parser.add_argument("--py-uninstall", help="Uninstall a specific Python version (use 'all' for all versions)")
+    parser.add_argument("--py-default", help="Set the default Python version for this tool")
     parser.add_argument("--py-update", action="store_true", help="Update Python resources from GitHub releases")
     parser.add_argument("--py-dir", help="Specify installation directory")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
@@ -162,6 +163,10 @@ def main():
         _uninstall_version(args.py_uninstall, args.py_dir)
         sys.exit(0)
 
+    if args.py_default:
+        _set_default_version(args.py_default)
+        sys.exit(0)
+
     if args.py_update:
         update_script = script_dir / "core" / "update.py"
         if update_script.exists():
@@ -200,6 +205,15 @@ def main():
         subprocess.run(cmd, env=env)
     except KeyboardInterrupt:
         sys.exit(1)
+
+def _set_default_version(version):
+    config = get_config()
+    config["default_version"] = version
+    config_path = script_dir / "tool.json"
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+    success_status = _("python_install_success_status", "Successfully updated")
+    print(f"{GREEN}{BOLD}{success_status}{RESET} default version to {version}")
 
 def _uninstall_version(version, install_dir=None):
     install_root = Path(install_dir) if install_dir else INSTALL_DIR
@@ -249,13 +263,10 @@ def _list_versions():
                 missing.append(v)
         
         print(f"{BOLD}{BLUE}{label}{RESET}: {','.join(version_strings)}")
-        
         if missing:
             print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
     
-    # Remove hint about editing tool.json as it's not user-facing
-    
-    print(_("python_set_default_hint", "\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'."))
+    print(_("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
 
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
