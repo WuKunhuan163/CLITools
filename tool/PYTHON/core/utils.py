@@ -29,7 +29,10 @@ def _(key, default, **kwargs):
 def get_system_tag():
     system = platform.system().lower()
     machine = platform.machine().lower()
-    if system == "darwin": return "macos"
+    if system == "darwin":
+        if "arm" in machine or "aarch64" in machine:
+            return "macos-arm64"
+        return "macos"
     if system == "linux":
         try:
             out = subprocess.run(["ldd", "--version"], capture_output=True, text=True).stderr
@@ -226,3 +229,27 @@ def get_python_exec(version=None):
         return exec_path
         
     return "python3"
+
+def print_python_not_found_error(tool_name, version, script_dir, translation_func=None):
+    """Unified error reporting for missing Python version."""
+    _ = translation_func or (lambda k, d: d)
+    
+    from proj.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
+    
+    # Add a blank line before the error as requested
+    print("")
+    
+    msg = _("err_python_not_found", "Python tool '{version}' not found, cannot launch {tool_name} GUI.").format(version=version, tool_name=tool_name)
+    print(f"{BOLD}{RED}{msg}{RESET}", flush=True)
+    
+    print(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"), flush=True)
+    print(_("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=version), flush=True)
+    
+    setup_path = script_dir / "setup.py"
+    if setup_path.exists():
+        print(_("err_python_not_found_hint_4", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name), flush=True)
+    else:
+        print(_("err_python_not_found_hint_4", "Finally, run tool's setup: TOOL install {tool_name} (to restore dependency version)").format(tool_name=tool_name), flush=True)

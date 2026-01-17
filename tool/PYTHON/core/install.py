@@ -85,15 +85,17 @@ def load_json(path):
 def save_json(path, data):
     with open(path, "w") as f: json.dump(data, f, indent=2)
 
-def print_cache_warning():
+def print_cache_warning(silent=False):
+    if silent: return
     warning_label = _("label_warning", "Warning")
     warning_msg = _("label_warning_cache", "Using cached data. To force update, clear cache.")
     print(f"{BOLD}{YELLOW}{warning_label}{RESET}: {warning_msg}", flush=True)
 
-def get_release_tags(use_cache=True):
+def get_release_tags(use_cache=True, silent=False):
     if use_cache and TAGS_CACHE_FILE.exists():
         cache = load_json(TAGS_CACHE_FILE)
         if "tags" in cache and (datetime.now() - datetime.fromisoformat(cache["timestamp"])).days < 1:
+            print_cache_warning(silent=silent)
             return cache["tags"]
 
     fetch_msg = _("python_fetching_releases", "Fetching releases from GitHub project {owner} ({url})...", 
@@ -114,9 +116,11 @@ def get_release_tags(use_cache=True):
     save_json(TAGS_CACHE_FILE, {"tags": tags, "timestamp": datetime.now().isoformat()})
     return tags
 
-def fetch_assets_for_tag(tag, use_cache=True):
+def fetch_assets_for_tag(tag, use_cache=True, silent=False):
     cache = load_json(CACHE_FILE)
     if use_cache and tag in cache:
+        if not silent:
+            print_cache_warning(silent=silent)
         return cache[tag]["assets"]
 
     fetch_msg = _("python_fetching_assets", "Fetching assets for the release {tag}...", tag=tag)
@@ -247,13 +251,14 @@ def main():
     parser.add_argument("--limit", type=int, default=3, help="Max assets to download")
     parser.add_argument("--version", help="Download a specific version (e.g. 3.10.19)")
     parser.add_argument("--platform", help="Filter by platform")
+    parser.add_argument("--silent-cache", action="store_true", help="Suppress cache warnings")
     args = parser.parse_args()
 
-    tags = get_release_tags(use_cache=not args.force)
+    tags = get_release_tags(use_cache=not args.force, silent=args.silent_cache)
     if not tags: return
 
     target_tag = args.tag or tags[-1]
-    all_assets = fetch_assets_for_tag(target_tag, use_cache=not args.force)
+    all_assets = fetch_assets_for_tag(target_tag, use_cache=not args.force, silent=args.silent_cache)
 
     # Filter
     filtered = all_assets

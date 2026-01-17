@@ -56,68 +56,59 @@ def extract_resource(source_zst, target_dir, silent=False):
         except: pass
     return False
 
-def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
-    """Clean text-based progress parsing."""
-    if manager and worker_id:
-        manager.update(worker_id, f"{prefix}: 0%")
+def print_missing_tool_error(tool_name, dep_name, script_dir, translation_func=None):
+    """Unified error reporting for missing tool dependency."""
+    _ = translation_func or (lambda k, d: d)
+    
+    from proj.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
+    
+    error_label = _("label_error", "Error")
+    print(f"{BOLD}{RED}{error_label}{RESET}: " + _("err_tool_not_found", "Tool '{dep_name}' not found, required by '{tool_name}'.").format(dep_name=dep_name, tool_name=tool_name), flush=True)
+    print(_("err_tool_install_hint", "Please run: TOOL install {dep_name}").format(dep_name=dep_name), flush=True)
+    
+    setup_path = script_dir / "setup.py"
+    if setup_path.exists():
+        print(_("err_tool_setup_hint", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name), flush=True)
     else:
-        sys.stdout.write(f"\r\033[K{prefix}: 0%")
-        sys.stdout.flush()
+        print(_("err_tool_setup_hint", "Finally, run tool's setup: TOOL install {tool_name}").format(tool_name=tool_name), flush=True)
 
-    env = os.environ.copy()
-    env["LC_ALL"] = "C"
+def print_python_not_found_error(tool_name, version, script_dir, translation_func=None):
+    """Unified error reporting for missing Python version."""
+    _ = translation_func or (lambda k, d: d)
     
-    process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1, env=env, universal_newlines=True)
+    from proj.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
     
-    last_print = 0
-    max_percent = 0.0
-    re_percent = re.compile(r'(\d+(?:\.\d+)?)%')
+    # Check if bin/PYTHON exists.
+    project_root = Path(__file__).resolve().parent.parent
+    python_bin = project_root / "bin" / "PYTHON"
     
-    try:
-        partial_line = ""
-        while True:
-            char = process.stderr.read(1)
-            if not char: break
-            if char in ['\r', '\n']:
-                line = partial_line.strip()
-                partial_line = ""
-                if not line: continue
-                match = re_percent.search(line)
-                if match:
-                    try:
-                        curr = float(match.group(1))
-                        max_percent = max(max_percent, curr)
-                    except: pass
-                elif cmd[0] == "curl":
-                    parts = line.split()
-                    if len(parts) >= 1 and parts[0].isdigit():
-                        try:
-                            max_percent = max(max_percent, float(parts[0]))
-                        except: pass
-
-                curr_time = time.time()
-                if curr_time - last_print >= interval:
-                    percent_str = f"{max_percent:.1f}%"
-                    extra = ""
-                    speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
-                    if speed_match: extra = f" ({speed_match.group(1)})"
-                    
-                    status = f"{prefix}: {percent_str}{extra}"
-                    if manager and worker_id:
-                        manager.update(worker_id, status)
-                    else:
-                        sys.stdout.write(f"\r\033[K{status}")
-                        sys.stdout.flush()
-                    last_print = curr_time
-            else:
-                partial_line += char
-    finally:
-        process.wait()
+    # Add a blank line before the error
+    print("")
     
-    if process.returncode == 0:
-        if manager and worker_id: manager.update(worker_id, f"{prefix}: 100%")
-        else: sys.stdout.write(f"\r\033[K{prefix}: 100%\n"); sys.stdout.flush()
-    return process.returncode == 0
+    error_label = _("label_error", "Error")
+    msg = _("err_python_not_found", "Python tool '{version}' not found, cannot launch {tool_name} GUI.").format(version=version, tool_name=tool_name)
+    print(f"{BOLD}{RED}{error_label}{RESET}: {msg}", flush=True) # Only "Error" is red and bold
+    
+    # Heuristic: if we are in a process where PYTHON tool might have already run,
+    # or if bin/PYTHON exists, we suggest following PYTHON's instructions.
+    # We use a simple environment variable to track if PYTHON has already printed instructions.
+    if os.environ.get("PYTHON_INSTRUCTIONS_PRINTED") == "1" or python_bin.exists():
+        print(_("err_tool_depends_on_python_follow", "The tool '{tool_name}' depends on the PYTHON tool. Please follow the PYTHON tool instructions above and then run: {tool_name} setup").format(tool_name=tool_name), flush=True)
+    else:
+        print(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"), flush=True)
+        print(_("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=version), flush=True)
+        
+        setup_path = script_dir / "setup.py"
+        if setup_path.exists():
+            print(_("err_python_not_found_hint_4", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name), flush=True)
+        else:
+            print(_("err_python_not_found_hint_4", "Finally, run tool's setup: TOOL install {tool_name}").format(tool_name=tool_name), flush=True)
 
 # Global state for RTL mode
 _GLOBAL_RTL_MODE = False
@@ -475,12 +466,19 @@ def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=None):
     except Exception:
         pass
 
+def format_seconds(seconds):
+    """Format seconds into a human-readable string."""
+    if seconds < 0: return "unknown"
+    if seconds < 60: return f"{int(seconds)}s"
+    if seconds < 3600: return f"{int(seconds//60)}m{int(seconds%60)}s"
+    return f"{int(seconds//3600)}h{int((seconds%3600)//60)}m"
+
 def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     """
     Runs a command and parses its stderr for percentage progress.
     Updates an erasable line (via sys.stdout.write or MultiLineManager).
     Ensures NO raw output from the command leaks to the terminal.
-    Uses simple text format: 'Prefix: XX% (Speed)'
+    Uses simple text format: 'Prefix: XX% (Speed) [Elapsed: t1, Left: t2]'
     """
     if cmd[0] == "curl":
         # Force a simple numeric progress if possible, or just parse default
@@ -511,6 +509,7 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
         universal_newlines=True
     )
     
+    start_time = time.time()
     last_print = 0
     max_percent = 0.0
     re_percent = re.compile(r'(\d+(?:\.\d+)?)%')
@@ -549,6 +548,18 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                 if curr_time - last_print >= interval:
                     percent_str = f"{max_percent:.1f}%"
                     
+                    # Time calculation
+                    t1 = curr_time - start_time
+                    p = max_percent / 100.0
+                    if p > 0:
+                        t2 = t1 / p - t1
+                        t2_str = format_seconds(t2)
+                    else:
+                        t2_str = "unknown"
+                    t1_str = format_seconds(t1)
+                    
+                    time_info = f" [{t1_str}<{t2_str}]"
+                    
                     # Speed detection
                     extra = ""
                     speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
@@ -557,12 +568,12 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                     elif cmd[0] == "curl":
                         parts = line.split()
                         if len(parts) >= 7:
-                            for p in parts[6:]:
-                                if any(c.isdigit() for c in p) and any(u in p.upper() for u in ['K', 'M', 'G']):
-                                    extra = f" ({p}/s)"
+                            for p_arg in parts[6:]:
+                                if any(c.isdigit() for c in p_arg) and any(u in p_arg.upper() for u in ['K', 'M', 'G']):
+                                    extra = f" ({p_arg}/s)"
                                     break
                     
-                    status_text = f"{prefix}: {percent_str}{extra}"
+                    status_text = f"{prefix}: {percent_str}{extra}{time_info}"
                     if manager and worker_id:
                         manager.update(worker_id, status_text)
                     else:
@@ -575,7 +586,8 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
         process.wait()
     
     if process.returncode == 0:
-        final_text = f"{prefix}: 100%"
+        total_time = format_seconds(time.time() - start_time)
+        final_text = f"{prefix}: 100% ({total_time})"
         if manager and worker_id:
             manager.update(worker_id, final_text)
         else:

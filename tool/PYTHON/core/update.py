@@ -18,51 +18,24 @@ PROJECT_URL = f"https://github.com/{PROJECT_OWNER}/{PROJECT_NAME}"
 REPO_URL = f"{PROJECT_URL}.git"
 
 # Import shared utilities for translation and config
-try:
-    # Add project root to sys.path
-    tool_core_dir = Path(__file__).resolve().parent
-    python_tool_dir = tool_core_dir.parent
-    project_root = python_tool_dir.parent.parent
-    sys.path.append(str(project_root))
-    
-    # Priority for tool-specific logic
-    sys.path.insert(0, str(python_tool_dir))
-    
-    from proj.lang.utils import get_translation
-    from proj.config import get_color
-    from proj.utils import get_system_tag, regularize_version_name, run_with_progress
-    from proj.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
-    from proj.audit.utils import AuditManager
-    
-    from core.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
-except ImportError as e:
-    # Basic fallbacks
-    def get_translation(dir, key, default): return default
-    def get_color(name, default="\033[0m"): return default
-    def get_system_tag(): return "unknown"
-    def regularize_version_name(v, p): return f"{v}-{p}"
-    def run_with_progress(cmd, pref, **kwargs): return subprocess.run(cmd).returncode == 0
-    class MultiLineManager:
-        def update(self, w, t, is_final=False): print(t)
-    class TuringWorker:
-        def __init__(self, w, m): self.worker_id=w; self.manager=m
-        def execute(self, t): pass
-    class TuringTask:
-        def __init__(self, n, s): pass
-    class WorkerState: SUCCESS="SUCCESS"; ERROR="ERROR"; EXIT="EXIT"; CONTINUE="CONTINUE"
-    class StepResult:
-        def __init__(self, d, state=None, is_final=False): self.display_text=d; self.state=state; self.is_final=is_final
-    class AuditManager:
-        def __init__(self, d, **kwargs): self.audit_dir = Path(d)
-        def load(self, n): return {}
-        def save(self, n, d): pass
-        def print_cache_warning(self, **kwargs): pass
-    DATA_DIR = Path("data")
-    AUDIT_DIR = Path("data/audit")
-    RESOURCE_ROOT = Path("resource")
-    TMP_INSTALL_DIR = Path("tmp/install")
-    DEFAULT_CONCURRENCY = 1
-    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+# Add project root to sys.path
+tool_core_dir = Path(__file__).resolve().parent
+python_tool_dir = tool_core_dir.parent
+project_root = python_tool_dir.parent.parent
+sys.path.append(str(project_root))
+
+# Priority for tool-specific logic
+sys.path.insert(0, str(python_tool_dir))
+
+from proj.lang.utils import get_translation
+from proj.config import get_color
+from proj.utils import get_system_tag, regularize_version_name, run_with_progress
+from proj.turing.display.manager import MultiLineManager
+from proj.worker import TuringWorker
+from proj.turing.core import TuringTask, StepResult, WorkerState
+from proj.audit.utils import AuditManager
+
+from core.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 
 PYTHON_TOOL_DIR = project_root / "tool" / "PYTHON"
 
@@ -112,17 +85,17 @@ def resolve_platform(asset_name):
 
 _warning_printed = False
 
-def print_cache_warning_once():
+def print_cache_warning_once(silent=False):
     global _warning_printed
     if not _warning_printed:
-        audit.print_cache_warning()
+        audit.print_cache_warning(silent=silent)
         _warning_printed = True
 
-def get_release_tags(use_cache=True):
+def get_release_tags(use_cache=True, silent=False):
     if use_cache:
         cache = audit.load("tags_cache")
         if cache and "tags" in cache and (datetime.now() - datetime.fromisoformat(cache["timestamp"])).days < 1:
-            print_cache_warning_once()
+            print_cache_warning_once(silent=silent)
             return cache["tags"]
 
     fetch_msg = _("python_fetching_releases", "Fetching releases from GitHub project {owner} ({url})...", 
@@ -147,7 +120,7 @@ def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
     cache = audit.load(f"assets_{tag}")
     if use_cache and cache and "assets" in cache:
         if not silent:
-            print_cache_warning_once()
+            print_cache_warning_once(silent=silent)
         return cache["assets"]
 
     if not silent and status_msg:
@@ -269,6 +242,12 @@ def push_step(asset, tag, worker_id, manager):
                 from_label = _("label_from", "from")
                 msg = f"{BOLD}{GREEN}{success_status}{RESET} {v_tag} {from_label} {BOLD}{tag}{RESET}."
                 yield StepResult(msg, state=WorkerState.SUCCESS, is_final=True)
+                
+                # Immediate installation hint
+                hint = _("python_install_hint", "To install it, run: {BOLD}PYTHON --py-install {v_tag}{RESET}", 
+                         BOLD=BOLD, v_tag=v_tag, RESET=RESET)
+                sys.stdout.write(f"\r\033[K{hint}\n")
+                sys.stdout.flush()
             else:
                 error_msg = f"{BOLD}{RED}Push failed{RESET} for {v_tag}"
                 yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
@@ -292,9 +271,10 @@ def main():
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     parser.add_argument("--simple", action="store_true", help="One-line comma-separated list of versions")
     parser.add_argument("--reverse", action="store_true", help="Reverse sort order (newest first)")
+    parser.add_argument("--silent-cache", action="store_true", help="Suppress cache warnings")
     args = parser.parse_args()
 
-    tags = get_release_tags(use_cache=not args.force)
+    tags = get_release_tags(use_cache=not args.force, silent=args.silent_cache)
     if args.limit_releases: tags = tags[:args.limit_releases]
     
     remote_resources = get_remote_resources()
@@ -325,10 +305,11 @@ def main():
     else:
         target_tags = [args.tag] if args.tag else [tags[-1]]
 
+    found_any = False
     for tag in target_tags:
         fetch_msg = f"Fetching assets for {tag}..."
         print_erasable(fetch_msg)
-        assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg)
+        assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg, silent=args.silent_cache)
         sys.stdout.write("\r\033[K")
         
         filtered = assets
@@ -336,6 +317,9 @@ def main():
             filtered = [a for a in filtered if a["version"].startswith(args.version)]
         if args.platform:
             filtered = [a for a in filtered if a["platform"] == args.platform]
+            
+        if filtered:
+            found_any = True
             
         def vp(n):
             if "pgo+lto-full" in n: return 0
@@ -357,7 +341,9 @@ def main():
                 if not args.all_latest and not args.version: break
 
         if not to_migrate:
-            print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')} for {tag}.{RESET}")
+            # Only print if we are not looking for a specific version that was found but already up to date
+            if not args.version or found_any:
+                print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')} for {tag}.{RESET}")
             continue
 
         asset_count = len(to_migrate)
@@ -386,6 +372,11 @@ def main():
             t.start()
             threads.append(t)
         for t in threads: t.join()
+
+    if args.version and not found_any:
+        error_label = f"{BOLD}{RED}Error{RESET}"
+        print(f"{error_label}: Version {args.version} not found in release(s).")
+        audit.print_cache_warning() # Show hint at the end
 
 if __name__ == "__main__":
     main()

@@ -7,12 +7,16 @@
     "USERINPUT": {
       "description": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
       "purpose": "Facilitate seamless interaction between AI Agent and user. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "GOOGLE_DRIVE": {
       "description": "Advanced shell for Google Drive (GDS) with background tasks and remote execution.",
       "purpose": "Manage remote files and execute heavy tasks in Colab/Drive.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "ALIAS": {
       "description": "Manage permanent shell aliases across different shell profiles.",
@@ -29,22 +33,30 @@
     "EXTRACT_PDF": {
       "description": "Enhanced PDF extraction using MinerU with layout preservation.",
       "purpose": "Convert PDFs to structured markdown.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "EXTRACT_IMG": {
       "description": "Intelligent image analysis and OCR.",
       "purpose": "Extract text and meaning from images.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "FILEDIALOG": {
       "description": "GUI-based file and directory selection dialog.",
       "purpose": "Let users select local files for the Agent to process.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "IMG2TEXT": {
       "description": "Vision-based image description using Gemini API.",
       "purpose": "Understand complex image content through natural language.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "LEARN": {
       "description": "AI-powered learning assistant for papers and tutorials.",
@@ -57,7 +69,10 @@
     "OVERLEAF": {
       "description": "Local LaTeX compilation and template management.",
       "purpose": "Build PDFs from LaTeX sources easily.",
-      "dependencies": ["PYTHON", "USERINPUT"]
+      "dependencies": [
+        "PYTHON",
+        "USERINPUT"
+      ]
     },
     "RUN": {
       "description": "Tool wrapper that captures output in structured JSON.",
@@ -70,7 +85,9 @@
     "UNIMERNET": {
       "description": "Formula and table extraction from images.",
       "purpose": "Digitize complex math and tabular data.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
     },
     "LINTER": {
       "description": "Multi-language code quality and syntax checker.",
@@ -83,8 +100,13 @@
     "BACKGROUND": {
       "description": "Manage long-running background processes safely.",
       "purpose": "Run tasks without blocking the agent's execution.",
-      "dependencies": ["PYTHON"]
+      "dependencies": [
+        "PYTHON"
+      ]
+    },
+    "DEMOTOOL": {
+      "description": "Template tool DEMOTOOL",
+      "purpose": "Showcase tool development guidelines"
     }
   }
 }
-
