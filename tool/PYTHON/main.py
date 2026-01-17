@@ -250,19 +250,19 @@ def _list_versions():
     
     label = _("python_supported_versions", "Supported versions")
     if not remote_versions:
-        print(f"{BOLD}{BLUE}{label}{RESET}:")
+        print(f"{BOLD}{label}{RESET}:")
         print("  (No versions found on remote 'tool' branch. Use 'PYTHON --py-update' to migrate some.)")
     else:
         version_strings = []
         missing = []
         for v in remote_versions:
             is_installed = v in installed
-            status = f"({_('python_status_installed', 'installed')})" if is_installed else ""
+            status = f" ({_('python_status_installed', 'installed')})" if is_installed else ""
             version_strings.append(f"{v}{status}")
             if not is_installed:
                 missing.append(v)
         
-        print(f"{BOLD}{BLUE}{label}{RESET}: {','.join(version_strings)}")
+        print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
         if missing:
             print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
     
@@ -271,22 +271,30 @@ def _list_versions():
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
     
-    # Compatibility layer: if only version number is provided, try to match with system tag
-    from core.utils import get_system_tag
+    # Compatibility layer: handle 'python' prefix and platform tags
+    from core.utils import get_system_tag, regularize_version_name
     tag = get_system_tag()
     
-    final_version = None
+    # Try exact match first
     if version in remote_versions:
         final_version = version
     else:
-        candidate = f"{version}-{tag}"
+        # Normalize input (removes 'python' prefix)
+        v = version
+        if v.startswith("python"): v = v[6:]
+        
+        # Try version-tag
+        candidate = f"{v}-{tag}"
         if candidate in remote_versions:
             final_version = candidate
         else:
-            matches = [s for s in remote_versions if s.startswith(version) and s.endswith(tag)]
+            # Try fuzzy match (e.g., 3.10 -> 3.10.15-macos-arm64)
+            matches = [s for s in remote_versions if s.startswith(v) and s.endswith(tag)]
             if matches:
                 matches.sort(key=len, reverse=True)
                 final_version = matches[0]
+            else:
+                final_version = None
 
     if not final_version:
         error_label = _("label_error", "Error")

@@ -52,7 +52,13 @@
     "python_migrated_success": "成功迁移 {version}，来自发布版本 {tag}。",
     "python_remote_up_to_date": "远端已拥有请求的资产",
     "python_update_hint": "可以使用 'PYTHON --py-update --version {v}' 来从 astral-sh 构建中迁移它。",
-    "python_update_initial_hint": "请先运行 'PYTHON --py-update' 来迁移 Python 构建。"
+    "python_update_initial_hint": "请先运行 'PYTHON --py-update' 来迁移 Python 构建。",
+    "label_asset": "资产",
+    "label_assets": "资产",
+    "python_found_assets_count": "找到 {count} 个{word}",
+    "label_to_migrate": "待迁移，来自发布版本",
+    "python_migrated_success_status": "成功迁移",
+    "label_from": "来自发布版本"
   },
   "ar": {
     "tool_PYTHON_desc": "مدير بيئة Python مستقل وأداة وكيل.",
@@ -107,6 +113,12 @@
     "python_migrated_success": "تم ترحيل {version} بنجاح من الإصدار {tag}.",
     "python_remote_up_to_date": "البعيد يحتوي بالفعل على الأصول المطلوبة",
     "python_update_hint": "يمكنك استخدام 'PYTHON --py-update --version {v}' لترحيله من إصدارات astral-sh.",
-    "python_update_initial_hint": "يرجى تشغيل 'PYTHON --py-update' أولاً لترحيل إصدارات Python."
+    "python_update_initial_hint": "يرجى تشغيل 'PYTHON --py-update' أولاً لترحيل إصدارات Python.",
+    "label_asset": "أصل",
+    "label_assets": "أصول",
+    "python_found_assets_count": "تم العثور على {count} {word}",
+    "label_to_migrate": "للترحيل من الإصدار",
+    "python_migrated_success_status": "تم الترحيل بنجاح",
+    "label_from": "من الإصدار"
   }
 }
