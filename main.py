@@ -414,6 +414,9 @@ def sync_branches():
 !.gitignore
 """
                 with open(project_root / ".gitignore", 'w') as f: f.write(gitignore_content)
+                subprocess.run(["git", "add", ".gitignore"], cwd=str(project_root), check=True)
+                try: subprocess.run(["git", "commit", "-m", "Apply restricted .gitignore to main"], cwd=str(project_root), check=True)
+                except: pass # nothing to commit
                 for d in ["data", "tmp", "tool", "resource"]:
                     p = project_root / d
                     if p.exists() and p.is_dir():
