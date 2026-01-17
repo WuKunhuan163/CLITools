@@ -20,7 +20,7 @@ def _init_rtl_mode():
             # proj/utils.py is in proj/
             current_file = Path(__file__).resolve()
             project_root = current_file.parent.parent
-            config_path = project_root / "data" / "config.json"
+            config_path = project_root / "data" / "global_config.json"
             
             if config_path.exists():
                 with open(config_path, 'r') as f:
