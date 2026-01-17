@@ -29,13 +29,14 @@ def get_system_tag():
     return "unknown"
 
 def regularize_version_name(version, platform=None):
-    """Standardize version name to 'pythonX.Y.Z-platform'."""
-    if not version.startswith("python"):
-        version = f"python{version}"
-    if "-" in version:
-        version = version.split("-")[0]
-    tag = platform or get_system_tag()
-    return f"{version}-{tag}"
+    """Standardize version name to 'X.Y.Z-platform' (no 'python' prefix)."""
+    v = str(version)
+    if v.startswith("python"):
+        v = v[6:]
+    if "-" in v:
+        v = v.split("-")[0]
+    plat = platform or get_system_tag()
+    return f"{v}-{plat}"
 
 def extract_resource(source_zst, target_dir, silent=False):
     """Integrated zst + tar extraction."""
