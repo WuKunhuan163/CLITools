@@ -357,7 +357,7 @@ def update_config(key, value):
 def sync_branches():
     """Synchronize core files from 'tool' to 'main', then overwrite 'test' with 'main'."""
     project_root = Path(__file__).parent.absolute()
-    core_files = ["main.py", "setup.py", "README.md", ".gitignore", ".gitattributes", "proj", "test", "todo"]
+    core_files = ["main.py", "setup.py", "tool.json", "README.md", ".gitignore", ".gitattributes", "proj", "bin", "test", "todo"]
     
     try:
         current_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
@@ -365,6 +365,13 @@ def sync_branches():
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return
     
+    if current_branch != "tool":
+        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_warning_branch", "Sync is recommended from 'tool' branch. Current branch is '{branch}'.", branch=current_branch))
+        confirm = input(_("sync_confirm", "Continue anyway? (y/N): "))
+        if confirm.lower() not in ['y', 'yes']:
+            print(_("sync_cancelled", "Sync cancelled."))
+            return
+
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
@@ -395,36 +402,55 @@ def sync_branches():
             else:
                 subprocess.run(cmd, check=True, cwd=str(project_root))
             
-            if cmd[:3] == ["git", "checkout", current_branch]:
-                gitignore_content = """# Deny all
-*
-# Allow specific files
-!README.md
-!main.py
-!setup.py
-!tool.json
-!bin/
-!bin/**
-!proj/
-!proj/**
-!test/
-!test/**
-!todo/
-!todo/**
+            if cmd == ["git", "checkout", "main"] or cmd == ["git", "checkout", "-b", "test"]:
+                # Apply the restricted .gitignore
+                gitignore_content = """# Ignore everything by default
+/*
+
+# But track these core folders and files
+!/main.py
+!/setup.py
+!/tool.json
+!/README.md
+!/proj/
+!/bin/
+!/test/
+!/todo/
+!/tool/
+!/.gitignore
+!/.gitattributes
+
+# Within tool, ignore data and logs but track the code
+/tool/*/data/
+/tool/*/logs/
+!/tool/*/
+
+# Within proj, ignore pycache
+**/__pycache__/
+
+# Keep gitignore and gitattributes
 !.gitignore
+!.gitattributes
 """
                 with open(project_root / ".gitignore", 'w') as f: f.write(gitignore_content)
                 subprocess.run(["git", "add", ".gitignore"], cwd=str(project_root), check=True)
                 
+                # Clean up development folders
                 for d in ["data", "tmp", "tool", "resource"]:
                     p = project_root / d
                     if p.exists() and p.is_dir():
                         shutil.rmtree(p)
                         subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
-                    p = project_root / d
-                    if p.exists() and p.is_dir():
-                        shutil.rmtree(p)
-                        subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+                
+                if cmd == ["git", "checkout", "main"]:
+                    subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root), check=True)
+
+        except subprocess.CalledProcessError as e:
+            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Command failed: {' '.join(cmd)}")
+            return
+
+    success_status = _("sync_success_status", "Successfully synced")
+    print(f"{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on 'test'.")
         except subprocess.CalledProcessError as e:
             print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Command failed: {' '.join(cmd)}")
             return

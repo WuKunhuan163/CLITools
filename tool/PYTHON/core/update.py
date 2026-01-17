@@ -230,7 +230,7 @@ def push_step(asset, tag, worker_id, manager):
             # 1. Download
             prefix = f"{BOLD}{BLUE}Downloading{RESET} {v_tag}"
             curl_cmd = ["curl", "-L", asset["url"], "-o", str(zst_path)]
-            yield StepResult(f"{prefix}: 0%", state=WorkerState.CONTINUE)
+            yield StepResult(f"{prefix}: 0.0%", state=WorkerState.CONTINUE)
             
             if not run_with_progress(curl_cmd, prefix, worker_id=worker_id, manager=manager):
                 error_msg = f"{BOLD}{RED}Download failed{RESET} for {v_tag}"
@@ -357,7 +357,7 @@ def main():
                 if not args.all_latest and not args.version: break
 
         if not to_migrate:
-            print(f"{BOLD}Remote up to date for {tag}.{RESET}")
+            print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')} for {tag}.{RESET}")
             continue
 
         asset_count = len(to_migrate)

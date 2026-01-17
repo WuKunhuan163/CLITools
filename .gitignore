@@ -1,22 +1,16 @@
-*_DATA
-*.pyc
-*.pyo
-*.egg-info/
-__pycache__/
-
-.DS_Store
-.pytest_cache/
-
-# Tool-specific ignores
-/tool/PYTHON/data/install/
-/tool/*/data/logs/
-/tool/*/data/audit/
-/data/
-/bin/
-/tmp/
-*.log
-*.exit
-
-# Only track metadata, not the heavy binaries
-/resource/tool/PYTHON/data/install/**/*.tar.zst
-!/resource/tool/PYTHON/data/install/**/*.json
+# Deny all
+*
+# Allow specific files
+!README.md
+!main.py
+!setup.py
+!tool.json
+!bin/
+!bin/**
+!proj/
+!proj/**
+!test/
+!test/**
+!todo/
+!todo/**
+!.gitignore
