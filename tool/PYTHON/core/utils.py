@@ -80,11 +80,11 @@ class MultiLineManager:
 
 def regularize_version_name(version, platform=None):
     """
-    Standardize version name to 'pythonX.Y.Z-platform'.
+    Standardize version name to 'X.Y.Z-platform'.
     If platform is not provided, it uses the system tag.
     """
-    if not version.startswith("python"):
-        version = f"python{version}"
+    if version.startswith("python"):
+        version = version[6:]
     
     # Extract version part if it already has a hyphen
     if "-" in version:

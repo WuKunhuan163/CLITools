@@ -234,20 +234,26 @@ def _list_versions():
     
     remote_versions = _get_remote_versions()
     
-    print(_("python_supported_versions", "Supported versions:"))
+    label = _("python_supported_versions", "Supported versions")
     if not remote_versions:
+        print(f"{BOLD}{BLUE}{label}{RESET}:")
         print("  (No versions found on remote 'tool' branch. Use 'PYTHON --py-update' to migrate some.)")
     else:
+        version_strings = []
         missing = []
         for v in remote_versions:
             is_installed = v in installed
-            status = f" ({_('python_status_installed', 'installed')})" if is_installed else ""
-            print(f"  - {v}{status}")
+            status = f"({_('python_status_installed', 'installed')})" if is_installed else ""
+            version_strings.append(f"{v}{status}")
             if not is_installed:
                 missing.append(v)
         
+        print(f"{BOLD}{BLUE}{label}{RESET}: {','.join(version_strings)}")
+        
         if missing:
             print(_("python_install_missing_hint", "\nTo install a missing version: PYTHON --py-install {version}", version=missing[0]))
+    
+    print(_("python_set_default_hint", "\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'."))
     
     print(_("python_set_default_hint", "\nTo set the default version for this tool, edit 'tool/PYTHON/tool.json'."))
 
@@ -288,10 +294,8 @@ def _install_version(version, install_dir=None):
     target_dir = target_parent / version
     
     if target_dir.exists():
-        already_label = _("python_already_installed", "{version} is already installed", version=version)
-        v_part = version
-        status_part = " is already installed"
-        print(f"{GREEN}{BOLD}{v_part}{RESET}{status_part} at {target_dir}")
+        already_msg = _("python_already_installed", "{version} is already installed", version=version)
+        print(f"{GREEN}{BOLD}{already_msg}{RESET} at {target_dir}")
         return True
 
     try:
