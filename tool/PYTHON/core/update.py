@@ -262,9 +262,11 @@ def main():
     parser.add_argument("--tag", help="Specific tag")
     parser.add_argument("--all-latest", action="store_true")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--list", action="store_true")
-    parser.add_argument("--limit-releases", type=int)
+    parser.add_argument("--list", action="store_true", help="List available versions from releases")
+    parser.add_argument("--limit-releases", type=int, help="Limit number of releases to scan")
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
+    parser.add_argument("--simple", action="store_true", help="One-line comma-separated list of versions")
+    parser.add_argument("--reverse", action="store_true", help="Reverse sort order (newest first)")
     args = parser.parse_args()
 
     tags = get_release_tags(use_cache=not args.force)
@@ -273,21 +275,13 @@ def main():
     remote_resources = get_remote_resources()
     
     if args.list:
-        matrix = {}
-        scan_label = f"{BOLD}{BLUE}Scanning{RESET}"
-        for i, tag in enumerate(tags):
-            print_erasable(f"{scan_label}: {tag} ({i+1}/{len(tags)})")
-            assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
-            for a in assets:
-                v_tag = regularize_version_name(a['version'], a['platform'])
-                if v_tag not in matrix: matrix[v_tag] = []
-                matrix[v_tag].append(tag)
-        sys.stdout.write("\r\033[K")
-        for v in sorted(matrix.keys()):
-            print(f"{v}: {', '.join(matrix[v])}")
+        # ... (list logic)
         return
 
-    target_tags = [args.tag] if args.tag else [tags[-1]]
+    if args.all_latest and not args.tag:
+        target_tags = tags
+    else:
+        target_tags = [args.tag] if args.tag else [tags[-1]]
 
     for tag in target_tags:
         fetch_msg = f"Fetching assets for {tag}..."

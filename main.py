@@ -288,24 +288,28 @@ if __name__ == "__main__":
             # Traditional symlink
             os.symlink(main_py, link_path)
         
-        success_label = _("install_success_label", "Success")
-        print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("install_success", "Successfully installed {name} tool", name=tool_name) + _("shortcut_created", ": shortcut created at {path}", path=link_path))
+        success_status = _("python_install_success_status", "Successfully installed")
+        print(f"{GREEN}{BOLD}{success_status}{RESET} {tool_name}" + _("shortcut_created", ": shortcut created at {path}", path=link_path))
         
         # 5. Handle PATH registration
         register_path(bin_dir)
     except OSError as e:
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e))
+        error_label = _("error_label", "Error")
+        print(f"{BOLD}{RED}{error_label}{RESET}: " + _("shortcut_error", "Error creating shortcut for {name}: {error}", name=tool_name, error=e))
 
     # 6. Run tool setup if setup.py exists
     setup_py = tool_dir / "setup.py"
     if setup_py.exists():
-        print(_("running_setup", "Running setup for {name} tool...", name=tool_name))
+        action_label = _("label_fetching", "Running") # or add label_running
+        print(f"{BLUE}{BOLD}{action_label}{RESET} " + _("running_setup", "setup for {name} tool...", name=tool_name))
         try:
             # Run setup.py using the system python3
             subprocess.run([sys.executable, str(setup_py)], check=True, cwd=str(project_root))
-            print(f"{BOLD}{GREEN}" + _("install_success_label", "Success") + f"{RESET}: " + _("setup_success", "Successfully ran setup for {name} tool.", name=tool_name))
+            success_status = _("python_install_success_status", "Successfully ran")
+            print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("setup_success", "setup for {name} tool.", name=tool_name))
         except Exception as e:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("setup_failed", "Warning: Setup for {name} tool failed: {error}", name=tool_name, error=e))
+            warning_label = _("warning_label", "Warning")
+            print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("setup_failed", "Setup for {name} tool failed: {error}", name=tool_name, error=e))
 
 def uninstall_tool(tool_name, force_yes=False):
     project_root = Path(__file__).parent.absolute()
@@ -345,8 +349,8 @@ def uninstall_tool(tool_name, force_yes=False):
     except Exception as e:
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("remove_tool_dir_failed", "Failed to remove tool directory: {error}", error=e))
 
-    success_label = _("install_success_label", "Success")
-    print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("uninstall_success", "Successfully uninstalled {name} tool.", name=tool_name))
+    success_status = _("uninstall_success_status", "Successfully uninstalled")
+    print(f"{BOLD}{GREEN}{success_status}{RESET} {tool_name}")
 
 def register_path(bin_dir):
     """Add bin_dir to shell profile if not already present."""
