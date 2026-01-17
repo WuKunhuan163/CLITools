@@ -535,6 +535,7 @@ def _list_languages():
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)
 
 def main():
+    import argparse
     parser = argparse.ArgumentParser(prog="TOOL", description="AITerminalTools manager.")
     subparsers = parser.add_subparsers(dest="command")
     install_parser = subparsers.add_parser("install")
@@ -556,7 +557,6 @@ def main():
     lang_parser.add_argument("--list", action="store_true")
     subparsers.add_parser("rule")
     subparsers.add_parser("sync")
-    import argparse
     if len(sys.argv) < 2:
         parser.print_help()
         return
