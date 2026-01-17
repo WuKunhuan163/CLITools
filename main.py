@@ -489,6 +489,7 @@ def generate_ai_rule():
     lines.append("- " + _("rule_guideline_3", "**Shared Utilities**: Leverage the `PYTHON` tool's `proj.lang.utils` or the project root `proj/` for consistent shared logic and translations across tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Place bold status labels (e.g., Successfully, Installing) at the beginning of lines. Use **Blue Bold** for active/normal progress (including Uninstalling) and **Yellow Bold** only for warnings. Reference color codes (RED, GREEN, YELLOW, BLUE, BOLD, RESET) from `proj.config.get_color` and ensure they are always bolded."))
+    lines.append("- " + _("rule_guideline_6", "**Testing & Branching**: Always perform testing on the 'test' branch. After each test, ensure the 'test' branch is cleaned up and synchronized by overwriting it with the 'main' branch content."))
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
     lines.append("--------------------------")
