@@ -219,18 +219,21 @@ def _uninstall_version(version, install_dir=None):
                 if d.is_dir():
                     shutil.rmtree(d)
             sys.stdout.write("\r\033[K")
-            print(f"{GREEN}{BOLD}Successfully uninstalled all versions.{RESET}")
+            success_status = _("python_uninstall_success_status", "Successfully uninstalled")
+            print(f"{GREEN}{BOLD}{success_status}{RESET} all versions.")
         return
 
     target_dir = install_root / version
     if target_dir.exists():
-        msg = f"{BLUE}{BOLD}Uninstalling {version}{RESET}..."
+        msg = f"{BLUE}{BOLD}Uninstalling{RESET} {version}..."
         print_erasable(msg)
         shutil.rmtree(target_dir)
         sys.stdout.write("\r\033[K")
-        print(f"{GREEN}{BOLD}Successfully uninstalled {version}.{RESET}")
+        success_status = _("python_uninstall_success_status", "Successfully uninstalled")
+        print(f"{GREEN}{BOLD}{success_status}{RESET} {version}.")
     else:
-        print(f"{RED}{BOLD}Error{RESET}: Version {version} is not installed.")
+        error_label = _("label_error", "Error")
+        print(f"{RED}{BOLD}{error_label}{RESET}: Version {version} is not installed.")
 
 def _list_versions(supported):
     installed = []
@@ -259,10 +262,29 @@ def _install_version(version, install_dir=None):
     """
     config = get_config()
     supported = config.get("supported_versions", [])
+    
+    # Compatibility layer: if only version number is provided, try to match with system tag
+    if version not in supported:
+        from core.utils import get_system_tag
+        tag = get_system_tag()
+        candidate = f"{version}-{tag}"
+        if candidate in supported:
+            version = candidate
+        else:
+            # Try to find a match if it's just a version prefix
+            matches = [s for s in supported if s.startswith(version) and s.endswith(tag)]
+            if matches:
+                # Use the longest match (most specific)
+                matches.sort(key=len, reverse=True)
+                version = matches[0]
+
     if version not in supported:
         error_label = _("label_error", "Error")
-        print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_version_not_supported", "Version {version} is not supported. Supported: {supported}", 
-                         version=version, supported=", ".join(supported)))
+        # No space after comma in supported versions list
+        supported_str = ",".join(supported)
+        msg = _("python_version_not_supported", "Version {version} is not supported. Supported: {supported}", 
+                         version=version, supported=supported_str)
+        print(f"{RED}{BOLD}{error_label}{RESET}: {msg}")
         return False
 
     target_parent = Path(install_dir) if install_dir else INSTALL_DIR
@@ -271,7 +293,10 @@ def _install_version(version, install_dir=None):
     
     if target_dir.exists():
         already_label = _("python_already_installed", "{version} is already installed", version=version)
-        print(f"{GREEN}{BOLD}{already_label}{RESET} at {target_dir}")
+        # Bold only the status part
+        v_part = already_label.split(" is already installed")[0]
+        status_part = " is already installed"
+        print(f"{GREEN}{BOLD}{v_part}{status_part}{RESET} at {target_dir}")
         return True
 
     try:
@@ -289,13 +314,18 @@ def _install_version(version, install_dir=None):
         
         if full_source_path.exists() and list(full_source_path.glob("*.tar.zst")):
             msg = _("python_installing_local", "Installing {version} from local resource...", version=version)
-            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+            # Bold only the action word
+            action = _("label_installing", "Installing")
+            rest = msg.replace(action, "").strip()
+            print_erasable(f"{BLUE}{BOLD}{action}{RESET} {rest}")
             resource_ready = True
         
         # 2. If not on disk, try to fetch from git
         if not resource_ready:
             msg = _("python_fetching_resource", "Fetching resources for {version} from git...", version=version)
-            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+            action = _("label_fetching", "Fetching")
+            rest = msg.replace(action, "").strip()
+            print_erasable(f"{BLUE}{BOLD}{action}{RESET} {rest}")
             # Fetch first to ensure origin/tool is up to date
             subprocess.run(["git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
             
@@ -326,7 +356,9 @@ def _install_version(version, install_dir=None):
                         if release and asset:
                             download_url = f"https://github.com/astral-sh/python-build-standalone/releases/download/{release}/{asset}"
                             msg = _("python_installing_remote", "Installing {version} from GitHub...", version=version)
-                            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+                            action = _("label_installing", "Installing")
+                            rest = msg.replace(action, "").strip()
+                            print_erasable(f"{BLUE}{BOLD}{action}{RESET} {rest}")
                             
                             full_source_path.mkdir(parents=True, exist_ok=True)
                             zst_path = full_source_path / asset
@@ -338,12 +370,14 @@ def _install_version(version, install_dir=None):
         # 3. If still not ready, try calling install.py to fetch/install directly
         if not zst_files:
             msg = _("python_installing_remote", "Installing {version} from GitHub...", version=version)
-            print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+            action = _("label_installing", "Installing")
+            rest = msg.replace(action, "").strip()
+            print_erasable(f"{BLUE}{BOLD}{action}{RESET} {rest}")
             
             install_script = script_dir / "core" / "install.py"
             if install_script.exists():
-                # Extract version and platform from the version tag (e.g. python3.10.19-macos-arm64)
-                v_match = re.search(r"python([\d\.]+)-(.*)", version)
+                # Extract version and platform from the version tag (e.g. 3.10.19-macos-arm64)
+                v_match = re.search(r"([\d\.]+)-(.*)", version)
                 if v_match:
                     v_num = v_match.group(1)
                     v_plat = v_match.group(2)
@@ -354,21 +388,23 @@ def _install_version(version, install_dir=None):
                     if (target_parent / version).exists():
                         # Clear line and print final success
                         sys.stdout.write("\r\033[K")
-                        success_msg = _("python_install_success", "Successfully installed {version}", version=version)
-                        print(f"{GREEN}{BOLD}{success_msg}{RESET}")
+                        success_status = _("python_install_success_status", "Successfully installed")
+                        print(f"{GREEN}{BOLD}{success_status}{RESET} {version}")
                         return True
 
         if not zst_files:
             sys.stdout.write("\r\033[K")
             error_label = _("label_error", "Error")
-            print(f"{RED}{BOLD}{error_label}:{RESET} " + _("python_install_failed", "Failed to obtain resource for {version}.", version=version))
+            print(f"{RED}{BOLD}{error_label}{RESET}: " + _("python_install_failed", "Failed to obtain resource for {version}.", version=version))
             return False
             
         source_zst = zst_files[0]
         
         # Erasable extraction message
         msg = _("python_extracting_v", "Extracting {version}...", version=version)
-        print_erasable(f"{BLUE}{BOLD}{msg}{RESET}")
+        action = _("label_extracting", "Extracting")
+        rest = msg.replace(action, "").strip()
+        print_erasable(f"{BLUE}{BOLD}{action}{RESET} {rest}")
         
         # Perform integrated extraction
         if extract_resource(source_zst, target_dir, silent=True):
@@ -388,8 +424,8 @@ def _install_version(version, install_dir=None):
 
             # Clear line and print final success
             sys.stdout.write("\r\033[K")
-            success_msg = _("python_install_success", "Successfully installed {version}", version=version)
-            print(f"{GREEN}{BOLD}{success_msg}{RESET}")
+            success_status = _("python_install_success_status", "Successfully installed")
+            print(f"{GREEN}{BOLD}{success_status}{RESET} {version}")
             return True
         
         sys.stdout.write("\r\033[K")
