@@ -1,6 +1,0 @@
-Test: test_03_cleanup.py
-Tool: BACKGROUND
-Time: 2026-01-12T14:37:10.704928
-Status: Timeout
-----------------------------------------
-Test timed out after 120s

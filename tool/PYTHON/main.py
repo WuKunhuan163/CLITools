@@ -262,9 +262,9 @@ def _list_versions():
             if not is_installed:
                 missing.append(v)
         
-        print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
-        if missing:
-            print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
+    print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
+    if missing:
+        print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
     
     print(_("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
 
