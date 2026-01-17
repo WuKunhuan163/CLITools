@@ -111,6 +111,7 @@
   "rule_guideline_3": "**共享工具**: 利用 `PYTHON` 工具的 `proj.language_utils` 或项目根目录的 `proj/` 来实现一致的共享逻辑 and 翻译. ",
   "rule_guideline_4": "**依赖管理**: 在工具的 'tool.json' 中定义依赖项. 'TOOL' 管理器将自动安装它们. ",
   "rule_guideline_5": "**颜色与状态样式**: 在行首使用加粗的状态标签（例如: Successfully, Installing）. 正常/进行中的流程（包括 Uninstalling）使用 **蓝色加粗**, 仅在警告时使用 **黄色加粗**. 颜色代码 (RED, GREEN, YELLOW, BLUE, BOLD, RESET) 必须从 `proj.config.get_color` 引用, 并确保它们始终加粗. ",
+  "rule_guideline_6": "**测试与分支**: 务必在 'test' 分支进行测试. 每次测试完成后, 确保通过将 'main' 分支内容覆盖到 'test' 分支来清理并同步 'test' 分支. ",
    "rule_note_execution": "注意: 要使用工具, 请确保在终端中直接调用其可执行文件名（例如 'USERINPUT'）. ",
   "pip_failed": "警告: 为 {name} 工具安装 pip 依赖失败: {error}",
   "python_not_found": "警告: 未找到 PYTHON 工具. 正在跳过 pip 依赖安装. ",
