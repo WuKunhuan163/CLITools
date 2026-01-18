@@ -13,26 +13,45 @@ script_dir = Path(__file__).resolve().parent
 # project_root is two levels up: tool/PYTHON -> tool -> root
 project_root = script_dir.parent.parent
 
-# Add the directory containing 'core' to sys.path
-sys.path.append(str(script_dir))
-from core.utils import get_python_exec, extract_resource
-from core.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+# Add root logic to sys.path first to avoid shadowing
+sys.path.insert(0, str(project_root))
+from logic.utils import extract_resource, get_logic_dir
+from logic.config import get_color
+from logic.lang.utils import get_translation
+from logic.tool.base import ToolBase
 
-# Import colors and shared utils from root proj
-sys.path.append(str(project_root))
-from proj.config import get_color
-from proj.lang.utils import get_translation
-from proj.tool.base import ToolBase
+# Import tool-specific logic
+try:
+    from tool.PYTHON.logic.utils import get_python_exec, extract_resource
+    from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+except ImportError:
+    # Fallback using importlib
+    import importlib.util
+    def load_mod(name, path):
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    
+    python_logic_utils = load_mod("python_logic_utils", script_dir / "logic" / "utils.py")
+    python_logic_config = load_mod("python_logic_config", script_dir / "logic" / "config.py")
+    
+    get_python_exec = python_logic_utils.get_python_exec
+    extract_resource = python_logic_utils.extract_resource
+    INSTALL_DIR = python_logic_config.INSTALL_DIR
+    RESOURCE_ROOT = python_logic_config.RESOURCE_ROOT
+    PROJECT_ROOT = python_logic_config.PROJECT_ROOT
+    get_rel_install_path = python_logic_config.get_rel_install_path
+    ensure_dirs = python_logic_config.ensure_dirs
 
-# Root shared proj for translation
-SHARED_PROJ_DIR = project_root / "proj"
+TOOL_INTERNAL = get_logic_dir(script_dir)
 
 def _(translation_key, default, **kwargs):
     # Try tool-specific translation first
-    text = get_translation(str(script_dir / "core"), translation_key, None)
+    text = get_translation(str(TOOL_INTERNAL), translation_key, None)
     if text is None:
         # Fallback to root translation
-        text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
+        text = get_translation(str(project_root / "logic"), translation_key, default)
     return text.format(**kwargs)
 
 # Define commonly used colors with defaults
@@ -108,7 +127,7 @@ def main():
     shorthand_version = None
     filtered_args = []
     
-    from core.utils import get_system_tag
+    from logic.utils import get_system_tag
     tag = get_system_tag()
     install_root = INSTALL_DIR
 
@@ -155,7 +174,7 @@ def main():
         sys.exit(0)
 
     if args.py_update:
-        update_script = script_dir / "core" / "update.py"
+        update_script = TOOL_INTERNAL / "update.py"
         if update_script.exists():
             subprocess.run([sys.executable, str(update_script)] + unknown)
             sys.exit(0)
@@ -259,7 +278,7 @@ def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
     
     # Compatibility layer: handle 'python' prefix and platform tags
-    from core.utils import get_system_tag, regularize_version_name
+    from logic.utils import get_system_tag, regularize_version_name
     tag = get_system_tag()
     
     # Try exact match first
@@ -316,7 +335,7 @@ def _install_version(version, install_dir=None):
     try:
         source_dir_rel = str(RESOURCE_ROOT.relative_to(project_root) / version)
         full_source_path = RESOURCE_ROOT / version
-        from core.utils import extract_resource
+        from logic.utils import extract_resource
         
         resource_ready = False
         zst_files = []
@@ -363,7 +382,7 @@ def _install_version(version, install_dir=None):
         if not zst_files:
             action = _("label_installing", "Installing")
             print_erasable(f"{BLUE}{BOLD}{action}{RESET} {version} from GitHub...")
-            install_script = script_dir / "core" / "install.py"
+            install_script = TOOL_INTERNAL / "install.py"
             if install_script.exists():
                 v_match = re.search(r"([\d\.]+)-(.*)", version)
                 if v_match:

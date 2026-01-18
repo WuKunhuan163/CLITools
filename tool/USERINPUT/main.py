@@ -30,9 +30,10 @@ warnings.filterwarnings('ignore')
 current_dir = Path(__file__).resolve().parent
 
 try:
-    from proj.tool_base import ToolBase
-    from proj.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
-    from proj.lang.utils import get_translation
+    from logic.tool.base import ToolBase
+    from logic.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
+    from logic.lang.utils import get_translation
+    from logic.utils import get_logic_dir
 except ImportError:
     # Fallback for manual execution or if PYTHONPATH is not set
     class ToolBase:
@@ -53,11 +54,12 @@ except ImportError:
     def get_safe_python_for_gui(): return sys.executable
     def is_sandboxed(): return False
     def get_translation(d, k, default): return default
+    def get_logic_dir(d): return d / "logic"
 
-TOOL_PROJ_DIR = current_dir / "proj"
+TOOL_INTERNAL = get_logic_dir(current_dir)
 
 def _(key, default):
-    return get_translation(str(TOOL_PROJ_DIR), key, default)
+    return get_translation(str(TOOL_INTERNAL), key, default)
 
 class UserInputRetryableError(Exception):
     """Exception raised for errors that should trigger a retry (e.g., user cancellation)."""
@@ -78,7 +80,7 @@ class UserInputTool(ToolBase):
 
         # Try to resolve using same logic as PYTHON tool if possible
         try:
-            sys.path.append(str(self.project_root / "tool" / "PYTHON" / "proj"))
+            sys.path.append(str(self.project_root / "tool" / "PYTHON" / "logic"))
             from config import INSTALL_DIR
             install_root = INSTALL_DIR
         except ImportError:
@@ -118,7 +120,7 @@ class UserInputTool(ToolBase):
 
         # Use shared utility for error reporting
         try:
-            from proj.utils import print_python_not_found_error
+            from logic.utils import print_python_not_found_error
             print_python_not_found_error(self.tool_name, version, self.script_dir, _)
         except ImportError:
             # Fallback if utility missing
@@ -175,7 +177,7 @@ def parse_gui_error(error_output):
     return "\n".join(lines[:5]) + ("\n... (truncated)" if len(lines) > 5 else "")
 
 def get_config():
-    config_path = current_dir / "proj" / "config.json"
+    config_path = TOOL_INTERNAL / "config.json"
     if config_path.exists():
         with open(config_path, 'r') as f:
             return json.load(f)
@@ -187,7 +189,6 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
         raise RuntimeError("Missing dependencies for USERINPUT")
 
     python_exe = tool.get_python_exe()
-    proj_dir = str(tool.script_dir / "proj")
     
     config = get_config()
     focus_interval = config.get("focus_interval", 90)
@@ -195,10 +196,10 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
 
     if os.environ.get("USERINPUT_DEBUG") == "1":
         print(f"DEBUG: Using python: {python_exe}", flush=True)
-        print(f"DEBUG: Proj dir: {proj_dir}", flush=True)
+        print(f"DEBUG: Internal dir: {TOOL_INTERNAL}", flush=True)
     
     try:
-        bell_path = Path(proj_dir) / "tkinter_bell.mp3"
+        bell_path = TOOL_INTERNAL / "tkinter_bell.mp3"
         bell_path_str_literal = repr(str(bell_path))
     except Exception:
         bell_path_str_literal = "''"
@@ -222,18 +223,18 @@ if PROJECT_ROOT.exists():
     sys.path.append(str(PROJECT_ROOT))
 
 try:
-    from proj.lang.utils import get_translation
-    from proj.gui import setup_gui_environment
+    from logic.lang.utils import get_translation
+    from logic.gui import setup_gui_environment
 except ImportError:
     def get_translation(d, k, default): return default
     def setup_gui_environment(): pass
 
 import tkinter as tk
 
-TOOL_PROJ_DIR = %(proj_dir)r
+TOOL_INTERNAL = %(internal_dir)r
 
 def _(key, default):
-    return get_translation(TOOL_PROJ_DIR, key, default)
+    return get_translation(TOOL_INTERNAL, key, default)
 
 class TkinterInputWindow:
     def __init__(self, title, timeout, hint_text, focus_interval, bell_path, time_increment):
@@ -391,7 +392,7 @@ if __name__ == "__main__":
         traceback.print_exc()
 ''' % {
         'project_root': str(tool.project_root),
-        'proj_dir': proj_dir,
+        'internal_dir': str(TOOL_INTERNAL),
         'title': title,
         'timeout': timeout,
         'hint': hint_text,

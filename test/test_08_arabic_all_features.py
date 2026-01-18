@@ -8,7 +8,7 @@ import sys
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from proj.utils import format_table
+from logic.utils import format_table
 
 class TestArabicAllFeatures(unittest.TestCase):
     def setUp(self):
@@ -35,7 +35,7 @@ class TestArabicAllFeatures(unittest.TestCase):
         
         # Simulate format_table with terminal width constraint
         # We manually call format_table with is_rtl=True
-        from proj.utils import set_rtl_mode
+        from logic.utils import set_rtl_mode
         set_rtl_mode(True)
         output_tuple = format_table(headers, rows)
         output = output_tuple[0]

@@ -5,7 +5,7 @@ from pathlib import Path
 
 def main():
     script_dir = Path(__file__).resolve().parent
-    install_dir = script_dir / "proj" / "install"
+    install_dir = script_dir / "data" / "install"
     
     if install_dir.exists():
         print(f"Cleaning up Python installations in {install_dir}...")

@@ -7,10 +7,10 @@ import stat
 import shutil
 from pathlib import Path
 
-# Import colors and shared utils from proj
-from proj.config import get_color
-from proj.lang.utils import get_translation
-from proj.audit.utils import AuditManager, AuditBase
+# Import colors and shared utils from logic
+from logic.config import get_color
+from logic.lang.utils import get_translation
+from logic.audit.utils import AuditManager, AuditBase
 
 RESET = get_color("RESET", "\033[0m")
 GREEN = get_color("GREEN", "\033[32m")
@@ -21,15 +21,16 @@ RED = get_color("RED", "\033[31m")
 
 # Root project directory
 ROOT_PROJECT_ROOT = Path(__file__).parent.absolute()
-SHARED_PROJ_DIR = ROOT_PROJECT_ROOT / "proj"
+from logic.utils import get_logic_dir
+SHARED_LOGIC_DIR = get_logic_dir(ROOT_PROJECT_ROOT)
 
 # Initialize RTL support and override built-in print
-from proj.utils import smart_print, set_rtl_mode
+from logic.utils import smart_print, set_rtl_mode
 import builtins
 builtins.print = smart_print
 
 def _(translation_key, default, **kwargs):
-    text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
+    text = get_translation(str(SHARED_LOGIC_DIR), translation_key, default)
     return text.format(**kwargs)
 
 def install_tool(tool_name):
@@ -66,7 +67,7 @@ def install_tool(tool_name):
         # Not installed at all, start installation header if needed, but ToolEngine handles sub-steps
         pass
 
-    from proj.tool.setup.engine import ToolEngine
+    from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
     engine.install()
 
@@ -88,7 +89,7 @@ def uninstall_tool(tool_name, force_yes=False):
             print(_("non_interactive_skip", "Non-interactive session, skipping confirmation. Use -y to force."))
             return
 
-    from proj.tool.setup.engine import ToolEngine
+    from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
     engine.uninstall()
 
@@ -123,7 +124,7 @@ def update_config(key, value):
         lang = value.lower()
         if lang != "en":
             audit_path = project_root / "data" / "audit" / "lang" / f"audit_{lang}.json"
-            trans_path = project_root / "proj" / "translation" / f"{lang}.json"
+            trans_path = project_root / "logic" / "translation" / f"{lang}.json"
             if not audit_path.exists() and not trans_path.exists():
                 print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("lang_error_not_found_simple", "Language '{lang}' not found.", lang=lang))
                 return
@@ -139,9 +140,9 @@ def update_config(key, value):
     print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
 def _dev_sync():
-    """Synchronize core files from 'tool' to 'main', then overwrite 'test' with 'main'."""
+    """Synchronize logic files from 'tool' to 'main', then overwrite 'test' with 'main'."""
     project_root = Path(__file__).parent.absolute()
-    core_files = ["main.py", "setup.py", "tool.json", "README.md", ".gitignore", ".gitattributes", "proj", "bin", "test", "todo"]
+    logic_files = ["main.py", "setup.py", "tool.json", "README.md", ".gitignore", ".gitattributes", "logic", "bin", "test", "todo"]
     
     try:
         current_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
@@ -168,8 +169,8 @@ def _dev_sync():
     
     commands = [
         ["git", "checkout", "main"],
-        ["git", "checkout", current_branch, "--"] + core_files,
-        ["git", "commit", "-m", f"Sync core files from {current_branch} branch"],
+        ["git", "checkout", current_branch, "--"] + logic_files,
+        ["git", "commit", "-m", f"Sync logic files from {current_branch} branch"],
         ["git", "branch", "-D", "test"],
         ["git", "checkout", "-b", "test"],
         ["git", "checkout", current_branch]
@@ -188,7 +189,7 @@ def _dev_sync():
             
             if cmd == ["git", "checkout", "main"] or cmd == ["git", "checkout", "-b", "test"]:
                 # Apply the restricted .gitignore from templates
-                init_dir = project_root / "proj" / "init"
+                init_dir = project_root / "logic" / "init"
                 if (init_dir / ".gitignore").exists():
                     shutil.copy(init_dir / ".gitignore", project_root / ".gitignore")
                 if (init_dir / ".gitattributes").exists():
@@ -223,7 +224,7 @@ def _dev_reset():
             
         subprocess.run(["git", "checkout", "main"], cwd=str(project_root), check=True)
         
-        init_dir = project_root / "proj" / "init"
+        init_dir = SHARED_LOGIC_DIR / "init"
         if (init_dir / ".gitignore").exists():
             shutil.copy(init_dir / ".gitignore", project_root / ".gitignore")
         if (init_dir / ".gitattributes").exists():
@@ -264,7 +265,7 @@ def _dev_enter(branch, force=False):
 def _tool_requirements():
     return {
         "files": ["main.py", "setup.py", "tool.json", "README.md"],
-        "dirs": ["core", "proj/translation"]
+        "dirs": ["logic", "logic/translation"]
     }
 
 def _dev_sanity_check(tool_name, fix=False):
@@ -282,14 +283,15 @@ def _dev_sanity_check(tool_name, fix=False):
         if not (tool_dir / d).exists(): missing.append(d)
     
     if fix and missing:
-        if "core" in missing:
-            (tool_dir / "core").mkdir(exist_ok=True)
-            print(f"Fixed: Created core/ directory for '{tool_name}'")
-            missing.remove("core")
+        if "logic" in missing:
+            get_logic_dir(tool_dir).mkdir(exist_ok=True)
+            print(f"Fixed: Created logic/ directory for '{tool_name}'")
+            missing.remove("logic")
         
-        if "proj/translation" in missing:
-            trans_json = tool_dir / "proj" / "translation.json"
-            trans_dir = tool_dir / "proj" / "translation"
+        if "logic/translation" in missing:
+            tool_internal = get_logic_dir(tool_dir)
+            trans_json = tool_internal / "translation.json"
+            trans_dir = tool_internal / "translation"
             if trans_json.exists():
                 trans_dir.mkdir(parents=True, exist_ok=True)
                 try:
@@ -298,14 +300,14 @@ def _dev_sanity_check(tool_name, fix=False):
                         for lang, items in data.items():
                             with open(trans_dir / f"{lang}.json", 'w') as lf:
                                 json.dump(items, lf, indent=2)
-                    print(f"Fixed: Converted proj/translation.json to proj/translation/ directory for '{tool_name}'")
-                    missing.remove("proj/translation")
+                    print(f"Fixed: Converted logic/translation.json to logic/translation/ directory for '{tool_name}'")
+                    missing.remove("logic/translation")
                 except Exception as e:
                     print(f"Error fixing translation: {e}")
             else:
                 trans_dir.mkdir(parents=True, exist_ok=True)
-                print(f"Fixed: Created empty proj/translation/ directory for '{tool_name}'")
-                missing.remove("proj/translation")
+                print(f"Fixed: Created empty logic/translation/ directory for '{tool_name}'")
+                missing.remove("logic/translation")
         
         # Re-check remaining files
         for f in list(missing):
@@ -355,8 +357,9 @@ def _dev_create(tool_name):
         return
     
     tool_dir.mkdir(parents=True)
-    (tool_dir / "core").mkdir()
-    (tool_dir / "proj" / "translation").mkdir(parents=True)
+    tool_internal = get_logic_dir(tool_dir)
+    tool_internal.mkdir()
+    (tool_internal / "translation").mkdir(parents=True)
     
     main_content = f'''#!/usr/bin/env python3
 import sys
@@ -368,8 +371,8 @@ script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent
 sys.path.append(str(project_root))
 
-from proj.tool.base import ToolBase
-from proj.config import get_color
+from logic.tool.base import ToolBase
+from logic.config import get_color
 
 def main():
     tool = ToolBase("{tool_name}")
@@ -439,8 +442,8 @@ if __name__ == "__main__":
     # Demo translation
     zh_trans = {"hello": "你好, 世界!"}
     ar_trans = {"hello": "مرحباً بالعالم!"}
-    with open(tool_dir / "proj" / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
-    with open(tool_dir / "proj" / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
+    with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
+    with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
     print(f"{BOLD}{GREEN}Successfully created{RESET} tool template at {tool_dir}")
     _dev_sanity_check(tool_name)
@@ -460,9 +463,9 @@ def generate_ai_rule():
     lines.append(_("rule_critical_note", "CRITICAL: When developing or performing tasks, always prefer using the following integrated tools instead of writing custom implementations."))
     lines.append("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
     for name, info in installed_tools:
-        tool_core_dir = project_root / "tool" / name / "core"
-        desc = get_translation(str(tool_core_dir), f"tool_{name}_desc", info.get('description'))
-        purpose = get_translation(str(tool_core_dir), f"tool_{name}_purpose", info.get('purpose'))
+        tool_logic_dir = get_logic_dir(project_root / "tool" / name)
+        desc = get_translation(str(tool_logic_dir), f"tool_{name}_desc", info.get('description'))
+        purpose = get_translation(str(tool_logic_dir), f"tool_{name}_purpose", info.get('purpose'))
         lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
     lines.append("\n" + _("rule_available_header", "[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]"))
@@ -472,15 +475,15 @@ def generate_ai_rule():
         lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
-    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'proj/translation.json' file."))
+    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'logic/translation.json' file."))
     lines.append("- " + _("rule_guideline_2", "**Fallback & Testing**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. Testing MUST be done on the 'test' branch; after each test, the 'test' branch should be re-synced from 'main'."))
-    lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `proj/` directory to avoid duplicate implementations across different tools."))
+    lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `logic/` directory to avoid duplicate implementations across different tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
-    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Only the status label (e.g., **Successfully**) should be colored and bolded. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `proj.config.get_color`."))
+    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Only the status label (e.g., **Successfully**) should be colored and bolded. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `logic.config.get_color`."))
     
     # 7. Add USERINPUT execution rule
-    userinput_core_dir = project_root / "tool" / "USERINPUT" / "proj"
-    ai_instr = get_translation(str(userinput_core_dir), "ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+    userinput_logic_dir = get_logic_dir(project_root / "tool" / "USERINPUT")
+    ai_instr = get_translation(str(userinput_logic_dir), "ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
     lines.append("\n" + ai_instr)
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
@@ -504,7 +507,7 @@ def _test_tool_with_args(args):
             max_concurrent = data.get("test_parallel", 1)
     if args.max != 3: max_concurrent = args.max
     sys.path.append(str(project_root))
-    from proj.test.runner import TestRunner
+    from logic.test.runner import TestRunner
     runner = TestRunner(args.tool_name, project_root)
     if args.list: runner.list_tests()
     else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
@@ -513,8 +516,8 @@ def _audit_lang(lang_code, force=False):
     project_root = Path(__file__).parent.absolute()
     lang_name = _(f"lang_name_{lang_code}", lang_code)
     sys.path.append(str(project_root))
-    from proj.lang.audit import LangAuditor
-    from proj.utils import get_rate_color
+    from logic.lang.audit import LangAuditor
+    from logic.utils import get_rate_color
     if force:
         p = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
         if p.exists(): p.unlink()
@@ -545,8 +548,8 @@ def _show_current_language():
 def _list_languages():
     project_root = Path(__file__).parent.absolute()
     sys.path.append(str(project_root))
-    from proj.lang.audit import LangAuditor
-    from proj.utils import get_rate_color, format_table
+    from logic.lang.audit import LangAuditor
+    from logic.utils import get_rate_color, format_table
     auditor = LangAuditor(project_root)
     audited_langs = auditor.list_audited_languages()
     current_lang = "en"

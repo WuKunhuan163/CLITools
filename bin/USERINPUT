@@ -6,7 +6,7 @@ py_tool = root / "tool" / "PYTHON"
 if not py_tool.exists(): print("Error: PYTHON tool missing."); sys.exit(1)
 sys.path.append(str(py_tool))
 try:
-    from core.utils import get_python_exec
+    from logic.utils import get_python_exec
     py_exec = get_python_exec()
 except: py_exec = "python3"
 env = os.environ.copy()
