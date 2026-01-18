@@ -502,39 +502,98 @@ def main():
     if args.command == "setup": # Fallback if handle_command_line didn't exit
         tool.run_setup()
         return 0
+    elif args.command == "stop":
+        # Kill existing USERINPUT GUI processes
+        try:
+            import psutil
+            current_pid = os.getpid()
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info.get('cmdline')
+                    if not cmdline: continue
+                    # Look for python processes running USERINPUT main.py or the temp GUI script
+                    is_userinput = any("USERINPUT" in part for part in cmdline)
+                    is_main = any("main.py" in part for part in cmdline)
+                    is_temp = any(".py" in part and "tmp" in part for part in cmdline)
+                    
+                    if is_userinput and (is_main or is_temp) and proc.info['pid'] != current_pid:
+                        proc.terminate()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except ImportError:
+            # Fallback to pkill on Unix
+            if platform.system() != "Windows":
+                subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
+        return 0
+
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    BLUE = get_color("BLUE", "\033[34m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RESET = get_color("RESET", "\033[0m")
 
     max_retries = 3
+    final_result = [None]
+    
     for attempt in range(max_retries):
         try:
             if os.environ.get("USERINPUT_DEBUG") == "1":
                 print(f"DEBUG: Starting attempt {attempt + 1}/{max_retries}...", flush=True)
 
-            result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
-            
-            if os.environ.get("USERINPUT_DEBUG") == "1":
-                print(f"DEBUG: Success. Result obtained.", flush=True)
+            # Show blue keyword progress message
+            label_waiting = _("label_waiting_input", "Waiting for user input")
+            msg_popup = _("msg_popup_gui", "Popup GUI")
+            sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} ({msg_popup})...")
+            sys.stdout.flush()
 
+            result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
+            final_result[0] = result
+            
+            # Clear progress line on success
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            
+            success_label = _("label_successfully_received", "Successfully received")
             end_hint = "\n\n" + _("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
-            print(result + end_hint, flush=True)
+            
+            print(f"{BOLD}{GREEN}{success_label}{RESET}: {result}{end_hint}", flush=True)
             
             if platform.system() == "Darwin":
                 try: subprocess.run('pbcopy', input=result + end_hint, text=True, encoding='utf-8', check=True)
                 except: pass
             return 0
+            
         except (UserInputRetryableError, RuntimeError) as e:
             err_msg = str(e)
             if "Likely due to sandbox restrictions" in err_msg or "No display found" in err_msg:
                 # Fatal GUI error, don't retry
-                print(f"Fatal error: {err_msg}", file=sys.stderr, flush=True)
+                sys.stdout.write("\r\033[K")
+                print(f"{BOLD}{RED}Fatal error{RESET}: {err_msg}", file=sys.stderr, flush=True)
                 return 1
 
+            # Erasable retry message: Failed part bold blue
+            label_failed = _("label_failed", "Failed")
+            msg_retry = _("msg_attempt_retry", "Attempt {index} failed: {error}. Retrying...").format(index=attempt+1, error=e)
+            # Reorganize to put Failed first as requested
+            if msg_retry.startswith(f"Attempt {attempt+1} failed:"):
+                prefix = f"Attempt {attempt+1} "
+                rest = msg_retry[len(prefix):]
+                # "Attempt 1 Failed: ..." -> "Failed: Attempt 1 ..." or similar? 
+                # User said: "只有Attempt 1 failed蓝色加粗。你看一下能否重组表达让Failed在最前面"
+                # So: **Failed**: Attempt 1 (Empty content). Retrying...
+                msg_retry = f"{BOLD}{BLUE}{label_failed}{RESET}: Attempt {attempt+1} ({err_msg}). Retrying..."
+            
+            sys.stdout.write(f"\r\033[K{msg_retry}")
+            sys.stdout.flush()
+            
             if attempt < max_retries - 1:
-                msg = _("msg_attempt_failed", "Attempt {index} failed: {error}. Retrying...").format(index=attempt+1, error=e)
-                print(msg, file=sys.stderr, flush=True)
                 time.sleep(1)
                 continue
-            final_err = _("msg_failed_capture", "Failed to capture user input: {error}").format(error=e)
-            print(f"Error: {final_err}", file=sys.stderr, flush=True)
+            
+            # Final failure
+            sys.stdout.write("\r\033[K")
+            final_err_label = _("label_failed_capture", "Failed to capture user input")
+            print(f"{BOLD}{RED}{final_err_label}{RESET}: {err_msg}", file=sys.stderr, flush=True)
             return 1
 
 if __name__ == "__main__":

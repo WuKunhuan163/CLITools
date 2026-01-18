@@ -3,5 +3,5 @@
   "description": "Standalone Python environment manager and proxy.",
   "purpose": "Provide consistent, isolated Python runtime environments for tools and projects.",
   "run_compatible": true,
-  "default_version": "3.7.7-macos"
+  "default_version": "3.11.14"
 }

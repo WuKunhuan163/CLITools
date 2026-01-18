@@ -1,5 +1,10 @@
 [
   "test_01_short_table.py",
   "test_02_long_table.py",
-  "test_03_arabic_table.py"
+  "test_03_arabic_table.py",
+  "test_04_lang_show.py",
+  "test_05_lang_list.py",
+  "test_06_lang_set.py",
+  "test_07_audit_lang.py",
+  "test_08_arabic_all_features.py"
 ]

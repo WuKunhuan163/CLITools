@@ -560,14 +560,14 @@ def _list_languages():
     colors = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET}
     for lang in audited_langs:
         if lang == "en": continue
-        res, _ = LangAuditor(project_root, lang).audit()
+        res, cached = LangAuditor(project_root, lang).audit()
         summary = res.get("summary", {})
         rk, rr = summary.get("completion_rate_keys", "0%"), summary.get("completion_rate_refs", "0%")
         ck, cr = get_rate_color(rk, colors), get_rate_color(rr, colors)
         rows.append({"code": lang, "name": _(f"lang_name_{lang}", lang), "keys": f"{ck}{rk}{RESET}", "refs": f"{cr}{rr}{RESET}", "is_current": current_lang == lang})
     headers = [_("lang_table_name", "Language"), _("lang_table_keys", "Key Coverage"), _("lang_table_refs", "Ref Coverage")]
     table_rows = [[f"{r['name']}({r['code']})", r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
-    table_str, _ = format_table(headers, table_rows, max_width=80, save_dir="lang")
+    table_str, report_path = format_table(headers, table_rows, max_width=80, save_dir="lang")
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)
 
 def main():
@@ -589,8 +589,10 @@ def main():
     audit_parser.add_argument("lang_code")
     audit_parser.add_argument("--force", action="store_true")
     lang_parser = subparsers.add_parser("lang")
-    lang_parser.add_argument("--set")
-    lang_parser.add_argument("--list", action="store_true")
+    lang_subparsers = lang_parser.add_subparsers(dest="lang_command")
+    set_parser = lang_subparsers.add_parser("set")
+    set_parser.add_argument("code")
+    lang_subparsers.add_parser("list")
     
     dev_parser = subparsers.add_parser("dev", help="Developer commands")
     dev_subparsers = dev_parser.add_subparsers(dest="dev_command")
@@ -620,8 +622,8 @@ def main():
     elif args.command == "test": _test_tool_with_args(args)
     elif args.command == "audit-lang": _audit_lang(args.lang_code, force=args.force)
     elif args.command == "lang":
-        if args.set: update_config("language", args.set)
-        elif args.list: _list_languages()
+        if args.lang_command == "set": update_config("language", args.code)
+        elif args.lang_command == "list": _list_languages()
         else: _show_current_language()
     elif args.command == "rule": generate_ai_rule()
     elif args.command == "dev":

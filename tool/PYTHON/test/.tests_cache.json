@@ -3,5 +3,5 @@
   "test_01_isolation.py",
   "test_02_ops.py",
   "test_03_fallback.py",
-  "test_basic.py"
+  "test_python_tool.py"
 ]

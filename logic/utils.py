@@ -318,8 +318,19 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
         if not is_rtl:
             return line
         res = ""
-        for char in line:
-            res += mirror_map.get(char, char)
+        i = 0
+        while i < len(line):
+            if line[i] == '\x1B':
+                # Skip ANSI escape sequence
+                j = i
+                while j < len(line) and not ('A' <= line[j] <= 'Z' or 'a' <= line[j] <= 'z'):
+                    j += 1
+                if j < len(line):
+                    res += line[i:j+1]
+                    i = j + 1
+                    continue
+            res += mirror_map.get(line[i], line[i])
+            i += 1
         return res
 
     # Calculate initial column widths based on maximum content width
