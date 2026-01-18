@@ -16,6 +16,12 @@ To get started quickly, follow these steps:
    cd AITerminalTools
    ./setup.py
    ```
+   **Prerequisites**:
+   - **Python 3.8+**: Required to run the `TOOL` manager. [Download Python](https://www.python.org/downloads/)
+   - **Git**: Required for tool acquisition and management. [Install Git](https://git-scm.com/downloads)
+
+   *Note for Windows users*: Ensure `python` and `git` are in your PATH. On Linux/macOS, use your package manager (e.g., `brew install python git`).
+
    This registers the `TOOL` command. Restart your terminal or source your shell profile to apply changes.
 
 2. **Install a Tool**:
