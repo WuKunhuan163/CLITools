@@ -66,7 +66,7 @@ class TestPythonTool(unittest.TestCase):
         """Verify two different versions can be used independently."""
         # This test assumes at least two versions are installed in tool/PYTHON/proj/install/
         # Let's check what's installed
-        install_dir = self.tool_dir / "proj" / "installations"
+        install_dir = self.tool_dir / "logic" / "installations"
         if not install_dir.exists():
             self.skipTest("No python versions installed for testing independent use.")
             
@@ -122,7 +122,7 @@ class TestPythonTool(unittest.TestCase):
         # They should be different if a standalone version is used
         # Note: If the tool falls back to system python because none are installed, this might fail.
         # So we only assert if we know a standalone is installed.
-        install_dir = self.tool_dir / "proj" / "installations"
+        install_dir = self.tool_dir / "logic" / "installations"
         if install_dir.exists() and any(d.is_dir() for d in install_dir.iterdir()):
             self.assertNotEqual(system_py, tool_py)
 

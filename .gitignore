@@ -7,8 +7,8 @@
 !tool.json
 !bin/
 !bin/**
-!proj/
-!proj/**
+!logic/
+!logic/**
 !test/
 !test/**
 !todo/

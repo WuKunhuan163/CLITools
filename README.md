@@ -59,6 +59,6 @@ The `TOOL` command provides a standardized interface for all tool-related operat
 ### Modular Architecture
 Each tool follows a strict structure:
 - `main.py`: CLI entry point.
-- `proj/`: Core logic and `translation.json` for multi-language support.
+- `logic/`: Core logic and `translation/` directory for multi-language support.
 - `test/`: Isolated unit tests using the `unittest` framework.
 - `tool.json`: Metadata and dependency definitions.

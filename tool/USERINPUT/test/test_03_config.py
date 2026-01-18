@@ -21,7 +21,7 @@ class TestUserInputConfig(unittest.TestCase):
         self.assertIn(str(interval), res.stdout)
         
         # Verify config file
-        config_path = project_root / "tool" / "USERINPUT" / "proj" / "config.json"
+        config_path = project_root / "tool" / "USERINPUT" / "logic" / "config.json"
         self.assertTrue(config_path.exists())
         with open(config_path, 'r') as f:
             config = json.load(f)

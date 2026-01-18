@@ -15,17 +15,18 @@ project_root = current_dir.parent.parent
 sys.path.append(str(current_dir))
 
 # Localization setup
-# import shared utils from the shared root proj
+# import shared utils from the shared root logic
 try:
-    from proj.lang.utils import get_translation
-    from proj.utils import get_display_width, truncate_to_display_width, format_table
-    from proj.config import get_color
+    from logic.lang.utils import get_translation
+    from logic.utils import get_display_width, truncate_to_display_width, format_table, get_logic_dir
+    from logic.config import get_color
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default
     def get_display_width(s): return len(s)
     def truncate_to_display_width(s, w): return s[:w]
     def format_table(h, r, **kwargs): return "\n".join([" | ".join(h)] + [" | ".join(map(str, row)) for row in r]), None
+    def get_logic_dir(d): return d / "logic"
 
 RESET = get_color("RESET", "\033[0m")
 GREEN = get_color("GREEN", RESET)
@@ -33,12 +34,12 @@ BOLD = get_color("BOLD", RESET)
 BLUE = get_color("BLUE", RESET)
 RED = get_color("RED", RESET)
 
-TOOL_PROJ_DIR = current_dir / "proj"
+TOOL_INTERNAL = get_logic_dir(current_dir)
 
 def _(key, default):
-    return get_translation(str(TOOL_PROJ_DIR), key, default)
+    return get_translation(str(TOOL_INTERNAL), key, default)
 
-from proj.manager import ProcessManager
+from logic.manager import ProcessManager
 
 def main():
     """主函数"""

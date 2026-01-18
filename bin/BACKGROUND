@@ -4,9 +4,9 @@ import os
 import subprocess
 from pathlib import Path
 
-# Add the directory containing 'proj' to PYTHONPATH for the subprocess
-project_root = Path('/Applications/AITerminalTools')
-python_tool_dir = project_root / "tool" / "PYTHON"
+# Add the directory containing 'logic' to PYTHONPATH for the subprocess
+logicect_root = Path('/Applications/AITerminalTools')
+python_tool_dir = logicect_root / "tool" / "PYTHON"
 sys.path.append(str(python_tool_dir))
 
 # Use system python3 for BACKGROUND tool as it needs psutil and other system-level deps
@@ -14,9 +14,9 @@ python_exec = "python3"
 
 # Set up environment
 env = os.environ.copy()
-# Add the project root (containing root 'proj') and tool's directory (containing 'proj') to PYTHONPATH
+# Add the logicect root (containing root 'logic') and tool's directory (containing 'logic') to PYTHONPATH
 tool_main = Path('/Applications/AITerminalTools/tool/BACKGROUND/main.py')
-env["PYTHONPATH"] = f"{project_root}:{tool_main.parent}:{env.get('PYTHONPATH', '')}"
+env["PYTHONPATH"] = f"{logicect_root}:{tool_main.parent}:{env.get('PYTHONPATH', '')}"
 
 if __name__ == "__main__":
     result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)

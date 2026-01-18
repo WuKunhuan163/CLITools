@@ -13,16 +13,20 @@ project_root = script_dir.parent.parent
 sys.path.append(str(project_root))
 
 try:
-    from proj.lang.utils import get_translation
+    from logic.lang.utils import get_translation
+    from logic.utils import get_logic_dir
 except ImportError:
     def get_translation(d, k, default): return default
+    def get_logic_dir(d): return d / "logic"
+
+TOOL_INTERNAL = get_logic_dir(script_dir)
 
 def _(key, default):
-    return get_translation(str(script_dir / "proj"), key, default)
+    return get_translation(str(TOOL_INTERNAL), key, default)
 
 def main():
     # Load config to get default python version
-    config_path = script_dir / "proj" / "config.json"
+    config_path = TOOL_INTERNAL / "config.json"
     default_version = "python3.11.14"
     if config_path.exists():
         try:
@@ -40,23 +44,8 @@ def main():
         print("\033[1;31mError\033[0m: PYTHON tool binary not found.")
         sys.exit(1)
         
-    version = args.py_version
-    if not version.startswith("python"):
-        version = f"python{version}"
-
-    # Auto-detect platform tag if needed
-    if "-" not in version:
-        system = platform.system().lower()
-        if system == "darwin":
-            arch = platform.machine().lower()
-            if "arm" in arch or "aarch64" in arch:
-                version = f"{version}-macos-arm64"
-            else:
-                version = f"{version}-macos"
-        elif system == "linux":
-            version = f"{version}-linux64"
-        elif system == "windows":
-            version = f"{version}-windows-amd64"
+    from logic.utils import regularize_version_name, get_system_tag
+    version = regularize_version_name(args.py_version)
 
     try:
         cmd = [str(python_bin), "--py-install", version]
@@ -65,7 +54,7 @@ def main():
         # If it failed, show the error
         try:
             sys.path.append(str(script_dir))
-            from proj.utils import print_python_not_found_error
+            from logic.utils import print_python_not_found_error
             print_python_not_found_error("USERINPUT", version, script_dir, _)
         except Exception:
             print(f"\033[1;31mError\033[0m: Failed to install {version}.")
