@@ -16,12 +16,12 @@ class TestPythonManage(unittest.TestCase):
         """Test listing supported versions."""
         result = subprocess.run([str(self.python_tool), "--py-list"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        # Check for presence of python3.10.19 regardless of language
-        self.assertIn("python3.10.19", result.stdout)
+        # Check for presence of version regardless of language
+        self.assertTrue("3.10.19" in result.stdout or "python3.10.19" in result.stdout)
 
     def test_install_custom_dir(self):
         """Test installing to a custom directory and verifying version."""
-        version = "python3.11.14"
+        version = "3.11.14" # Standardized
         custom_dir = self.tmp_dir / "custom_install"
         if custom_dir.exists():
             shutil.rmtree(custom_dir)

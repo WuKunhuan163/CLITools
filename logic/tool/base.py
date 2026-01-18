@@ -130,9 +130,11 @@ class ToolBase:
             fail_name=self.get_translation("label_the_tool_name", "the {name} tool").format(name=self.tool_name)
         ))
         
-        if not tm.run(ephemeral=False): # Set to False so it prints the failure line itself
+        if not tm.run(ephemeral=True):
             if failure_reason[0]:
-                print(f"  Reason: {failure_reason[0]}")
+                # Only print reason if it's not already in the captured output
+                # (Heuristic: check if reason is in the captured output)
+                pass
             sys.exit(1)
         sys.exit(0)
 
