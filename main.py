@@ -220,7 +220,8 @@ def _dev_reset():
     try:
         current = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
         if current != "tool":
-            print(f"{BOLD}{YELLOW}Warning{RESET}: Reset is recommended from 'tool' branch.")
+            warning_label = _("warning_label", "Warning")
+            print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("reset_warning_branch", "Reset is recommended from 'tool' branch."))
             
         subprocess.run(["git", "checkout", "main"], cwd=str(project_root), check=True)
         
@@ -244,9 +245,11 @@ def _dev_reset():
         subprocess.run(["git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
         subprocess.run(["git", "checkout", current], cwd=str(project_root), check=True)
         
-        print(f"{BOLD}{GREEN}Successfully reset{RESET} main and test branches.")
+        success_status = _("label_successfully", "Successfully")
+        print(f"{BOLD}{GREEN}{success_status} reset{RESET} main and test branches.")
     except Exception as e:
-        print(f"{BOLD}{RED}Error{RESET}: Reset failed: {e}")
+        error_label = _("error_label", "Error")
+        print(f"{BOLD}{RED}{error_label}{RESET}: " + _("reset_failed", "Reset failed: {error}", error=str(e)))
 
 def _dev_enter(branch, force=False):
     """Switch to main or test branch safely."""
@@ -258,9 +261,11 @@ def _dev_enter(branch, force=False):
         else:
             res = subprocess.run(cmd, cwd=str(project_root))
             if res.returncode != 0:
-                print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to switch branch. Use --force to discard local changes.")
+                warning_label = _("warning_label", "Warning")
+                print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("switch_failed_hint", "Failed to switch branch. Use --force to discard local changes."))
     except Exception as e:
-        print(f"{BOLD}{RED}Error{RESET}: {e}")
+        error_label = _("error_label", "Error")
+        print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
 
 def _tool_requirements():
     return {
@@ -285,7 +290,7 @@ def _dev_sanity_check(tool_name, fix=False):
     if fix and missing:
         if "logic" in missing:
             get_logic_dir(tool_dir).mkdir(exist_ok=True)
-            print(f"Fixed: Created logic/ directory for '{tool_name}'")
+            print(_("fixed_created_logic", "Fixed: Created logic/ directory for '{name}'", name=tool_name))
             missing.remove("logic")
         
         if "logic/translation" in missing:
@@ -300,13 +305,13 @@ def _dev_sanity_check(tool_name, fix=False):
                         for lang, items in data.items():
                             with open(trans_dir / f"{lang}.json", 'w') as lf:
                                 json.dump(items, lf, indent=2)
-                    print(f"Fixed: Converted logic/translation.json to logic/translation/ directory for '{tool_name}'")
+                    print(_("fixed_converted_translation", "Fixed: Converted logic/translation.json to logic/translation/ directory for '{name}'", name=tool_name))
                     missing.remove("logic/translation")
                 except Exception as e:
                     print(f"Error fixing translation: {e}")
             else:
                 trans_dir.mkdir(parents=True, exist_ok=True)
-                print(f"Fixed: Created empty logic/translation/ directory for '{tool_name}'")
+                print(_("fixed_created_logic_trans", "Fixed: Created empty logic/translation/ directory for '{name}'", name=tool_name))
                 missing.remove("logic/translation")
         
         # Re-check remaining files
@@ -314,7 +319,7 @@ def _dev_sanity_check(tool_name, fix=False):
             if f == "README.md":
                 with open(tool_dir / "README.md", 'w') as f_out:
                     f_out.write(f"# {tool_name}\n\n{tool_name} tool.")
-                print(f"Fixed: Created basic README.md for '{tool_name}'")
+                print(_("fixed_created_readme", "Fixed: Created basic README.md for '{name}'", name=tool_name))
                 missing.remove("README.md")
             elif f == "tool.json":
                 # Create a minimal tool.json
@@ -333,14 +338,16 @@ def _dev_sanity_check(tool_name, fix=False):
                 }
                 with open(tool_dir / "tool.json", 'w') as f_out:
                     json.dump(minimal_tool_json, f_out, indent=2)
-                print(f"Fixed: Created minimal tool.json for '{tool_name}'")
+                print(_("fixed_created_tool_json", "Fixed: Created minimal tool.json for '{name}'", name=tool_name))
                 missing.remove("tool.json")
 
     if missing:
-        print(f"{BOLD}{RED}Sanity check failed{RESET} for '{tool_name}': Missing {', '.join(missing)}")
+        fail_label = _("sanity_failed", "Sanity check failed")
+        print(f"{BOLD}{RED}{fail_label}{RESET} for '{tool_name}': Missing {', '.join(missing)}")
         return False
     
-    print(f"{BOLD}{GREEN}Sanity check passed{RESET} for '{tool_name}'.")
+    pass_label = _("sanity_passed", "Sanity check passed")
+    print(f"{BOLD}{GREEN}{pass_label}{RESET} for '{tool_name}'.")
     return True
 
 def _dev_create(tool_name):
@@ -352,7 +359,8 @@ def _dev_create(tool_name):
     try:
         status = subprocess.run(["git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
         if status.stdout.strip():
-            print(f"{BOLD}Info{RESET}: Auto-committing local changes before switching branch...")
+            info_label = _("info_label", "Info")
+            print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
             subprocess.run(["git", "add", "."], cwd=str(project_root), check=True)
             subprocess.run(["git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True)
     except: pass
@@ -441,6 +449,7 @@ if __name__ == "__main__":
 
 This tool is part of the `TOOL` ecosystem, which provides:
 
+- **Standalone Runtime**: Tools can specify a dependency on the `PYTHON` tool. The manager ensures they run in a dedicated, isolated Python environment.
 - **Git LFS Support**: Managed via the root `.gitattributes`. Large files (models, binaries) are automatically tracked by Git LFS.
 - **Automatic Persistence**: The system supports automatic pushes every three commits to protect work progress. This is managed by a `post-commit` hook in the root `.git/hooks`.
 - **Shared Utilities**: Access core logic in the root `logic/` folder:
@@ -449,6 +458,7 @@ This tool is part of the `TOOL` ecosystem, which provides:
     - `logic.tool.base`: Base class for standardized command handling (e.g., automated `setup` command support).
     - `logic.audit`: General-purpose audit and caching system.
 - **Localization**: Built-in support for multiple languages in `logic/translation/`. Always use the `_()` helper for user-facing strings.
+- **Unit Testing**: Standardized testing framework using `unittest`. Run tests in parallel with `TOOL test {tool_name}`.
 
 ## Development Guidelines
 
@@ -478,7 +488,8 @@ This tool is part of the `TOOL` ecosystem, which provides:
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
-    print(f"{BOLD}{GREEN}Successfully created{RESET} tool template at {tool_dir}")
+    success_status = _("label_successfully", "Successfully")
+    print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
     _dev_sanity_check(tool_name)
 
 def generate_ai_rule():
@@ -532,13 +543,25 @@ def _test_tool_with_args(args):
     project_root = Path(__file__).parent.absolute()
     tool_dir = project_root if args.tool_name == "root" else project_root / "tool" / args.tool_name
     if not tool_dir.exists(): return
-    max_concurrent = 1
+    
+    from logic.config import get_setting
+    default_concurrency = get_setting("test_default_concurrency", 3)
+    max_concurrent = default_concurrency
+    
     tool_json_path = tool_dir / "tool.json"
     if tool_json_path.exists():
         with open(tool_json_path, 'r') as f:
             data = json.load(f)
-            max_concurrent = data.get("test_parallel", 1)
-    if args.max != 3: max_concurrent = args.max
+            # tool.json can override global default
+            max_concurrent = data.get("test_parallel", default_concurrency)
+    
+    # CLI --max always takes priority
+    if args.max != 3: # If user provided something other than the argparse default
+        max_concurrent = args.max
+    elif args.max == 3 and default_concurrency != 3:
+        # If argparse default is 3 but settings.json has something else, use settings.json
+        max_concurrent = default_concurrency
+
     sys.path.append(str(project_root))
     from logic.test.runner import TestRunner
     runner = TestRunner(args.tool_name, project_root)
@@ -589,7 +612,15 @@ def _list_languages():
     config_path = project_root / "data" / "config.json"
     if config_path.exists():
         with open(config_path, 'r') as f: current_lang = json.load(f).get("language", "en")
-    rows = [{"code": "en", "name": _("lang_name_en", "English"), "keys": _("lang_default", "default"), "refs": _("lang_default", "default"), "is_current": current_lang == "en"}]
+    
+    # Native names map
+    native_names = {
+        "zh": "中文 (zh)",
+        "en": "English (en)",
+        "ar": "العربية (ar)"
+    }
+    
+    rows = [{"code": "en", "name": native_names.get("en", "English (en)"), "keys": _("lang_default", "default"), "refs": _("lang_default", "default"), "is_current": current_lang == "en"}]
     colors = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET}
     for lang in audited_langs:
         if lang == "en": continue
@@ -597,9 +628,12 @@ def _list_languages():
         summary = res.get("summary", {})
         rk, rr = summary.get("completion_rate_keys", "0%"), summary.get("completion_rate_refs", "0%")
         ck, cr = get_rate_color(rk, colors), get_rate_color(rr, colors)
-        rows.append({"code": lang, "name": _(f"lang_name_{lang}", lang), "keys": f"{ck}{rk}{RESET}", "refs": f"{cr}{rr}{RESET}", "is_current": current_lang == lang})
+        
+        name = native_names.get(lang, _(f"lang_name_{lang}", lang))
+        rows.append({"code": lang, "name": name, "keys": f"{ck}{rk}{RESET}", "refs": f"{cr}{rr}{RESET}", "is_current": current_lang == lang})
+    
     headers = [_("lang_table_name", "Language"), _("lang_table_keys", "Key Coverage"), _("lang_table_refs", "Ref Coverage")]
-    table_rows = [[f"{r['name']}({r['code']})", r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
+    table_rows = [[r['name'], r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
     table_str, report_path = format_table(headers, table_rows, max_width=80, save_dir="lang")
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)
 

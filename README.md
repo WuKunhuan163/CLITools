@@ -1,70 +1,46 @@
-# AI Terminal Tools
+# AITerminalTools
 
-## Vision
-Empower AI Agents with more practical tools to improve the efficiency of collaborative development between AI and users (users themselves can also have a better workflow).
+A robust and user-friendly tool management system for AI agents.
 
-## Mission
-Create these tools as modules and have a unified management mechanism.
+## Prerequisites
 
-## Quickstart
+Before using AITerminalTools, ensure you have the following installed:
 
-To get started quickly, follow these steps:
+1.  **Python 3.7+**: The core system runs on Python. 
+    - *Note*: The `PYTHON` tool within this ecosystem can manage multiple isolated Python versions for other tools, but a base Python installation is required to run the manager itself.
+2.  **Git**: Required for tool installation, updates, and branch management.
 
-1. **Clone and Setup**:
-   ```bash
-   git clone https://github.com/WuKunhuan163/AITerminalTools.git
-   cd AITerminalTools
-   ./setup.py
-   ```
-   **Prerequisites**:
-   - **Python 3.8+**: Required to run the `TOOL` manager. [Download Python](https://www.python.org/downloads/)
-   - **Git**: Required for tool acquisition and management. [Install Git](https://git-scm.com/downloads)
+### Deployment Guide
 
-   *Note for Windows users*: Ensure `python` and `git` are in your PATH. On Linux/macOS, use your package manager (e.g., `brew install python git`).
+#### macOS / Linux
+- Ensure `python3` and `git` are in your `PATH`.
+- Clone the repository.
+- Run `python3 main.py install <TOOL_NAME>` to get started.
 
-   This registers the `TOOL` command. Restart your terminal or source your shell profile to apply changes.
+#### Windows
+- Install Python from python.org and Git from git-scm.com.
+- Ensure "Add Python to PATH" is checked during installation.
+- Use a terminal like PowerShell or Git Bash.
+- Run `python main.py install <TOOL_NAME>`.
 
-2. **Install a Tool**:
-   ```bash
-   TOOL install USERINPUT
-   ```
-   This fetches the tool and its dependencies (like `PYTHON`) automatically.
+## Key Commands
 
-3. **Experience the Tool**:
-   ```bash
-   USERINPUT --hint "Hello AI world!"
-   ```
-   Try running the tool directly. This is how your AI agent will communicate with you—by triggering a GUI for immediate feedback, bypassing the limitations of purely text-based interfaces.
+- `TOOL install <NAME>`: Install a tool and its dependencies.
+- `TOOL uninstall <NAME>`: Safely remove a tool.
+- `TOOL test <NAME>`: Run unit tests for a tool.
+- `TOOL rule`: Generate instructions for AI agents.
+- `TOOL lang set <LANG>`: Change the system language (e.g., `zh`, `en`, `ar`).
+- `TOOL sync`: Synchronize development work across branches.
 
-4. **Enhance your Agent and Workflow**:
-   ```bash
-   TOOL rule
-   ```
-   Generate AI tool rules and integrate them into your environment. For example, in Cursor, you can copy the output to `Settings` -> `General` -> `Rules for AI`.
-   
-   **Note**: These tools are designed to be used by both AI agents and human developers. An agent using a tool to get your feedback (e.g., via `USERINPUT`) does not conflict with you using the same tool for your own tasks. They create a synchronized and efficient development experience.
+## Architecture
 
-## Mechanism
+- **`logic/`**: Shared core logic, utilities, and global configuration.
+- **`tool/`**: Directory containing all available tools.
+- **`bin/`**: Executable wrappers for installed tools.
+- **`data/`**: User data, logs, and temporary files.
 
-The project implements a lightweight yet powerful management system for AI-assisted development.
+## Development
 
-### Tool Acquisition & Isolation
-Tools are not stored in the `main` branch to keep the root directory clean. Instead, they are fetched from a dedicated `tool` branch using `git checkout <branch> -- <path>`. This allows the repository to scale to hundreds of tools without cluttering the main workspace.
+Active development happens on the `dev` branch. The `tool` branch is used for resource migration and distribution. The `main` and `test` branches are kept clean for production and verification.
 
-### Dependency Management
-- **Standalone Runtime**: Tools can specify a dependency on the `PYTHON` tool. The manager ensures they run in a dedicated, isolated Python 3.10.19 environment.
-- **Automated Pip Installation**: If a tool contains a `requirements.txt`, the manager automatically installs the necessary packages into the standalone runtime during the installation process.
-
-### Unified Command Interface
-The `TOOL` command provides a standardized interface for all tool-related operations:
-- **`TOOL install <NAME>`**: Fetches the tool, installs dependencies, and creates a wrapper/shortcut in `bin/`.
-- **`TOOL test <NAME>`**: Executes unit tests using a shared `TestRunner`. It supports parallel execution to speed up testing of complex tools.
-- **`TOOL config set-lang <CODE>`**: Manages global preferences, such as switching the UI language for all tools.
-- **`TOOL rule`**: Dynamically generates AI agent guidelines based on currently installed tools.
-
-### Modular Architecture
-Each tool follows a strict structure:
-- `main.py`: CLI entry point.
-- `logic/`: Core logic and `translation/` directory for multi-language support.
-- `test/`: Isolated unit tests using the `unittest` framework.
-- `tool.json`: Metadata and dependency definitions.
+For more information on creating new tools, see `logic/tool/template/README.md`.
