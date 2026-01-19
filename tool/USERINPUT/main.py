@@ -299,13 +299,6 @@ if __name__ == "__main__":
         sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})...")
         sys.stdout.flush()
 
-        stderr_content = []
-        def read_stderr():
-            for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
-            proc.stderr.close()
-        t_stderr = threading.Thread(target=read_stderr, daemon=True)
-        t_stderr.start()
-
         try:
             start_wait = time.time()
             while proc.poll() is None:
@@ -317,29 +310,34 @@ if __name__ == "__main__":
         except Exception as e:
             proc.kill(); raise e
 
-        # Check for termination BEFORE parsing lines, as terminated process might not print JSON
-        if proc.returncode != 0:
-            # Check for negative (Unix), positive (some platforms), 
-            # and common shell-wrapped exit codes (128 + signal)
-            if proc.returncode in [-15, -2, -9, 15, 2, 9, 143, 130, 137]:
-                raise UserInputFatalError(_("msg_terminated", "Terminated"))
-            # Fall through to parse lines just in case, then check returncode again below
-
+        res = None
         for line in stdout.splitlines():
             if line.startswith("GDS_GUI_RESULT_JSON:"):
-                res = json.loads(line[len("GDS_GUI_RESULT_JSON:"):])
-                if res['status'] == 'success':
-                    if res['data'] == 'USER_SUBMITTED_EMPTY': raise UserInputRetryableError(_("msg_empty", "Empty content"))
-                    return res['data']
-                elif res['status'] == 'cancelled': raise UserInputFatalError(_("msg_cancelled", "Cancelled"))
-                elif res['status'] == 'terminated': raise UserInputFatalError(_("msg_terminated", "Terminated"))
-                elif res['status'] == 'timeout':
-                    if res['data']: return res['data']
-                    raise UserInputRetryableError(_("msg_timeout", "Timeout"))
-        
+                try:
+                    res = json.loads(line[len("GDS_GUI_RESULT_JSON:"):])
+                    break
+                except: pass
+
+        if res:
+            if res['status'] == 'success':
+                if res['data'] == 'USER_SUBMITTED_EMPTY': raise UserInputRetryableError(_("msg_empty", "Empty content"))
+                return res['data']
+            elif res['status'] == 'cancelled': raise UserInputFatalError(_("msg_cancelled", "Cancelled"))
+            elif res['status'] == 'terminated':
+                if res['data']: return res['data'] # Return partial input on termination
+                raise UserInputFatalError(_("msg_terminated", "Terminated"))
+            elif res['status'] == 'timeout':
+                if res['data']: return res['data']
+                raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+
         sys.stdout.write("\r\033[K"); sys.stdout.flush()
+        
+        # Fallback to signal check if no JSON found
         if proc.returncode != 0:
+            if proc.returncode in [-15, -2, -9, 15, 2, 9, 143, 130, 137]:
+                raise UserInputFatalError(_("msg_terminated", "Terminated"))
             raise RuntimeError(parse_gui_error(stderr or stdout))
+        
         raise RuntimeError("No valid response from GUI")
     finally:
         try:
@@ -380,47 +378,8 @@ def main():
             print(_("config_updated", "Configuration updated: focus_interval = {val} seconds").format(val=config_args.focus_interval))
         return 0
     elif args.command == "stop":
-        from logic.config import get_color
-        BOLD, GREEN, YELLOW, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("YELLOW", "\033[33m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
-        
-        target_pid = None
-        if unknown:
-            try: target_pid = int(unknown[0])
-            except: pass
-
-        try:
-            import psutil
-            found = 0
-            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                try:
-                    pid = proc.info['pid']
-                    if target_pid and pid != target_pid: continue
-                    
-                    cmdline = proc.info.get('cmdline')
-                    if not cmdline: continue
-                    cmd_str = " ".join(cmdline)
-                    # Match USERINPUT but avoid killing the 'stop' command itself
-                    if "USERINPUT" in cmd_str and ("main.py" in cmd_str or "tmp" in cmd_str) and pid != os.getpid():
-                        # Use terminate() (SIGTERM) to allow the window to close gracefully via signal handlers
-                        proc.terminate()
-                        found += 1
-                except: continue
-            if found > 0:
-                print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: " + _('instances_stopped', 'Stopped {count} USERINPUT instances.', count=found))
-            else:
-                if target_pid: print(f"{BOLD}{YELLOW}Warning{RESET}: PID {target_pid} not found or not a USERINPUT instance.")
-                else: print(_("no_instances_found", "No other USERINPUT instances found."))
-        except ImportError:
-            if platform.system() != "Windows":
-                # Fallback to pkill if no PID specified, else use kill
-                if target_pid:
-                    subprocess.run(["kill", str(target_pid)], capture_output=True)
-                    print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: PID {target_pid}")
-                else:
-                    subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
-                    print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: " + _("manual_stop_hint", "Sent termination signal."))
-            else:
-                print(f"{BOLD}{YELLOW}Warning{RESET}: " + _("psutil_not_found", "psutil module not found."))
+        # Stop command is disabled temporarily to investigate bugs
+        print("USERINPUT stop is temporarily disabled.")
         return 0
 
     from logic.config import get_color
@@ -443,7 +402,7 @@ def main():
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
             # If it's a sandbox error or explicit termination, don't retry
-            if any(msg in str(e) for msg in ["sandbox", "display", "Terminated", "Cancelled"]):
+            if any(msg in str(e).lower() or msg in str(e) for msg in ["sandbox", "display", "Terminated", "Cancelled", "沙盒", "权限"]):
                 sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
             
             # If it's "No valid response" or empty output, and the process was likely killed, don't retry

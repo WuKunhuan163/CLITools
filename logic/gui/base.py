@@ -44,8 +44,6 @@ class BaseGUIWindow:
         """Gracefully close on external signals, capturing current state."""
         if not self.window_closed:
             self.finalize("terminated", self.get_current_state())
-            # Explicitly exit with signal-indicative code to help parent process
-            # detect termination even if stdout capture fails.
             sys.exit(128 + signum)
 
     def check_signals(self):
@@ -77,10 +75,6 @@ class BaseGUIWindow:
             self.window_closed = True
             self.result = {"status": status, "data": data}
             try:
-                # If terminated by signal, we want to make sure we print and exit
-                if status == "terminated":
-                    print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
-                    time.sleep(0.1) # Small delay to ensure stdout is flushed
                 if self.root: self.root.destroy()
             except: pass
 
@@ -159,4 +153,3 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
               font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
     
     return status_label
-
