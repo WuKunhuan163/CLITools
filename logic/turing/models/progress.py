@@ -39,6 +39,7 @@ class ProgressTuringMachine:
                     sys.stdout.write(f"\r\033[K")
                     sys.stdout.flush()
                     fail_name = stage.fail_name or stage.name
+                    # Color the entire status prefix as bold red
                     sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}\n")
                     sys.stdout.flush()
                     return False
@@ -47,6 +48,7 @@ class ProgressTuringMachine:
                 sys.stdout.write(f"\r\033[K")
                 sys.stdout.flush()
                 fail_name = stage.fail_name or stage.name
+                # Color the entire status prefix as bold red
                 sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}\n")
                 sys.stdout.flush()
                 return False

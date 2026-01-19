@@ -81,7 +81,7 @@ class TestRunner:
             print(self._("test_no_selected", "No tests selected in the specified range."))
             return
 
-        print(f"\n{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name)}")
+        print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
         
         # Parallel execution logic
         self._run_parallel_tests(selected_tests, max_concurrent, timeout)
@@ -226,7 +226,7 @@ class TestRunner:
                             status_raw, duration, error_msg, report_path = "Timeout", elapsed, None, None
                             break
                         # LIVE UPDATE
-                        manager.update(worker_id, get_running_msg(elapsed))
+                        yield StepResult(get_running_msg(elapsed), state=WorkerState.CONTINUE)
                         time.sleep(0.5)
                     else:
                         stdout, stderr = proc.communicate()

@@ -47,7 +47,10 @@ class MultiLineManager:
             total_up = dist_to_start + old_h
             
             # Jump to slot
-            sys.stdout.write(f"\033[{total_up}A\r")
+            if total_up > 0:
+                sys.stdout.write(f"\033[{total_up}A\r")
+            else:
+                sys.stdout.write("\r")
             
             # Overwrite
             lines = text.split('\n')
@@ -69,9 +72,10 @@ class MultiLineManager:
             # Jump back to logical bottom
             if dist_to_start > 0:
                 sys.stdout.write(f"\033[{dist_to_start}B\r")
+            else:
+                sys.stdout.write("\r")
             
             # 3. If finished, release this worker's claim on the slot
-            # The slot stays in slot_heights so future workers claim lines ABOVE it (no, BELOW it).
             if is_final:
                 del self.active_slots[worker_id]
             
