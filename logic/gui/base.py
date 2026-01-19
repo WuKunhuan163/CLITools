@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
 try:
-    from logic.gui.style import get_label_style, get_button_style, get_status_style, get_gui_colors
+    from logic.gui.style import get_label_style, get_button_style, get_status_style, get_gui_colors, get_secondary_label_style
     from logic.lang.utils import get_translation
 except ImportError:
     # Fallbacks for standalone execution
     def get_label_style(): return ("Arial", 10)
+    def get_secondary_label_style(): return ("Arial", 9, "italic")
     def get_button_style(primary=False): return ("Arial", 10, "bold" if primary else "normal")
     def get_status_style(): return ("Arial", 11)
     def get_gui_colors(): return {"blue": "#007AFF", "green": "#28A745", "red": "#DC3545", "pulse": "#004085"}
@@ -39,7 +40,13 @@ class BaseGUIWindow:
         signal.signal(signal.SIGTERM, self.handle_external_signal)
 
     def _(self, key: str, default: str, **kwargs) -> str:
-        return get_translation(self.internal_dir, key, default).format(**kwargs)
+        # 1. Try tool-specific translation
+        val = get_translation(self.internal_dir, key, None)
+        if val is None:
+            # 2. Try root translation for common keys
+            root_dir = str(Path(__file__).parent.parent / "translation")
+            val = get_translation(root_dir, key, default)
+        return val.format(**kwargs)
 
     def handle_external_signal(self, signum, frame):
         """Gracefully close on external signals, capturing current state."""
@@ -76,10 +83,14 @@ class BaseGUIWindow:
         """Standardized countdown timer."""
         if self.window_closed: return
         
+        # Save default color if not already saved
+        if not hasattr(self, '_default_status_fg'):
+            self._default_status_fg = status_label.cget("fg")
+
         if not self.pulse_active:
             try:
                 rem_msg = self._('time_remaining', 'Remaining:')
-                status_label.config(text=f"{rem_msg} {self.remaining_time}s")
+                status_label.config(text=f"{rem_msg} {self.remaining_time}s", fg=self._default_status_fg)
             except: pass
         
         if self.remaining_time > 0:
@@ -157,7 +168,8 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     Creates a standardized bottom bar with status, countdown, and buttons.
     """
     bottom_frame = tk.Frame(parent)
-    bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=(0, 5))
+    # Standard padding matching USERINPUT style
+    bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(5, 15))
     
     status_label = tk.Label(bottom_frame, text="", font=get_status_style())
     status_label.pack(side=tk.LEFT)
@@ -170,13 +182,17 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
         def on_add_time():
             window_instance.remaining_time += add_time_increment
             window_instance.pulse_active = True
+            
+            # Update label immediately to avoid flashing
             added_msg = window_instance._("time_added", "Time added!")
             status_label.config(text=f"{added_msg} {window_instance.remaining_time}s", fg=get_gui_colors()["pulse"])
             
             def reset_pulse():
                 if not window_instance.window_closed:
                     window_instance.pulse_active = False
-                    status_label.config(fg="black")
+                    # Switch back to normal countdown text immediately
+                    rem_msg = window_instance._('time_remaining', 'Remaining:')
+                    status_label.config(text=f"{rem_msg} {window_instance.remaining_time}s", fg=window_instance._default_status_fg)
             
             window_instance.root.after(2000, reset_pulse)
             

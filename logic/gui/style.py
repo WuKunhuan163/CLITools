@@ -37,6 +37,10 @@ def get_label_style():
     cfg = get_gui_config()
     return (cfg["font_family"], cfg["label_font_size"])
 
+def get_secondary_label_style():
+    cfg = get_gui_config()
+    return (cfg["font_family"], cfg["label_font_size"] - 1, "italic")
+
 def get_button_style(primary=False):
     cfg = get_gui_config()
     weight = cfg["primary_button_weight"] if primary else "normal"

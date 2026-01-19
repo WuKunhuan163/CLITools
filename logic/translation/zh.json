@@ -250,5 +250,9 @@
     "instances_stopped": "已停止 {count} 个 USERINPUT 实例 (通过信号文件)",
     "msg_terminated": "已终止 (手动停止)",
     "msg_timeout": "输入超时",
-    "no_instances_found": "未找到活跃的 USERINPUT GUI 实例。"
+    "no_instances_found": "未找到活跃的 USERINPUT GUI 实例。",
+    "time_remaining": "剩余时间:",
+    "time_added": "已加时!",
+    "add_time": "加时 {seconds}秒",
+    "btn_cancel": "取消"
 }
