@@ -104,8 +104,8 @@
         "PYTHON"
       ]
     },
-    "DEMOTOOL": {
-      "description": "Template tool DEMOTOOL",
+    "NEWTOOL": {
+      "description": "Template tool NEWTOOL",
       "purpose": "Showcase tool development guidelines"
     }
   }

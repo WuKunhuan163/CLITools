@@ -18,8 +18,13 @@ class LangAuditor:
         # Regex patterns for finding translation keys
         # Use \b to avoid matching __import__ or other functions ending in _
         self.patterns = [
-            re.compile(r'\b_\(\s*["\']([^"\']+)["\']'),
-            re.compile(r'\bget_translation\([^,]+,\s*["\']([^"\']+)["\']')
+            # Standard _("key") or _('key')
+            re.compile(r'\b_\(\s*f?["\']([^"\']+)["\']'),
+            # Root get_translation(dir, "key", "default") - matches 2nd arg
+            # Uses negative lookbehind to avoid matching self.get_translation
+            re.compile(r'(?<!\.)\bget_translation\([^,]+,\s*f?["\']([^"\']+)["\']'),
+            # self.get_translation("key", "default") - matches 1st arg
+            re.compile(r'\.get_translation\(\s*f?["\']([^"\']+)["\']')
         ]
 
     def audit(self, force_scan=False):

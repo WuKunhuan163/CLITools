@@ -59,7 +59,11 @@ except ImportError:
 TOOL_INTERNAL = get_logic_dir(current_dir)
 
 def _(key, default):
-    return get_translation(str(TOOL_INTERNAL), key, default)
+    # Use ToolBase instance for fallback translation support
+    global _tool_instance
+    if '_tool_instance' not in globals():
+        _tool_instance = UserInputTool()
+    return _tool_instance.get_translation(key, default)
 
 class UserInputRetryableError(Exception):
     """Exception raised for errors that should trigger a retry (e.g., user cancellation)."""
@@ -499,37 +503,78 @@ def main():
         return 0
 
     args, unknown = parser.parse_known_args()
+    if args.hint:
+        # Unescape literal \n, \t, \` from CLI
+        args.hint = args.hint.replace('\\n', '\n').replace('\\t', '\t').replace('\\`', '`').replace('\\"', '"').replace("\\'", "'")
+
     if args.command == "setup": # Fallback if handle_command_line didn't exit
         tool.run_setup()
         return 0
+    elif args.command == "config":
+        # Handle configuration
+        config = get_config()
+        config_parser = argparse.ArgumentParser(prog="USERINPUT config")
+        config_parser.add_argument("--focus-interval", type=int)
+        config_args = config_parser.parse_args(unknown)
+        
+        if config_args.focus_interval is not None:
+            config["focus_interval"] = config_args.focus_interval
+            config_path = TOOL_INTERNAL / "config.json"
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            msg = _("config_updated", "Configuration updated: focus_interval = {val} seconds").format(val=config_args.focus_interval)
+            print(msg)
+        return 0
     elif args.command == "stop":
         # Kill existing USERINPUT GUI processes
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        YELLOW = get_color("YELLOW", "\033[33m")
+        RESET = get_color("RESET", "\033[0m")
+
         try:
             import psutil
             current_pid = os.getpid()
+            found = 0
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
                     cmdline = proc.info.get('cmdline')
                     if not cmdline: continue
                     # Look for python processes running USERINPUT main.py or the temp GUI script
-                    is_userinput = any("USERINPUT" in part for part in cmdline)
-                    is_main = any("main.py" in part for part in cmdline)
-                    is_temp = any(".py" in part and "tmp" in part for part in cmdline)
+                    cmd_str = " ".join(cmdline)
+                    is_userinput = "USERINPUT" in cmd_str
+                    is_main = "main.py" in cmd_str
+                    is_temp = ".py" in cmd_str and "tmp" in cmd_str
                     
                     if is_userinput and (is_main or is_temp) and proc.info['pid'] != current_pid:
                         proc.terminate()
+                        found += 1
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+                    continue
+            
+            if found > 0:
+                success_label = _("Successfully", "Successfully")
+                stopped_msg = _("instances_stopped", "Stopped {count} USERINPUT instances.", count=found)
+                print(f"{BOLD}{GREEN}{success_label}{RESET}: {stopped_msg}")
+            else:
+                print(_("no_instances_found", "No other USERINPUT instances found."))
         except ImportError:
-            # Fallback to pkill on Unix
+            # Fallback to pkill on Unix if psutil is missing
             if platform.system() != "Windows":
                 subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
+                success_label = _("Successfully", "Successfully")
+                print(f"{BOLD}{GREEN}{success_label}{RESET}: " + _("manual_stop_hint", "Sent termination signal. Please close windows manually if still open."))
+            else:
+                print(f"{BOLD}{YELLOW}Warning{RESET}: " + _("psutil_not_found", "psutil module not found. Cannot safely stop instances."))
+                print(_("manual_stop_hint", "Please close windows manually or use: pkill -f USERINPUT"))
         return 0
 
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     BLUE = get_color("BLUE", "\033[34m")
     GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
     max_retries = 3
@@ -571,17 +616,13 @@ def main():
                 print(f"{BOLD}{RED}Fatal error{RESET}: {err_msg}", file=sys.stderr, flush=True)
                 return 1
 
-            # Erasable retry message: Failed part bold blue
+            # Erasable retry message: Failed part bold red
             label_failed = _("label_failed", "Failed")
             msg_retry = _("msg_attempt_retry", "Attempt {index} failed: {error}. Retrying...").format(index=attempt+1, error=e)
             # Reorganize to put Failed first as requested
             if msg_retry.startswith(f"Attempt {attempt+1} failed:"):
-                prefix = f"Attempt {attempt+1} "
-                rest = msg_retry[len(prefix):]
-                # "Attempt 1 Failed: ..." -> "Failed: Attempt 1 ..." or similar? 
-                # User said: "只有Attempt 1 failed蓝色加粗。你看一下能否重组表达让Failed在最前面"
-                # So: **Failed**: Attempt 1 (Empty content). Retrying...
-                msg_retry = f"{BOLD}{BLUE}{label_failed}{RESET}: Attempt {attempt+1} ({err_msg}). Retrying..."
+                # Use RED for failed status
+                msg_retry = f"{BOLD}{RED}{label_failed}{RESET}: Attempt {attempt+1} ({err_msg}). Retrying..."
             
             sys.stdout.write(f"\r\033[K{msg_retry}")
             sys.stdout.flush()

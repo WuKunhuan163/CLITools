@@ -348,6 +348,15 @@ def _dev_create(tool_name):
     project_root = Path(__file__).parent.absolute()
     tool_dir = project_root / "tool" / tool_name
     
+    # Auto-commit local changes before checkout to avoid errors
+    try:
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
+        if status.stdout.strip():
+            print(f"{BOLD}Info{RESET}: Auto-committing local changes before switching branch...")
+            subprocess.run(["git", "add", "."], cwd=str(project_root), check=True)
+            subprocess.run(["git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True)
+    except: pass
+
     try:
         subprocess.run(["git", "checkout", "tool"], cwd=str(project_root), check=True)
     except: pass
@@ -424,7 +433,31 @@ if __name__ == "__main__":
     }
     with open(tool_dir / "tool.json", 'w') as f: json.dump(tool_json, f, indent=2)
     
-    with open(tool_dir / "README.md", 'w') as f: f.write(f"# {tool_name}\n\n{tool_name} tool template.")
+    readme_content = f"""# {tool_name}
+
+{tool_name} tool template.
+
+## Ecosystem Support
+
+This tool is part of the `TOOL` ecosystem, which provides:
+
+- **Git LFS Support**: Managed via the root `.gitattributes`. Large files (models, binaries) are automatically tracked by Git LFS.
+- **Automatic Persistence**: The system supports automatic pushes every three commits to protect work progress. This is managed by a `post-commit` hook in the root `.git/hooks`.
+- **Shared Utilities**: Access core logic in the root `logic/` folder:
+    - `logic.turing`: For building multi-stage workers with progress display (the "Turing Machine" pattern).
+    - `logic.utils`: Shared terminal utilities, RTL support, and more.
+    - `logic.tool.base`: Base class for standardized command handling (e.g., automated `setup` command support).
+    - `logic.audit`: General-purpose audit and caching system.
+- **Localization**: Built-in support for multiple languages in `logic/translation/`. Always use the `_()` helper for user-facing strings.
+
+## Development Guidelines
+
+1. **Isolation**: Use the `PYTHON` tool dependency for a standalone runtime. Specify dependencies in `tool.json`.
+2. **Testing**: Add unit tests in `test/`. Use `TOOL test {tool_name}` to run them in parallel.
+3. **Translation**: English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**.
+4. **Cleanliness**: Keep the `main` and `test` branches clean. Perform active development on the `dev` or `tool` branch.
+"""
+    with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)
     
     # Update global tool.json
     registry_path = project_root / "tool.json"
@@ -585,14 +618,17 @@ def main():
     test_parser.add_argument("--range", nargs=2, type=int)
     test_parser.add_argument("--max", type=int, default=3)
     test_parser.add_argument("--timeout", type=int, default=60)
-    audit_parser = subparsers.add_parser("audit-lang")
-    audit_parser.add_argument("lang_code")
-    audit_parser.add_argument("--force", action="store_true")
-    lang_parser = subparsers.add_parser("lang")
-    lang_subparsers = lang_parser.add_subparsers(dest="lang_command")
-    set_parser = lang_subparsers.add_parser("set")
-    set_parser.add_argument("code")
-    lang_subparsers.add_parser("list")
+    lang_parser = subparsers.add_parser("lang", help=_("lang_help", "Manage display language"))
+    lang_subparsers = lang_parser.add_subparsers(dest="lang_command", help=_("lang_subcommand_help", "Language subcommands"))
+    
+    set_parser = lang_subparsers.add_parser("set", help=_("lang_set_help", "Set display language"))
+    set_parser.add_argument("code", help=_("lang_code_help", "Language code (e.g. en, zh, ar)"))
+    
+    lang_subparsers.add_parser("list", help=_("lang_list_help", "List supported languages and their coverage"))
+    
+    audit_parser = lang_subparsers.add_parser("audit", help=_("audit_help", "Audit language translation coverage"))
+    audit_parser.add_argument("lang_code", help=_("audit_lang_code_help", "Language code to audit (e.g. en, zh)"))
+    audit_parser.add_argument("--force", action="store_true", help=_("audit_force_help", "Force refresh cache"))
     
     dev_parser = subparsers.add_parser("dev", help="Developer commands")
     dev_subparsers = dev_parser.add_subparsers(dest="dev_command")
@@ -620,10 +656,10 @@ def main():
     if args.command == "install": install_tool(args.tool_name)
     elif args.command == "uninstall": uninstall_tool(args.tool_name, args.yes)
     elif args.command == "test": _test_tool_with_args(args)
-    elif args.command == "audit-lang": _audit_lang(args.lang_code, force=args.force)
     elif args.command == "lang":
         if args.lang_command == "set": update_config("language", args.code)
         elif args.lang_command == "list": _list_languages()
+        elif args.lang_command == "audit": _audit_lang(args.lang_code, force=args.force)
         else: _show_current_language()
     elif args.command == "rule": generate_ai_rule()
     elif args.command == "dev":

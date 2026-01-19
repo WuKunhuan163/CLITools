@@ -158,7 +158,7 @@ def main():
         return
 
     if args.py_list:
-        _list_versions()
+        _list_versions(unknown[0] if unknown else None)
         return
 
     if args.py_install:
@@ -247,32 +247,116 @@ def _uninstall_version(version, install_dir=None):
         error_label = _("label_error", "Error")
         print(f"{RED}{BOLD}{error_label}{RESET}: Version {version} is not installed.")
 
-def _list_versions():
+def _list_versions(filter_str=None):
     installed = []
     if INSTALL_DIR.exists():
         installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
     
     remote_versions = _get_remote_versions()
     
-    label = _("python_supported_versions", "Supported versions")
     if not remote_versions:
+        # Try to migrate at least one version to ensure list is not empty as suggested
+        update_script = TOOL_INTERNAL / "update.py"
+        if update_script.exists():
+            action = _("python_fetching_resource", "Fetching resources...")
+            print_erasable(f"{BLUE}{BOLD}{action}{RESET}")
+            subprocess.run([sys.executable, str(update_script), "--limit-releases", "1"], capture_output=True)
+            sys.stdout.write("\r\033[K")
+            remote_versions = _get_remote_versions()
+
+    if not remote_versions:
+        label = _("python_supported_versions", "Supported versions")
         print(f"{BOLD}{label}{RESET}:")
         print("  (No versions found on remote 'tool' branch. Use 'PYTHON --py-update' to migrate some.)")
-    else:
-        version_strings = []
-        missing = []
+        return
+
+    # Helper for counting and grouping
+    def get_count_label(prefix, versions):
+        matches = [v for v in versions if v.startswith(prefix)]
+        return len(matches), matches
+
+    if not filter_str:
+        # Level 1: python<a>.<b> (<count>)
+        groups = {}
         for v in remote_versions:
-            is_installed = v in installed
-            status = f" ({_('python_status_installed', 'installed')})" if is_installed else ""
-            version_strings.append(f"{v}{status}")
-            if not is_installed:
-                missing.append(v)
+            # v format: X.Y.Z-platform or pythonX.Y.Z-platform
+            v_clean = v[6:] if v.startswith("python") else v
+            v_match = re.match(r"(\d+\.\d+)", v_clean)
+            if v_match:
+                minor = v_match.group(1)
+                prefix = f"python{minor}"
+                if prefix not in groups:
+                    groups[prefix] = 0
+                groups[prefix] += 1
         
-    print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
-    if missing:
-        print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
-    
-    print(_("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
+        label = _("python_supported_versions", "Supported versions")
+        print(f"{BOLD}{label}{RESET}:")
+        for prefix in sorted(groups.keys(), key=lambda x: [int(i) for i in re.findall(r"\d+", x)], reverse=True):
+            hint = _("python_list_level1_hint", " (Use {BOLD}PYTHON --py-list {prefix}{RESET} to see specific {count} versions)", 
+                     BOLD=BOLD, RESET=RESET, prefix=prefix, count=groups[prefix])
+            print(f"  - {prefix} ({groups[prefix]}){hint}")
+            
+    elif re.match(r"^python\d+\.\d+$", filter_str):
+        # Level 2: python<a>.<b>.<c> (<count>)
+        prefix = filter_str[6:] # Remove 'python' prefix for matching
+        groups = {}
+        for v in remote_versions:
+            v_clean = v[6:] if v.startswith("python") else v
+            if v_clean.startswith(prefix):
+                v_match = re.match(r"(\d+\.\d+\.\d+)", v_clean)
+                if v_match:
+                    patch = v_match.group(1)
+                    patch_prefix = f"python{patch}"
+                    if patch_prefix not in groups:
+                        groups[patch_prefix] = 0
+                    groups[patch_prefix] += 1
+        
+        print(f"{BOLD}{filter_str}{RESET} versions:")
+        for patch in sorted(groups.keys(), key=lambda x: [int(i) for i in re.findall(r"\d+", x)], reverse=True):
+            hint = _("python_list_level2_hint", " (Use {BOLD}PYTHON --py-list {prefix}{RESET} to see specific {count} versions)", 
+                     BOLD=BOLD, RESET=RESET, prefix=patch, count=groups[patch])
+            print(f"  - {patch} ({groups[patch]}){hint}")
+
+    elif re.match(r"^python\d+\.\d+\.\d+$", filter_str):
+        # Level 3: platform variants
+        prefix = filter_str[6:]
+        matches = []
+        for v in remote_versions:
+            v_clean = v[6:] if v.startswith("python") else v
+            if v_clean.startswith(prefix):
+                matches.append(v)
+        
+        print(f"{BOLD}{filter_str}{RESET} variants:")
+        for v in sorted(matches):
+            status = f" ({_('python_status_installed', 'installed')})" if v in installed else ""
+            print(f"  - {v}{status}")
+            
+    else:
+        # Regex search
+        try:
+            pattern = re.compile(filter_str)
+            matches = [v for v in remote_versions if pattern.search(v)]
+            count = len(matches)
+            found_msg = _("python_list_regex_found", "Found {count} versions matching regex '{regex}'.", count=count, regex=filter_str)
+            print(f"{BOLD}{found_msg}{RESET}")
+            
+            display_matches = matches[:100]
+            for v in sorted(display_matches):
+                status = f" ({_('python_status_installed', 'installed')})" if v in installed else ""
+                print(f"  - {v}{status}")
+                
+            if count > 100:
+                from logic.utils import save_list_report
+                report_path = save_list_report(matches, save_dir="PYTHON", filename_prefix="python_list")
+                capped_msg = _("python_list_regex_capped", " (Showing first 100, full list saved to: {path})", path=report_path)
+                print(f"{YELLOW}{capped_msg}{RESET}")
+        except re.error as e:
+            error_label = _("label_error", "Error")
+            print(f"{RED}{BOLD}{error_label}{RESET}: Invalid regex '{filter_str}': {e}")
+
+    # Common hints
+    if not filter_str:
+        print("\n" + _("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
 
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
@@ -311,7 +395,8 @@ def _install_version(version, install_dir=None):
     if not final_version:
         error_label = _("label_error", "Error")
         if remote_versions:
-            msg = _("python_version_not_supported", "Version {version} is not found in remote 'tool' branch.", version=version)
+            supported_list = ", ".join(remote_versions[:5]) + ("..." if len(remote_versions) > 5 else "")
+            msg = _("python_version_not_supported", "Version {version} is not found in remote 'tool' branch.", version=version, supported=supported_list)
             print(f"{BOLD}{RED}{error_label}{RESET}: {msg}")
             v_base = version.split('-')[0]
             if v_base.startswith("python"): v_base = v_base[6:]

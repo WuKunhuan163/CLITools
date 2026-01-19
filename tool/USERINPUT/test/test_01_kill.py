@@ -3,19 +3,21 @@ import subprocess
 import time
 import os
 import signal
-import psutil
 from pathlib import Path
 
 class TestUserInputKill(unittest.TestCase):
     def test_kill_and_retry(self):
         """Test USERINPUT retry logic when the subprocess is killed."""
-        project_root = Path(__file__).resolve().parent.parent.parent.parent
-        userinput_bin = project_root / "bin" / "USERINPUT"
-        if not userinput_bin.exists():
-            self.skipTest("USERINPUT bin not found")
-            
+        try:
+            import psutil
+        except ImportError:
+            self.skipTest("psutil module not found, skipping kill test")
+
+        # Use command directly
+        tool_cmd = "USERINPUT"
+        
         # Start USERINPUT
-        proc = subprocess.Popen([str(userinput_bin), "--timeout", "30"], 
+        proc = subprocess.Popen([tool_cmd, "--timeout", "30"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             # Wait for window to appear
