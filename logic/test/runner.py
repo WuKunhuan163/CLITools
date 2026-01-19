@@ -405,21 +405,25 @@ class TestRunner:
 
     def _cleanup_resources(self):
         """Cleanup leftover processes and GUI windows."""
-        try:
-            import psutil
-        except ImportError:
-            return
-
-        # 1. Stop USERINPUT instances
+        # 1. Stop USERINPUT instances - always try, even if psutil missing
         userinput_stop = self.project_root / "bin" / "USERINPUT"
         if userinput_stop.exists():
             subprocess.run([str(userinput_stop), "stop"], capture_output=True)
+        else:
+            # Fallback if bin/USERINPUT not found but pkill might work
+            if sys.platform != "win32":
+                subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
 
         # 2. Cleanup BACKGROUND records
         background_cleanup = self.project_root / "bin" / "BACKGROUND"
         if background_cleanup.exists():
             subprocess.run([str(background_cleanup), "--cleanup"], capture_output=True)
             
+        try:
+            import psutil
+        except ImportError:
+            return
+
         # 3. Final process sweep for leftover python tests
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:

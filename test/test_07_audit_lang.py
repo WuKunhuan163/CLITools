@@ -15,7 +15,7 @@ class TestAuditLang(unittest.TestCase):
 
     def test_07_audit_lang(self):
         """(7) 测试语言审计功能。"""
-        res = self.run_tool(["audit-lang", "zh"])
+        res = self.run_tool(["lang", "audit", "zh"])
         self.assertEqual(res.returncode, 0)
         self.assertIn("zh", res.stdout)
 

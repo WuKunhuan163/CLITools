@@ -454,6 +454,29 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
 
     return "\n".join(formatted_lines), report_path
 
+def save_list_report(items, save_dir="list", filename_prefix="list_report", limit=100):
+    """
+    Saves a list of items to a Markdown file in data/list/{save_dir}.
+    Cleans up old reports if limit is exceeded.
+    Returns the path to the saved file.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    report_root = project_root / "data" / "list" / save_dir
+    report_root.mkdir(parents=True, exist_ok=True)
+    
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_file = report_root / f"{filename_prefix}_{timestamp}.md"
+    
+    try:
+        with open(report_file, 'w', encoding='utf-8') as f:
+            for item in items:
+                f.write(f"- {item}\n")
+        cleanup_old_files(report_root, "*.md", limit=limit)
+        return str(report_file)
+    except Exception:
+        return None
+
 def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=None):
     """
     Cleans up old files in a directory if the limit is exceeded.

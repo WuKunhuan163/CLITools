@@ -72,3 +72,54 @@ def get_current_branch(cwd=None):
         return result.stdout.strip()
     return "unknown"
 
+def auto_push_if_needed(remote="origin", branch=None, interval=3, cwd=None):
+    """
+    Checks local commit count and pushes to remote if the count is a multiple of interval.
+    Helps protect work progress during automated development.
+    """
+    if not branch or branch == "unknown":
+        branch = get_current_branch(cwd)
+    
+    # Get total commit count on current branch
+    result = run_git_command(["rev-list", "--count", "HEAD"], cwd=cwd)
+    if result and result.returncode == 0:
+        try:
+            count = int(result.stdout.strip())
+            if count > 0 and count % interval == 0:
+                # We have unpushed commits and we are at the interval
+                # Use refined push with progress
+                return push_with_progress(remote, branch, cwd=cwd)
+        except (ValueError, TypeError):
+            pass
+    return False
+
+def push_with_progress(remote="origin", branch=None, cwd=None):
+    """Pushes to remote with blue erasable status and bold results."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    BLUE = get_color("BLUE", "\033[34m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
+    
+    if not branch:
+        branch = get_current_branch(cwd)
+        
+    status_msg = f"{BOLD}{BLUE}Pushing{RESET} to {remote}/{branch}..."
+    sys.stdout.write(f"\r\033[K{status_msg}")
+    sys.stdout.flush()
+    
+    result = run_git_command(["push", remote, f"HEAD:{branch}"], cwd=cwd, silent=True)
+    
+    # Clear the status line
+    sys.stdout.write("\r\033[K")
+    sys.stdout.flush()
+    
+    if result and result.returncode == 0:
+        print(f"{BOLD}{GREEN}Successfully pushed{RESET} to {remote}/{branch}")
+        return True
+    else:
+        err = result.stderr.strip() if result and result.stderr else "Unknown error"
+        print(f"{BOLD}{RED}Failed to push{RESET} to {remote}/{branch}: {err}")
+        return False
+
