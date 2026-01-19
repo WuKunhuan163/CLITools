@@ -246,6 +246,9 @@
   "pushed_to": "已推送至 {remote}/{branch}",
   "failed_to_push": "无法推送至 {remote}/{branch}: {error}",
     "label_filedialog_selected": "已选择",
-    "manual_stop_hint": "USERINPUT 实例已强制终止。",
-    "instances_stopped": "已停止 {count} 个 USERINPUT 实例。"
+    "manual_stop_hint": "已强制停止所有活跃的 GUI 实例。",
+    "instances_stopped": "已停止 {count} 个 USERINPUT 实例 (通过信号文件)",
+    "msg_terminated": "已终止 (手动停止)",
+    "msg_timeout": "输入超时",
+    "no_instances_found": "未找到活跃的 USERINPUT GUI 实例。"
 }
