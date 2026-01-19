@@ -94,7 +94,6 @@ class TestRunner:
         if not test_dir.exists():
             return []
 
-        # Use cache for consistent ordering
         files = sorted([f for f in test_dir.glob("test_*.py")])
         file_names = [f.name for f in files]
         if not self.cache_file.exists():
@@ -152,20 +151,9 @@ class TestRunner:
                     f.write(f"Python: {python_info}\n")
                 f.write("-" * 40 + "\n")
                 f.write(full_output)
-            
-            self._cleanup_old_reports(result_dir)
             return str(filepath)
         except Exception:
             return None
-
-    def _cleanup_old_reports(self, result_dir, limit=1024, batch_size=None):
-        reports = sorted(list(result_dir.glob("*.txt")), key=os.path.getmtime)
-        if len(reports) > limit:
-            batch_size = batch_size or limit // 2
-            for i in range(min(len(reports), batch_size)):
-                try:
-                    os.remove(reports[i])
-                except Exception: pass
 
     def _get_error_reason(self, output):
         lines = [line.strip() for line in output.splitlines() if line.strip()]
@@ -193,8 +181,10 @@ class TestRunner:
         return f"{self.colors['BOLD']}{self._('test_status_unknown', 'Unknown')}{self.colors['RESET']}"
 
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
-        """Run tests using custom MultiLineManager logic for results at top, active at bottom."""
+        """Run multiple tests using TuringWorker mechanism for multi-line progress."""
         from logic.turing.display.manager import MultiLineManager
+        from logic.worker import TuringWorker
+        from logic.turing.logic import TuringTask, StepResult, WorkerState
         
         # 1. Config
         if max_concurrent == 3:
@@ -209,26 +199,22 @@ class TestRunner:
         for f in test_files:
             task_queue.put(f)
         
-        active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
-        timeout_msg = self._("test_timeout_label", "timeout")
-
-        def worker_loop(worker_id):
-            while True:
-                try:
-                    test_file = task_queue.get_nowait()
-                except: break
-                
-                # Start timer
-                start_time = time.time()
-                python_exec = self._get_python_exec()
-                env = os.environ.copy()
-                env["PYTHONPATH"] = f"{self.project_root}:{self.tool_dir}:{env.get('PYTHONPATH', '')}"
+        def test_step(test_file, worker_id):
+            def logic():
+                active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
+                timeout_msg = self._("test_timeout_label", "timeout")
                 
                 def get_running_msg(elapsed):
                     return f"{active_label}: {test_file.name} ({int(elapsed)}s / {timeout_msg}: {timeout}s)"
 
                 # Initial update
-                manager.update(worker_id, get_running_msg(0))
+                yield StepResult(get_running_msg(0), state=WorkerState.CONTINUE)
+                
+                # Execution
+                start_time = time.time()
+                python_exec = self._get_python_exec()
+                env = os.environ.copy()
+                env["PYTHONPATH"] = f"{self.project_root}:{self.tool_dir}:{env.get('PYTHONPATH', '')}"
                 
                 try:
                     proc = subprocess.Popen([python_exec, "-u", str(test_file)], 
@@ -239,7 +225,7 @@ class TestRunner:
                             proc.kill()
                             status_raw, duration, error_msg, report_path = "Timeout", elapsed, None, None
                             break
-                        # Update live status
+                        # LIVE UPDATE
                         manager.update(worker_id, get_running_msg(elapsed))
                         time.sleep(0.5)
                     else:
@@ -255,7 +241,7 @@ class TestRunner:
                 except Exception as e:
                     status_raw, duration, error_msg, report_path = "Error", time.time() - start_time, str(e), None
 
-                # Finish result
+                # Final result message
                 status_label = self._get_status_label(status_raw)
                 if error_msg:
                     msg = self._("test_finished_with_error", "{status}: {file} {error} (Duration: {duration:.2f}s)", 
@@ -267,9 +253,21 @@ class TestRunner:
                 if report_path:
                     msg += "\n" + self._("test_full_report", "  Full report: {path}", path=report_path)
 
-                # Sticky final result (moves ABOVE active area)
-                manager.update(worker_id, msg, is_final=True)
-                task_queue.task_done()
+                yield StepResult(msg, state=WorkerState.SUCCESS if status_raw == "Success" else WorkerState.ERROR, is_final=True)
+            return logic
+
+        def worker_loop(worker_id):
+            worker = TuringWorker(worker_id, manager)
+            while True:
+                try:
+                    f = task_queue.get_nowait()
+                except: break
+                
+                try:
+                    task = TuringTask(f.name, [test_step(f, worker_id)])
+                    worker.execute(task)
+                finally:
+                    task_queue.task_done()
 
         # Start threads
         threads = []
@@ -278,7 +276,8 @@ class TestRunner:
             t.start()
             threads.append(t)
         
-        # Wait for all workers
+        # Wait for all
+        task_queue.join()
         for t in threads:
             t.join()
             
