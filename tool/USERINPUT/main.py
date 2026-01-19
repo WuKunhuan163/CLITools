@@ -204,33 +204,17 @@ class UserInputWindow(BaseGUIWindow):
     def setup_ui(self):
         setup_gui_environment()
         self.root.geometry("450x250")
-        main_frame = tk.Frame(self.root, padx=15, pady=15)
-        main_frame.pack(fill=tk.BOTH, expand=True)
         
-        tk.Label(main_frame, text=self._("instruction", "Please enter your feedback:"), 
-                 font=get_label_style(), fg="#555").pack(pady=(0, 10), anchor='w')
-        
-        text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
-        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
-        
-        scrollbar = tk.Scrollbar(text_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
-        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=self.text_widget.yview)
-        
-        if self.hint_text: 
-            self.text_widget.insert("1.0", self.hint_text)
-            self.text_widget.focus_set()
-
-        # Setup common bottom bar
+        # Setup common bottom bar as child of root to avoid double-padding
         self.status_label = setup_common_bottom_bar(
-            main_frame, self, 
+            self.root, self, 
             submit_text=self._("submit", "Submit"),
             submit_cmd=lambda: self.finalize("success", self.get_current_state()),
             add_time_increment=self.time_increment
         )
+
+        main_frame = tk.Frame(self.root, padx=15, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
         
         self.start_timer(self.status_label)
         self.start_periodic_focus()
