@@ -27,11 +27,11 @@ def handle_gui_stop_command(tool_name: str, project_root: Path, unknown_args: Li
             try:
                 with open(f, "r") as info_file:
                     info = json.load(info_file)
-                    # For specific tools, we could filter by info.get("class")
-                    # but usually 'stop' should affect the tool it's called from.
                     pid = info.get("pid")
-                    if not pid: continue
-                    if target_pid and pid != target_pid: continue
+                    if pid is None: continue
+                    
+                    # Check if this PID should be stopped
+                    if target_pid is not None and pid != target_pid: continue
                     
                     # Create stop flag
                     (stop_dir / f"{pid}.stop").touch()

@@ -363,11 +363,9 @@ if __name__ == "__main__":
         except: pass
 
 def main():
-    def handle_termination(signum, frame):
-        sys.stdout.write("\r\033[K"); sys.stdout.flush(); sys.exit(signum + 128)
-    signal.signal(signal.SIGTERM, handle_termination)
-    signal.signal(signal.SIGINT, handle_termination)
-
+    # Ignore SIGINT in the parent process so it can wait for the GUI process to finish its cleanup
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
     parser.add_argument('command', nargs='?', help="Command to run (e.g. setup)")
     parser.add_argument('--timeout', type=int, default=180)

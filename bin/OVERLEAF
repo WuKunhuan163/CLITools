@@ -22,5 +22,8 @@ tool_main = Path('/Applications/AITerminalTools/tool/OVERLEAF/main.py')
 env["PYTHONPATH"] = f"{logicect_root}:{tool_main.parent}:{env.get('PYTHONPATH', '')}"
 
 if __name__ == "__main__":
+    import signal
+    # Ignore SIGINT in the wrapper; the child process will handle it
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     result = subprocess.run([python_exec, str(tool_main)] + sys.argv[1:], env=env)
     sys.exit(result.returncode)

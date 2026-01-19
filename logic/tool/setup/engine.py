@@ -275,6 +275,9 @@ env = os.environ.copy()
 main = Path({repr(str(main_py))})
 env["PYTHONPATH"] = f"{{root}}:{{main.parent}}:{{env.get('PYTHONPATH', '')}}"
 if __name__ == "__main__":
+    import signal
+    # Ignore SIGINT in the wrapper; the child process will handle it
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     sys.exit(subprocess.run([py_exec, str(main)] + sys.argv[1:], env=env).returncode)
 '''
                 with open(link_path, 'w') as f: f.write(wrapper)
