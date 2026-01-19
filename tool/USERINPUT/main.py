@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v16)
+USERINPUT Tool (v20)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Supports timeout with auto-retry logic.
@@ -79,9 +79,6 @@ class UserInputTool(ToolBase):
             config = get_config()
             version = config.get("python_version", "python3.11.14")
 
-        if os.environ.get("USERINPUT_DEBUG") == "1":
-            print(f"DEBUG: Searching for python version: {version}", flush=True)
-
         # Try to resolve using same logic as PYTHON tool if possible
         try:
             sys.path.append(str(self.project_root / "tool" / "PYTHON" / "logic"))
@@ -135,7 +132,7 @@ class UserInputTool(ToolBase):
 
     def get_ai_instruction(self):
         """Returns the localized instruction for the AI Agent."""
-        return _("ai_instruction", "After task completion, execute the terminal command `USERINPUT` to get user feedback. If the program stops, repeat `USERINPUT` until natural language feedback is obtained. When encountering uncertain situations or KeyboardInterrupt during programming, please execute `USERINPUT`, do not end directly. Note: The command executed by the run_terminal_cmd tool is literally `USERINPUT`, do not add other parameters or construct interactive commands.")
+        return _("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
 
 def get_python_exec(version=None):
     return UserInputTool().get_python_exe(version)
@@ -198,15 +195,10 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
     focus_interval = config.get("focus_interval", 90)
     time_increment = config.get("time_increment", 60)
 
-    if os.environ.get("USERINPUT_DEBUG") == "1":
-        print(f"DEBUG: Using python: {python_exe}", flush=True)
-        print(f"DEBUG: Internal dir: {TOOL_INTERNAL}", flush=True)
-    
     try:
         bell_path = TOOL_INTERNAL / "tkinter_bell.mp3"
-        bell_path_str_literal = repr(str(bell_path))
     except Exception:
-        bell_path_str_literal = "''"
+        bell_path = None
 
     # Python script template
     tkinter_script = r'''
@@ -405,70 +397,59 @@ if __name__ == "__main__":
         'time_increment': time_increment
     }
 
-    # Use a much longer timeout for communicate to allow for user adding time in GUI
-    # The GUI manages its own internal timeout and will exit when it expires.
-    # We use a large buffer (3600s) to allow for multiple 'Add 60s' clicks.
-    parent_timeout = timeout + 3600 
+    # parent_timeout logic: hard limit to prevent terminal hanging
+    parent_timeout = timeout + 300 
+
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tmp:
+        tmp.write(tkinter_script)
+        tmp_path = tmp.name
 
     try:
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as tmp:
-            tmp.write(tkinter_script)
-            tmp_path = tmp.name
-
-        if os.environ.get("USERINPUT_DEBUG") == "1":
-            print(f"DEBUG: Starting subprocess with python: {python_exe} on file {tmp_path}", flush=True)
-
         proc = subprocess.Popen(
             [python_exe, tmp_path],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8'
         )
         
-        if os.environ.get("USERINPUT_DEBUG") == "1":
-            print(f"DEBUG: Subprocess started with PID {proc.pid}. Reading output...", flush=True)
-            
-            stdout_lines = []
-            stderr_lines = []
-            
-            def read_pipe(pipe, lines, label):
-                for line in iter(pipe.readline, ''):
-                    print(f"DEBUG_RAW_{label}: {line.strip()}", flush=True)
-                    lines.append(line)
-                pipe.close()
-
-            t1 = threading.Thread(target=read_pipe, args=(proc.stdout, stdout_lines, "STDOUT"))
-            t2 = threading.Thread(target=read_pipe, args=(proc.stderr, stderr_lines, "STDERR"))
-            t1.start()
-            t2.start()
-            
-            # Wait for process to finish with timeout
-            try:
-                proc.wait(timeout=parent_timeout)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                raise UserInputRetryableError(_("msg_timeout", "Timeout"))
-            
-            t1.join()
-            t2.join()
-            
-            stdout = "".join(stdout_lines)
-            stderr = "".join(stderr_lines)
-        else:
-            # Standard path for normal users
-            stdout, stderr = proc.communicate(timeout=parent_timeout) 
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        BLUE = get_color("BLUE", "\033[34m")
+        RESET = get_color("RESET", "\033[0m")
         
-        # Cleanup temp file
+        # Display the waiting message. Ellipsis (...) is NOT bold blue.
+        label_waiting = _("label_waiting_gui", "Waiting for user feedback via GUI")
+        sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET}...")
+        sys.stdout.flush()
+
+        # Thread to read stderr to prevent buffer block
+        stderr_content = []
+        def read_stderr():
+            for line in iter(proc.stderr.readline, ''):
+                stderr_content.append(line)
+            proc.stderr.close()
+        
+        t_stderr = threading.Thread(target=read_stderr, daemon=True)
+        t_stderr.start()
+
+        # Wait for the process to finish
         try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except:
-            pass
-        
-        if os.environ.get("USERINPUT_DEBUG") == "1":
-            print(f"DEBUG: Subprocess finished with code {proc.returncode}", flush=True)
-            if stdout: print(f"DEBUG: STDOUT (final): {stdout}", flush=True)
-            if stderr: print(f"DEBUG: STDERR (final): {stderr}", flush=True)
+            start_wait = time.time()
+            while proc.poll() is None:
+                if time.time() - start_wait > parent_timeout:
+                    proc.kill()
+                    raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+                time.sleep(0.5)
+            
+            stdout, leftover_stderr = proc.communicate()
+            stderr = "".join(stderr_content)
+        except Exception as e:
+            proc.kill()
+            raise e
 
+        # Clear static message line
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
+        
         if proc.returncode != 0:
             raise RuntimeError(parse_gui_error(stderr or stdout))
 
@@ -486,11 +467,28 @@ if __name__ == "__main__":
                     raise UserInputRetryableError(_("msg_timeout", "Timeout"))
         
         raise RuntimeError("No valid response from GUI")
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+    finally:
+        try:
+            # Final attempt to clear line even on exit
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except:
+            pass
 
 def main():
+    # Signal handling for clean exit (ensure line is erased)
+    def handle_termination(signum, frame):
+        # Clear the waiting line
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
+        # Re-raise or exit
+        sys.exit(signum + 128)
+
+    signal.signal(signal.SIGTERM, handle_termination)
+    signal.signal(signal.SIGINT, handle_termination)
+
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
     parser.add_argument('command', nargs='?', help="Command to run (e.g. setup)")
     parser.add_argument('--timeout', type=int, default=180)
@@ -504,12 +502,8 @@ def main():
 
     args, unknown = parser.parse_known_args()
     if args.hint:
-        # Better unescaping for \n, \t, and backticks. 
-        # Handles both literal characters and escaped versions passed through CLI.
         try:
-            # First handle backticks specifically if they are escaped by the shell
             args.hint = args.hint.replace('\\`', '`').replace('\\"', '"').replace("\\'", "'")
-            # Then handle newlines and tabs
             args.hint = args.hint.replace('\\n', '\n').replace('\\t', '\t')
         except Exception:
             pass
@@ -548,7 +542,6 @@ def main():
                 try:
                     cmdline = proc.info.get('cmdline')
                     if not cmdline: continue
-                    # Look for python processes running USERINPUT main.py or the temp GUI script
                     cmd_str = " ".join(cmdline)
                     is_userinput = "USERINPUT" in cmd_str
                     is_main = "main.py" in cmd_str
@@ -567,7 +560,6 @@ def main():
             else:
                 print(_("no_instances_found", "No other USERINPUT instances found."))
         except ImportError:
-            # Fallback to pkill on Unix if psutil is missing
             if platform.system() != "Windows":
                 subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
                 success_label = _("Successfully", "Successfully")
@@ -585,21 +577,10 @@ def main():
     RESET = get_color("RESET", "\033[0m")
 
     max_retries = 3
-    final_result = [None]
     
     for attempt in range(max_retries):
         try:
-            if os.environ.get("USERINPUT_DEBUG") == "1":
-                print(f"DEBUG: Starting attempt {attempt + 1}/{max_retries}...", flush=True)
-
-            # Show blue keyword progress message
-            label_waiting = _("label_waiting_input", "Waiting for user input")
-            msg_popup = _("msg_popup_gui", "Popup GUI")
-            sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} ({msg_popup})...")
-            sys.stdout.flush()
-
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
-            final_result[0] = result
             
             # Clear progress line on success
             sys.stdout.write("\r\033[K")
@@ -618,18 +599,12 @@ def main():
         except (UserInputRetryableError, RuntimeError) as e:
             err_msg = str(e)
             if "Likely due to sandbox restrictions" in err_msg or "No display found" in err_msg:
-                # Fatal GUI error, don't retry
                 sys.stdout.write("\r\033[K")
                 print(f"{BOLD}{RED}Fatal error{RESET}: {err_msg}", file=sys.stderr, flush=True)
                 return 1
 
-            # Erasable retry message: Failed part bold red
             label_failed = _("label_failed", "Failed")
-            msg_retry = _("msg_attempt_retry", "Attempt {index} failed: {error}. Retrying...").format(index=attempt+1, error=e)
-            # Reorganize to put Failed first as requested
-            if msg_retry.startswith(f"Attempt {attempt+1} failed:"):
-                # Use RED for failed status
-                msg_retry = f"{BOLD}{RED}{label_failed}{RESET}: Attempt {attempt+1} ({err_msg}). Retrying..."
+            msg_retry = f"{BOLD}{RED}{label_failed}{RESET}: Attempt {attempt+1} ({err_msg}). Retrying..."
             
             sys.stdout.write(f"\r\033[K{msg_retry}")
             sys.stdout.flush()
@@ -638,7 +613,6 @@ def main():
                 time.sleep(1)
                 continue
             
-            # Final failure
             sys.stdout.write("\r\033[K")
             final_err_label = _("label_failed_capture", "Failed to capture user input")
             print(f"{BOLD}{RED}{final_err_label}{RESET}: {err_msg}", file=sys.stderr, flush=True)

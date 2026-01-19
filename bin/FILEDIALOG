@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+import sys, os, subprocess
+from pathlib import Path
+root = Path('/Applications/AITerminalTools')
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
+
+try:
+    from tool.PYTHON.logic.utils import get_python_exec
+    py_exec = get_python_exec()
+except ImportError:
+    try:
+        # Fallback if tool/PYTHON is added directly to sys.path
+        py_tool = root / "tool" / "PYTHON"
+        if str(py_tool) not in sys.path:
+            sys.path.append(str(py_tool))
+        from logic.utils import get_python_exec
+        py_exec = get_python_exec()
+    except:
+        py_exec = "python3"
+except Exception:
+    py_exec = "python3"
+
+env = os.environ.copy()
+main = Path('/Applications/AITerminalTools/tool/FILEDIALOG/main.py')
+env["PYTHONPATH"] = f"{root}:{main.parent}:{env.get('PYTHONPATH', '')}"
+if __name__ == "__main__":
+    sys.exit(subprocess.run([py_exec, str(main)] + sys.argv[1:], env=env).returncode)
