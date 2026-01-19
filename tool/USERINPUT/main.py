@@ -395,39 +395,8 @@ def main():
             print(get_msg("config_updated", "Configuration updated: focus_interval = {val} seconds", val=config_args.focus_interval))
         return 0
     elif args.command == "stop":
-        from logic.config import get_color
-        BOLD, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
-        
-        target_pid = None
-        if unknown:
-            try: target_pid = int(unknown[0])
-            except: pass
-
-        instance_dir = tool.project_root / "data" / "run" / "instances"
-        stop_dir = tool.project_root / "data" / "run" / "stops"
-        stop_dir.mkdir(parents=True, exist_ok=True)
-
-        found = 0
-        if instance_dir.exists():
-            for f in instance_dir.glob("gui_*.json"):
-                try:
-                    with open(f, "r") as info_file:
-                        info = json.load(info_file)
-                        if info.get("class") != "UserInputWindow": continue
-                        pid = info["pid"]
-                        if target_pid and pid != target_pid: continue
-                        
-                        # Create stop flag
-                        (stop_dir / f"{pid}.stop").touch()
-                        found += 1
-                except: continue
-        
-        if found > 0:
-            print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: " + get_msg('instances_stopped', 'Stopped {count} USERINPUT instances.', count=found))
-        else:
-            if target_pid: print(f"{BOLD}{YELLOW}Warning{RESET}: PID {target_pid} not found in active USERINPUT instances.")
-            else: print(get_msg("no_instances_found", "No other USERINPUT instances found."))
-        return 0
+        from logic.gui.manager import handle_gui_stop_command
+        return handle_gui_stop_command("USERINPUT", tool.project_root, unknown, get_msg)
 
     from logic.config import get_color
     BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
