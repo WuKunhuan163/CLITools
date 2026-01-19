@@ -187,6 +187,6 @@ class ToolBase:
 
     def setup_gui(self):
         """Centralized GUI environment setup."""
-        from logic.gui import setup_gui_environment
+        from logic.gui.engine import setup_gui_environment
         setup_gui_environment()
 
