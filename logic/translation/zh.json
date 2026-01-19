@@ -197,9 +197,10 @@
   "label_waiting_gui": "正在等待用户通过 GUI 提供反馈",
   "msg_popup_gui": "弹出 GUI",
   "label_successfully_received": "成功收到",
-  "label_failed_capture": "获取用户输入失败",
-  "label_failed": "失败",
-  "label_error": "错误",
+    "label_failed_capture": "获取用户输入失败",
+    "label_failed": "失败",
+    "label_terminated": "已终止",
+    "label_error": "错误",
   "msg_attempt_retry": "尝试 {index} 失败: {error}. 正在重试...",
   "label_creating": "正在创建",
   "label_fetching_source": "正在获取源码",
@@ -244,5 +245,7 @@
   "created_tool_template": "已在 {dir} 创建工具模版",
   "pushed_to": "已推送至 {remote}/{branch}",
   "failed_to_push": "无法推送至 {remote}/{branch}: {error}",
-  "label_filedialog_selected": "已选择"
+    "label_filedialog_selected": "已选择",
+    "manual_stop_hint": "USERINPUT 实例已强制终止。",
+    "instances_stopped": "已停止 {count} 个 USERINPUT 实例。"
 }
