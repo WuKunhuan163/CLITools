@@ -31,6 +31,7 @@ class BaseGUIWindow:
         self.root = None
         self.window_closed = False
         self.result = {"status": "error", "data": None}
+        self.pulse_active = False # Flag to avoid timer overwriting pulse status
         
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)
@@ -43,6 +44,9 @@ class BaseGUIWindow:
         """Gracefully close on external signals, capturing current state."""
         if not self.window_closed:
             self.finalize("terminated", self.get_current_state())
+            # Explicitly exit with signal-indicative code to help parent process
+            # detect termination even if stdout capture fails.
+            sys.exit(128 + signum)
 
     def check_signals(self):
         """Periodic check to allow Python to process signals."""
@@ -53,10 +57,12 @@ class BaseGUIWindow:
     def start_timer(self, status_label: tk.Label):
         """Standardized countdown timer."""
         if self.window_closed: return
-        try:
-            rem_msg = self._('time_remaining', 'Remaining:')
-            status_label.config(text=f"{rem_msg} {self.remaining_time}s")
-        except: pass
+        
+        if not self.pulse_active:
+            try:
+                rem_msg = self._('time_remaining', 'Remaining:')
+                status_label.config(text=f"{rem_msg} {self.remaining_time}s")
+            except: pass
         
         if self.remaining_time > 0:
             self.remaining_time -= 1
@@ -71,6 +77,10 @@ class BaseGUIWindow:
             self.window_closed = True
             self.result = {"status": status, "data": data}
             try:
+                # If terminated by signal, we want to make sure we print and exit
+                if status == "terminated":
+                    print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
+                    time.sleep(0.1) # Small delay to ensure stdout is flushed
                 if self.root: self.root.destroy()
             except: pass
 
@@ -113,7 +123,8 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     Creates a standardized bottom bar with status, countdown, and buttons.
     """
     bottom_frame = tk.Frame(parent)
-    bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+    # Restore minimal padding matching previous USERINPUT style
+    bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=(0, 5))
     
     # Status label (left)
     status_label = tk.Label(bottom_frame, text="", font=get_status_style())
@@ -128,9 +139,16 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
         add_msg = window_instance._("add_time", "Add {seconds}s", seconds=add_time_increment)
         def on_add_time():
             window_instance.remaining_time += add_time_increment
+            window_instance.pulse_active = True
             added_msg = window_instance._("time_added", "Time added!")
             status_label.config(text=f"{added_msg} {window_instance.remaining_time}s", fg=get_gui_colors()["pulse"])
-            window_instance.root.after(2000, lambda: status_label.config(fg="black") if not window_instance.window_closed else None)
+            
+            def reset_pulse():
+                if not window_instance.window_closed:
+                    window_instance.pulse_active = False
+                    status_label.config(fg="black")
+            
+            window_instance.root.after(2000, reset_pulse)
             
         tk.Button(bottom_frame, text=add_msg, command=on_add_time, 
                   font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))

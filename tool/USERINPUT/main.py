@@ -65,6 +65,10 @@ def _(key, default):
 class UserInputRetryableError(Exception):
     pass
 
+class UserInputFatalError(Exception):
+    """Raised when the tool is explicitly terminated or cancelled, skipping retries."""
+    pass
+
 class UserInputTool(ToolBase):
     def __init__(self):
         super().__init__("USERINPUT")
@@ -283,11 +287,16 @@ if __name__ == "__main__":
         tmp_path = tmp.name
 
     try:
-        proc = subprocess.Popen([python_exe, tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+        # Use start_new_session=True to decouple from the parent terminal's process group,
+        # which can help suppress some shell termination messages.
+        proc = subprocess.Popen([python_exe, tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                text=True, encoding='utf-8', start_new_session=True)
         from logic.config import get_color
         BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
+        
+        # Display PID for precise termination if needed
         label_waiting = _("label_waiting_gui", "Waiting for user feedback via GUI")
-        sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET}...")
+        sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})...")
         sys.stdout.flush()
 
         stderr_content = []
@@ -304,13 +313,17 @@ if __name__ == "__main__":
                     proc.kill()
                     raise UserInputRetryableError(_("msg_timeout", "Timeout"))
                 time.sleep(0.5)
-            stdout, leftover_stderr = proc.communicate()
-            stderr = "".join(stderr_content)
+            stdout, stderr = proc.communicate()
         except Exception as e:
             proc.kill(); raise e
 
-        sys.stdout.write("\r\033[K"); sys.stdout.flush()
-        if proc.returncode != 0: raise RuntimeError(parse_gui_error(stderr or stdout))
+        # Check for termination BEFORE parsing lines, as terminated process might not print JSON
+        if proc.returncode != 0:
+            # Check for negative (Unix), positive (some platforms), 
+            # and common shell-wrapped exit codes (128 + signal)
+            if proc.returncode in [-15, -2, -9, 15, 2, 9, 143, 130, 137]:
+                raise UserInputFatalError(_("msg_terminated", "Terminated"))
+            # Fall through to parse lines just in case, then check returncode again below
 
         for line in stdout.splitlines():
             if line.startswith("GDS_GUI_RESULT_JSON:"):
@@ -318,11 +331,15 @@ if __name__ == "__main__":
                 if res['status'] == 'success':
                     if res['data'] == 'USER_SUBMITTED_EMPTY': raise UserInputRetryableError(_("msg_empty", "Empty content"))
                     return res['data']
-                elif res['status'] == 'cancelled': raise UserInputRetryableError(_("msg_cancelled", "Cancelled"))
-                elif res['status'] == 'terminated': raise UserInputRetryableError(_("msg_terminated", "Terminated"))
+                elif res['status'] == 'cancelled': raise UserInputFatalError(_("msg_cancelled", "Cancelled"))
+                elif res['status'] == 'terminated': raise UserInputFatalError(_("msg_terminated", "Terminated"))
                 elif res['status'] == 'timeout':
                     if res['data']: return res['data']
                     raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+        
+        sys.stdout.write("\r\033[K"); sys.stdout.flush()
+        if proc.returncode != 0:
+            raise RuntimeError(parse_gui_error(stderr or stdout))
         raise RuntimeError("No valid response from GUI")
     finally:
         try:
@@ -365,16 +382,25 @@ def main():
     elif args.command == "stop":
         from logic.config import get_color
         BOLD, GREEN, YELLOW, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("YELLOW", "\033[33m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
+        
+        target_pid = None
+        if unknown:
+            try: target_pid = int(unknown[0])
+            except: pass
+
         try:
             import psutil
             found = 0
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
+                    pid = proc.info['pid']
+                    if target_pid and pid != target_pid: continue
+                    
                     cmdline = proc.info.get('cmdline')
                     if not cmdline: continue
                     cmd_str = " ".join(cmdline)
                     # Match USERINPUT but avoid killing the 'stop' command itself
-                    if "USERINPUT" in cmd_str and ("main.py" in cmd_str or "tmp" in cmd_str) and proc.info['pid'] != os.getpid():
+                    if "USERINPUT" in cmd_str and ("main.py" in cmd_str or "tmp" in cmd_str) and pid != os.getpid():
                         # Use terminate() (SIGTERM) to allow the window to close gracefully via signal handlers
                         proc.terminate()
                         found += 1
@@ -382,12 +408,17 @@ def main():
             if found > 0:
                 print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: " + _('instances_stopped', 'Stopped {count} USERINPUT instances.', count=found))
             else:
-                print(_("no_instances_found", "No other USERINPUT instances found."))
+                if target_pid: print(f"{BOLD}{YELLOW}Warning{RESET}: PID {target_pid} not found or not a USERINPUT instance.")
+                else: print(_("no_instances_found", "No other USERINPUT instances found."))
         except ImportError:
             if platform.system() != "Windows":
-                # Use SIGTERM (default) to allow for graceful closure
-                subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
-                print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: " + _("manual_stop_hint", "Sent termination signal."))
+                # Fallback to pkill if no PID specified, else use kill
+                if target_pid:
+                    subprocess.run(["kill", str(target_pid)], capture_output=True)
+                    print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: PID {target_pid}")
+                else:
+                    subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
+                    print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: " + _("manual_stop_hint", "Sent termination signal."))
             else:
                 print(f"{BOLD}{YELLOW}Warning{RESET}: " + _("psutil_not_found", "psutil module not found."))
         return 0
@@ -406,13 +437,32 @@ def main():
                 try: subprocess.run('pbcopy', input=result + end_hint, text=True, encoding='utf-8', check=True)
                 except: pass
             return 0
+        except UserInputFatalError as e:
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+            return 0
         except (UserInputRetryableError, RuntimeError) as e:
-            if "Likely due to sandbox restrictions" in str(e) or "No display found" in str(e):
+            # If it's a sandbox error or explicit termination, don't retry
+            if any(msg in str(e) for msg in ["sandbox", "display", "Terminated", "Cancelled"]):
                 sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
+            
+            # If it's "No valid response" or empty output, and the process was likely killed, don't retry
+            if "No valid response" in str(e) or "empty output" in str(e):
+                sys.stdout.write("\r\033[K"); sys.stdout.flush()
+                # If we are here, it means we didn't catch the termination code above. 
+                # We should still probably not retry if the output was empty.
+                print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+                return 0
+
             sys.stdout.write(f"\r\033[K{BOLD}{RED}{_('label_failed', 'Failed')}{RESET}: Attempt {attempt+1} ({e}). Retrying...")
             sys.stdout.flush()
             if attempt < 2: time.sleep(1); continue
-            sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}{_('label_failed_capture', 'Failed to capture user input')}{RESET}: {e}", file=sys.stderr, flush=True); return 1
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            error_msg = f"{BOLD}{RED}{_('label_failed_capture', 'Failed to capture user input')}{RESET}: {e}"
+            print(error_msg, flush=True)
+            # Re-prompt agent on total failure
+            print("\n" + tool.get_ai_instruction(), flush=True)
+            return 1
 
 if __name__ == "__main__":
     sys.exit(main())
