@@ -17,7 +17,7 @@ def get_gui_config():
         "status_color_blue": "#007AFF", # macOS like blue
         "status_color_green": "#28A745",
         "status_color_red": "#DC3545",
-        "status_pulse_color": "#003399" # Rich dark blue for active states/pulses
+        "status_pulse_color": "#007AFF" # Restore to classic blue
     }
     
     if config_path.exists():
