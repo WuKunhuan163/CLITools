@@ -43,9 +43,9 @@ class BaseGUIWindow:
         # 1. Try tool-specific translation
         val = get_translation(self.internal_dir, key, None)
         if val is None:
-            # 2. Try root translation for common keys
-            root_dir = str(Path(__file__).parent.parent / "translation")
-            val = get_translation(root_dir, key, default)
+            # 2. Try shared GUI component translation
+            gui_logic_dir = str(Path(__file__).resolve().parent)
+            val = get_translation(gui_logic_dir, key, default)
         return val.format(**kwargs)
 
     def handle_external_signal(self, signum, frame):
@@ -171,12 +171,15 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     # Standard padding matching USERINPUT style
     bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(5, 15))
     
+    # Status label (left)
     status_label = tk.Label(bottom_frame, text="", font=get_status_style())
     status_label.pack(side=tk.LEFT)
     
+    # Primary Button (right)
     tk.Button(bottom_frame, text=submit_text, command=submit_cmd, 
               font=get_button_style(primary=True)).pack(side=tk.RIGHT)
     
+    # Add Time Button (right)
     if add_time_increment > 0:
         add_msg = window_instance._("add_time", "Add {seconds}s", seconds=add_time_increment)
         def on_add_time():
@@ -199,6 +202,7 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
         tk.Button(bottom_frame, text=add_msg, command=on_add_time, 
                   font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
     
+    # Cancel Button (right)
     tk.Button(bottom_frame, text=window_instance._("btn_cancel", "Cancel"), 
               command=lambda: window_instance.finalize("cancelled", window_instance.get_current_state()), 
               font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))

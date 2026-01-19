@@ -81,7 +81,10 @@ class UserInputTool(ToolBase):
             version = config.get("python_version", "python3.11.14")
 
         try:
-            sys.path.append(str(self.project_root / "tool" / "PYTHON" / "logic"))
+            # Add logic directory to path to find config
+            logic_dir = self.project_root / "tool" / "PYTHON" / "logic"
+            if str(logic_dir) not in sys.path:
+                sys.path.append(str(logic_dir))
             from config import INSTALL_DIR
             install_root = INSTALL_DIR
         except ImportError:
@@ -215,6 +218,23 @@ class UserInputWindow(BaseGUIWindow):
 
         main_frame = tk.Frame(self.root, padx=15, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        tk.Label(main_frame, text=self._("instruction", "Please enter your feedback:"), 
+                 font=get_label_style(), fg="#555").pack(pady=(0, 5), anchor='w')
+        
+        text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
+        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.text_widget.yview)
+        
+        if self.hint_text: 
+            self.text_widget.insert("1.0", self.hint_text)
+            self.text_widget.focus_set()
         
         self.start_timer(self.status_label)
         self.start_periodic_focus()

@@ -19,4 +19,4 @@ USERINPUT --hint "Please review this plan" --timeout 300
 - **Config**: `USERINPUT config --focus-interval 90`
 
 ## Implementation
-This tool inherits from the `BaseGUIWindow` blueprint in `logic/gui/base.py`, ensuring consistent UI styling and signal handling across the TOOL ecosystem.
+This tool inherits from the unified [GUI Architecture](../../report/gui_architecture.md) blueprint, ensuring consistent UI styling and signal handling across the ecosystem.
