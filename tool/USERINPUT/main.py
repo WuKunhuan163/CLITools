@@ -504,8 +504,15 @@ def main():
 
     args, unknown = parser.parse_known_args()
     if args.hint:
-        # Unescape literal \n, \t, \` from CLI
-        args.hint = args.hint.replace('\\n', '\n').replace('\\t', '\t').replace('\\`', '`').replace('\\"', '"').replace("\\'", "'")
+        # Better unescaping for \n, \t, and backticks. 
+        # Handles both literal characters and escaped versions passed through CLI.
+        try:
+            # First handle backticks specifically if they are escaped by the shell
+            args.hint = args.hint.replace('\\`', '`').replace('\\"', '"').replace("\\'", "'")
+            # Then handle newlines and tabs
+            args.hint = args.hint.replace('\\n', '\n').replace('\\t', '\t')
+        except Exception:
+            pass
 
     if args.command == "setup": # Fallback if handle_command_line didn't exit
         tool.run_setup()

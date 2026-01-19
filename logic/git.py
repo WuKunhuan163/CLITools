@@ -115,11 +115,22 @@ def push_with_progress(remote="origin", branch=None, cwd=None):
     sys.stdout.write("\r\033[K")
     sys.stdout.flush()
     
+    # Use localized labels if available (fallback to project root logic)
+    project_root = Path(__file__).resolve().parent.parent
+    sys.path.append(str(project_root))
+    from logic.lang.utils import get_translation
+    from logic.utils import get_logic_dir
+    _ = lambda k, d: get_translation(str(get_logic_dir(project_root)), k, d)
+
     if result and result.returncode == 0:
-        print(f"{BOLD}{GREEN}Successfully pushed{RESET} to {remote}/{branch}")
+        success_label = _("label_successfully", "Successfully")
+        pushed_msg = _("pushed_to", "pushed to {remote}/{branch}", remote=remote, branch=branch)
+        print(f"{BOLD}{GREEN}{success_label}{RESET} {pushed_msg}")
         return True
     else:
         err = result.stderr.strip() if result and result.stderr else "Unknown error"
-        print(f"{BOLD}{RED}Failed to push{RESET} to {remote}/{branch}: {err}")
+        error_label = _("label_error", "Error")
+        failed_msg = _("failed_to_push", "failed to push to {remote}/{branch}: {error}", remote=remote, branch=branch, error=err)
+        print(f"{BOLD}{RED}{error_label}{RESET}: {failed_msg}")
         return False
 
