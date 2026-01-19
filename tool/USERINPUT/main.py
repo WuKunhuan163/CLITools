@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v22)
+USERINPUT Tool (v23)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Standardized UI styling via logic.gui.style.
+- Robust registry-based stop mechanism and partial input capture.
 """
 
 import os
@@ -19,6 +20,7 @@ import argparse
 import signal
 import traceback
 import threading
+import tempfile
 from pathlib import Path
 
 # Silence Tkinter deprecation warnings
@@ -56,11 +58,11 @@ except ImportError:
 
 TOOL_INTERNAL = get_logic_dir(current_dir)
 
-def _(key, default):
+def get_msg(key, default, **kwargs):
     global _tool_instance
     if '_tool_instance' not in globals():
         _tool_instance = UserInputTool()
-    return _tool_instance.get_translation(key, default)
+    return _tool_instance.get_translation(key, default).format(**kwargs)
 
 class UserInputRetryableError(Exception):
     pass
@@ -107,14 +109,14 @@ class UserInputTool(ToolBase):
 
         try:
             from logic.utils import print_python_not_found_error
-            print_python_not_found_error(self.tool_name, version, self.script_dir, _)
+            print_python_not_found_error(self.tool_name, version, self.script_dir, get_msg)
         except ImportError:
-            error_label = _("label_error", "Error")
+            error_label = get_msg("label_error", "Error")
             print(f"\033[1;31m{error_label}\033[0m: Python tool '{version}' not found.", flush=True)
         sys.exit(1)
 
     def get_ai_instruction(self):
-        return _("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+        return get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
 
 def get_python_exec(version=None):
     return UserInputTool().get_python_exe(version)
@@ -133,10 +135,10 @@ def get_cursor_session_title(custom_id=None):
 
 def parse_gui_error(error_output):
     if not error_output: return "Unknown error (empty output)"
-    if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output: return _("err_sandbox", "Likely due to sandbox restrictions.")
-    if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output: return _("err_sandbox", "Likely due to sandbox restrictions.")
-    if "no display name" in error_output or "could not connect to display" in error_output: return _("err_no_display", "No display found. Cannot start GUI.")
-    if platform.system() == "Darwin": return _("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
+    if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
+    if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
+    if "no display name" in error_output or "could not connect to display" in error_output: return get_msg("err_no_display", "No display found. Cannot start GUI.")
+    if platform.system() == "Darwin": return get_msg("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
     return "\n".join(error_output.splitlines()[:5])
 
 def get_config():
@@ -281,32 +283,39 @@ if __name__ == "__main__":
 
     parent_timeout = timeout + 300 
 
-    import tempfile
     with tempfile.NamedTemporaryFile(mode='w', prefix='USERINPUT_gui_', suffix='.py', delete=False) as tmp:
         tmp.write(tkinter_script)
         tmp_path = tmp.name
 
     try:
-        # Use start_new_session=True to decouple from the parent terminal's process group,
-        # which can help suppress some shell termination messages.
+        # Use start_new_session=True to decouple from the parent terminal's process group
         proc = subprocess.Popen([python_exe, tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                                 text=True, encoding='utf-8', start_new_session=True)
         from logic.config import get_color
         BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
         
         # Display PID for precise termination if needed
-        label_waiting = _("label_waiting_gui", "Waiting for user feedback via GUI")
+        label_waiting = get_msg("label_waiting_gui", "Waiting for user feedback via GUI")
         sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})...")
         sys.stdout.flush()
+
+        stderr_content = []
+        def read_stderr():
+            for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
+            proc.stderr.close()
+        t_stderr = threading.Thread(target=read_stderr, daemon=True)
+        t_stderr.start()
 
         try:
             start_wait = time.time()
             while proc.poll() is None:
                 if time.time() - start_wait > parent_timeout:
                     proc.kill()
-                    raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+                    raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
                 time.sleep(0.5)
-            stdout, stderr = proc.communicate()
+            stdout, _ = proc.communicate()
+            t_stderr.join(timeout=2)
+            stderr = "".join(stderr_content)
         except Exception as e:
             proc.kill(); raise e
 
@@ -320,22 +329,26 @@ if __name__ == "__main__":
 
         if res:
             if res['status'] == 'success':
-                if res['data'] == 'USER_SUBMITTED_EMPTY': raise UserInputRetryableError(_("msg_empty", "Empty content"))
+                if res['data'] == 'USER_SUBMITTED_EMPTY': raise UserInputRetryableError(get_msg("msg_empty", "Empty content"))
                 return res['data']
-            elif res['status'] == 'cancelled': raise UserInputFatalError(_("msg_cancelled", "Cancelled"))
+            elif res['status'] == 'cancelled': raise UserInputFatalError(get_msg("msg_cancelled", "Cancelled"))
             elif res['status'] == 'terminated':
-                if res['data']: return res['data'] # Return partial input on termination
-                raise UserInputFatalError(_("msg_terminated", "Terminated"))
+                if res['data']:
+                    status_hint = f"({get_msg('msg_terminated', 'Terminated')})"
+                    return f"{res['data']} {status_hint}"
+                raise UserInputFatalError(get_msg("msg_terminated", "Terminated"))
             elif res['status'] == 'timeout':
-                if res['data']: return res['data']
-                raise UserInputRetryableError(_("msg_timeout", "Timeout"))
+                if res['data']:
+                    status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
+                    return f"{res['data']} {status_hint}"
+                raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
 
         sys.stdout.write("\r\033[K"); sys.stdout.flush()
         
-        # Fallback to signal check if no JSON found
+        # Check for termination ONLY if no JSON result was found
         if proc.returncode != 0:
             if proc.returncode in [-15, -2, -9, 15, 2, 9, 143, 130, 137]:
-                raise UserInputFatalError(_("msg_terminated", "Terminated"))
+                raise UserInputFatalError(get_msg("msg_terminated", "Terminated"))
             raise RuntimeError(parse_gui_error(stderr or stdout))
         
         raise RuntimeError("No valid response from GUI")
@@ -375,11 +388,41 @@ def main():
         if config_args.focus_interval is not None:
             config["focus_interval"] = config_args.focus_interval
             with open(TOOL_INTERNAL / "config.json", 'w') as f: json.dump(config, f, indent=2)
-            print(_("config_updated", "Configuration updated: focus_interval = {val} seconds").format(val=config_args.focus_interval))
+            print(get_msg("config_updated", "Configuration updated: focus_interval = {val} seconds", val=config_args.focus_interval))
         return 0
     elif args.command == "stop":
-        # Stop command is disabled temporarily to investigate bugs
-        print("USERINPUT stop is temporarily disabled.")
+        from logic.config import get_color
+        BOLD, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
+        
+        target_pid = None
+        if unknown:
+            try: target_pid = int(unknown[0])
+            except: pass
+
+        instance_dir = tool.project_root / "data" / "run" / "instances"
+        stop_dir = tool.project_root / "data" / "run" / "stops"
+        stop_dir.mkdir(parents=True, exist_ok=True)
+
+        found = 0
+        if instance_dir.exists():
+            for f in instance_dir.glob("gui_*.json"):
+                try:
+                    with open(f, "r") as info_file:
+                        info = json.load(info_file)
+                        if info.get("class") != "UserInputWindow": continue
+                        pid = info["pid"]
+                        if target_pid and pid != target_pid: continue
+                        
+                        # Create stop flag
+                        (stop_dir / f"{pid}.stop").touch()
+                        found += 1
+                except: continue
+        
+        if found > 0:
+            print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: " + get_msg('instances_stopped', 'Stopped {count} USERINPUT instances.', count=found))
+        else:
+            if target_pid: print(f"{BOLD}{YELLOW}Warning{RESET}: PID {target_pid} not found in active USERINPUT instances.")
+            else: print(get_msg("no_instances_found", "No other USERINPUT instances found."))
         return 0
 
     from logic.config import get_color
@@ -389,8 +432,8 @@ def main():
         try:
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            success_label = _("label_successfully_received", "Successfully received")
-            end_hint = "\n\n" + _("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+            success_label = get_msg("label_successfully_received", "Successfully received")
+            end_hint = "\n\n" + get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
             print(f"{BOLD}{GREEN}{success_label}{RESET}: {result}{end_hint}", flush=True)
             if platform.system() == "Darwin":
                 try: subprocess.run('pbcopy', input=result + end_hint, text=True, encoding='utf-8', check=True)
@@ -398,7 +441,7 @@ def main():
             return 0
         except UserInputFatalError as e:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+            print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
             # If it's a sandbox error or explicit termination, don't retry
@@ -408,16 +451,14 @@ def main():
             # If it's "No valid response" or empty output, and the process was likely killed, don't retry
             if "No valid response" in str(e) or "empty output" in str(e):
                 sys.stdout.write("\r\033[K"); sys.stdout.flush()
-                # If we are here, it means we didn't catch the termination code above. 
-                # We should still probably not retry if the output was empty.
-                print(f"{BOLD}{RED}{_('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+                print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
                 return 0
 
-            sys.stdout.write(f"\r\033[K{BOLD}{RED}{_('label_failed', 'Failed')}{RESET}: Attempt {attempt+1} ({e}). Retrying...")
+            sys.stdout.write(f"\r\033[K{BOLD}{RED}{get_msg('label_failed', 'Failed')}{RESET}: Attempt {attempt+1} ({e}). Retrying...")
             sys.stdout.flush()
             if attempt < 2: time.sleep(1); continue
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            error_msg = f"{BOLD}{RED}{_('label_failed_capture', 'Failed to capture user input')}{RESET}: {e}"
+            error_msg = f"{BOLD}{RED}{get_msg('label_failed_capture', 'Failed to capture user input')}{RESET}: {e}"
             print(error_msg, flush=True)
             # Re-prompt agent on total failure
             print("\n" + tool.get_ai_instruction(), flush=True)

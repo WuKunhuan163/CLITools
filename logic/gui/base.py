@@ -6,6 +6,7 @@ import time
 import threading
 import platform
 import subprocess
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
@@ -44,11 +45,30 @@ class BaseGUIWindow:
         """Gracefully close on external signals, capturing current state."""
         if not self.window_closed:
             self.finalize("terminated", self.get_current_state())
+            # For signal-based exit, we might need a hard exit if mainloop is stuck
+            # but usually destroy() is enough.
             sys.exit(128 + signum)
 
     def check_signals(self):
-        """Periodic check to allow Python to process signals."""
+        """Periodic check to allow Python to process signals and check for stop flags."""
         if not self.window_closed and self.root:
+            # 1. Check for stop flag file
+            try:
+                # Find project root: self.internal_dir is tool/NAME/logic/
+                # Parent 1: tool/NAME/
+                # Parent 2: tool/
+                # Parent 3: project_root/
+                project_root = Path(self.internal_dir).parent.parent.parent
+                stop_file = project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
+                if stop_file.exists():
+                    stop_file.unlink()
+                    # Capture State A and return via Interface I
+                    self.finalize("terminated", self.get_current_state())
+                    return
+            except Exception:
+                pass
+
+            # 2. Schedule next check
             try: self.root.after(500, self.check_signals)
             except: pass
 
@@ -67,10 +87,11 @@ class BaseGUIWindow:
             if self.root:
                 self.root.after(1000, lambda: self.start_timer(status_label))
         else:
+            # Capture State A and return via Interface I
             self.finalize("timeout", self.get_current_state())
 
     def finalize(self, status: str, data: Any):
-        """Unified closure point. status: success, cancelled, timeout, terminated, error."""
+        """Unified closure point (Interface I). status: success, cancelled, timeout, terminated, error."""
         if not self.window_closed:
             self.window_closed = True
             self.result = {"status": status, "data": data}
@@ -79,32 +100,51 @@ class BaseGUIWindow:
             except: pass
 
     def get_current_state(self) -> Any:
-        """Subclasses MUST override this to return their current state (input content, selections, etc.)."""
+        """Subclasses MUST override this to return their current state (State A)."""
         return None
 
     def run(self, setup_func: Callable):
         """Main execution flow."""
         try:
             if platform.system() == "Darwin":
-                # Try to use a class name for better dock/menu integration
                 self.root = tk.Tk(className=self.__class__.__name__)
             else:
                 self.root = tk.Tk()
             
             self.root.title(self.title)
-            
-            # Subclass-specific UI setup
             setup_func()
             
-            # Start signal checking loop
+            # 1. Register instance for registry-based stop
+            try:
+                project_root = Path(self.internal_dir).parent.parent.parent
+                instance_dir = project_root / "data" / "run" / "instances"
+                instance_dir.mkdir(parents=True, exist_ok=True)
+                self.instance_file = instance_dir / f"gui_{os.getpid()}.json"
+                with open(self.instance_file, "w") as f:
+                    json.dump({
+                        "pid": os.getpid(), 
+                        "title": self.title, 
+                        "class": self.__class__.__name__,
+                        "start_time": time.time()
+                    }, f)
+            except:
+                self.instance_file = None
+
             self.check_signals()
-            
             self.root.protocol("WM_DELETE_WINDOW", lambda: self.finalize("cancelled", self.get_current_state()))
             self.root.mainloop()
             
+            # Cleanup registry
+            if self.instance_file and self.instance_file.exists(): 
+                try: self.instance_file.unlink()
+                except: pass
+                
             # Print final result for parent process to capture
             print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
         except Exception as e:
+            if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists():
+                try: self.instance_file.unlink()
+                except: pass
             import traceback
             traceback.print_exc()
             self.result = {"status": "error", "data": str(e)}
@@ -117,18 +157,14 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     Creates a standardized bottom bar with status, countdown, and buttons.
     """
     bottom_frame = tk.Frame(parent)
-    # Restore minimal padding matching previous USERINPUT style
     bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=(0, 5))
     
-    # Status label (left)
     status_label = tk.Label(bottom_frame, text="", font=get_status_style())
     status_label.pack(side=tk.LEFT)
     
-    # Primary Button (right)
     tk.Button(bottom_frame, text=submit_text, command=submit_cmd, 
               font=get_button_style(primary=True)).pack(side=tk.RIGHT)
     
-    # Add Time Button (right)
     if add_time_increment > 0:
         add_msg = window_instance._("add_time", "Add {seconds}s", seconds=add_time_increment)
         def on_add_time():
@@ -147,7 +183,6 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
         tk.Button(bottom_frame, text=add_msg, command=on_add_time, 
                   font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
     
-    # Cancel Button (right)
     tk.Button(bottom_frame, text=window_instance._("btn_cancel", "Cancel"), 
               command=lambda: window_instance.finalize("cancelled", window_instance.get_current_state()), 
               font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
