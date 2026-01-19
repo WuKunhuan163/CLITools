@@ -194,8 +194,9 @@
   "label_failed_to_setup": "设置失败",
   "label_the_tool_name": "{name} 工具",
   "label_waiting_input": "正在等待用户输入",
-  "label_waiting_gui": "正在等待用户通过 GUI 提供反馈",
-  "msg_popup_gui": "弹出 GUI",
+    "label_waiting_gui": "正在等待用户通过 GUI 提供反馈",
+    "label_waiting_selection": "正在等待用户通过 GUI 选择文件",
+    "msg_popup_gui": "弹出 GUI",
   "label_successfully_received": "成功收到",
     "label_failed_capture": "获取用户输入失败",
     "label_failed": "失败",
@@ -250,9 +251,5 @@
     "instances_stopped": "已停止 {count} 个 USERINPUT 实例 (通过信号文件)",
     "msg_terminated": "已终止 (手动停止)",
     "msg_timeout": "输入超时",
-    "no_instances_found": "未找到活跃的 USERINPUT GUI 实例。",
-    "time_remaining": "剩余时间:",
-    "time_added": "已加时!",
-    "add_time": "加时 {seconds}秒",
-    "btn_cancel": "取消"
+    "no_instances_found": "未找到活跃的 USERINPUT GUI 实例。"
 }

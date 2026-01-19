@@ -32,6 +32,11 @@ Before using AITerminalTools, ensure you have the following installed:
 - `TOOL lang set <LANG>`: Change the system language (e.g., `zh`, `en`, `ar`).
 - `TOOL sync`: Synchronize development work across branches.
 
+## Documentation
+
+- **[GUI Architecture](report/gui_architecture.md)**: Details on the unified GUI blueprint, State-Interface model, and registry-based termination.
+- **[Development Guide](logic/tool/template/README.md)**: Information on creating and migrating new tools.
+
 ## Architecture
 
 - **`logic/`**: Shared core logic, utilities, and global configuration.

@@ -12,7 +12,7 @@ def get_gui_config():
         "label_font_size": 10,
         "button_font_size": 10,
         "primary_button_font_size": 10,
-        "status_font_size": 11,
+        "status_font_size": 12,
         "primary_button_weight": "bold",
         "status_color_blue": "#007AFF", # macOS like blue
         "status_color_green": "#28A745",
