@@ -8,21 +8,18 @@ import shutil
 import re
 from pathlib import Path
 
-# Use resolve() to get the actual location of the script
+# Fix shadowing: Remove script directory from sys.path[0] if present
 script_dir = Path(__file__).resolve().parent
-# project_root is two levels up: tool/PYTHON -> tool -> root
+if sys.path and sys.path[0] == str(script_dir):
+    del sys.path[0]
+
+# Add root project to sys.path to find root 'logic' and other 'tool' modules
 project_root = script_dir.parent.parent
-
-# Add root project to sys.path to find 'logic' module
 if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
-
-# Add the directory containing 'logic' to sys.path (PRIORITY)
-if str(script_dir) not in sys.path:
-    sys.path.insert(0, str(script_dir))
+    sys.path.insert(0, str(project_root))
 
 from logic.utils import get_python_exec, extract_resource
-from logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
 # Try to import colors and shared utils from root proj
 try:
@@ -49,7 +46,7 @@ except ImportError:
 SHARED_PROJ_DIR = project_root / "logic"
 
 def _(translation_key, default, **kwargs):
-    # Try tool-specific translation first
+    # Try tool-specific translation first (absolute import path)
     text = get_translation(str(script_dir / "logic"), translation_key, None)
     if text is None:
         # Fallback to root translation
@@ -182,7 +179,8 @@ def main():
             sys.exit(1)
 
     selected_version = args.py_version or shorthand_version or os.environ.get("PY_VERSION") or default_version
-    python_exec = get_python_exec(selected_version)
+    from tool.PYTHON.logic.utils import get_python_exec as get_py_exec
+    python_exec = get_py_exec(selected_version)
     
     if not os.path.exists(python_exec) and python_exec != "python3":
         python_exec = "python3"
@@ -372,7 +370,7 @@ def _install_version(version, install_dir=None):
         if not zst_files:
             action = _("label_installing", "Installing")
             print_erasable(f"{BLUE}{BOLD}{action}{RESET} {version} from GitHub...")
-            install_script = script_dir / "core" / "install.py"
+            install_script = script_dir / "logic" / "install.py"
             if install_script.exists():
                 v_match = re.search(r"([\d\.]+)-(.*)", version)
                 if v_match:
