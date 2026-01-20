@@ -241,22 +241,26 @@ def _dev_align():
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            auto_commit_label = _("label_auto_committing", "Auto-committing")
-            print(f"{BOLD}{BLUE}{auto_commit_label}{RESET} local changes on 'dev'...")
+            # Only "Auto-committing" is blue bold, rest is translatable
+            prefix = f"{BOLD}{BLUE}" + _("label_auto_committing", "Auto-committing") + f"{RESET}"
+            suffix = _("local_changes_on_dev", "local changes on 'dev'...")
+            print(f"{prefix} {suffix}")
             subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
             subprocess.run(["git", "commit", "-m", "Auto-commit before alignment"], check=True, cwd=str(project_root))
     except: pass
 
     try:
         # 1. Update 'tool' branch
-        print(f"{BOLD}{BLUE}Aligning 'tool' branch...{RESET}")
+        label = _("aligning_tool_branch", "Aligning 'tool' branch...")
+        print(f"{BOLD}{BLUE}{label}{RESET}")
         subprocess.run(["git", "checkout", "-f", "tool"], check=True, cwd=str(project_root))
         # Reset tool branch to dev's state completely
         subprocess.run(["git", "reset", "--hard", "dev"], check=True, cwd=str(project_root))
         subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
         
         # 2. Update 'main' branch
-        print(f"{BOLD}{BLUE}Aligning 'main' branch...{RESET}")
+        label = _("aligning_main_branch", "Aligning 'main' branch...")
+        print(f"{BOLD}{BLUE}{label}{RESET}")
         subprocess.run(["git", "checkout", "-f", "main"], check=True, cwd=str(project_root))
         # Reset main branch to tool's state (which is now dev's state)
         # Use refs/heads/tool to avoid ambiguity with 'tool' directory
@@ -281,20 +285,22 @@ def _dev_align():
         
         # Commit the removals
         subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
-        res = subprocess.run(["git", "commit", "-m", "Align 'main' with 'tool' (removed restricted folders)"], capture_output=True, text=True, cwd=str(project_root))
+        subprocess.run(["git", "commit", "--allow-empty", "-m", "Align 'main' with 'tool' (removed restricted folders)"], cwd=str(project_root))
 
         # 3. Recreate 'test' branch
-        print(f"{BOLD}{BLUE}Recreating 'test' branch...{RESET}")
+        label = _("recreating_test_branch", "Recreating 'test' branch...")
+        print(f"{BOLD}{BLUE}{label}{RESET}")
         subprocess.run(["git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
         subprocess.run(["git", "checkout", "-b", "test"], check=True, cwd=str(project_root))
         
         # 4. Back to 'dev'
         subprocess.run(["git", "checkout", "dev"], check=True, cwd=str(project_root))
         
-        print(f"{BOLD}{GREEN}Alignment complete.{RESET}")
-        print(f" - 'tool' branch matches 'dev'")
-        print(f" - 'main' branch matches 'tool' minus restricted folders")
-        print(f" - 'test' branch matches 'main'")
+        success_label = _("alignment_complete", "Alignment complete.")
+        print(f"{BOLD}{GREEN}{success_label}{RESET}")
+        print(" - " + _("align_summary_tool", "'tool' branch matches 'dev'"))
+        print(" - " + _("align_summary_main", "'main' branch matches 'tool' minus restricted folders"))
+        print(" - " + _("align_summary_test", "'test' branch matches 'main'"))
         
     except Exception as e:
         print(f"{BOLD}{RED}Error during alignment{RESET}: {e}")
