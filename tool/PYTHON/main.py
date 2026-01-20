@@ -21,8 +21,8 @@ if str(project_root) not in sys.path:
 if str(script_dir) not in sys.path:
     sys.path.insert(0, str(script_dir))
 
-from logic_internal.utils import get_python_exec, extract_resource
-from logic_internal.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+from logic.utils import get_python_exec, extract_resource
+from logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
 # Try to import colors and shared utils from root proj
 try:
@@ -50,7 +50,7 @@ SHARED_PROJ_DIR = project_root / "logic"
 
 def _(translation_key, default, **kwargs):
     # Try tool-specific translation first
-    text = get_translation(str(script_dir / "logic_internal"), translation_key, None)
+    text = get_translation(str(script_dir / "logic"), translation_key, None)
     if text is None:
         # Fallback to root translation
         text = get_translation(str(project_root / "logic"), translation_key, default)
@@ -126,7 +126,7 @@ def main():
     shorthand_version = None
     filtered_args = []
     
-    from logic_internal.utils import get_system_tag
+    from logic.utils import get_system_tag
     tag = get_system_tag()
     install_root = INSTALL_DIR
 
@@ -173,7 +173,7 @@ def main():
         sys.exit(0)
 
     if args.py_update:
-        update_script = script_dir / "logic_internal" / "update.py"
+        update_script = script_dir / "logic" / "update.py"
         if update_script.exists():
             subprocess.run([sys.executable, str(update_script)] + unknown)
             sys.exit(0)
@@ -277,7 +277,7 @@ def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
     
     # Compatibility layer: handle 'python' prefix and platform tags
-    from logic_internal.utils import get_system_tag, regularize_version_name
+    from logic.utils import get_system_tag, regularize_version_name
     tag = get_system_tag()
     
     # Try exact match first
@@ -325,7 +325,7 @@ def _install_version(version, install_dir=None):
     try:
         source_dir_rel = str(RESOURCE_ROOT.relative_to(project_root) / version)
         full_source_path = RESOURCE_ROOT / version
-        from logic_internal.utils import extract_resource
+        from logic.utils import extract_resource
         
         resource_ready = False
         zst_files = []
