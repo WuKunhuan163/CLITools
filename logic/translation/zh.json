@@ -249,6 +249,7 @@
   "switch_failed_hint": "切换分支失败。请使用 --force 丢弃本地更改。",
   "info_label": "信息",
   "auto_committing_before_switch": "在切换分支前自动提交本地更改...",
+  "label_auto_committing": "自动提交",
   "fixed_created_logic_trans": "已修复: 为 '{name}' 创建了空的 logic/translation/ 目录",
   "created_tool_template": "已在 {dir} 创建工具模版",
   "pushed_to": "已推送至 {remote}/{branch}",

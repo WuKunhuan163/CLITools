@@ -1,2 +1,1 @@
-#!/bin/bash
-exec python3 "/Applications/AITerminalTools/main.py" "$@"
+/Applications/AITerminalTools/main.py

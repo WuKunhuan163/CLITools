@@ -229,5 +229,7 @@
   "python_install_success": "تم تثبيت {version} بنجاح في {path}",
   "python_install_failed": "فشل تثبيت {version}: {error}",
   "tool_PYTHON_desc": "مدير بيئة Python مستقل وأداة وكيل.",
-  "tool_PYTHON_purpose": "توفير بيئة تشغيل Python متسقة ومعزولة للأدوات والمشاريع."
+  "tool_PYTHON_purpose": "توفير بيئة تشغيل Python متسقة ومعزولة للأدوات والمشاريع.",
+  "auto_committing_before_switch": "التزام التغييرات المحلية تلقائياً قبل تبديل الفرع...",
+  "label_auto_committing": "التزام تلقائي"
 }

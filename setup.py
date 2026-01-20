@@ -19,19 +19,14 @@ def setup():
         print(f"Error: {main_py} not found. Please create main.py first.")
         sys.exit(1)
 
-    # 2. Create bin/TOOL wrapper script
-    # This wrapper script calls main.py with all arguments
-    wrapper_content = f"""#!/bin/bash
-exec python3 "{main_py}" "$@"
-"""
+    # 2. Create bin/TOOL symlink
     try:
-        with open(tool_bin, 'w') as f:
-            f.write(wrapper_content)
-        st = os.stat(tool_bin)
-        os.chmod(tool_bin, st.st_mode | stat.S_IEXEC)
-        print(f"Successfully created wrapper script: {tool_bin} -> {main_py}")
+        if tool_bin.exists() or tool_bin.is_symlink():
+            os.remove(tool_bin)
+        os.symlink(main_py, tool_bin)
+        print(f"Successfully created symlink: {tool_bin} -> {main_py}")
     except Exception as e:
-        print(f"Error creating wrapper script: {e}")
+        print(f"Error creating symlink: {e}")
         
     # 3. Create TOOL alias in shell profiles for persistence (as a fallback/convenience)
     home = Path.home()
