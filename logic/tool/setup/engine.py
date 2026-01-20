@@ -117,7 +117,8 @@ class ToolEngine:
             active_status=self._("label_running_setup", "Running setup"),
             success_status=self._("label_successfully", "Successfully"),
             fail_status=self._("label_failed_to_setup", "Failed to setup"),
-            success_name=self._("label_setup_success_name", "setup {name} tool", name=self.tool_name)
+            success_name=self._("label_setup_success_name", "setup {name} tool", name=self.tool_name),
+            bold_part="setup"
         ))
 
         # IMPORTANT: Run TM. Only if successful we show the final GREEN Success message.

@@ -27,7 +27,8 @@ class TuringStage:
                  is_sticky: bool = False,
                  active_name: Optional[str] = None,
                  success_name: Optional[str] = None,
-                 fail_name: Optional[str] = None):
+                 fail_name: Optional[str] = None,
+                 bold_part: Optional[str] = None):
         self.name = name
         self.action = action
         self.active_status = active_status
@@ -38,4 +39,5 @@ class TuringStage:
         self.active_name = active_name
         self.success_name = success_name
         self.fail_name = fail_name
+        self.bold_part = bold_part
 

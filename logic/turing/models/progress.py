@@ -28,8 +28,16 @@ class ProgressTuringMachine:
                 if success:
                     success_name = stage.success_name or stage.name
                     color_code = get_color(stage.success_color, "\033[32m")
-                    # Bolding both the status and the name
-                    full_msg = f"{BOLD}{color_code}{stage.success_status} {success_name}{RESET}"
+                    
+                    # Split success_name into bold and normal parts
+                    # Convention: if success_name starts with bold_part, bold that part
+                    if stage.bold_part and success_name.startswith(stage.bold_part):
+                        bold_text = f"{stage.success_status} {stage.bold_part}"
+                        rest_text = success_name[len(stage.bold_part):].lstrip()
+                        full_msg = f"{BOLD}{color_code}{bold_text}{RESET} {rest_text}"
+                    else:
+                        # Default: Only success_status is bolded
+                        full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
                     
                     if ephemeral and not stage.is_sticky:
                         # Success message but no newline, ready to be overwritten by next stage
@@ -42,8 +50,15 @@ class ProgressTuringMachine:
                     sys.stdout.write(f"\r\033[K")
                     sys.stdout.flush()
                     fail_name = stage.fail_name or stage.name
-                    # Color the entire status prefix as bold red
-                    sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}\n")
+                    
+                    if stage.bold_part and fail_name.startswith(stage.bold_part):
+                        bold_text = f"{stage.fail_status} {stage.bold_part}"
+                        rest_text = fail_name[len(stage.bold_part):].lstrip()
+                        full_msg = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
+                    else:
+                        full_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
+                        
+                    sys.stdout.write(f"{full_msg}\n")
                     sys.stdout.flush()
                     return False
             except Exception as e:
