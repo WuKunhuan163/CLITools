@@ -204,7 +204,7 @@ def _dev_sync():
                 subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
                 
                 # Clean up development folders and untracked files
-                subprocess.run(["git", "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
+                subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), stderr=subprocess.DEVNULL)
                 for d in ["data", "tmp", "tool", "resource"]:
                     p = project_root / d
                     if p.exists() and p.is_dir():
@@ -332,16 +332,20 @@ def _dev_reset():
 
 def _dev_enter(branch, force=False):
     """Switch to main or test branch safely."""
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     cmd = ["git", "checkout", branch]
     try:
         if force:
             subprocess.run(["git", "checkout", "-f", branch], cwd=str(project_root), check=True)
+            subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
         else:
             res = subprocess.run(cmd, cwd=str(project_root))
             if res.returncode != 0:
                 warning_label = _("warning_label", "Warning")
                 print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("switch_failed_hint", "Failed to switch branch. Use --force to discard local changes."))
+            else:
+                # Always clean when entering test/main to remove leftover ignored files
+                subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
     except Exception as e:
         error_label = _("error_label", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
