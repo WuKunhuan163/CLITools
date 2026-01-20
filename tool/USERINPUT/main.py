@@ -66,7 +66,7 @@ except ImportError:
     def get_translation(d, k, default): return default
     def get_logic_dir(d): return d / "logic"
 
-TOOL_INTERNAL = get_logic_dir(current_dir)
+TOOL_INTERNAL = current_dir / "logic_internal"
 
 def get_msg(key, default, **kwargs):
     global _tool_instance
