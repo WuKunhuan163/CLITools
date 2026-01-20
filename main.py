@@ -685,7 +685,7 @@ This tool is part of the `TOOL` ecosystem, which provides:
     _dev_sanity_check(tool_name)
 
 def generate_ai_rule():
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     registry_path = project_root / "tool.json"
     if not registry_path.exists(): return
 
