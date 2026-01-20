@@ -83,22 +83,24 @@ def print_python_not_found_error(tool_name, version, script_dir, translation_fun
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
     
-    # Check if bin/PYTHON exists.
-    project_root = Path(__file__).resolve().parent.parent
-    
     error_label = _("label_error", "Error")
     msg = _("err_python_not_found", "Python tool '{version}' not found, cannot launch {tool_name} GUI.").format(version=version, tool_name=tool_name)
-    print(f"{BOLD}{RED}{error_label}{RESET}: {msg}", flush=True) # Only "Error" is red and bold
+    sys.stdout.write(f"{BOLD}{RED}{error_label}{RESET}: {msg}\n")
     
     # Always show installation instructions if the version is not found
-    print(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"), flush=True)
-    print(_("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=version), flush=True)
+    sys.stdout.write(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON") + "\n")
+    sys.stdout.write(_("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=version) + "\n")
+    
+    # Add a hint about how to download if it's missing
+    download_hint = _("err_python_download_hint", "To download a missing version: PYTHON --py-update --version {version}").format(version=version)
+    sys.stdout.write(download_hint + "\n")
     
     setup_path = script_dir / "setup.py"
     if setup_path.exists():
-        print(_("err_python_not_found_hint_4", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name), flush=True)
+        sys.stdout.write(_("err_python_not_found_hint_4", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name) + "\n")
     else:
-        print(_("err_python_not_found_hint_4", "Finally, run tool's setup: TOOL install {tool_name}").format(tool_name=tool_name), flush=True)
+        sys.stdout.write(_("err_python_not_found_hint_4", "Finally, run tool's setup: TOOL install {tool_name}").format(tool_name=tool_name) + "\n")
+    sys.stdout.flush()
 
 # Global state for RTL mode
 _GLOBAL_RTL_MODE = False
