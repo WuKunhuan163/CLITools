@@ -240,50 +240,8 @@ class ToolEngine:
         try:
             st = os.stat(main_py); os.chmod(main_py, st.st_mode | stat.S_IEXEC)
             
-            # Use wrapper if depends on PYTHON
-            use_wrapper = False
-            tool_json_path = self.tool_dir / "tool.json"
-            if tool_json_path.exists():
-                with open(tool_json_path, 'r') as f:
-                    if "PYTHON" in json.load(f).get("dependencies", []): use_wrapper = True
-            
-            if use_wrapper:
-                wrapper = f'''#!/usr/bin/env python3
-import sys, os, subprocess
-from pathlib import Path
-root = Path({repr(str(self.project_root))})
-if str(root) not in sys.path:
-    sys.path.insert(0, str(root))
-
-try:
-    from tool.PYTHON.logic.utils import get_python_exec
-    py_exec = get_python_exec()
-except ImportError:
-    try:
-        # Fallback if tool/PYTHON is added directly to sys.path
-        py_tool = root / "tool" / "PYTHON"
-        if str(py_tool) not in sys.path:
-            sys.path.append(str(py_tool))
-        from logic.utils import get_python_exec
-        py_exec = get_python_exec()
-    except:
-        py_exec = "python3"
-except Exception:
-    py_exec = "python3"
-
-env = os.environ.copy()
-main = Path({repr(str(main_py))})
-env["PYTHONPATH"] = f"{{root}}:{{main.parent}}:{{env.get('PYTHONPATH', '')}}"
-if __name__ == "__main__":
-    import signal
-    # Ignore SIGINT in the wrapper; the child process will handle it
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    sys.exit(subprocess.run([py_exec, str(main)] + sys.argv[1:], env=env).returncode)
-'''
-                with open(link_path, 'w') as f: f.write(wrapper)
-                os.chmod(link_path, st.st_mode | stat.S_IEXEC)
-            else:
-                os.symlink(main_py, link_path)
+            # Pure symlink - re-execution logic is now inside ToolBase
+            os.symlink(main_py, link_path)
             
             from main import register_path
             register_path(self.bin_dir)

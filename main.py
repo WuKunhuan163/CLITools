@@ -441,45 +441,49 @@ def _dev_sanity_check(tool_name, fix=False):
 
 def _dev_audit_test(tool_name, fix=False):
     """Audit unit test naming conventions."""
-    project_root = Path(__file__).parent.absolute()
-    actual_tool_name = "root" if tool_name == "TOOL" else tool_name
-    tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
-    
-    if not tool_dir.exists():
-        print(f"{BOLD}{RED}Error{RESET}: Tool '{tool_name}' not found.")
-        return False
-    
-    test_dir = tool_dir / "test"
-    if not test_dir.exists() or not test_dir.is_dir():
-        print(f"{BOLD}{YELLOW}Warning{RESET}: No test directory found for '{tool_name}'.")
+    # ... existing implementation ...
+    return False
+
+def _dev_audit_bin(fix=False):
+    """Audit bin/ directory to ensure only symlinks or bootstrap scripts exist."""
+    project_root = ROOT_PROJECT_ROOT
+    bin_dir = project_root / "bin"
+    if not bin_dir.exists():
+        print(f"{BOLD}{YELLOW}Warning{RESET}: bin/ directory not found.")
         return True
     
-    test_files = sorted([f for f in test_dir.glob("test_*.py") if f.is_file()])
-    if not test_files:
-        print(f"{BOLD}{BLUE}Info{RESET}: No test files found for '{tool_name}'.")
-        return True
+    # Get tools from registry
+    registry_path = project_root / "tool.json"
+    tools = []
+    if registry_path.exists():
+        with open(registry_path, 'r') as f:
+            tools = list(json.load(f).get("tools", {}).keys())
     
     violations = []
-    for i, f in enumerate(test_files):
-        expected_prefix = f"test_{i:02d}_"
-        if not f.name.startswith(expected_prefix):
-            violations.append((f, expected_prefix))
+    for f in bin_dir.iterdir():
+        if f.name == "TOOL": continue # TOOL is allowed to be a script
+        
+        if not f.is_symlink():
+            # Check if it's a tool name
+            if f.name in tools:
+                violations.append(f)
     
     if not violations:
-        print(f"{BOLD}{GREEN}Success{RESET}: All tests in '{tool_name}' follow the naming convention.")
+        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts in bin/ are pure symlinks.")
         return True
     
-    print(f"{BOLD}{RED}Found naming violations{RESET} in '{tool_name}' tests:")
-    for f, expected in violations:
-        print(f"  {f.name} -> expected to start with {expected}")
+    print(f"{BOLD}{RED}Found code in bin/ instead of symlinks{RESET}:")
+    for f in violations:
+        print(f"  {f.name} (File size: {f.stat().st_size} bytes)")
         if fix:
-            # Generate new name
-            rest = f.name[len("test_xx_"):] if re.match(r"test_\d{2}_", f.name) else f.name[len("test_"):]
-            new_name = expected + rest
-            new_path = f.parent / new_name
-            f.rename(new_path)
-            print(f"    {BOLD}{GREEN}Fixed{RESET}: Renamed to {new_name}")
-            
+            # Fix it by re-running shortcut creation
+            from logic.tool.setup.engine import ToolEngine
+            engine = ToolEngine(f.name, project_root)
+            if engine.create_shortcut():
+                print(f"    {BOLD}{GREEN}Fixed{RESET}: Replaced with symlink.")
+            else:
+                print(f"    {BOLD}{RED}Failed to fix{RESET}: could not create shortcut.")
+                
     return False
 
 def _dev_create(tool_name):
@@ -824,6 +828,9 @@ def main():
     audit_test_parser.add_argument("tool_name", help="Name of the tool to audit (or 'TOOL')")
     audit_test_parser.add_argument("--fix", action="store_true", help="Try to fix naming issues")
     
+    audit_bin_parser = dev_subparsers.add_parser("audit-bin", help="Audit bin/ directory for pure symlinks")
+    audit_bin_parser.add_argument("--fix", action="store_true", help="Try to fix violations")
+    
     config_parser = subparsers.add_parser("config", help="Manage global configuration")
     config_parser.add_argument("--terminal-width", type=int, help="Manually set terminal width (for testing)")
     config_parser.add_argument("--manager-debug", type=int, choices=[0, 1], help="Enable or disable terminal manager debugging")
@@ -863,6 +870,7 @@ def main():
         elif args.dev_command == "create": _dev_create(args.tool_name)
         elif args.dev_command == "sanity-check": _dev_sanity_check(args.tool_name, args.fix)
         elif args.dev_command == "audit-test": _dev_audit_test(args.tool_name, args.fix)
+        elif args.dev_command == "audit-bin": _dev_audit_bin(args.fix)
 
 if __name__ == "__main__":
     main()

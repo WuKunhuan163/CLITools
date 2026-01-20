@@ -2,21 +2,25 @@
 import sys, os, subprocess
 from pathlib import Path
 root = Path('/Applications/AITerminalTools')
-py_tool = root / "tool" / "PYTHON"
-if not (py_tool / "main.py").exists():
-    BOLD = "\033[1m"
-    RED = "\033[31m"
-    RESET = "\033[0m"
-    print(f"{BOLD}{RED}Error{RESET}: PYTHON tool missing.")
-    print(f"Please run: {BOLD}TOOL install PYTHON{RESET}")
-    print(f"Then run: {BOLD}PYTHON --py-install 3.11.14{RESET}")
-    print(f"Finally, run: {BOLD}USERINPUT setup{RESET}")
-    sys.exit(1)
-sys.path.append(str(py_tool))
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
+
 try:
-    from logic.utils import get_python_exec
+    from tool.PYTHON.logic.utils import get_python_exec
     py_exec = get_python_exec()
-except: py_exec = "python3"
+except ImportError:
+    try:
+        # Fallback if tool/PYTHON is added directly to sys.path
+        py_tool = root / "tool" / "PYTHON"
+        if str(py_tool) not in sys.path:
+            sys.path.append(str(py_tool))
+        from logic.utils import get_python_exec
+        py_exec = get_python_exec()
+    except:
+        py_exec = "python3"
+except Exception:
+    py_exec = "python3"
+
 env = os.environ.copy()
 main = Path('/Applications/AITerminalTools/tool/USERINPUT/main.py')
 env["PYTHONPATH"] = f"{root}:{main.parent}:{env.get('PYTHONPATH', '')}"
@@ -25,4 +29,3 @@ if __name__ == "__main__":
     # Ignore SIGINT in the wrapper; the child process will handle it
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     sys.exit(subprocess.run([py_exec, str(main)] + sys.argv[1:], env=env).returncode)
-
