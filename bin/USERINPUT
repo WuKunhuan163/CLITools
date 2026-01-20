@@ -3,7 +3,15 @@ import sys, os, subprocess
 from pathlib import Path
 root = Path('/Applications/AITerminalTools')
 py_tool = root / "tool" / "PYTHON"
-if not py_tool.exists(): print("Error: PYTHON tool missing."); sys.exit(1)
+if not (py_tool / "main.py").exists():
+    BOLD = "\033[1m"
+    RED = "\033[31m"
+    RESET = "\033[0m"
+    print(f"{BOLD}{RED}Error{RESET}: PYTHON tool missing.")
+    print(f"Please run: {BOLD}TOOL install PYTHON{RESET}")
+    print(f"Then run: {BOLD}PYTHON --py-install 3.11.14{RESET}")
+    print(f"Finally, run: {BOLD}USERINPUT setup{RESET}")
+    sys.exit(1)
 sys.path.append(str(py_tool))
 try:
     from logic.utils import get_python_exec
@@ -17,3 +25,4 @@ if __name__ == "__main__":
     # Ignore SIGINT in the wrapper; the child process will handle it
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     sys.exit(subprocess.run([py_exec, str(main)] + sys.argv[1:], env=env).returncode)
+

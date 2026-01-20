@@ -114,8 +114,14 @@ class UserInputTool(ToolBase):
             from logic.utils import print_python_not_found_error
             print_python_not_found_error(self.tool_name, version, self.script_dir, get_msg)
         except ImportError:
+            BOLD = "\033[1m"
+            RED = "\033[31m"
+            RESET = "\033[0m"
             error_label = get_msg("label_error", "Error")
-            print(f"\033[1;31m{error_label}\033[0m: Python tool '{version}' not found.", flush=True)
+            print(f"{BOLD}{RED}{error_label}{RESET}: Python tool '{version}' not found.", flush=True)
+            print(f"Please run: {BOLD}TOOL install PYTHON{RESET}")
+            print(f"Then run: {BOLD}PYTHON --py-install {version}{RESET}")
+            print(f"Finally, run: {BOLD}USERINPUT setup{RESET}")
         sys.exit(1)
 
     def get_ai_instruction(self):
@@ -156,6 +162,9 @@ def get_user_input_tkinter(title=None, timeout=180, hint_text=None, custom_id=No
     python_exe = tool.get_python_exe()
     config = get_config()
     focus_interval = config.get("focus_interval", 90)
+    # Ensure it's at least 90 as requested, unless explicitly disabled (<=0)
+    if focus_interval > 0 and focus_interval < 90:
+        focus_interval = 90
     time_increment = config.get("time_increment", 60)
 
     try:
