@@ -5,6 +5,8 @@ import subprocess
 import json
 import stat
 import shutil
+import re
+import platform
 from pathlib import Path
 
 # Import colors and shared utils from logic
@@ -137,7 +139,11 @@ def update_config(key, value):
     
     config[key] = value
     with open(config_path, 'w') as f: json.dump(config, f, indent=2)
-    print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
+    
+    if key == "terminal_width" and (value == 0 or value is None):
+        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
+    else:
+        print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
 def _dev_sync():
     """Synchronize logic files from 'tool' to 'main', then overwrite 'test' with 'main'."""
@@ -150,8 +156,8 @@ def _dev_sync():
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return
     
-    if current_branch != "tool":
-        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_warning_branch", "Sync is recommended from 'tool' branch. Current branch is '{branch}'.", branch=current_branch))
+    if current_branch not in ["tool", "dev"]:
+        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_warning_branch", "Sync is recommended from 'tool' or 'dev' branch. Current branch is '{branch}'.", branch=current_branch))
         confirm = input(_("sync_confirm", "Continue anyway? (y/N): "))
         if confirm.lower() not in ['y', 'yes']:
             print(_("sync_cancelled", "Sync cancelled."))
@@ -197,7 +203,8 @@ def _dev_sync():
                 
                 subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
                 
-                # Clean up development folders
+                # Clean up development folders and untracked files
+                subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), stderr=subprocess.DEVNULL)
                 for d in ["data", "tmp", "tool", "resource"]:
                     p = project_root / d
                     if p.exists() and p.is_dir():
@@ -305,6 +312,7 @@ def _dev_reset():
         subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
         subprocess.run(["git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root))
         
+        subprocess.run(["git", "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
         for d in ["data", "tmp", "tool", "resource"]:
             p = project_root / d
             if p.exists() and p.is_dir():
@@ -324,16 +332,20 @@ def _dev_reset():
 
 def _dev_enter(branch, force=False):
     """Switch to main or test branch safely."""
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     cmd = ["git", "checkout", branch]
     try:
         if force:
             subprocess.run(["git", "checkout", "-f", branch], cwd=str(project_root), check=True)
+            subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
         else:
             res = subprocess.run(cmd, cwd=str(project_root))
             if res.returncode != 0:
                 warning_label = _("warning_label", "Warning")
                 print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("switch_failed_hint", "Failed to switch branch. Use --force to discard local changes."))
+            else:
+                # Always clean when entering test/main to remove leftover ignored files
+                subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
     except Exception as e:
         error_label = _("error_label", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
@@ -420,6 +432,49 @@ def _dev_sanity_check(tool_name, fix=False):
     pass_label = _("sanity_passed", "Sanity check passed")
     print(f"{BOLD}{GREEN}{pass_label}{RESET} for '{tool_name}'.")
     return True
+
+def _dev_audit_test(tool_name, fix=False):
+    """Audit unit test naming conventions."""
+    project_root = Path(__file__).parent.absolute()
+    actual_tool_name = "root" if tool_name == "TOOL" else tool_name
+    tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
+    
+    if not tool_dir.exists():
+        print(f"{BOLD}{RED}Error{RESET}: Tool '{tool_name}' not found.")
+        return False
+    
+    test_dir = tool_dir / "test"
+    if not test_dir.exists() or not test_dir.is_dir():
+        print(f"{BOLD}{YELLOW}Warning{RESET}: No test directory found for '{tool_name}'.")
+        return True
+    
+    test_files = sorted([f for f in test_dir.glob("test_*.py") if f.is_file()])
+    if not test_files:
+        print(f"{BOLD}{BLUE}Info{RESET}: No test files found for '{tool_name}'.")
+        return True
+    
+    violations = []
+    for i, f in enumerate(test_files):
+        expected_prefix = f"test_{i:02d}_"
+        if not f.name.startswith(expected_prefix):
+            violations.append((f, expected_prefix))
+    
+    if not violations:
+        print(f"{BOLD}{GREEN}Success{RESET}: All tests in '{tool_name}' follow the naming convention.")
+        return True
+    
+    print(f"{BOLD}{RED}Found naming violations{RESET} in '{tool_name}' tests:")
+    for f, expected in violations:
+        print(f"  {f.name} -> expected to start with {expected}")
+        if fix:
+            # Generate new name
+            rest = f.name[len("test_xx_"):] if re.match(r"test_\d{2}_", f.name) else f.name[len("test_"):]
+            new_name = expected + rest
+            new_path = f.parent / new_name
+            f.rename(new_path)
+            print(f"    {BOLD}{GREEN}Fixed{RESET}: Renamed to {new_name}")
+            
+    return False
 
 def _dev_create(tool_name):
     """Create a new tool template."""
@@ -612,8 +667,12 @@ def generate_ai_rule():
 
 def _test_tool_with_args(args):
     project_root = Path(__file__).parent.absolute()
-    tool_dir = project_root if args.tool_name == "root" else project_root / "tool" / args.tool_name
-    if not tool_dir.exists(): return
+    # Support 'TOOL' as an alias for 'root'
+    actual_tool_name = "root" if args.tool_name in ["root", "TOOL"] else args.tool_name
+    tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
+    if not tool_dir.exists():
+        print(f"{BOLD}{RED}Error{RESET}: Tool '{args.tool_name}' not found.")
+        return
     
     from logic.config import get_setting
     default_concurrency = get_setting("test_default_concurrency", 3)
@@ -635,7 +694,7 @@ def _test_tool_with_args(args):
 
     sys.path.append(str(project_root))
     from logic.test.runner import TestRunner
-    runner = TestRunner(args.tool_name, project_root)
+    runner = TestRunner(actual_tool_name, project_root)
     if args.list: runner.list_tests()
     else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
 
@@ -722,7 +781,7 @@ def main():
     test_parser.add_argument("--list", action="store_true")
     test_parser.add_argument("--range", nargs=2, type=int)
     test_parser.add_argument("--max", type=int, default=3)
-    test_parser.add_argument("--timeout", type=int, default=60)
+    test_parser.add_argument("--timeout", type=int, default=300)
     lang_parser = subparsers.add_parser("lang", help=_("lang_help", "Manage display language"))
     lang_subparsers = lang_parser.add_subparsers(dest="lang_command", help=_("lang_subcommand_help", "Language subcommands"))
     
@@ -755,6 +814,16 @@ def main():
     sanity_parser.add_argument("tool_name", help="Name of the tool to check")
     sanity_parser.add_argument("--fix", action="store_true", help="Try to fix sanity issues")
     
+    audit_test_parser = dev_subparsers.add_parser("audit-test", help="Audit unit test naming conventions")
+    audit_test_parser.add_argument("tool_name", help="Name of the tool to audit (or 'TOOL')")
+    audit_test_parser.add_argument("--fix", action="store_true", help="Try to fix naming issues")
+    
+    config_parser = subparsers.add_parser("config", help="Manage global configuration")
+    config_parser.add_argument("--terminal-width", type=int, help="Manually set terminal width (for testing)")
+    config_parser.add_argument("--manager-debug", type=int, choices=[0, 1], help="Enable or disable terminal manager debugging")
+    
+    subparsers.add_parser("clear", help="Clear the terminal screen")
+    
     subparsers.add_parser("rule")
     if len(sys.argv) < 2:
         parser.print_help()
@@ -768,6 +837,17 @@ def main():
         elif args.lang_command == "list": _list_languages()
         elif args.lang_command == "audit": _audit_lang(args.lang_code, force=args.force)
         else: _show_current_language()
+    elif args.command == "config":
+        if args.terminal_width is not None:
+            update_config("terminal_width", args.terminal_width)
+        if args.manager_debug is not None:
+            update_config("manager_debug", bool(args.manager_debug))
+    elif args.command == "clear":
+        if platform.system() == "Windows":
+            os.system("cls")
+        else:
+            sys.stdout.write("\033[H\033[2J")
+            sys.stdout.flush()
     elif args.command == "rule": generate_ai_rule()
     elif args.command == "dev":
         if args.dev_command == "sync": _dev_sync()
@@ -775,6 +855,7 @@ def main():
         elif args.dev_command == "enter": _dev_enter(args.branch, args.force)
         elif args.dev_command == "create": _dev_create(args.tool_name)
         elif args.dev_command == "sanity-check": _dev_sanity_check(args.tool_name, args.fix)
+        elif args.dev_command == "audit-test": _dev_audit_test(args.tool_name, args.fix)
 
 if __name__ == "__main__":
     main()
