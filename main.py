@@ -857,6 +857,7 @@ def main():
     elif args.command == "rule": generate_ai_rule()
     elif args.command == "dev":
         if args.dev_command == "sync": _dev_sync()
+        elif args.dev_command == "align": _dev_align()
         elif args.dev_command == "reset": _dev_reset()
         elif args.dev_command == "enter": _dev_enter(args.branch, args.force)
         elif args.dev_command == "create": _dev_create(args.tool_name)
