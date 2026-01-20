@@ -27,12 +27,15 @@ class ProgressTuringMachine:
                 success = stage.action()
                 if success:
                     success_name = stage.success_name or stage.name
-                    color = get_color(stage.success_color, "\033[32m")
+                    color_code = get_color(stage.success_color, "\033[32m")
+                    # Bolding both the status and the name
+                    full_msg = f"{BOLD}{color_code}{stage.success_status} {success_name}{RESET}"
+                    
                     if ephemeral and not stage.is_sticky:
                         # Success message but no newline, ready to be overwritten by next stage
-                        sys.stdout.write(f"\r\033[K{BOLD}{color}{stage.success_status}{RESET} {success_name}")
+                        sys.stdout.write(f"\r\033[K{full_msg}")
                     else:
-                        sys.stdout.write(f"\r\033[K{BOLD}{color}{stage.success_status}{RESET} {success_name}\n")
+                        sys.stdout.write(f"\r\033[K{full_msg}\n")
                     sys.stdout.flush()
                 else:
                     # Clear the "Running..." line before printing failure to ensure it's clean
@@ -54,8 +57,8 @@ class ProgressTuringMachine:
                 return False
         
         if ephemeral and final_newline:
-            # We don't want a newline here if we want the final message to overwrite the last stage
-            pass
+            sys.stdout.write("\n")
+            sys.stdout.flush()
             
         return True
 

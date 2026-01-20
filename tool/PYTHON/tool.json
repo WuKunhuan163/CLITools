@@ -1,7 +1,13 @@
 {
   "name": "PYTHON",
-  "description": "Standalone Python environment manager and proxy.",
-  "purpose": "Provide consistent, isolated Python runtime environments for tools and projects.",
-  "run_compatible": true,
-  "default_version": "3.7.7-macos"
+  "version": "1.0.0",
+  "description": "Standalone Python environment manager.",
+  "purpose": "Provide a consistent Python runtime for other tools.",
+  "usage": [
+    "PYTHON --py-list: List all installed and available Python versions.",
+    "PYTHON --py-install <version>: Download and install a specific Python version (e.g., 3.11.14).",
+    "PYTHON --py-update: Update the list of available versions from GitHub.",
+    "PYTHON @3.x [args]: Run a specific major/minor version shortcut.",
+    "PYTHON --py-uninstall <version>: Remove an installed version."
+  ]
 }

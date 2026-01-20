@@ -78,10 +78,51 @@ class ToolBase:
         If 'setup' is the first argument, run the tool's setup.py.
         Returns True if a command was handled and the tool should exit.
         """
-        if len(sys.argv) > 1 and sys.argv[1] == "setup":
-            self.run_setup()
-            return True
+        if len(sys.argv) > 1:
+            if sys.argv[1] == "setup":
+                self.run_setup()
+                return True
+            elif sys.argv[1] == "rule":
+                self.print_rule()
+                return True
         return False
+
+    def print_rule(self):
+        """Print tool-specific rules from tool.json."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        BLUE = get_color("BLUE", "\033[34m")
+        RESET = get_color("RESET", "\033[0m")
+        
+        print(f"--- {BOLD}{self.tool_name}{RESET} Rule ---")
+        
+        if self.tool_json_path.exists():
+            try:
+                with open(self.tool_json_path, 'r') as f:
+                    data = json.load(f)
+                    
+                desc = self.get_translation(f"tool_{self.tool_name}_desc", data.get('description', 'No description'))
+                purpose = self.get_translation(f"tool_{self.tool_name}_purpose", data.get('purpose', 'No purpose'))
+                usage = data.get('usage', [])
+                
+                print(f"{BOLD}Description{RESET}: {desc}")
+                print(f"{BOLD}Purpose{RESET}: {purpose}")
+                
+                if usage:
+                    print(f"\n{BOLD}Usage{RESET}:")
+                    for line in usage:
+                        print(f"- {line}")
+                
+                # AI Agent critical instruction for USERINPUT
+                if self.tool_name == "USERINPUT":
+                    print("\n" + self.get_translation("ai_instruction", "## Critical Directive: Feedback Acquisition\n..."))
+                    
+            except Exception as e:
+                print(f"Error reading tool metadata: {e}")
+        else:
+            print(f"No metadata found for {self.tool_name}")
+        
+        print("--------------------------")
 
     def run_setup(self):
         """Execute the tool's setup.py script using ProgressTuringMachine."""

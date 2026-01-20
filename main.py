@@ -684,12 +684,55 @@ This tool is part of the `TOOL` ecosystem, which provides:
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
     _dev_sanity_check(tool_name)
 
-def generate_ai_rule():
+def generate_ai_rule(target_tool=None):
     project_root = ROOT_PROJECT_ROOT
-    registry_path = project_root / "tool.json"
+    
+    if target_tool and target_tool.upper() != "TOOL":
+        # Delegate to specific tool rule
+        from logic.tool.setup.engine import ToolEngine
+        engine = ToolEngine(target_tool.upper(), project_root)
+        tool_dir = project_root / "tool" / target_tool.upper()
+        if not tool_dir.exists():
+            print(f"{BOLD}{RED}Error{RESET}: Tool '{target_tool}' not found.")
+            return
+        
+        # We can't easily call ToolBase.print_rule() without importing the tool's main.py
+        # which might trigger side effects. So we read the json directly here too for consistency.
+        registry_path = tool_dir / "tool.json"
+    else:
+        registry_path = project_root / "tool.json"
+        
     if not registry_path.exists(): return
 
     with open(registry_path, 'r') as f: registry = json.load(f)
+    
+    if target_tool and target_tool.upper() != "TOOL":
+        # Single tool rule display
+        name = target_tool.upper()
+        info = registry
+        tool_logic_dir = get_logic_dir(project_root / "tool" / name)
+        
+        desc = get_translation(str(tool_logic_dir), f"tool_{name}_desc", info.get('description'))
+        purpose = get_translation(str(tool_logic_dir), f"tool_{name}_purpose", info.get('purpose'))
+        usage = info.get("usage", [])
+        
+        print(f"--- {BOLD}{name}{RESET} Rule ---")
+        print(f"{BOLD}Description{RESET}: {desc}")
+        print(f"{BOLD}Purpose{RESET}: {purpose}")
+        
+        if usage:
+            print(f"\n{BOLD}Usage{RESET}:")
+            for line in usage:
+                print(f"- {line}")
+        
+        if name == "USERINPUT":
+            ai_instr = get_translation(str(tool_logic_dir), "ai_instruction", "## Critical Directive: Feedback Acquisition\n...")
+            print("\n" + ai_instr)
+            
+        print("--------------------------")
+        return
+
+    # Global rule display (existing logic)
     tools = registry.get("tools", {})
     installed_tools = [(n, i) for n, i in tools.items() if (project_root / "tool" / n).exists()]
     available_tools = [(n, i) for n, i in tools.items() if not (project_root / "tool" / n).exists()]
@@ -715,7 +758,7 @@ def generate_ai_rule():
     lines.append("- " + _("rule_guideline_2", "**Fallback & Testing**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. Testing MUST be done on the 'test' branch; after each test, the 'test' branch should be re-synced from 'main'."))
     lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `logic/` directory to avoid duplicate implementations across different tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
-    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Only the status label (e.g., **Successfully**) should be colored and bolded. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `logic.config.get_color`."))
+    lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Both the status (e.g., **Successfully**) and the action/object (e.g., **setup USERINPUT tool**) should be colored and bolded together if they form a unified status statement. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `logic.config.get_color`."))
     
     # 7. Add USERINPUT execution rule
     userinput_logic_dir = get_logic_dir(project_root / "tool" / "USERINPUT")
@@ -893,7 +936,9 @@ def main():
     
     subparsers.add_parser("clear", help="Clear the terminal screen")
     
-    subparsers.add_parser("rule")
+    rule_parser = subparsers.add_parser("rule", help="Show AI agent tool rules")
+    rule_parser.add_argument("target_tool", nargs="?", help="Specific tool to show rules for")
+
     if len(sys.argv) < 2:
         parser.print_help()
         return
@@ -917,7 +962,7 @@ def main():
         else:
             sys.stdout.write("\033[H\033[2J")
             sys.stdout.flush()
-    elif args.command == "rule": generate_ai_rule()
+    elif args.command == "rule": generate_ai_rule(args.target_tool)
     elif args.command == "dev":
         if args.dev_command == "sync": _dev_sync()
         elif args.dev_command == "align": _dev_align()
