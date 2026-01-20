@@ -13,6 +13,11 @@ class ToolBase:
         self.tool_name = tool_name
         self.script_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
         self.project_root = self.script_dir.parent.parent
+        
+        # Ensure project root is in path for imports
+        if str(self.project_root) not in sys.path:
+            sys.path.append(str(self.project_root))
+            
         self.tool_json_path = self.script_dir / "tool.json"
         self.dependencies = []
         self._load_metadata()
