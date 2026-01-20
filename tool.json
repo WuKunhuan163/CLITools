@@ -1,7 +1,10 @@
 {
+  "dependencies": [
+    "psutil"
+  ],
   "tools": {
     "PYTHON": {
-      "description": "Standalone Python 3.10 environment to ensure GUI and dependency compatibility.",
+      "description": "Standalone Python 3.11 environment to ensure GUI and dependency compatibility.",
       "purpose": "Provide a consistent Python runtime for other tools."
     },
     "USERINPUT": {
@@ -11,102 +14,12 @@
         "PYTHON"
       ]
     },
-    "GOOGLE_DRIVE": {
-      "description": "Advanced shell for Google Drive (GDS) with background tasks and remote execution.",
-      "purpose": "Manage remote files and execute heavy tasks in Colab/Drive.",
-      "dependencies": [
-        "PYTHON"
-      ]
-    },
-    "ALIAS": {
-      "description": "Manage permanent shell aliases across different shell profiles.",
-      "purpose": "Create and organize helpful terminal shortcuts."
-    },
-    "DOWNLOAD": {
-      "description": "Robust file downloader with support for various protocols.",
-      "purpose": "Fetch resources from the web reliably."
-    },
-    "EXPORT": {
-      "description": "Manage persistent environment variables.",
-      "purpose": "Configure project-wide or system-wide settings."
-    },
-    "EXTRACT_PDF": {
-      "description": "Enhanced PDF extraction using MinerU with layout preservation.",
-      "purpose": "Convert PDFs to structured markdown.",
-      "dependencies": [
-        "PYTHON"
-      ]
-    },
-    "EXTRACT_IMG": {
-      "description": "Intelligent image analysis and OCR.",
-      "purpose": "Extract text and meaning from images.",
-      "dependencies": [
-        "PYTHON"
-      ]
-    },
-    "FILEDIALOG": {
-      "description": "GUI-based file and directory selection dialog.",
-      "purpose": "Let users select local files for the Agent to process.",
-      "dependencies": [
-        "PYTHON"
-      ]
-    },
-    "IMG2TEXT": {
-      "description": "Vision-based image description using Gemini API.",
-      "purpose": "Understand complex image content through natural language.",
-      "dependencies": [
-        "PYTHON"
-      ]
-    },
-    "LEARN": {
-      "description": "AI-powered learning assistant for papers and tutorials.",
-      "purpose": "Summarize and explain complex topics interactively."
-    },
-    "OPENROUTER": {
-      "description": "Unified interface for various LLMs via OpenRouter.",
-      "purpose": "Access diverse AI models through a single API."
-    },
-    "OVERLEAF": {
-      "description": "Local LaTeX compilation and template management.",
-      "purpose": "Build PDFs from LaTeX sources easily.",
-      "dependencies": [
-        "PYTHON",
-        "USERINPUT"
-      ]
-    },
-    "RUN": {
-      "description": "Tool wrapper that captures output in structured JSON.",
-      "purpose": "Enable programmatic access to tool results for the Agent."
-    },
-    "SEARCH_PAPER": {
-      "description": "Academic paper search across arXiv and Google Scholar.",
-      "purpose": "Find and download research papers."
-    },
-    "UNIMERNET": {
-      "description": "Formula and table extraction from images.",
-      "purpose": "Digitize complex math and tabular data.",
-      "dependencies": [
-        "PYTHON"
-      ]
-    },
-    "LINTER": {
-      "description": "Multi-language code quality and syntax checker.",
-      "purpose": "Ensure code correctness before committing."
-    },
-    "NETWORK": {
-      "description": "Network performance and connectivity testing.",
-      "purpose": "Diagnose connection issues."
-    },
     "BACKGROUND": {
       "description": "Manage long-running background processes safely.",
       "purpose": "Run tasks without blocking the agent's execution.",
       "dependencies": [
         "PYTHON"
       ]
-    },
-    "NEWTOOL": {
-      "description": "Template tool NEWTOOL",
-      "purpose": "Showcase tool development guidelines"
     }
   }
 }
