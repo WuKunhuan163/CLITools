@@ -14,8 +14,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 try:
-    from logic.lang.utils import get_translation
-    from logic.utils import get_logic_dir
+    from logic_internal.lang.utils import get_translation
+    from logic_internal.utils import get_logic_dir
 except ImportError:
     def get_translation(d, k, default): return default
     def get_logic_dir(d): return d / "logic"
@@ -45,7 +45,7 @@ def main():
         print("\033[1;31mError\033[0m: PYTHON tool binary not found.")
         sys.exit(1)
         
-    from logic.utils import regularize_version_name, get_system_tag
+    from logic_internal.utils import regularize_version_name, get_system_tag
     version = regularize_version_name(args.py_version)
 
     try:
@@ -55,7 +55,7 @@ def main():
         # If it failed, show the error
         try:
             sys.path.append(str(script_dir))
-            from logic.utils import print_python_not_found_error
+            from logic_internal.utils import print_python_not_found_error
             print_python_not_found_error("USERINPUT", version, script_dir, _)
         except Exception:
             print(f"\033[1;31mError\033[0m: Failed to install {version}.")

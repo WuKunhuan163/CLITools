@@ -40,10 +40,10 @@ warnings.filterwarnings('ignore')
 current_dir = Path(__file__).resolve().parent
 
 try:
-    from logic.tool.base import ToolBase
-    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
-    from logic.lang.utils import get_translation
-    from logic.utils import get_logic_dir
+    from logic_internal.tool.base import ToolBase
+    from logic_internal.gui.engine import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
+    from logic_internal.lang.utils import get_translation
+    from logic_internal.utils import get_logic_dir
 except ImportError:
     # Fallback
     class ToolBase:
@@ -66,7 +66,7 @@ except ImportError:
     def get_translation(d, k, default): return default
     def get_logic_dir(d): return d / "logic"
 
-TOOL_INTERNAL = current_dir / "logic"
+TOOL_INTERNAL = current_dir / "logic_internal"
 
 def get_msg(key, default, **kwargs):
     global _tool_instance
@@ -131,7 +131,7 @@ class UserInputTool(ToolBase):
             if python_exec_win.exists(): return str(python_exec_win)
 
         try:
-            from logic.utils import print_python_not_found_error
+            from logic_internal.utils import print_python_not_found_error
             print_python_not_found_error(self.tool_name, version, self.script_dir, get_msg)
         except ImportError:
             BOLD = "\033[1m"
@@ -208,12 +208,12 @@ if PROJECT_ROOT.exists():
     sys.path.append(str(PROJECT_ROOT))
 
 try:
-    from logic.gui.base import BaseGUIWindow, setup_common_bottom_bar
-    from logic.gui.engine import setup_gui_environment
-    from logic.gui.style import get_label_style, get_gui_colors
+    from logic_internal.gui.base import BaseGUIWindow, setup_common_bottom_bar
+    from logic_internal.gui.engine import setup_gui_environment
+    from logic_internal.gui.style import get_label_style, get_gui_colors
 except ImportError:
     # Fallbacks would be here, but we prefer the shared logic
-    sys.exit("Error: Could not import logic.gui.base")
+    sys.exit("Error: Could not import logic_internal.gui.base")
 
 import tkinter as tk
 
@@ -336,7 +336,7 @@ if __name__ == "__main__":
         # Use start_new_session=True to decouple from the parent terminal's process group
         proc = subprocess.Popen([python_exe, tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                                 text=True, encoding='utf-8', start_new_session=True)
-        from logic.config import get_color
+        from logic_internal.config import get_color
         BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
         
         # Display PID for precise termination if needed
@@ -467,10 +467,10 @@ def main():
             print(msg)
         return 0
     elif args.command in ["stop", "submit", "cancel", "add_time"]:
-        from logic.gui.manager import handle_gui_remote_command
+        from logic_internal.gui.manager import handle_gui_remote_command
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, unknown, get_msg)
 
-    from logic.config import get_color
+    from logic_internal.config import get_color
     BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
     
     for attempt in range(3):
