@@ -237,25 +237,27 @@ def _dev_align():
         print(f"{BOLD}{RED}Error{RESET}: Alignment must start from 'dev' branch. Current: {start_branch}")
         return
 
-    # Check for uncommitted changes on dev
+    # Auto-commit local changes on dev if any
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            print(f"{BOLD}{RED}Error{RESET}: Uncommitted changes on 'dev'. Please commit or stash them first.")
-            return
+            auto_commit_label = _("label_auto_committing", "Auto-committing")
+            print(f"{BOLD}{BLUE}{auto_commit_label}{RESET} local changes on 'dev'...")
+            subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
+            subprocess.run(["git", "commit", "-m", "Auto-commit before alignment"], check=True, cwd=str(project_root))
     except: pass
 
     try:
         # 1. Update 'tool' branch
         print(f"{BOLD}{BLUE}Aligning 'tool' branch...{RESET}")
-        subprocess.run(["git", "checkout", "tool"], check=True, cwd=str(project_root))
+        subprocess.run(["git", "checkout", "-f", "tool"], check=True, cwd=str(project_root))
         # Reset tool branch to dev's state completely
         subprocess.run(["git", "reset", "--hard", "dev"], check=True, cwd=str(project_root))
         subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
         
         # 2. Update 'main' branch
         print(f"{BOLD}{BLUE}Aligning 'main' branch...{RESET}")
-        subprocess.run(["git", "checkout", "main"], check=True, cwd=str(project_root))
+        subprocess.run(["git", "checkout", "-f", "main"], check=True, cwd=str(project_root))
         # Reset main branch to tool's state (which is now dev's state)
         subprocess.run(["git", "reset", "--hard", "tool"], check=True, cwd=str(project_root))
         
@@ -339,19 +341,23 @@ def _dev_reset():
 def _dev_enter(branch, force=False):
     """Switch to main or test branch safely."""
     project_root = ROOT_PROJECT_ROOT
-    cmd = ["git", "checkout", branch]
     try:
         if force:
+            print(f"{BOLD}{BLUE}Force switching to {branch} branch...{RESET}")
             subprocess.run(["git", "checkout", "-f", branch], cwd=str(project_root), check=True)
             subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
         else:
-            res = subprocess.run(cmd, cwd=str(project_root))
-            if res.returncode != 0:
-                warning_label = _("warning_label", "Warning")
-                print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("switch_failed_hint", "Failed to switch branch. Use --force to discard local changes."))
-            else:
-                # Always clean when entering test/main to remove leftover ignored files
-                subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
+            # Auto-commit local changes if any
+            status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+            if status:
+                auto_commit_label = _("label_auto_committing", "Auto-committing")
+                print(f"{BOLD}{BLUE}{auto_commit_label}{RESET} local changes before switching...")
+                subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
+                subprocess.run(["git", "commit", "-m", f"Auto-commit before entering {branch}"], check=True, cwd=str(project_root))
+            
+            subprocess.run(["git", "checkout", branch], cwd=str(project_root), check=True)
+            # Always clean when entering test/main to remove leftover ignored files
+            subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
     except Exception as e:
         error_label = _("error_label", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
