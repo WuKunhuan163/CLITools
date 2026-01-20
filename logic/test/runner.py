@@ -65,29 +65,37 @@ class TestRunner:
             print(f"  [{i}] {test.name}")
 
     def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60):
-        all_tests = self._get_test_files()
-        if not all_tests:
-            print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
-            return
-
-        if start_id is not None or end_id is not None:
-            start = start_id if start_id is not None else 0
-            end = end_id if end_id is not None else len(all_tests) - 1
-            selected_tests = all_tests[start:end+1]
-        else:
-            selected_tests = all_tests
-
-        if not selected_tests:
-            print(self._("test_no_selected", "No tests selected in the specified range."))
-            return
-
-        print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
+        # Default unit tests to English as requested by user
+        old_lang = os.environ.get("TOOL_LANGUAGE")
+        os.environ["TOOL_LANGUAGE"] = "en"
         
-        # Parallel execution logic
-        self._run_parallel_tests(selected_tests, max_concurrent, timeout)
-        
-        # Cleanup resources
-        self._cleanup_resources()
+        try:
+            all_tests = self._get_test_files()
+            if not all_tests:
+                print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
+                return
+
+            if start_id is not None or end_id is not None:
+                start = start_id if start_id is not None else 0
+                end = end_id if end_id is not None else len(all_tests) - 1
+                selected_tests = all_tests[start:end+1]
+            else:
+                selected_tests = all_tests
+
+            if not selected_tests:
+                print(self._("test_no_selected", "No tests selected in the specified range."))
+                return
+
+            print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
+            
+            # Parallel execution logic
+            self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+            
+            # Cleanup resources
+            self._cleanup_resources()
+        finally:
+            if old_lang: os.environ["TOOL_LANGUAGE"] = old_lang
+            else: os.environ.pop("TOOL_LANGUAGE", None)
 
     def _get_test_files(self):
         test_dir = self.tool_dir / "test"

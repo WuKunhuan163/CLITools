@@ -1,4 +1,5 @@
 import sys
+import os
 import threading
 import shutil
 import re
@@ -26,28 +27,15 @@ def _get_configured_width():
 def wrap_text(text, width):
     """
     Manually wrap text to a specific width, taking multi-byte characters into account.
-    Ensures that CJK characters are not split across lines and prefers wrapping at 
-    spaces for Western/Arabic text.
+    Ensures that CJK characters are not split across lines.
     """
     if not text: return []
     if width <= 0: return [text]
     
     lines = []
-    # Temporarily remove ANSI codes for wrapping logic to be simpler, 
-    # though we should keep them. For now, let's keep the existing logic 
-    # but try to be smarter about word boundaries.
-    
     current_line = ""
     current_width = 0
-    
-    # Split text into tokens (words and spaces and individual CJK/Arabic chars)
-    # This is complex. Let's stick to a simpler "break-at-width" but 
-    # if we are about to break, check if we can backtrack to a space.
-    
     i = 0
-    last_space_idx = -1
-    last_space_line_width = 0
-    
     while i < len(text):
         if text[i] == '\x1B':
             j = i
@@ -65,24 +53,11 @@ def wrap_text(text, width):
             continue
 
         char_w = get_visible_len(char)
-        
         if current_width + char_w > width:
-            if last_space_idx != -1 and current_width < width:
-                # We have a space we can break at
-                # Extract up to the last space
-                # But wait, text[last_space_idx] might be in a different line now?
-                # No, last_space_idx is absolute. 
-                # This is getting complicated. 
-                pass
-            
             lines.append(current_line)
             current_line = char
             current_width = char_w
-            last_space_idx = -1
         else:
-            if char == ' ':
-                last_space_idx = i
-                last_space_line_width = current_width
             current_line += char
             current_width += char_w
         i += 1
@@ -140,14 +115,10 @@ class MultiLineManager:
         # Enforce single-line for active workers, allow multi-line for finalized
         processed_text = " | ".join([line.strip() for line in text.splitlines() if line.strip()])
         
-        # Add RTL markers if global RTL mode is enabled
-        if get_rtl_mode():
-            # \u200f (RLM) + \u202b (RLE) + text + \u202c (PDF)
-            processed_text = f"\u200f\u202b{processed_text}\u202c"
-
         with self.lock:
             curr_width = self._get_current_width()
             now = time.time()
+            is_rtl = get_rtl_mode()
             
             # 1. Handle resize
             if curr_width != self.last_width and now - self.last_resize_time > 1.0:
@@ -167,8 +138,16 @@ class MultiLineManager:
                 # Print new slot at bottom
                 if not is_final:
                     display_text = truncate_to_width(processed_text, curr_width)
+                    if is_rtl:
+                        v_len = get_visible_len(display_text)
+                        if v_len < curr_width:
+                            # Pad on LEFT for LTR terminal right-alignment
+                            display_text = " " * (curr_width - v_len - 1) + display_text
                 else:
                     wrapped = wrap_text(processed_text, curr_width)
+                    if is_rtl:
+                        # Pad on LEFT for each line
+                        wrapped = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in wrapped]
                     display_text = "\n".join(wrapped)
                 
                 sys.stdout.write(f"\r\033[K{display_text}\n")
@@ -192,7 +171,6 @@ class MultiLineManager:
             new_height = slot.calculate_height(curr_width)
             
             # Distance from logical bottom to the START of this slot
-            # Uses OLD height because we are still at the old bottom
             dist_to_start = sum(s.height for s in self.slots[slot_idx+1:])
             total_up = dist_to_start + old_height
             
@@ -200,8 +178,7 @@ class MultiLineManager:
             slot.height = new_height
             
             # Safety: don't jump up more than what we've printed
-            # The manager's territory starts at (current_bottom - total_current_height)
-            current_total_height = sum(s.height for i, s in enumerate(self.slots)) # After update
+            current_total_height = sum(s.height for s in self.slots)
             old_total_height = current_total_height - new_height + old_height
             total_up = min(total_up, old_total_height)
 
@@ -217,19 +194,31 @@ class MultiLineManager:
                     
                     if not s.is_final:
                         d_text = truncate_to_width(s.text, curr_width)
+                        if is_rtl:
+                            v_len = get_visible_len(d_text)
+                            if v_len < curr_width:
+                                # Left-padding
+                                d_text = " " * (curr_width - v_len - 1) + d_text
                     else:
                         w_lines = wrap_text(s.text, curr_width)
+                        if is_rtl:
+                            w_lines = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in w_lines]
                         d_text = "\n".join(w_lines)
                     
                     sys.stdout.write(f"{d_text}\n")
                 
-                # Update our safety counter if we grew
                 self.total_height_ever_printed = max(self.total_height_ever_printed, sum(s.height for s in self.slots))
             else:
                 # Simple jump and overwrite
+                display_text = truncate_to_width(processed_text, curr_width)
+                if is_rtl:
+                    v_len = get_visible_len(display_text)
+                    if v_len < curr_width:
+                        display_text = " " * (curr_width - v_len - 1) + display_text
+                
                 if total_up > 0:
                     sys.stdout.write(f"\033[{total_up}A\r")
-                sys.stdout.write(f"\033[K{truncate_to_width(processed_text, curr_width)}")
+                sys.stdout.write(f"\033[K{display_text}")
                 if total_up > 0:
                     sys.stdout.write(f"\033[{total_up}B\r")
             
@@ -252,20 +241,27 @@ class MultiLineManager:
     def _redraw_from(self, start_idx, width):
         """Redraw all slots from start_idx to bottom."""
         total_height_below = sum(s.height for s in self.slots[start_idx:])
-        # Safety: don't jump up more than total printed height
         total_height_below = min(total_height_below, self.total_height_ever_printed)
         
         if total_height_below > 0:
             sys.stdout.write(f"\033[{total_height_below}A\r")
         
+        is_rtl = get_rtl_mode()
         for i in range(start_idx, len(self.slots)):
             slot = self.slots[i]
             sys.stdout.write("\033[J") 
             if not slot.is_final:
                 display_text = truncate_to_width(slot.text, width)
+                if is_rtl:
+                    v_len = get_visible_len(display_text)
+                    if v_len < width:
+                        display_text = " " * (width - v_len - 1) + display_text
             else:
                 wrapped = wrap_text(slot.text, width)
+                if is_rtl:
+                    wrapped = [(" " * (width - get_visible_len(line) - 1) + line) if get_visible_len(line) < width else line for line in wrapped]
                 display_text = "\n".join(wrapped)
+            
             sys.stdout.write(f"{display_text}\n")
         sys.stdout.flush()
 
