@@ -263,8 +263,14 @@ def _dev_align():
         for d in ["tool", "resource", "data", "tmp"]:
             p = project_root / d
             if p.exists():
-                if p.is_dir(): shutil.rmtree(p)
-                else: p.unlink()
+                # Use git rm to remove from both index and disk
+                subprocess.run(["git", "rm", "-rf", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+                # Fallback to manual removal if still on disk
+                if p.exists():
+                    try:
+                        if p.is_dir(): shutil.rmtree(p)
+                        else: p.unlink()
+                    except: pass
         
         # Clean up untracked files (including err.txt, out.txt, etc)
         # Use -x to remove ignored files as well (since .gitignore has '*')
