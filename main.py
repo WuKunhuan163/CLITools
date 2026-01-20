@@ -351,9 +351,11 @@ def _dev_align():
     ))
 
     try:
-        if tm.run(ephemeral=True):
-            success_label = _("alignment_complete", "Alignment complete.")
-            print(f"{BOLD}{GREEN}{success_label}{RESET}")
+        success_label = _("alignment_complete", "Alignment complete.")
+        final_msg = f"{BOLD}{GREEN}{success_label}{RESET}\n"
+        
+        if tm.run(ephemeral=True, final_msg=final_msg):
+            pass # final_msg handles output
         
         # Ensure we end up back on 'dev'
         run_git(["checkout", "-f", "dev"])
