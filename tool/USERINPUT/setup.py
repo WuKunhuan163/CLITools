@@ -81,10 +81,11 @@ def main():
         import time
         time.sleep(2)
         
-        # Use surgical stop
-        print(f"Closing test window surgically (PID: {proc.pid})...")
-        stop_cmd = [str(project_root / "bin" / "USERINPUT"), "stop", str(proc.pid)]
-        subprocess.run(stop_cmd, capture_output=True)
+        # Use surgical stop - send SUBMIT remotely to close immediately
+        print(f"Closing test window surgically via remote submit (PID: {proc.pid})...")
+        # We use 'submit' to simulate a real user interaction
+        stop_cmd = ["python3", str(script_dir / "main.py"), "submit", str(proc.pid)]
+        subprocess.run(stop_cmd, env=env, capture_output=True)
         
         # Wait for process to exit
         try:
