@@ -13,17 +13,17 @@ script_dir = Path(__file__).resolve().parent
 # project_root is two levels up: tool/PYTHON -> tool -> root
 project_root = script_dir.parent.parent
 
-# Add the directory containing 'core' to sys.path
+# Add the directory containing 'logic' to sys.path
 sys.path.append(str(script_dir))
-from core.utils import get_python_exec, extract_resource
-from core.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+from logic.utils import get_python_exec, extract_resource
+from logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
 # Try to import colors and shared utils from root proj
 sys.path.append(str(project_root))
 try:
-    from proj.config import get_color
-    from proj.lang.utils import get_translation
-    from proj.tool_base import ToolBase
+    from logic.config import get_color
+    from logic.lang.utils import get_translation
+    from logic.tool.base import ToolBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default
@@ -41,11 +41,11 @@ except ImportError:
             return False
 
 # Root shared proj for translation
-SHARED_PROJ_DIR = project_root / "proj"
+SHARED_PROJ_DIR = project_root / "logic"
 
 def _(translation_key, default, **kwargs):
     # Try tool-specific translation first
-    text = get_translation(str(script_dir / "core"), translation_key, None)
+    text = get_translation(str(script_dir / "logic"), translation_key, None)
     if text is None:
         # Fallback to root translation
         text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
@@ -168,7 +168,7 @@ def main():
         sys.exit(0)
 
     if args.py_update:
-        update_script = script_dir / "core" / "update.py"
+        update_script = script_dir / "logic" / "update.py"
         if update_script.exists():
             subprocess.run([sys.executable, str(update_script)] + unknown)
             sys.exit(0)

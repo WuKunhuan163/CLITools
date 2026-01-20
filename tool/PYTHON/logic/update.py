@@ -28,13 +28,13 @@ try:
     # Priority for tool-specific logic
     sys.path.insert(0, str(python_tool_dir))
     
-    from proj.lang.utils import get_translation
-    from proj.config import get_color
-    from proj.utils import get_system_tag, regularize_version_name, run_with_progress
-    from proj.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
-    from proj.audit.utils import AuditManager
+    from logic.lang.utils import get_translation
+    from logic.config import get_color
+    from logic.utils import get_system_tag, regularize_version_name, run_with_progress
+    from logic.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
+    from logic.audit.utils import AuditManager
     
-    from core.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
+    from logic.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 except ImportError as e:
     # Basic fallbacks
     def get_translation(dir, key, default): return default
@@ -53,18 +53,19 @@ except ImportError as e:
     class StepResult:
         def __init__(self, d, state=None, is_final=False): self.display_text=d; self.state=state; self.is_final=is_final
     class AuditManager:
-        def __init__(self, d, **kwargs): self.audit_dir = Path(d)
+        def __init__(self, d, **kwargs): self.audit_dir = Path(d).resolve()
         def load(self, n): return {}
         def save(self, n, d): pass
         def print_cache_warning(self, **kwargs): pass
-    DATA_DIR = Path("data")
-    AUDIT_DIR = Path("data/audit")
-    RESOURCE_ROOT = Path("resource")
-    TMP_INSTALL_DIR = Path("tmp/install")
+    
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+    DATA_DIR = PROJECT_ROOT / "tool" / "PYTHON" / "data"
+    AUDIT_DIR = DATA_DIR / "audit"
+    RESOURCE_ROOT = PROJECT_ROOT / "resource" / "tool" / "PYTHON" / "data" / "install"
+    TMP_INSTALL_DIR = PROJECT_ROOT / "tmp" / "install"
     DEFAULT_CONCURRENCY = 1
-    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
-PYTHON_TOOL_DIR = project_root / "tool" / "PYTHON"
+PYTHON_TOOL_DIR = PROJECT_ROOT / "tool" / "PYTHON"
 
 # Build full command for cache warning
 full_cmd = "PYTHON --py-update"
@@ -91,7 +92,7 @@ def print_erasable(msg):
     sys.stdout.flush()
 
 def _(key, default, **kwargs):
-    return get_translation(str(PYTHON_TOOL_DIR / "core"), key, default).format(**kwargs)
+    return get_translation(str(PYTHON_TOOL_DIR / "logic"), key, default).format(**kwargs)
 
 def resolve_platform(asset_name):
     mappings = {
