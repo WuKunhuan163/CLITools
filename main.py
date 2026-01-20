@@ -259,7 +259,8 @@ def _dev_align():
         print(f"{BOLD}{BLUE}Aligning 'main' branch...{RESET}")
         subprocess.run(["git", "checkout", "-f", "main"], check=True, cwd=str(project_root))
         # Reset main branch to tool's state (which is now dev's state)
-        subprocess.run(["git", "reset", "--hard", "tool"], check=True, cwd=str(project_root))
+        # Use refs/heads/tool to avoid ambiguity with 'tool' directory
+        subprocess.run(["git", "reset", "--hard", "refs/heads/tool"], check=True, cwd=str(project_root))
         
         # Remove restricted folders on main
         for d in ["tool", "resource", "data", "tmp"]:
