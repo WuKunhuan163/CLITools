@@ -23,6 +23,12 @@ import threading
 import tempfile
 from pathlib import Path
 
+# Add project root to sys.path to find 'logic' module
+script_dir = Path(__file__).resolve().parent
+project_root = script_dir.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 # Silence Tkinter deprecation warnings
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
 warnings.filterwarnings('ignore')

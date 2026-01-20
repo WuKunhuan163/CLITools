@@ -13,13 +13,16 @@ script_dir = Path(__file__).resolve().parent
 # project_root is two levels up: tool/PYTHON -> tool -> root
 project_root = script_dir.parent.parent
 
+# Add root project to sys.path first to find 'logic' module
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 # Add the directory containing 'logic' to sys.path
 sys.path.append(str(script_dir))
 from logic.utils import get_python_exec, extract_resource
 from logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
 # Try to import colors and shared utils from root proj
-sys.path.append(str(project_root))
 try:
     from logic.config import get_color
     from logic.lang.utils import get_translation
@@ -121,7 +124,7 @@ def main():
     shorthand_version = None
     filtered_args = []
     
-    from core.utils import get_system_tag
+    from logic.utils import get_system_tag
     tag = get_system_tag()
     install_root = INSTALL_DIR
 
@@ -272,7 +275,7 @@ def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
     
     # Compatibility layer: handle 'python' prefix and platform tags
-    from core.utils import get_system_tag, regularize_version_name
+    from logic.utils import get_system_tag, regularize_version_name
     tag = get_system_tag()
     
     # Try exact match first
@@ -320,7 +323,7 @@ def _install_version(version, install_dir=None):
     try:
         source_dir_rel = str(RESOURCE_ROOT.relative_to(project_root) / version)
         full_source_path = RESOURCE_ROOT / version
-        from core.utils import extract_resource
+        from logic.utils import extract_resource
         
         resource_ready = False
         zst_files = []
