@@ -66,7 +66,7 @@ except ImportError:
     def get_translation(d, k, default): return default
     def get_logic_dir(d): return d / "logic"
 
-TOOL_INTERNAL = current_dir / "logic_internal"
+TOOL_INTERNAL = current_dir / "logic"
 
 def get_msg(key, default, **kwargs):
     global _tool_instance
@@ -97,7 +97,7 @@ class UserInputTool(ToolBase):
         
         try:
             # Add logic directory to path to find config
-            logic_dir = self.project_root / "tool" / "PYTHON" / "logic_internal"
+            logic_dir = self.project_root / "tool" / "PYTHON" / "logic"
             if str(logic_dir) not in sys.path:
                 sys.path.append(str(logic_dir))
             from config import INSTALL_DIR
@@ -123,13 +123,9 @@ class UserInputTool(ToolBase):
             f"python{v}-{system_tag}", f"python3{v}-{system_tag}",
             f"{v}-macos-arm64", f"{v}-macos", f"{v}-linux64", f"{v}-linux64-musl"
         ]
-        
-        print(f"DEBUG: install_root={install_root}")
-        print(f"DEBUG: possible_dirs={possible_dirs}")
 
         for d in possible_dirs:
             python_exec = install_root / d / "install" / "bin" / "python3"
-            print(f"DEBUG: checking {python_exec}")
             if python_exec.exists(): return str(python_exec)
             python_exec_win = install_root / d / "install" / "python.exe"
             if python_exec_win.exists(): return str(python_exec_win)

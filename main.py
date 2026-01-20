@@ -60,8 +60,8 @@ def install_tool(tool_name):
                         break
         
         if not missing_dep:
-            success_status = _("python_install_success_status", "Successfully installed")
-            print(f"{BOLD}{GREEN}{success_status}{RESET}: " + _("already_installed", "{name} is already installed.", name=tool_name))
+            already_status = _("label_already_installed", "Already installed")
+            print(f"{BOLD}{GREEN}{already_status}{RESET}: {tool_name}")
             return
         else:
             print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_repair", "Tool '{name}' is missing dependencies. Repairing...", name=tool_name))

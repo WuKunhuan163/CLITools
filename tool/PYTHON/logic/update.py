@@ -34,7 +34,7 @@ try:
     from logic.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
     from logic.audit.utils import AuditManager
     
-    from logic_internal.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
+    from logic.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 except ImportError as e:
     # Basic fallbacks
     def get_translation(dir, key, default): return default
@@ -92,7 +92,7 @@ def print_erasable(msg):
     sys.stdout.flush()
 
 def _(key, default, **kwargs):
-    return get_translation(str(PYTHON_TOOL_DIR / "logic_internal"), key, default).format(**kwargs)
+    return get_translation(str(PYTHON_TOOL_DIR / "logic"), key, default).format(**kwargs)
 
 def resolve_platform(asset_name):
     mappings = {
