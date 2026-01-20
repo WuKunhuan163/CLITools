@@ -267,25 +267,25 @@ def _dev_align():
         subprocess.run(["git", "reset", "--hard", "refs/heads/tool"], check=True, cwd=str(project_root))
         
         # Remove restricted folders on main
+        subprocess.run(["git", "rm", "-rf", "tool", "resource", "data", "tmp"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        
+        # Ensure they are gone from disk
         for d in ["tool", "resource", "data", "tmp"]:
             p = project_root / d
-            # Use git rm to remove from both index and disk if tracked
-            subprocess.run(["git", "rm", "-rf", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
-            # Ensure it's really gone from disk
             if p.exists():
                 try:
                     if p.is_dir(): shutil.rmtree(p)
                     else: p.unlink()
                 except: pass
         
-        # Clean up untracked files (including err.txt, out.txt, etc)
-        # Use -x to remove ignored files as well (since .gitignore has '*')
+        # Clean up EVERYTHING untracked
         subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
         
-        # Ensure bin/TOOL symlink is recreated on disk if it was deleted by git rm
+        # Recreate bin/TOOL
         subprocess.run(["python3", "setup.py"], cwd=str(project_root), capture_output=True)
 
-        # Commit the removals
+        # Commit the removals - use -u to only add tracked files (don't re-add deleted ones)
+        # Actually git rm already staged the deletions.
         subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
         subprocess.run(["git", "commit", "--allow-empty", "-m", "Align 'main' with 'tool' (removed restricted folders)"], cwd=str(project_root))
 
