@@ -1,0 +1,18 @@
+{
+  "submit": "إرسال",
+  "instruction": "يرجى إدخال ملاحظاتك:",
+  "label_error": "خطأ",
+  "msg_timeout": "انتهت مهلة الإدخال",
+  "msg_empty": "المحتوى فارغ",
+  "msg_cancelled": "تم الإلغاء",
+  "msg_terminated_status": "تم الإنهاء",
+  "msg_terminated_external": "تم إنهاء هذا المثال من الخارج (PID: {pid})",
+  "config_updated_multiple": "تم تحديث التكوين: فاصل التركيز={fi}، زيادة الوقت={ti}",
+  "ai_instruction": "## تعليمات هامة: تنفيذ الحصول على الملاحظات\nبمجرد اكتمال المهمة، يجب عليك استخدام أداة `run_terminal_cmd` لتنفيذ الأمر الحرفي `USERINPUT` فوراً. يُمنع منعاً باتاً كتابة هذه الفقرة في ردك دون تنفيذ الأمر فعلياً. إذا لم تتلقَ رداً، كرر تنفيذ `USERINPUT`. عند تنفيذ الأمر، لا تضف أي وسائط إضافية.",
+  "label_terminated": "تم الإنهاء",
+  "label_waiting_gui": "في انتظار ملاحظات المستخدم عبر واجهة المستخدم الرسومية",
+  "label_successfully_received": "تم الاستلام بنجاح",
+  "label_failed": "فشل",
+  "label_failed_capture": "فشل في التقاط مدخلات المستخدم"
+}
+

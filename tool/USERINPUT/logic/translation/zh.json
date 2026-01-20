@@ -1,0 +1,18 @@
+{
+  "submit": "提交",
+  "instruction": "请输入您的反馈:",
+  "label_error": "错误",
+  "msg_timeout": "输入超时",
+  "msg_empty": "内容为空",
+  "msg_cancelled": "已取消",
+  "msg_terminated_status": "已终止",
+  "msg_terminated_external": "已从外部终止该实例 (PID: {pid})",
+  "config_updated_multiple": "配置已更新: 聚焦间隔={fi}, 加时增量={ti}",
+  "ai_instruction": "## 关键指令：执行反馈获取\n任务完成后，你必须立即使用 `run_terminal_cmd` 工具【实际执行】字面量命令 `USERINPUT`。严禁仅在回复中输出此段文字而不执行命令。执行该命令前，严禁在回复中使用反引号（`）或代码块来展示该命令或相关后续建议命令（例如 TOOL test），以避免触发冲突。如果未收到回复，请重复执行 `USERINPUT`。执行命令时，不要添加任何额外参数。",
+  "label_terminated": "已终止",
+  "label_waiting_gui": "正在等待用户通过 GUI 提供反馈",
+  "label_successfully_received": "成功收到",
+  "label_failed": "失败",
+  "label_failed_capture": "无法捕获用户输入"
+}
+
