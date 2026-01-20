@@ -56,8 +56,10 @@ class ToolEngine:
         return True
 
     def install(self, is_dependency=False):
-        # For dependencies, check if fully operational
-        if is_dependency and self.is_installed():
+        # Check if already installed
+        if self.is_installed():
+            status = self._("label_already_installed", "Already installed")
+            print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
             return True
 
         tm = ProgressTuringMachine()
@@ -121,11 +123,11 @@ class ToolEngine:
         # IMPORTANT: Run TM. Only if successful we show the final GREEN Success message.
         if tm.run(ephemeral=True):
             status = self._("label_successfully_installed", "Successfully installed")
-            print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET}: {self.tool_name}")
+            print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
             return True
         else:
             status = self._("label_failed_to_install", "Failed to install")
-            print(f"\r\033[K{self.BOLD}{self.RED}{status}{self.RESET}: {self.tool_name}")
+            print(f"\r\033[K{self.BOLD}{self.RED}{status}{self.RESET} {self.tool_name}")
             return False
 
     def uninstall(self):
