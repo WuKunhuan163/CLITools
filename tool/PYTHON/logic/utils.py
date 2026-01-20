@@ -27,16 +27,17 @@ def _(key, default, **kwargs):
     return text.format(**kwargs)
 
 def get_system_tag():
-    system = platform.system().lower()
+    system = sys.platform
     machine = platform.machine().lower()
-    if system == "darwin": return "macos"
+    if system == "darwin":
+        return "macos-arm64" if "arm" in machine or "aarch64" in machine else "macos"
     if system == "linux":
         try:
             out = subprocess.run(["ldd", "--version"], capture_output=True, text=True).stderr
             if "musl" in out.lower(): return "linux64-musl"
         except: pass
         return "linux64"
-    if system == "windows":
+    if system == "win32":
         if "arm" in machine: return "windows-arm64"
         return "windows-amd64" if "64" in machine else "windows-x86"
     return "unknown"
