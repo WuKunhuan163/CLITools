@@ -511,6 +511,10 @@ def get_python_tool_exec():
     except:
         return None
 
+def get_python_exec():
+    """Alias for get_python_tool_exec for backward compatibility."""
+    return get_python_tool_exec()
+
 def check_and_reexecute_with_python(tool_name, version="3.11.14"):
     """
     Ensure the current script is running with the correct PYTHON tool executable.
