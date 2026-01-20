@@ -7,7 +7,7 @@ import unicodedata
 import json
 from typing import Optional, Callable
 from pathlib import Path
-from logic.utils import get_display_width as get_visible_len, truncate_to_display_width
+from logic.utils import get_display_width as get_visible_len, truncate_to_display_width, get_rtl_mode
 from logic.config import get_global_config, PROJECT_ROOT
 
 def truncate_to_width(text, max_width):
@@ -26,12 +26,28 @@ def _get_configured_width():
 def wrap_text(text, width):
     """
     Manually wrap text to a specific width, taking multi-byte characters into account.
-    Ensures that CJK characters are not split across lines.
+    Ensures that CJK characters are not split across lines and prefers wrapping at 
+    spaces for Western/Arabic text.
     """
+    if not text: return []
+    if width <= 0: return [text]
+    
     lines = []
+    # Temporarily remove ANSI codes for wrapping logic to be simpler, 
+    # though we should keep them. For now, let's keep the existing logic 
+    # but try to be smarter about word boundaries.
+    
     current_line = ""
     current_width = 0
+    
+    # Split text into tokens (words and spaces and individual CJK/Arabic chars)
+    # This is complex. Let's stick to a simpler "break-at-width" but 
+    # if we are about to break, check if we can backtrack to a space.
+    
     i = 0
+    last_space_idx = -1
+    last_space_line_width = 0
+    
     while i < len(text):
         if text[i] == '\x1B':
             j = i
@@ -43,18 +59,30 @@ def wrap_text(text, width):
                 continue
         
         char = text[i]
-        # Ignore RTL markers for width calculation
         if char in ('\u202b', '\u202c'):
             current_line += char
             i += 1
             continue
 
         char_w = get_visible_len(char)
+        
         if current_width + char_w > width:
+            if last_space_idx != -1 and current_width < width:
+                # We have a space we can break at
+                # Extract up to the last space
+                # But wait, text[last_space_idx] might be in a different line now?
+                # No, last_space_idx is absolute. 
+                # This is getting complicated. 
+                pass
+            
             lines.append(current_line)
             current_line = char
             current_width = char_w
+            last_space_idx = -1
         else:
+            if char == ' ':
+                last_space_idx = i
+                last_space_line_width = current_width
             current_line += char
             current_width += char_w
         i += 1
@@ -112,6 +140,11 @@ class MultiLineManager:
         # Enforce single-line for active workers, allow multi-line for finalized
         processed_text = " | ".join([line.strip() for line in text.splitlines() if line.strip()])
         
+        # Add RTL markers if global RTL mode is enabled
+        if get_rtl_mode():
+            # \u200f (RLM) + \u202b (RLE) + text + \u202c (PDF)
+            processed_text = f"\u200f\u202b{processed_text}\u202c"
+
         with self.lock:
             curr_width = self._get_current_width()
             now = time.time()

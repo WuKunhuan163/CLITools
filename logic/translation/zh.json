@@ -33,6 +33,7 @@
   "shortcut_error": "为 {name} 工具创建快捷方式时出错: {error}",
   "updated_path": "已更新 {profile} 的 PATH. ",
   "config_updated": "全局配置已更新: {key} = {value}",
+  "config_updated_dynamic": "全局配置已更新: {key} 将动态计算",
   "registry_error": "错误: 全局 tool.json 未找到. ",
   "tool_not_in_registry": "错误: 工具 '{name}' 不在全局注册表中. ",
   "test_tool_not_found": "错误: 工具目录 {path} 未找到. ",
