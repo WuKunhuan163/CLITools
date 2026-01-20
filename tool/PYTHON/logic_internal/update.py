@@ -190,11 +190,11 @@ def get_remote_resources():
     try:
         from proj.git import list_remote_files, run_git_command
         run_git_command(["fetch", "origin", "tool"], cwd=str(PROJECT_ROOT))
-        rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
+        print(f"DEBUG: RESOURCE_ROOT={RESOURCE_ROOT}, PROJECT_ROOT={PROJECT_ROOT}"); rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
         lines = list_remote_files("tool", rel_path, remote="origin", cwd=str(PROJECT_ROOT))
     except:
         subprocess.run(["git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True)
-        rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
+        print(f"DEBUG: RESOURCE_ROOT={RESOURCE_ROOT}, PROJECT_ROOT={PROJECT_ROOT}"); rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
         cmd = ["git", "ls-tree", "-r", "origin/tool", rel_path]
         result = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True)
         lines = result.stdout.strip().split("\n") if result.returncode == 0 else []
