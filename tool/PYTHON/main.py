@@ -13,45 +13,42 @@ script_dir = Path(__file__).resolve().parent
 # project_root is two levels up: tool/PYTHON -> tool -> root
 project_root = script_dir.parent.parent
 
-# Add root logic to sys.path first to avoid shadowing
-sys.path.insert(0, str(project_root))
-from logic.utils import extract_resource, get_logic_dir
-from logic.config import get_color
-from logic.lang.utils import get_translation
-from logic.tool.base import ToolBase
+# Add the directory containing 'core' to sys.path
+sys.path.append(str(script_dir))
+from core.utils import get_python_exec, extract_resource
+from core.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
-# Import tool-specific logic
+# Try to import colors and shared utils from root proj
+sys.path.append(str(project_root))
 try:
-    from tool.PYTHON.logic.utils import get_python_exec, extract_resource
-    from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+    from proj.config import get_color
+    from proj.lang.utils import get_translation
+    from proj.tool_base import ToolBase
 except ImportError:
-    # Fallback using importlib
-    import importlib.util
-    def load_mod(name, path):
-        spec = importlib.util.spec_from_file_location(name, str(path))
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    
-    python_logic_utils = load_mod("python_logic_utils", script_dir / "logic" / "utils.py")
-    python_logic_config = load_mod("python_logic_config", script_dir / "logic" / "config.py")
-    
-    get_python_exec = python_logic_utils.get_python_exec
-    extract_resource = python_logic_utils.extract_resource
-    INSTALL_DIR = python_logic_config.INSTALL_DIR
-    RESOURCE_ROOT = python_logic_config.RESOURCE_ROOT
-    PROJECT_ROOT = python_logic_config.PROJECT_ROOT
-    get_rel_install_path = python_logic_config.get_rel_install_path
-    ensure_dirs = python_logic_config.ensure_dirs
+    def get_color(name, default="\033[0m"): return default
+    def get_translation(d, k, default): return default
+    class ToolBase:
+        def __init__(self, name):
+            self.tool_name = name
+            self.script_dir = Path(__file__).resolve().parent
+            self.project_root = self.script_dir.parent.parent
+        def handle_command_line(self):
+            if len(sys.argv) > 1 and sys.argv[1] == "setup":
+                setup_script = self.script_dir / "setup.py"
+                if setup_script.exists():
+                    subprocess.run([sys.executable, str(setup_script)] + sys.argv[2:])
+                    sys.exit(0)
+            return False
 
-TOOL_INTERNAL = get_logic_dir(script_dir)
+# Root shared proj for translation
+SHARED_PROJ_DIR = project_root / "proj"
 
 def _(translation_key, default, **kwargs):
     # Try tool-specific translation first
-    text = get_translation(str(TOOL_INTERNAL), translation_key, None)
+    text = get_translation(str(script_dir / "core"), translation_key, None)
     if text is None:
         # Fallback to root translation
-        text = get_translation(str(project_root / "logic"), translation_key, default)
+        text = get_translation(str(SHARED_PROJ_DIR), translation_key, default)
     return text.format(**kwargs)
 
 # Define commonly used colors with defaults
@@ -78,9 +75,6 @@ def _get_remote_versions():
     """Fetches the list of versions available in the remote 'tool' branch."""
     versions = []
     rel_path = RESOURCE_ROOT.relative_to(project_root)
-    
-    # Always fetch latest info
-    subprocess.run(["git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
     
     # Check origin/tool first
     cmd = ["git", "ls-tree", "-r", "--name-only", "origin/tool", str(rel_path)]
@@ -127,7 +121,7 @@ def main():
     shorthand_version = None
     filtered_args = []
     
-    from logic.utils import get_system_tag
+    from core.utils import get_system_tag
     tag = get_system_tag()
     install_root = INSTALL_DIR
 
@@ -158,7 +152,7 @@ def main():
         return
 
     if args.py_list:
-        _list_versions(unknown[0] if unknown else None)
+        _list_versions()
         return
 
     if args.py_install:
@@ -174,7 +168,7 @@ def main():
         sys.exit(0)
 
     if args.py_update:
-        update_script = TOOL_INTERNAL / "update.py"
+        update_script = script_dir / "core" / "update.py"
         if update_script.exists():
             subprocess.run([sys.executable, str(update_script)] + unknown)
             sys.exit(0)
@@ -247,122 +241,38 @@ def _uninstall_version(version, install_dir=None):
         error_label = _("label_error", "Error")
         print(f"{RED}{BOLD}{error_label}{RESET}: Version {version} is not installed.")
 
-def _list_versions(filter_str=None):
+def _list_versions():
     installed = []
     if INSTALL_DIR.exists():
         installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
     
     remote_versions = _get_remote_versions()
     
+    label = _("python_supported_versions", "Supported versions")
     if not remote_versions:
-        # Try to migrate at least one version to ensure list is not empty as suggested
-        update_script = TOOL_INTERNAL / "update.py"
-        if update_script.exists():
-            action = _("python_fetching_resource", "Fetching resources...")
-            print_erasable(f"{BLUE}{BOLD}{action}{RESET}")
-            subprocess.run([sys.executable, str(update_script), "--limit-releases", "1"], capture_output=True)
-            sys.stdout.write("\r\033[K")
-            remote_versions = _get_remote_versions()
-
-    if not remote_versions:
-        label = _("python_supported_versions", "Supported versions")
         print(f"{BOLD}{label}{RESET}:")
         print("  (No versions found on remote 'tool' branch. Use 'PYTHON --py-update' to migrate some.)")
-        return
-
-    # Helper for counting and grouping
-    def get_count_label(prefix, versions):
-        matches = [v for v in versions if v.startswith(prefix)]
-        return len(matches), matches
-
-    if not filter_str:
-        # Level 1: python<a>.<b> (<count>)
-        groups = {}
-        for v in remote_versions:
-            # v format: X.Y.Z-platform or pythonX.Y.Z-platform
-            v_clean = v[6:] if v.startswith("python") else v
-            v_match = re.match(r"(\d+\.\d+)", v_clean)
-            if v_match:
-                minor = v_match.group(1)
-                prefix = f"python{minor}"
-                if prefix not in groups:
-                    groups[prefix] = 0
-                groups[prefix] += 1
-        
-        label = _("python_supported_versions", "Supported versions")
-        print(f"{BOLD}{label}{RESET}:")
-        for prefix in sorted(groups.keys(), key=lambda x: [int(i) for i in re.findall(r"\d+", x)], reverse=True):
-            hint = _("python_list_level1_hint", " (Use {BOLD}PYTHON --py-list {prefix}{RESET} to see specific {count} versions)", 
-                     BOLD=BOLD, RESET=RESET, prefix=prefix, count=groups[prefix])
-            print(f"  - {prefix} ({groups[prefix]}){hint}")
-            
-    elif re.match(r"^python\d+\.\d+$", filter_str):
-        # Level 2: python<a>.<b>.<c> (<count>)
-        prefix = filter_str[6:] # Remove 'python' prefix for matching
-        groups = {}
-        for v in remote_versions:
-            v_clean = v[6:] if v.startswith("python") else v
-            if v_clean.startswith(prefix):
-                v_match = re.match(r"(\d+\.\d+\.\d+)", v_clean)
-                if v_match:
-                    patch = v_match.group(1)
-                    patch_prefix = f"python{patch}"
-                    if patch_prefix not in groups:
-                        groups[patch_prefix] = 0
-                    groups[patch_prefix] += 1
-        
-        print(f"{BOLD}{filter_str}{RESET} versions:")
-        for patch in sorted(groups.keys(), key=lambda x: [int(i) for i in re.findall(r"\d+", x)], reverse=True):
-            hint = _("python_list_level2_hint", " (Use {BOLD}PYTHON --py-list {prefix}{RESET} to see specific {count} versions)", 
-                     BOLD=BOLD, RESET=RESET, prefix=patch, count=groups[patch])
-            print(f"  - {patch} ({groups[patch]}){hint}")
-
-    elif re.match(r"^python\d+\.\d+\.\d+$", filter_str):
-        # Level 3: platform variants
-        prefix = filter_str[6:]
-        matches = []
-        for v in remote_versions:
-            v_clean = v[6:] if v.startswith("python") else v
-            if v_clean.startswith(prefix):
-                matches.append(v)
-        
-        print(f"{BOLD}{filter_str}{RESET} variants:")
-        for v in sorted(matches):
-            status = f" ({_('python_status_installed', 'installed')})" if v in installed else ""
-            print(f"  - {v}{status}")
-            
     else:
-        # Regex search
-        try:
-            pattern = re.compile(filter_str)
-            matches = [v for v in remote_versions if pattern.search(v)]
-            count = len(matches)
-            found_msg = _("python_list_regex_found", "Found {count} versions matching regex '{regex}'.", count=count, regex=filter_str)
-            print(f"{BOLD}{found_msg}{RESET}")
-            
-            display_matches = matches[:100]
-            for v in sorted(display_matches):
-                status = f" ({_('python_status_installed', 'installed')})" if v in installed else ""
-                print(f"  - {v}{status}")
-                
-            if count > 100:
-                from logic.utils import save_list_report
-                report_path = save_list_report(matches, save_dir="PYTHON", filename_prefix="python_list")
-                capped_msg = _("python_list_regex_capped", " (Showing first 100, full list saved to: {path})", path=report_path)
-                print(f"{YELLOW}{capped_msg}{RESET}")
-        except re.error as e:
-            error_label = _("label_error", "Error")
-            print(f"{RED}{BOLD}{error_label}{RESET}: Invalid regex '{filter_str}': {e}")
-
-    # Common hints
-    if not filter_str:
-        print("\n" + _("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
+        version_strings = []
+        missing = []
+        for v in remote_versions:
+            is_installed = v in installed
+            status = f" ({_('python_status_installed', 'installed')})" if is_installed else ""
+            version_strings.append(f"{v}{status}")
+            if not is_installed:
+                missing.append(v)
+        
+    print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
+    if missing:
+        print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
+    
+    print(_("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
 
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
     
     # Compatibility layer: handle 'python' prefix and platform tags
-    from logic.utils import get_system_tag, regularize_version_name
+    from core.utils import get_system_tag, regularize_version_name
     tag = get_system_tag()
     
     # Try exact match first
@@ -373,35 +283,25 @@ def _install_version(version, install_dir=None):
         v = version
         if v.startswith("python"): v = v[6:]
         
-        # If the input already contains the tag, use it as is for fuzzy match
-        if v.endswith(tag):
-            matches = [s for s in remote_versions if s == v]
+        # Try version-tag
+        candidate = f"{v}-{tag}"
+        if candidate in remote_versions:
+            final_version = candidate
         else:
-            # Try version-tag
-            candidate = f"{v}-{tag}"
-            if candidate in remote_versions:
-                final_version = candidate
-                matches = [candidate]
+            # Try fuzzy match (e.g., 3.10 -> 3.10.15-macos-arm64)
+            matches = [s for s in remote_versions if s.startswith(v) and s.endswith(tag)]
+            if matches:
+                matches.sort(key=len, reverse=True)
+                final_version = matches[0]
             else:
-                # Try fuzzy match (e.g., 3.10 -> 3.10.15-macos-arm64)
-                matches = [s for s in remote_versions if s.startswith(v) and s.endswith(tag)]
-        
-        if matches:
-            matches.sort(key=len, reverse=True)
-            final_version = matches[0]
-        else:
-            final_version = None
+                final_version = None
 
     if not final_version:
         error_label = _("label_error", "Error")
         if remote_versions:
-            supported_list = ", ".join(remote_versions[:5]) + ("..." if len(remote_versions) > 5 else "")
-            msg = _("python_version_not_supported", "Version {version} is not found in remote 'tool' branch.", version=version, supported=supported_list)
-            print(f"{BOLD}{RED}{error_label}{RESET}: {msg}")
-            v_base = version.split('-')[0]
-            if v_base.startswith("python"): v_base = v_base[6:]
-            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to migrate it from astral-sh builds.", v=v_base))
-            print(_("python_install_after_update_hint", "Then run: PYTHON --py-install {v}-{tag}", v=v_base, tag=tag))
+            msg = _("python_version_not_supported", "Version {version} is not found in remote 'tool' branch.", version=version)
+            print(f"{RED}{BOLD}{error_label}{RESET}: {msg}")
+            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to migrate it from astral-sh builds.", v=version.split('-')[0]))
         else:
             print(f"{RED}{BOLD}{error_label}{RESET}: No versions found on remote 'tool' branch.")
             print(_("python_update_initial_hint", "Please run 'PYTHON --py-update' first to migrate Python builds."))
@@ -420,7 +320,7 @@ def _install_version(version, install_dir=None):
     try:
         source_dir_rel = str(RESOURCE_ROOT.relative_to(project_root) / version)
         full_source_path = RESOURCE_ROOT / version
-        from logic.utils import extract_resource
+        from core.utils import extract_resource
         
         resource_ready = False
         zst_files = []
@@ -467,13 +367,13 @@ def _install_version(version, install_dir=None):
         if not zst_files:
             action = _("label_installing", "Installing")
             print_erasable(f"{BLUE}{BOLD}{action}{RESET} {version} from GitHub...")
-            install_script = TOOL_INTERNAL / "install.py"
+            install_script = script_dir / "core" / "install.py"
             if install_script.exists():
                 v_match = re.search(r"([\d\.]+)-(.*)", version)
                 if v_match:
                     v_num = v_match.group(1)
                     v_plat = v_match.group(2)
-                    cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1", "--silent-cache"]
+                    cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
                     subprocess.run(cmd, capture_output=True)
                     if (target_parent / version).exists():
                         sys.stdout.write("\r\033[K")

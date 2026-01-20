@@ -3,6 +3,5 @@
   "test_01_isolation.py",
   "test_02_ops.py",
   "test_03_fallback.py",
-  "test_04_regularization.py",
-  "test_05_list_tiered.py"
+  "test_basic.py"
 ]
