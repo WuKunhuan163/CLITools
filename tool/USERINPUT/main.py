@@ -213,7 +213,7 @@ try:
     from logic_internal.gui.style import get_label_style, get_gui_colors
 except ImportError:
     # Fallbacks would be here, but we prefer the shared logic
-    sys.exit("Error: Could not import logic_internal_internal.gui.base")
+    sys.exit("Error: Could not import logic_internal_internal_internal.gui.base")
 
 import tkinter as tk
 
