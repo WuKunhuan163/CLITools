@@ -16,6 +16,11 @@ class ToolBase:
         self.tool_json_path = self.script_dir / "tool.json"
         self.dependencies = []
         self._load_metadata()
+        
+        # Auto-reexecute with correct python if PYTHON is a dependency
+        if "PYTHON" in self.dependencies:
+            from logic.utils import check_and_reexecute_with_python
+            check_and_reexecute_with_python(self.tool_name)
 
     def _load_metadata(self):
         if self.tool_json_path.exists():

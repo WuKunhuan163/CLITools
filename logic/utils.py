@@ -497,6 +497,46 @@ def format_seconds(seconds):
     if seconds < 3600: return f"{int(seconds//60)}m{int(seconds%60)}s"
     return f"{int(seconds//3600)}h{int((seconds%3600)//60)}m"
 
+def get_python_tool_exec():
+    """Find the PYTHON tool's executable path."""
+    project_root = Path(__file__).resolve().parent.parent
+    python_tool_dir = project_root / "tool" / "PYTHON"
+    if not python_tool_dir.exists():
+        return None
+    
+    # Try importing from tool.PYTHON.logic.utils
+    try:
+        sys.path.append(str(project_root))
+        from tool.PYTHON.logic.utils import get_python_exec as gpe
+        return gpe()
+    except:
+        # Fallback to direct path check
+        system = get_system_tag()
+        # This is a bit complex due to version names, 
+        # but let's assume the default version if not configured.
+        # Better: check if it's already in bin/PYTHON symlink target?
+        # No, symlink points to main.py.
+        return None
+
+def check_and_reexecute_with_python(tool_name, version="3.11.14"):
+    """
+    Ensure the current script is running with the correct PYTHON tool executable.
+    If not, re-execute. If PYTHON is missing, print helpful error and exit.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    py_exec = get_python_tool_exec()
+    
+    if py_exec and sys.executable != py_exec:
+        # Re-execute
+        env = os.environ.copy()
+        env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
+        os.execve(py_exec, [py_exec] + sys.argv, env)
+    
+    if not py_exec:
+        # PYTHON tool missing or not operational
+        print_python_not_found_error(tool_name, version, project_root / "tool" / tool_name)
+        sys.exit(1)
+
 def get_logic_dir(base_dir):
     """Returns the logic directory path for a given base directory."""
     return Path(base_dir) / "logic"

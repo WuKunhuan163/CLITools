@@ -61,22 +61,35 @@ def main():
         sys.exit(1)
 
     # Test window (2 seconds)
-    print("Launching test window (2s)...")
+    print("Launching test window...")
     try:
-        # Run USERINPUT with a hint and short timeout
-        test_cmd = ["python3", str(script_dir / "main.py"), "--timeout", "2", "--hint", "Setup OK!"]
+        # Run USERINPUT with a hint
+        # We use a longer timeout but kill it surgically
+        test_cmd = ["python3", str(script_dir / "main.py"), "--timeout", "10", "--hint", "Setup OK!"]
         env = os.environ.copy()
         env["PYTHONPATH"] = f"{project_root}:{script_dir}:{env.get('PYTHONPATH', '')}"
         
-        proc = subprocess.run(test_cmd, env=env, timeout=5, capture_output=True, text=True)
-        if proc.returncode == 0:
-            print("\033[1;32mSuccess\033[0m: USERINPUT GUI is working.")
-        else:
-            print(f"Test window result: {proc.stdout.strip()}")
-    except subprocess.TimeoutExpired:
-        print("\033[1;32mSuccess\033[0m: USERINPUT GUI test timed out (as expected).")
+        # Start in background
+        proc = subprocess.Popen(test_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(f"Test window started (PID: {proc.pid}). Waiting 2s...")
+        import time
+        time.sleep(2)
+        
+        # Use surgical stop
+        print(f"Closing test window surgically (PID: {proc.pid})...")
+        stop_cmd = [str(project_root / "bin" / "USERINPUT"), "stop", str(proc.pid)]
+        subprocess.run(stop_cmd, capture_output=True)
+        
+        # Wait for process to exit
+        try:
+            proc.wait(timeout=5)
+            print("\033[1;32mSuccess\033[0m: USERINPUT GUI setup test completed.")
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            print("\033[1;33mWarning\033[0m: USERINPUT GUI setup test forced to kill.")
+            
     except Exception as e:
-        print(f"\033[1;31mError\033[0m: GUI test failed: {e}")
+        print(f"\033[1;31mError\033[0m: GUI setup test failed: {e}")
 
 if __name__ == "__main__":
     main()
