@@ -214,6 +214,76 @@ def _dev_sync():
     success_status = _("sync_success_status", "Successfully synced")
     print(f"\r\033[K{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on the 'test' branch.")
 
+def _dev_align():
+    """Align tool, main, and test branches with dev branch."""
+    project_root = ROOT_PROJECT_ROOT
+    
+    # 0. Detect starting branch
+    try:
+        start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+    except:
+        print(f"{BOLD}{RED}Error{RESET}: Failed to detect current branch.")
+        return
+
+    # Only allow align from dev
+    if start_branch != "dev":
+        print(f"{BOLD}{RED}Error{RESET}: Alignment must start from 'dev' branch. Current: {start_branch}")
+        return
+
+    # Check for uncommitted changes on dev
+    try:
+        status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+        if status:
+            print(f"{BOLD}{RED}Error{RESET}: Uncommitted changes on 'dev'. Please commit or stash them first.")
+            return
+    except: pass
+
+    try:
+        # 1. Update 'tool' branch
+        print(f"{BOLD}{BLUE}Aligning 'tool' branch...{RESET}")
+        subprocess.run(["git", "checkout", "tool"], check=True, cwd=str(project_root))
+        # Reset tool branch to dev's state completely
+        subprocess.run(["git", "reset", "--hard", "dev"], check=True, cwd=str(project_root))
+        subprocess.run(["git", "clean", "-fd"], check=True, cwd=str(project_root))
+        
+        # 2. Update 'main' branch
+        print(f"{BOLD}{BLUE}Aligning 'main' branch...{RESET}")
+        subprocess.run(["git", "checkout", "main"], check=True, cwd=str(project_root))
+        # Reset main branch to tool's state (which is now dev's state)
+        subprocess.run(["git", "reset", "--hard", "tool"], check=True, cwd=str(project_root))
+        
+        # Remove restricted folders on main
+        for d in ["tool", "resource", "data", "tmp"]:
+            p = project_root / d
+            if p.exists():
+                if p.is_dir(): shutil.rmtree(p)
+                else: p.unlink()
+        
+        # Clean up untracked files (including err.txt, out.txt etc)
+        subprocess.run(["git", "clean", "-fd"], check=True, cwd=str(project_root))
+        
+        # Commit the removals
+        subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
+        res = subprocess.run(["git", "commit", "-m", "Align 'main' with 'tool' (removed restricted folders)"], capture_output=True, text=True, cwd=str(project_root))
+
+        # 3. Recreate 'test' branch
+        print(f"{BOLD}{BLUE}Recreating 'test' branch...{RESET}")
+        subprocess.run(["git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        subprocess.run(["git", "checkout", "-b", "test"], check=True, cwd=str(project_root))
+        
+        # 4. Back to 'dev'
+        subprocess.run(["git", "checkout", "dev"], check=True, cwd=str(project_root))
+        
+        print(f"{BOLD}{GREEN}Alignment complete.{RESET}")
+        print(f" - 'tool' branch matches 'dev'")
+        print(f" - 'main' branch matches 'tool' minus restricted folders")
+        print(f" - 'test' branch matches 'main'")
+        
+    except Exception as e:
+        print(f"{BOLD}{RED}Error during alignment{RESET}: {e}")
+        # Try to get back to dev
+        subprocess.run(["git", "checkout", "dev"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+
 def _dev_reset():
     """Reset main and test branches to a clean state using templates."""
     project_root = Path(__file__).parent.absolute()
@@ -668,6 +738,8 @@ def main():
     dev_subparsers = dev_parser.add_subparsers(dest="dev_command")
     
     dev_subparsers.add_parser("sync", help="Sync tool branch to main and test")
+    
+    dev_subparsers.add_parser("align", help="Align tool, main, and test branches with dev branch")
     
     reset_parser = dev_subparsers.add_parser("reset", help="Reset main/test branches using templates")
     
