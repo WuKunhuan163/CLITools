@@ -95,20 +95,15 @@ def print_python_not_found_error(tool_name, version, script_dir, translation_fun
     msg = _("err_python_not_found", "Python tool '{version}' not found, cannot launch {tool_name} GUI.").format(version=version, tool_name=tool_name)
     print(f"{BOLD}{RED}{error_label}{RESET}: {msg}", flush=True) # Only "Error" is red and bold
     
-    # Heuristic: if we are in a process where PYTHON tool might have already run,
-    # or if bin/PYTHON exists, we suggest following PYTHON's instructions.
-    # We use a simple environment variable to track if PYTHON has already printed instructions.
-    if os.environ.get("PYTHON_INSTRUCTIONS_PRINTED") == "1" or python_bin.exists():
-        print(_("err_tool_depends_on_python_follow", "The tool '{tool_name}' depends on the PYTHON tool. Please follow the PYTHON tool instructions above and then run: {tool_name} setup").format(tool_name=tool_name), flush=True)
+    # Always show installation instructions if the version is not found
+    print(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"), flush=True)
+    print(_("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=version), flush=True)
+    
+    setup_path = script_dir / "setup.py"
+    if setup_path.exists():
+        print(_("err_python_not_found_hint_4", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name), flush=True)
     else:
-        print(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"), flush=True)
-        print(_("err_python_not_found_hint_3", "Then run: PYTHON --py-install {version}").format(version=version), flush=True)
-        
-        setup_path = script_dir / "setup.py"
-        if setup_path.exists():
-            print(_("err_python_not_found_hint_4", "Finally, run tool's setup: {tool_name} setup").format(tool_name=tool_name), flush=True)
-        else:
-            print(_("err_python_not_found_hint_4", "Finally, run tool's setup: TOOL install {tool_name}").format(tool_name=tool_name), flush=True)
+        print(_("err_python_not_found_hint_4", "Finally, run tool's setup: TOOL install {tool_name}").format(tool_name=tool_name), flush=True)
 
 # Global state for RTL mode
 _GLOBAL_RTL_MODE = False
@@ -506,16 +501,14 @@ def get_python_tool_exec():
     
     # Try importing from tool.PYTHON.logic.utils
     try:
-        sys.path.append(str(project_root))
+        if str(project_root) not in sys.path:
+            sys.path.append(str(project_root))
         from tool.PYTHON.logic.utils import get_python_exec as gpe
-        return gpe()
+        res = gpe()
+        if res == "python3":
+            return None
+        return res
     except:
-        # Fallback to direct path check
-        system = get_system_tag()
-        # This is a bit complex due to version names, 
-        # but let's assume the default version if not configured.
-        # Better: check if it's already in bin/PYTHON symlink target?
-        # No, symlink points to main.py.
         return None
 
 def check_and_reexecute_with_python(tool_name, version="3.11.14"):
