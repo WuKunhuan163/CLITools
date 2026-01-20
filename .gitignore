@@ -14,3 +14,4 @@
 !todo/
 !todo/**
 !.gitignore
+**/__pycache__/
