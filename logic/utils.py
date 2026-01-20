@@ -119,18 +119,8 @@ def _init_rtl_mode():
     global _GLOBAL_RTL_MODE
     current_lang = os.environ.get("TOOL_LANGUAGE")
     if not current_lang:
-        try:
-            # logic/utils.py is in logic/
-            current_file = Path(__file__).resolve()
-            project_root = current_file.parent.parent
-            config_path = project_root / "data" / "global_config.json"
-            
-            if config_path.exists():
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    current_lang = config.get("language")
-        except Exception:
-            pass
+        from logic.config import get_global_config
+        current_lang = get_global_config("language")
     
     if current_lang in ["ar", "he", "fa"]:
         _GLOBAL_RTL_MODE = True

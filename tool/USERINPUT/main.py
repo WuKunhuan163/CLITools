@@ -352,7 +352,17 @@ if __name__ == "__main__":
                 if res['data'] and res['data'].strip():
                     status_hint = f"({get_msg('msg_terminated_status', 'Terminated')})"
                     return f"{res['data']} {status_hint}"
-                raise UserInputFatalError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
+                
+                # Check for explicit stop file presence if possible
+                project_root = tool.project_root
+                stop_file = project_root / "data" / "run" / "stops" / f"{proc.pid}.stop"
+                if stop_file.exists():
+                    try: stop_file.unlink()
+                    except: pass
+                    raise UserInputFatalError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
+                
+                # If no stop file, it might be a crash or system signal
+                raise UserInputFatalError(f"{get_msg('label_terminated', 'Terminated')}: {get_msg('msg_terminated_external', 'Likely external signal or system crash')}")
             elif res['status'] == 'timeout':
                 if res['data'] is not None:
                     status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
@@ -363,8 +373,19 @@ if __name__ == "__main__":
         
         # Check for termination ONLY if no JSON result was found
         if proc.returncode != 0:
-            if proc.returncode in [-15, -2, -9, 15, 2, 9, 143, 130, 137]:
-                raise UserInputFatalError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
+            sig_codes = [-15, -2, -9, -11, -6, 15, 2, 9, 11, 6, 143, 130, 137, 139, 134]
+            if proc.returncode in sig_codes:
+                if stderr and ("Traceback" in stderr or "Error" in stderr):
+                    raise RuntimeError(f"GUI crashed: {parse_gui_error(stderr)}")
+                
+                # Check for stop file
+                stop_file = tool.project_root / "data" / "run" / "stops" / f"{proc.pid}.stop"
+                if stop_file.exists():
+                    try: stop_file.unlink()
+                    except: pass
+                    raise UserInputFatalError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
+                
+                raise UserInputFatalError(f"{get_msg('label_terminated', 'Terminated')}: {get_msg('msg_terminated_external', 'Likely external signal or system crash')}")
             raise RuntimeError(parse_gui_error(stderr or stdout))
         
         raise RuntimeError("No valid response from GUI")

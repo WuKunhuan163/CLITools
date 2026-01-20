@@ -6,6 +6,7 @@ import json
 import stat
 import shutil
 import re
+import platform
 from pathlib import Path
 
 # Import colors and shared utils from logic
@@ -738,6 +739,9 @@ def main():
     
     config_parser = subparsers.add_parser("config", help="Manage global configuration")
     config_parser.add_argument("--terminal-width", type=int, help="Manually set terminal width (for testing)")
+    config_parser.add_argument("--manager-debug", type=int, choices=[0, 1], help="Enable or disable terminal manager debugging")
+    
+    subparsers.add_parser("clear", help="Clear the terminal screen")
     
     subparsers.add_parser("rule")
     if len(sys.argv) < 2:
@@ -755,6 +759,14 @@ def main():
     elif args.command == "config":
         if args.terminal_width is not None:
             update_config("terminal_width", args.terminal_width)
+        if args.manager_debug is not None:
+            update_config("manager_debug", bool(args.manager_debug))
+    elif args.command == "clear":
+        if platform.system() == "Windows":
+            os.system("cls")
+        else:
+            sys.stdout.write("\033[H\033[2J")
+            sys.stdout.flush()
     elif args.command == "rule": generate_ai_rule()
     elif args.command == "dev":
         if args.dev_command == "sync": _dev_sync()
