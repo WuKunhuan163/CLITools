@@ -352,10 +352,12 @@ def _dev_align():
 
     try:
         success_label = _("alignment_complete", "Alignment complete.")
-        final_msg = f"{BOLD}{GREEN}{success_label}{RESET}\n"
+        final_msg = f"{BOLD}{GREEN}{success_label}{RESET}"
         
         if tm.run(ephemeral=True, final_msg=final_msg):
-            pass # final_msg handles output
+            # Print a single newline after the overwritten status
+            sys.stdout.write("\n")
+            sys.stdout.flush()
         
         # Ensure we end up back on 'dev'
         run_git(["checkout", "-f", "dev"])
