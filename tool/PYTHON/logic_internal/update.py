@@ -28,11 +28,11 @@ try:
     # Priority for tool-specific logic
     sys.path.insert(0, str(python_tool_dir))
     
-    from logic_internal.lang.utils import get_translation
-    from logic_internal.config import get_color
-    from logic_internal.utils import get_system_tag, regularize_version_name, run_with_progress
-    from logic_internal.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
-    from logic_internal.audit.utils import AuditManager
+    from logic.lang.utils import get_translation
+    from logic.config import get_color
+    from logic.utils import get_system_tag, regularize_version_name, run_with_progress
+    from logic.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
+    from logic.audit.utils import AuditManager
     
     from logic_internal.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 except ImportError as e:
@@ -92,7 +92,7 @@ def print_erasable(msg):
     sys.stdout.flush()
 
 def _(key, default, **kwargs):
-    return get_translation(str(PYTHON_TOOL_DIR / "logic"), key, default).format(**kwargs)
+    return get_translation(str(PYTHON_TOOL_DIR / "logic_internal"), key, default).format(**kwargs)
 
 def resolve_platform(asset_name):
     mappings = {
