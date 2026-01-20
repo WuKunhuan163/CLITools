@@ -499,11 +499,11 @@ def get_python_tool_exec():
     if not python_tool_dir.exists():
         return None
     
-    # Try importing from tool.PYTHON.logic_internal.utils
+    # Try importing from tool.PYTHON.logic_internal_internal.utils
     try:
         if str(project_root) not in sys.path:
             sys.path.append(str(project_root))
-        from tool.PYTHON.logic_internal.utils import get_python_exec as gpe
+        from tool.PYTHON.logic_internal_internal.utils import get_python_exec as gpe
         res = gpe()
         if res == "python3":
             return None
