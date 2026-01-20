@@ -262,6 +262,10 @@ def _dev_align():
 
     # Clean up untracked files on dev
     subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
+    
+    # Recursively delete .DS_Store and __pycache__
+    from logic.utils import cleanup_project_patterns
+    cleanup_project_patterns(project_root)
 
     # Push dev to origin
     try:
