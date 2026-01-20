@@ -65,38 +65,51 @@ def main():
             print(f"\033[1;31mError\033[0m: Failed to install {version}.")
         sys.exit(1)
 
-    # Test window (2 seconds)
+    # Test window (3 seconds wait)
     print("Launching test window...")
     try:
-        # Run USERINPUT with a hint
-        # We use a longer timeout but kill it surgically
-        test_cmd = ["python3", str(script_dir / "main.py"), "--timeout", "10", "--hint", "Setup OK!"]
+        # Run USERINPUT with a hint and a unique ID for precise targeting
+        import uuid
+        setup_id = f"setup_{uuid.uuid4().hex[:8]}"
+        test_hint = "Setup OK!"
+        test_cmd = ["python3", str(script_dir / "main.py"), "--timeout", "15", "--hint", test_hint, "--id", setup_id]
         env = os.environ.copy()
         # Ensure PYTHONPATH doesn't cause shadowing during test
         env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
         
         # Start in background
         proc = subprocess.Popen(test_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        print(f"Test window started (PID: {proc.pid}). Waiting 2s...")
+        print(f"Test window started (ID: {setup_id}). Waiting 4s for initialization...")
         import time
-        time.sleep(2)
+        time.sleep(4)
         
         # Use surgical stop - send SUBMIT remotely to close immediately
-        print(f"Closing test window surgically via remote submit (PID: {proc.pid})...")
-        # We use 'submit' to simulate a real user interaction
-        stop_cmd = ["python3", str(script_dir / "main.py"), "submit", str(proc.pid)]
+        print(f"Closing test window surgically via remote submit (ID: {setup_id})...")
+        # We use 'submit' with the unique ID to target ONLY our test instance
+        stop_cmd = ["python3", str(script_dir / "main.py"), "submit", "--id", setup_id]
         subprocess.run(stop_cmd, env=env, capture_output=True)
         
-        # Wait for process to exit
+        # Wait for process to exit and capture output
         try:
-            proc.wait(timeout=5)
-            print("\033[1;32mSuccess\033[0m: USERINPUT GUI setup test completed.")
+            stdout, stderr = proc.communicate(timeout=15)
+            all_out = stdout + stderr
+            
+            # Check if the specific hint was received back
+            # We look for "Successfully received: Setup OK!"
+            if test_hint in all_out and any(m in all_out for m in ["Successfully received", "成功收到"]):
+                print("\033[1;32mSuccess\033[0m: USERINPUT GUI setup test completed and verified.")
+            else:
+                print(f"\033[1;31mError\033[0m: USERINPUT GUI setup test failed verification.")
+                print(f"Output received: {all_out.strip()}")
+                sys.exit(1)
         except subprocess.TimeoutExpired:
             proc.kill()
-            print("\033[1;33mWarning\033[0m: USERINPUT GUI setup test forced to kill.")
+            print("\033[1;33mWarning\033[0m: USERINPUT GUI setup test forced to kill (timed out).")
+            sys.exit(1)
             
     except Exception as e:
         print(f"\033[1;31mError\033[0m: GUI setup test failed: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
