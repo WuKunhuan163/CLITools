@@ -1,11 +1,10 @@
 import os
 import sys
 import re
-import json
 import time
 import subprocess
 import unicodedata
-import difflib
+import shutil
 import builtins
 import platform
 from pathlib import Path
@@ -480,6 +479,29 @@ def cleanup_old_files(target_dir, pattern="*", limit=100, batch_size=None):
                     pass
     except Exception:
         pass
+
+def cleanup_project_patterns(root_dir, patterns=None):
+    """
+    Recursively delete specified patterns (like .DS_Store, __pycache__) across the project.
+    """
+    if patterns is None:
+        patterns = [".DS_Store", "__pycache__"]
+    
+    root_path = Path(root_dir)
+    for pattern in patterns:
+        if pattern == "__pycache__":
+            # Recursively find all __pycache__ directories
+            for p in root_path.rglob("__pycache__"):
+                if p.is_dir():
+                    try: shutil.rmtree(p)
+                    except: pass
+        else:
+            # Recursively find and delete files matching the pattern
+            for p in root_path.rglob(pattern):
+                try:
+                    if p.is_dir(): shutil.rmtree(p)
+                    else: p.unlink()
+                except: pass
 
 def format_seconds(seconds):
     """Format seconds into a human-readable string."""

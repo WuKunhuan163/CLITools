@@ -8,7 +8,16 @@ def setup():
     project_root = Path(__file__).parent.absolute()
     main_py = project_root / "main.py"
     bin_dir = project_root / "bin"
+    tool_dir = project_root / "tool"
     bin_dir.mkdir(exist_ok=True)
+    tool_dir.mkdir(exist_ok=True)
+    
+    # Ensure tool/__init__.py exists
+    init_py = tool_dir / "__init__.py"
+    if not init_py.exists():
+        init_py.touch()
+        print(f"Created {init_py}")
+
     tool_bin = bin_dir / "TOOL"
     
     # 1. Ensure main.py is executable
@@ -21,10 +30,15 @@ def setup():
 
     # 2. Create bin/TOOL symlink
     try:
+        # Delete existing symlink or file to handle corruption or updates
         if tool_bin.exists() or tool_bin.is_symlink():
-            os.remove(tool_bin)
+            if tool_bin.is_dir():
+                shutil.rmtree(tool_bin)
+            else:
+                os.remove(tool_bin)
+        
         os.symlink(main_py, tool_bin)
-        print(f"Successfully created symlink: {tool_bin} -> {main_py}")
+        print(f"Successfully created/updated symlink: {tool_bin} -> {main_py}")
     except Exception as e:
         print(f"Error creating symlink: {e}")
         
