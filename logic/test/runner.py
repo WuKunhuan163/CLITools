@@ -65,29 +65,40 @@ class TestRunner:
             print(f"  [{i}] {test.name}")
 
     def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60):
-        all_tests = self._get_test_files()
-        if not all_tests:
-            print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
-            return
-
-        if start_id is not None or end_id is not None:
-            start = start_id if start_id is not None else 0
-            end = end_id if end_id is not None else len(all_tests) - 1
-            selected_tests = all_tests[start:end+1]
-        else:
-            selected_tests = all_tests
-
-        if not selected_tests:
-            print(self._("test_no_selected", "No tests selected in the specified range."))
-            return
-
-        print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
+        # Default unit tests to English as requested by user, 
+        # but respect it if they are specifically testing a language (ar/zh).
+        from logic.config import get_global_config
+        current_lang = os.environ.get("TOOL_LANGUAGE") or get_global_config("language") or "en"
         
-        # Parallel execution logic
-        self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+        old_lang = os.environ.get("TOOL_LANGUAGE")
+        if current_lang not in ["ar", "zh"]:
+            os.environ["TOOL_LANGUAGE"] = "en"
         
-        # Cleanup resources
-        self._cleanup_resources()
+        try:
+            all_tests = self._get_test_files()
+            if not all_tests:
+                print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
+                return
+
+            if start_id is not None or end_id is not None:
+                start = start_id if start_id is not None else 0
+                end = end_id if end_id is not None else len(all_tests) - 1
+                selected_tests = all_tests[start:end+1]
+            else:
+                selected_tests = all_tests
+
+            if not selected_tests:
+                print(self._("test_no_selected", "No tests selected in the specified range."))
+                return
+
+            print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
+            
+            # Parallel execution logic
+            self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+            
+        finally:
+            if old_lang: os.environ["TOOL_LANGUAGE"] = old_lang
+            else: os.environ.pop("TOOL_LANGUAGE", None)
 
     def _get_test_files(self):
         test_dir = self.tool_dir / "test"
@@ -196,16 +207,29 @@ class TestRunner:
 
         manager = MultiLineManager()
         task_queue = Queue()
+        stop_event = threading.Event()
+        
+        # Track all started test PIDs for surgical cleanup
+        all_test_pids = set()
+        pids_lock = threading.Lock()
+        
         for f in test_files:
             task_queue.put(f)
         
         def test_step(test_file, worker_id):
             def logic():
+                if stop_event.is_set(): return
+                
                 active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
                 timeout_msg = self._("test_timeout_label", "timeout")
                 
                 def get_running_msg(elapsed):
-                    return f"{active_label}: {test_file.name} ({int(elapsed)}s / {timeout_msg}: {timeout}s)"
+                    # Localizable running status message
+                    # Default (en): "Running: file.py (10s / timeout: 60s)"
+                    # Arabic (ar): "(10s / timeout: 60s) file.py :Running"
+                    return self._("test_running_line", "{status}: {file} ({elapsed}s / {timeout_label}: {timeout}s)", 
+                                 status=active_label, file=test_file.name, elapsed=int(elapsed), 
+                                 timeout_label=timeout_msg, timeout=timeout)
 
                 # Initial update
                 yield StepResult(get_running_msg(0), state=WorkerState.CONTINUE)
@@ -219,7 +243,16 @@ class TestRunner:
                 try:
                     proc = subprocess.Popen([python_exec, "-u", str(test_file)], 
                                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    
+                    with pids_lock:
+                        all_test_pids.add(proc.pid)
+                        
                     while proc.poll() is None:
+                        if stop_event.is_set():
+                            proc.kill()
+                            status_raw, duration, error_msg, report_path = "Interrupted", time.time() - start_time, None, None
+                            break
+                        
                         elapsed = time.time() - start_time
                         if elapsed > timeout:
                             proc.kill()
@@ -229,36 +262,49 @@ class TestRunner:
                         yield StepResult(get_running_msg(elapsed), state=WorkerState.CONTINUE)
                         time.sleep(0.5)
                     else:
-                        stdout, stderr = proc.communicate()
-                        duration = time.time() - start_time
-                        if proc.returncode == 0:
-                            status_raw, error_msg, report_path = "Success", None, None
+                        if stop_event.is_set():
+                             status_raw, duration, error_msg, report_path = "Interrupted", time.time() - start_time, None, None
                         else:
-                            full_output = stdout + stderr
-                            report_path = self._save_result(test_file.name, "Failed", full_output, python_info=python_exec)
-                            reason = self._get_error_reason(full_output)
-                            status_raw, error_msg = "Failed", f"(code {proc.returncode}) Reason: {reason}"
+                            stdout, stderr = proc.communicate()
+                            duration = time.time() - start_time
+                            if proc.returncode == 0:
+                                status_raw, error_msg, report_path = "Success", None, None
+                            else:
+                                full_output = stdout + stderr
+                                report_path = self._save_result(test_file.name, "Failed", full_output, python_info=python_exec)
+                                reason = self._get_error_reason(full_output)
+                                status_raw, error_msg = "Failed", f"(code {proc.returncode}) Reason: {reason}"
                 except Exception as e:
                     status_raw, duration, error_msg, report_path = "Error", time.time() - start_time, str(e), None
+                finally:
+                    # Note: we don't remove from all_test_pids here as we need them for final cleanup
+                    pass
 
                 # Final result message
+                if status_raw == "Interrupted":
+                    # Don't update finalized message if interrupted, just stop
+                    return
+                
                 status_label = self._get_status_label(status_raw)
+                duration_label = self._("label_duration", "Duration")
                 if error_msg:
-                    msg = self._("test_finished_with_error", "{status}: {file} {error} (Duration: {duration:.2f}s)", 
-                                 status=status_label, file=test_file.name, error=error_msg, duration=duration)
+                    msg = self._("test_finished_with_error", "{status}: {file} {error} ({duration_label}: {duration:.2f}s)", 
+                                 status=status_label, file=test_file.name, error=error_msg, duration_label=duration_label, duration=duration)
                 else:
-                    msg = self._("test_finished", "{status}: {file} (Duration: {duration:.2f}s)", 
-                                 status=status_label, file=test_file.name, duration=duration)
+                    msg = self._("test_finished", "{status}: {file} ({duration_label}: {duration:.2f}s)", 
+                                 status=status_label, file=test_file.name, duration_label=duration_label, duration=duration)
                 
                 if report_path:
-                    msg += "\n" + self._("test_full_report", "  Full report: {path}", path=report_path)
+                    # Use | instead of \n to keep it single-line as requested
+                    report_label = self._("test_full_report", "Full report: {path}", path=report_path)
+                    msg += f" | {report_label}"
 
                 yield StepResult(msg, state=WorkerState.SUCCESS if status_raw == "Success" else WorkerState.ERROR, is_final=True)
             return logic
 
         def worker_loop(worker_id):
             worker = TuringWorker(worker_id, manager)
-            while True:
+            while not stop_event.is_set():
                 try:
                     f = task_queue.get_nowait()
                 except: break
@@ -268,7 +314,7 @@ class TestRunner:
                     worker.execute(task)
                 finally:
                     task_queue.task_done()
-
+        
         # Start threads
         threads = []
         for i in range(min(max_concurrent, len(test_files))):
@@ -276,38 +322,69 @@ class TestRunner:
             t.start()
             threads.append(t)
         
-        # Wait for all
-        task_queue.join()
+        try:
+            # Wait for all
+            task_queue.join()
+        except KeyboardInterrupt:
+            # Signal workers to stop
+            stop_event.set()
+            # Clear remaining tasks
+            while not task_queue.empty():
+                try: task_queue.get_nowait(); task_queue.task_done()
+                except: break
+            
+            # Print interrupted message before finalization to avoid cursor jump
+            print(f"\n{self.colors['BOLD']}{self.colors['RED']}{self._('test_interrupted_label', 'Tests Stopped')}{self.colors['RESET']}: {self._('test_interrupted_reason', 'User pressed Ctrl+C')}")
+
         for t in threads:
-            t.join()
+            t.join(timeout=1)
             
         manager.finalize()
-        print(self._("test_all_completed", "\nAll tests completed."))
+        
+        # Surgical cleanup of GUI instances started by our tests
+        self._cleanup_resources(all_test_pids)
+        
+        if not stop_event.is_set():
+            print(self._("test_all_completed", "\nAll tests completed."))
         sys.stdout.flush()
 
-    def _cleanup_resources(self):
-        """Cleanup leftover processes and GUI windows."""
-        userinput_stop = self.project_root / "bin" / "USERINPUT"
-        if userinput_stop.exists():
-            subprocess.run([str(userinput_stop), "stop"], capture_output=True)
-        else:
-            if sys.platform != "win32":
-                subprocess.run(["pkill", "-f", "USERINPUT"], capture_output=True)
+    def _cleanup_resources(self, test_pids=None):
+        """Cleanup leftover processes and GUI windows surgicaly."""
+        import psutil
+        
+        # 1. Surgical cleanup of GUI instances started by our tests
+        if test_pids:
+            instance_dir = self.project_root / "data" / "run" / "instances"
+            if instance_dir.exists():
+                for f in instance_dir.glob("gui_*.json"):
+                    try:
+                        with open(f, 'r') as info_file:
+                            info = json.load(info_file)
+                            gui_pid = info.get("pid")
+                            if not gui_pid: continue
+                            
+                            # Check if this GUI's parent is one of our test processes
+                            try:
+                                p = psutil.Process(gui_pid)
+                                ppid = p.ppid()
+                                if ppid in test_pids:
+                                    # Target this specific GUI
+                                    userinput_bin = self.project_root / "bin" / "USERINPUT"
+                                    if userinput_bin.exists():
+                                        subprocess.run([str(userinput_bin), "stop", str(gui_pid)], capture_output=True)
+                                    else:
+                                        p.terminate()
+                            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                pass
+                    except: continue
 
-        background_cleanup = self.project_root / "bin" / "BACKGROUND"
-        if background_cleanup.exists():
-            subprocess.run([str(background_cleanup), "--cleanup"], capture_output=True)
-            
-        try:
-            import psutil
-        except ImportError:
-            return
-
+        # 2. Existing logic to cleanup leftover test scripts
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 cmdline = proc.info.get('cmdline')
                 if cmdline and any(self.tool_name in part for part in cmdline) and any("test_" in part for part in cmdline):
                     if proc.info['pid'] != os.getpid():
-                        proc.terminate()
+                        if not test_pids or proc.info['pid'] in test_pids:
+                            proc.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
