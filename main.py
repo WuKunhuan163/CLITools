@@ -232,31 +232,32 @@ def _dev_align():
     try:
         start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
-        print(f"{BOLD}{RED}Error{RESET}: Failed to detect current branch.")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Failed to detect current branch.")
         return
 
     # Helper to run git commands quietly
     def run_git(args, cwd=None):
         try:
+            # Add --force or other flags if needed
             subprocess.run(["git"] + args, check=True, cwd=cwd or str(project_root), capture_output=True)
             return True
-        except:
+        except subprocess.CalledProcessError as e:
             return False
 
     def sync_dev_action():
-        # Automatically switch to dev if not already there
+        # 1. Automatically switch to dev if not already there
         if start_branch != "dev":
             # First, try to auto-commit any changes on the current branch to avoid data loss
             try:
                 status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
                 if status:
                     run_git(["add", "-A"])
-                    run_git(["commit", "-m", f"Auto-commit before switching to dev for alignment"])
+                    run_git(["commit", "-m", f"Auto-commit local changes on '{start_branch}' before alignment"])
             except: pass
             
             if not run_git(["checkout", "-f", "dev"]): return False
 
-        # Auto-commit local changes on dev if any
+        # 2. Auto-commit local changes on dev if any
         try:
             status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
             if status:
@@ -264,12 +265,12 @@ def _dev_align():
                 run_git(["commit", "-m", "Auto-commit before alignment"])
         except: pass
 
-        # Clean up untracked files on dev
+        # 3. Clean up untracked files on dev
         run_git(["clean", "-fdx"])
         cleanup_project_patterns(project_root)
 
-        # Push dev to origin
-        return run_git(["push", "origin", "dev"])
+        # 4. Push dev to origin
+        return run_git(["push", "origin", "dev", "--force"])
 
     def align_tool_action():
         if not run_git(["checkout", "-f", "tool"]): return False
@@ -279,7 +280,7 @@ def _dev_align():
 
     def align_main_action():
         if not run_git(["checkout", "-f", "main"]): return False
-        if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
+        if not run_git(["reset", "--hard", "tool"]): return False
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
@@ -309,44 +310,44 @@ def _dev_align():
 
     tm = ProgressTuringMachine()
     
-    # Using 'bold_part' to bold only the action verb
+    # Using 'bold_part' to bold only the verb+noun part
     tm.add_stage(TuringStage(
-        name="local changes on 'dev'",
+        name=_("on_branch", "local changes on '{branch}'", branch="dev"),
         action=sync_dev_action,
-        active_status="Syncing",
-        success_status="Synced",
-        fail_status="Failed to sync",
-        bold_part="Syncing",
+        active_status=_("label_auto_committing", "Auto-committing"),
+        success_status=_("label_auto_committed", "Auto-committed"),
+        fail_status=_("label_failed", "Failed"),
+        bold_part=_("label_auto_committing_local", "local changes"),
         success_color="BLUE"
     ))
     
     tm.add_stage(TuringStage(
         name="'tool' branch",
         action=align_tool_action,
-        active_status="Aligning",
-        success_status="Aligned",
-        fail_status="Failed to align",
-        bold_part="Aligning",
+        active_status=_("aligning_branch", "Aligning '{branch}' branch", branch="tool"),
+        success_status=_("label_successfully", "Successfully"),
+        fail_status=_("label_failed", "Failed"),
+        bold_part=_("label_successfully", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="tool"),
         success_color="BLUE"
     ))
     
     tm.add_stage(TuringStage(
         name="'main' branch",
         action=align_main_action,
-        active_status="Aligning",
-        success_status="Aligned",
-        fail_status="Failed to align",
-        bold_part="Aligning",
+        active_status=_("aligning_branch", "Aligning '{branch}' branch", branch="main"),
+        success_status=_("label_successfully", "Successfully"),
+        fail_status=_("label_failed", "Failed"),
+        bold_part=_("label_successfully", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="main"),
         success_color="BLUE"
     ))
     
     tm.add_stage(TuringStage(
         name="'test' branch",
         action=recreate_test_action,
-        active_status="Recreating",
-        success_status="Recreated",
-        fail_status="Failed to recreate",
-        bold_part="Recreating",
+        active_status=_("recreating_test", "Recreating 'test' branch"),
+        success_status=_("label_successfully", "Successfully"),
+        fail_status=_("label_failed", "Failed"),
+        bold_part=_("label_successfully", "Successfully") + " " + _("recreating_test", "recreated 'test' branch"),
         success_color="BLUE"
     ))
 
@@ -363,7 +364,7 @@ def _dev_align():
         run_git(["checkout", "-f", "dev"])
         
     except Exception as e:
-        print(f"{BOLD}{RED}Error during alignment{RESET}: {e}")
+        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET} during alignment: {e}")
         run_git(["checkout", "-f", "dev"])
 
 def _dev_reset():
