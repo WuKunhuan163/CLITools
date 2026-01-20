@@ -12,10 +12,16 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
     from logic.config import get_color
     BOLD, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--id", type=str)
+    args, unknown = parser.parse_known_args(unknown_args)
+    
     target_pid = None
-    if unknown_args:
-        try: target_pid = int(unknown_args[0])
+    if unknown:
+        try: target_pid = int(unknown[0])
         except: pass
+
+    target_id = args.id
 
     instance_dir = project_root / "data" / "run" / "instances"
     stop_dir = project_root / "data" / "run" / "stops"
@@ -29,18 +35,25 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
                     info = json.load(info_file)
                     pid = info.get("pid")
                     registered_tool = info.get("tool_name")
+                    registered_id = info.get("custom_id")
                     if pid is None: continue
                     
-                    # Check if this PID/tool should be stopped
+                    # Match criteria
+                    match = False
                     if target_pid is not None:
-                        if pid != target_pid: continue
-                    elif registered_tool != tool_name:
-                        continue
+                        if pid == target_pid: match = True
+                    elif target_id is not None:
+                        if registered_id == target_id: match = True
+                    elif registered_tool == tool_name:
+                        match = True
                     
-                    # Create the appropriate flag file
-                    flag_file = stop_dir / f"{pid}.{command}"
-                    flag_file.touch()
-                    found += 1
+                    if match:
+                        # Create the appropriate flag file
+                        flag_file = stop_dir / f"{pid}.{command}"
+                        flag_file.touch()
+                        found += 1
+                        # DEBUG
+                        # print(f"DEBUG: Created flag {flag_file} for PID {pid}, ID {registered_id}")
             except: continue
     
     if found > 0:

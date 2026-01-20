@@ -50,8 +50,13 @@ class ToolBase:
             BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
             
-            print(f"{BOLD}{RED}Error{RESET}: Tool '{self.tool_name}' missing dependencies: {', '.join(missing)}")
-            print(f"Please run: TOOL install {self.tool_name}")
+            error_label = self.get_translation("label_error", "Error")
+            for dep in missing:
+                msg = self.get_translation("err_tool_not_found", "Tool '{dep_name}' not found, required by '{tool_name}'.").format(dep_name=dep, tool_name=self.tool_name)
+                print(f"{BOLD}{RED}{error_label}{RESET}: {msg}")
+                print(self.get_translation("err_tool_install_hint", "Please run: TOOL install {dep_name}").format(dep_name=dep))
+            
+            print(self.get_translation("err_tool_setup_hint", "Finally, run tool's setup: {tool_name} setup").format(tool_name=self.tool_name))
             return False
         return True
 

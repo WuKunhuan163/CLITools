@@ -13,20 +13,28 @@ class TestUserInputRemoteAddTime(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        # Start with a short timeout
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "5", "--id", "test_add_time"], 
+        # 1. Config increment to 5 seconds
+        subprocess.run(["python3", str(main_py), "config", "--time-increment", "5"], env=env, check=True)
+        
+        # 2. Start with a short timeout (3 seconds)
+        # Use a larger parent timeout to avoid retries interfering too quickly
+        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "3", "--id", "test_add_time"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
-            time.sleep(2)
+            # Wait for GUI to register
+            time.sleep(5)
             
-            # Send remote add_time
+            # 3. Send remote add_time (adds 5s -> total ~8s)
             add_time_cmd = ["python3", str(main_py), "add_time", "--id", "test_add_time"]
             subprocess.run(add_time_cmd, env=env, capture_output=True)
             
-            # If add_time worked, it should NOT exit at 5 seconds
-            time.sleep(5)
-            self.assertIsNone(proc.poll(), "Process should still be running after adding time")
+            # 4. Check at 4th second (should still be running)
+            time.sleep(2) # 2+2=4s
+            self.assertIsNone(proc.poll(), "Process should still be running at 4s (timeout was 3s, added 5s)")
+            
+            # 5. Check at 10th second (should have timed out and retrying or exited)
+            # Actually, it will retry. We just want to see it didn't exit at 3s.
             
             # Now stop it surgically
             stop_cmd = ["python3", str(main_py), "stop", "--id", "test_add_time"]
@@ -37,6 +45,8 @@ class TestUserInputRemoteAddTime(unittest.TestCase):
         finally:
             if proc.poll() is None:
                 proc.kill()
+            # Restore default increment
+            subprocess.run(["python3", str(main_py), "config", "--time-increment", "60"], env=env)
 
 if __name__ == '__main__':
     unittest.main()

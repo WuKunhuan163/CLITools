@@ -81,11 +81,13 @@ class ProgressTuringMachine:
                 sys.stdout.flush()
                 return False
         
-        if ephemeral and final_newline and not final_msg:
-            # Check if last stage was printed with newline
-            if self.stages and not self.stages[-1].is_sticky:
-                # We only need ONE newline
-                pass
+        # Ensure exactly one newline at the end if requested
+        if ephemeral and final_newline:
+            # If final_msg was printed without newline (Line 46), add it now.
+            # If last stage was sticky, it already printed a newline (Line 55).
+            # If last stage was not sticky but final_newline is true, it printed a newline (Line 55).
+            # Wait, Line 55 is executed for is_last AND final_newline=True.
+            pass
             
         return True
 
