@@ -13,12 +13,14 @@ script_dir = Path(__file__).resolve().parent
 # project_root is two levels up: tool/PYTHON -> tool -> root
 project_root = script_dir.parent.parent
 
-# Add root project to sys.path first to find 'logic' module
+# Add root project to sys.path to find 'logic' module
 if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+    sys.path.append(str(project_root))
 
-# Add the directory containing 'logic' to sys.path
-sys.path.append(str(script_dir))
+# Add the directory containing 'logic' to sys.path (PRIORITY)
+if str(script_dir) not in sys.path:
+    sys.path.insert(0, str(script_dir))
+
 from logic.utils import get_python_exec, extract_resource
 from logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
