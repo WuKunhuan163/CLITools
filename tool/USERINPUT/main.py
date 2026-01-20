@@ -23,15 +23,15 @@ import threading
 import tempfile
 from pathlib import Path
 
-# Add project root to sys.path to find root 'logic' module
+# Fix shadowing: Remove script directory from sys.path[0] if present
 script_dir = Path(__file__).resolve().parent
+if sys.path and sys.path[0] == str(script_dir):
+    del sys.path[0]
+
+# Add project root to sys.path to find 'logic' and 'tool' modules
 project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
-
-# Add script_dir to sys.path at the END to avoid shadowing root 'logic'
-if str(script_dir) not in sys.path:
-    sys.path.append(str(script_dir))
 
 # Silence Tkinter deprecation warnings
 os.environ['TK_SILENCE_DEPRECATION'] = '1'
@@ -40,6 +40,7 @@ warnings.filterwarnings('ignore')
 current_dir = Path(__file__).resolve().parent
 
 try:
+    # Root logic imports
     from logic.tool.base import ToolBase
     from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
     from logic.lang.utils import get_translation
@@ -96,11 +97,8 @@ class UserInputTool(ToolBase):
         elif v.startswith("python"): v = v[6:]
         
         try:
-            # Add logic directory to path to find config
-            logic_dir = self.project_root / "tool" / "PYTHON" / "logic"
-            if str(logic_dir) not in sys.path:
-                sys.path.append(str(logic_dir))
-            from config import INSTALL_DIR
+            # Use absolute import from tool.PYTHON.logic
+            from tool.PYTHON.logic.config import INSTALL_DIR
             install_root = INSTALL_DIR
         except ImportError:
             install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
@@ -205,7 +203,8 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(%(project_root)r)
 if PROJECT_ROOT.exists():
-    sys.path.append(str(PROJECT_ROOT))
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
     from logic.gui.base import BaseGUIWindow, setup_common_bottom_bar
@@ -213,7 +212,7 @@ try:
     from logic.gui.style import get_label_style, get_gui_colors
 except ImportError:
     # Fallbacks would be here, but we prefer the shared logic
-    sys.exit("Error: Could not import logic_internal.gui.base")
+    sys.exit("Error: Could not import logic.gui.base")
 
 import tkinter as tk
 

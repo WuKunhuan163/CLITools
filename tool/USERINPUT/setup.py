@@ -5,26 +5,27 @@ import sys
 import subprocess
 import argparse
 import platform
+import json
 from pathlib import Path
 
-# Add project root to sys.path
+# Fix shadowing: Remove script directory from sys.path[0] if present
 script_dir = Path(__file__).resolve().parent
+if sys.path and sys.path[0] == str(script_dir):
+    del sys.path[0]
+
+# Add project root to sys.path to find root 'logic' and other 'tool' modules
 project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# Add script_dir to path to find logic_internal
-if str(script_dir) not in sys.path:
-    sys.path.insert(0, str(script_dir))
-
 try:
-    from logic_internal.lang.utils import get_translation
-    from logic_internal.utils import get_logic_dir
+    from logic.lang.utils import get_translation
+    from logic.utils import get_logic_dir
 except ImportError:
     def get_translation(d, k, default): return default
-    def get_logic_dir(d): return d / "logic_internal"
+    def get_logic_dir(d): return d / "logic"
 
-TOOL_INTERNAL = script_dir / "logic_internal"
+TOOL_INTERNAL = script_dir / "logic"
 
 def _(key, default):
     return get_translation(str(TOOL_INTERNAL), key, default)
@@ -49,7 +50,7 @@ def main():
         print("\033[1;31mError\033[0m: PYTHON tool binary not found.")
         sys.exit(1)
         
-    from logic_internal.utils import regularize_version_name, get_system_tag
+    from logic.utils import regularize_version_name, get_system_tag
     version = regularize_version_name(args.py_version)
 
     try:
@@ -58,8 +59,7 @@ def main():
     except subprocess.CalledProcessError as e:
         # If it failed, show the error
         try:
-            sys.path.append(str(script_dir))
-            from logic_internal.utils import print_python_not_found_error
+            from logic.utils import print_python_not_found_error
             print_python_not_found_error("USERINPUT", version, script_dir, _)
         except Exception:
             print(f"\033[1;31mError\033[0m: Failed to install {version}.")
@@ -72,7 +72,8 @@ def main():
         # We use a longer timeout but kill it surgically
         test_cmd = ["python3", str(script_dir / "main.py"), "--timeout", "10", "--hint", "Setup OK!"]
         env = os.environ.copy()
-        env["PYTHONPATH"] = f"{project_root}:{script_dir}:{env.get('PYTHONPATH', '')}"
+        # Ensure PYTHONPATH doesn't cause shadowing during test
+        env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
         
         # Start in background
         proc = subprocess.Popen(test_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
