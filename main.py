@@ -308,9 +308,6 @@ def _dev_align():
         # Clean up EVERYTHING untracked
         subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
         
-        # Recreate bin/TOOL (just the tool manager symlink)
-        subprocess.run(["python3", "setup.py"], cwd=str(project_root), capture_output=True)
-
         # Commit the removals
         subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
         subprocess.run(["git", "commit", "--allow-empty", "-m", "Align 'main' with 'tool' (removed restricted folders)"], cwd=str(project_root))
