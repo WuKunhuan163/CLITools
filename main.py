@@ -139,7 +139,11 @@ def update_config(key, value):
     
     config[key] = value
     with open(config_path, 'w') as f: json.dump(config, f, indent=2)
-    print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
+    
+    if key == "terminal_width" and (value == 0 or value is None):
+        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
+    else:
+        print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
 def _dev_sync():
     """Synchronize logic files from 'tool' to 'main', then overwrite 'test' with 'main'."""
