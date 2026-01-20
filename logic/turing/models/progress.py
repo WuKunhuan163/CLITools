@@ -10,14 +10,16 @@ class ProgressTuringMachine:
     def add_stage(self, stage: TuringStage):
         self.stages.append(stage)
         
-    def run(self, ephemeral: bool = False, final_newline: bool = True) -> bool:
+    def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
         from logic.config import get_color
         BLUE = get_color("BLUE", "\033[34m")
         BOLD = get_color("BOLD", "\033[1m")
         RED = get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
+        GREEN = get_color("GREEN", "\033[32m")
         
-        for stage in self.stages:
+        for i, stage in enumerate(self.stages):
+            is_last = (i == len(self.stages) - 1)
             # Show active status - entire status prefix is now bold blue
             active_name = stage.active_name or stage.name
             sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}...")
@@ -30,7 +32,6 @@ class ProgressTuringMachine:
                     color_code = get_color(stage.success_color, "\033[32m")
                     
                     # Split success_name into bold and normal parts
-                    # Convention: if success_name starts with bold_part, bold that part
                     if stage.bold_part and success_name.startswith(stage.bold_part):
                         bold_text = f"{stage.success_status} {stage.bold_part}"
                         rest_text = success_name[len(stage.bold_part):].lstrip()
@@ -39,14 +40,24 @@ class ProgressTuringMachine:
                         # Default: Only success_status is bolded
                         full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
                     
-                    if ephemeral and not stage.is_sticky:
-                        # Success message but no newline, ready to be overwritten by next stage
-                        sys.stdout.write(f"\r\033[K{full_msg}")
+                    if ephemeral:
+                        if is_last and final_msg:
+                            # Overwrite the last stage with final_msg
+                            sys.stdout.write(f"\r\033[K{final_msg}")
+                        elif is_last and not final_newline:
+                            # Print last stage without newline
+                            sys.stdout.write(f"\r\033[K{full_msg}")
+                        elif not stage.is_sticky and not is_last:
+                            # Intermediate stage, no newline
+                            sys.stdout.write(f"\r\033[K{full_msg}")
+                        else:
+                            # Sticky or last stage with newline
+                            sys.stdout.write(f"\r\033[K{full_msg}\n")
                     else:
                         sys.stdout.write(f"\r\033[K{full_msg}\n")
                     sys.stdout.flush()
                 else:
-                    # Clear the "Running..." line before printing failure to ensure it's clean
+                    # ... failure handling ...
                     sys.stdout.write(f"\r\033[K")
                     sys.stdout.flush()
                     fail_name = stage.fail_name or stage.name
@@ -54,26 +65,28 @@ class ProgressTuringMachine:
                     if stage.bold_part and fail_name.startswith(stage.bold_part):
                         bold_text = f"{stage.fail_status} {stage.bold_part}"
                         rest_text = fail_name[len(stage.bold_part):].lstrip()
-                        full_msg = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
+                        full_msg_fail = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
                     else:
-                        full_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
+                        full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
                         
-                    sys.stdout.write(f"{full_msg}\n")
+                    sys.stdout.write(f"{full_msg_fail}\n")
                     sys.stdout.flush()
                     return False
             except Exception as e:
-                # Clear the "Running..." line before printing error
+                # ... error handling ...
                 sys.stdout.write(f"\r\033[K")
                 sys.stdout.flush()
                 fail_name = stage.fail_name or stage.name
-                # Color the entire status prefix as bold red
                 sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}\n")
                 sys.stdout.flush()
                 return False
         
-        if ephemeral and final_newline:
-            sys.stdout.write("\n")
-            sys.stdout.flush()
+        if ephemeral and final_newline and not final_msg:
+            # Check if last stage was printed with newline
+            # If not, add one
+            if self.stages and not self.stages[-1].is_sticky:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
             
         return True
 
