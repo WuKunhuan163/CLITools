@@ -1,5 +1,5 @@
 import sys
-from typing import List
+from typing import List, Optional
 from logic.turing.logic import TuringStage
 
 class ProgressTuringMachine:
@@ -83,10 +83,9 @@ class ProgressTuringMachine:
         
         if ephemeral and final_newline and not final_msg:
             # Check if last stage was printed with newline
-            # If not, add one
             if self.stages and not self.stages[-1].is_sticky:
-                sys.stdout.write("\n")
-                sys.stdout.flush()
+                # We only need ONE newline
+                pass
             
         return True
 
