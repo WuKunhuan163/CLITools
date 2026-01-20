@@ -10,7 +10,8 @@ from pathlib import Path
 # Add project root to sys.path
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 try:
     from logic.lang.utils import get_translation
