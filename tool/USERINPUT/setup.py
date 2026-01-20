@@ -13,10 +13,11 @@ project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Add script_dir to path to find logic_internal
+if str(script_dir) not in sys.path:
+    sys.path.insert(0, str(script_dir))
+
 try:
-    # Add script_dir to path to find logic_internal
-    if str(script_dir) not in sys.path:
-        sys.path.insert(0, str(script_dir))
     from logic_internal.lang.utils import get_translation
     from logic_internal.utils import get_logic_dir
 except ImportError:
