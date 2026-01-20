@@ -64,7 +64,7 @@ class TestPythonTool(unittest.TestCase):
 
     def test_independent_versions(self):
         """Verify two different versions can be used independently."""
-        # This test assumes at least two versions are installed in tool/PYTHON/proj/install/
+        # This test assumes at least two versions are installed in tool/PYTHON/data/install/
         # Let's check what's installed
         install_dir = self.tool_dir / "proj" / "installations"
         if not install_dir.exists():

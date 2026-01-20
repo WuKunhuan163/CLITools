@@ -178,7 +178,8 @@ class ToolBase:
             success_status=self.get_translation("label_successfully", "Successfully"),
             fail_status=self.get_translation("label_failed_to_setup", "Failed to setup"),
             success_name=self.get_translation("label_setup_success_name", "setup {name} tool").format(name=self.tool_name),
-            fail_name=self.get_translation("label_the_tool_name", "the {name} tool").format(name=self.tool_name)
+            fail_name=self.get_translation("label_the_tool_name", "the {name} tool").format(name=self.tool_name),
+            bold_part="setup"
         ))
         
         if not tm.run(ephemeral=True):

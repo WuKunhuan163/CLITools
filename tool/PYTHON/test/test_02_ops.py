@@ -22,7 +22,7 @@ class TestPythonOps(unittest.TestCase):
         result = subprocess.run([str(self.python_tool), "--py-version", version, "-c", code], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
         # The output should contain our installations directory
-        self.assertIn("tool/PYTHON/proj/install/python3.10.19", result.stdout)
+        self.assertIn("tool/PYTHON/data/install/3.10.19", result.stdout)
 
     def test_pip_install(self):
         """Test pip install in the standalone environment."""
