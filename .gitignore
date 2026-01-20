@@ -11,7 +11,5 @@
 !logic/**
 !test/
 !test/**
-!todo/
-!todo/**
 !.gitignore
 **/__pycache__/
