@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from logic.config import get_global_config
 
 def get_translation(tool_logic_dir, key, default_text):
     """
@@ -11,18 +12,7 @@ def get_translation(tool_logic_dir, key, default_text):
     lang = os.environ.get("TOOL_LANGUAGE")
     
     if not lang:
-        try:
-            # language_utils.py is in logic/lang/
-            current_file = Path(__file__).resolve()
-            project_root = current_file.parent.parent.parent
-            config_path = project_root / "data" / "config.json"
-            
-            if config_path.exists():
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    lang = config.get("language")
-        except Exception:
-            pass
+        lang = get_global_config("language")
             
     if not lang:
         lang = "en"

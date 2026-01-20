@@ -16,6 +16,20 @@ def get_setting(key, default=None):
         pass
     return default
 
+def get_global_config(key=None, default=None):
+    """Retrieve a configuration value from data/config.json."""
+    try:
+        config_path = PROJECT_ROOT / "data" / "config.json"
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                if key:
+                    return config.get(key, default)
+                return config
+    except Exception:
+        pass
+    return default if key else {}
+
 def get_color(color_name, default="\033[0m"):
     """Retrieve an ANSI color code from colors.json."""
     try:
