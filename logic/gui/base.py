@@ -103,6 +103,9 @@ class BaseGUIWindow:
                     # Trigger the add_time pulse if possible
                     if hasattr(self, "on_remote_add_time"):
                         self.on_remote_add_time()
+                    else:
+                        # Fallback if no specific callback
+                        self.remaining_time += 60 
             except Exception:
                 pass
 

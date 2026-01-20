@@ -387,12 +387,12 @@ if __name__ == "__main__":
                 if stop_file.exists():
                     try: stop_file.unlink()
                     except: pass
-                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
-                    raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
+                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal", pid=proc.pid)
+                    raise UserInputFatalError(msg)
                 
                 # If no stop file, it might be a crash or system signal
-                msg = get_msg("msg_terminated_external", "Likely external signal or system crash")
-                raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
+                msg = get_msg("msg_terminated_external", "Likely external signal or system crash", pid=proc.pid)
+                raise UserInputFatalError(msg)
             elif res['status'] == 'timeout':
                 # Treat timeout with no input as a retryable failure
                 data = res.get('data', '')
@@ -415,11 +415,11 @@ if __name__ == "__main__":
                 if stop_file.exists():
                     try: stop_file.unlink()
                     except: pass
-                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
-                    raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
+                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal", pid=proc.pid)
+                    raise UserInputFatalError(msg)
                 
-                msg = get_msg("msg_terminated_external", "Likely external signal or system crash")
-                raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
+                msg = get_msg("msg_terminated_external", "Likely external signal or system crash", pid=proc.pid)
+                raise UserInputFatalError(msg)
             raise RuntimeError(parse_gui_error(stderr or stdout))
         
         raise RuntimeError("No valid response from GUI")

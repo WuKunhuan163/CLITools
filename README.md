@@ -7,11 +7,15 @@ A robust, symmetrical, and user-friendly tool management system designed for AI 
 ### 1. Initial Setup
 Clone the repository and run the setup script to create the `TOOL` shortcut and add it to your `PATH`.
 
-```bash
-git clone https://github.com/your-repo/AITerminalTools.git
-cd AITerminalTools
-python3 setup.py
-```
+#### macOS / Linux
+- Ensure `python3` and `git` are in your `PATH`.
+- Clone the repository.
+- Run `python3 setup.py`.
+
+#### Windows
+- Install Python from python.org and Git from git-scm.com.
+- Ensure "Add Python to PATH" is checked during installation.
+- Run `python setup.py` from PowerShell or Git Bash.
 
 ### 2. Install Your First Tool
 Once setup is complete, you can use the `TOOL` command directly. The `USERINPUT` tool is highly recommended for obtaining interactive feedback from users.
@@ -35,10 +39,21 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 - `TOOL install <NAME>`: Installs a tool, its tool-dependencies, and its pip-dependencies.
 - `TOOL uninstall <NAME>`: Safely removes a tool and its shortcuts.
 - `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Highly optimized for speed and reliability.
+- `TOOL rule`: **Critical for AI Agents.** Generates a comprehensive set of rules and instructions that you can paste into your AI agent's system prompt or context. Use `TOOL <NAME> rule` for tool-specific guidelines.
 - `TOOL clear`: Clears the terminal screen.
 
-### AI Agent Support
-- `TOOL rule`: **Critical for AI Agents.** Generates a comprehensive set of rules and instructions that you can paste into your AI agent's system prompt or context. It tells the agent how to use the available tools, how to handle feedback, and how to maintain project consistency.
+### USERINPUT Tool
+A core tool for human-in-the-loop AI workflows:
+- **GUI Feedback**: Pop up a multi-line input window.
+- **Remote Control**: Command-line based submission (`USERINPUT submit`), cancellation, and time extension (`USERINPUT add_time`).
+- **Timed Interaction**: Default 300s timeout with automatic refocus and periodic bell (90s interval) to prevent missed feedback.
+- **Isolated Runtime**: Automatically uses the `PYTHON` tool to ensure a consistent execution environment.
+
+### PYTHON Tool
+The foundation for tool isolation:
+- **Version Management**: `PYTHON --py-install 3.11.14` to deploy specific Python versions.
+- **Dependency Isolation**: Ensures tools run with their own dedicated interpreters and pip environments.
+- **Automatic Discovery**: Used by the `TOOL` ecosystem to resolve the correct runtime for each tool.
 
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Sets the global display language (e.g., `zh` for Chinese, `en` for English, `ar` for Arabic).
