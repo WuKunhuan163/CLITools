@@ -231,5 +231,13 @@
   "tool_PYTHON_desc": "مدير بيئة Python مستقل وأداة وكيل.",
   "tool_PYTHON_purpose": "توفير بيئة تشغيل Python متسقة ومعزولة للأدوات والمشاريع.",
   "auto_committing_before_switch": "التزام التغييرات المحلية تلقائياً قبل تبديل الفرع...",
-  "label_auto_committing": "التزام تلقائي"
+  "label_auto_committing": "التزام تلقائي",
+  "label_auto_committed": "تم الالتزام تلقائياً بـ",
+  "label_auto_committing_local": "الالتزام التلقائي بالتغييرات المحلية",
+  "on_branch": "على الفرع '{branch}'",
+  "alignment_complete": "اكتمل محاذاة الفروع.",
+  "syncing_dev": "جارٍ مزامنة الفرع 'dev'",
+  "aligning_branch": "جارٍ محاذاة الفرع '{branch}'",
+  "recreating_test": "جارٍ إعادة إنشاء الفرع 'test'",
+  "pushing_to_origin": "جارٍ الدفع إلى origin"
 }
