@@ -86,7 +86,10 @@ def print_python_not_found_error(tool_name, version, script_dir, translation_fun
     
     # Check if bin/PYTHON exists.
     project_root = Path(__file__).resolve().parent.parent
-    python_bin = project_root / "bin" / "PYTHON"
+    
+    error_label = _("label_error", "Error")
+    msg = _("err_python_not_found", "Python tool '{version}' not found, cannot launch {tool_name} GUI.").format(version=version, tool_name=tool_name)
+    print(f"{BOLD}{RED}{error_label}{RESET}: {msg}", flush=True) # Only "Error" is red and bold
     
     # Always show installation instructions if the version is not found
     print(_("err_python_not_found_hint_2", "Please run: TOOL install PYTHON"), flush=True)
