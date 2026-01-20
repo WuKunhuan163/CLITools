@@ -20,7 +20,7 @@ except ImportError:
     def get_translation(d, k, default): return default
     def get_logic_dir(d): return d / "logic"
 
-TOOL_INTERNAL = get_logic_dir(script_dir)
+TOOL_INTERNAL = script_dir / "logic_internal"
 
 def _(key, default):
     return get_translation(str(TOOL_INTERNAL), key, default)
