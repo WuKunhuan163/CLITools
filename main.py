@@ -224,6 +224,9 @@ def _dev_sync():
 def _dev_align():
     """Align tool, main, and test branches with dev branch."""
     project_root = ROOT_PROJECT_ROOT
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+    from logic.utils import cleanup_project_patterns
     
     # 0. Detect starting branch
     try:
@@ -232,69 +235,51 @@ def _dev_align():
         print(f"{BOLD}{RED}Error{RESET}: Failed to detect current branch.")
         return
 
-    # Automatically switch to dev if not already there
-    if start_branch != "dev":
-        # First, try to auto-commit any changes on the current branch to avoid data loss
+    # Helper to run git commands quietly
+    def run_git(args, cwd=None):
+        try:
+            subprocess.run(["git"] + args, check=True, cwd=cwd or str(project_root), capture_output=True)
+            return True
+        except:
+            return False
+
+    def sync_dev_action():
+        # Automatically switch to dev if not already there
+        if start_branch != "dev":
+            # First, try to auto-commit any changes on the current branch to avoid data loss
+            try:
+                status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+                if status:
+                    run_git(["add", "-A"])
+                    run_git(["commit", "-m", f"Auto-commit before switching to dev for alignment"])
+            except: pass
+            
+            if not run_git(["checkout", "-f", "dev"]): return False
+
+        # Auto-commit local changes on dev if any
         try:
             status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
             if status:
-                label = _("label_auto_committing", "Auto-committing")
-                print(f"{BOLD}{BLUE}{label}{RESET} " + _("local_changes_prefix", "local changes on") + f" '{start_branch}'...")
-                subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
-                subprocess.run(["git", "commit", "-m", f"Auto-commit before switching to dev for alignment"], check=True, cwd=str(project_root))
+                run_git(["add", "-A"])
+                run_git(["commit", "-m", "Auto-commit before alignment"])
         except: pass
-        
-        print(f"{BOLD}{BLUE}" + _("switching_to_dev", "Switching to 'dev' branch for alignment...") + f"{RESET}")
-        subprocess.run(["git", "checkout", "-f", "dev"], check=True, cwd=str(project_root))
-        start_branch = "dev"
 
-    # Auto-commit local changes on dev if any
-    try:
-        status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
-        if status:
-            # Predicate+Object is bold blue, rest is normal
-            prefix = f"{BOLD}{BLUE}" + _("label_auto_committing_changes", "Auto-committing local changes") + f"{RESET}"
-            suffix = _("on_dev_branch", "on 'dev'...")
-            print(f"{prefix} {suffix}")
-            subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
-            subprocess.run(["git", "commit", "-m", "Auto-commit before alignment"], check=True, cwd=str(project_root))
-    except: pass
+        # Clean up untracked files on dev
+        run_git(["clean", "-fdx"])
+        cleanup_project_patterns(project_root)
 
-    # Clean up untracked files on dev
-    subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
-    
-    # Recursively delete .DS_Store and __pycache__
-    from logic.utils import cleanup_project_patterns
-    cleanup_project_patterns(project_root)
+        # Push dev to origin
+        return run_git(["push", "origin", "dev"])
 
-    # Push dev to origin
-    try:
-        print(f"{BOLD}{BLUE}" + _("pushing_to_origin", "Pushing {branch} to origin...", branch="dev") + f"{RESET}")
-        subprocess.run(["git", "push", "origin", "dev"], check=True, cwd=str(project_root), capture_output=True)
-    except: pass
+    def align_tool_action():
+        if not run_git(["checkout", "-f", "tool"]): return False
+        if not run_git(["reset", "--hard", "dev"]): return False
+        if not run_git(["clean", "-fdx"]): return False
+        return run_git(["push", "origin", "tool", "--force"])
 
-    try:
-        # 1. Update 'tool' branch
-        label_prefix = f"{BOLD}{BLUE}" + _("aligning_tool_branch_label", "Aligning 'tool' branch") + f"{RESET}"
-        label_suffix = "..."
-        print(f"{label_prefix}{label_suffix}")
-        subprocess.run(["git", "checkout", "-f", "tool"], check=True, cwd=str(project_root))
-        # Reset tool branch to dev's state completely
-        subprocess.run(["git", "reset", "--hard", "dev"], check=True, cwd=str(project_root))
-        subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
-        # Push tool
-        try:
-            print(f"{BOLD}{BLUE}" + _("pushing_to_origin", "Pushing {branch} to origin...", branch="tool") + f"{RESET}")
-            subprocess.run(["git", "push", "origin", "tool", "--force"], check=True, cwd=str(project_root), capture_output=True)
-        except: pass
-        
-        # 2. Update 'main' branch
-        label_prefix = f"{BOLD}{BLUE}" + _("aligning_main_branch_label", "Aligning 'main' branch") + f"{RESET}"
-        label_suffix = "..."
-        print(f"{label_prefix}{label_suffix}")
-        subprocess.run(["git", "checkout", "-f", "main"], check=True, cwd=str(project_root))
-        # Reset main branch to tool's state (which is now dev's state)
-        subprocess.run(["git", "reset", "--hard", "refs/heads/tool"], check=True, cwd=str(project_root))
+    def align_main_action():
+        if not run_git(["checkout", "-f", "main"]): return False
+        if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
@@ -310,45 +295,72 @@ def _dev_align():
                 except: pass
         
         # Clean up EVERYTHING untracked
-        subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
+        run_git(["clean", "-fdx"])
         
-        # Commit the removals
-        subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
-        subprocess.run(["git", "commit", "--allow-empty", "-m", "Align 'main' with 'tool' (removed restricted folders)"], cwd=str(project_root))
-        
-        # Push main
-        try:
-            print(f"{BOLD}{BLUE}" + _("pushing_to_origin", "Pushing {branch} to origin...", branch="main") + f"{RESET}")
-            subprocess.run(["git", "push", "origin", "main", "--force"], check=True, cwd=str(project_root), capture_output=True)
-        except: pass
+        # Commit and push
+        run_git(["add", "-A"])
+        run_git(["commit", "--allow-empty", "-m", "Align 'main' with 'tool' (removed restricted folders)"])
+        return run_git(["push", "origin", "main", "--force"])
 
-        # 3. Recreate 'test' branch
-        label_prefix = f"{BOLD}{BLUE}" + _("recreating_test_branch_label", "Recreating 'test' branch") + f"{RESET}"
-        label_suffix = "..."
-        print(f"{label_prefix}{label_suffix}")
-        subprocess.run(["git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
-        subprocess.run(["git", "checkout", "-b", "test"], check=True, cwd=str(project_root))
-        
-        # Push test
-        try:
-            print(f"{BOLD}{BLUE}" + _("pushing_to_origin", "Pushing {branch} to origin...", branch="test") + f"{RESET}")
-            subprocess.run(["git", "push", "origin", "test", "--force"], check=True, cwd=str(project_root), capture_output=True)
-        except: pass
+    def recreate_test_action():
+        if not run_git(["branch", "-D", "test"]): pass # Ignore if doesn't exist
+        if not run_git(["checkout", "-b", "test"]): return False
+        return run_git(["push", "origin", "test", "--force"])
 
-        # 4. Back to 'dev'
-        subprocess.run(["git", "checkout", "dev"], check=True, cwd=str(project_root))
+    tm = ProgressTuringMachine()
+    
+    # Using 'bold_part' to bold only the action verb
+    tm.add_stage(TuringStage(
+        name="local changes on 'dev'",
+        action=sync_dev_action,
+        active_status="Syncing",
+        success_status="Synced",
+        fail_status="Failed to sync",
+        bold_part="Syncing",
+        success_color="BLUE"
+    ))
+    
+    tm.add_stage(TuringStage(
+        name="'tool' branch",
+        action=align_tool_action,
+        active_status="Aligning",
+        success_status="Aligned",
+        fail_status="Failed to align",
+        bold_part="Aligning",
+        success_color="BLUE"
+    ))
+    
+    tm.add_stage(TuringStage(
+        name="'main' branch",
+        action=align_main_action,
+        active_status="Aligning",
+        success_status="Aligned",
+        fail_status="Failed to align",
+        bold_part="Aligning",
+        success_color="BLUE"
+    ))
+    
+    tm.add_stage(TuringStage(
+        name="'test' branch",
+        action=recreate_test_action,
+        active_status="Recreating",
+        success_status="Recreated",
+        fail_status="Failed to recreate",
+        bold_part="Recreating",
+        success_color="BLUE"
+    ))
+
+    try:
+        if tm.run(ephemeral=True):
+            success_label = _("alignment_complete", "Alignment complete.")
+            print(f"{BOLD}{GREEN}{success_label}{RESET}")
         
-        success_label = _("alignment_complete", "Alignment complete.")
-        print(f"{BOLD}{GREEN}{success_label}{RESET}")
-        print(" - " + _("align_summary_tool", "'tool' branch matches 'dev'"))
-        print(" - " + _("align_summary_main", "'main' branch matches 'tool' minus restricted folders"))
-        print(" - " + _("align_summary_test", "'test' branch matches 'main'"))
-        print(" - " + _("align_summary_remote", "All branches pushed to origin"))
+        # Ensure we end up back on 'dev'
+        run_git(["checkout", "-f", "dev"])
         
     except Exception as e:
         print(f"{BOLD}{RED}Error during alignment{RESET}: {e}")
-        # Try to get back to dev
-        subprocess.run(["git", "checkout", "dev"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        run_git(["checkout", "-f", "dev"])
 
 def _dev_reset():
     """Reset main and test branches to a clean state using templates."""
