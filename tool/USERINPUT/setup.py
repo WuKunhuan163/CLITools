@@ -28,7 +28,7 @@ def _(key, default):
 def main():
     # Load config to get default python version
     config_path = TOOL_INTERNAL / "config.json"
-    default_version = "python3.11.14"
+    default_version = "3.11.14"
     if config_path.exists():
         try:
             with open(config_path, 'r') as f:

@@ -88,11 +88,16 @@ class UserInputTool(ToolBase):
     def get_python_exe(self, version=None):
         if not version:
             config = get_config()
-            version = config.get("python_version", "python3.11.14")
+            version = config.get("python_version", "3.11.14")
 
+        # Normalize version name (remove 'python' or 'python3' prefix)
+        v = version
+        if v.startswith("python3"): v = v[7:]
+        elif v.startswith("python"): v = v[6:]
+        
         try:
             # Add logic directory to path to find config
-            logic_dir = self.project_root / "tool" / "PYTHON" / "logic"
+            logic_dir = self.project_root / "tool" / "PYTHON" / "logic_internal"
             if str(logic_dir) not in sys.path:
                 sys.path.append(str(logic_dir))
             from config import INSTALL_DIR
@@ -112,7 +117,12 @@ class UserInputTool(ToolBase):
         elif sys.platform == "win32": 
             system_tag = "windows-amd64"
 
-        possible_dirs = [version, f"{version}-{system_tag}", f"{version}-macos-arm64", f"{version}-macos", f"{version}-linux64", f"{version}-linux64-musl"]
+        # Try multiple variations
+        possible_dirs = [
+            v, f"{v}-{system_tag}", 
+            f"python{v}-{system_tag}", f"python3{v}-{system_tag}",
+            f"{v}-macos-arm64", f"{v}-macos", f"{v}-linux64", f"{v}-linux64-musl"
+        ]
 
         for d in possible_dirs:
             python_exec = install_root / d / "install" / "bin" / "python3"
@@ -166,7 +176,7 @@ def get_config():
         with open(config_path, 'r') as f: return json.load(f)
     return {}
 
-def get_user_input_tkinter(title=None, timeout=180, hint_text=None, custom_id=None):
+def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=None):
     tool = UserInputTool()
     if not tool.check_dependencies(): raise RuntimeError("Missing dependencies for USERINPUT")
     python_exe = tool.get_python_exe()
