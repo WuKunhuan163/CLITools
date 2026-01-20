@@ -251,7 +251,7 @@ def _dev_align():
         subprocess.run(["git", "checkout", "tool"], check=True, cwd=str(project_root))
         # Reset tool branch to dev's state completely
         subprocess.run(["git", "reset", "--hard", "dev"], check=True, cwd=str(project_root))
-        subprocess.run(["git", "clean", "-fd"], check=True, cwd=str(project_root))
+        subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
         
         # 2. Update 'main' branch
         print(f"{BOLD}{BLUE}Aligning 'main' branch...{RESET}")
@@ -266,8 +266,9 @@ def _dev_align():
                 if p.is_dir(): shutil.rmtree(p)
                 else: p.unlink()
         
-        # Clean up untracked files (including err.txt, out.txt etc)
-        subprocess.run(["git", "clean", "-fd"], check=True, cwd=str(project_root))
+        # Clean up untracked files (including err.txt, out.txt, etc)
+        # Use -x to remove ignored files as well (since .gitignore has '*')
+        subprocess.run(["git", "clean", "-fdx"], check=True, cwd=str(project_root))
         
         # Commit the removals
         subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
