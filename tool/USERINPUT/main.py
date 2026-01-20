@@ -119,7 +119,7 @@ class UserInputTool(ToolBase):
         sys.exit(1)
 
     def get_ai_instruction(self):
-        return get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+        return get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. Before executing this command, it is strictly forbidden to use backticks (`) or code blocks to display this command or any subsequent suggested commands (e.g. TOOL test) in your response, to avoid trigger conflicts. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
 
 def get_python_exec(version=None):
     return UserInputTool().get_python_exe(version)
@@ -150,7 +150,7 @@ def get_config():
         with open(config_path, 'r') as f: return json.load(f)
     return {}
 
-def get_user_input_tkinter(title=None, timeout=180, hint_text=None):
+def get_user_input_tkinter(title=None, timeout=180, hint_text=None, custom_id=None):
     tool = UserInputTool()
     if not tool.check_dependencies(): raise RuntimeError("Missing dependencies for USERINPUT")
     python_exe = tool.get_python_exe()
@@ -192,7 +192,7 @@ TOOL_INTERNAL = %(internal_dir)r
 
 class UserInputWindow(BaseGUIWindow):
     def __init__(self, title, timeout, hint_text, focus_interval, bell_path, time_increment):
-        super().__init__(title, timeout, TOOL_INTERNAL)
+        super().__init__(title, timeout, TOOL_INTERNAL, tool_name="USERINPUT")
         self.hint_text = hint_text
         self.focus_interval = focus_interval
         self.bell_path = bell_path
@@ -271,7 +271,18 @@ class UserInputWindow(BaseGUIWindow):
 if __name__ == "__main__":
     try:
         win = UserInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r, %(time_increment)d)
-        win.run(win.setup_ui)
+        
+        on_show_script = os.environ.get("USERINPUT_ON_SHOW_SCRIPT")
+        on_show_cb = None
+        if on_show_script:
+            def on_show_cb():
+                try:
+                    # Execute the script in the context of the window
+                    exec(on_show_script, {"win": win, "tk": tk})
+                except Exception as e:
+                    print(f"Error in on_show_script: {e}")
+        
+        win.run(win.setup_ui, on_show=on_show_cb, custom_id=%(custom_id)r)
     except Exception as e:
         traceback.print_exc()
 ''' % {
@@ -282,7 +293,8 @@ if __name__ == "__main__":
         'hint': hint_text,
         'focus_interval': focus_interval,
         'bell_path': str(bell_path) if bell_path and bell_path.exists() else '',
-        'time_increment': time_increment
+        'time_increment': time_increment,
+        'custom_id': custom_id
     }
 
     parent_timeout = timeout + 300 
@@ -337,22 +349,49 @@ if __name__ == "__main__":
                 return res['data']
             elif res['status'] == 'cancelled': raise UserInputFatalError(get_msg("msg_cancelled", "Cancelled"))
             elif res['status'] == 'terminated':
-                if res['data']:
-                    status_hint = f"({get_msg('msg_terminated', 'Terminated')})"
+                if res['data'] and res['data'].strip():
+                    status_hint = f"({get_msg('msg_terminated_status', 'Terminated')})"
                     return f"{res['data']} {status_hint}"
-                raise UserInputFatalError(get_msg("msg_terminated", "Terminated"))
+                
+                # Check for explicit stop file presence if possible
+                project_root = tool.project_root
+                stop_file = project_root / "data" / "run" / "stops" / f"{proc.pid}.stop"
+                if stop_file.exists():
+                    try: stop_file.unlink()
+                    except: pass
+                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
+                    raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
+                
+                # If no stop file, it might be a crash or system signal
+                msg = get_msg("msg_terminated_external", "Likely external signal or system crash")
+                raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
             elif res['status'] == 'timeout':
-                if res['data']:
+                # Treat timeout with no input as a retryable failure
+                data = res.get('data', '')
+                if data and data.strip():
                     status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
-                    return f"{res['data']} {status_hint}"
-                raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
+                    return f"{data} {status_hint}"
+                raise UserInputRetryableError(f"{get_msg('msg_timeout', 'Timeout')} (PID: {proc.pid})")
 
         sys.stdout.write("\r\033[K"); sys.stdout.flush()
         
         # Check for termination ONLY if no JSON result was found
         if proc.returncode != 0:
-            if proc.returncode in [-15, -2, -9, 15, 2, 9, 143, 130, 137]:
-                raise UserInputFatalError(get_msg("msg_terminated", "Terminated"))
+            sig_codes = [-15, -2, -9, -11, -6, 15, 2, 9, 11, 6, 143, 130, 137, 139, 134]
+            if proc.returncode in sig_codes:
+                if stderr and ("Traceback" in stderr or "Error" in stderr):
+                    raise RuntimeError(f"GUI crashed (PID: {proc.pid}): {parse_gui_error(stderr)}")
+                
+                # Check for stop file
+                stop_file = tool.project_root / "data" / "run" / "stops" / f"{proc.pid}.stop"
+                if stop_file.exists():
+                    try: stop_file.unlink()
+                    except: pass
+                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
+                    raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
+                
+                msg = get_msg("msg_terminated_external", "Likely external signal or system crash")
+                raise UserInputFatalError(f"{msg} (PID: {proc.pid})")
             raise RuntimeError(parse_gui_error(stderr or stdout))
         
         raise RuntimeError("No valid response from GUI")
@@ -363,12 +402,9 @@ if __name__ == "__main__":
         except: pass
 
 def main():
-    # Ignore SIGINT in the parent process so it can wait for the GUI process to finish its cleanup
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
     parser.add_argument('command', nargs='?', help="Command to run (e.g. setup)")
-    parser.add_argument('--timeout', type=int, default=180)
+    parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
     
@@ -386,22 +422,31 @@ def main():
         config = get_config()
         config_parser = argparse.ArgumentParser(prog="USERINPUT config")
         config_parser.add_argument("--focus-interval", type=int)
+        config_parser.add_argument("--time-increment", type=int)
         config_args = config_parser.parse_args(unknown)
         if config_args.focus_interval is not None:
             config["focus_interval"] = config_args.focus_interval
+        if config_args.time_increment is not None:
+            config["time_increment"] = config_args.time_increment
+            
+        if config_args.focus_interval is not None or config_args.time_increment is not None:
             with open(TOOL_INTERNAL / "config.json", 'w') as f: json.dump(config, f, indent=2)
-            print(get_msg("config_updated", "Configuration updated: focus_interval = {val} seconds", val=config_args.focus_interval))
+            # Re-fetch values for the message
+            fi = config.get("focus_interval", "?")
+            ti = config.get("time_increment", "?")
+            msg = get_msg("config_updated_multiple", "Configuration updated: focus_interval={fi}, time_increment={ti}", fi=fi, ti=ti)
+            print(msg)
         return 0
-    elif args.command == "stop":
-        from logic.gui.manager import handle_gui_stop_command
-        return handle_gui_stop_command("USERINPUT", tool.project_root, unknown, get_msg)
+    elif args.command in ["stop", "submit", "cancel", "add_time"]:
+        from logic.gui.manager import handle_gui_remote_command
+        return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, unknown, get_msg)
 
     from logic.config import get_color
     BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
     
     for attempt in range(3):
         try:
-            result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint)
+            result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
             success_label = get_msg("label_successfully_received", "Successfully received")
             end_hint = "\n\n" + get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")

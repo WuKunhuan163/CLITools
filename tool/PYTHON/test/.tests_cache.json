@@ -4,6 +4,5 @@
   "test_02_ops.py",
   "test_03_fallback.py",
   "test_04_regularization.py",
-  "test_05_list_tiered.py",
-  "test_python_tool.py"
+  "test_05_list_tiered.py"
 ]
