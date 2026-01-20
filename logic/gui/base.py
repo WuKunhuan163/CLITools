@@ -52,9 +52,16 @@ class BaseGUIWindow:
     def handle_external_signal(self, signum, frame):
         """Gracefully close on external signals, capturing current state."""
         if not self.window_closed:
+            # Check if it was a real remote stop or just a random signal
+            project_root = Path(self.internal_dir).parent.parent.parent
+            stop_file = project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
+            is_remote_stop = stop_file.exists()
+            
             self.finalize("terminated", self.get_current_state())
-            # For signal-based exit, we might need a hard exit if mainloop is stuck
-            # but usually destroy() is enough.
+            
+            # Print result before exiting from signal handler
+            print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
+            
             sys.exit(128 + signum)
 
     def check_signals(self):
@@ -175,8 +182,18 @@ class BaseGUIWindow:
 
             self.root.mainloop()
             
+            # Cleanup stop files if they exist for this PID
+            try:
+                project_root = Path(self.internal_dir).parent.parent.parent
+                stops_dir = project_root / "data" / "run" / "stops"
+                pid = os.getpid()
+                for ext in ["stop", "submit", "cancel", "add_time"]:
+                    f = stops_dir / f"{pid}.{ext}"
+                    if f.exists(): f.unlink()
+            except: pass
+
             # Cleanup registry
-            if self.instance_file and self.instance_file.exists(): 
+            if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists(): 
                 try: self.instance_file.unlink()
                 except: pass
                 
