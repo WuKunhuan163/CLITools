@@ -3,5 +3,9 @@
   "test_01_kill.py",
   "test_02_timeout.py",
   "test_03_config.py",
-  "test_04_hint.py"
+  "test_04_hint.py",
+  "test_05_remote_submit.py",
+  "test_06_remote_cancel.py",
+  "test_07_remote_add_time.py",
+  "test_08_remote_stop.py"
 ]

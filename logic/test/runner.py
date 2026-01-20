@@ -251,7 +251,9 @@ class TestRunner:
                                  status=status_label, file=test_file.name, duration=duration)
                 
                 if report_path:
-                    msg += "\n" + self._("test_full_report", "  Full report: {path}", path=report_path)
+                    # Use | instead of \n to keep it single-line as requested
+                    report_label = self._("test_full_report", "Full report: {path}", path=report_path)
+                    msg += f" | {report_label}"
 
                 yield StepResult(msg, state=WorkerState.SUCCESS if status_raw == "Success" else WorkerState.ERROR, is_final=True)
             return logic

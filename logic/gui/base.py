@@ -26,10 +26,11 @@ class BaseGUIWindow:
     """
     Blueprint for Tool GUIs with timeout, signal handling, and state management.
     """
-    def __init__(self, title: str, timeout: int, internal_dir: str):
+    def __init__(self, title: str, timeout: int, internal_dir: str, tool_name: str = None):
         self.title = title
         self.remaining_time = timeout
         self.internal_dir = internal_dir
+        self.tool_name = tool_name
         self.root = None
         self.window_closed = False
         self.result = {"status": "error", "data": None}
@@ -59,23 +60,46 @@ class BaseGUIWindow:
     def check_signals(self):
         """Periodic check to allow Python to process signals and check for stop flags."""
         if not self.window_closed and self.root:
-            # 1. Check for stop flag file
+            # Check project root for data/run/stops/
             try:
-                # Find project root: self.internal_dir is tool/NAME/logic/
-                # Parent 1: tool/NAME/
-                # Parent 2: tool/
-                # Parent 3: project_root/
                 project_root = Path(self.internal_dir).parent.parent.parent
-                stop_file = project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
+                stops_dir = project_root / "data" / "run" / "stops"
+                
+                # Detect flags for this PID
+                pid = os.getpid()
+                
+                # 1. STOP flag (Original mechanism)
+                stop_file = stops_dir / f"{pid}.stop"
                 if stop_file.exists():
                     stop_file.unlink()
-                    # Capture State A and return via Interface I
                     self.finalize("terminated", self.get_current_state())
                     return
+
+                # 2. SUBMIT flag
+                submit_file = stops_dir / f"{pid}.submit"
+                if submit_file.exists():
+                    submit_file.unlink()
+                    self.finalize("success", self.get_current_state())
+                    return
+
+                # 3. CANCEL flag
+                cancel_file = stops_dir / f"{pid}.cancel"
+                if cancel_file.exists():
+                    cancel_file.unlink()
+                    self.finalize("cancelled", self.get_current_state())
+                    return
+
+                # 4. ADD_TIME flag
+                add_time_file = stops_dir / f"{pid}.add_time"
+                if add_time_file.exists():
+                    add_time_file.unlink()
+                    # Trigger the add_time pulse if possible
+                    if hasattr(self, "on_remote_add_time"):
+                        self.on_remote_add_time()
             except Exception:
                 pass
 
-            # 2. Schedule next check
+            # Schedule next check
             try: self.root.after(500, self.check_signals)
             except: pass
 
@@ -114,7 +138,7 @@ class BaseGUIWindow:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
 
-    def run(self, setup_func: Callable):
+    def run(self, setup_func: Callable, on_show: Optional[Callable] = None, custom_id: Optional[str] = None):
         """Main execution flow."""
         try:
             if platform.system() == "Darwin":
@@ -134,7 +158,9 @@ class BaseGUIWindow:
                 with open(self.instance_file, "w") as f:
                     json.dump({
                         "pid": os.getpid(), 
+                        "tool_name": self.tool_name,
                         "title": self.title, 
+                        "custom_id": custom_id, # Added
                         "class": self.__class__.__name__,
                         "start_time": time.time()
                     }, f)
@@ -143,6 +169,10 @@ class BaseGUIWindow:
 
             self.check_signals()
             self.root.protocol("WM_DELETE_WINDOW", lambda: self.finalize("cancelled", self.get_current_state()))
+            
+            if on_show is not None:
+                self.root.after(100, on_show)
+
             self.root.mainloop()
             
             # Cleanup registry
@@ -198,6 +228,9 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
                     status_label.config(text=f"{rem_msg} {window_instance.remaining_time}s", fg=window_instance._default_status_fg)
             
             window_instance.root.after(2000, reset_pulse)
+        
+        # Register for remote trigger
+        window_instance.on_remote_add_time = on_add_time
             
         tk.Button(bottom_frame, text=add_msg, command=on_add_time, 
                   font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
