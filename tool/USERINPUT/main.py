@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v23)
+USERINPUT Tool (v24)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Standardized UI styling via logic.gui.style.
 - Robust registry-based stop mechanism and partial input capture.
+- Refactored to use centralized run_gui interface.
 """
 
 import os
@@ -240,7 +241,7 @@ class UserInputWindow(BaseGUIWindow):
         self.status_label = setup_common_bottom_bar(
             self.root, self, 
             submit_text=self._("submit", "Submit"),
-            submit_cmd=lambda: self.finalize("success", self.get_current_state()),
+            submit_cmd=lambda: self.finalize("success", self.get_current_state() or "USER_SUBMITTED_EMPTY"),
             add_time_increment=self.time_increment
         )
 
@@ -325,107 +326,44 @@ if __name__ == "__main__":
         'custom_id': custom_id
     }
 
-    parent_timeout = timeout + 300 
-
     with tempfile.NamedTemporaryFile(mode='w', prefix='USERINPUT_gui_', suffix='.py', delete=False) as tmp:
         tmp.write(tkinter_script)
         tmp_path = tmp.name
 
     try:
         # Use start_new_session=True to decouple from the parent terminal's process group
-        proc = subprocess.Popen([python_exe, tmp_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                text=True, encoding='utf-8', start_new_session=True)
-        from logic.config import get_color
-        BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
+        res = tool.run_gui(python_exe, tmp_path, timeout, custom_id)
         
-        # Display PID for precise termination if needed
-        label_waiting = get_msg("label_waiting_gui", "Waiting for user feedback via GUI")
-        sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})...")
-        sys.stdout.flush()
-
-        stderr_content = []
-        def read_stderr():
-            for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
-            proc.stderr.close()
-        t_stderr = threading.Thread(target=read_stderr, daemon=True)
-        t_stderr.start()
-
-        try:
-            start_wait = time.time()
-            while proc.poll() is None:
-                if time.time() - start_wait > parent_timeout:
-                    proc.kill()
-                    raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
-                time.sleep(0.5)
-            stdout, _ = proc.communicate()
-            t_stderr.join(timeout=2)
-            stderr = "".join(stderr_content)
-        except Exception as e:
-            proc.kill(); raise e
-
-        res = None
-        for line in stdout.splitlines():
-            if line.startswith("GDS_GUI_RESULT_JSON:"):
-                try:
-                    res = json.loads(line[len("GDS_GUI_RESULT_JSON:"):])
-                    break
-                except: pass
-
-        if res:
-            if res['status'] == 'success':
-                if res['data'] == 'USER_SUBMITTED_EMPTY': raise UserInputRetryableError(get_msg("msg_empty", "Empty content"))
-                return res['data']
-            elif res['status'] == 'cancelled': raise UserInputFatalError(get_msg("msg_cancelled", "Cancelled"))
-            elif res['status'] == 'terminated':
-                if res['data'] and res['data'].strip():
-                    status_hint = f"({get_msg('msg_terminated_status', 'Terminated')})"
-                    return f"{res['data']} {status_hint}"
-                
-                # Check for explicit stop file presence if possible
-                project_root = tool.project_root
-                stop_file = project_root / "data" / "run" / "stops" / f"{proc.pid}.stop"
-                if stop_file.exists():
-                    try: stop_file.unlink()
-                    except: pass
-                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal", pid=proc.pid)
-                    raise UserInputFatalError(msg)
-                
-                # If no stop file, it might be a crash or system signal
-                msg = get_msg("msg_terminated_external", "Likely external signal or system crash", pid=proc.pid)
+        if res.get("status") == "success":
+            if res.get("data") == 'USER_SUBMITTED_EMPTY':
+                raise UserInputRetryableError(get_msg("msg_empty", "Empty content"))
+            return res.get("data")
+        elif res.get("status") == "cancelled":
+            raise UserInputFatalError(get_msg("msg_cancelled", "Cancelled"))
+        elif res.get("status") == "terminated":
+            if res.get("data") and res.get("data").strip():
+                status_hint = f"({get_msg('msg_terminated_status', 'Terminated')})"
+                return f"{res['data']} {status_hint}"
+            
+            # Use specific message based on reason
+            reason = res.get("reason", "interrupted")
+            if reason == "interrupted":
+                raise UserInputFatalError(get_msg("msg_interrupted", "Interrupted by user"))
+            else:
+                msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
                 raise UserInputFatalError(msg)
-            elif res['status'] == 'timeout':
-                # Treat timeout with no input as a retryable failure
-                data = res.get('data', '')
-                if data and data.strip():
-                    status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
-                    return f"{data} {status_hint}"
-                raise UserInputRetryableError(f"{get_msg('msg_timeout', 'Timeout')} (PID: {proc.pid})")
-
-        sys.stdout.write("\r\033[K"); sys.stdout.flush()
-        
-        # Check for termination ONLY if no JSON result was found
-        if proc.returncode != 0:
-            sig_codes = [-15, -2, -9, -11, -6, 15, 2, 9, 11, 6, 143, 130, 137, 139, 134]
-            if proc.returncode in sig_codes:
-                if stderr and ("Traceback" in stderr or "Error" in stderr):
-                    raise RuntimeError(f"GUI crashed (PID: {proc.pid}): {parse_gui_error(stderr)}")
-                
-                # Check for stop file
-                stop_file = tool.project_root / "data" / "run" / "stops" / f"{proc.pid}.stop"
-                if stop_file.exists():
-                    try: stop_file.unlink()
-                    except: pass
-                    msg = get_msg("msg_terminated_external", "Instance terminated from external signal", pid=proc.pid)
-                    raise UserInputFatalError(msg)
-                
-                msg = get_msg("msg_terminated_external", "Likely external signal or system crash", pid=proc.pid)
-                raise UserInputFatalError(msg)
-            raise RuntimeError(parse_gui_error(stderr or stdout))
-        
+        elif res.get("status") == "timeout":
+            data = res.get('data', '')
+            if data and data.strip():
+                status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
+                return f"{data} {status_hint}"
+            raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
+        elif res.get("status") == "error":
+            raise RuntimeError(res.get("message", "Unknown error"))
+            
         raise RuntimeError("No valid response from GUI")
     finally:
         try:
-            sys.stdout.write("\r\033[K"); sys.stdout.flush()
             if os.path.exists(tmp_path): os.remove(tmp_path)
         except: pass
 
