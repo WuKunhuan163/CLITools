@@ -20,6 +20,17 @@
       "dependencies": [
         "PYTHON"
       ]
+    },
+    "DUMMY": {
+      "description": "Template tool DUMMY",
+      "purpose": "Showcase tool development guidelines"
+    },
+    "FILEDIALOG": {
+      "description": "Advanced file and directory selection via custom Tkinter GUI.",
+      "purpose": "Allow users to select local files/directories for AI processing.",
+      "dependencies": [
+        "PYTHON"
+      ]
     }
   }
 }

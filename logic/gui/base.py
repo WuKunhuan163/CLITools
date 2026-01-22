@@ -55,9 +55,11 @@ class BaseGUIWindow:
             # Check if it was a real remote stop or just a random signal
             project_root = Path(self.internal_dir).parent.parent.parent
             stop_file = project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
-            is_remote_stop = stop_file.exists()
+            reason = "signal"
+            if stop_file.exists():
+                reason = "stop"
             
-            self.finalize("terminated", self.get_current_state())
+            self.finalize("terminated", self.get_current_state(), reason=reason)
             
             # Print result before exiting from signal handler
             print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
@@ -75,11 +77,11 @@ class BaseGUIWindow:
                 # Detect flags for this PID
                 pid = os.getpid()
                 
-                # 1. STOP flag (Original mechanism)
+                # 1. STOP flag
                 stop_file = stops_dir / f"{pid}.stop"
                 if stop_file.exists():
                     stop_file.unlink()
-                    self.finalize("terminated", self.get_current_state())
+                    self.finalize("terminated", self.get_current_state(), reason="stop")
                     return
 
                 # 2. SUBMIT flag
@@ -135,11 +137,13 @@ class BaseGUIWindow:
             # Capture State A and return via Interface I
             self.finalize("timeout", self.get_current_state())
 
-    def finalize(self, status: str, data: Any):
+    def finalize(self, status: str, data: Any, reason: Optional[str] = None):
         """Unified closure point (Interface I). status: success, cancelled, timeout, terminated, error."""
         if not self.window_closed:
             self.window_closed = True
             self.result = {"status": status, "data": data}
+            if reason:
+                self.result["reason"] = reason
             try:
                 if self.root: self.root.destroy()
             except: pass

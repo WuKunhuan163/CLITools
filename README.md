@@ -37,6 +37,7 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 
 ### Tool Management
 - `TOOL install <NAME>`: Installs a tool, its tool-dependencies, and its pip-dependencies.
+- `TOOL reinstall <NAME>`: Wipes and fresh-installs a specific tool.
 - `TOOL uninstall <NAME>`: Safely removes a tool and its shortcuts.
 - `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Highly optimized for speed and reliability.
 - `TOOL rule`: **Critical for AI Agents.** Generates a comprehensive set of rules and instructions that you can paste into your AI agent's system prompt or context. Use `TOOL <NAME> rule` for tool-specific guidelines.
