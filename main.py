@@ -22,7 +22,11 @@ YELLOW = get_color("YELLOW", "\033[33m")
 RED = get_color("RED", "\033[31m")
 
 # Root project directory
-ROOT_PROJECT_ROOT = Path(__file__).resolve().parent
+_script_path = Path(__file__).resolve()
+if _script_path.parent.name == "bin":
+    ROOT_PROJECT_ROOT = _script_path.parent.parent
+else:
+    ROOT_PROJECT_ROOT = _script_path.parent
 from logic.utils import get_logic_dir
 SHARED_LOGIC_DIR = get_logic_dir(ROOT_PROJECT_ROOT)
 
@@ -134,7 +138,7 @@ def register_path(bin_dir):
         os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
 
 def update_config(key, value):
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     data_dir = project_root / "data"
     data_dir.mkdir(exist_ok=True)
     config_path = data_dir / "config.json"
