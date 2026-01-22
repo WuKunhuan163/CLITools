@@ -44,20 +44,24 @@ def install_tool(tool_name):
     
     # Check if already installed
     link_path = bin_dir / tool_name
-    if tool_dir.exists() and (link_path.exists() or link_path.is_symlink()):
+    installed_locally = tool_dir.exists() and (link_path.exists() or link_path.is_symlink())
+    
+    if installed_locally:
         # Even if installed, check if dependencies are missing
         missing_dep = False
         tool_json_path = tool_dir / "tool.json"
         if tool_json_path.exists():
-            with open(tool_json_path, 'r') as f:
-                tool_data = json.load(f)
-                dependencies = tool_data.get("dependencies", [])
-                for dep in dependencies:
-                    dep_dir = tool_parent_dir / dep
-                    dep_link = bin_dir / dep
-                    if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
-                        missing_dep = True
-                        break
+            try:
+                with open(tool_json_path, 'r') as f:
+                    tool_data = json.load(f)
+                    dependencies = tool_data.get("dependencies", [])
+                    for dep in dependencies:
+                        dep_dir = tool_parent_dir / dep
+                        dep_link = bin_dir / dep
+                        if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
+                            missing_dep = True
+                            break
+            except: pass
         
         if not missing_dep:
             already_status = _("label_already_installed", "Already installed")
@@ -65,12 +69,20 @@ def install_tool(tool_name):
             return
         else:
             print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_repair", "Tool '{name}' is missing dependencies. Repairing...", name=tool_name))
-    else:
-        # Not installed at all, start installation header if needed, but ToolEngine handles sub-steps
-        pass
+    elif tool_dir.exists() or link_path.exists() or link_path.is_symlink():
+        # Partially installed, perform reinstall
+        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("partial_install_detected", "Tool '{name}' installation is incomplete. Reinstalling...", name=tool_name))
+        return reinstall_tool(tool_name)
 
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
+    engine.install()
+
+def reinstall_tool(tool_name):
+    project_root = ROOT_PROJECT_ROOT
+    from logic.tool.setup.engine import ToolEngine
+    engine = ToolEngine(tool_name, project_root)
+    engine.uninstall()
     engine.install()
 
 def uninstall_tool(tool_name, force_yes=False):
@@ -899,6 +911,10 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
     install_parser = subparsers.add_parser("install")
     install_parser.add_argument("tool_name")
+    
+    reinstall_parser = subparsers.add_parser("reinstall")
+    reinstall_parser.add_argument("tool_name")
+    
     uninstall_parser = subparsers.add_parser("uninstall")
     uninstall_parser.add_argument("tool_name")
     uninstall_parser.add_argument("-y", "--yes", action="store_true")
@@ -961,6 +977,7 @@ def main():
         return
     args = parser.parse_args()
     if args.command == "install": install_tool(args.tool_name)
+    elif args.command == "reinstall": reinstall_tool(args.tool_name)
     elif args.command == "uninstall": uninstall_tool(args.tool_name, args.yes)
     elif args.command == "test": _test_tool_with_args(args)
     elif args.command == "lang":

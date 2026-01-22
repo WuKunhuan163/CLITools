@@ -247,3 +247,8 @@ class ToolBase:
         from logic.gui.engine import setup_gui_environment
         setup_gui_environment()
 
+    def run_gui(self, python_exe, script_path, timeout, custom_id=None):
+        """Unified method to launch a GUI subprocess and wait for its result."""
+        from logic.gui.manager import run_gui_subprocess
+        return run_gui_subprocess(self, python_exe, script_path, timeout, custom_id)
+

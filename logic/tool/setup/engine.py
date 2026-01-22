@@ -59,7 +59,12 @@ class ToolEngine:
         # Check if already installed
         if self.is_installed():
             status = self._("label_already_installed", "Already installed")
-            print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
+            if is_dependency:
+                # Erasable status for dependencies
+                sys.stdout.write(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
+                sys.stdout.flush()
+            else:
+                print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
             return True
 
         tm = ProgressTuringMachine()
@@ -122,26 +127,34 @@ class ToolEngine:
         ))
 
         # IMPORTANT: Run TM. Only if successful we show the final GREEN Success message.
-        if tm.run(ephemeral=True):
-            status = self._("label_successfully_installed", "Successfully installed")
-            print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
-            return True
+        success_label = self._("label_successfully_installed", "Successfully installed")
+        final_msg = f"\r\033[K{self.BOLD}{self.GREEN}{success_label}{self.RESET} {self.tool_name}"
+        
+        if is_dependency:
+            # If it's a dependency, we want its final success message to be erasable by the parent
+            # So we pass final_newline=False
+            if tm.run(ephemeral=True, final_msg=final_msg, final_newline=False):
+                return True
         else:
-            status = self._("label_failed_to_install", "Failed to install")
-            print(f"\r\033[K{self.BOLD}{self.RED}{status}{self.RESET} {self.tool_name}")
-            return False
+            if tm.run(ephemeral=True, final_msg=final_msg):
+                print("") # Final newline for top-level tool
+                return True
+        return False
 
     def uninstall(self):
         tm = ProgressTuringMachine()
+        success_label = self._("uninstall_success_status", "Successfully uninstalled")
+        final_msg = f"\r\033[K{self.BOLD}{self.GREEN}{success_label}{self.RESET} {self.tool_name}"
+        
         tm.add_stage(TuringStage(
             name=self.tool_name,
             action=self.uninstall_action,
             active_status=self._("label_uninstalling", "Uninstalling"),
-            success_status=self._("uninstall_success_status", "Successfully uninstalled"),
+            success_status=success_label,
             success_color="GREEN"
         ))
-        if tm.run(ephemeral=True):
-            print("") # Final newline for clean output
+        if tm.run(ephemeral=True, final_msg=final_msg):
+            print("")
             return True
         return False
 

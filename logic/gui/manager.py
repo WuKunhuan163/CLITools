@@ -2,8 +2,11 @@ import os
 import sys
 import json
 import argparse
+import subprocess
+import time
+import threading
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, unknown_args: List[str], translation_helper: callable) -> int:
     """
@@ -52,13 +55,12 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
                         flag_file = stop_dir / f"{pid}.{command}"
                         flag_file.touch()
                         found += 1
-                        # DEBUG
-                        # print(f"DEBUG: Created flag {flag_file} for PID {pid}, ID {registered_id}")
             except: continue
     
     if found > 0:
         if command == "stop":
-            msg = translation_helper('instances_stopped', 'Stopped {count} GUI instances.', count=found)
+            template = translation_helper('instances_stopped', 'Stopped {count} GUI instances.')
+            msg = template.format(count=found)
             label = translation_helper('label_terminated', 'Terminated')
             print(f"{BOLD}{RED}{label}{RESET}: {msg}")
         else:
@@ -72,6 +74,101 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(msg)
     return 0
 
+def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None) -> Dict[str, Any]:
+    """
+    Unified launcher for GUI subprocesses with signal redirection and result capture.
+    Used by parent processes (e.g. tool/NAME/main.py).
+    """
+    from logic.config import get_color
+    BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
+    
+    # 1. Start subprocess in new session to decouple from parent's process group
+    proc = subprocess.Popen([python_exe, script_path], 
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                            text=True, encoding='utf-8', start_new_session=True)
+    
+    # Display PID for precise termination if needed
+    tool_name = tool_instance.tool_name
+    label_waiting_key = "label_waiting_gui"
+    if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
+    
+    label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback via GUI")
+    sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})...")
+    sys.stdout.flush()
+
+    stderr_content = []
+    def read_stderr():
+        for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
+        proc.stderr.close()
+    t_stderr = threading.Thread(target=read_stderr, daemon=True)
+    t_stderr.start()
+
+    parent_timeout = timeout + 300
+    start_wait = time.time()
+    
+    stdout = ""
+    is_interrupted = False
+    try:
+        while proc.poll() is None:
+            if time.time() - start_wait > parent_timeout:
+                proc.kill()
+                sys.stdout.write("\r\033[K"); sys.stdout.flush()
+                return {"status": "timeout", "data": None}
+            time.sleep(0.5)
+        stdout, _ = proc.communicate()
+        t_stderr.join(timeout=2)
+    except (Exception, KeyboardInterrupt) as e:
+        if isinstance(e, KeyboardInterrupt):
+            is_interrupted = True
+        
+        # Graceful stop via flag file
+        stops_dir = tool_instance.project_root / "data" / "run" / "stops"
+        stops_dir.mkdir(parents=True, exist_ok=True)
+        stop_file = stops_dir / f"{proc.pid}.stop"
+        stop_file.touch()
+        
+        try:
+            # Wait for GUI to detect flag, finalize and print JSON
+            stdout, _ = proc.communicate(timeout=4)
+            t_stderr.join(timeout=1)
+        except:
+            proc.kill()
+            stdout = ""
+        
+        if not stdout:
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            if is_interrupted:
+                return {"status": "terminated", "data": None, "reason": "interrupted"}
+            raise e
+
+    sys.stdout.write("\r\033[K"); sys.stdout.flush()
+    stderr = "".join(stderr_content)
+    
+    # Parse JSON result
+    res = None
+    for line in stdout.splitlines():
+        if line.startswith("GDS_GUI_RESULT_JSON:"):
+            try:
+                res = json.loads(line[len("GDS_GUI_RESULT_JSON:"):])
+                break
+            except: pass
+    
+    if res:
+        # If it was terminated, refine reason
+        if res.get("status") == "terminated":
+            if is_interrupted:
+                res["reason"] = "interrupted"
+            elif not res.get("reason"):
+                res["reason"] = "stop" # Default for termination via flag
+        return res
+    
+    # Error fallback for crashes
+    if proc.returncode != 0:
+        sig_codes = [-15, -2, -9, -11, -6, 15, 2, 9, 11, 6, 143, 130, 137, 139, 134]
+        if proc.returncode in sig_codes:
+            return {"status": "terminated", "data": None, "reason": "signal"}
+            
+    return {"status": "error", "message": stderr or "No valid response from GUI"}
+
 def handle_gui_stop_command(tool_name: str, project_root: Path, unknown_args: List[str], translation_helper: callable) -> int:
     return handle_gui_remote_command(tool_name, project_root, "stop", unknown_args, translation_helper)
-
