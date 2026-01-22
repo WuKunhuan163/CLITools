@@ -95,7 +95,12 @@ def uninstall_tool(tool_name, force_yes=False):
 
     if not force_yes:
         if sys.stdin.isatty():
-            confirm = input(_("confirm_uninstall", "Are you sure you want to uninstall '{name}'? (y/N): ", name=tool_name))
+            confirm_msg = _("confirm_uninstall", "Are you sure you want to uninstall '{name}'? (y/N): ", name=tool_name)
+            confirm = input(confirm_msg)
+            # Move up one line and erase the confirmation prompt
+            sys.stdout.write(f"\033[A\r\033[K")
+            sys.stdout.flush()
+            
             if confirm.lower() not in ['y', 'yes']:
                 print(_("uninstall_cancelled", "Uninstall cancelled."))
                 return
