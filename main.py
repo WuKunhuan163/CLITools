@@ -935,7 +935,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         bold_part="Syncing"
     ))
     
-    if not tm_sync.run(ephemeral=True):
+    if not tm_sync.run(ephemeral=True, final_msg="", final_newline=False):
         print(f"\n{BOLD}{RED}Sync failed during installation test.{RESET}")
         return False
 
@@ -972,7 +972,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         bold_part="Success"
     ))
     
-    if tm_install.run(ephemeral=True):
+    if tm_install.run(ephemeral=True, final_msg="", final_newline=False):
         duration = time.time() - start_time
         print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
         if not stay_on_test:
