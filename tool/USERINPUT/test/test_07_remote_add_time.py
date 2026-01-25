@@ -22,15 +22,16 @@ class TestUserInputRemoteAddTime(unittest.TestCase):
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
-            # Wait for GUI to register (5 seconds)
-            time.sleep(5)
+            # Wait for GUI to register (2 seconds)
+            time.sleep(2)
             
             # 3. Send remote add_time (adds 5s -> total ~15s)
             add_time_cmd = ["python3", str(main_py), "add_time", "--id", test_id]
             subprocess.run(add_time_cmd, env=env, capture_output=True)
             
-            # 4. Check at 12th second (original timeout 10s would have passed, but added 5s makes it 15s)
-            time.sleep(7) # 5+7=12s
+            # 4. Check at 5th second (original timeout 10s would have passed, but added 5s makes it 15s)
+            # Actually, original is 10s. We want to check at some point where 10s would have failed.
+            time.sleep(10) # 2+10=12s
             
             if proc.poll() is not None:
                 stdout, stderr = proc.communicate()

@@ -405,7 +405,9 @@ def main():
         return 0
     elif args.command in ["stop", "submit", "cancel", "add_time"]:
         from logic.gui.manager import handle_gui_remote_command
-        return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, unknown, get_msg)
+        # Pass the original arguments to ensure --id is correctly handled
+        remote_args = sys.argv[2:]
+        return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, remote_args, get_msg)
 
     from logic.config import get_color
     BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")

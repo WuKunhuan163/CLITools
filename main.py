@@ -932,7 +932,7 @@ def main():
     test_parser.add_argument("--list", action="store_true")
     test_parser.add_argument("--range", nargs=2, type=int)
     test_parser.add_argument("--max", type=int, default=3)
-    test_parser.add_argument("--timeout", type=int, default=300)
+    test_parser.add_argument("--timeout", type=int, default=60)
     lang_parser = subparsers.add_parser("lang", help=_("lang_help", "Manage display language"))
     lang_subparsers = lang_parser.add_subparsers(dest="lang_command", help=_("lang_subcommand_help", "Language subcommands"))
     

@@ -13,13 +13,14 @@ class TestUserInputRemoteStop(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "30", "--id", "test_stop"], 
+        test_id = f"test_stop_{int(time.time())}_{os.getpid()}"
+        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "30", "--id", test_id], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
-            time.sleep(3)
+            time.sleep(2)
             
-            stop_cmd = ["python3", str(main_py), "stop", "--id", "test_stop"]
+            stop_cmd = ["python3", str(main_py), "stop", "--id", test_id]
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
             stdout, stderr = proc.communicate(timeout=10)
