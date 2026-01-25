@@ -339,13 +339,13 @@ class UserInputWindow(BaseGUIWindow):
             raise FileNotFoundError(f"Critical asset missing: {self.bell_path}")
         
         def run_play():
-                try:
-                    if platform.system() == "Darwin":
-                        subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
-                    elif platform.system() == "Linux":
-                        subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
-                except: pass
-            threading.Thread(target=run_play, daemon=True).start()
+            try:
+                if platform.system() == "Darwin":
+                    subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
+                elif platform.system() == "Linux":
+                    subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
+            except: pass
+        threading.Thread(target=run_play, daemon=True).start()
 
 if __name__ == "__main__":
     try:
