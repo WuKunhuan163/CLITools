@@ -64,7 +64,7 @@ class TestRunner:
         for i, test in enumerate(tests):
             print(f"  [{i}] {test.name}")
 
-    def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60):
+    def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60) -> bool:
         # Default unit tests to English as requested by user, 
         # but respect it if they are specifically testing a language (ar/zh).
         from logic.config import get_global_config
@@ -78,7 +78,7 @@ class TestRunner:
             all_tests = self._get_test_files()
             if not all_tests:
                 print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
-                return
+                return True # Technically no failures
 
             if start_id is not None or end_id is not None:
                 start = start_id if start_id is not None else 0
@@ -89,12 +89,13 @@ class TestRunner:
 
             if not selected_tests:
                 print(self._("test_no_selected", "No tests selected in the specified range."))
-                return
+                return True
 
             print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
             
             # Parallel execution logic
-            self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+            success = self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+            return success
             
         finally:
             if old_lang: os.environ["TOOL_LANGUAGE"] = old_lang
@@ -216,6 +217,9 @@ class TestRunner:
         for f in test_files:
             task_queue.put(f)
         
+        # Shared results counter
+        success_count = [0]
+        
         def test_step(test_file, worker_id):
             def logic():
                 if stop_event.is_set(): return
@@ -270,6 +274,7 @@ class TestRunner:
                             duration = time.time() - start_time
                             if proc.returncode == 0:
                                 status_raw, error_msg, report_path = "Success", None, None
+                                with pid_lock: success_count[0] += 1
                             else:
                                 full_output = stdout + stderr
                                 report_path = self._save_result(test_file.name, "Failed", full_output, python_info=python_exec)
@@ -349,6 +354,7 @@ class TestRunner:
         if not stop_event.is_set():
             print(self._("test_all_completed", "\nAll tests completed."))
         sys.stdout.flush()
+        return success_count[0] == len(test_files)
 
     def _cleanup_resources(self, test_pids=None):
         """Cleanup leftover processes and GUI windows surgicaly."""

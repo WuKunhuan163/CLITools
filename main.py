@@ -269,7 +269,9 @@ def _dev_sync():
 
     try:
         if tm.run():
-            print(f"\n{BOLD}{GREEN}" + _("sync_complete", "Sync completed successfully.") + f"{RESET}")
+            success_status = _("label_successfully_completed", "Successfully completed")
+            msg = f"\n{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
+            print(msg)
         
         # End on start branch or dev
         subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
@@ -878,7 +880,62 @@ def _test_tool_with_args(args):
     from logic.test.runner import TestRunner
     runner = TestRunner(actual_tool_name, project_root)
     if args.list: runner.list_tests()
-    else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
+    else: 
+        success = runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
+        if success and actual_tool_name != "root":
+            _run_installation_test(actual_tool_name)
+
+def _run_installation_test(tool_name):
+    """Run dev sync and then verify installation on test branch."""
+    project_root = ROOT_PROJECT_ROOT
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+    from logic.config import get_color
+    BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD"), get_color("BLUE"), get_color("GREEN"), get_color("RED"), get_color("RESET")
+
+    # 1. Sync first
+    _dev_sync()
+    
+    tm = ProgressTuringMachine()
+    
+    def install_test_action():
+        try:
+            # Switch to test branch
+            subprocess.run(["git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True, check=True)
+            
+            # Uninstall if exists
+            subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
+            
+            # Install
+            res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0: return False
+            
+            # Simple check - use 'rule' command which we recently implemented
+            # Try to find the bin path
+            bin_path = project_root / "bin" / tool_name
+            if not bin_path.exists(): return False
+            
+            res = subprocess.run([str(bin_path), "rule"], capture_output=True, text=True)
+            return res.returncode == 0
+        except:
+            return False
+
+    tm.add_stage(TuringStage(
+        name=f"installation of '{tool_name}' on 'test' branch",
+        action=install_test_action,
+        active_status="Testing",
+        success_status="Verified",
+        bold_part="Testing"
+    ))
+    
+    print(f"\n{BOLD}{BLUE}Starting Installation Test{RESET}...")
+    if tm.run():
+        print(f"\n{BOLD}{GREEN}Installation test passed.{RESET}")
+    else:
+        print(f"\n{BOLD}{RED}Installation test failed.{RESET}")
+    
+    # Back to dev
+    subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
 def _audit_lang(lang_code, force=False):
     project_root = ROOT_PROJECT_ROOT
