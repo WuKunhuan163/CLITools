@@ -272,13 +272,10 @@ def _dev_sync():
             print(f"\n{BOLD}{GREEN}" + _("sync_complete", "Sync completed successfully.") + f"{RESET}")
         
         # End on start branch or dev
-        run_git(["checkout", "-f", start_branch])
+        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
     except Exception as e:
         print(f"\n{BOLD}{RED}Error{RESET} during sync: {e}")
-        run_git(["checkout", "-f", "dev"])
-
-    if tm.run():
-        print(f"\n{BOLD}{GREEN}" + _("sync_complete", "Sync completed successfully.") + f"{RESET}")
+        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
 def _dev_align():
     """Align tool, main, and test branches with dev branch."""
