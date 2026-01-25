@@ -166,7 +166,7 @@ def update_config(key, value):
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
-def _dev_sync():
+def _dev_sync(quiet=False):
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""
     project_root = ROOT_PROJECT_ROOT
     from logic.turing.models.progress import ProgressTuringMachine
@@ -177,8 +177,9 @@ def _dev_sync():
     try:
         start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except subprocess.CalledProcessError:
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
-        return
+        if not quiet:
+            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
+        return False
 
     # Helper to run git commands quietly
     def run_git(args):
@@ -268,16 +269,20 @@ def _dev_sync():
     ))
 
     try:
-        if tm.run():
+        success = tm.run(ephemeral=quiet)
+        if success and not quiet:
             success_status = _("label_successfully_completed", "Successfully completed")
             msg = f"\n{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
             print(msg)
         
         # End on start branch or dev
         subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
+        return success
     except Exception as e:
-        print(f"\n{BOLD}{RED}Error{RESET} during sync: {e}")
+        if not quiet:
+            print(f"\n{BOLD}{RED}Error{RESET} during sync: {e}")
         subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        return False
 
 def _dev_align():
     """Align tool, main, and test branches with dev branch."""
@@ -891,13 +896,20 @@ def _run_installation_test(tool_name):
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
     from logic.config import get_color
-    BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD"), get_color("BLUE"), get_color("GREEN"), get_color("RED"), get_color("RESET")
+    BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
-    # 1. Sync first
-    _dev_sync()
-    
     tm = ProgressTuringMachine()
     
+    # Stage 1: Sync branches (quietly)
+    tm.add_stage(TuringStage(
+        name="branches...",
+        action=lambda: _dev_sync(quiet=True),
+        active_status="Syncing",
+        success_status="Synced",
+        bold_part="Syncing"
+    ))
+    
+    # Stage 2: Install and Verify
     def install_test_action():
         try:
             # Switch to test branch
@@ -910,15 +922,17 @@ def _run_installation_test(tool_name):
             res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode != 0: return False
             
-            # Simple check - use 'rule' command which we recently implemented
-            # Try to find the bin path
+            # Simple check - use '--help' as requested by user
             bin_path = project_root / "bin" / tool_name
             if not bin_path.exists(): return False
             
-            res = subprocess.run([str(bin_path), "rule"], capture_output=True, text=True)
+            res = subprocess.run([str(bin_path), "--help"], capture_output=True, text=True)
             return res.returncode == 0
         except:
             return False
+        finally:
+            # Always try to return to dev
+            subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
     tm.add_stage(TuringStage(
         name=f"installation of '{tool_name}' on 'test' branch",
@@ -928,14 +942,11 @@ def _run_installation_test(tool_name):
         bold_part="Testing"
     ))
     
-    print(f"\n{BOLD}{BLUE}Starting Installation Test{RESET}...")
-    if tm.run():
+    if tm.run(ephemeral=True):
         print(f"\n{BOLD}{GREEN}Installation test passed.{RESET}")
     else:
         print(f"\n{BOLD}{RED}Installation test failed.{RESET}")
-    
-    # Back to dev
-    subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        sys.exit(1)
 
 def _audit_lang(lang_code, force=False):
     project_root = ROOT_PROJECT_ROOT
