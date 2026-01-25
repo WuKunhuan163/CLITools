@@ -275,19 +275,17 @@ class FileDialogWindow(BaseGUIWindow):
             return part.name
 
         # Calculate display strategy
+        self.breadcrumb_frame.update_idletasks()
         max_w = self.breadcrumb_frame.winfo_width()
         if max_w <= 1: max_w = 400 # Initial estimate
-        max_w -= 15 # More buffer for margins/padding
-        
+        max_w -= 35 # Increased buffer significantly for stability
+
         sep_w = measure_font.measure(" / ")
         ellipsis_w = measure_font.measure("...")
         
         # 1. Try full path
-        full_w = 0
         names = [get_name(p, i) for i, p in enumerate(parts)]
-        for i, name in enumerate(names):
-            full_w += measure_font.measure(name)
-            if i < len(names) - 1: full_w += sep_w
+        full_w = sum(measure_font.measure(n) for n in names) + (len(names) - 1) * sep_w
             
         if full_w <= max_w:
             display_items = [(parts[i], i) for i in range(len(parts))]
@@ -296,7 +294,8 @@ class FileDialogWindow(BaseGUIWindow):
             first_name = names[0]
             last_name = names[-1]
             
-            # Initial base width: A / ... / B
+            # Base width: A / ... / B
+            # Account for both separators around ellipsis
             current_w = measure_font.measure(first_name) + sep_w + ellipsis_w + sep_w + measure_font.measure(last_name)
             
             added_indices = []

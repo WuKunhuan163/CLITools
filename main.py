@@ -187,16 +187,24 @@ def _dev_sync():
     try:
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_uncommitted", "There are uncommitted changes in '{branch}'. Please commit them first.", branch=current_branch))
-            return
+            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_uncommitted_auto", "There are uncommitted changes in '{branch}'. Auto-committing before sync...", branch=current_branch))
+            subprocess.run(["git", "add", "."], cwd=str(project_root))
+            subprocess.run(["git", "commit", "-m", f"Auto-commit before sync from {current_branch}"], cwd=str(project_root))
     except subprocess.CalledProcessError: pass
 
     sync_label = _("sync_to_main_label", "Syncing")
     print(f"\r\033[K{BOLD}{BLUE}{sync_label}{RESET} to 'main' branch...", end="", flush=True)
     
+    # Filter logic_files to only those that exist in git index
+    existing_files = []
+    for f in logic_files:
+        res = subprocess.run(["git", "ls-tree", "-r", "HEAD", "--name-only", f], capture_output=True, text=True, cwd=str(project_root))
+        if res.stdout.strip():
+            existing_files.append(f)
+    
     commands = [
         ["git", "checkout", "main"],
-        ["git", "checkout", current_branch, "--"] + logic_files,
+        ["git", "checkout", current_branch, "--"] + existing_files,
         ["git", "commit", "-m", f"Sync logic files from {current_branch} branch"],
         ["git", "branch", "-D", "test"],
         ["git", "checkout", "-b", "test"],

@@ -195,6 +195,11 @@ class ToolBase:
             sys.exit(1)
         sys.exit(0)
 
+    def run_gui(self, python_exe: str, script_path: str, timeout: int, custom_id: str = None):
+        """Standard method to launch a GUI subprocess."""
+        from logic.gui.manager import run_gui_subprocess
+        return run_gui_subprocess(self, python_exe, script_path, timeout, custom_id)
+
     def handle_exception(self, e, print_error=True):
         """Unified exception handling and logging."""
         from logic.config import get_color
