@@ -78,7 +78,8 @@ class ToolEngine:
         ))
         
         # 2. Fetching Source
-        if not self.tool_dir.exists():
+        # Check if the tool directory exists and has a main.py (not just leftover untracked data)
+        if not (self.tool_dir.exists() and (self.tool_dir / "main.py").exists()):
             tm.add_stage(TuringStage(
                 name=self.tool_name,
                 action=self.fetch_source,
