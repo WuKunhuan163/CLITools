@@ -859,7 +859,7 @@ def _test_tool_with_args(args):
     # Support 'TOOL' as an alias for 'root'
     actual_tool_name = "root" if args.tool_name in ["root", "TOOL"] else args.tool_name
     tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
-    if not tool_dir.exists():
+    if not tool_dir.exists() and actual_tool_name != "root":
         print(f"{BOLD}{RED}Error{RESET}: Tool '{args.tool_name}' not found.")
         return
     
@@ -867,30 +867,37 @@ def _test_tool_with_args(args):
     default_concurrency = get_setting("test_default_concurrency", 3)
     max_concurrent = default_concurrency
     
-    tool_json_path = tool_dir / "tool.json"
-    if tool_json_path.exists():
-        with open(tool_json_path, 'r') as f:
-            data = json.load(f)
-            # tool.json can override global default
-            max_concurrent = data.get("test_parallel", default_concurrency)
-    
-    # CLI --max always takes priority
-    if args.max != 3: # If user provided something other than the argparse default
+    # ... parallel config logic ...
+    if args.max != 3: 
         max_concurrent = args.max
     elif args.max == 3 and default_concurrency != 3:
-        # If argparse default is 3 but settings.json has something else, use settings.json
         max_concurrent = default_concurrency
 
     sys.path.append(str(project_root))
     from logic.test.runner import TestRunner
-    runner = TestRunner(actual_tool_name, project_root)
-    if args.list: runner.list_tests()
-    else: 
-        success = runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
-        if success and actual_tool_name != "root":
-            _run_installation_test(actual_tool_name)
+    
+    if actual_tool_name == "root":
+        runner = TestRunner("root", project_root)
+        if args.list: runner.list_tests()
+        else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
+    else:
+        # 1. Installation Test (includes sync)
+        # Stay on 'test' branch if successful
+        if not _run_installation_test(actual_tool_name, stay_on_test=True):
+            return
+            
+        # 2. Run unit tests on 'test' branch
+        runner = TestRunner(actual_tool_name, project_root)
+        if args.list: 
+            runner.list_tests()
+        else: 
+            # run_tests will print its own results
+            runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout, quiet_if_no_tests=True)
+            
+        # 3. Return to dev
+        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
-def _run_installation_test(tool_name):
+def _run_installation_test(tool_name, stay_on_test=False):
     """Run dev sync and then verify installation on test branch."""
     project_root = ROOT_PROJECT_ROOT
     from logic.turing.models.progress import ProgressTuringMachine
@@ -903,23 +910,24 @@ def _run_installation_test(tool_name):
     start_time = time.time()
 
     # 1. Sync branches (quietly)
+    def sync_action():
+        # Silence all output from _dev_sync
+        with open(os.devnull, 'w') as f:
+            with redirect_stdout(f), redirect_stderr(f):
+                return _dev_sync(quiet=True)
+
     tm_sync = ProgressTuringMachine()
     tm_sync.add_stage(TuringStage(
         name="branches...",
-        action=lambda: _dev_sync(quiet=True),
+        action=sync_action,
         active_status="Syncing",
         success_status="Synced",
         bold_part="Syncing"
     ))
     
-    # Use devnull to truly silence it
-    with open(os.devnull, 'w') as f:
-        with redirect_stdout(f), redirect_stderr(f):
-            sync_success = tm_sync.run(ephemeral=True)
-    
-    if not sync_success:
+    if not tm_sync.run(ephemeral=True):
         print(f"\n{BOLD}{RED}Sync failed during installation test.{RESET}")
-        sys.exit(1)
+        return False
 
     # 2. Install and Verify
     tm_install = ProgressTuringMachine()
@@ -931,8 +939,10 @@ def _run_installation_test(tool_name):
             # Uninstall if exists
             subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
             
-            # Install
-            res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
+            # Install - Silence this too as requested
+            with open(os.devnull, 'w') as f:
+                with redirect_stdout(f), redirect_stderr(f):
+                    res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode != 0: return False
             
             # Simple check - use '--help'
@@ -943,9 +953,6 @@ def _run_installation_test(tool_name):
             return res.returncode == 0
         except:
             return False
-        finally:
-            # Always try to return to dev
-            subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
     tm_install.add_stage(TuringStage(
         name="installation",
@@ -958,9 +965,13 @@ def _run_installation_test(tool_name):
     if tm_install.run(ephemeral=True):
         duration = time.time() - start_time
         print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
+        if not stay_on_test:
+            subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        return True
     else:
         print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
-        sys.exit(1)
+        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        return False
     
     if tm_install.run(ephemeral=True):
         print(f"\n{BOLD}{GREEN}Installation test passed.{RESET}")
