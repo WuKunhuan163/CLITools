@@ -234,7 +234,7 @@ def _dev_sync(quiet=False):
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted, stderr=subprocess.DEVNULL, cwd=str(project_root), capture_output=True)
+        subprocess.run(["git", "rm", "-rf"] + restricted, cwd=str(project_root), capture_output=True)
         
         # Ensure they are gone from disk
         for d in restricted:
@@ -353,7 +353,7 @@ def _dev_align():
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted, stderr=subprocess.DEVNULL, cwd=str(project_root), capture_output=True)
+        subprocess.run(["git", "rm", "-rf"] + restricted, cwd=str(project_root), capture_output=True)
         
         # Ensure they are gone from disk
         for d in restricted:
