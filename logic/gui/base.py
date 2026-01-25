@@ -36,6 +36,11 @@ class BaseGUIWindow:
         self.result = {"status": "error", "data": None}
         self.pulse_active = False # Flag to avoid timer overwriting pulse status
         
+        # Shared behavior state
+        self.focus_interval = 0
+        self.bell_path = str(Path(__file__).resolve().parent / "tkinter_bell.mp3")
+        self.is_triggering_subtool = False
+
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)
         signal.signal(signal.SIGTERM, self.handle_external_signal)
@@ -136,6 +141,43 @@ class BaseGUIWindow:
         else:
             # Capture State A and return via Interface I
             self.finalize("timeout", self.get_current_state())
+
+    def play_bell(self):
+        """Standard bell notification logic."""
+        if self.root:
+            try: self.root.bell()
+            except: pass
+        if self.bell_path and os.path.exists(self.bell_path):
+            def run_play():
+                try:
+                    if platform.system() == "Darwin":
+                        subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
+                    elif platform.system() == "Linux":
+                        subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
+                except: pass
+            threading.Thread(target=run_play, daemon=True).start()
+        elif self.bell_path:
+            # If path specified but missing, it's a critical error
+            raise FileNotFoundError(f"Critical asset missing: {self.bell_path}")
+
+    def start_periodic_focus(self, interval: int):
+        """Starts periodic refocusing and bell."""
+        self.focus_interval = interval
+        if self.focus_interval <= 0: return
+        
+        def refocus():
+            if not self.window_closed and self.root:
+                if not self.is_triggering_subtool:
+                    try:
+                        self.root.lift()
+                        self.root.attributes("-topmost", True)
+                        self.play_bell()
+                        self.root.after(1000, lambda: self.root.attributes("-topmost", False))
+                    except: pass
+                self.root.after(self.focus_interval * 1000, refocus)
+        
+        if self.root:
+            self.root.after(self.focus_interval * 1000, refocus)
 
     def finalize(self, status: str, data: Any, reason: Optional[str] = None):
         """Unified closure point (Interface I). status: success, cancelled, timeout, terminated, error."""

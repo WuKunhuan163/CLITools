@@ -224,11 +224,12 @@ class UserInputWindow(BaseGUIWindow):
     def __init__(self, title, timeout, hint_text, focus_interval, bell_path, time_increment):
         super().__init__(title, timeout, TOOL_INTERNAL, tool_name="USERINPUT")
         self.hint_text = hint_text
-        self.focus_interval = focus_interval
-        self.bell_path = bell_path
         self.time_increment = time_increment
         self.text_widget = None
-        self.is_triggering_subtool = False
+        
+        # Behavior overrides
+        if bell_path: self.bell_path = bell_path
+        self.focus_interval = focus_interval
 
     def get_current_state(self):
         if self.text_widget:
@@ -269,7 +270,7 @@ class UserInputWindow(BaseGUIWindow):
             self.text_widget.focus_set()
         
         self.start_timer(self.status_label)
-        self.start_periodic_focus()
+        self.start_periodic_focus(self.focus_interval)
         self.play_bell()
 
     def on_at_trigger(self, event):
@@ -316,36 +317,6 @@ class UserInputWindow(BaseGUIWindow):
             print(f"Error triggering FILEDIALOG: {e}", file=sys.stderr)
         finally:
             self.is_triggering_subtool = False
-
-    def start_periodic_focus(self):
-        if self.focus_interval <= 0: return
-        def refocus():
-            if not self.window_closed and self.root:
-                try:
-                    self.root.lift()
-                    self.root.attributes('-topmost', True)
-                    self.play_bell()
-                except: pass
-                if not self.window_closed and self.root:
-                    self.root.after(self.focus_interval * 1000, refocus)
-        if self.root:
-            self.root.after(self.focus_interval * 1000, refocus)
-
-    def play_bell(self):
-        if self.root:
-            try: self.root.bell()
-            except: pass
-        if not self.bell_path or not os.path.exists(self.bell_path):
-            raise FileNotFoundError(f"Critical asset missing: {self.bell_path}")
-        
-        def run_play():
-            try:
-                if platform.system() == "Darwin":
-                    subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
-                elif platform.system() == "Linux":
-                    subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
-            except: pass
-        threading.Thread(target=run_play, daemon=True).start()
 
 if __name__ == "__main__":
     try:
