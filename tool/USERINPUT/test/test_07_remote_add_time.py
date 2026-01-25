@@ -16,28 +16,35 @@ class TestUserInputRemoteAddTime(unittest.TestCase):
         # 1. Config increment to 5 seconds
         subprocess.run(["python3", str(main_py), "config", "--time-increment", "5"], env=env, check=True)
         
-        # 2. Start with a short timeout (3 seconds)
-        # Use a larger parent timeout to avoid retries interfering too quickly
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "3", "--id", "test_add_time"], 
+        test_id = f"test_add_time_{int(time.time())}_{os.getpid()}"
+        # 2. Start with a medium timeout (10 seconds)
+        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "10", "--id", test_id], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
-            # Wait for GUI to register
+            # Wait for GUI to register (5 seconds)
             time.sleep(5)
             
-            # 3. Send remote add_time (adds 5s -> total ~8s)
-            add_time_cmd = ["python3", str(main_py), "add_time", "--id", "test_add_time"]
+            # 3. Send remote add_time (adds 5s -> total ~15s)
+            add_time_cmd = ["python3", str(main_py), "add_time", "--id", test_id]
             subprocess.run(add_time_cmd, env=env, capture_output=True)
             
-            # 4. Check at 4th second (should still be running)
-            time.sleep(2) # 2+2=4s
-            self.assertIsNone(proc.poll(), "Process should still be running at 4s (timeout was 3s, added 5s)")
+            # 4. Check at 12th second (original timeout 10s would have passed, but added 5s makes it 15s)
+            time.sleep(7) # 5+7=12s
+            
+            if proc.poll() is not None:
+                stdout, stderr = proc.communicate()
+                print(f"\nDEBUG: Process exited prematurely with code {proc.returncode}")
+                print(f"DEBUG: stdout={stdout}")
+                print(f"DEBUG: stderr={stderr}")
+            
+            self.assertIsNone(proc.poll(), "Process should still be running at 12s (timeout was 10s, added 5s)")
             
             # 5. Check at 10th second (should have timed out and retrying or exited)
             # Actually, it will retry. We just want to see it didn't exit at 3s.
             
             # Now stop it surgically
-            stop_cmd = ["python3", str(main_py), "stop", "--id", "test_add_time"]
+            stop_cmd = ["python3", str(main_py), "stop", "--id", test_id]
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
             proc.communicate(timeout=10)
