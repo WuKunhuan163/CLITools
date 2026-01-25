@@ -41,7 +41,7 @@ class ProgressTuringMachine:
                         full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
                     
                     if ephemeral:
-                        if is_last and final_msg:
+                        if is_last and final_msg is not None:
                             # Overwrite the last stage with final_msg
                             sys.stdout.write(f"\r\033[K{final_msg}")
                         elif is_last and not final_newline:
