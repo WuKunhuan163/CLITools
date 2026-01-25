@@ -205,24 +205,14 @@ def _dev_sync():
         bold_part="Committing"
     ))
 
-    # 2. Get existing files
-    existing_files = []
-    def check_files():
+    # 2. Sync to main
+    def sync_to_main():
+        # Get existing files for sync
+        existing_files = []
         for f in logic_files:
             res = subprocess.run(["git", "ls-tree", "-r", "HEAD", "--name-only", f], capture_output=True, text=True, cwd=str(project_root))
             if res.stdout.strip(): existing_files.append(f)
-        return True
-
-    tm.add_stage(TuringStage(
-        name=_("label_logic_files", "logic files for sync"),
-        action=check_files,
-        active_status=_("label_checking", "Checking"),
-        success_status=_("label_found", "Found"),
-        bold_part="Checking"
-    ))
-
-    # 3. Sync to main
-    def sync_to_main():
+            
         subprocess.run(["git", "checkout", "main"], cwd=str(project_root), capture_output=True, check=True)
         subprocess.run(["git", "checkout", current_branch, "--"] + existing_files, cwd=str(project_root), capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", f"Sync logic files from {current_branch} branch"], cwd=str(project_root), capture_output=True)
