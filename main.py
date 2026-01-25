@@ -901,19 +901,30 @@ def _run_installation_test(tool_name):
     BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
     # 1. Sync branches (quietly)
+    def sync_action():
+        import os, sys
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+        try:
+            return _dev_sync(quiet=True)
+        finally:
+            sys.stdout.close()
+            sys.stderr.close()
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
     tm_sync = ProgressTuringMachine()
     tm_sync.add_stage(TuringStage(
         name="branches...",
-        action=lambda: _dev_sync(quiet=True),
+        action=sync_action,
         active_status="Syncing",
         success_status="Synced",
         bold_part="Syncing"
     ))
     
-    # Capture output of sync
-    f = io.StringIO()
-    with redirect_stdout(f), redirect_stderr(f):
-        sync_success = tm_sync.run(ephemeral=True)
+    sync_success = tm_sync.run(ephemeral=True)
     
     if not sync_success:
         print(f"\n{BOLD}{RED}Sync failed during installation test.{RESET}")
