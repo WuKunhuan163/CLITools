@@ -896,35 +896,26 @@ def _run_installation_test(tool_name):
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
     from logic.config import get_color
-    import io
+    import io, time, os, sys
     from contextlib import redirect_stdout, redirect_stderr
     BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
-    # 1. Sync branches (quietly)
-    def sync_action():
-        import os, sys
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        sys.stdout = open(os.devnull, 'w')
-        sys.stderr = open(os.devnull, 'w')
-        try:
-            return _dev_sync(quiet=True)
-        finally:
-            sys.stdout.close()
-            sys.stderr.close()
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
+    start_time = time.time()
 
+    # 1. Sync branches (quietly)
     tm_sync = ProgressTuringMachine()
     tm_sync.add_stage(TuringStage(
         name="branches...",
-        action=sync_action,
+        action=lambda: _dev_sync(quiet=True),
         active_status="Syncing",
         success_status="Synced",
         bold_part="Syncing"
     ))
     
-    sync_success = tm_sync.run(ephemeral=True)
+    # Use devnull to truly silence it
+    with open(os.devnull, 'w') as f:
+        with redirect_stdout(f), redirect_stderr(f):
+            sync_success = tm_sync.run(ephemeral=True)
     
     if not sync_success:
         print(f"\n{BOLD}{RED}Sync failed during installation test.{RESET}")
@@ -944,7 +935,7 @@ def _run_installation_test(tool_name):
             res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode != 0: return False
             
-            # Simple check - use '--help' as requested by user
+            # Simple check - use '--help'
             bin_path = project_root / "bin" / tool_name
             if not bin_path.exists(): return False
             
@@ -957,12 +948,19 @@ def _run_installation_test(tool_name):
             subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
     tm_install.add_stage(TuringStage(
-        name=f"installation of '{tool_name}' on 'test' branch",
+        name="installation",
         action=install_test_action,
         active_status="Testing",
-        success_status="Verified",
-        bold_part="Testing"
+        success_status="Success",
+        bold_part="Success"
     ))
+    
+    if tm_install.run(ephemeral=True):
+        duration = time.time() - start_time
+        print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
+    else:
+        print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
+        sys.exit(1)
     
     if tm_install.run(ephemeral=True):
         print(f"\n{BOLD}{GREEN}Installation test passed.{RESET}")
