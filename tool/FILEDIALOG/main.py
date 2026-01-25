@@ -126,6 +126,7 @@ import sys
 import json
 import tkinter as tk
 import platform
+import tkinter.font as tkFont
 from tkinter import ttk
 from pathlib import Path
 
@@ -204,6 +205,7 @@ class FileDialogWindow(BaseGUIWindow):
         # Breadcrumb frame
         self.breadcrumb_frame = tk.Frame(nav_frame, bg="white", relief=tk.SUNKEN, borderwidth=1)
         self.breadcrumb_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.breadcrumb_frame.bind("<Configure>", lambda e: self.update_breadcrumbs())
         
         self.update_breadcrumbs()
 
@@ -261,25 +263,74 @@ class FileDialogWindow(BaseGUIWindow):
         parts.reverse()
 
         blue_color = get_gui_colors().get("blue", "#007AFF")
+        text_color = get_gui_colors().get("text", "#333333")
+        font_style = get_label_style()
+        measure_font = tkFont.Font(family=font_style[0], size=font_style[1])
         
-        for i, part in enumerate(parts):
-            if i == 0:
-                if platform.system() == "Darwin":
-                    name = "Macintosh HD"
-                elif platform.system() == "Windows":
-                    name = "Local Disk"
+        def get_name(part, index):
+            if index == 0:
+                if platform.system() == "Darwin": return "Macintosh HD"
+                elif platform.system() == "Windows": return "Local Disk"
+                else: return "File System"
+            return part.name
+
+        # Calculate display strategy
+        max_w = self.breadcrumb_frame.winfo_width()
+        if max_w <= 1: max_w = 400 # Initial estimate
+        max_w -= 15 # More buffer for margins/padding
+        
+        sep_w = measure_font.measure(" / ")
+        ellipsis_w = measure_font.measure("...")
+        
+        # 1. Try full path
+        full_w = 0
+        names = [get_name(p, i) for i, p in enumerate(parts)]
+        for i, name in enumerate(names):
+            full_w += measure_font.measure(name)
+            if i < len(names) - 1: full_w += sep_w
+            
+        if full_w <= max_w:
+            display_items = [(parts[i], i) for i in range(len(parts))]
+        else:
+            # 2. Need truncation: A / ... / [middle] / B
+            first_name = names[0]
+            last_name = names[-1]
+            
+            # Initial base width: A / ... / B
+            current_w = measure_font.measure(first_name) + sep_w + ellipsis_w + sep_w + measure_font.measure(last_name)
+            
+            added_indices = []
+            for i in range(len(parts) - 2, 0, -1):
+                w = measure_font.measure(names[i]) + sep_w
+                if current_w + w < max_w:
+                    added_indices.insert(0, i)
+                    current_w += w
                 else:
-                    name = "File System"
+                    break
+            
+            display_items = [(parts[0], 0), ("...", -1)]
+            for idx in added_indices:
+                display_items.append((parts[idx], idx))
+            display_items.append((parts[-1], len(parts)-1))
+
+        for i, (p, idx) in enumerate(display_items):
+            is_last = (i == len(display_items) - 1)
+            if p == "...":
+                lbl = tk.Label(self.breadcrumb_frame, text="...", bg="white", font=font_style)
             else:
-                name = part.name
+                name = get_name(p, idx)
+                if is_last:
+                    # Current path: no blue, no interaction
+                    lbl = tk.Label(self.breadcrumb_frame, text=name, fg=text_color, 
+                                   bg="white", font=font_style)
+                else:
+                    lbl = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", 
+                                   bg="white", font=font_style)
+                    lbl.bind("<Button-1>", lambda e, path=p: self.jump_to(path))
             
-            label = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", 
-                             bg="white", font=get_label_style())
-            label.pack(side=tk.LEFT)
-            label.bind("<Button-1>", lambda e, p=part: self.jump_to(p))
-            
-            if i < len(parts) - 1:
-                sep = tk.Label(self.breadcrumb_frame, text=" / ", bg="white", font=get_label_style())
+            lbl.pack(side=tk.LEFT)
+            if i < len(display_items) - 1:
+                sep = tk.Label(self.breadcrumb_frame, text=" / ", bg="white", font=font_style)
                 sep.pack(side=tk.LEFT)
 
     def jump_to(self, path):
@@ -376,6 +427,10 @@ class FileDialogWindow(BaseGUIWindow):
                 self.tree.insert("", tk.END, values=(self._("err_access_denied", "Access Denied"), "", ""))
                 return
 
+            # Add ".." entry if not at root
+            if self.current_dir.parent != self.current_dir:
+                self.tree.insert("", tk.END, iid="..", values=("..", "", self._("type_folder", "Folder")))
+
             # 2. Sorting logic
             def get_sort_val(item):
                 is_dir = item.is_dir()
@@ -455,6 +510,10 @@ class FileDialogWindow(BaseGUIWindow):
         item_id = self.tree.identify_row(event.y)
         if not item_id: return
         
+        if item_id == "..":
+            self.go_up()
+            return
+            
         path = Path(item_id)
         if path.is_dir():
             self.jump_to(path)

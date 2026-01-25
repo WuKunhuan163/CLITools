@@ -216,6 +216,7 @@ except ImportError:
     sys.exit("Error: Could not import logic.gui.base")
 
 import tkinter as tk
+import re
 
 TOOL_INTERNAL = %(internal_dir)r
 
@@ -227,6 +228,7 @@ class UserInputWindow(BaseGUIWindow):
         self.bell_path = bell_path
         self.time_increment = time_increment
         self.text_widget = None
+        self.is_triggering_subtool = False
 
     def get_current_state(self):
         if self.text_widget:
@@ -259,6 +261,7 @@ class UserInputWindow(BaseGUIWindow):
         
         self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.text_widget.bind("<KeyRelease-at>", self.on_at_trigger)
         scrollbar.config(command=self.text_widget.yview)
         
         if self.hint_text: 
@@ -268,6 +271,51 @@ class UserInputWindow(BaseGUIWindow):
         self.start_timer(self.status_label)
         self.start_periodic_focus()
         self.play_bell()
+
+    def on_at_trigger(self, event):
+        """Trigger FILEDIALOG when '@' is typed."""
+        try:
+            self.is_triggering_subtool = True
+            # We use the current python interpreter to run FILEDIALOG
+            fd_bin = PROJECT_ROOT / "bin" / "FILEDIALOG"
+            if not fd_bin.exists():
+                # Fallback to main.py if bin not yet installed
+                fd_bin = PROJECT_ROOT / "tool" / "FILEDIALOG" / "main.py"
+            
+            cmd = [sys.executable, str(fd_bin), "--multiple", "--title", self._("select_entities", "Select Entities")]
+            
+            # Run FILEDIALOG and wait for selection
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if res.returncode == 0:
+                # Parse paths from output
+                # Output format:
+                # Selected (N):
+                #   1. Path1
+                # ...
+                lines = res.stdout.strip().splitlines()
+                paths = []
+                for line in lines:
+                    match = re.match(r"^\s*\d+\.\s*(.*)$", line)
+                    if match:
+                        paths.append(match.group(1).strip())
+                    elif line.startswith("Selected: "):
+                        paths.append(line[len("Selected: "):].strip())
+                
+                if paths:
+                    cursor_pos = self.text_widget.index(tk.INSERT)
+                    start_pos = f"{cursor_pos}-1c"
+                    
+                    # Ensure we are replacing the '@' that was just typed
+                    if self.text_widget.get(start_pos, cursor_pos) == "@":
+                        self.text_widget.delete(start_pos, cursor_pos)
+                        formatted = ", ".join([f"@{p}" for p in paths])
+                        self.text_widget.insert(tk.INSERT, formatted)
+        except Exception as e:
+            # Silently log error to stderr or ignore in production GUI
+            print(f"Error triggering FILEDIALOG: {e}", file=sys.stderr)
+        finally:
+            self.is_triggering_subtool = False
 
     def start_periodic_focus(self):
         if self.focus_interval <= 0: return

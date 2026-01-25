@@ -187,6 +187,11 @@ class BaseGUIWindow:
             if on_show is not None:
                 self.root.after(100, on_show)
 
+            # Bring to front (Interface I behavior)
+            self.root.lift()
+            self.root.attributes("-topmost", True)
+            self.root.after(1000, lambda: self.root.attributes("-topmost", False))
+
             self.root.mainloop()
             
             # Cleanup stop files if they exist for this PID
