@@ -901,9 +901,16 @@ def _run_installation_test(tool_name):
     tm = ProgressTuringMachine()
     
     # Stage 1: Sync branches (quietly)
+    def sync_action():
+        import io
+        from contextlib import redirect_stdout, redirect_stderr
+        f = io.StringIO()
+        with redirect_stdout(f), redirect_stderr(f):
+            return _dev_sync(quiet=True)
+
     tm.add_stage(TuringStage(
         name="branches...",
-        action=lambda: _dev_sync(quiet=True),
+        action=sync_action,
         active_status="Syncing",
         success_status="Synced",
         bold_part="Syncing"
