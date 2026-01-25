@@ -243,6 +243,7 @@ class FileDialogWindow(BaseGUIWindow):
         self.update_header_text()
         
         self.start_timer(self.status_label)
+        self.start_periodic_focus(90) # Default 90s for all GUIs
 
     def update_history_buttons(self):
         if self.back_btn:
