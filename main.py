@@ -277,7 +277,7 @@ def _dev_sync(quiet=False):
     ))
 
     try:
-        success = tm.run(ephemeral=quiet)
+        success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=not quiet)
         
         # End on start branch or dev
         subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
