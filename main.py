@@ -184,9 +184,13 @@ def _dev_sync(quiet=False):
     # Helper to run git commands quietly
     def run_git(args):
         try:
-            subprocess.run(["git"] + args, check=True, cwd=str(project_root), capture_output=True)
+            res = subprocess.run(["git"] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
             return True
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
+            if not quiet:
+                print(f"\nGit error: {e}")
+                if e.stdout: print(f"STDOUT: {e.stdout}")
+                if e.stderr: print(f"STDERR: {e.stderr}")
             return False
 
     tm = ProgressTuringMachine()
