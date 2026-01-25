@@ -1,17 +1,27 @@
-# Deny all
-*
-# Allow specific files
-!README.md
-!main.py
-!setup.py
-!tool.json
-!bin/
-!bin/**
-!logic/
-!logic/**
-!test/
-!test/**
-!tool/
-!tool/**
-!.gitignore
+# Ignore everything by default
+/*
+
+# But track these core folders and files
+!/main.py
+!/setup.py
+!/tool.json
+!/README.md
+!/logic/
+!/bin/
+!/test/
+!/tool/
+!/.gitignore
+!/.gitattributes
+
+# Within tool, ignore data and logs but track the code
+/tool/*/data/
+/tool/*/logs/
+!/tool/*/
+
+# Within logic, ignore pycache
 **/__pycache__/
+
+# Keep gitignore and gitattributes
+!.gitignore
+!.gitattributes
+
