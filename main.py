@@ -207,7 +207,8 @@ def _dev_sync(quiet=False):
         name=_("on_branch", "local changes on '{branch}'", branch=start_branch),
         action=auto_commit,
         active_status=_("label_committing", "Committing"),
-        success_status=_("label_committed", "Committed"),
+        success_status="Successfully committed",
+        fail_status="Failed to commit",
         bold_part="Committing"
     ))
 
@@ -223,7 +224,8 @@ def _dev_sync(quiet=False):
         name="'tool' from 'dev'",
         action=align_tool,
         active_status="Aligning",
-        success_status="Aligned",
+        success_status="Successfully aligned",
+        fail_status="Failed to align",
         bold_part="Aligning"
     ))
 
@@ -254,7 +256,8 @@ def _dev_sync(quiet=False):
         name="'main' from 'tool'",
         action=align_main,
         active_status="Aligning",
-        success_status="Aligned",
+        success_status="Successfully aligned",
+        fail_status="Failed to align",
         bold_part="Aligning"
     ))
 
@@ -268,7 +271,8 @@ def _dev_sync(quiet=False):
         name="'test' from 'main'",
         action=align_test,
         active_status="Aligning",
-        success_status="Aligned",
+        success_status="Successfully aligned",
+        fail_status="Failed to align",
         bold_part="Aligning"
     ))
 
