@@ -168,7 +168,7 @@ def update_config(key, value):
 
 def _dev_sync():
     """Synchronize logic files from 'tool' to 'main', then overwrite 'test' with 'main'."""
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     logic_files = ["main.py", "setup.py", "tool.json", "README.md", ".gitignore", ".gitattributes", "logic", "bin", "test", "todo"]
     
     try:
@@ -390,7 +390,7 @@ def _dev_align():
 
 def _dev_reset():
     """Reset main and test branches to a clean state using templates."""
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     try:
         current = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
         if current != "tool":
@@ -457,7 +457,7 @@ def _tool_requirements():
     }
 
 def _dev_sanity_check(tool_name, fix=False):
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     tool_dir = project_root / "tool" / tool_name
     if not tool_dir.exists():
         print(f"Error: Tool '{tool_name}' not found.")
@@ -582,7 +582,7 @@ def _dev_audit_bin(fix=False):
 
 def _dev_create(tool_name):
     """Create a new tool template."""
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     tool_dir = project_root / "tool" / tool_name
     
     # Auto-commit local changes before checkout to avoid errors
@@ -813,7 +813,7 @@ def generate_ai_rule(target_tool=None):
         except: pass
 
 def _test_tool_with_args(args):
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     # Support 'TOOL' as an alias for 'root'
     actual_tool_name = "root" if args.tool_name in ["root", "TOOL"] else args.tool_name
     tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
@@ -846,7 +846,7 @@ def _test_tool_with_args(args):
     else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout)
 
 def _audit_lang(lang_code, force=False):
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     lang_name = _(f"lang_name_{lang_code}", lang_code)
     sys.path.append(str(project_root))
     from logic.lang.audit import LangAuditor
@@ -871,7 +871,7 @@ def _audit_lang(lang_code, force=False):
 
 def _show_current_language():
     """Display the current language and its code."""
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     current_lang = "en"
     config_path = project_root / "data" / "config.json"
     if config_path.exists():
@@ -879,7 +879,7 @@ def _show_current_language():
     print(f"{_(f'lang_name_{current_lang}', current_lang)} ({current_lang})")
 
 def _list_languages():
-    project_root = Path(__file__).parent.absolute()
+    project_root = ROOT_PROJECT_ROOT
     sys.path.append(str(project_root))
     from logic.lang.audit import LangAuditor
     from logic.utils import get_rate_color, format_table

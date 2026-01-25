@@ -15,15 +15,16 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "30", "--id", "test_submit"], 
+        test_id = f"test_submit_{int(time.time())}_{os.getpid()}"
+        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "30", "--id", test_id], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
             # Wait for GUI to register
-            time.sleep(3)
+            time.sleep(5)
             
             # Send remote submit
-            submit_cmd = ["python3", str(main_py), "submit", "--id", "test_submit"]
+            submit_cmd = ["python3", str(main_py), "submit", "--id", test_id]
             subprocess.run(submit_cmd, env=env, capture_output=True)
             
             # Wait for exit
