@@ -335,8 +335,10 @@ class UserInputWindow(BaseGUIWindow):
         if self.root:
             try: self.root.bell()
             except: pass
-        if self.bell_path and os.path.exists(self.bell_path):
-            def run_play():
+        if not self.bell_path or not os.path.exists(self.bell_path):
+            raise FileNotFoundError(f"Critical asset missing: {self.bell_path}")
+        
+        def run_play():
                 try:
                     if platform.system() == "Darwin":
                         subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
@@ -369,7 +371,7 @@ if __name__ == "__main__":
         'timeout': timeout,
         'hint': hint_text,
         'focus_interval': focus_interval,
-        'bell_path': str(bell_path) if bell_path and bell_path.exists() else '',
+        'bell_path': str(bell_path),
         'time_increment': time_increment,
         'custom_id': custom_id
     }
