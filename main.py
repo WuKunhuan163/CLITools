@@ -169,6 +169,9 @@ def update_config(key, value):
 def _dev_sync():
     """Synchronize logic files from 'tool' to 'main', then overwrite 'test' with 'main'."""
     project_root = ROOT_PROJECT_ROOT
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+    
     logic_files = ["main.py", "setup.py", "tool.json", "README.md", ".gitignore", ".gitattributes", "logic", "bin", "test", "todo"]
     
     try:
@@ -176,7 +179,7 @@ def _dev_sync():
     except subprocess.CalledProcessError:
         print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return
-    
+
     if current_branch not in ["tool", "dev"]:
         print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_warning_branch", "Sync is recommended from 'tool' or 'dev' branch. Current branch is '{branch}'.", branch=current_branch))
         confirm = input(_("sync_confirm", "Continue anyway? (y/N): "))
@@ -184,71 +187,90 @@ def _dev_sync():
             print(_("sync_cancelled", "Sync cancelled."))
             return
 
-    try:
+    tm = ProgressTuringMachine()
+
+    # 1. Auto-commit
+    def auto_commit():
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("sync_uncommitted_auto", "There are uncommitted changes in '{branch}'. Auto-committing before sync...", branch=current_branch))
-            subprocess.run(["git", "add", "."], cwd=str(project_root))
-            subprocess.run(["git", "commit", "-m", f"Auto-commit before sync from {current_branch}"], cwd=str(project_root))
-    except subprocess.CalledProcessError: pass
+            subprocess.run(["git", "add", "."], cwd=str(project_root), capture_output=True)
+            subprocess.run(["git", "commit", "-m", f"Auto-commit before sync from {current_branch}"], cwd=str(project_root), capture_output=True)
+        return True
 
-    sync_label = _("sync_to_main_label", "Syncing")
-    print(f"\r\033[K{BOLD}{BLUE}{sync_label}{RESET} to 'main' branch...", end="", flush=True)
-    
-    # Filter logic_files to only those that exist in git index
+    tm.add_stage(TuringStage(
+        name=_("label_uncommitted_changes", "uncommitted changes in '{branch}'", branch=current_branch),
+        action=auto_commit,
+        active_status=_("label_committing", "Committing"),
+        success_status=_("label_committed", "Committed"),
+        bold_part="Committing"
+    ))
+
+    # 2. Get existing files
     existing_files = []
-    for f in logic_files:
-        res = subprocess.run(["git", "ls-tree", "-r", "HEAD", "--name-only", f], capture_output=True, text=True, cwd=str(project_root))
-        if res.stdout.strip():
-            existing_files.append(f)
-    
-    commands = [
-        ["git", "checkout", "main"],
-        ["git", "checkout", current_branch, "--"] + existing_files,
-        ["git", "commit", "-m", f"Sync logic files from {current_branch} branch"],
-        ["git", "branch", "-D", "test"],
-        ["git", "checkout", "-b", "test"],
-        ["git", "checkout", current_branch]
-    ]
-    
-    for cmd in commands:
-        try:
-            if cmd[:3] == ["git", "branch", "-D"]:
-                subprocess.run(cmd, stderr=subprocess.DEVNULL, cwd=str(project_root))
-            elif cmd[:2] == ["git", "commit"]:
-                res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
-                if res.returncode != 0 and "nothing to commit" not in res.stdout:
-                    raise subprocess.CalledProcessError(res.returncode, cmd, res.stdout, res.stderr)
-            else:
-                subprocess.run(cmd, check=True, cwd=str(project_root))
-            
-            if cmd == ["git", "checkout", "main"] or cmd == ["git", "checkout", "-b", "test"]:
-                # Apply the restricted .gitignore from templates
-                init_dir = project_root / "logic" / "init"
-                if (init_dir / ".gitignore").exists():
-                    shutil.copy(init_dir / ".gitignore", project_root / ".gitignore")
-                if (init_dir / ".gitattributes").exists():
-                    shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
-                
-                subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
-                
-                # Clean up development folders and untracked files
-                subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), stderr=subprocess.DEVNULL)
-                for d in ["data", "tmp", "tool", "resource"]:
-                    p = project_root / d
-                    if p.exists() and p.is_dir():
-                        shutil.rmtree(p)
-                        subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
-                
-                if cmd == ["git", "checkout", "main"]:
-                    subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root), check=True)
+    def check_files():
+        for f in logic_files:
+            res = subprocess.run(["git", "ls-tree", "-r", "HEAD", "--name-only", f], capture_output=True, text=True, cwd=str(project_root))
+            if res.stdout.strip(): existing_files.append(f)
+        return True
 
-        except subprocess.CalledProcessError as e:
-            print(f"\n{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Command failed: {' '.join(cmd)}")
-            return
+    tm.add_stage(TuringStage(
+        name=_("label_logic_files", "logic files for sync"),
+        action=check_files,
+        active_status=_("label_checking", "Checking"),
+        success_status=_("label_found", "Found"),
+        bold_part="Checking"
+    ))
 
-    success_status = _("sync_success_status", "Successfully synced")
-    print(f"\r\033[K{BOLD}{GREEN}{success_status}{RESET} branches. Ready for testing on the 'test' branch.")
+    # 3. Sync to main
+    def sync_to_main():
+        subprocess.run(["git", "checkout", "main"], cwd=str(project_root), capture_output=True, check=True)
+        subprocess.run(["git", "checkout", current_branch, "--"] + existing_files, cwd=str(project_root), capture_output=True, check=True)
+        subprocess.run(["git", "commit", "-m", f"Sync logic files from {current_branch} branch"], cwd=str(project_root), capture_output=True)
+        
+        # Apply restricted files
+        init_dir = project_root / "logic" / "init"
+        if (init_dir / ".gitignore").exists():
+            shutil.copy(init_dir / ".gitignore", project_root / ".gitignore")
+        if (init_dir / ".gitattributes").exists():
+            shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
+        
+        subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), capture_output=True, check=True)
+        subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), capture_output=True)
+        
+        for d in ["data", "tmp", "tool", "resource"]:
+            p = project_root / d
+            if p.exists() and p.is_dir():
+                shutil.rmtree(p)
+                subprocess.run(["git", "rm", "-rf", "--cached", d], capture_output=True, cwd=str(project_root))
+        
+        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root), capture_output=True, check=True)
+        return True
+
+    tm.add_stage(TuringStage(
+        name=_("label_main_branch", "to 'main' branch"),
+        action=sync_to_main,
+        active_status=_("label_syncing", "Syncing"),
+        success_status=_("label_synced", "Synced"),
+        bold_part="Syncing"
+    ))
+
+    # 4. Sync to test
+    def sync_to_test():
+        subprocess.run(["git", "branch", "-D", "test"], cwd=str(project_root), capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "test"], cwd=str(project_root), capture_output=True, check=True)
+        subprocess.run(["git", "checkout", current_branch], cwd=str(project_root), capture_output=True, check=True)
+        return True
+
+    tm.add_stage(TuringStage(
+        name=_("label_test_branch", "test environment"),
+        action=sync_to_test,
+        active_status=_("label_preparing", "Preparing"),
+        success_status=_("label_ready", "Ready"),
+        bold_part="Preparing"
+    ))
+
+    if tm.run():
+        print(f"\n{BOLD}{GREEN}" + _("sync_complete", "Sync completed successfully.") + f"{RESET}")
 
 def _dev_align():
     """Align tool, main, and test branches with dev branch."""
