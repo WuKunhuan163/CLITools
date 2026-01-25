@@ -159,6 +159,7 @@ class FileDialogWindow(BaseGUIWindow):
         self.forward_btn = None
         self.sort_column = "name"
         self.sort_reverse = False
+        self.last_selected = None # Anchor for shift-selection
 
     def get_current_state(self):
         if not self.tree: return None
@@ -230,6 +231,12 @@ class FileDialogWindow(BaseGUIWindow):
         scrollbar.config(command=self.tree.yview)
         
         self.tree.bind("<Double-1>", self.on_double_click)
+        self.tree.bind("<Button-1>", self.on_click)
+        self.tree.bind("<Shift-Button-1>", self.on_shift_click)
+        self.tree.bind("<Control-Button-1>", self.on_ctrl_click)
+        if platform.system() == "Darwin":
+            self.tree.bind("<Command-Button-1>", self.on_ctrl_click)
+            
         self.refresh_list()
         self.update_header_text()
         
@@ -303,6 +310,39 @@ class FileDialogWindow(BaseGUIWindow):
             self.refresh_list()
             self.update_breadcrumbs()
             self.update_history_buttons()
+
+    def on_click(self, event):
+        item = self.tree.identify_row(event.y)
+        if item:
+            self.last_selected = item
+
+    def on_ctrl_click(self, event):
+        item = self.tree.identify_row(event.y)
+        if item:
+            self.last_selected = item
+
+    def on_shift_click(self, event):
+        if not self.multiple: return
+        item = self.tree.identify_row(event.y)
+        if item and self.last_selected:
+            all_items = self.tree.get_children()
+            try:
+                idx1 = all_items.index(self.last_selected)
+                idx2 = all_items.index(item)
+                start = min(idx1, idx2)
+                end = max(idx1, idx2)
+                
+                range_items = all_items[start:end+1]
+                current_selection = list(self.tree.selection())
+                
+                for ri in range_items:
+                    if ri not in current_selection:
+                        current_selection.append(ri)
+                
+                self.tree.selection_set(current_selection)
+                return "break" # Prevent default shift behavior
+            except ValueError:
+                pass
 
     def on_header_click(self, column):
         if self.sort_column == column:
@@ -422,7 +462,18 @@ class FileDialogWindow(BaseGUIWindow):
 if __name__ == "__main__":
     try:
         win = FileDialogWindow(%(title)r, 300, %(initial_dir)r, %(file_types)r, %(multiple)r, %(directory_only)r)
-        win.run(win.setup_ui, custom_id=%(custom_id)r)
+        
+        on_show_script = os.environ.get("FILEDIALOG_ON_SHOW_SCRIPT")
+        on_show_cb = None
+        if on_show_script:
+            def on_show_cb():
+                try:
+                    # Execute the script in the context of the window
+                    exec(on_show_script, {"win": win, "tk": tk})
+                except Exception as e:
+                    print(f"Error in on_show_script: {e}")
+        
+        win.run(win.setup_ui, on_show=on_show_cb, custom_id=%(custom_id)r)
     except Exception as e:
         import traceback
         traceback.print_exc()
