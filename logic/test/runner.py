@@ -227,8 +227,9 @@ class TestRunner:
                     # Localizable running status message
                     # Default (en): "Running: file.py (10s / timeout: 60s)"
                     # Arabic (ar): "(10s / timeout: 60s) file.py :Running"
+                    bold_file = f"{self.colors['BOLD']}{test_file.name}{self.colors['RESET']}"
                     return self._("test_running_line", "{status}: {file} ({elapsed}s / {timeout_label}: {timeout}s)", 
-                                 status=active_label, file=test_file.name, elapsed=int(elapsed), 
+                                 status=active_label, file=bold_file, elapsed=int(elapsed), 
                                  timeout_label=timeout_msg, timeout=timeout)
 
                 # Initial update
@@ -287,12 +288,13 @@ class TestRunner:
                 
                 status_label = self._get_status_label(status_raw)
                 duration_label = self._("label_duration", "Duration")
+                bold_file = f"{self.colors['BOLD']}{test_file.name}{self.colors['RESET']}"
                 if error_msg:
                     msg = self._("test_finished_with_error", "{status}: {file} {error} ({duration_label}: {duration:.2f}s)", 
-                                 status=status_label, file=test_file.name, error=error_msg, duration_label=duration_label, duration=duration)
+                                 status=status_label, file=bold_file, error=error_msg, duration_label=duration_label, duration=duration)
                 else:
                     msg = self._("test_finished", "{status}: {file} ({duration_label}: {duration:.2f}s)", 
-                                 status=status_label, file=test_file.name, duration_label=duration_label, duration=duration)
+                                 status=status_label, file=bold_file, duration_label=duration_label, duration=duration)
                 
                 if report_path:
                     # Use | instead of \n to keep it single-line as requested

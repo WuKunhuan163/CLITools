@@ -1,0 +1,5 @@
+[
+  "test_01_remote_cancel.py",
+  "test_02_remote_submit.py",
+  "test_03_directory.py"
+]

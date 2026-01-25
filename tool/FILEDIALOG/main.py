@@ -125,6 +125,7 @@ import os
 import sys
 import json
 import tkinter as tk
+import platform
 from tkinter import ttk
 from pathlib import Path
 
@@ -151,7 +152,13 @@ class FileDialogWindow(BaseGUIWindow):
         self.multiple = multiple
         self.directory_only = directory_only
         self.tree = None
-        self.path_var = None
+        self.breadcrumb_frame = None
+        self.history = [self.current_dir]
+        self.history_index = 0
+        self.back_btn = None
+        self.forward_btn = None
+        self.sort_column = "name"
+        self.sort_reverse = False
 
     def get_current_state(self):
         if not self.tree: return None
@@ -184,12 +191,20 @@ class FileDialogWindow(BaseGUIWindow):
         nav_frame = tk.Frame(main_frame)
         nav_frame.pack(fill=tk.X, pady=(0, 10))
         
-        tk.Button(nav_frame, text="▲", command=self.go_up, font=get_button_style()).pack(side=tk.LEFT, padx=(0, 5))
+        # History buttons
+        self.back_btn = tk.Button(nav_frame, text="←", command=self.go_back, font=get_button_style())
+        self.back_btn.pack(side=tk.LEFT, padx=(0, 2))
         
-        self.path_var = tk.StringVar(value=str(self.current_dir))
-        path_entry = tk.Entry(nav_frame, textvariable=self.path_var, font=get_label_style())
-        path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        path_entry.bind("<Return>", lambda e: self.go_to_path())
+        self.forward_btn = tk.Button(nav_frame, text="→", command=self.go_forward, font=get_button_style())
+        self.forward_btn.pack(side=tk.LEFT, padx=(0, 5))
+        
+        self.update_history_buttons()
+
+        # Breadcrumb frame
+        self.breadcrumb_frame = tk.Frame(nav_frame, bg="white", relief=tk.SUNKEN, borderwidth=1)
+        self.breadcrumb_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        self.update_breadcrumbs()
 
         # File list with Treeview
         tree_frame = tk.Frame(main_frame)
@@ -203,9 +218,9 @@ class FileDialogWindow(BaseGUIWindow):
                                   selectmode="extended" if self.multiple else "browse",
                                   yscrollcommand=scrollbar.set)
         
-        self.tree.heading("name", text=self._("col_name", "Name"))
-        self.tree.heading("size", text=self._("col_size", "Size"))
-        self.tree.heading("type", text=self._("col_type", "Type"))
+        for col in columns:
+            self.tree.heading(col, text=self._(f"col_{col}", col.capitalize()), 
+                              command=lambda c=col: self.on_header_click(c))
         
         self.tree.column("name", width=350)
         self.tree.column("size", width=100, anchor="e")
@@ -216,30 +231,159 @@ class FileDialogWindow(BaseGUIWindow):
         
         self.tree.bind("<Double-1>", self.on_double_click)
         self.refresh_list()
+        self.update_header_text()
         
         self.start_timer(self.status_label)
+
+    def update_history_buttons(self):
+        if self.back_btn:
+            self.back_btn.config(state=tk.NORMAL if self.history_index > 0 else tk.DISABLED)
+        if self.forward_btn:
+            self.forward_btn.config(state=tk.NORMAL if self.history_index < len(self.history) - 1 else tk.DISABLED)
+
+    def update_breadcrumbs(self):
+        for widget in self.breadcrumb_frame.winfo_children():
+            widget.destroy()
+        
+        path = self.current_dir
+        parts = []
+        while True:
+            parts.append(path)
+            if path.parent == path: break
+            path = path.parent
+        parts.reverse()
+
+        blue_color = get_gui_colors().get("blue", "#007AFF")
+        
+        for i, part in enumerate(parts):
+            if i == 0:
+                if platform.system() == "Darwin":
+                    name = "Macintosh HD"
+                elif platform.system() == "Windows":
+                    name = "Local Disk"
+                else:
+                    name = "File System"
+            else:
+                name = part.name
+            
+            label = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", 
+                             bg="white", font=get_label_style())
+            label.pack(side=tk.LEFT)
+            label.bind("<Button-1>", lambda e, p=part: self.jump_to(p))
+            
+            if i < len(parts) - 1:
+                sep = tk.Label(self.breadcrumb_frame, text=" / ", bg="white", font=get_label_style())
+                sep.pack(side=tk.LEFT)
+
+    def jump_to(self, path):
+        if path == self.current_dir: return
+        
+        # Record history
+        self.history = self.history[:self.history_index + 1]
+        self.history.append(path)
+        self.history_index += 1
+        
+        self.current_dir = path
+        self.refresh_list()
+        self.update_breadcrumbs()
+        self.update_history_buttons()
+
+    def go_back(self):
+        if self.history_index > 0:
+            self.history_index -= 1
+            self.current_dir = self.history[self.history_index]
+            self.refresh_list()
+            self.update_breadcrumbs()
+            self.update_history_buttons()
+
+    def go_forward(self):
+        if self.history_index < len(self.history) - 1:
+            self.history_index += 1
+            self.current_dir = self.history[self.history_index]
+            self.refresh_list()
+            self.update_breadcrumbs()
+            self.update_history_buttons()
+
+    def on_header_click(self, column):
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+        
+        self.refresh_list()
+        self.update_header_text()
+
+    def update_header_text(self):
+        columns = ("name", "size", "type")
+        for col in columns:
+            base_text = self._(f"col_{col}", col.capitalize())
+            if col == self.sort_column:
+                indicator = " ↑" if self.sort_reverse else " ↓"
+                self.tree.heading(col, text=base_text + indicator)
+            else:
+                self.tree.heading(col, text=base_text)
 
     def refresh_list(self):
         for i in self.tree.get_children():
             self.tree.delete(i)
         
         try:
-            items = sorted(list(self.current_dir.iterdir()), key=lambda x: (not x.is_dir(), x.name.lower()))
+            # 1. Get all items in directory
+            try:
+                raw_items = list(self.current_dir.iterdir())
+            except (PermissionError, OSError):
+                self.tree.insert("", tk.END, values=(self._("err_access_denied", "Access Denied"), "", ""))
+                return
+
+            # 2. Sorting logic
+            def get_sort_val(item):
+                is_dir = item.is_dir()
+                if self.sort_column == "name":
+                    return item.name.lower()
+                if self.sort_column == "size":
+                    if is_dir: return -1 # Folders first or last depending on reverse
+                    try: return item.stat().st_size
+                    except: return 0
+                if self.sort_column == "type":
+                    return (self._("type_folder", "Folder") if is_dir else self._("type_file", "File")).lower()
+                return item.name.lower()
+
+            # We usually want folders grouped together even when sorting by other columns?
+            # User said "按照这一列排序", which implies strict sorting.
+            # But size for folders is empty, so they would naturally group together at the start or end.
+            items = sorted(raw_items, key=get_sort_val, reverse=self.sort_reverse)
+
             for item in items:
-                if self.directory_only and not item.is_dir():
-                    continue
-                
-                # Simple extension check if not all
-                if not self.directory_only and not item.is_dir():
-                    if not self.match_file_types(item):
+                try:
+                    # Skip items that cause errors when checking directory status
+                    is_dir = item.is_dir()
+                    
+                    if self.directory_only and not is_dir:
                         continue
-                
-                name = item.name + ("/" if item.is_dir() else "")
-                size = "" if item.is_dir() else self.format_size(item.stat().st_size)
-                itype = self._("type_folder", "Folder") if item.is_dir() else self._("type_file", "File")
-                
-                self.tree.insert("", tk.END, iid=str(item), values=(name, size, itype))
+                    
+                    # Simple extension check if not all
+                    if not self.directory_only and not is_dir:
+                        if not self.match_file_types(item):
+                            continue
+                    
+                    name = item.name + ("/" if is_dir else "")
+                    
+                    # 3. Get size, skip if error (e.g. broken symlink)
+                    try:
+                        size = "" if is_dir else self.format_size(item.stat().st_size)
+                    except:
+                        size = "???"
+                        
+                    itype = self._("type_folder", "Folder") if is_dir else self._("type_file", "File")
+                    
+                    self.tree.insert("", tk.END, iid=str(item), values=(name, size, itype))
+                except (PermissionError, OSError, FileNotFoundError):
+                    # Silently skip inaccessible or problematic items
+                    continue
+                    
         except Exception as e:
+            # Global error for the directory itself
             self.tree.insert("", tk.END, values=(f"Error: {e}", "", ""))
 
     def match_file_types(self, path):
@@ -265,15 +409,7 @@ class FileDialogWindow(BaseGUIWindow):
         return f"{size:.1f} TB"
 
     def go_up(self):
-        self.current_dir = self.current_dir.parent
-        self.path_var.set(str(self.current_dir))
-        self.refresh_list()
-
-    def go_to_path(self):
-        p = Path(self.path_var.get()).expanduser().resolve()
-        if p.is_dir():
-            self.current_dir = p
-            self.refresh_list()
+        self.jump_to(self.current_dir.parent)
 
     def on_double_click(self, event):
         item_id = self.tree.identify_row(event.y)
@@ -281,9 +417,7 @@ class FileDialogWindow(BaseGUIWindow):
         
         path = Path(item_id)
         if path.is_dir():
-            self.current_dir = path
-            self.path_var.set(str(self.current_dir))
-            self.refresh_list()
+            self.jump_to(path)
 
 if __name__ == "__main__":
     try:
@@ -332,7 +466,9 @@ def main():
     # Standard remote commands
     if args.command in ["stop", "submit", "cancel", "add_time"]:
         from logic.gui.manager import handle_gui_remote_command
-        return handle_gui_remote_command("FILEDIALOG", tool.project_root, args.command, unknown, tool.get_translation)
+        # Pass the original arguments to ensure --id is correctly handled
+        remote_args = sys.argv[2:]
+        return handle_gui_remote_command("FILEDIALOG", tool.project_root, args.command, remote_args, tool.get_translation)
 
     initial_dir = args.dir or os.getcwd()
     file_types = parse_file_types(args.types)
