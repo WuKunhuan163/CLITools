@@ -230,7 +230,7 @@ def _dev_sync(quiet=False):
     # 3. tool -> main
     def align_main():
         if not run_git(["checkout", "-f", "main"]): return False
-        if not run_git(["reset", "--hard", "tool"]): return False
+        if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
