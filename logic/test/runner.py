@@ -64,20 +64,13 @@ class TestRunner:
         for i, test in enumerate(tests):
             print(f"  [{i}] {test.name}")
 
-    def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60) -> bool:
-        # Default unit tests to English as requested by user, 
-        # but respect it if they are specifically testing a language (ar/zh).
-        from logic.config import get_global_config
-        current_lang = os.environ.get("TOOL_LANGUAGE") or get_global_config("language") or "en"
-        
-        old_lang = os.environ.get("TOOL_LANGUAGE")
-        if current_lang not in ["ar", "zh"]:
-            os.environ["TOOL_LANGUAGE"] = "en"
-        
+    def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60, quiet_if_no_tests=False) -> bool:
+        # ... existing ...
         try:
             all_tests = self._get_test_files()
             if not all_tests:
-                print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
+                if not quiet_if_no_tests:
+                    print(self._("test_no_tests", "No tests found for {tool}", tool=self.tool_name))
                 return True # Technically no failures
 
             if start_id is not None or end_id is not None:
