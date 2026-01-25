@@ -230,7 +230,7 @@ def _dev_sync(quiet=False):
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted, stderr=subprocess.DEVNULL, cwd=str(project_root))
+        subprocess.run(["git", "rm", "-rf"] + restricted, stderr=subprocess.DEVNULL, cwd=str(project_root), capture_output=True)
         
         # Ensure they are gone from disk
         for d in restricted:
@@ -270,13 +270,15 @@ def _dev_sync(quiet=False):
 
     try:
         success = tm.run(ephemeral=quiet)
+        
+        # End on start branch or dev
+        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
+        
         if success and not quiet:
             success_status = _("label_successfully_completed", "Successfully completed")
             msg = f"\n{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
             print(msg)
-        
-        # End on start branch or dev
-        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
+            
         return success
     except Exception as e:
         if not quiet:
@@ -347,7 +349,7 @@ def _dev_align():
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted, stderr=subprocess.DEVNULL, cwd=str(project_root))
+        subprocess.run(["git", "rm", "-rf"] + restricted, stderr=subprocess.DEVNULL, cwd=str(project_root), capture_output=True)
         
         # Ensure they are gone from disk
         for d in restricted:
@@ -448,7 +450,7 @@ def _dev_reset():
             shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
             
         subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
-        subprocess.run(["git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root))
+        subprocess.run(["git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
         
         subprocess.run(["git", "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
         for d in ["data", "tmp", "tool", "resource"]:
@@ -457,7 +459,7 @@ def _dev_reset():
                 shutil.rmtree(p)
                 subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
         
-        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root))
+        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root), capture_output=True)
         subprocess.run(["git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
         subprocess.run(["git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
         subprocess.run(["git", "checkout", current], cwd=str(project_root), check=True)
@@ -483,7 +485,7 @@ def _dev_enter(branch, force=False):
                 auto_commit_label = _("label_auto_committing", "Auto-committing")
                 print(f"{BOLD}{BLUE}{auto_commit_label}{RESET} local changes before switching...")
                 subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
-                subprocess.run(["git", "commit", "-m", f"Auto-commit before entering {branch}"], check=True, cwd=str(project_root))
+                subprocess.run(["git", "commit", "-m", f"Auto-commit before entering {branch}"], check=True, cwd=str(project_root), capture_output=True)
             
             subprocess.run(["git", "checkout", branch], cwd=str(project_root), check=True)
             # Always clean when entering test/main to remove leftover ignored files
@@ -634,7 +636,7 @@ def _dev_create(tool_name):
             info_label = _("info_label", "Info")
             print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
             subprocess.run(["git", "add", "."], cwd=str(project_root), check=True)
-            subprocess.run(["git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True)
+            subprocess.run(["git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
     except: pass
 
     try:
@@ -972,12 +974,6 @@ def _run_installation_test(tool_name, stay_on_test=False):
         print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
         subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
         return False
-    
-    if tm_install.run(ephemeral=True):
-        print(f"\n{BOLD}{GREEN}Installation test passed.{RESET}")
-    else:
-        print(f"\n{BOLD}{RED}Installation test failed.{RESET}")
-        sys.exit(1)
 
 def _audit_lang(lang_code, force=False):
     project_root = ROOT_PROJECT_ROOT
