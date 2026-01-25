@@ -896,27 +896,31 @@ def _run_installation_test(tool_name):
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
     from logic.config import get_color
+    import io
+    from contextlib import redirect_stdout, redirect_stderr
     BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
-    tm = ProgressTuringMachine()
-    
-    # Stage 1: Sync branches (quietly)
-    def sync_action():
-        import io
-        from contextlib import redirect_stdout, redirect_stderr
-        f = io.StringIO()
-        with redirect_stdout(f), redirect_stderr(f):
-            return _dev_sync(quiet=True)
-
-    tm.add_stage(TuringStage(
+    # 1. Sync branches (quietly)
+    tm_sync = ProgressTuringMachine()
+    tm_sync.add_stage(TuringStage(
         name="branches...",
-        action=sync_action,
+        action=lambda: _dev_sync(quiet=True),
         active_status="Syncing",
         success_status="Synced",
         bold_part="Syncing"
     ))
     
-    # Stage 2: Install and Verify
+    # Capture output of sync
+    f = io.StringIO()
+    with redirect_stdout(f), redirect_stderr(f):
+        sync_success = tm_sync.run(ephemeral=True)
+    
+    if not sync_success:
+        print(f"\n{BOLD}{RED}Sync failed during installation test.{RESET}")
+        sys.exit(1)
+
+    # 2. Install and Verify
+    tm_install = ProgressTuringMachine()
     def install_test_action():
         try:
             # Switch to test branch
@@ -941,7 +945,7 @@ def _run_installation_test(tool_name):
             # Always try to return to dev
             subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
 
-    tm.add_stage(TuringStage(
+    tm_install.add_stage(TuringStage(
         name=f"installation of '{tool_name}' on 'test' branch",
         action=install_test_action,
         active_status="Testing",
@@ -949,7 +953,7 @@ def _run_installation_test(tool_name):
         bold_part="Testing"
     ))
     
-    if tm.run(ephemeral=True):
+    if tm_install.run(ephemeral=True):
         print(f"\n{BOLD}{GREEN}Installation test passed.{RESET}")
     else:
         print(f"\n{BOLD}{RED}Installation test failed.{RESET}")
