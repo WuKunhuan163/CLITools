@@ -274,7 +274,7 @@ class TestRunner:
                             duration = time.time() - start_time
                             if proc.returncode == 0:
                                 status_raw, error_msg, report_path = "Success", None, None
-                                with pid_lock: success_count[0] += 1
+                                with pids_lock: success_count[0] += 1
                             else:
                                 full_output = stdout + stderr
                                 report_path = self._save_result(test_file.name, "Failed", full_output, python_info=python_exec)
