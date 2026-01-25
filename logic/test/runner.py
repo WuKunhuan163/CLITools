@@ -91,10 +91,8 @@ class TestRunner:
                 print(self._("test_no_selected", "No tests selected in the specified range."))
                 return True
 
-            print(f"{self._('test_running', 'Preparing to run {count} tests for {tool} tool...', count=len(selected_tests), tool=self.tool_name, max=max_concurrent)}")
-            
-            # Parallel execution logic
-            success = self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+            print(self._("test_running", "Preparing to run {count} tests for {tool} tool (max {max} concurrent tests)...", count=len(selected_tests), tool=self.tool_name, max=max_concurrent))
+            sys.stdout.flush()
             return success
             
         finally:
@@ -202,9 +200,6 @@ class TestRunner:
         if max_concurrent == 3:
             from logic.config import get_setting
             max_concurrent = get_setting("test_default_concurrency", 3)
-
-        print(self._("test_parallel_enabled_simple", "Parallel execution enabled (max {max} concurrent jobs)", max=max_concurrent))
-        sys.stdout.flush()
 
         manager = MultiLineManager()
         task_queue = Queue()
