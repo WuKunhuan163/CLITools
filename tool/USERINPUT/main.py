@@ -186,9 +186,9 @@ def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=No
         focus_interval = 90
     time_increment = config.get("time_increment", 60)
 
-    try:
-        bell_path = TOOL_INTERNAL / "tkinter_bell.mp3"
-    except: bell_path = None
+    bell_path = TOOL_INTERNAL / "tkinter_bell.mp3"
+    if not bell_path.exists():
+        raise FileNotFoundError(f"Critical asset missing: {bell_path}")
 
     tkinter_script = r'''
 import os
