@@ -121,7 +121,7 @@ class ToolEngine:
             name=self._("label_the_tool_name", "the {name} tool", name=self.tool_name),
             action=self.run_setup,
             active_status=self._("label_running_setup", "Running setup"),
-            success_status=self._("label_successfully", "Successfully"),
+            success_status=self._("label_success", "Successfully"),
             fail_status=self._("label_failed_to_setup", "Failed to setup"),
             success_name=self._("label_setup_success_name", "setup {name} tool", name=self.tool_name),
             bold_part="setup"

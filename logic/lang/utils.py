@@ -3,13 +3,13 @@ import os
 from pathlib import Path
 from logic.config import get_global_config
 
-def get_translation(tool_logic_dir, key, default_text):
+def get_translation(tool_logic_dir, key, default_text, lang_code=None):
     """
     Looks up a translation for a given key in translation.json, 
     or in a translation directory structure.
     """
     # 1. Try to get preferred language from global config or env
-    lang = os.environ.get("TOOL_LANGUAGE")
+    lang = lang_code or os.environ.get("TOOL_LANGUAGE")
     
     if not lang:
         lang = get_global_config("language")

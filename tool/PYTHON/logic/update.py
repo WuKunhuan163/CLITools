@@ -362,7 +362,7 @@ def main():
             continue
 
         asset_count = len(to_migrate)
-        asset_word = _("label_asset", "asset") if asset_count == 1 else _("label_assets", "assets")
+        asset_word = _("label_assets", "assets")
         found_label = _("python_found_assets_count", "Found {count} {word}", count=asset_count, word=asset_word)
         v_display_tags = [regularize_version_name(a['version'], a['platform']) for a in to_migrate]
         to_msg = _("label_to_migrate", "to migrate from release")

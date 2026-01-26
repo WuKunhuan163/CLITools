@@ -260,7 +260,7 @@ def _list_versions():
         missing = []
         for v in remote_versions:
             is_installed = v in installed
-            status = f" ({_('python_status_installed', 'installed')})" if is_installed else ""
+            status = f" ({_('label_installed', 'installed')})" if is_installed else ""
             version_strings.append(f"{v}{status}")
             if not is_installed:
                 missing.append(v)

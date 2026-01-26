@@ -180,7 +180,7 @@ class ToolBase:
             name=self.get_translation("label_the_tool_setup", "for the {name} tool").format(name=self.tool_name),
             action=run_setup_action,
             active_status=self.get_translation("label_running_setup", "Running setup"),
-            success_status=self.get_translation("label_successfully", "Successfully"),
+            success_status=self.get_translation("label_success", "Successfully"),
             fail_status=self.get_translation("label_failed_to_setup", "Failed to setup"),
             success_name=self.get_translation("label_setup_success_name", "setup {name} tool").format(name=self.tool_name),
             fail_name=self.get_translation("label_the_tool_name", "the {name} tool").format(name=self.tool_name),
