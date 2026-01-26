@@ -252,7 +252,7 @@ class UserInputWindow(BaseGUIWindow):
         main_frame = tk.Frame(self.root, padx=15, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        tk.Label(main_frame, text=self._("instruction", "Please enter your feedback:"), 
+        tk.Label(main_frame, text=self._("user_input_instruction", "Please enter your feedback:"), 
                  font=get_label_style(), fg="#555").pack(pady=(0, 5), anchor='w')
         
         text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
