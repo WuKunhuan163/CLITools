@@ -3,6 +3,7 @@ import re
 import json
 from pathlib import Path
 from datetime import datetime
+from logic.lang.utils import get_translation
 
 class LangAuditor:
     def __init__(self, project_root, lang_code=None):
@@ -15,14 +16,16 @@ class LangAuditor:
         else:
             self.cache_file = None
         
-        # Regex patterns for finding translation keys
+        # Regex patterns for finding translation keys in code
         self.patterns = [
             # Standard _("key") or _('key')
             re.compile(r'\b_\(\s*f?["\']([^"\']+)["\']'),
             # Root get_translation(dir, "key", "default") - matches 2nd arg
             re.compile(r'(?<!\.)\bget_translation\([^,]+,\s*f?["\']([^"\']+)["\']'),
             # self.get_translation("key", "default") - matches 1st arg
-            re.compile(r'\.get_translation\(\s*f?["\']([^"\']+)["\']')
+            re.compile(r'\.get_translation\(\s*f?["\']([^"\']+)["\']'),
+            # Custom helpers (like print_metric in main.py)
+            re.compile(r'\bprint_metric\(\s*f?["\']([^"\']+)["\']')
         ]
 
     def audit(self, force_scan=False):
@@ -59,10 +62,32 @@ class LangAuditor:
             langs.append(lang_code)
         return sorted(langs)
 
+    def _get_field_translation(self, field_id, default):
+        """Helper to get translated field name/definition/advice."""
+        try:
+            from logic.utils import get_logic_dir
+            logic_dir = get_logic_dir(self.project_root)
+            key = f"audit_cat_{field_id}"
+            return get_translation(str(logic_dir), key, default, lang_code=self.lang_code)
+        except:
+            return default
+
+    def _get_line_number(self, file_path, key):
+        """Get the line number of a key in a JSON file."""
+        if not file_path.exists(): return 0
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for i, line in enumerate(f, 1):
+                    if f'"{key}"' in line:
+                        return i
+        except: pass
+        return 0
+
     def _perform_scan(self):
         """Scan project for keys and check translation."""
-        all_keys = {} # key -> {count: int, sources: [path], type: root|tool_name}
+        used_keys = {} # key -> {count: int, sources: [path], type: root|tool_name}
         
+        # 1. Collect keys used in code
         for py_file in self.project_root.rglob("*.py"):
             # Exclude non-source directories
             parts = py_file.parts
@@ -76,27 +101,27 @@ class LangAuditor:
                 for pattern in self.patterns:
                     for match in pattern.finditer(content):
                         key = match.group(1)
-                        if key not in all_keys:
+                        if key not in used_keys:
                             type_val = "root"
                             for part in py_file.parts:
                                 if part == "tool" and len(py_file.parts) > py_file.parts.index(part) + 1:
                                     type_val = py_file.parts[py_file.parts.index(part) + 1]
                                     break
                             
-                            all_keys[key] = {
+                            used_keys[key] = {
                                 "count": 0,
                                 "sources": [],
                                 "type": type_val
                             }
                         
-                        all_keys[key]["count"] += 1
+                        used_keys[key]["count"] += 1
                         rel_path = str(py_file.relative_to(self.project_root))
-                        if rel_path not in all_keys[key]["sources"]:
-                            all_keys[key]["sources"].append(rel_path)
+                        if rel_path not in used_keys[key]["sources"]:
+                            used_keys[key]["sources"].append(rel_path)
             except Exception:
                 continue
 
-        # Special case: Add dynamic keys from tool.json
+        # Add dynamic keys from tool.json
         registry_path = self.project_root / "tool.json"
         if registry_path.exists():
             try:
@@ -106,108 +131,123 @@ class LangAuditor:
                     is_installed = (self.project_root / "tool" / tool_name).exists()
                     for key_suffix in ["desc", "purpose"]:
                         key = f"tool_{tool_name}_{key_suffix}"
-                        if key not in all_keys:
-                            all_keys[key] = {
+                        if key not in used_keys:
+                            used_keys[key] = {
                                 "count": 1,
                                 "sources": ["tool.json"],
                                 "type": tool_name if is_installed else "root"
                             }
                         else:
-                            all_keys[key]["count"] += 1
-                            if "tool.json" not in all_keys[key]["sources"]:
-                                all_keys[key]["sources"].append("tool.json")
-            except Exception:
-                pass
+                            used_keys[key]["count"] += 1
+                            if "tool.json" not in used_keys[key]["sources"]:
+                                used_keys[key]["sources"].append("tool.json")
+            except Exception: pass
 
-        translation_cache = {}
-        def get_translation_data(path):
-            if path in translation_cache:
-                return translation_cache[path]
-            data = {}
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                except Exception: pass
-            translation_cache[path] = data
-            return data
-
-        audit_entries = []
-        missing_translation = []
-        duplicate_translations = {} # value -> [logical_paths]
-        shadowed_keys = [] # [key, tool_name]
+        # 2. Collect all defined keys in JSON files for the language
+        defined_keys = {} # key -> list of {file_path, line, value}
         
-        supported_keys = 0
+        for json_file in self.project_root.rglob("*.json"):
+            if any(p in json_file.parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "data", "site-packages"]):
+                continue
+            
+            # Check if this is a translation file for our lang_code
+            is_trans_file = False
+            if json_file.name == f"{self.lang_code}.json" and "translation" in json_file.parts:
+                is_trans_file = True
+            elif json_file.name == "translation.json":
+                is_trans_file = True
+                
+            if not is_trans_file: continue
+            
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Normalize data format
+                target_trans = {}
+                if self.lang_code in data and isinstance(data[self.lang_code], dict):
+                    target_trans = data[self.lang_code]
+                elif all(isinstance(v, str) for v in data.values()):
+                    # Flat format, check if it belongs to this language based on file path or name
+                    if json_file.name == f"{self.lang_code}.json" or "translation" in json_file.parts:
+                        target_trans = data
+                
+                for k, v in target_trans.items():
+                    if k not in defined_keys:
+                        defined_keys[k] = []
+                    rel_path = str(json_file.relative_to(self.project_root))
+                    defined_keys[k].append({
+                        "file_path": rel_path,
+                        "line": self._get_line_number(json_file, k),
+                        "value": v
+                    })
+            except: pass
+
+        # 3. Analyze
+        missing_entries = []
+        duplicate_values = {} # value -> list of logical_paths
+        duplicate_keys_entries = []
+        unused_translations_entries = []
+        shadowed_keys_entries = []
+        en_violations_entries = []
+        audit_entries = []
+        
+        # Root keys for shadowing
+        root_defined_keys = set()
+        for k, instances in defined_keys.items():
+            if any("logic/translation" in inst["file_path"] for inst in instances):
+                root_defined_keys.add(k)
+
+        # Process used keys
+        supported_keys_count = 0
         total_references = 0
         supported_references = 0
         
-        from logic.utils import get_logic_dir
-        
-        # Track root keys for shadowing check
-        root_internal = get_logic_dir(self.project_root)
-        root_json_path = root_internal / "translation" / f"{self.lang_code}.json"
-        root_trans = get_translation_data(str(root_json_path))
-        
-        for key, info in all_keys.items():
-            is_supported = False
-            trans_file = ""
+        for key, info in used_keys.items():
+            total_references += info["count"]
+            is_supported = key in defined_keys
+            
             logical_path = ""
+            trans_file = ""
             trans_val = ""
             
-            if info["type"] == "root":
-                logical_path = f"logic/translation/{self.lang_code}/{key}"
-                if key in root_trans:
-                    is_supported = True
-                    trans_file = str(root_json_path.relative_to(self.project_root))
-                    trans_val = root_trans[key]
-                else:
-                    mono_json_path = root_internal / "translation.json"
-                    mono_trans = get_translation_data(str(mono_json_path))
-                    if self.lang_code in mono_trans and key in mono_trans[self.lang_code]:
-                        is_supported = True
-                        trans_file = str(mono_json_path.relative_to(self.project_root))
-                        trans_val = mono_trans[self.lang_code][key]
+            if is_supported:
+                # Pick the best instance (prefer local tool if it's a tool key)
+                best_inst = defined_keys[key][0]
+                if info["type"] != "root":
+                    for inst in defined_keys[key]:
+                        if f"tool/{info['type']}" in inst["file_path"]:
+                            best_inst = inst
+                            break
+                
+                trans_file = best_inst["file_path"]
+                trans_val = best_inst["value"]
+                logical_path = f"{trans_file.replace('.json', '')}/{key}"
+                
+                supported_keys_count += 1
+                supported_references += info["count"]
+                
+                # Check shadowing
+                if info["type"] != "root" and key in root_defined_keys:
+                    # If it's defined in the tool path, it shadows root
+                    if any(f"tool/{info['type']}" in inst["file_path"] for inst in defined_keys[key]):
+                        shadowed_keys_entries.append({
+                            "key": key,
+                            "tool": info["type"],
+                            "advice": f"Key '{key}' shadows a root translation. If the value is the same, consider removing it from tool translation."
+                        })
+                
+                # Track values for duplicate values check
+                if trans_val:
+                    if trans_val not in duplicate_values:
+                        duplicate_values[trans_val] = []
+                    duplicate_values[trans_val].append(logical_path)
             else:
-                # Check tool-local translation first
-                tool_internal = get_logic_dir(self.project_root / "tool" / info["type"])
-                tool_json_path = tool_internal / "translation.json"
-                tool_dir_path = tool_internal / "translation" / f"{self.lang_code}.json"
-                
-                tool_trans = get_translation_data(str(tool_json_path))
-                tool_dir_trans = get_translation_data(str(tool_dir_path))
-                
-                # Combine them for checking
-                combined_tool_trans = {**tool_trans.get(self.lang_code, {}), **tool_dir_trans}
-                if not combined_tool_trans:
-                    # Try flat format
-                    combined_tool_trans = {k: v for k, v in tool_trans.items() if isinstance(v, str)}
-
-                logical_path = f"tool/{info['type']}/logic/translation/{self.lang_code}/{key}"
-                
-                # Shadowing check: ONLY if it's actually in the tool's translation
-                if key in combined_tool_trans and key in root_trans:
-                    shadowed_keys.append([key, info["type"]])
-                
-                if key in combined_tool_trans:
-                    is_supported = True
-                    trans_file = str(tool_dir_path.relative_to(self.project_root)) if tool_dir_path.exists() else str(tool_json_path.relative_to(self.project_root))
-                    trans_val = combined_tool_trans[key]
-                else:
-                    # Fallback to root for tool descriptions if missing locally
-                    if key in root_trans:
-                        is_supported = True
-                        trans_file = str(root_json_path.relative_to(self.project_root))
-                        trans_val = root_trans[key]
-                        # Correct logical path to root as it fell back
-                        logical_path = f"logic/translation/{self.lang_code}/{key}"
-
-            if not is_supported:
-                missing_translation.append(logical_path)
-            elif trans_val:
-                # Track duplicate values
-                if trans_val not in duplicate_translations:
-                    duplicate_translations[trans_val] = []
-                duplicate_translations[trans_val].append(logical_path)
+                missing_entries.append({
+                    "key": key,
+                    "type": info["type"],
+                    "sources": info["sources"]
+                })
 
             audit_entries.append({
                 "key": key,
@@ -216,52 +256,129 @@ class LangAuditor:
                 "sources": info["sources"],
                 "supported": is_supported,
                 "translation_file": trans_file,
-                "logical_path": logical_path,
                 "value": trans_val
             })
-            
-            total_references += info["count"]
-            if is_supported:
-                supported_keys += 1
-                supported_references += info["count"]
 
-        # Filter real duplicates
-        duplicates = {v: paths for v, paths in duplicate_translations.items() if len(paths) > 1}
+        # Process duplicate keys (same key in multiple files)
+        for k, instances in defined_keys.items():
+            if len(instances) > 1:
+                duplicate_keys_entries.append({
+                    "key": k,
+                    "definitions": instances
+                })
 
-        # Check for standalone 'en' files or sections
-        en_violations = []
+        # Process unused translations
+        unused_to_delete = []
+        for k, instances in defined_keys.items():
+            # Protection: don't delete dynamic keys or audit internal keys
+            if k.startswith("lang_name_") or k.startswith("audit_cat_") or k.startswith("col_") or k in ["label_found", "label_to", "label_asset"]:
+                continue
+                
+            if k not in used_keys:
+                for inst in instances:
+                    unused_translations_entries.append({
+                        "key": k,
+                        "file_path": inst["file_path"],
+                        "line": inst["line"]
+                    })
+                    # Add key for cleanup
+                    inst_with_key = inst.copy()
+                    inst_with_key['key'] = k
+                    unused_to_delete.append(inst_with_key)
+
+        # Process en violations
         for json_file in self.project_root.rglob("*.json"):
-            if "venv" in json_file.parts or ".git" in json_file.parts: continue
-            
+            if any(p in json_file.parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "data", "site-packages"]):
+                continue
             if json_file.name == "en.json":
-                en_violations.append(str(json_file.relative_to(self.project_root)))
-            elif json_file.name.endswith(".json"):
+                en_violations_entries.append({
+                    "file_path": str(json_file.relative_to(self.project_root)),
+                    "reason": "Standalone en.json file found."
+                })
+            else:
                 try:
                     with open(json_file, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                         if "en" in data and isinstance(data["en"], (dict, str)):
-                            en_violations.append(str(json_file.relative_to(self.project_root)))
+                            en_violations_entries.append({
+                                "file_path": str(json_file.relative_to(self.project_root)),
+                                "reason": "JSON file contains 'en' section."
+                            })
                 except: pass
+
+        # 4. Cleanup unused translations
+        self._cleanup_unused(unused_to_delete)
+
+        # 5. Format final result
+        def make_cat(id, entries):
+            return {
+                "name": self._get_field_translation(f"{id}_name", id.replace("_", " ").title()),
+                "definition": self._get_field_translation(f"{id}_def", ""),
+                "advice": self._get_field_translation(f"{id}_advice", ""),
+                "entries": entries
+            }
+
+        filtered_duplicate_values = {v: paths for v, paths in duplicate_values.items() if len(paths) > 1}
 
         results = {
             "summary": {
-                "total_keys": len(all_keys),
-                "supported_keys": supported_keys,
+                "total_keys": len(used_keys),
+                "supported_keys": supported_keys_count,
                 "total_references": total_references,
                 "supported_references": supported_references,
-                "completion_rate_keys": f"{(supported_keys/len(all_keys)*100):.1f}%" if all_keys else "100%",
+                "completion_rate_keys": f"{(supported_keys_count/len(used_keys)*100):.1f}%" if used_keys else "100%",
                 "completion_rate_refs": f"{(supported_references/total_references*100):.1f}%" if total_references else "100%",
-                "missing_count": len(missing_translation),
-                "duplicate_meanings_count": len(duplicates),
-                "shadowed_keys_count": len(shadowed_keys),
-                "en_violations_count": len(en_violations)
+                "missing_count": len(missing_entries),
+                "duplicate_values_count": len(filtered_duplicate_values),
+                "duplicate_keys_count": len(duplicate_keys_entries),
+                "shadowed_keys_count": len(shadowed_keys_entries),
+                "unused_translations_count": len(unused_translations_entries),
+                "en_violations_count": len(en_violations_entries)
             },
-            "missing": missing_translation,
-            "duplicates": duplicates,
-            "shadowed": shadowed_keys,
-            "en_violations": en_violations,
-            "entries": audit_entries,
+            "missing": make_cat("missing", missing_entries),
+            "duplicate_values": make_cat("duplicate_values", filtered_duplicate_values),
+            "duplicate_keys": make_cat("duplicate_keys", duplicate_keys_entries),
+            "shadowed": make_cat("shadowed", shadowed_keys_entries),
+            "unused_translations": make_cat("unused_translations", unused_translations_entries),
+            "en_violations": make_cat("en_violations", en_violations_entries),
+            "all_entries": audit_entries,
             "timestamp": datetime.now().isoformat(),
             "lang_code": self.lang_code
         }
         return results
+
+    def _cleanup_unused(self, unused_instances):
+        """Delete unused translation keys from JSON files."""
+        # Group by file_path
+        files_to_update = {}
+        for inst in unused_instances:
+            path = inst['file_path']
+            if path not in files_to_update:
+                files_to_update[path] = []
+            files_to_update[path].append(inst['key'])
+            
+        for path_str, keys_to_remove in files_to_update.items():
+            path = self.project_root / path_str
+            if not path.exists(): continue
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                modified = False
+                # If it's a multi-lang JSON with lang_code as top-level key
+                if self.lang_code in data and isinstance(data[self.lang_code], dict):
+                    for k in keys_to_remove:
+                        if k in data[self.lang_code]:
+                            del data[self.lang_code][k]
+                            modified = True
+                else:
+                    # Single-lang JSON or direct keys
+                    for k in keys_to_remove:
+                        if k in data:
+                            del data[k]
+                            modified = True
+                
+                if modified:
+                    with open(path, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False)
+            except: pass

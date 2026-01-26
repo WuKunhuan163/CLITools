@@ -1005,44 +1005,40 @@ def _audit_lang(lang_code, force=False):
     print(f"{BLUE}{msg}{RESET}", end="", flush=True)
     results, cached = auditor.audit()
     summary = results.get("summary", {})
-    print("\r" + " " * 80 + "\r", end="")
-    print(_("audit_scanning_done", "Translation audit scan for {lang} ({lang_name}) complete.", lang=lang_code, lang_name=lang_name))
+    # Erase the "Scanning..." line and print completion message
+    done_msg = _("audit_scanning_done", "Translation audit scan for {lang_name} complete.", lang_name=lang_name)
+    sys.stdout.write(f"\r\033[K{done_msg}\n")
+    sys.stdout.flush()
+    
     colors = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET, "WHITE": get_color("WHITE", "\033[37m")}
     rk, rr = summary.get("completion_rate_keys", "0%"), summary.get("completion_rate_refs", "0%")
     ck, cr = get_rate_color(rk, colors), get_rate_color(rr, colors)
     print(_("audit_summary_keys", "{rate} of keys support {lang} ({lang_name}) translation ({supported}/{total})", rate=f"{ck}{rk}{RESET}", supported=summary.get("supported_keys"), total=summary.get("total_keys"), lang=lang_code, lang_name=lang_name))
     print(_("audit_summary_refs", "{rate} of references support {lang} ({lang_name}) translation ({supported}/{total})", rate=f"{cr}{rr}{RESET}", supported=summary.get("supported_references"), total=summary.get("total_references"), lang=lang_code, lang_name=lang_name))
     
-    if results.get("duplicates"):
-        label = _("audit_duplicates_label", "Found duplicate translation values")
-        count = results["summary"].get("duplicate_meanings_count", 0)
-        # Split into bold "Found" and normal rest
+    def print_metric(key, count, color=None):
+        if not count: return
+        # Use target language for metric labels
+        logic_dir = str(get_logic_dir(project_root))
+        label = get_translation(logic_dir, key, key.replace("_", " ").title(), lang_code=lang_code)
+        # Split into bold "Found" (or first word) and normal rest
         parts = label.split(" ", 1)
         if len(parts) > 1:
             bold_part = parts[0]
             rest_part = " " + parts[1]
         else:
-            # Handle CJK where no spaces
+            # Handle CJK where no spaces (e.g. 发现...)
             bold_part = label[:2]
             rest_part = label[2:]
-        print(f"{BOLD}{colors['WHITE']}{bold_part}{RESET}{colors['WHITE']}{rest_part}{RESET} ({count})")
-            
-    if results.get("shadowed"):
-        label = _("audit_shadowed_label", "Found shadowed root keys")
-        count = results["summary"].get("shadowed_keys_count", 0)
-        parts = label.split(" ", 1)
-        if len(parts) > 1:
-            bold_part = parts[0]
-            rest_part = " " + parts[1]
-        else:
-            bold_part = label[:2]
-            rest_part = label[2:]
-        print(f"{BOLD}{colors['WHITE']}{bold_part}{RESET}{colors['WHITE']}{rest_part}{RESET} ({count})")
+        
+        c = color if color else colors['WHITE']
+        print(f"{BOLD}{c}{bold_part}{RESET}{c}{rest_part}{RESET} ({count})")
 
-    if results.get("en_violations"):
-        label = _("audit_en_violations_label", "Found standalone 'en' sections/files")
-        count = results["summary"].get("en_violations_count", 0)
-        print(f"{BOLD}{RED}{label}{RESET} ({count})")
+    print_metric("audit_duplicate_values_label", summary.get("duplicate_values_count", 0))
+    print_metric("audit_duplicate_keys_label", summary.get("duplicate_keys_count", 0))
+    print_metric("audit_shadowed_label", summary.get("shadowed_keys_count", 0))
+    print_metric("audit_unused_translations_label", summary.get("unused_translations_count", 0))
+    print_metric("audit_en_violations_label", summary.get("en_violations_count", 0), color=RED)
 
     # Display report path
     report_path = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
