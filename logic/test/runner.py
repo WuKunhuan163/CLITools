@@ -176,11 +176,11 @@ class TestRunner:
 
     def _get_status_label(self, status):
         if status == "Success":
-            return f"{self.colors['BOLD']}{self.colors['GREEN']}{self._('test_status_success', 'Success')}{self.colors['RESET']}"
+            return f"{self.colors['BOLD']}{self.colors['GREEN']}{self._('label_success', 'Success')}{self.colors['RESET']}"
         elif status == "Failed":
-            return f"{self.colors['BOLD']}{self.colors['RED']}{self._('test_status_failed', 'Failed')}{self.colors['RESET']}"
+            return f"{self.colors['BOLD']}{self.colors['RED']}{self._('label_failed', 'Failed')}{self.colors['RESET']}"
         elif status == "Timeout":
-            return f"{self.colors['BOLD']}{self.colors['RED']}{self._('test_status_timeout', 'Timeout')}{self.colors['RESET']}"
+            return f"{self.colors['BOLD']}{self.colors['RED']}{self._('label_timeout', 'Timeout')}{self.colors['RESET']}"
         return f"{self.colors['BOLD']}{self._('test_status_unknown', 'Unknown')}{self.colors['RESET']}"
 
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
@@ -213,7 +213,7 @@ class TestRunner:
                 if stop_event.is_set(): return
                 
                 active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
-                timeout_msg = self._("test_timeout_label", "timeout")
+                timeout_msg = self._("label_timeout", "timeout")
                 
                 def get_running_msg(elapsed):
                     # Localizable running status message

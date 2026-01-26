@@ -68,14 +68,14 @@ def install_tool(tool_name):
             except: pass
         
         if not missing_dep:
-            already_status = _("label_already_installed", "Already installed")
+            already_status = _("label_installed", "Already installed")
             print(f"{BOLD}{GREEN}{already_status}{RESET}: {tool_name}")
             return
         else:
-            print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("missing_deps_repair", "Tool '{name}' is missing dependencies. Repairing...", name=tool_name))
+            print(f"{BOLD}{YELLOW}" + _("label_warning", "Warning") + f"{RESET}: " + _("missing_deps_repair", "Tool '{name}' is missing dependencies. Repairing...", name=tool_name))
     elif tool_dir.exists() or link_path.exists() or link_path.is_symlink():
         # Partially installed, perform reinstall
-        print(f"{BOLD}{YELLOW}" + _("warning_label", "Warning") + f"{RESET}: " + _("partial_install_detected", "Tool '{name}' installation is incomplete. Reinstalling...", name=tool_name))
+        print(f"{BOLD}{YELLOW}" + _("label_warning", "Warning") + f"{RESET}: " + _("partial_install_detected", "Tool '{name}' installation is incomplete. Reinstalling...", name=tool_name))
         return reinstall_tool(tool_name)
 
     from logic.tool.setup.engine import ToolEngine
@@ -94,7 +94,7 @@ def uninstall_tool(tool_name, force_yes=False):
     tool_dir = project_root / "tool" / tool_name
     
     if not tool_dir.exists():
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("tool_not_found_local", "Tool '{name}' is not installed.", name=tool_name))
+        print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("tool_not_found_local", "Tool '{name}' is not installed.", name=tool_name))
         return
 
     if not force_yes:
@@ -149,7 +149,7 @@ def update_config(key, value):
             audit_path = project_root / "data" / "audit" / "lang" / f"audit_{lang}.json"
             trans_path = project_root / "logic" / "translation" / f"{lang}.json"
             if not audit_path.exists() and not trans_path.exists():
-                print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("lang_error_not_found_simple", "Language '{lang}' not found.", lang=lang))
+                print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("lang_error_not_found_simple", "Language '{lang}' not found.", lang=lang))
                 return
     
     config = {}
@@ -178,7 +178,7 @@ def _dev_sync(quiet=False):
         start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except subprocess.CalledProcessError:
         if not quiet:
-            print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
+            print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return False
 
     # Helper to run git commands quietly
@@ -283,7 +283,7 @@ def _dev_sync(quiet=False):
         subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
         
         if success and not quiet:
-            success_status = _("label_successfully_completed", "Successfully completed")
+            success_status = _("label_success_completed", "Successfully completed")
             msg = f"\n{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
             print(msg)
             
@@ -305,7 +305,7 @@ def _dev_align():
     try:
         start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET}: Failed to detect current branch.")
+        print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: Failed to detect current branch.")
         return
 
     # Helper to run git commands quietly
@@ -398,9 +398,9 @@ def _dev_align():
         name="'tool' branch",
         action=align_tool_action,
         active_status=_("aligning_branch", "Aligning '{branch}' branch", branch="tool"),
-        success_status=_("label_successfully", "Successfully"),
+        success_status=_("label_success", "Successfully"),
         fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_successfully", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="tool"),
+        bold_part=_("label_success", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="tool"),
         success_color="BLUE"
     ))
     
@@ -408,9 +408,9 @@ def _dev_align():
         name="'main' branch",
         action=align_main_action,
         active_status=_("aligning_branch", "Aligning '{branch}' branch", branch="main"),
-        success_status=_("label_successfully", "Successfully"),
+        success_status=_("label_success", "Successfully"),
         fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_successfully", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="main"),
+        bold_part=_("label_success", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="main"),
         success_color="BLUE"
     ))
     
@@ -418,9 +418,9 @@ def _dev_align():
         name="'test' branch",
         action=recreate_test_action,
         active_status=_("recreating_test", "Recreating 'test' branch"),
-        success_status=_("label_successfully", "Successfully"),
+        success_status=_("label_success", "Successfully"),
         fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_successfully", "Successfully") + " " + _("recreating_test", "recreated 'test' branch"),
+        bold_part=_("label_success", "Successfully") + " " + _("recreating_test", "recreated 'test' branch"),
         success_color="BLUE"
     ))
 
@@ -437,7 +437,7 @@ def _dev_align():
         run_git(["checkout", "-f", "dev"])
         
     except Exception as e:
-        print(f"{BOLD}{RED}" + _("error_label", "Error") + f"{RESET} during alignment: {e}")
+        print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET} during alignment: {e}")
         run_git(["checkout", "-f", "dev"])
 
 def _dev_reset():
@@ -446,7 +446,7 @@ def _dev_reset():
     try:
         current = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
         if current != "tool":
-            warning_label = _("warning_label", "Warning")
+            warning_label = _("label_warning", "Warning")
             print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("reset_warning_branch", "Reset is recommended from 'tool' branch."))
             
         subprocess.run(["git", "checkout", "main"], cwd=str(project_root), check=True)
@@ -472,10 +472,10 @@ def _dev_reset():
         subprocess.run(["git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
         subprocess.run(["git", "checkout", current], cwd=str(project_root), check=True)
         
-        success_status = _("label_successfully", "Successfully")
+        success_status = _("label_success", "Successfully")
         print(f"{BOLD}{GREEN}{success_status} reset{RESET} main and test branches.")
     except Exception as e:
-        error_label = _("error_label", "Error")
+        error_label = _("label_error", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: " + _("reset_failed", "Reset failed: {error}", error=str(e)))
 
 def _dev_enter(branch, force=False):
@@ -499,7 +499,7 @@ def _dev_enter(branch, force=False):
             # Always clean when entering test/main to remove leftover ignored files
             subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
     except Exception as e:
-        error_label = _("error_label", "Error")
+        error_label = _("label_error", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
 
 def _tool_requirements():
@@ -770,7 +770,7 @@ This tool is part of the `TOOL` ecosystem, which provides:
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
-    success_status = _("label_successfully", "Successfully")
+    success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
     _dev_sanity_check(tool_name)
 
@@ -985,7 +985,15 @@ def _run_installation_test(tool_name, stay_on_test=False):
 
 def _audit_lang(lang_code, force=False):
     project_root = ROOT_PROJECT_ROOT
-    lang_name = _(f"lang_name_{lang_code}", lang_code)
+    if lang_code == "en":
+        print(_("audit_en_default", "English is the default language and does not require an audit scan."))
+        return
+
+    # Use target language translation for its own name during audit
+    from logic.lang.utils import get_translation
+    from logic.utils import get_logic_dir
+    lang_name = get_translation(str(get_logic_dir(project_root)), f"lang_name_{lang_code}", lang_code, lang_code=lang_code)
+    
     sys.path.append(str(project_root))
     from logic.lang.audit import LangAuditor
     from logic.utils import get_rate_color
@@ -999,11 +1007,47 @@ def _audit_lang(lang_code, force=False):
     summary = results.get("summary", {})
     print("\r" + " " * 80 + "\r", end="")
     print(_("audit_scanning_done", "Translation audit scan for {lang} ({lang_name}) complete.", lang=lang_code, lang_name=lang_name))
-    colors = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET}
+    colors = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET, "WHITE": get_color("WHITE", "\033[37m")}
     rk, rr = summary.get("completion_rate_keys", "0%"), summary.get("completion_rate_refs", "0%")
     ck, cr = get_rate_color(rk, colors), get_rate_color(rr, colors)
     print(_("audit_summary_keys", "{rate} of keys support {lang} ({lang_name}) translation ({supported}/{total})", rate=f"{ck}{rk}{RESET}", supported=summary.get("supported_keys"), total=summary.get("total_keys"), lang=lang_code, lang_name=lang_name))
     print(_("audit_summary_refs", "{rate} of references support {lang} ({lang_name}) translation ({supported}/{total})", rate=f"{cr}{rr}{RESET}", supported=summary.get("supported_references"), total=summary.get("total_references"), lang=lang_code, lang_name=lang_name))
+    
+    if results.get("duplicates"):
+        label = _("audit_duplicates_label", "Found duplicate translation values")
+        count = results["summary"].get("duplicate_meanings_count", 0)
+        # Split into bold "Found" and normal rest
+        parts = label.split(" ", 1)
+        if len(parts) > 1:
+            bold_part = parts[0]
+            rest_part = " " + parts[1]
+        else:
+            # Handle CJK where no spaces
+            bold_part = label[:2]
+            rest_part = label[2:]
+        print(f"{BOLD}{colors['WHITE']}{bold_part}{RESET}{colors['WHITE']}{rest_part}{RESET} ({count})")
+            
+    if results.get("shadowed"):
+        label = _("audit_shadowed_label", "Found shadowed root keys")
+        count = results["summary"].get("shadowed_keys_count", 0)
+        parts = label.split(" ", 1)
+        if len(parts) > 1:
+            bold_part = parts[0]
+            rest_part = " " + parts[1]
+        else:
+            bold_part = label[:2]
+            rest_part = label[2:]
+        print(f"{BOLD}{colors['WHITE']}{bold_part}{RESET}{colors['WHITE']}{rest_part}{RESET} ({count})")
+
+    if results.get("en_violations"):
+        label = _("audit_en_violations_label", "Found standalone 'en' sections/files")
+        count = results["summary"].get("en_violations_count", 0)
+        print(f"{BOLD}{RED}{label}{RESET} ({count})")
+
+    # Display report path
+    report_path = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
+    print("\n" + _("audit_full_report", "Full report saved to: {path}", path=str(report_path)))
+
     if cached:
         AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL audit-lang {lang_code}").print_cache_warning()
 

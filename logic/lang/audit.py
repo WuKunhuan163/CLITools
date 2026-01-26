@@ -16,12 +16,10 @@ class LangAuditor:
             self.cache_file = None
         
         # Regex patterns for finding translation keys
-        # Use \b to avoid matching __import__ or other functions ending in _
         self.patterns = [
             # Standard _("key") or _('key')
             re.compile(r'\b_\(\s*f?["\']([^"\']+)["\']'),
             # Root get_translation(dir, "key", "default") - matches 2nd arg
-            # Uses negative lookbehind to avoid matching self.get_translation
             re.compile(r'(?<!\.)\bget_translation\([^,]+,\s*f?["\']([^"\']+)["\']'),
             # self.get_translation("key", "default") - matches 1st arg
             re.compile(r'\.get_translation\(\s*f?["\']([^"\']+)["\']')
@@ -32,7 +30,7 @@ class LangAuditor:
         if not self.lang_code:
             raise ValueError("lang_code must be specified for audit()")
 
-        if not force_scan and self.cache_file.exists():
+        if not force_scan and self.cache_file and self.cache_file.exists():
             try:
                 with open(self.cache_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -44,11 +42,12 @@ class LangAuditor:
         results = self._perform_scan()
         
         # Save to cache
-        try:
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-        except Exception:
-            pass
+        if self.cache_file:
+            try:
+                with open(self.cache_file, 'w', encoding='utf-8') as f:
+                    json.dump(results, f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
             
         return results, False
 
@@ -65,7 +64,7 @@ class LangAuditor:
         all_keys = {} # key -> {count: int, sources: [path], type: root|tool_name}
         
         for py_file in self.project_root.rglob("*.py"):
-            # Exclude non-source directories and large installations
+            # Exclude non-source directories
             parts = py_file.parts
             if any(p in parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "bin", "resource", "data", "site-packages"]):
                 continue
@@ -104,7 +103,6 @@ class LangAuditor:
                 with open(registry_path, 'r', encoding='utf-8') as f:
                     registry = json.load(f)
                 for tool_name in registry.get("tools", {}):
-                    # Check if tool is installed
                     is_installed = (self.project_root / "tool" / tool_name).exists()
                     for key_suffix in ["desc", "purpose"]:
                         key = f"tool_{tool_name}_{key_suffix}"
@@ -122,7 +120,6 @@ class LangAuditor:
                 pass
 
         translation_cache = {}
-        
         def get_translation_data(path):
             if path in translation_cache:
                 return translation_cache[path]
@@ -137,56 +134,80 @@ class LangAuditor:
 
         audit_entries = []
         missing_translation = []
+        duplicate_translations = {} # value -> [logical_paths]
+        shadowed_keys = [] # [key, tool_name]
+        
         supported_keys = 0
         total_references = 0
         supported_references = 0
         
         from logic.utils import get_logic_dir
         
+        # Track root keys for shadowing check
+        root_internal = get_logic_dir(self.project_root)
+        root_json_path = root_internal / "translation" / f"{self.lang_code}.json"
+        root_trans = get_translation_data(str(root_json_path))
+        
         for key, info in all_keys.items():
             is_supported = False
             trans_file = ""
             logical_path = ""
+            trans_val = ""
             
             if info["type"] == "root":
-                tool_internal = get_logic_dir(self.project_root)
-                root_json_path = tool_internal / "translation" / f"{self.lang_code}.json"
-                root_trans = get_translation_data(str(root_json_path))
                 logical_path = f"logic/translation/{self.lang_code}/{key}"
-                
                 if key in root_trans:
                     is_supported = True
                     trans_file = str(root_json_path.relative_to(self.project_root))
+                    trans_val = root_trans[key]
                 else:
-                    mono_json_path = tool_internal / "translation.json"
+                    mono_json_path = root_internal / "translation.json"
                     mono_trans = get_translation_data(str(mono_json_path))
                     if self.lang_code in mono_trans and key in mono_trans[self.lang_code]:
                         is_supported = True
                         trans_file = str(mono_json_path.relative_to(self.project_root))
+                        trans_val = mono_trans[self.lang_code][key]
             else:
                 # Check tool-local translation first
                 tool_internal = get_logic_dir(self.project_root / "tool" / info["type"])
                 tool_json_path = tool_internal / "translation.json"
+                tool_dir_path = tool_internal / "translation" / f"{self.lang_code}.json"
+                
                 tool_trans = get_translation_data(str(tool_json_path))
+                tool_dir_trans = get_translation_data(str(tool_dir_path))
+                
+                # Combine them for checking
+                combined_tool_trans = {**tool_trans.get(self.lang_code, {}), **tool_dir_trans}
+                if not combined_tool_trans:
+                    # Try flat format
+                    combined_tool_trans = {k: v for k, v in tool_trans.items() if isinstance(v, str)}
+
                 logical_path = f"tool/{info['type']}/logic/translation/{self.lang_code}/{key}"
                 
-                if self.lang_code in tool_trans and key in tool_trans[self.lang_code]:
+                # Shadowing check: ONLY if it's actually in the tool's translation
+                if key in combined_tool_trans and key in root_trans:
+                    shadowed_keys.append([key, info["type"]])
+                
+                if key in combined_tool_trans:
                     is_supported = True
-                    trans_file = str(tool_json_path.relative_to(self.project_root))
-                elif key in tool_trans and isinstance(tool_trans[key], str):
-                    is_supported = True
-                    trans_file = str(tool_json_path.relative_to(self.project_root))
+                    trans_file = str(tool_dir_path.relative_to(self.project_root)) if tool_dir_path.exists() else str(tool_json_path.relative_to(self.project_root))
+                    trans_val = combined_tool_trans[key]
                 else:
                     # Fallback to root for tool descriptions if missing locally
-                    root_internal = get_logic_dir(self.project_root)
-                    root_json_path = root_internal / "translation" / f"{self.lang_code}.json"
-                    root_trans = get_translation_data(str(root_json_path))
                     if key in root_trans:
                         is_supported = True
                         trans_file = str(root_json_path.relative_to(self.project_root))
+                        trans_val = root_trans[key]
+                        # Correct logical path to root as it fell back
+                        logical_path = f"logic/translation/{self.lang_code}/{key}"
 
             if not is_supported:
                 missing_translation.append(logical_path)
+            elif trans_val:
+                # Track duplicate values
+                if trans_val not in duplicate_translations:
+                    duplicate_translations[trans_val] = []
+                duplicate_translations[trans_val].append(logical_path)
 
             audit_entries.append({
                 "key": key,
@@ -195,7 +216,8 @@ class LangAuditor:
                 "sources": info["sources"],
                 "supported": is_supported,
                 "translation_file": trans_file,
-                "logical_path": logical_path
+                "logical_path": logical_path,
+                "value": trans_val
             })
             
             total_references += info["count"]
@@ -203,21 +225,43 @@ class LangAuditor:
                 supported_keys += 1
                 supported_references += info["count"]
 
-        summary = {
-            "language": self.lang_code,
+        # Filter real duplicates
+        duplicates = {v: paths for v, paths in duplicate_translations.items() if len(paths) > 1}
+
+        # Check for standalone 'en' files or sections
+        en_violations = []
+        for json_file in self.project_root.rglob("*.json"):
+            if "venv" in json_file.parts or ".git" in json_file.parts: continue
+            
+            if json_file.name == "en.json":
+                en_violations.append(str(json_file.relative_to(self.project_root)))
+            elif json_file.name.endswith(".json"):
+                try:
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        if "en" in data and isinstance(data["en"], (dict, str)):
+                            en_violations.append(str(json_file.relative_to(self.project_root)))
+                except: pass
+
+        results = {
+            "summary": {
+                "total_keys": len(all_keys),
+                "supported_keys": supported_keys,
+                "total_references": total_references,
+                "supported_references": supported_references,
+                "completion_rate_keys": f"{(supported_keys/len(all_keys)*100):.1f}%" if all_keys else "100%",
+                "completion_rate_refs": f"{(supported_references/total_references*100):.1f}%" if total_references else "100%",
+                "missing_count": len(missing_translation),
+                "duplicate_meanings_count": len(duplicates),
+                "shadowed_keys_count": len(shadowed_keys),
+                "en_violations_count": len(en_violations)
+            },
+            "missing": missing_translation,
+            "duplicates": duplicates,
+            "shadowed": shadowed_keys,
+            "en_violations": en_violations,
+            "entries": audit_entries,
             "timestamp": datetime.now().isoformat(),
-            "total_keys": len(audit_entries),
-            "supported_keys": supported_keys,
-            "missing_keys": len(audit_entries) - supported_keys,
-            "total_references": total_references,
-            "supported_references": supported_references,
-            "missing_references": total_references - supported_references,
-            "completion_rate_keys": f"{(supported_keys / len(audit_entries) * 100):.2f}%" if audit_entries else "0%",
-            "completion_rate_refs": f"{(supported_references / total_references * 100):.2f}%" if total_references else "0%"
+            "lang_code": self.lang_code
         }
-        
-        return {
-            "summary": summary,
-            "missing_translation": sorted(missing_translation),
-            "entries": audit_entries
-        }
+        return results

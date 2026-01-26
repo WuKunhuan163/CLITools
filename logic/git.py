@@ -123,7 +123,7 @@ def push_with_progress(remote="origin", branch=None, cwd=None):
     _ = lambda k, d: get_translation(str(get_logic_dir(project_root)), k, d)
 
     if result and result.returncode == 0:
-        success_label = _("label_successfully", "Successfully")
+        success_label = _("label_success", "Successfully")
         pushed_msg = _("pushed_to", "pushed to {remote}/{branch}", remote=remote, branch=branch)
         print(f"{BOLD}{GREEN}{success_label}{RESET} {pushed_msg}")
         return True
