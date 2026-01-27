@@ -43,7 +43,7 @@
   "rule_guideline_3": "**共享逻辑**: 在根目录 `logic/` 中标准化工具类（如平台检测或版本映射），避免不同工具之间的重复实现。",
   "rule_guideline_4": "**依赖管理**: 在工具的 'tool.json' 中定义依赖项。'TOOL' 管理器将自动安装它们。",
   "rule_guideline_7": "**工具结构**: 标准工具包含 'main.py' (入口)、'setup.py' (安装逻辑)、'tool.json' (元数据) 和 'logic/' (内部模块)。",
-  "rule_guideline_6": "**工具创建**: 务必使用 'TOOL create <NAME>' 来生成新工具模版。在模板基础上进行开发，以确保兼容性并遵循生态系统标准。",
+  "rule_guideline_6": "**工具创建**: 务必使用 'TOOL dev create <NAME>' 来生成新工具模版。在模板基础上进行开发，以确保兼容性并遵循生态系统标准。",
   "rule_guideline_5": "**颜色与状态样式**: 在行首使用加粗的状态标签。仅对状态标签 (例如 **Successfully**) 加粗并上色。**绿色**代表成功，**蓝色**代表进度 (包括卸载)，**红色**代表错误，**黄色**代表警告。通过 `logic.config.get_color` 引用颜色。",
   "rule_note_execution": "注意: 要使用工具, 请确保在终端中直接调用其可执行文件名 (例如 'USERINPUT'). ",
   "lang_help": "管理显示语言",
