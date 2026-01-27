@@ -90,7 +90,7 @@ Manage long-running tasks:
 ### Developer Workflow
 - `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work. It automatically handles uncommitted changes and cleans up restricted directories.
 - `TOOL dev enter <main|test>`: Safely switches to production or testing branches, automatically cleaning up untracked files.
-- `TOOL create <NAME>`: Generates a standardized tool template with logic, translations, and unit tests.
+- `TOOL dev create <NAME>`: Generates a standardized tool template with logic, translations, and unit tests.
 - `TOOL dev audit-bin`: Ensures that the `bin/` directory only contains pure symlinks (except for the `TOOL` manager itself).
 
 ---

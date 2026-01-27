@@ -30,10 +30,9 @@ else:
 from logic.utils import get_logic_dir
 SHARED_LOGIC_DIR = get_logic_dir(ROOT_PROJECT_ROOT)
 
-# Initialize RTL support and override built-in print
-from logic.utils import smart_print, set_rtl_mode
+# Initialize RTL support
+from logic.utils import set_rtl_mode
 import builtins
-builtins.print = smart_print
 
 def _(translation_key, default, **kwargs):
     text = get_translation(str(SHARED_LOGIC_DIR), translation_key, default)
@@ -887,7 +886,7 @@ def generate_ai_rule(target_tool=None):
     lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `logic/` directory to avoid duplicate implementations across different tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
     lines.append("- " + _("rule_guideline_7", "**Tool Structure**: A standard tool contains 'main.py' (entry), 'setup.py' (install logic), 'tool.json' (metadata), and 'logic/' (internal modules)."))
-    lines.append("- " + _("rule_guideline_6", "**Tool Creation**: Always use 'TOOL create <NAME>' to generate a new tool template. Develop on top of the template to ensure compatibility and follow ecosystem standards."))
+    lines.append("- " + _("rule_guideline_6", "**Tool Creation**: Always use 'TOOL dev create <NAME>' to generate a new tool template. Develop on top of the template to ensure compatibility and follow ecosystem standards."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Both the status (e.g., **Successfully**) and the action/object (e.g., **setup USERINPUT tool**) should be colored and bolded together if they form a unified status statement. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `logic.config.get_color`."))
     
     # 7. Add USERINPUT execution rule
@@ -1219,9 +1218,6 @@ def main():
     list_parser = subparsers.add_parser("list", help="List all available tools")
     list_parser.add_argument("--force", action="store_true", help="Force refresh tool information cache")
     
-    create_parser = subparsers.add_parser("create", help="Create a new tool template")
-    create_parser.add_argument("tool_name", help="Name of the new tool")
-    
     install_parser = subparsers.add_parser("install")
     install_parser.add_argument("tool_name")
     
@@ -1262,6 +1258,8 @@ def main():
     enter_parser.add_argument("branch", choices=["main", "test"])
     enter_parser.add_argument("-f", "--force", action="store_true", help="Force switch (discard changes)")
     
+    dev_subparsers.add_parser("create", help="Create a new tool template").add_argument("tool_name", help="Name of the new tool")
+    
     sanity_parser = dev_subparsers.add_parser("sanity-check", help="Run sanity check on a tool")
     sanity_parser.add_argument("tool_name", help="Name of the tool to check")
     sanity_parser.add_argument("--fix", action="store_true", help="Try to fix sanity issues")
@@ -1287,7 +1285,6 @@ def main():
         return
     args = parser.parse_args()
     if args.command == "list": _list_tools(args.force)
-    elif args.command == "create": _dev_create(args.tool_name)
     elif args.command == "install": install_tool(args.tool_name)
     elif args.command == "reinstall": reinstall_tool(args.tool_name)
     elif args.command == "uninstall": uninstall_tool(args.tool_name, args.yes)
