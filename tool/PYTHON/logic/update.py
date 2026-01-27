@@ -19,16 +19,20 @@ REPO_URL = f"{PROJECT_URL}.git"
 
 # Import shared utilities for translation and config
 try:
-    # Add project root to sys.path
+    # Add project root to sys.path with HIGHEST priority to avoid 'logic' collision
     tool_core_dir = Path(__file__).resolve().parent
     python_tool_dir = tool_core_dir.parent
     project_root = python_tool_dir.parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
     
-    # Priority for tool-specific logic
-    if str(python_tool_dir) not in sys.path:
-        sys.path.insert(0, str(python_tool_dir))
+    # Ensure root project is at index 0
+    if str(project_root) in sys.path:
+        sys.path.remove(str(project_root))
+    sys.path.insert(0, str(project_root))
+    
+    # Tool-specific logic at index 1
+    if str(python_tool_dir) in sys.path:
+        sys.path.remove(str(python_tool_dir))
+    sys.path.insert(1, str(python_tool_dir))
     
     from logic.lang.utils import get_translation
     from logic.config import get_color
@@ -332,8 +336,7 @@ def main():
 
     for tag in target_tags:
         # Use localized string for fetching message
-        fetch_msg_template = _("python_fetching_assets", "Fetching assets for {tag}...")
-        fetch_msg = fetch_msg_template.format(tag=tag)
+        fetch_msg = _("python_fetching_assets", "Fetching assets for {tag}...", tag=tag)
         assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg)
         # Clear the "Fetching" message completely
         sys.stdout.write("\r\033[K")
