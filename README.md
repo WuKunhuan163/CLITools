@@ -70,6 +70,18 @@ The foundation for tool isolation:
 - **Dependency Isolation**: Ensures tools run with their own dedicated interpreters and pip environments.
 - **Automatic Discovery**: Used by the `TOOL` ecosystem to resolve the correct runtime for each tool.
 
+### SEARCH Tool
+Multi-platform search for web and academic papers:
+- **Web Search**: Fast, terminal-based search using DuckDuckGo.
+- **Academic Search**: Parallel search across arXiv and Google Scholar with academic-specific filtering.
+- **Preferences**: Support for sorting by citations, year, and relevance overlap.
+
+### BACKGROUND Tool
+Manage long-running tasks:
+- **Non-blocking Execution**: Run time-consuming commands in the background.
+- **Lifecycle Management**: List, stop, and wait for background processes.
+- **Logging**: Automatically capture and view background output logs.
+
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Sets the global display language (e.g., `zh` for Chinese, `en` for English, `ar` for Arabic).
 - `TOOL lang list`: Shows supported languages and their translation coverage.
@@ -78,7 +90,7 @@ The foundation for tool isolation:
 ### Developer Workflow
 - `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work. It automatically handles uncommitted changes and cleans up restricted directories.
 - `TOOL dev enter <main|test>`: Safely switches to production or testing branches, automatically cleaning up untracked files.
-- `TOOL dev create <NAME>`: Generates a standardized tool template with logic, translations, and unit tests.
+- `TOOL create <NAME>`: Generates a standardized tool template with logic, translations, and unit tests.
 - `TOOL dev audit-bin`: Ensures that the `bin/` directory only contains pure symlinks (except for the `TOOL` manager itself).
 
 ---
