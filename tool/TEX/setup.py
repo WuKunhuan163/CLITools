@@ -40,7 +40,7 @@ def run_command(cmd, cwd=None):
 def install_deps():
     """Install python dependencies."""
     cmd = [sys.executable, "-m", "pip", "install", "tinytex"]
-    run_command(cmd)
+    subprocess.run(cmd, capture_output=True)
     return True
 
 def install_tinytex():
@@ -53,9 +53,16 @@ def install_tinytex():
         
     install_dir.mkdir(parents=True, exist_ok=True)
     
-    # Use the tinytex python module to install
+    # Use the tinytex python module to install, but capture its output
+    # to avoid messing up the ProgressTuringMachine display.
     import tinytex
-    tinytex.install_tinytex(force=True, dir=str(tinytex_root))
+    import os
+    from contextlib import redirect_stdout, redirect_stderr
+    import io
+    
+    with open(os.devnull, 'w') as devnull:
+        with redirect_stdout(devnull), redirect_stderr(devnull):
+            tinytex.install_tinytex(force=True, dir=str(tinytex_root))
     return True
 
 def main():

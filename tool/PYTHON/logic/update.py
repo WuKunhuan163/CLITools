@@ -23,18 +23,22 @@ try:
     tool_core_dir = Path(__file__).resolve().parent
     python_tool_dir = tool_core_dir.parent
     project_root = python_tool_dir.parent.parent
-    sys.path.append(str(project_root))
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
     
     # Priority for tool-specific logic
-    sys.path.insert(0, str(python_tool_dir))
+    if str(python_tool_dir) not in sys.path:
+        sys.path.insert(0, str(python_tool_dir))
     
-    from logic_internal.lang.utils import get_translation
-    from logic_internal.config import get_color
-    from logic_internal.utils import get_system_tag, regularize_version_name, run_with_progress
-    from logic_internal.worker import MultiLineManager, TuringWorker, TuringTask, StepResult, WorkerState
-    from logic_internal.audit.utils import AuditManager
+    from logic.lang.utils import get_translation
+    from logic.config import get_color
+    from logic.utils import get_system_tag, regularize_version_name, run_with_progress
+    from logic.worker import TuringWorker
+    from logic.turing.logic import TuringTask, StepResult, WorkerState
+    from logic.turing.display.manager import MultiLineManager
+    from logic.audit.utils import AuditManager
     
-    from logic_internal.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
+    from tool.PYTHON.logic.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 except ImportError as e:
     # Basic fallbacks
     def get_translation(dir, key, default): return default
@@ -327,10 +331,13 @@ def main():
         target_tags = [args.tag] if args.tag else [tags[-1]]
 
     for tag in target_tags:
-        fetch_msg = f"Fetching assets for {tag}..."
-        print_erasable(fetch_msg)
+        # Use localized string for fetching message
+        fetch_msg_template = _("python_fetching_assets", "Fetching assets for {tag}...")
+        fetch_msg = fetch_msg_template.format(tag=tag)
         assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg)
+        # Clear the "Fetching" message completely
         sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
         
         filtered = assets
         if args.version:

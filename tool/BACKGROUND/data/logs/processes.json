@@ -1,4 +1,17 @@
 {
-  "processes": {},
-  "last_updated": "2026-01-15T17:33:42.799848"
+  "processes": {
+    "56861": {
+      "command": "python3 tool/PYTHON/main.py --py-update --limit-releases 5 --all-latest --concurrency 5",
+      "shell": "zsh",
+      "start_time": 1769500928.765576,
+      "log_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260127_160208_765.log",
+      "exit_code_file": "/Applications/AITerminalTools/tool/BACKGROUND/data/logs/bg_cmd_20260127_160208_765.exit",
+      "cwd": "/Applications/AITerminalTools",
+      "created_at": "2026-01-27T16:02:08.766767",
+      "status": "completed",
+      "return_code": 0,
+      "end_time": "2026-01-27T16:10:28.275971"
+    }
+  },
+  "last_updated": "2026-01-27T16:10:28.275994"
 }

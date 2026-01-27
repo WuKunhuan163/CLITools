@@ -104,18 +104,6 @@ def print_python_not_found_error(tool_name, version, script_dir, translation_fun
 
 # Global state for RTL mode
 _GLOBAL_RTL_MODE = False
-_original_print = builtins.print
-
-def _init_rtl_mode():
-    """Initializes RTL mode based on environment or configuration."""
-    global _GLOBAL_RTL_MODE
-    current_lang = os.environ.get("TOOL_LANGUAGE")
-    if not current_lang:
-        from logic.config import get_global_config
-        current_lang = get_global_config("language")
-    
-    if current_lang in ["ar", "he", "fa"]:
-        _GLOBAL_RTL_MODE = True
 
 def set_rtl_mode(enabled: bool):
     """Sets the global RTL mode for printing and formatting."""
@@ -125,52 +113,6 @@ def set_rtl_mode(enabled: bool):
 def get_rtl_mode() -> bool:
     """Returns the current global RTL mode."""
     return _GLOBAL_RTL_MODE
-
-def smart_print(*args, **kwargs):
-    """
-    An enhanced print function that automatically adds RTL markers 
-    if the global RTL mode is enabled.
-    """
-    is_rtl = kwargs.pop('is_rtl', _GLOBAL_RTL_MODE)
-    
-    if not is_rtl:
-        return _original_print(*args, **kwargs)
-    
-    # Debug mode if env var is set
-    debug_rtl = os.environ.get("DEBUG_RTL") == "1"
-    # Force flip mode using RLO (\u202e) instead of RLE (\u202b)
-    force_flip = os.environ.get("FORCE_RTL_FLIP") == "1"
-    marker = "\u202e" if force_flip else "\u202b"
-    
-    # Process args to wrap in RTL markers
-    new_args = []
-    for arg in args:
-        val = str(arg)
-        if "\n" in val:
-            # For multi-line strings, wrap each line to ensure consistent rendering across terminals
-            # Using \u200f (RLM), marker and \u202c (PDF)
-            wrapped_lines = []
-            for line in val.split("\n"):
-                wrapped = f"\u200f{marker}{line}\u202c"
-                if debug_rtl:
-                    # Show hex for the first few chars to verify
-                    hex_prefix = ":".join(f"{ord(c):04x}" for c in wrapped[:5])
-                    _original_print(f"[DEBUG RTL Line Start Hex: {hex_prefix}...]")
-                wrapped_lines.append(wrapped)
-            new_args.append("\n".join(wrapped_lines))
-        else:
-            wrapped = f"\u200f{marker}{val}\u202c"
-            if debug_rtl:
-                hex_prefix = ":".join(f"{ord(c):04x}" for c in wrapped[:5])
-                _original_print(f"[DEBUG RTL Single Hex: {hex_prefix}...]")
-            new_args.append(wrapped)
-            
-    return _original_print(*new_args, **kwargs)
-
-# Automatically override built-in print to support RTL
-builtins.print = smart_print
-
-_init_rtl_mode()
 
 def get_display_width(text):
     """
@@ -276,44 +218,12 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
     is_rtl = get_rtl_mode()
     
     # NOTE: We do NOT manually reverse columns here because we rely on the 
-    # terminal's BiDi support (triggered by \u202b) to flip the entire line.
+    # terminal's BiDi support to flip the entire line.
     display_headers = headers
     display_rows = []
     for row in rows:
         full_row = list(row) + [""] * (num_cols - len(row))
         display_rows.append(full_row)
-
-    # Box-drawing character and bracket mirroring for RTL
-    # When the terminal flips the line visually, these characters should be mirrored
-    # to maintain the correct box look.
-    mirror_map = {
-        "╔": "╗", "╗": "╔",
-        "╚": "╝", "╝": "╚",
-        "╠": "╣", "╣": "╠",
-        "(": ")", ")": "(",
-        "[": "]", "]": "[",
-        "{": "}", "}": "{",
-        "<": ">", ">": "<",
-    }
-    
-    def mirror_line(line):
-        if not is_rtl:
-            return line
-        res = ""
-        i = 0
-        while i < len(line):
-            if line[i] == '\x1B':
-                # Skip ANSI escape sequence
-                j = i
-                while j < len(line) and not ('A' <= line[j] <= 'Z' or 'a' <= line[j] <= 'z'):
-                    j += 1
-                if j < len(line):
-                    res += line[i:j+1]
-                    i = j + 1
-                    continue
-            res += mirror_map.get(line[i], line[i])
-            i += 1
-        return res
 
     # Calculate initial column widths based on maximum content width
     # We add 2 for padding (one space on each side)
@@ -395,12 +305,12 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
             padding = " " * (content_w - get_display_width(display_str))
             parts.append(f" {display_str}{padding} ")
         
-        return mirror_line("║" + "║".join(parts) + "║")
+        return "║" + "║".join(parts) + "║"
 
     # Construct borders
-    top_border = mirror_line("╔" + "╦".join(["═" * w for w in col_widths]) + "╗")
-    sep_border = mirror_line("╠" + "╬".join(["═" * w for w in col_widths]) + "╣")
-    bottom_border = mirror_line("╚" + "╩".join(["═" * w for w in col_widths]) + "╝")
+    top_border = "╔" + "╦".join(["═" * w for w in col_widths]) + "╗"
+    sep_border = "╠" + "╬".join(["═" * w for w in col_widths]) + "╣"
+    bottom_border = "╚" + "╩".join(["═" * w for w in col_widths]) + "╝"
 
     formatted_lines = []
     formatted_lines.append(top_border)
