@@ -22,7 +22,18 @@ def _get_configured_width():
     config_width = get_global_config("terminal_width")
     if config_width and isinstance(config_width, int) and config_width > 0:
         return config_width
-    return shutil.get_terminal_size((80, 20)).columns
+    
+    # Try detecting, with a safe fallback
+    try:
+        # Use shutil for better cross-platform/redirection handling
+        columns = shutil.get_terminal_size(fallback=(80, 24)).columns
+        # Many restricted/piped environments report 0, 1, or very small widths
+        # If it's too small, it's likely a detection failure in piped mode
+        if columns < 45: 
+            return 80
+        return columns
+    except:
+        return 80
 
 def wrap_text(text, width):
     """
@@ -80,16 +91,19 @@ class Slot:
         return len(wrapped)
 
 class MultiLineManager:
-    def __init__(self):
+    def __init__(self, width: Optional[int] = None):
         self.lock = threading.Lock()
         self.slots = [] # List of Slot objects
         self.worker_to_slot_idx = {} # worker_id -> index in self.slots
-        self.last_width = _get_configured_width()
+        self.forced_width = width
+        self.last_width = self._get_current_width()
         self.last_resize_time = 0
         self.total_height_ever_printed = 0 # Safety: never jump up more than this
         self.debug_file = PROJECT_ROOT / "data" / "run" / "manager_debug.json"
 
     def _get_current_width(self):
+        if self.forced_width:
+            return self.forced_width
         return _get_configured_width()
 
     def _save_debug_state(self, action, worker_id, extra=None):

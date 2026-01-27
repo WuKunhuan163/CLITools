@@ -31,8 +31,7 @@ class TestUIStress(unittest.TestCase):
 
     def test_narrow_ui_truncation(self):
         """Test MultiLineManager with a forced narrow width (10 columns)"""
-        # 1. Set terminal width to 10
-        self.run_tool(["config", "--terminal-width", "10"])
+        # 1. No longer setting terminal width globally to avoid parallel test interference
         
         # 2. Run a command that uses MultiLineManager. 
         # Since we don't have a direct CLI for MultiLineManager yet, we can use a small python script
@@ -48,7 +47,7 @@ sys.path.append(str(project_root))
 
 from logic.turing.display.manager import MultiLineManager
 
-manager = MultiLineManager()
+manager = MultiLineManager(width=10)
 
 # Start 4 workers with long names and different status messages
 # Terminal width is forced to 10 by config.json
