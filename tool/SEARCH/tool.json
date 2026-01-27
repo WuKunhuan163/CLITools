@@ -1,0 +1,13 @@
+{
+  "name": "SEARCH",
+  "version": "1.0.0",
+  "description": "Multi-platform search tool for web and academic papers.",
+  "purpose": "Provide real-time search results from general search engines and academic repositories like arXiv and Google Scholar.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "usage": [
+    "SEARCH <query> [--max N] [--exact]",
+    "SEARCH --paper <query> [--max N] [--source arxiv,scholar] [--sort relevance|title|citation|date] [--min-citations N] [--min-year Y]"
+  ]
+}

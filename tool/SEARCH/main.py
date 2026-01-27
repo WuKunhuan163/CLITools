@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 SEARCH Tool
-- General web search and academic paper search.
-- Replaces former SEARCH_PAPER tool.
+- Multi-platform search tool for web and academic papers.
+- Features parallel workers, filtering, and sorting for papers.
 """
 
 import os
@@ -13,10 +13,10 @@ import json
 import time
 import re
 import threading
+import concurrent.futures
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime
 
 # Add project root to sys.path
@@ -29,6 +29,7 @@ try:
     from logic.tool.base import ToolBase
     from logic.config import get_color
     from logic.utils import get_logic_dir
+    from tool.SEARCH.logic.paper.searcher import PaperSearcher, filter_and_sort_papers
 except ImportError:
     class ToolBase:
         def __init__(self, name):
@@ -39,6 +40,7 @@ except ImportError:
         def get_translation(self, k, d): return d
     def get_color(n, d=""): return d
     def get_logic_dir(d): return d / "logic"
+    # Note: PaperSearcher must be importable
 
 class SearchTool(ToolBase):
     def __init__(self):
@@ -49,11 +51,17 @@ class SearchTool(ToolBase):
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         })
+        self.paper_searcher = PaperSearcher(self.session)
 
-    def web_search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """Perform general web search using DuckDuckGo."""
+    def web_search(self, query: str, max_results: int = 5, exact_match: bool = False) -> List[Dict[str, Any]]:
+        """Perform general web search using DuckDuckGo (ddgs)."""
         BOLD, BLUE, RESET = get_color("BOLD"), get_color("BLUE"), get_color("RESET")
         
+        # Exact match syntax support: if query has quotes, keep them
+        search_query = query
+        if exact_match and not (query.startswith('"') and query.endswith('"')):
+            search_query = f'"{query}"'
+            
         start_time = time.time()
         results = []
         stop_event = threading.Event()
@@ -71,10 +79,8 @@ class SearchTool(ToolBase):
         try:
             from ddgs import DDGS
             with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=max_results))
-        except Exception as e:
-            # sys.stdout.write(f"\nWeb search error: {e}\n")
-            pass
+                results = list(ddgs.text(search_query, max_results=max_results))
+        except: pass
         finally:
             stop_event.set()
             timer_thread.join(timeout=0.1)
@@ -83,41 +89,59 @@ class SearchTool(ToolBase):
             
         return [{"title": r['title'], "url": r['href'], "snippet": r['body'], "source": "duckduckgo"} for r in results]
 
-    def paper_search(self, query: str, max_results: int = 5, sources: Optional[List[str]] = None) -> List[Dict[str, Any]]:
-        """Perform academic paper search (arXiv, Google Scholar)."""
+    def paper_search(self, query: str, max_results: int = 5, sources: Optional[List[str]] = None,
+                     sort_by: str = "relevance", min_citations: int = 0, min_year: int = 0,
+                     exact_match: bool = False) -> List[Dict[str, Any]]:
+        """Perform parallel academic paper search (arXiv, Google Scholar)."""
         if not sources: sources = ["arxiv", "scholar"]
         
-        BOLD, BLUE, RESET = get_color("BOLD"), get_color("BLUE"), get_color("RESET")
+        BOLD, BLUE, WHITE, RESET = get_color("BOLD"), get_color("BLUE"), get_color("WHITE", "\033[37m"), get_color("RESET")
         start_time = time.time()
         all_papers = []
         stop_event = threading.Event()
         
-        current_source = [""]
-        
+        # Refined exact match detection: if query starts/ends with quotes, use exact match
+        if query.startswith('"') and query.endswith('"'):
+            exact_match = True
+            query = query[1:-1] # Strip quotes for internal processing
+            
         def update_timer():
             while not stop_event.is_set():
                 elapsed = int(time.time() - start_time)
-                src_text = f" from {current_source[0]}" if current_source[0] else ""
-                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Searching papers{RESET} for: '{query}'{src_text}... ({elapsed}s)")
+                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Searching papers{RESET} for: '{query}'... ({elapsed}s)")
                 sys.stdout.flush()
                 time.sleep(1)
         
         timer_thread = threading.Thread(target=update_timer, daemon=True)
         timer_thread.start()
         
+        results_info = [] # Store (source_name, count)
+        
         try:
-            if "arxiv" in sources:
-                current_source[0] = "arXiv"
-                all_papers.extend(self._search_arxiv(query, max_results))
-            
-            if "scholar" in sources:
-                current_source[0] = "Google Scholar"
-                all_papers.extend(self._search_scholar(query, max_results))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
+                future_to_src = {}
+                if "arxiv" in sources:
+                    future_to_src[executor.submit(self.paper_searcher.search_arxiv, query, max_results * 2, exact_match)] = "arXiv"
+                if "scholar" in sources:
+                    future_to_src[executor.submit(self.paper_searcher.search_scholar, query, max_results * 2, exact_match)] = "Google Scholar"
+                
+                for future in concurrent.futures.as_completed(future_to_src):
+                    src_name = future_to_src[future]
+                    try:
+                        papers = future.result()
+                        all_papers.extend(papers)
+                        results_info.append((src_name, len(papers)))
+                    except: pass
         finally:
             stop_event.set()
             timer_thread.join(timeout=0.1)
             sys.stdout.write("\r\033[K")
             sys.stdout.flush()
+            
+        # Display individual results
+        for src, count in results_info:
+            label = self.get_translation("label_successfully_received_from", "Successfully received search results from")
+            print(f"{BOLD}{WHITE}{label}{RESET} {src} ({count}).")
             
         # Deduplicate by title
         unique = []
@@ -128,50 +152,10 @@ class SearchTool(ToolBase):
                 seen.add(t)
                 unique.append(p)
         
-        return unique[:max_results]
-
-    def _search_arxiv(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        papers = []
-        try:
-            url = f"http://export.arxiv.org/api/query?search_query=all:{query}&start=0&max_results={max_results}&sortBy=relevance&sortOrder=descending"
-            res = self.session.get(url, timeout=30)
-            from xml.etree import ElementTree as ET
-            root = ET.fromstring(res.content)
-            ns = {'atom': 'http://www.w3.org/2005/Atom'}
-            
-            for entry in root.findall('atom:entry', ns):
-                title = entry.find('atom:title', ns).text.strip()
-                id_url = entry.find('atom:id', ns).text.strip()
-                summary = entry.find('atom:summary', ns).text.strip()
-                papers.append({
-                    "title": title,
-                    "url": id_url,
-                    "snippet": summary[:200] + "...",
-                    "source": "arxiv"
-                })
-        except: pass
-        return papers
-
-    def _search_scholar(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        papers = []
-        try:
-            url = f"https://scholar.google.com/scholar?q={query}&hl=en"
-            res = self.session.get(url, timeout=30)
-            soup = BeautifulSoup(res.content, 'html.parser')
-            for entry in soup.find_all('div', class_='gs_r gs_or gs_scl')[:max_results]:
-                title_elem = entry.find('h3', class_='gs_rt')
-                if not title_elem: continue
-                title = title_elem.get_text().strip()
-                link = title_elem.find('a')['href'] if title_elem.find('a') else ""
-                snippet = entry.find('div', class_='gs_rs').get_text().strip() if entry.find('div', class_='gs_rs') else ""
-                papers.append({
-                    "title": title,
-                    "url": link,
-                    "snippet": snippet,
-                    "source": "scholar"
-                })
-        except: pass
-        return papers
+        # Filtering and Sorting
+        final_papers = filter_and_sort_papers(unique, query, sort_by, min_citations, min_year)
+        
+        return final_papers[:max_results]
 
     def save_and_print(self, results: List[Dict[str, Any]], query: str):
         """Save results to JSON and print to terminal."""
@@ -186,13 +170,20 @@ class SearchTool(ToolBase):
         with open(self.results_dir / filename, 'w', encoding='utf-8') as f:
             json.dump({"query": query, "results": results}, f, indent=2, ensure_ascii=False)
             
-        success_label = self.get_translation("label_successfully_received_search", "Successfully received search results")
-        print(f"{BOLD}{GREEN}{success_label}{RESET}: {query}\n")
+        # Only bold 'Successfully received' as requested
+        success_label = self.get_translation("label_successfully_received", "Successfully received")
+        print(f"\n{BOLD}{GREEN}{success_label}{RESET} search results: {query}\n")
         
         for i, r in enumerate(results, 1):
             print(f"{BOLD}{i}. {r['title']}{RESET}")
             print(f"   URL: {r['url']}")
             print(f"   Source: {r['source']}")
+            # Display citations/year if available
+            info = []
+            if r.get('citations') is not None: info.append(f"Citations: {r['citations']}")
+            if r.get('year'): info.append(f"Year: {r['year']}")
+            if info: print(f"   ({', '.join(info)})")
+            
             print(f"   {r['snippet']}\n")
             
         saved_label = self.get_translation("label_results_saved", "Results saved to")
@@ -207,14 +198,18 @@ def main():
     parser.add_argument("--max", "-m", type=int, default=5, help="Max results")
     parser.add_argument("--paper", "-p", action="store_true", help="Search academic papers")
     parser.add_argument("--source", help="Sources for paper search (arxiv,scholar)")
+    parser.add_argument("--sort", choices=["relevance", "citations", "title", "date"], default="relevance", help="Sort criteria")
+    parser.add_argument("--min-citations", type=int, default=0, help="Minimum citations (for papers)")
+    parser.add_argument("--min-year", type=int, default=0, help="Minimum publication year")
+    parser.add_argument("--exact", "-e", action="store_true", help="Enforce exact match")
     
     args = parser.parse_args()
     
     if args.paper:
         sources = args.source.split(",") if args.source else None
-        results = tool.paper_search(args.query, args.max, sources)
+        results = tool.paper_search(args.query, args.max, sources, args.sort, args.min_citations, args.min_year, args.exact)
     else:
-        results = tool.web_search(args.query, args.max)
+        results = tool.web_search(args.query, args.max, args.exact)
         
     tool.save_and_print(results, args.query)
     return 0
