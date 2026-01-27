@@ -25,6 +25,7 @@ class ToolBase:
         # Auto-reexecute with correct python if PYTHON is a dependency
         if "PYTHON" in self.dependencies:
             from logic.utils import check_and_reexecute_with_python
+            sys.stderr.write(f"DEBUG: Tool {self.tool_name} initializing, dependencies: {self.dependencies}\n")
             check_and_reexecute_with_python(self.tool_name)
 
     def _load_metadata(self):
