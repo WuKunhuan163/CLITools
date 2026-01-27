@@ -50,6 +50,10 @@ class TestUserInputKill(unittest.TestCase):
                 # Wait for retry mechanism to spawn new process
                 time.sleep(8)
                 new_children = parent.children(recursive=True)
+                if len(new_children) == 0:
+                    stdout, stderr = proc.communicate(timeout=1)
+                    print(f"STDOUT: {stdout}")
+                    print(f"STDERR: {stderr}")
                 self.assertTrue(len(new_children) > 0, "New subprocess was not spawned after kill")
             else:
                 self.fail("Could not find Tkinter child process")

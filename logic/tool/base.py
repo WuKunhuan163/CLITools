@@ -264,7 +264,7 @@ class ToolBase:
             # Check if it's a display related error
             err_msg = str(res.get("message", res.get("data", "")))
             # Expanded list of sandbox indicators
-            is_display_err = any(msg in err_msg.lower() or msg in err_msg for msg in ["display", "NSInternalInconsistencyException", "Connection invalid", "Unknown error", "No valid response", "physical blocking", "sandbox", "tk.tcl"])
+            is_display_err = any(msg in err_msg.lower() or msg in err_msg for msg in ["display", "NSInternalInconsistencyException", "Connection invalid", "Unknown error", "physical blocking", "sandbox", "tk.tcl"])
             
             if is_display_err:
                 initial_content = self.get_fallback_initial_content(hint)

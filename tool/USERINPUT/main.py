@@ -175,7 +175,12 @@ def parse_gui_error(error_output):
     if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
     if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
     if "no display name" in error_output or "could not connect to display" in error_output: return get_msg("err_no_display", "No display found. Cannot start GUI.")
-    if platform.system() == "Darwin": return get_msg("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
+    
+    # Only return sandbox message if it's explicitly a sandbox error or display issue
+    if is_sandboxed() and any(m in error_output.lower() for m in ["display", "sandbox", "沙盒", "tk.tcl"]):
+        if platform.system() == "Darwin": return get_msg("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
+        return get_msg("err_sandbox_generic", "Sandbox detected: GUI restricted.")
+        
     return "\n".join(error_output.splitlines()[:5])
 
 def get_config():
@@ -466,15 +471,16 @@ def main():
             print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
-            # If it's a sandbox environment, we likely already displayed a fallback message
-            if is_sandboxed():
-                return 1
-
             # If it's a sandbox error or explicit termination, don't retry
             # Note: run_gui_with_fallback now handles most sandbox cases internally
             error_str = str(e)
-            if any(msg in error_str.lower() or msg in error_str for msg in ["sandbox", "display", "Terminated", "Cancelled", "沙盒", "权限"]):
+            
+            if any(msg in error_str.lower() or msg in error_str for msg in ["Terminated", "Cancelled", "权限"]):
                 sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
+            
+            # If it's a sandbox environment and looks like a display error, don't retry (fallback already shown)
+            if is_sandboxed() and any(m in error_str.lower() for m in ["display", "sandbox", "沙盒"]):
+                return 1
             
             # If it's empty output or other unknown error, retry up to max_retries
             sys.stdout.write(f"\r\033[K{BOLD}{RED}{get_msg('label_failed', 'Failed')}{RESET}: Attempt {attempt+1} ({e}). Retrying...")

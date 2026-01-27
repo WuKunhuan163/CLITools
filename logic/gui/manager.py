@@ -164,6 +164,9 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 res["reason"] = "stop" # Default for termination via flag
         return res
     
+    sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
+    if stderr: sys.stderr.write(f"DEBUG: GUI stderr: {stderr}\n")
+    
     # Error fallback for crashes
     if proc.returncode != 0:
         sig_codes = [-15, -2, -9, -11, -6, 15, 2, 9, 11, 6, 143, 130, 137, 139, 134]
