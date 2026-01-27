@@ -240,6 +240,7 @@ def _dev_sync(quiet=False):
         action=auto_commit,
         active_status=_("label_committing", "Committing"),
         success_status="Successfully committed",
+        success_color="BOLD",
         fail_status="Failed to commit",
         bold_part="Committing"
     ))
@@ -257,6 +258,7 @@ def _dev_sync(quiet=False):
         action=align_tool,
         active_status="Aligning",
         success_status="Successfully aligned",
+        success_color="BOLD",
         fail_status="Failed to align",
         bold_part="Aligning"
     ))
@@ -289,6 +291,7 @@ def _dev_sync(quiet=False):
         action=align_main,
         active_status="Aligning",
         success_status="Successfully aligned",
+        success_color="BOLD",
         fail_status="Failed to align",
         bold_part="Aligning"
     ))
@@ -305,6 +308,7 @@ def _dev_sync(quiet=False):
         action=align_test,
         active_status="Aligning",
         success_status="Successfully aligned",
+        success_color="BOLD",
         fail_status="Failed to align",
         bold_part="Aligning"
     ))
@@ -317,7 +321,7 @@ def _dev_sync(quiet=False):
         
         if success and not quiet:
             success_status = _("label_success_completed", "Successfully completed")
-            msg = f"\n{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
+            msg = f"{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
             print(msg)
             
         return success
