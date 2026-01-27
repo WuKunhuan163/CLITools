@@ -11,7 +11,8 @@
       "description": "Tkinter-based GUI for capturing multi-line user feedback and approval.",
       "purpose": "Facilitate seamless interaction between AI Agent and user. AI agent should execute this command separately, not combined with other commands, to ensure feedback is not missed.",
       "dependencies": [
-        "PYTHON"
+        "PYTHON",
+        "FILEDIALOG"
       ]
     },
     "BACKGROUND": {
@@ -28,6 +29,20 @@
     "FILEDIALOG": {
       "description": "Advanced file and directory selection via custom Tkinter GUI.",
       "purpose": "Allow users to select local files/directories for AI processing.",
+      "dependencies": [
+        "PYTHON"
+      ]
+    },
+    "TEX": {
+      "description": "Local LaTeX compilation and template manager.",
+      "purpose": "Provide local TeX compilation and manage various journal templates.",
+      "dependencies": [
+        "PYTHON"
+      ]
+    },
+    "SEARCH": {
+      "description": "Multi-platform search tool for web and academic papers.",
+      "purpose": "Provide real-time search results from general search engines and academic repositories like arXiv and Google Scholar.",
       "dependencies": [
         "PYTHON"
       ]
