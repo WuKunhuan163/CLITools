@@ -251,5 +251,8 @@
   "tex_compile_success": "成功编译至:",
   "err_pdf_missing": "编译已完成但未找到 PDF 文件。",
   "err_exec_failed": "执行错误: {error}",
-  "fallback_filedialog_selected": "已选择"
+  "fallback_filedialog_selected": "已选择",
+  "label_successfully_received_from": "成功接收搜索结果自",
+  "label_results_saved": "结果已保存至",
+  "label_successfully_received_search": "成功接收搜索结果"
 }
