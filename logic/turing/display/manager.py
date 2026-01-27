@@ -22,7 +22,33 @@ def _get_configured_width():
     config_width = get_global_config("terminal_width")
     if config_width and isinstance(config_width, int) and config_width > 0:
         return config_width
-    return shutil.get_terminal_size((80, 20)).columns
+    
+    # Dynamic detection
+    try:
+        # 1. Try standard shutil
+        columns = shutil.get_terminal_size(fallback=(0, 0)).columns
+        
+        # 2. Try tput cols (more reliable in some shells)
+        if columns <= 0:
+            import subprocess
+            try:
+                res = subprocess.run(["tput", "cols"], capture_output=True, text=True, timeout=0.1)
+                if res.returncode == 0: columns = int(res.stdout.strip())
+            except: pass
+            
+        # 3. Try stty size
+        if columns <= 0:
+            import subprocess
+            try:
+                res = subprocess.run(["stty", "size"], capture_output=True, text=True, timeout=0.1)
+                if res.returncode == 0: columns = int(res.stdout.split()[1])
+            except: pass
+            
+        # 4. Final fallback
+        if columns <= 0: columns = 80
+        return columns
+    except:
+        return 80
 
 def wrap_text(text, width):
     """
