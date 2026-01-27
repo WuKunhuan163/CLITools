@@ -48,7 +48,21 @@ A core tool for human-in-the-loop AI workflows:
 - **GUI Feedback**: Pop up a multi-line input window.
 - **Remote Control**: Command-line based submission (`USERINPUT submit`), cancellation, and time extension (`USERINPUT add_time`).
 - **Timed Interaction**: Default 300s timeout with automatic refocus and periodic bell (90s interval) to prevent missed feedback.
+- **Sandbox Fallback**: Automatically switches to file-based input if GUI fails due to environment restrictions (e.g., macOS Seatbelt in Cursor, Docker).
 - **Isolated Runtime**: Automatically uses the `PYTHON` tool to ensure a consistent execution environment.
+
+### FILEDIALOG Tool
+Standardized file and directory selection:
+- **Advanced Selection**: Supports batch selection via Shift/Cmd/Ctrl and range selection.
+- **Smart Navigation**: Breadcrumb navigation with truncation and history management (back/forward).
+- **Sorting**: Clickable headers for Name, Size, and Type sorting.
+- **Symmetry**: Shares the same unified GUI and sandbox fallback infrastructure as `USERINPUT`.
+
+### TEX Tool
+Local LaTeX compilation and template manager (formerly `OVERLEAF`):
+- **Compilation**: `TEX compile <file.tex>` to generate PDF locally.
+- **Templates**: `TEX template <name>` to bootstrap projects for Nature, Science, ACM, IEEE, NeurIPS, and more.
+- **Management**: Self-contained template storage and local TeX engine support.
 
 ### PYTHON Tool
 The foundation for tool isolation:
@@ -59,7 +73,7 @@ The foundation for tool isolation:
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Sets the global display language (e.g., `zh` for Chinese, `en` for English, `ar` for Arabic).
 - `TOOL lang list`: Shows supported languages and their translation coverage.
-- `TOOL lang audit <LANG>`: Audits the codebase for missing translations in a specific language.
+- `TOOL lang audit <LANG>`: Deep audit of translation quality, detecting missing keys, duplicate values, shadowed core keys, and unused entries.
 
 ### Developer Workflow
 - `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work. It automatically handles uncommitted changes and cleans up restricted directories.

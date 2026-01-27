@@ -43,9 +43,9 @@ current_dir = Path(__file__).resolve().parent
 try:
     # Root logic imports
     from logic.tool.base import ToolBase
-    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui, is_sandboxed
+    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
     from logic.lang.utils import get_translation
-    from logic.utils import get_logic_dir
+    from logic.utils import get_logic_dir, cleanup_old_files
 except ImportError:
     # Fallback
     class ToolBase:
@@ -74,7 +74,11 @@ def get_msg(key, default, **kwargs):
     global _tool_instance
     if '_tool_instance' not in globals():
         _tool_instance = UserInputTool()
-    return _tool_instance.get_translation(key, default).format(**kwargs)
+    msg = _tool_instance.get_translation(key, default)
+    if kwargs:
+        try: return msg.format(**kwargs)
+        except: pass
+    return msg
 
 class UserInputRetryableError(Exception):
     pass
@@ -143,8 +147,13 @@ class UserInputTool(ToolBase):
             print(f"Finally, run: {BOLD}USERINPUT setup{RESET}")
         sys.exit(1)
 
-    def get_ai_instruction(self):
-        return get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. Before executing this command, it is strictly forbidden to use backticks (`) or code blocks to display this command or any subsequent suggested commands (e.g. TOOL test) in your response, to avoid trigger conflicts. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+    def get_fallback_initial_content(self, hint):
+        """Hook for USERINPUT to provide hint in fallback file."""
+        return hint or ""
+
+    def process_fallback_result(self, content):
+        """Hook for USERINPUT to return raw content."""
+        return content
 
 def get_python_exec(version=None):
     return UserInputTool().get_python_exe(version)
@@ -353,8 +362,8 @@ if __name__ == "__main__":
         tmp_path = tmp.name
 
     try:
-        # Use start_new_session=True to decouple from the parent terminal's process group
-        res = tool.run_gui(python_exe, tmp_path, timeout, custom_id)
+        # Use run_gui_with_fallback to automatically handle sandbox scenarios
+        res = tool.run_gui_with_fallback(python_exe, tmp_path, timeout, custom_id, hint=hint_text)
         
         if res.get("status") == "success":
             if res.get("data") == 'USER_SUBMITTED_EMPTY':
@@ -379,9 +388,13 @@ if __name__ == "__main__":
             if data and data.strip():
                 status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
                 return f"{data} {status_hint}"
+            
+            # If it's a fallback timeout (we can tell by whether the message was printed by logic/gui/manager.py)
+            # Actually, UserInputTool should probably handle its own retry policy
             raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
         elif res.get("status") == "error":
-            raise RuntimeError(res.get("message", "Unknown error"))
+            err_msg = parse_gui_error(res.get("message", ""))
+            raise RuntimeError(err_msg)
             
         raise RuntimeError("No valid response from GUI")
     finally:
@@ -432,7 +445,10 @@ def main():
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, remote_args, get_msg)
 
     from logic.config import get_color
-    BOLD, BLUE, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
+    BOLD, BLUE, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
+    
+    # Shared bell location for fallback audio
+    bell_path = tool.project_root / "logic" / "gui" / "tkinter_bell.mp3"
     
     for attempt in range(3):
         try:
@@ -450,12 +466,18 @@ def main():
             print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
+            # If it's a sandbox environment, we likely already displayed a fallback message
+            if is_sandboxed():
+                return 1
+
             # If it's a sandbox error or explicit termination, don't retry
-            if any(msg in str(e).lower() or msg in str(e) for msg in ["sandbox", "display", "Terminated", "Cancelled", "沙盒", "权限"]):
+            # Note: run_gui_with_fallback now handles most sandbox cases internally
+            error_str = str(e)
+            if any(msg in error_str.lower() or msg in error_str for msg in ["sandbox", "display", "Terminated", "Cancelled", "沙盒", "权限", "No valid response from GUI", "Unknown error"]):
                 sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
             
             # If it's "No valid response" or empty output, and the process was likely killed, don't retry
-            if "No valid response" in str(e) or "empty output" in str(e):
+            if "No valid response" in error_str or "empty output" in error_str:
                 sys.stdout.write("\r\033[K"); sys.stdout.flush()
                 print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
                 return 0

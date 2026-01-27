@@ -259,7 +259,7 @@ class BaseGUIWindow:
                 except: pass
             import traceback
             traceback.print_exc()
-            self.result = {"status": "error", "data": str(e)}
+            self.result = {"status": "error", "message": str(e)}
             print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 

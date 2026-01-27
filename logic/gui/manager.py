@@ -6,9 +6,11 @@ import subprocess
 import time
 import threading
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+import random
+import hashlib
+from typing import List, Optional, Dict, Any, Callable
 
-def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, unknown_args: List[str], translation_helper: callable) -> int:
+def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, unknown_args: List[str], translation_helper: Callable) -> int:
     """
     Unified handler for remote GUI commands (stop, submit, cancel, add_time).
     """
@@ -170,5 +172,113 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             
     return {"status": "error", "message": stderr or "No valid response from GUI"}
 
-def handle_gui_stop_command(tool_name: str, project_root: Path, unknown_args: List[str], translation_helper: callable) -> int:
+def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Optional[str]:
+    """
+    Core logic for text-file based GUI fallback in sandboxed environments.
+    Returns the content of the file if modified, or None if timeout/interrupted.
+    """
+    from logic.config import get_color
+    from logic.gui.engine import get_sandbox_type
+    from logic.utils import cleanup_old_files
+    import platform
+    
+    BOLD, BLUE, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
+    
+    # 2. Setup paths - use tool's data/input directory
+    input_dir = tool_instance.project_root / "tool" / tool_instance.tool_name / "data" / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    rand_hash = hashlib.md5(str(random.random()).encode()).hexdigest()[:6]
+    input_file = input_dir / f"input_{ts}_{rand_hash}.txt"
+    
+    # 2. Create initial empty file (Hint will be in terminal)
+    with open(input_file, 'w', encoding='utf-8') as f:
+        f.write("")
+    initial_mtime = input_file.stat().st_mtime
+    
+    # Cleanup old files (limit 1000)
+    cleanup_old_files(input_dir, "input_*.txt", limit=1000)
+    
+    # 3. Inform user
+    sb_type = get_sandbox_type()
+    # Erase the "Waiting for GUI" line if it exists
+    sys.stdout.write("\r\033[K")
+    print(f"{BOLD}{YELLOW}Sandbox detected{RESET}: {sb_type} (GUI physical blocking)")
+    
+    # Display Hint if provided
+    _ = tool_instance.get_translation
+    if initial_content:
+        hint_label = _("fallback_hint_label", "Hint")
+        WHITE = get_color("WHITE", "\033[37m")
+        print(f"{BOLD}{WHITE}{hint_label}{RESET}: {initial_content}")
+
+    try:
+        rel_path = str(input_file.relative_to(tool_instance.project_root))
+    except ValueError:
+        rel_path = str(input_file)
+        
+    until_ts = time.time() + timeout
+    until_time = time.strftime("%H:%M:%S", time.localtime(until_ts))
+    
+    waiting_msg_tmpl = _("fallback_waiting_until", "Waiting for {tool_name} feedback via file: {path}, until {until_time}...")
+    
+    # Bold the file path
+    bold_path = f"{BOLD}{rel_path}{RESET}"
+    display_msg = waiting_msg_tmpl.format(tool_name=tool_instance.tool_name, path=bold_path, until_time=until_time)
+    
+    # Split for color styling if prefix exists
+    if ":" in display_msg:
+        prefix, rest = display_msg.split(":", 1)
+        # Ensure prefix includes the colon
+        full_msg = f"{BOLD}{BLUE}{prefix}:{RESET}{rest}"
+    else:
+        full_msg = f"{BOLD}{BLUE}{display_msg}{RESET}"
+    
+    print(full_msg, flush=True)
+    
+    # 4. Polling loop
+    bell_path = tool_instance.project_root / "logic" / "gui" / "tkinter_bell.mp3"
+    
+    # Try to get focus interval from config
+    fi = 90
+    try:
+        from logic.config import get_global_config
+        fi = get_global_config().get("focus_interval", 90)
+    except: pass
+    if fi > 0 and fi < 90: fi = 90
+    
+    last_focus = time.time() # Start from now to avoid immediate bell
+    
+    try:
+        while time.time() < until_ts:
+            now = time.time()
+            # Periodic Audio Alert (Focus replacement)
+            if fi > 0 and now - last_focus >= fi:
+                if platform.system() == "Darwin" and bell_path.exists():
+                    subprocess.run(["afplay", str(bell_path)], capture_output=True)
+                last_focus = now
+                
+            if input_file.exists():
+                if input_file.stat().st_mtime > initial_mtime:
+                    with open(input_file, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                    if content: # Any non-empty content is accepted
+                        success_label = _("label_successfully_received", "Successfully received")
+                        print(f"{BOLD}{GREEN}{success_label}{RESET} from file: {content}", flush=True)
+                        return content
+            time.sleep(1)
+    except KeyboardInterrupt:
+        # User explicitly interrupted
+        interrupted_label = _("msg_interrupted", "Interrupted")
+        print(f"\r\033[K{BOLD}{RED}{interrupted_label}{RESET}")
+        return "__FALLBACK_INTERRUPTED__"
+        
+    # Timeout case
+    timeout_label = _("fallback_timed_out", "Fallback timed out")
+    run_again_hint = _("fallback_run_again", "Please run {tool_name} again.")
+    print(f"\r\033[K{BOLD}{RED}{timeout_label}{RESET}. {run_again_hint.format(tool_name=tool_instance.tool_name)}")
+    return "__FALLBACK_TIMEOUT__"
+
+def handle_gui_stop_command(tool_name: str, project_root: Path, unknown_args: List[str], translation_helper: Callable) -> int:
     return handle_gui_remote_command(tool_name, project_root, "stop", unknown_args, translation_helper)
