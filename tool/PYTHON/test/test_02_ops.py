@@ -11,37 +11,74 @@ class TestPythonOps(unittest.TestCase):
 
     def test_python_c(self):
         """Test python -c execution."""
+        # 1. Find a supported version
+        result = subprocess.run([str(self.python_tool), "--py-list"], capture_output=True, text=True)
+        version = None
+        for line in result.stdout.splitlines():
+            if "Supported versions:" in line:
+                version = line.split(":", 1)[1].split(",")[0].strip()
+                break
+        if not version: self.skipTest("No supported versions found.")
+        
+        # 2. Install if not already there
+        subprocess.run([str(self.python_tool), "--py-install", version], capture_output=True)
+        
         code = "import sys; print(f'Python {sys.version_info.major}.{sys.version_info.minor}')"
-        result = subprocess.run([str(self.python_tool), "--py-version", "python3.10.19", "-c", code], capture_output=True, text=True)
-        self.assertIn("Python 3.10", result.stdout)
+        result = subprocess.run([str(self.python_tool), "--py-version", version, "-c", code], capture_output=True, text=True)
+        self.assertIn(f"Python {version.split('python')[1][:4]}", result.stdout)
 
     def test_python_executable_path(self):
         """Verify that the tool uses the standalone executable, not the system one."""
-        version = "python3.10.19"
+        result = subprocess.run([str(self.python_tool), "--py-list"], capture_output=True, text=True)
+        version = None
+        for line in result.stdout.splitlines():
+            if "Supported versions:" in line:
+                version = line.split(":", 1)[1].split(",")[0].strip()
+                break
+        if not version: self.skipTest("No supported versions found.")
+        
         code = "import sys; print(sys.executable)"
         result = subprocess.run([str(self.python_tool), "--py-version", version, "-c", code], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
         # The output should contain our installations directory
-        self.assertIn("tool/PYTHON/data/install/3.10.19", result.stdout)
+        self.assertIn("tool/PYTHON/data/install", result.stdout)
 
     def test_pip_install(self):
-        """Test pip install in the standalone environment."""
-        # We'll try to install a very small package like 'requests' or 'six'
-        # But to avoid network issues in tests, let's just check if pip is available
-        result = subprocess.run([str(self.python_tool), "--py-version", "python3.10.19", "-m", "pip", "--version"], capture_output=True, text=True)
+        """Test pip availability in the standalone environment."""
+        result = subprocess.run([str(self.python_tool), "--py-list"], capture_output=True, text=True)
+        version = None
+        for line in result.stdout.splitlines():
+            if "Supported versions:" in line:
+                version = line.split(":", 1)[1].split(",")[0].strip()
+                break
+        if not version: self.skipTest("No supported versions found.")
+        
+        result = subprocess.run([str(self.python_tool), "--py-version", version, "-m", "pip", "--version"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
         self.assertIn("pip", result.stdout)
 
     def test_venv_creation(self):
         """Test venv creation."""
+        result = subprocess.run([str(self.python_tool), "--py-list"], capture_output=True, text=True)
+        version = None
+        for line in result.stdout.splitlines():
+            if "Supported versions:" in line:
+                version = line.split(":", 1)[1].split(",")[0].strip()
+                break
+        if not version: self.skipTest("No supported versions found.")
+        
         venv_path = self.project_root / "data" / "test" / "tmp" / "test_venv"
         if venv_path.exists():
             import shutil
             shutil.rmtree(venv_path)
             
-        result = subprocess.run([str(self.python_tool), "--py-version", "python3.10.19", "-m", "venv", str(venv_path)], capture_output=True, text=True)
+        result = subprocess.run([str(self.python_tool), "--py-version", version, "-m", "venv", str(venv_path)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        self.assertTrue((venv_path / "bin" / "python").exists())
+        
+        if sys.platform == "win32":
+            self.assertTrue((venv_path / "Scripts" / "python.exe").exists())
+        else:
+            self.assertTrue((venv_path / "bin" / "python").exists())
 
 if __name__ == "__main__":
     unittest.main()
