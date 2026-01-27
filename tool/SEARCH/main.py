@@ -12,6 +12,7 @@ import argparse
 import json
 import time
 import re
+import threading
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import requests
@@ -51,26 +52,72 @@ class SearchTool(ToolBase):
 
     def web_search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
         """Perform general web search using DuckDuckGo."""
-        print(f"Searching web for: '{query}'...")
+        BOLD, BLUE, RESET = get_color("BOLD"), get_color("BLUE"), get_color("RESET")
+        
+        start_time = time.time()
+        results = []
+        stop_event = threading.Event()
+        
+        def update_timer():
+            while not stop_event.is_set():
+                elapsed = int(time.time() - start_time)
+                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Searching web{RESET} for: '{query}'... ({elapsed}s)")
+                sys.stdout.flush()
+                time.sleep(1)
+        
+        timer_thread = threading.Thread(target=update_timer, daemon=True)
+        timer_thread.start()
+        
         try:
-            from duckduckgo_search import DDGS
+            from ddgs import DDGS
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=max_results))
-                return [{"title": r['title'], "url": r['href'], "snippet": r['body'], "source": "duckduckgo"} for r in results]
         except Exception as e:
-            print(f"Web search error: {e}", file=sys.stderr)
-            return []
+            # sys.stdout.write(f"\nWeb search error: {e}\n")
+            pass
+        finally:
+            stop_event.set()
+            timer_thread.join(timeout=0.1)
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            
+        return [{"title": r['title'], "url": r['href'], "snippet": r['body'], "source": "duckduckgo"} for r in results]
 
     def paper_search(self, query: str, max_results: int = 5, sources: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """Perform academic paper search (arXiv, Google Scholar)."""
         if not sources: sources = ["arxiv", "scholar"]
         
+        BOLD, BLUE, RESET = get_color("BOLD"), get_color("BLUE"), get_color("RESET")
+        start_time = time.time()
         all_papers = []
-        if "arxiv" in sources:
-            all_papers.extend(self._search_arxiv(query, max_results))
+        stop_event = threading.Event()
         
-        if "scholar" in sources:
-            all_papers.extend(self._search_scholar(query, max_results))
+        current_source = [""]
+        
+        def update_timer():
+            while not stop_event.is_set():
+                elapsed = int(time.time() - start_time)
+                src_text = f" from {current_source[0]}" if current_source[0] else ""
+                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Searching papers{RESET} for: '{query}'{src_text}... ({elapsed}s)")
+                sys.stdout.flush()
+                time.sleep(1)
+        
+        timer_thread = threading.Thread(target=update_timer, daemon=True)
+        timer_thread.start()
+        
+        try:
+            if "arxiv" in sources:
+                current_source[0] = "arXiv"
+                all_papers.extend(self._search_arxiv(query, max_results))
+            
+            if "scholar" in sources:
+                current_source[0] = "Google Scholar"
+                all_papers.extend(self._search_scholar(query, max_results))
+        finally:
+            stop_event.set()
+            timer_thread.join(timeout=0.1)
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
             
         # Deduplicate by title
         unique = []
@@ -84,7 +131,6 @@ class SearchTool(ToolBase):
         return unique[:max_results]
 
     def _search_arxiv(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        print(f"Searching arXiv for: '{query}'...")
         papers = []
         try:
             url = f"http://export.arxiv.org/api/query?search_query=all:{query}&start=0&max_results={max_results}&sortBy=relevance&sortOrder=descending"
@@ -103,12 +149,10 @@ class SearchTool(ToolBase):
                     "snippet": summary[:200] + "...",
                     "source": "arxiv"
                 })
-        except Exception as e:
-            print(f"arXiv error: {e}", file=sys.stderr)
+        except: pass
         return papers
 
     def _search_scholar(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        print(f"Searching Google Scholar for: '{query}'...")
         papers = []
         try:
             url = f"https://scholar.google.com/scholar?q={query}&hl=en"
@@ -126,13 +170,12 @@ class SearchTool(ToolBase):
                     "snippet": snippet,
                     "source": "scholar"
                 })
-        except Exception as e:
-            print(f"Google Scholar error: {e} (Likely blocked or rate-limited)", file=sys.stderr)
+        except: pass
         return papers
 
     def save_and_print(self, results: List[Dict[str, Any]], query: str):
         """Save results to JSON and print to terminal."""
-        BOLD, GREEN, BLUE, RESET = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET")
+        BOLD, GREEN, BLUE, WHITE, RESET = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("WHITE", "\033[37m"), get_color("RESET")
         
         if not results:
             print(f"{BOLD}{get_color('RED')}No results found.{RESET}")
@@ -143,14 +186,17 @@ class SearchTool(ToolBase):
         with open(self.results_dir / filename, 'w', encoding='utf-8') as f:
             json.dump({"query": query, "results": results}, f, indent=2, ensure_ascii=False)
             
-        print(f"\n--- {BOLD}{BLUE}Search Results for: {query}{RESET} ---")
+        success_label = self.get_translation("label_successfully_received_search", "Successfully received search results")
+        print(f"{BOLD}{GREEN}{success_label}{RESET}: {query}\n")
+        
         for i, r in enumerate(results, 1):
             print(f"{BOLD}{i}. {r['title']}{RESET}")
             print(f"   URL: {r['url']}")
             print(f"   Source: {r['source']}")
             print(f"   {r['snippet']}\n")
             
-        print(f"{BOLD}{GREEN}Results saved to:{RESET} {self.results_dir / filename}")
+        saved_label = self.get_translation("label_results_saved", "Results saved to")
+        print(f"{BOLD}{WHITE}{saved_label}{RESET}: {self.results_dir / filename}")
 
 def main():
     tool = SearchTool()
