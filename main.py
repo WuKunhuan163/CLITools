@@ -261,14 +261,15 @@ def _dev_sync(quiet=False):
         bold_part="Aligning"
     ))
 
-    # 4. main -> test
+    # 4. tool -> test (test needs tools for testing)
     def align_test():
-        run_git(["branch", "-D", "test"])
-        if not run_git(["checkout", "-b", "test"]): return False
+        if not run_git(["checkout", "-f", "test"]): return False
+        if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
+        if not run_git(["clean", "-fdx"]): return False
         return True
 
     tm.add_stage(TuringStage(
-        name="'test' from 'main'",
+        name="'test' from 'tool'",
         action=align_test,
         active_status="Aligning",
         success_status="Successfully aligned",
