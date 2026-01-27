@@ -1099,9 +1099,12 @@ def _list_tools(force=False):
     cache_path = project_root / "data" / "tool_cache.json"
     
     cache = {}
+    cached_used = False
     if not force and cache_path.exists():
         try:
-            with open(cache_path, 'r') as f: cache = json.load(f)
+            with open(cache_path, 'r') as f: 
+                cache = json.load(f)
+                cached_used = True
         except: pass
     
     # Re-scan if empty or forced
@@ -1139,12 +1142,15 @@ def _list_tools(force=False):
             json.dump(cache, f, indent=2)
 
     # Display
-    print(f"\n--- {BOLD}{BLUE}AITerminalTools Registry{RESET} ---")
     for name, info in sorted(cache.items()):
-        status = f"{GREEN}[installed]{RESET}" if info.get("installed") else f"{YELLOW}[available]{RESET}"
+        status = "[installed]" if info.get("installed") else "[available]"
         print(f"{BOLD}{name}{RESET} {status}")
         print(f"  {info.get('description', 'No description')}")
         print(f"  Purpose: {info.get('purpose', 'No purpose')}\n")
+
+    if cached_used:
+        warning_label = _("label_warning", "Warning")
+        print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("cache_warning_list", "Using cached tool information. Use '--force' to refresh."))
 
 def main():
     import argparse
