@@ -41,7 +41,6 @@ class TestMultiWorkerDisplay(unittest.TestCase):
         """
         # 1. Randomize width between 10 and 20
         test_width = random.randint(10, 20)
-        self.run_tool(["config", "--terminal-width", str(test_width)])
         
         test_script = self.project_root / "tmp_ui_multi_test.py"
         log_file = self.project_root / "data" / "run" / "ui_frames.log"
@@ -85,7 +84,7 @@ def capture_frame():
     }
     frames.append(state)
 
-manager = MultiLineManager()
+manager = MultiLineManager(width=%(width)d)
 
 print("--- UI ROBUSTNESS HEADER ---")
 
@@ -113,7 +112,7 @@ for i in range(15):
 
 with open(%(log_file)r, "w") as f:
     json.dump(frames, f)
-""" % {'log_file': str(log_file)}
+""" % {'log_file': str(log_file), 'width': test_width}
 
         with open(test_script, "w") as f:
             f.write(test_script_content)

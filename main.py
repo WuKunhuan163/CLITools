@@ -165,6 +165,11 @@ def update_config(key, value):
         print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
+        
+    if key == "terminal_width" and value and isinstance(value, int) and value > 0:
+        print(f"\nPlease check whether the below line of '=' ({value}) exactly expands one terminal row:")
+        print("=" * value)
+        print("")
 
 def _dev_sync(quiet=False):
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""

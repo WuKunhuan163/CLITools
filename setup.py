@@ -42,6 +42,23 @@ def setup():
     except Exception as e:
         print(f"Error creating symlink: {e}")
         
+    # 2.5. Install dependencies from tool.json
+    registry_path = project_root / "tool.json"
+    if registry_path.exists():
+        try:
+            import json
+            import subprocess
+            with open(registry_path, 'r') as f:
+                registry = json.load(f)
+            deps = registry.get("dependencies", [])
+            if deps:
+                print(f"Installing project dependencies: {', '.join(deps)}...")
+                # Use sys.executable to ensure we use the same python environment
+                subprocess.run([sys.executable, "-m", "pip", "install"] + deps, check=True)
+                print("Dependencies installed successfully.")
+        except Exception as e:
+            print(f"Warning: Failed to install dependencies: {e}")
+
     # 3. Create TOOL alias in shell profiles for persistence (as a fallback/convenience)
     home = Path.home()
     profiles = [

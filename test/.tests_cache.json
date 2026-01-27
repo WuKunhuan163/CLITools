@@ -8,5 +8,6 @@
   "test_06_audit_lang.py",
   "test_07_arabic_all_features.py",
   "test_08_multi_worker_display.py",
-  "test_09_ui_stress.py"
+  "test_09_ui_stress.py",
+  "test_10_terminal_permission.py"
 ]
