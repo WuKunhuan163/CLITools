@@ -6,6 +6,11 @@
   "dependencies": [
     "PYTHON"
   ],
+  "pip_dependencies": [
+    "requests",
+    "beautifulsoup4",
+    "ddgs"
+  ],
   "usage": [
     "SEARCH <query> [--max N] [--exact]",
     "SEARCH --paper <query> [--max N] [--source arxiv,scholar] [--sort relevance|title|citation|date] [--min-citations N] [--min-year Y]"

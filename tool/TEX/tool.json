@@ -4,6 +4,9 @@
   "dependencies": [
     "PYTHON"
   ],
+  "pip_dependencies": [
+    "tinytex"
+  ],
   "usage": [
     "TEX compile <file.tex> [--output <dir>]",
     "TEX list",
