@@ -57,27 +57,41 @@ class ProgressTuringMachine:
                         sys.stdout.write(f"\r\033[K{full_msg}\n")
                     sys.stdout.flush()
                 else:
-                    # ... failure handling ...
-                    sys.stdout.write(f"\r\033[K")
+                    # 1. Clear current line
+                    sys.stdout.write("\r\033[K")
                     sys.stdout.flush()
-                    fail_name = stage.fail_name or stage.name
                     
-                    if stage.bold_part and fail_name.startswith(stage.bold_part):
-                        bold_text = f"{stage.fail_status} {stage.bold_part}"
-                        rest_text = fail_name[len(stage.bold_part):].lstrip()
-                        full_msg_fail = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
+                    if ephemeral:
+                        if final_msg is not None:
+                            sys.stdout.write(f"{final_msg}")
+                            if final_newline: sys.stdout.write("\n")
+                        # If ephemeral and final_msg is None, we just leave it erased
                     else:
-                        full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
-                        
-                    sys.stdout.write(f"{full_msg_fail}\n")
+                        # Standard failure display
+                        fail_name = stage.fail_name or stage.name
+                        if stage.bold_part and fail_name.startswith(stage.bold_part):
+                            bold_text = f"{stage.fail_status} {stage.bold_part}"
+                            rest_text = fail_name[len(stage.bold_part):].lstrip()
+                            full_msg_fail = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
+                        else:
+                            full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
+                        sys.stdout.write(f"{full_msg_fail}\n")
+                    
                     sys.stdout.flush()
                     return False
             except Exception as e:
-                # ... error handling ...
-                sys.stdout.write(f"\r\033[K")
+                # 1. Clear current line
+                sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
-                fail_name = stage.fail_name or stage.name
-                sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}\n")
+                
+                if ephemeral:
+                    if final_msg is not None:
+                        sys.stdout.write(f"{final_msg}")
+                        if final_newline: sys.stdout.write("\n")
+                else:
+                    fail_name = stage.fail_name or stage.name
+                    sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}\n")
+                
                 sys.stdout.flush()
                 return False
         
