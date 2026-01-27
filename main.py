@@ -848,6 +848,7 @@ def generate_ai_rule(target_tool=None):
     lines.append("- " + _("rule_guideline_2", "**Fallback & Testing**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. Testing MUST be done on the 'test' branch; after each test, the 'test' branch should be re-synced from 'main'."))
     lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `logic/` directory to avoid duplicate implementations across different tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
+    lines.append("- " + _("rule_guideline_6", "**Tool Creation**: Use 'TOOL dev create <NAME>' to generate a new tool template following these guidelines."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Both the status (e.g., **Successfully**) and the action/object (e.g., **setup USERINPUT tool**) should be colored and bolded together if they form a unified status statement. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `logic.config.get_color`."))
     
     # 7. Add USERINPUT execution rule
