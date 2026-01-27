@@ -1,0 +1,13 @@
+{
+  "description": "Local LaTeX compilation and template management.",
+  "purpose": "Provide local TeX compilation without external dependencies, and manage various journal templates.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "usage": [
+    "TEX compile <file.tex> [--output <dir>]",
+    "TEX list",
+    "TEX template <name> [--target <dir>]"
+  ]
+}
+

@@ -6,15 +6,49 @@ from pathlib import Path
 
 def is_sandboxed():
     """Check if we are likely running in a sandbox environment (like Cursor terminal)."""
-    # Check for Cursor bundle ID
+    # 1. Cursor specific (macOS Seatbelt)
+    if os.environ.get('CURSOR_SANDBOX') == 'seatbelt':
+        return True
     if os.environ.get('__CFBundleIdentifier') == 'com.todesktop.230313mzl4w4u92':
         return True
     
-    # Check for restricted environment variables
-    if os.environ.get('TERM') == 'dumb' and platform.system() == 'Darwin':
-        return True
+    # 2. General Darwin (macOS)
+    if platform.system() == 'Darwin':
+        if os.environ.get('TERM') == 'dumb':
+            return True
+            
+    # 3. Linux (check for common sandbox markers or missing display)
+    if platform.system() == 'Linux':
+        if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
+            return True
+        if os.path.exists('/.dockerenv'): # Docker is a form of sandbox
+            return True
+            
+    # 4. Windows
+    if platform.system() == 'Windows':
+        # Integrity levels or other markers could be checked here
+        pass
         
     return False
+
+def get_sandbox_type():
+    """Identify the specific type of sandbox for better error messaging."""
+    if os.environ.get('CURSOR_SANDBOX') == 'seatbelt':
+        return "macOS Seatbelt (Cursor)"
+    if os.environ.get('__CFBundleIdentifier') == 'com.todesktop.230313mzl4w4u92':
+        return "macOS Seatbelt (Cursor)"
+    
+    if platform.system() == 'Darwin':
+        if os.environ.get('TERM') == 'dumb':
+            return "Restricted Terminal (macOS)"
+            
+    if platform.system() == 'Linux':
+        if not os.environ.get('DISPLAY') and not os.environ.get('WAYLAND_DISPLAY'):
+            return "No Display (Linux)"
+        if os.path.exists('/.dockerenv'):
+            return "Docker Container"
+            
+    return "Unknown Sandbox"
 
 def get_safe_python_for_gui():
     """

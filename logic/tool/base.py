@@ -16,7 +16,7 @@ class ToolBase:
         
         # Ensure project root is in path for imports
         if str(self.project_root) not in sys.path:
-            sys.path.append(str(self.project_root))
+            sys.path.insert(0, str(self.project_root))
             
         self.tool_json_path = self.script_dir / "tool.json"
         self.dependencies = []
@@ -195,11 +195,6 @@ class ToolBase:
             sys.exit(1)
         sys.exit(0)
 
-    def run_gui(self, python_exe: str, script_path: str, timeout: int, custom_id: str = None):
-        """Standard method to launch a GUI subprocess."""
-        from logic.gui.manager import run_gui_subprocess
-        return run_gui_subprocess(self, python_exe, script_path, timeout, custom_id)
-
     def handle_exception(self, e, print_error=True):
         """Unified exception handling and logging."""
         from logic.config import get_color
@@ -257,3 +252,45 @@ class ToolBase:
         from logic.gui.manager import run_gui_subprocess
         return run_gui_subprocess(self, python_exe, script_path, timeout, custom_id)
 
+    def run_gui_with_fallback(self, python_exe, script_path, timeout, custom_id=None, hint=None):
+        """Standard GUI launch with automatic sandbox fallback."""
+        from logic.gui.engine import is_sandboxed
+        
+        # 1. Try standard GUI
+        res = self.run_gui(python_exe, script_path, timeout, custom_id)
+        
+        # 2. Check for sandbox failure
+        if res.get("status") == "error" and is_sandboxed():
+            # Check if it's a display related error
+            err_msg = str(res.get("message", res.get("data", "")))
+            # Expanded list of sandbox indicators
+            is_display_err = any(msg in err_msg.lower() or msg in err_msg for msg in ["display", "NSInternalInconsistencyException", "Connection invalid", "Unknown error", "No valid response", "physical blocking", "sandbox", "tk.tcl"])
+            
+            if is_display_err:
+                initial_content = self.get_fallback_initial_content(hint)
+                raw_result = self.handle_sandbox_fallback(initial_content, timeout)
+                
+                if raw_result == "__FALLBACK_INTERRUPTED__":
+                    return {"status": "terminated", "reason": "interrupted", "data": None}
+                elif raw_result == "__FALLBACK_TIMEOUT__":
+                    return {"status": "timeout", "data": None}
+                elif raw_result is not None:
+                    processed = self.process_fallback_result(raw_result)
+                    return {"status": "success", "data": processed}
+                else:
+                    return {"status": "terminated", "reason": "interrupted", "data": None}
+        
+        return res
+
+    def handle_sandbox_fallback(self, initial_content, timeout):
+        """Default fallback implementation using text files."""
+        from logic.gui.manager import run_file_fallback
+        return run_file_fallback(self, initial_content, timeout)
+
+    def get_fallback_initial_content(self, hint):
+        """Hook for tools to customize initial fallback file content."""
+        return hint or ""
+
+    def process_fallback_result(self, content):
+        """Hook for tools to post-process fallback file content (e.g. split into lines)."""
+        return content

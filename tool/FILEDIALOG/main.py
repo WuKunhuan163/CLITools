@@ -87,6 +87,21 @@ class FileDialogTool(ToolBase):
     def get_ai_instruction(self):
         return get_msg("ai_instruction", "Use FILEDIALOG to let users select local files or directories for processing. You can specify file types (e.g., pdf, image) and initial directories. Supports batch selection via Shift/Cmd/Ctrl.")
 
+    def get_fallback_initial_content(self, hint):
+        """Custom hint for FILEDIALOG file fallback."""
+        return hint or get_msg("fallback_filedialog_hint", "Please enter the absolute paths of files/directories you want to select, one per line:")
+
+    def process_fallback_result(self, content):
+        """Parse fallback file content as a list of paths, ignoring the initial hint."""
+        hint = self.get_fallback_initial_content(None).strip()
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        
+        # Filter out the hint line if it's there
+        paths = [l for l in lines if l != hint]
+        
+        if not paths: return None
+        return paths
+
 def parse_file_types(file_types_str: str):
     if not file_types_str or file_types_str.lower() == "all":
         return [('All files', '*.*')]
@@ -552,7 +567,12 @@ if __name__ == "__main__":
         tmp_path = tmp.name
 
     try:
-        res = tool.run_gui(python_exe, tmp_path, 300, custom_id)
+        res = tool.run_gui_with_fallback(python_exe, tmp_path, 300, custom_id)
+        # Handle fallback result which might be a list of strings
+        if res.get("status") == "success" and isinstance(res.get("data"), list):
+            # If multiple is false, take only the first one
+            if not multiple:
+                res["data"] = res["data"][0]
         return res
     finally:
         if os.path.exists(tmp_path): os.remove(tmp_path)
