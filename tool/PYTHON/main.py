@@ -266,10 +266,13 @@ def _list_versions():
                 missing.append(v)
         
     print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
-    if missing:
-        print(_("python_install_missing_hint", "To install a missing version: PYTHON --py-install {version}", version=missing[0]))
     
-    print(_("python_set_default_hint", "To set the default version for this tool: PYTHON --py-default {version}", version=installed[0] if installed else "3.10.19"))
+    if missing:
+        install_label = _("python_install_missing_label", "To install a missing version")
+        print(f"\n{BOLD}{WHITE}{install_label}{RESET}: PYTHON --py-install {missing[0]}")
+    
+    default_label = _("python_set_default_label", "To set the default version")
+    print(f"\n{BOLD}{WHITE}{default_label}{RESET}: PYTHON --py-default {installed[0] if installed else '3.10.19'}")
 
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()

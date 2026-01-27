@@ -220,14 +220,14 @@ class ToolEngine:
             
         if not pip_deps: return True
         
-        # Show what's being installed
-        deps_str = ", ".join(pip_deps)
-        sys.stdout.write(f"\r\033[K{self.BOLD}{self.BLUE}{self._('label_installing', 'Installing')}{self.RESET} pip: {deps_str}...")
-        sys.stdout.flush()
-        
         # Resolve python
         python_tool_dir = self.project_root / "tool" / "PYTHON"
-        if not python_tool_dir.exists(): return True # Can't install pip deps without PYTHON tool
+        if not python_tool_dir.exists():
+            # If PYTHON is in dependencies, it will be installed in handle_dependencies.
+            # We should return True here and let the caller know we'll need to retry or 
+            # just rely on the fact that handle_pip_deps will be called again?
+            # Wait, the Turing Machine runs stages in order.
+            return True 
         
         from logic.utils import get_logic_dir
         utils_path = get_logic_dir(python_tool_dir) / "utils.py"

@@ -314,7 +314,8 @@ def _dev_sync(quiet=False):
     ))
 
     try:
-        success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=not quiet)
+        # Use final_newline=False to remove empty line before final message
+        success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
         
         # End on start branch or dev
         subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
@@ -881,11 +882,12 @@ def generate_ai_rule(target_tool=None):
         lines.append(f"- {name}: {desc} (" + _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
         
     lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
-    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'logic/translation.json' file."))
+    lines.append("- " + _("rule_guideline_1", "**Multi-language Support**: Tools should support localization via a 'logic/translation/' directory."))
     lines.append("- " + _("rule_guideline_2", "**Fallback & Testing**: Always use the `_()` translation helper. English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**. Testing MUST be done on the 'test' branch; after each test, the 'test' branch should be re-synced from 'main'."))
     lines.append("- " + _("rule_guideline_3", "**Shared Logic**: Standardize utilities (like platform detection or version mapping) in the root `logic/` directory to avoid duplicate implementations across different tools."))
     lines.append("- " + _("rule_guideline_4", "**Dependency Management**: Define dependencies in the tool's 'tool.json'. The 'TOOL' manager will automatically install them."))
-    lines.append("- " + _("rule_guideline_6", "**Tool Creation**: Use 'TOOL dev create <NAME>' to generate a new tool template following these guidelines."))
+    lines.append("- " + _("rule_guideline_7", "**Tool Structure**: A standard tool contains 'main.py' (entry), 'setup.py' (install logic), 'tool.json' (metadata), and 'logic/' (internal modules)."))
+    lines.append("- " + _("rule_guideline_6", "**Tool Creation**: Always use 'TOOL create <NAME>' to generate a new tool template. Develop on top of the template to ensure compatibility and follow ecosystem standards."))
     lines.append("- " + _("rule_guideline_5", "**Color & Status Style**: Use Bold status labels at line starts. Both the status (e.g., **Successfully**) and the action/object (e.g., **setup USERINPUT tool**) should be colored and bolded together if they form a unified status statement. Use **Green** for success, **Blue** for progress (including uninstalling), **Red** for errors, and **Yellow** for warnings. Reference colors via `logic.config.get_color`."))
     
     # 7. Add USERINPUT execution rule
@@ -1099,12 +1101,21 @@ def _list_languages():
     sys.path.append(str(project_root))
     from logic.lang.audit import LangAuditor
     from logic.utils import get_rate_color, format_table
-    auditor = LangAuditor(project_root)
-    audited_langs = auditor.list_audited_languages()
+    
+    # Supported languages: en + anything in logic/translation/*.json
+    supported = ["en"]
+    trans_dir = project_root / "logic" / "translation"
+    if trans_dir.exists():
+        for p in trans_dir.glob("*.json"):
+            if p.stem not in supported:
+                supported.append(p.stem)
+    
     current_lang = "en"
     config_path = project_root / "data" / "config.json"
     if config_path.exists():
-        with open(config_path, 'r') as f: current_lang = json.load(f).get("language", "en")
+        try:
+            with open(config_path, 'r') as f: current_lang = json.load(f).get("language", "en")
+        except: pass
     
     # Native names map
     native_names = {
@@ -1113,17 +1124,28 @@ def _list_languages():
         "ar": "العربية (ar)"
     }
     
-    rows = [{"code": "en", "name": native_names.get("en", "English (en)"), "keys": _("lang_default", "default"), "refs": _("lang_default", "default"), "is_current": current_lang == "en"}]
+    rows = []
     colors = {"BOLD": BOLD, "GREEN": GREEN, "BLUE": BLUE, "YELLOW": YELLOW, "RED": RED, "RESET": RESET}
-    for lang in audited_langs:
-        if lang == "en": continue
+    
+    for lang in sorted(supported):
+        if lang == "en":
+            rows.append({"code": "en", "name": native_names.get("en", "English (en)"), "keys": _("lang_default", "default"), "refs": _("lang_default", "default"), "is_current": current_lang == "en"})
+            continue
+            
+        # For other languages, try to get audit summary if exists, else show N/A
         res, cached = LangAuditor(project_root, lang).audit()
-        summary = res.get("summary", {})
-        rk, rr = summary.get("completion_rate_keys", "0%"), summary.get("completion_rate_refs", "0%")
-        ck, cr = get_rate_color(rk, colors), get_rate_color(rr, colors)
-        
+        if res:
+            summary = res.get("summary", {})
+            rk, rr = summary.get("completion_rate_keys", "0%"), summary.get("completion_rate_refs", "0%")
+            ck, cr = get_rate_color(rk, colors), get_rate_color(rr, colors)
+            keys_val = f"{ck}{rk}{RESET}"
+            refs_val = f"{cr}{rr}{RESET}"
+        else:
+            keys_val = "N/A"
+            refs_val = "N/A"
+            
         name = native_names.get(lang, _(f"lang_name_{lang}", lang))
-        rows.append({"code": lang, "name": name, "keys": f"{ck}{rk}{RESET}", "refs": f"{cr}{rr}{RESET}", "is_current": current_lang == lang})
+        rows.append({"code": lang, "name": name, "keys": keys_val, "refs": refs_val, "is_current": current_lang == lang})
     
     headers = [_("lang_table_name", "Language"), _("lang_table_keys", "Key Coverage"), _("lang_table_refs", "Ref Coverage")]
     table_rows = [[r['name'], r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
@@ -1167,9 +1189,7 @@ def _list_tools(force=False):
                 except:
                     info["description"] = "Error reading tool.json"
             else:
-                # If not local, we might have some minimal info in global registry (legacy)
-                # But we'll just say not found for now
-                info["description"] = "Not found locally (run 'TOOL install' to fetch)"
+                info["description"] = _("tool_not_found_locally", "Not found locally (run 'TOOL install' to fetch)")
                 info["purpose"] = "N/A"
             cache[name] = info
             
@@ -1181,13 +1201,15 @@ def _list_tools(force=False):
     # Display
     for name, info in sorted(cache.items()):
         status = "[installed]" if info.get("installed") else "[available]"
+        # Do NOT make [installed] green as requested
         print(f"{BOLD}{name}{RESET} {status}")
         print(f"  {info.get('description', 'No description')}")
-        print(f"  Purpose: {info.get('purpose', 'No purpose')}\n")
+        purpose_label = _("tool_list_purpose_label", "Purpose:")
+        print(f"  {purpose_label} {info.get('purpose', 'No purpose')}\n")
 
     if cached_used:
-        warning_label = _("label_warning", "Warning")
-        print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("cache_warning_list", "Using cached tool information. Use '--force' to refresh."))
+        warning_msg = _("tool_list_cache_warning", "Warning: Displaying cached data. Use --force to refresh.")
+        print(f"{BOLD}{YELLOW}{warning_msg}{RESET}")
 
 def main():
     import argparse
@@ -1196,6 +1218,9 @@ def main():
     
     list_parser = subparsers.add_parser("list", help="List all available tools")
     list_parser.add_argument("--force", action="store_true", help="Force refresh tool information cache")
+    
+    create_parser = subparsers.add_parser("create", help="Create a new tool template")
+    create_parser.add_argument("tool_name", help="Name of the new tool")
     
     install_parser = subparsers.add_parser("install")
     install_parser.add_argument("tool_name")
@@ -1237,9 +1262,6 @@ def main():
     enter_parser.add_argument("branch", choices=["main", "test"])
     enter_parser.add_argument("-f", "--force", action="store_true", help="Force switch (discard changes)")
     
-    create_parser = dev_subparsers.add_parser("create", help="Create a new tool template")
-    create_parser.add_argument("tool_name", help="Name of the new tool")
-    
     sanity_parser = dev_subparsers.add_parser("sanity-check", help="Run sanity check on a tool")
     sanity_parser.add_argument("tool_name", help="Name of the tool to check")
     sanity_parser.add_argument("--fix", action="store_true", help="Try to fix sanity issues")
@@ -1265,6 +1287,7 @@ def main():
         return
     args = parser.parse_args()
     if args.command == "list": _list_tools(args.force)
+    elif args.command == "create": _dev_create(args.tool_name)
     elif args.command == "install": install_tool(args.tool_name)
     elif args.command == "reinstall": reinstall_tool(args.tool_name)
     elif args.command == "uninstall": uninstall_tool(args.tool_name, args.yes)

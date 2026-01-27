@@ -28,6 +28,7 @@ try:
     from logic.tool.base import ToolBase
     from logic.config import get_color
     from logic.utils import get_logic_dir
+    from tool.SEARCH.logic.paper.searcher import PaperSearcher, filter_and_sort_papers
 except ImportError:
     class ToolBase:
         def __init__(self, name):
@@ -42,11 +43,9 @@ except ImportError:
 class SearchTool(ToolBase):
     def __init__(self):
         super().__init__("SEARCH")
-        import requests
-        from tool.SEARCH.logic.paper.searcher import PaperSearcher
-        
         self.results_dir = self.project_root / "tool" / "SEARCH" / "data" / "results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        import requests
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -69,7 +68,10 @@ class SearchTool(ToolBase):
         def update_timer():
             while not stop_event.is_set():
                 elapsed = int(time.time() - start_time)
-                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Searching web{RESET} for: '{query}'... ({elapsed}s)")
+                # Use translatable string for "Searching web for"
+                msg_template = self.get_translation("search_web_for", "Searching web for: '{query}'...")
+                msg = msg_template.format(query=query)
+                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{msg}{RESET} ({elapsed}s)")
                 sys.stdout.flush()
                 time.sleep(1)
         
@@ -90,10 +92,11 @@ class SearchTool(ToolBase):
         return [{"title": r['title'], "url": r['href'], "snippet": r['body'], "source": "duckduckgo"} for r in results]
 
     def paper_search(self, query: str, max_results: int = 5, sources: Optional[List[str]] = None,
-                     sort_by: str = "relevance", min_citations: int = 0, min_year: int = 0,
+                     sort_by: List[str] = None, min_citations: int = 0, min_year: int = 0,
                      exact_match: bool = False) -> List[Dict[str, Any]]:
         """Perform parallel academic paper search (arXiv, Google Scholar)."""
         if not sources: sources = ["arxiv", "scholar"]
+        if not sort_by: sort_by = ["relevance"]
         
         BOLD, BLUE, WHITE, RESET = get_color("BOLD"), get_color("BLUE"), get_color("WHITE", "\033[37m"), get_color("RESET")
         start_time = time.time()
@@ -108,7 +111,10 @@ class SearchTool(ToolBase):
         def update_timer():
             while not stop_event.is_set():
                 elapsed = int(time.time() - start_time)
-                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Searching papers{RESET} for: '{query}'... ({elapsed}s)")
+                # Use translatable string for "Searching papers for"
+                msg_template = self.get_translation("search_papers_for", "Searching papers for: '{query}'...")
+                msg = msg_template.format(query=query)
+                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{msg}{RESET} ({elapsed}s)")
                 sys.stdout.flush()
                 time.sleep(1)
         
@@ -142,6 +148,8 @@ class SearchTool(ToolBase):
         for src, count in results_info:
             label = self.get_translation("label_successfully_received_from", "Successfully received search results from")
             print(f"{BOLD}{WHITE}{label}{RESET} {src} ({count}).")
+        
+        # ... (rest of the function)
             
         # Deduplicate by title
         unique = []
@@ -153,7 +161,6 @@ class SearchTool(ToolBase):
                 unique.append(p)
         
         # Filtering and Sorting
-        from tool.SEARCH.logic.paper.searcher import filter_and_sort_papers
         final_papers = filter_and_sort_papers(unique, query, sort_by, min_citations, min_year)
         
         return final_papers[:max_results]
@@ -163,7 +170,8 @@ class SearchTool(ToolBase):
         BOLD, GREEN, BLUE, WHITE, RESET = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("WHITE", "\033[37m"), get_color("RESET")
         
         if not results:
-            print(f"{BOLD}{get_color('RED')}No results found.{RESET}")
+            no_results_label = self.get_translation("search_no_results", "No results found.")
+            print(f"{BOLD}{get_color('RED')}{no_results_label}{RESET}")
             return
             
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -199,7 +207,7 @@ def main():
     parser.add_argument("--max", "-m", type=int, default=5, help="Max results")
     parser.add_argument("--paper", "-p", action="store_true", help="Search academic papers")
     parser.add_argument("--source", help="Sources for paper search (arxiv,scholar)")
-    parser.add_argument("--sort", choices=["relevance", "citations", "title", "date"], default="relevance", help="Sort criteria")
+    parser.add_argument("--sort", help="Sort criteria (comma-separated: relevance,citations,title,date)")
     parser.add_argument("--min-citations", type=int, default=0, help="Minimum citations (for papers)")
     parser.add_argument("--min-year", type=int, default=0, help="Minimum publication year")
     parser.add_argument("--exact", "-e", action="store_true", help="Enforce exact match")
@@ -208,7 +216,8 @@ def main():
     
     if args.paper:
         sources = args.source.split(",") if args.source else None
-        results = tool.paper_search(args.query, args.max, sources, args.sort, args.min_citations, args.min_year, args.exact)
+        sort_by = args.sort.split(",") if args.sort else ["relevance"]
+        results = tool.paper_search(args.query, args.max, sources, sort_by, args.min_citations, args.min_year, args.exact)
     else:
         results = tool.web_search(args.query, args.max, args.exact)
         
