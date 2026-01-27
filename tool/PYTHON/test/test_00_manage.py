@@ -16,8 +16,8 @@ class TestPythonManage(unittest.TestCase):
         """Test listing supported versions."""
         result = subprocess.run([str(self.python_tool), "--py-list"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        # Check for presence of "Supported versions:" regardless of language
-        self.assertIn("Supported versions:", result.stdout)
+        # Check for presence of "Supported versions" regardless of language or ANSI codes
+        self.assertIn("Supported versions", result.stdout)
         
     def test_install_custom_dir(self):
         """Test installing a supported version to a custom directory."""
