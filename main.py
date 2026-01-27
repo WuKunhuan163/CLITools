@@ -164,11 +164,33 @@ def update_config(key, value):
     if key == "terminal_width" and (value == 0 or value is None):
         print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
         # For dynamic mode, show the currently detected width for verification
+        detected = 80
         try:
-            detected = shutil.get_terminal_size(fallback=(80, 24)).columns
+            # 1. Try standard shutil
+            detected = shutil.get_terminal_size(fallback=(0, 0)).columns
+            
+            # 2. Try tput cols (more reliable in some shells)
+            if detected <= 0:
+                try:
+                    res = subprocess.run(["tput", "cols"], capture_output=True, text=True, timeout=1)
+                    if res.returncode == 0: detected = int(res.stdout.strip())
+                except: pass
+                
+            # 3. Try stty size
+            if detected <= 0:
+                try:
+                    res = subprocess.run(["stty", "size"], capture_output=True, text=True, timeout=1)
+                    if res.returncode == 0: detected = int(res.stdout.split()[1])
+                except: pass
+                
+            # 4. Final fallback
+            if detected <= 0: detected = 80
+            
             print(f"Current detected width: {detected}")
             print("=" * detected)
-        except: pass
+        except: 
+            print("Current detected width: 80 (fallback)")
+            print("=" * 80)
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
         if key == "terminal_width" and value and isinstance(value, int) and value > 0:
@@ -1226,7 +1248,7 @@ def main():
     audit_bin_parser.add_argument("--fix", action="store_true", help="Try to fix violations")
     
     config_parser = subparsers.add_parser("config", help="Manage global configuration")
-    config_parser.add_argument("--terminal-width", type=int, help="Manually set terminal width (for testing)")
+    config_parser.add_argument("--terminal-width", type=str, help="Manually set terminal width (integer or 'auto')")
     config_parser.add_argument("--manager-debug", type=int, choices=[0, 1], help="Enable or disable terminal manager debugging")
     
     subparsers.add_parser("clear", help="Clear the terminal screen")
@@ -1250,7 +1272,14 @@ def main():
         else: _show_current_language()
     elif args.command == "config":
         if args.terminal_width is not None:
-            update_config("terminal_width", args.terminal_width)
+            val = args.terminal_width
+            if val.lower() == "auto":
+                update_config("terminal_width", 0)
+            else:
+                try:
+                    update_config("terminal_width", int(val))
+                except ValueError:
+                    print(f"{BOLD}{RED}Error{RESET}: terminal-width must be an integer or 'auto'.")
         if args.manager_debug is not None:
             update_config("manager_debug", bool(args.manager_debug))
     elif args.command == "clear":
