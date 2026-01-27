@@ -65,7 +65,9 @@ class TestRunner:
             print(f"  [{i}] {test.name}")
 
     def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60, quiet_if_no_tests=False) -> bool:
-        # ... existing ...
+        old_lang = os.environ.get("TOOL_LANGUAGE")
+        os.environ["TOOL_LANGUAGE"] = "en" # Force English for tests
+        
         try:
             all_tests = self._get_test_files()
             if not all_tests:
@@ -86,6 +88,8 @@ class TestRunner:
 
             print(self._("test_running", "Preparing to run {count} tests for {tool} tool (max {max} concurrent tests)...", count=len(selected_tests), tool=self.tool_name, max=max_concurrent))
             sys.stdout.flush()
+            
+            success = self._run_parallel_tests(selected_tests, max_concurrent, timeout)
             return success
             
         finally:
