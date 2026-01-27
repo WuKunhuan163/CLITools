@@ -22,18 +22,7 @@ def _get_configured_width():
     config_width = get_global_config("terminal_width")
     if config_width and isinstance(config_width, int) and config_width > 0:
         return config_width
-    
-    # Try detecting, with a safe fallback
-    try:
-        # Use shutil for better cross-platform/redirection handling
-        columns = shutil.get_terminal_size(fallback=(80, 24)).columns
-        # Many restricted/piped environments report 0, 1, or very small widths
-        # If it's too small, it's likely a detection failure in piped mode
-        if columns < 45: 
-            return 80
-        return columns
-    except:
-        return 80
+    return shutil.get_terminal_size((80, 20)).columns
 
 def wrap_text(text, width):
     """
