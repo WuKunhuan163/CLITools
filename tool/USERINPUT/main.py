@@ -473,15 +473,10 @@ def main():
             # If it's a sandbox error or explicit termination, don't retry
             # Note: run_gui_with_fallback now handles most sandbox cases internally
             error_str = str(e)
-            if any(msg in error_str.lower() or msg in error_str for msg in ["sandbox", "display", "Terminated", "Cancelled", "沙盒", "权限", "No valid response from GUI", "Unknown error"]):
+            if any(msg in error_str.lower() or msg in error_str for msg in ["sandbox", "display", "Terminated", "Cancelled", "沙盒", "权限"]):
                 sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
             
-            # If it's "No valid response" or empty output, and the process was likely killed, don't retry
-            if "No valid response" in error_str or "empty output" in error_str:
-                sys.stdout.write("\r\033[K"); sys.stdout.flush()
-                print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
-                return 0
-
+            # If it's empty output or other unknown error, retry up to max_retries
             sys.stdout.write(f"\r\033[K{BOLD}{RED}{get_msg('label_failed', 'Failed')}{RESET}: Attempt {attempt+1} ({e}). Retrying...")
             sys.stdout.flush()
             if attempt < 2: time.sleep(1); continue
