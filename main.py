@@ -1093,10 +1093,67 @@ def _list_languages():
     table_str, report_path = format_table(headers, table_rows, max_width=80, save_dir="lang")
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)
 
+def _list_tools(force=False):
+    """List all available tools and their status."""
+    project_root = ROOT_PROJECT_ROOT
+    cache_path = project_root / "data" / "tool_cache.json"
+    
+    cache = {}
+    if not force and cache_path.exists():
+        try:
+            with open(cache_path, 'r') as f: cache = json.load(f)
+        except: pass
+    
+    # Re-scan if empty or forced
+    if not cache or force:
+        registry_path = project_root / "tool.json"
+        if not registry_path.exists():
+            print(f"{BOLD}{RED}Error{RESET}: Global tool.json not found.")
+            return
+            
+        with open(registry_path, 'r') as f:
+            tools_list = json.load(f).get("tools", [])
+        
+        cache = {}
+        for name in tools_list:
+            tool_json = project_root / "tool" / name / "tool.json"
+            info = {"installed": (project_root / "tool" / name).exists()}
+            if tool_json.exists():
+                try:
+                    with open(tool_json, 'r') as f:
+                        data = json.load(f)
+                        info["description"] = data.get("description", "No description")
+                        info["purpose"] = data.get("purpose", "No purpose")
+                except:
+                    info["description"] = "Error reading tool.json"
+            else:
+                # If not local, we might have some minimal info in global registry (legacy)
+                # But we'll just say not found for now
+                info["description"] = "Not found locally (run 'TOOL install' to fetch)"
+                info["purpose"] = "N/A"
+            cache[name] = info
+            
+        # Save cache
+        cache_path.parent.mkdir(exist_ok=True)
+        with open(cache_path, 'w') as f:
+            json.dump(cache, f, indent=2)
+
+    # Display
+    print(f"\n--- {BOLD}{BLUE}AITerminalTools Registry{RESET} ---")
+    for name, info in sorted(cache.items()):
+        status = f"{GREEN}[installed]{RESET}" if info.get("installed") else f"{YELLOW}[available]{RESET}"
+        print(f"{BOLD}{name}{RESET} {status}")
+        print(f"  {info.get('description', 'No description')}")
+        print(f"  Purpose: {info.get('purpose', 'No purpose')}\n")
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(prog="TOOL", description="AITerminalTools manager.")
     subparsers = parser.add_subparsers(dest="command")
+    
+    list_parser = subparsers.add_parser("list", help="List all available tools")
+    list_parser.add_argument("--force", action="store_true", help="Force refresh tool information cache")
+    
     install_parser = subparsers.add_parser("install")
     install_parser.add_argument("tool_name")
     
@@ -1164,7 +1221,8 @@ def main():
         parser.print_help()
         return
     args = parser.parse_args()
-    if args.command == "install": install_tool(args.tool_name)
+    if args.command == "list": _list_tools(args.force)
+    elif args.command == "install": install_tool(args.tool_name)
     elif args.command == "reinstall": reinstall_tool(args.tool_name)
     elif args.command == "uninstall": uninstall_tool(args.tool_name, args.yes)
     elif args.command == "test": _test_tool_with_args(args)

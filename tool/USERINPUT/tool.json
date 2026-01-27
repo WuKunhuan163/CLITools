@@ -14,7 +14,8 @@
     "USERINPUT config --focus-interval <sec>: Set refocus/bell interval (default 90s).",
     "USERINPUT config --time-increment <sec>: Set 'Add Time' button increment (default 60s)."
   ],
-  "dependencies": ["PYTHON"],
+  "dependencies": ["PYTHON", "FILEDIALOG"],
+  "pip_dependencies": ["psutil"],
   "test_parallel": 3,
   "run_compatible": true,
   "testable": false
