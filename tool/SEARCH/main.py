@@ -16,7 +16,6 @@ import threading
 import concurrent.futures
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import requests
 from datetime import datetime
 
 # Add project root to sys.path
@@ -29,7 +28,6 @@ try:
     from logic.tool.base import ToolBase
     from logic.config import get_color
     from logic.utils import get_logic_dir
-    from tool.SEARCH.logic.paper.searcher import PaperSearcher, filter_and_sort_papers
 except ImportError:
     class ToolBase:
         def __init__(self, name):
@@ -40,11 +38,13 @@ except ImportError:
         def get_translation(self, k, d): return d
     def get_color(n, d=""): return d
     def get_logic_dir(d): return d / "logic"
-    # Note: PaperSearcher must be importable
 
 class SearchTool(ToolBase):
     def __init__(self):
         super().__init__("SEARCH")
+        import requests
+        from tool.SEARCH.logic.paper.searcher import PaperSearcher
+        
         self.results_dir = self.project_root / "tool" / "SEARCH" / "data" / "results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self.session = requests.Session()
@@ -153,6 +153,7 @@ class SearchTool(ToolBase):
                 unique.append(p)
         
         # Filtering and Sorting
+        from tool.SEARCH.logic.paper.searcher import filter_and_sort_papers
         final_papers = filter_and_sort_papers(unique, query, sort_by, min_citations, min_year)
         
         return final_papers[:max_results]
