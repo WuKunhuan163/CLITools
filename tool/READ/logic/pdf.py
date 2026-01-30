@@ -55,29 +55,91 @@ def parse_page_spec(spec: str, total_pages: int) -> List[int]:
             except: pass
     return sorted(list(set(pages)))
 
-def sort_blocks_by_reading_order(blocks: List[Any], page_width: float) -> List[Any]:
-    """Sort text blocks into a logical reading order (multi-column aware)."""
-    # Simple heuristic: Split into 2 columns if width allows
-    # Blocks: (x0, y0, x1, y1, "text", block_no, block_type)
-    
-    # Sort primarily by X-halves, then by top Y
-    def get_sort_key(b):
-        x0, y0, x1, y1 = b[:4]
-        # Identify which column it belongs to (0 or 1)
-        # Using a threshold of 0.5 * page_width
-        column = 0 if x0 < page_width * 0.5 else 1
-        # If block spans more than 60% of the page, it's likely a header/footer or full-width
-        if (x1 - x0) > page_width * 0.6:
-            # Full width blocks: 
-            # If at the top, they should come first (column -1?)
-            # If at the bottom, they should come last (column 2?)
-            if y0 < page_width * 0.2: column = -1 # Top header
-            elif y1 > page_width * 0.8: column = 2 # Bottom footer
-            else: column = 0 # Assume left for now
-            
-        return (column, y0)
+def sort_blocks_reading_order(blocks: List[Any], page_width: float, page_height: float) -> List[Any]:
+    """
+    Advanced sorting for complex paper layouts.
+    Handles multi-column text and correctly identifies headers/footers.
+    """
+    if not blocks:
+        return []
 
-    return sorted(blocks, key=get_sort_key)
+    # 1. Identify headers and footers by position, regardless of width
+    # Thresholds: top 10% and bottom 10%
+    header_y_limit = page_height * 0.1
+    footer_y_limit = page_height * 0.9
+    
+    headers = []
+    footers = []
+    body_blocks = []
+    
+    for b in blocks:
+        x0, y0, x1, y1 = b[:4]
+        if y1 < header_y_limit:
+            headers.append(b)
+        elif y0 > footer_y_limit:
+            footers.append(b)
+        else:
+            body_blocks.append(b)
+            
+    # 2. Process body blocks into vertical zones separated by spanning elements
+    body_blocks.sort(key=lambda b: b[1]) # Sort by Y
+    
+    spanning_width_threshold = page_width * 0.6
+    
+    zones = []
+    current_zone = []
+    
+    for b in body_blocks:
+        x0, y0, x1, y1 = b[:4]
+        is_spanning = (x1 - x0) > spanning_width_threshold
+        
+        if is_spanning:
+            if current_zone:
+                zones.append(('body', current_zone))
+                current_zone = []
+            zones.append(('spanning', [b]))
+        else:
+            current_zone.append(b)
+            
+    if current_zone:
+        zones.append(('body', current_zone))
+        
+    final_sorted = []
+    # Headers first
+    headers.sort(key=lambda b: b[1])
+    final_sorted.extend(headers)
+    
+    # Body zones
+    for zone_type, zone_blocks in zones:
+        if zone_type == 'spanning':
+            final_sorted.extend(zone_blocks)
+        else:
+            # Body zone: Detect sub-columns using X clustering
+            zone_blocks.sort(key=lambda b: b[0])
+            
+            columns = []
+            if zone_blocks:
+                current_col = [zone_blocks[0]]
+                for i in range(1, len(zone_blocks)):
+                    prev_b = zone_blocks[i-1]
+                    curr_b = zone_blocks[i]
+                    
+                    # Threshold for new column: 5% of page width
+                    if curr_b[0] - prev_b[0] > page_width * 0.05:
+                        columns.append(sorted(current_col, key=lambda b: b[1]))
+                        current_col = [curr_b]
+                    else:
+                        current_col.append(curr_b)
+                columns.append(sorted(current_col, key=lambda b: b[1]))
+                
+            for col in columns:
+                final_sorted.extend(col)
+                
+    # Footers last
+    footers.sort(key=lambda b: b[1])
+    final_sorted.extend(footers)
+    
+    return final_sorted
 
 def extract_pdf(pdf_path: Path, output_images_dir: Path, page_spec: Optional[str] = None) -> str:
     """Extract text and images from a PDF file."""
@@ -116,10 +178,9 @@ def extract_pdf(pdf_path: Path, output_images_dir: Path, page_spec: Optional[str
                     pix = None
                 except: pass
 
-        # 2. Extract Text with layout-aware sorting
-        # get_text("blocks") returns List of (x0, y0, x1, y1, "text", block_no, block_type)
+        # 2. Extract Text with improved layout-aware sorting
         blocks = page.get_text("blocks")
-        sorted_blocks = sort_blocks_by_reading_order(blocks, page_rect.width)
+        sorted_blocks = sort_blocks_reading_order(blocks, page_rect.width, page_rect.height)
         
         page_text = ""
         for b in sorted_blocks:
