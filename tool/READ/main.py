@@ -24,13 +24,8 @@ class ReadTool(ToolBase):
         parser = argparse.ArgumentParser(description=self.get_translation("tool_READ_desc", "Read and extract content from PDF, Word, and images."))
         parser.add_argument("file", nargs="?", help="Path to the file to read")
         parser.add_argument("-o", "--output", help="Output markdown file path")
-        parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
         
         args, unknown = parser.parse_known_args()
-
-        if args.demo:
-            self.show_demo()
-            return
 
         if not args.file:
             parser.print_help()
@@ -73,13 +68,6 @@ class ReadTool(ToolBase):
 
         if tm.run():
             print(f"\n{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_file}")
-
-    def show_demo(self):
-        BOLD = self.get_color("BOLD")
-        GREEN = self.get_color("GREEN")
-        BLUE = self.get_color("BLUE")
-        RESET = self.get_color("RESET")
-        print(f"{BOLD}{BLUE}Progressing{RESET}... {BOLD}{GREEN}Successfully{RESET} finished!")
 
 def main():
     tool = ReadTool()

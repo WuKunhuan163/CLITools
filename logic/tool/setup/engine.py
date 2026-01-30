@@ -56,19 +56,32 @@ class ToolEngine:
         return True
 
     def install(self, is_dependency=False):
-        # Check if already installed
+        # 1. Check if correctly installed
         if self.is_installed():
             status = self._("label_already_installed", "Already installed")
+            msg = f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}"
             if is_dependency:
-                # Erasable status for dependencies
-                sys.stdout.write(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
+                sys.stdout.write(msg)
                 sys.stdout.flush()
             else:
-                print(f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}")
+                print(msg)
             return True
 
+        # 2. Check for partial installation/missing deps
+        is_partial = self.tool_dir.exists() or (self.bin_dir / self.tool_name).exists()
+        
         tm = ProgressTuringMachine()
         
+        # Add uninstall stage if partial
+        if is_partial and not is_dependency:
+            tm.add_stage(TuringStage(
+                name=self.tool_name,
+                action=self.uninstall_action,
+                active_status=self._("label_uninstalling", "Uninstalling partial"),
+                success_status=self._("label_ready", "Ready for reinstall"),
+                success_color="WHITE"
+            ))
+
         # 1. Validation
         tm.add_stage(TuringStage(
             name=self._("label_validation", "Validation"),
@@ -159,6 +172,11 @@ class ToolEngine:
             return True
         return False
 
+    def reinstall(self):
+        """Force reinstall of the tool."""
+        self.uninstall()
+        self.install()
+
     # --- Actions ---
 
     def validate_registry(self):
@@ -173,11 +191,9 @@ class ToolEngine:
         return True
 
     def fetch_source(self):
-        # We handle sub-status display manually here since we want to show branch names
-        sources = [("tool", "locally"), ("origin/tool", "remotely")]
-        for branch, loc in sources:
-            sys.stdout.write(f"\r\033[K{self.BOLD}{self.BLUE}{self._('label_fetching', 'Fetching')}{self.RESET} {self.tool_name} {loc}...")
-            sys.stdout.flush()
+        # Try local branch first, then remote
+        sources = ["tool", "origin/tool"]
+        for branch in sources:
             try:
                 cmd = ["git", "checkout", branch, "--", f"tool/{self.tool_name}"]
                 if subprocess.run(cmd, capture_output=True, cwd=str(self.project_root)).returncode == 0:
