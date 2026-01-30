@@ -13,7 +13,11 @@ The PDF extraction uses `PyMuPDF` (fitz) and follows these steps:
     - Generates a unique hash-based filename for each image to avoid duplicates.
     - Places a `[placeholder: image]` tag in the markdown output followed by the absolute path to the extracted image.
 3.  **Text Extraction**: 
-    - Retrieves raw text from the page.
+    - Retrieves text blocks from the page using `get_text("blocks")`.
+    - **Layout-Aware Sorting**: To fix the issue of out-of-order text in multi-column layouts, the tool now implements a sorting heuristic:
+        - Detects if blocks belong to the left column, right column, or span the full width (headers/footers).
+        - Sorts primarily by column (Header -> Left Column -> Right Column -> Footer) and secondarily by vertical (Y) position.
+        - This ensures that sections like "6.2 Comparisons" and "7. CONCLUSION" appear in their logical reading order rather than their internal PDF storage order.
     - **Smart Linebreak Handling**: Uses a heuristic based on ending punctuation (`.`, `!`, `?`, `。`, `！`, `？` etc.) to decide whether to merge consecutive lines. This prevents fragmented sentences caused by PDF layout breaks while preserving actual paragraph boundaries.
 4.  **Organized Output**:
     - Creates a timestamped and hash-identified directory in `data/pdf/`.
