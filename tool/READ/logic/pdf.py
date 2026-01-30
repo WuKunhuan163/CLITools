@@ -55,6 +55,30 @@ def parse_page_spec(spec: str, total_pages: int) -> List[int]:
             except: pass
     return sorted(list(set(pages)))
 
+def sort_blocks_by_reading_order(blocks: List[Any], page_width: float) -> List[Any]:
+    """Sort text blocks into a logical reading order (multi-column aware)."""
+    # Simple heuristic: Split into 2 columns if width allows
+    # Blocks: (x0, y0, x1, y1, "text", block_no, block_type)
+    
+    # Sort primarily by X-halves, then by top Y
+    def get_sort_key(b):
+        x0, y0, x1, y1 = b[:4]
+        # Identify which column it belongs to (0 or 1)
+        # Using a threshold of 0.5 * page_width
+        column = 0 if x0 < page_width * 0.5 else 1
+        # If block spans more than 60% of the page, it's likely a header/footer or full-width
+        if (x1 - x0) > page_width * 0.6:
+            # Full width blocks: 
+            # If at the top, they should come first (column -1?)
+            # If at the bottom, they should come last (column 2?)
+            if y0 < page_width * 0.2: column = -1 # Top header
+            elif y1 > page_width * 0.8: column = 2 # Bottom footer
+            else: column = 0 # Assume left for now
+            
+        return (column, y0)
+
+    return sorted(blocks, key=get_sort_key)
+
 def extract_pdf(pdf_path: Path, output_images_dir: Path, page_spec: Optional[str] = None) -> str:
     """Extract text and images from a PDF file."""
     doc = fitz.open(str(pdf_path))
@@ -66,6 +90,7 @@ def extract_pdf(pdf_path: Path, output_images_dir: Path, page_spec: Optional[str
     
     for page_num in pages:
         page = doc[page_num]
+        page_rect = page.rect
         content.append(f"## Page {page_num + 1}\n")
         
         # 1. Extract Images
@@ -91,10 +116,20 @@ def extract_pdf(pdf_path: Path, output_images_dir: Path, page_spec: Optional[str
                     pix = None
                 except: pass
 
-        # 2. Extract Text
-        text = page.get_text()
-        processed_text = process_text_linebreaks(text)
-        content.append(processed_text + "\n")
+        # 2. Extract Text with layout-aware sorting
+        # get_text("blocks") returns List of (x0, y0, x1, y1, "text", block_no, block_type)
+        blocks = page.get_text("blocks")
+        sorted_blocks = sort_blocks_by_reading_order(blocks, page_rect.width)
+        
+        page_text = ""
+        for b in sorted_blocks:
+            if b[6] == 0: # Text block
+                block_text = b[4].strip()
+                if block_text:
+                    processed_block = process_text_linebreaks(block_text)
+                    page_text += processed_block + "\n\n"
+        
+        content.append(page_text)
         
     doc.close()
     return '\n'.join(content)
