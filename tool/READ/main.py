@@ -92,9 +92,9 @@ class ReadTool(ToolBase):
 
         # Use ephemeral=True to allow our custom success message to overwrite the machine's output cleanly.
         if tm.run(ephemeral=True):
-            duration = int(time.time() - start_time)
-            # Update success message format: Successfully extracted <filename> (<seconds>s)
-            success_msg = f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{self.get_translation('label_successfully', 'Successfully')} {self.get_translation('label_extracted', 'extracted')}{self.get_color('RESET')} {file_path.name} ({duration}s)"
+            duration = time.time() - start_time
+            # Update success message format: Successfully extracted <filename> (<seconds>s) with 2 decimal places
+            success_msg = f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{self.get_translation('label_successfully', 'Successfully')} {self.get_translation('label_extracted', 'extracted')}{self.get_color('RESET')} {file_path.name} ({duration:.2f}s)"
             sys.stdout.write(success_msg + "\n")
             sys.stdout.flush()
             
