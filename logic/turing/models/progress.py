@@ -12,6 +12,8 @@ class ProgressTuringMachine:
         
     def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
         from logic.config import get_color
+        from logic.turing.display.manager import truncate_to_width, _get_configured_width
+        
         BLUE = get_color("BLUE", "\033[34m")
         BOLD = get_color("BOLD", "\033[1m")
         RED = get_color("RED", "\033[31m")
@@ -22,7 +24,11 @@ class ProgressTuringMachine:
             is_last = (i == len(self.stages) - 1)
             # Show active status - entire status prefix is now bold blue
             active_name = stage.active_name or stage.name
-            sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}...")
+            
+            # Truncate to avoid line wrapping which breaks \r\033[K
+            width = _get_configured_width()
+            active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+            sys.stdout.write(f"\r\033[K{truncate_to_width(active_msg, width)}")
             sys.stdout.flush()
             
             try:
@@ -40,10 +46,13 @@ class ProgressTuringMachine:
                         # Default: Only success_status is bolded
                         full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
                     
+                    # Truncate success message as well
+                    full_msg = truncate_to_width(full_msg, width)
+                    
                     if ephemeral:
                         if is_last and final_msg is not None:
                             # Overwrite the last stage with final_msg
-                            sys.stdout.write(f"\r\033[K{final_msg}")
+                            sys.stdout.write(f"\r\033[K{truncate_to_width(final_msg, width)}")
                         elif is_last and not final_newline:
                             # Print last stage without newline
                             sys.stdout.write(f"\r\033[K{full_msg}")
@@ -63,7 +72,7 @@ class ProgressTuringMachine:
                     
                     if ephemeral:
                         if final_msg is not None:
-                            sys.stdout.write(f"{final_msg}")
+                            sys.stdout.write(f"{truncate_to_width(final_msg, width)}")
                             if final_newline: sys.stdout.write("\n")
                         # If ephemeral and final_msg is None, we just leave it erased
                     else:
@@ -75,7 +84,7 @@ class ProgressTuringMachine:
                             full_msg_fail = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
                         else:
                             full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
-                        sys.stdout.write(f"{full_msg_fail}\n")
+                        sys.stdout.write(f"{truncate_to_width(full_msg_fail, width)}\n")
                     
                     sys.stdout.flush()
                     return False
@@ -86,11 +95,12 @@ class ProgressTuringMachine:
                 
                 if ephemeral:
                     if final_msg is not None:
-                        sys.stdout.write(f"{final_msg}")
+                        sys.stdout.write(f"{truncate_to_width(final_msg, width)}")
                         if final_newline: sys.stdout.write("\n")
                 else:
                     fail_name = stage.fail_name or stage.name
-                    sys.stdout.write(f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}\n")
+                    fail_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}"
+                    sys.stdout.write(f"{truncate_to_width(fail_msg, width)}\n")
                 
                 sys.stdout.flush()
                 return False
