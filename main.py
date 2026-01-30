@@ -40,43 +40,6 @@ def _(translation_key, default, **kwargs):
 
 def install_tool(tool_name):
     project_root = ROOT_PROJECT_ROOT
-    tool_parent_dir = project_root / "tool"
-    tool_parent_dir.mkdir(exist_ok=True)
-    tool_dir = tool_parent_dir / tool_name
-    bin_dir = project_root / "bin"
-    
-    # Check if already installed
-    link_path = bin_dir / tool_name
-    installed_locally = tool_dir.exists() and (link_path.exists() or link_path.is_symlink())
-    
-    if installed_locally:
-        # Even if installed, check if dependencies are missing
-        missing_dep = False
-        tool_json_path = tool_dir / "tool.json"
-        if tool_json_path.exists():
-            try:
-                with open(tool_json_path, 'r') as f:
-                    tool_data = json.load(f)
-                    dependencies = tool_data.get("dependencies", [])
-                    for dep in dependencies:
-                        dep_dir = tool_parent_dir / dep
-                        dep_link = bin_dir / dep
-                        if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
-                            missing_dep = True
-                            break
-            except: pass
-        
-        if not missing_dep:
-            already_status = _("label_installed", "Already installed")
-            print(f"{BOLD}{GREEN}{already_status}{RESET}: {tool_name}")
-            return
-        else:
-            print(f"{BOLD}{YELLOW}" + _("label_warning", "Warning") + f"{RESET}: " + _("missing_deps_repair", "Tool '{name}' is missing dependencies. Repairing...", name=tool_name))
-    elif tool_dir.exists() or link_path.exists() or link_path.is_symlink():
-        # Partially installed, perform reinstall
-        print(f"{BOLD}{YELLOW}" + _("label_warning", "Warning") + f"{RESET}: " + _("partial_install_detected", "Tool '{name}' installation is incomplete. Reinstalling...", name=tool_name))
-        return reinstall_tool(tool_name)
-
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
     engine.install()
@@ -85,8 +48,7 @@ def reinstall_tool(tool_name):
     project_root = ROOT_PROJECT_ROOT
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
-    engine.uninstall()
-    engine.install()
+    engine.reinstall()
 
 def uninstall_tool(tool_name, force_yes=False):
     project_root = ROOT_PROJECT_ROOT
