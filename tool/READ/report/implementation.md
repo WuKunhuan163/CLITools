@@ -14,11 +14,12 @@ The PDF extraction uses `PyMuPDF` (fitz) and follows these steps:
     - Places a `[placeholder: image]` tag in the markdown output followed by the absolute path to the extracted image.
 3.  **Text Extraction**: 
     - Retrieves text blocks from the page using `get_text("blocks")`.
-    - **Layout-Aware Sorting**: To fix the issue of out-of-order text in multi-column layouts, the tool now implements a sorting heuristic:
-        - Detects if blocks belong to the left column, right column, or span the full width (headers/footers).
-        - Sorts primarily by column (Header -> Left Column -> Right Column -> Footer) and secondarily by vertical (Y) position.
-        - This ensures that sections like "6.2 Comparisons" and "7. CONCLUSION" appear in their logical reading order rather than their internal PDF storage order.
-    - **Smart Linebreak Handling**: Uses a heuristic based on ending punctuation (`.`, `!`, `?`, `。`, `！`, `？` etc.) to decide whether to merge consecutive lines. This prevents fragmented sentences caused by PDF layout breaks while preserving actual paragraph boundaries.
+    - **Advanced Reading Order Algorithm**: To handle complex two-column paper layouts, the tool uses a multi-stage sorting heuristic:
+        1.  **Position-Based Header/Footer Detection**: Blocks in the top 10% or bottom 10% of the page are identified as potential headers/footers and prioritized for start/end placement.
+        2.  **Vertical Zone Segmentation**: The remaining body is divided into vertical zones by identifying "spanning" blocks (those spanning >60% of the page width, like wide figures or section headers).
+        3.  **X-Coordinate Clustering**: Within each body zone, sub-columns (like the nested columns in a References section) are detected by clustering blocks with similar horizontal alignments.
+        4.  **Sequential Merging**: Blocks are then merged in order: Headers -> (Top-to-Bottom Zones, each sorted Left-to-Right Column) -> Footers.
+    - **Smart Linebreak Handling**: Uses a heuristic based on ending punctuation to smartly merge lines, ensuring fluid sentences while respecting paragraph breaks.
 4.  **Organized Output**:
     - Creates a timestamped and hash-identified directory in `data/pdf/`.
     - Saves the final content as `text.md`.

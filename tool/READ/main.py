@@ -90,13 +90,13 @@ class ReadTool(ToolBase):
             bold_part=self.get_translation("label_extracting", "Extracting")
         ))
 
-        # Use ephemeral=True to allow our custom success message to overwrite the machine's output cleanly.
-        if tm.run(ephemeral=True):
+        if tm.run():
             duration = time.time() - start_time
-            # Update success message format: Successfully extracted <filename> (<seconds>s) with 2 decimal places
-            success_msg = f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{self.get_translation('label_successfully', 'Successfully')} {self.get_translation('label_extracted', 'extracted')}{self.get_color('RESET')} {file_path.name} ({duration:.2f}s)"
-            sys.stdout.write(success_msg + "\n")
-            sys.stdout.flush()
+            # Final success message with duration, formatted precisely
+            success_label = self.get_translation('label_successfully', 'Successfully')
+            extracted_label = self.get_translation('label_extracted', 'extracted')
+            # Use \r\033[K to ensure we overwrite the last stage's transient status
+            print(f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{success_label} {extracted_label}{self.get_color('RESET')} {file_path.name} ({duration:.2f}s)")
             
             # Print result path without empty line
             print(f"{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_file}")
