@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Setup script for TEX tool.
-Installs required Python dependencies and optionally TinyTeX.
+Installs TinyTeX distribution locally.
+Python dependencies (tinytex) are handled by ToolEngine via tool.json.
 """
 
 import os
@@ -19,29 +20,12 @@ if str(project_root) not in sys.path:
 try:
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
-    from logic.config import get_color
-    from logic.utils import get_logic_dir
 except ImportError:
-    # Fallback if logic not available
     class ProgressTuringMachine:
         def add_stage(self, stage): stage.action()
         def run(self, **kwargs): return True
     class TuringStage:
         def __init__(self, **kwargs): self.action = kwargs.get('action')
-    def get_color(n, d=""): return d
-    def get_logic_dir(d): return d / "logic"
-
-def run_command(cmd, cwd=None):
-    res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f"Command failed: {' '.join(cmd)}\nError: {res.stderr}")
-    return res.stdout
-
-def install_deps():
-    """Install python dependencies."""
-    cmd = [sys.executable, "-m", "pip", "install", "tinytex"]
-    subprocess.run(cmd, capture_output=True)
-    return True
 
 def install_tinytex():
     """Install TinyTeX distribution locally."""
@@ -54,30 +38,20 @@ def install_tinytex():
     install_dir.mkdir(parents=True, exist_ok=True)
     
     # Use the tinytex python module to install, but capture its output
-    # to avoid messing up the ProgressTuringMachine display.
-    import tinytex
-    import os
-    from contextlib import redirect_stdout, redirect_stderr
-    import io
-    
-    with open(os.devnull, 'w') as devnull:
-        with redirect_stdout(devnull), redirect_stderr(devnull):
-            tinytex.install_tinytex(force=True, dir=str(tinytex_root))
-    return True
+    try:
+        import tinytex
+        from contextlib import redirect_stdout, redirect_stderr
+        
+        with open(os.devnull, 'w') as devnull:
+            with redirect_stdout(devnull), redirect_stderr(devnull):
+                tinytex.install_tinytex(force=True, dir=str(tinytex_root))
+        return True
+    except:
+        return False
 
 def main():
     tm = ProgressTuringMachine()
     
-    tm.add_stage(TuringStage(
-        name="Python dependencies",
-        action=install_deps,
-        active_status="Installing",
-        success_status="Installed",
-        fail_status="Failed to install"
-    ))
-    
-    # Optional: TinyTeX installation can be large, maybe ask user?
-    # For now, let's make it part of setup.
     tm.add_stage(TuringStage(
         name="TinyTeX distribution",
         action=install_tinytex,
@@ -87,10 +61,8 @@ def main():
     ))
     
     if tm.run(ephemeral=True):
-        print("\nTEX tool setup complete!")
         return 0
     return 1
 
 if __name__ == "__main__":
     sys.exit(main())
-
