@@ -21,7 +21,7 @@ class TestLangList(unittest.TestCase):
         return None
 
     def test_05_lang_list(self):
-        """(5) 测试列出支持的语言。"""
+        """(5) 测试列出支持的语言. """
         res = self.run_tool(["lang", "list"])
         if res.returncode != 0:
             print(f"STDOUT: {res.stdout}")

@@ -68,7 +68,7 @@ class ProcessManager:
         return None
 
     def cleanup_dead_processes(self):
-        """更新已死亡进程的状态，但保留记录"""
+        """更新已死亡进程的状态, 但保留记录"""
         updated = False
         for pid_str, proc_info in self.processes.items():
             try:
@@ -94,7 +94,7 @@ class ProcessManager:
                     updated = True
                     
             except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
-                # 进程已死亡，标记为完成
+                # 进程已死亡, 标记为完成
                 if proc_info.get('status') != 'completed':
                     proc_info['status'] = 'completed'
                     if 'return_code' not in proc_info or proc_info['return_code'] is None:
@@ -115,7 +115,7 @@ class ProcessManager:
             
             first_cmd = cmd_parts[0]
             
-            # 跳过shell内置命令，这些命令不需要别名解析
+            # 跳过shell内置命令, 这些命令不需要别名解析
             shell_builtins = {
                 'cd', 'pwd', 'echo', 'printf', 'test', '[', 'exit', 'return',
                 'source', '.', 'exec', 'eval', 'set', 'unset', 'export',
@@ -129,14 +129,14 @@ class ProcessManager:
                 return command
             
         except ValueError:
-            # 如果shlex.split失败，直接返回原命令
+            # 如果shlex.split失败, 直接返回原命令
             return command
         
         if shell == 'zsh':
-            # 使用交互式zsh来解析别名，先尝试alias命令，再尝试which
+            # 使用交互式zsh来解析别名, 先尝试alias命令, 再尝试which
             resolve_cmd = f'zsh -i -c "alias {shlex.quote(first_cmd)} 2>/dev/null | cut -d= -f2- | tr -d \"\\047\" || which {shlex.quote(first_cmd)} 2>/dev/null || echo {shlex.quote(first_cmd)}"'
         elif shell == 'bash':
-            # 使用交互式bash来解析别名，先尝试alias命令，再尝试which
+            # 使用交互式bash来解析别名, 先尝试alias命令, 再尝试which
             resolve_cmd = f'bash -i -c "alias {shlex.quote(first_cmd)} 2>/dev/null | cut -d= -f2- | tr -d \"\\047\" || which {shlex.quote(first_cmd)} 2>/dev/null || echo {shlex.quote(first_cmd)}"'
         else:
             return command
@@ -146,27 +146,27 @@ class ProcessManager:
             if result.returncode == 0 and result.stdout.strip():
                 resolved_cmd = result.stdout.strip()
                 
-                # 检查resolved_cmd是否包含"built-in"等字样，如果是则跳过替换
+                # 检查resolved_cmd是否包含"built-in"等字样, 如果是则跳过替换
                 if 'built-in' in resolved_cmd.lower() or 'shell function' in resolved_cmd.lower():
                     return command
                 
                 # 处理别名替换
                 if resolved_cmd != first_cmd:
-                    # 如果是路径形式的命令，直接替换第一个参数
+                    # 如果是路径形式的命令, 直接替换第一个参数
                     if resolved_cmd.startswith('/') or resolved_cmd.startswith('./'):
                         cmd_parts[0] = resolved_cmd
                         return ' '.join(shlex.quote(part) for part in cmd_parts)
-                    # 如果是别名（包含空格），替换整个命令的第一部分
+                    # 如果是别名（包含空格）, 替换整个命令的第一部分
                     elif ' ' in resolved_cmd:
                         # 解析别名命令
                         try:
                             alias_parts = shlex.split(resolved_cmd)
-                            # 用别名替换原命令的第一部分，保留原命令的其他参数
+                            # 用别名替换原命令的第一部分, 保留原命令的其他参数
                             new_cmd_parts = alias_parts + cmd_parts[1:]
-                            # 不要对整个命令进行quote，而是直接拼接
+                            # 不要对整个命令进行quote, 而是直接拼接
                             return ' '.join(new_cmd_parts)
                         except ValueError:
-                            # 如果别名解析失败，回退到原命令
+                            # 如果别名解析失败, 回退到原命令
                             return command
                     
         except (subprocess.TimeoutExpired, subprocess.SubprocessError):
@@ -175,7 +175,7 @@ class ProcessManager:
         return command
     
     def _cleanup_old_logs(self, limit=None, batch_size=None):
-        """删除旧日志，保持文件总数在限制内"""
+        """删除旧日志, 保持文件总数在限制内"""
         if limit is None:
             limit = self.max_log_files
         if batch_size is None:
@@ -237,7 +237,7 @@ class ProcessManager:
                 print(f"Error: Unsupported shell type: {shell}")
                 return None
             
-            # 创建新会话组，避免信号传播
+            # 创建新会话组, 避免信号传播
             with open(log_file, 'w') as log_f:
                 process = subprocess.Popen(
                     shell_cmd,
@@ -284,7 +284,7 @@ class ProcessManager:
         for pid_str, proc_info in self.processes.items():
             pid = int(pid_str)
             
-            # 如果进程已标记为完成，直接使用保存的信息
+            # 如果进程已标记为完成, 直接使用保存的信息
             if proc_info.get('status') == 'completed':
                 start_time = datetime.fromtimestamp(proc_info['start_time'])
                 end_time_str = proc_info.get('end_time')
@@ -332,7 +332,7 @@ class ProcessManager:
                 })
                 
             except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
-                # 进程不存在，标记为完成
+                # 进程不存在, 标记为完成
                 proc_info['status'] = 'completed'
                 proc_info['end_time'] = datetime.now().isoformat()
                 self.save_state()
@@ -410,7 +410,7 @@ class ProcessManager:
                         if abs(proc.create_time() - proc_info['start_time']) < 1.0:
                             self.kill_process(pid)
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass  # 进程已经不存在，无需终止
+                    pass  # 进程已经不存在, 无需终止
             
             # 删除记录
             if pid_str in self.processes:
@@ -428,7 +428,7 @@ class ProcessManager:
         
         proc_info = self.processes[pid_str]
         
-        # 如果进程已标记为完成，直接返回完成状态
+        # 如果进程已标记为完成, 直接返回完成状态
         if proc_info.get('status') == 'completed':
             start_time = datetime.fromtimestamp(proc_info['start_time'])
             end_time_str = proc_info.get('end_time')
@@ -459,7 +459,7 @@ class ProcessManager:
             
             # 检查进程是否匹配（防止PID重用）
             if abs(proc.create_time() - proc_info['start_time']) > 1.0:
-                # PID被重用，标记为完成
+                # PID被重用, 标记为完成
                 proc_info['status'] = 'completed'
                 if 'return_code' not in proc_info:
                     proc_info['return_code'] = -1
@@ -492,7 +492,7 @@ class ProcessManager:
             }
             
         except (psutil.NoSuchProcess, psutil.AccessDenied):
-            # 进程已死亡，标记为完成
+            # 进程已死亡, 标记为完成
             proc_info['status'] = 'completed'
             if 'return_code' not in proc_info or proc_info['return_code'] is None:
                 proc_info['return_code'] = self.get_exit_code(proc_info)
@@ -542,6 +542,6 @@ class ProcessManager:
             return False
 
     def get_process_log(self, pid: int) -> Optional[str]:
-        """获取进程的日志内容（与get_process_result相同，但语义不同）"""
+        """获取进程的日志内容（与get_process_result相同, 但语义不同）"""
         return self.get_process_result(pid)
 

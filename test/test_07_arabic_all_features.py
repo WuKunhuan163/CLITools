@@ -24,7 +24,7 @@ class TestArabicAllFeatures(unittest.TestCase):
         return subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root), env=current_env)
 
     def test_08_arabic_table_various_scenarios(self):
-        """(8) 测试阿拉伯语表格的各种显示情况。"""
+        """(8) 测试阿拉伯语表格的各种显示情况. """
         headers = ["الاسم", "الوصف", "الحالة"]
         
         # Scenario 1: Long content with truncation
@@ -57,7 +57,7 @@ class TestArabicAllFeatures(unittest.TestCase):
         set_rtl_mode(False)
         
     def test_09_arabic_command_output(self):
-        """(9) 测试 TOOL lang list 在阿拉伯语环境下的输出。"""
+        """(9) 测试 TOOL lang list 在阿拉伯语环境下的输出. """
         # Set TOOL_LANGUAGE to ar
         res = self.run_tool(["lang", "list"], env={"TOOL_LANGUAGE": "ar"})
         self.assertEqual(res.returncode, 0)

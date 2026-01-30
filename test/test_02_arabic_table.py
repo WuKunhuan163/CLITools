@@ -10,7 +10,7 @@ from logic.utils import format_table, get_display_width
 
 class TestArabicTable(unittest.TestCase):
     def test_03_arabic_table(self):
-        """(3) 阿拉伯语表格，验证从右往左显示的功能。"""
+        """(3) 阿拉伯语表格, 验证从右往左显示的功能. """
         headers = ["المعرف", "الاسم", "الحالة"]
         rows = [
             ["١", "أليس", "نشط"],

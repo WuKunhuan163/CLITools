@@ -14,7 +14,7 @@ class TestLangShow(unittest.TestCase):
         return subprocess.run(cmd, capture_output=True, text=True, cwd=str(self.project_root))
 
     def test_04_lang_show(self):
-        """(4) 测试显示当前语言。"""
+        """(4) 测试显示当前语言. """
         res = self.run_tool(["lang"])
         self.assertEqual(res.returncode, 0)
         self.assertIn("(", res.stdout)

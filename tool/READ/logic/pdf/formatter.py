@@ -29,12 +29,8 @@ def process_text_linebreaks(text: str) -> str:
         
     return '\n'.join(processed_lines)
 
-def format_span(span: Dict[str, Any], median_size: float, line_y: float) -> str:
-    """Format a text span with Markdown (bold, italic, sub/sup, color)."""
-    text = span["text"]
-    if not text.strip():
-        return text
-        
+def get_span_style(span: Dict[str, Any], median_size: float, line_y: float) -> Dict[str, Any]:
+    """Extract style information from a span."""
     flags = span["flags"]
     size = span["size"]
     font_name = span["font"].lower()
@@ -44,40 +40,56 @@ def format_span(span: Dict[str, Any], median_size: float, line_y: float) -> str:
     is_italic = flags & 2 or "italic" in font_name or "oblique" in font_name
     is_bold = flags & 16 or "bold" in font_name
     
-    # Sub/Super Detection
     is_super = False
     is_sub = False
     if size < median_size * 0.95:
         if origin_y < line_y - size * 0.1: is_super = True
         elif origin_y > line_y + size * 0.1: is_sub = True
-            
-    leading_space = " " if text.startswith(" ") else ""
-    trailing_space = " " if text.endswith(" ") else ""
-    clean_text = text.strip()
-    
-    # 1. Bold/Italic
-    if is_bold and is_italic: clean_text = f"***{clean_text}***"
-    elif is_bold: clean_text = f"**{clean_text}**"
-    elif is_italic: clean_text = f"*{clean_text}*"
         
-    # 2. Sub/Super
-    if is_super: clean_text = f"<sup>{clean_text}</sup>"
-    elif is_sub: clean_text = f"<sub>{clean_text}</sub>"
-    
-    # 3. Color detection
-    # PyMuPDF color is an integer. For RGB, it's (R << 16) | (G << 8) | B
-    # Ignore black (0x000000) or very dark colors near black for simplicity in MD
+    hex_color = None
     if color_int != 0:
         r = (color_int >> 16) & 0xFF
         g = (color_int >> 8) & 0xFF
         b = color_int & 0xFF
-        
-        # Only apply color if it's not effectively black
         if r > 30 or g > 30 or b > 30:
             hex_color = f"#{r:02x}{g:02x}{b:02x}"
-            clean_text = f'<span style="color:{hex_color}">{clean_text}</span>'
+            
+    return {
+        "bold": is_bold,
+        "italic": is_italic,
+        "super": is_super,
+        "sub": is_sub,
+        "color": hex_color
+    }
+
+def apply_style_to_text(text: str, style: Dict[str, Any]) -> str:
+    """Apply style attributes to a clean text string."""
+    if not text:
+        return ""
         
-    return f"{leading_space}{clean_text}{trailing_space}"
+    res = text
+    # 1. Bold/Italic
+    if style["bold"] and style["italic"]: res = f"***{res}***"
+    elif style["bold"]: res = f"**{res}**"
+    elif style["italic"]: res = f"*{res}*"
+        
+    # 2. Sub/Super
+    if style["super"]: res = f"<sup>{res}</sup>"
+    elif style["sub"]: res = f"<sub>{res}</sub>"
+    
+    # 3. Color
+    if style["color"]:
+        res = f'<span style="color:{style["color"]}">{res}</span>'
+        
+    return res
+
+def format_span(span: Dict[str, Any], median_size: float, line_y: float) -> str:
+    """Legacy format_span, now uses apply_style_to_text."""
+    style = get_span_style(span, median_size, line_y)
+    text = span["text"]
+    leading_space = " " if text.startswith(" ") else ""
+    trailing_space = " " if text.endswith(" ") else ""
+    return f"{leading_space}{apply_style_to_text(text.strip(), style)}{trailing_space}"
 
 def get_median_font_size(blocks: List[Any]) -> float:
     """Calculate the median font size of all text spans on the page."""

@@ -10,7 +10,7 @@ from logic.utils import format_table, get_display_width
 
 class TestLongTable(unittest.TestCase):
     def test_02_long_table(self):
-        """(2) 输出一个每一行都很长的表格，验证输出的表格的每一行经过裁切之后还是一样宽，以及每一列还是对齐。"""
+        """(2) 输出一个每一行都很长的表格, 验证输出的表格的每一行经过裁切之后还是一样宽, 以及每一列还是对齐. """
         headers = ["PID", "Runtime", "Command"]
         rows = [
             ["12345", "0:01:23", "python3 /very/long/path/to/script.py --arg1 val1 --arg2 val2 --arg3 val3"],

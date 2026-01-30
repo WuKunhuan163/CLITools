@@ -29,7 +29,7 @@
     "max_log_files_help": "最大保留日志文件数 (默认: 1000)",
     "no_alias_help": "不解析shell别名",
     "list_help": "列出所有活跃的后台进程",
-    "status_help": "查询指定PID进程的状态，无参数时列出所有进程（等同于--list）",
+    "status_help": "查询指定PID进程的状态, 无参数时列出所有进程（等同于--list）",
     "result_help": "获取指定PID进程的执行结果",
     "log_help": "查看指定PID进程的日志",
     "kill_help": "终止指定PID的进程",

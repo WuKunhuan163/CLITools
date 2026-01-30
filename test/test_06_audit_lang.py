@@ -14,7 +14,7 @@ class TestAuditLang(unittest.TestCase):
         return subprocess.run(cmd, capture_output=True, text=True, cwd=str(self.project_root))
 
     def test_07_audit_lang(self):
-        """(7) 测试语言审计功能。"""
+        """(7) 测试语言审计功能. """
         res = self.run_tool(["lang", "audit", "zh"])
         self.assertEqual(res.returncode, 0)
         self.assertIn("zh", res.stdout)
