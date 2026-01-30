@@ -28,6 +28,59 @@ def parse_page_spec(spec: str, total_pages: int) -> List[int]:
             except: pass
     return sorted(list(set(pages)))
 
+def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_images_dir: Path, median_size: float) -> str:
+    """Extract a single PDF page (0-indexed)."""
+    page = doc[page_num]
+    page_rect = page.rect
+    
+    # 1. Images
+    image_list = page.get_images(full=True)
+    page_images_content = []
+    if image_list:
+        for img_index, img in enumerate(image_list):
+            try:
+                xref = img[0]
+                pix = fitz.Pixmap(doc, xref)
+                if pix.n - pix.alpha >= 4: pix = fitz.Pixmap(fitz.csRGB, pix)
+                img_bytes = pix.tobytes("png")
+                img_hash = hashlib.md5(img_bytes).hexdigest()
+                img_filename = f"img_{page_num+1}_{img_index}_{img_hash[:8]}.png"
+                img_path = output_images_dir / img_filename
+                with open(img_path, "wb") as f: f.write(img_bytes)
+                page_images_content.append(f"[placeholder: image]\n![]({img_path.absolute()})\n")
+                pix = None
+            except: pass
+
+    # 2. Text
+    page_dict = page.get_text("dict")
+    blocks = page_dict["blocks"]
+    sorted_blocks = ReadingOrderSorter.sort_blocks(blocks, page_rect.width, page_rect.height)
+    
+    page_content_parts = []
+    if page_images_content:
+        page_content_parts.extend(page_images_content)
+        
+    for b in sorted_blocks:
+        if b.get("type") != 0: continue
+        
+        block_text_parts = []
+        for line in b["lines"]:
+            line_text = ""
+            for span in line["spans"]:
+                line_y = span["origin"][1]
+                line_text += format_span(span, median_size, line_y)
+            
+            if line_text.strip():
+                block_text_parts.append(line_text.strip())
+        
+        if block_text_parts:
+            block_raw_text = "\n".join(block_text_parts)
+            processed_block = process_text_linebreaks(block_raw_text)
+            if processed_block.strip():
+                page_content_parts.append(processed_block.strip())
+                
+    return "\n\n".join(page_content_parts)
+
 def extract_pdf_pages(pdf_path: Path, output_images_dir: Path, page_spec: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Extract text and images from a PDF file.
@@ -40,63 +93,19 @@ def extract_pdf_pages(pdf_path: Path, output_images_dir: Path, page_spec: Option
     output_images_dir.mkdir(parents=True, exist_ok=True)
     pages = parse_page_spec(page_spec, doc.page_count)
     
+    # Get median size for all pages to be consistent
+    # For performance on very large PDFs, we could just sample first page, 
+    # but let's sample all requested pages.
+    all_blocks = []
+    for p_num in pages:
+        all_blocks.extend(doc[p_num].get_text("dict")["blocks"])
+    median_size = get_median_font_size(all_blocks)
+    
     for page_num in pages:
-        page = doc[page_num]
-        page_rect = page.rect
-        
-        # 1. Images
-        image_list = page.get_images(full=True)
-        page_images_content = []
-        if image_list:
-            for img_index, img in enumerate(image_list):
-                try:
-                    xref = img[0]
-                    pix = fitz.Pixmap(doc, xref)
-                    if pix.n - pix.alpha >= 4: pix = fitz.Pixmap(fitz.csRGB, pix)
-                    img_bytes = pix.tobytes("png")
-                    img_hash = hashlib.md5(img_bytes).hexdigest()
-                    img_filename = f"img_{page_num+1}_{img_index}_{img_hash[:8]}.png"
-                    img_path = output_images_dir / img_filename
-                    with open(img_path, "wb") as f: f.write(img_bytes)
-                    page_images_content.append(f"[placeholder: image]\n![]({img_path.absolute()})\n")
-                    pix = None
-                except: pass
-
-        # 2. Text
-        page_dict = page.get_text("dict")
-        blocks = page_dict["blocks"]
-        median_size = get_median_font_size(blocks)
-        sorted_blocks = ReadingOrderSorter.sort_blocks(blocks, page_rect.width, page_rect.height)
-        
-        page_content_parts = []
-        if page_images_content:
-            page_content_parts.extend(page_images_content)
-            
-        for b in sorted_blocks:
-            if b.get("type") != 0: continue
-            
-            block_text_parts = []
-            for line in b["lines"]:
-                # Use the bbox of the line to estimate the baseline if spans are missing origin
-                # But spans should have origin.
-                line_text = ""
-                for span in line["spans"]:
-                    # For line_y, we can use the origin of the first span in the line
-                    line_y = span["origin"][1]
-                    line_text += format_span(span, median_size, line_y)
-                
-                if line_text.strip():
-                    block_text_parts.append(line_text.strip())
-            
-            if block_text_parts:
-                block_raw_text = "\n".join(block_text_parts)
-                processed_block = process_text_linebreaks(block_raw_text)
-                if processed_block.strip():
-                    page_content_parts.append(processed_block.strip())
-        
+        content = extract_single_pdf_page(doc, page_num, output_images_dir, median_size)
         extracted_pages.append({
             "page_num": page_num + 1,
-            "content": "\n\n".join(page_content_parts)
+            "content": content
         })
         
     doc.close()
