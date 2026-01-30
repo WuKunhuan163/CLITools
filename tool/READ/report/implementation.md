@@ -34,6 +34,8 @@ The Word extraction uses `python-docx`:
 ## Performance & Optimization
 - **Execution Speed**: The basic mode is extremely fast (typically < 1s for a single page) as it doesn't perform complex OCR or layout analysis.
 - **Cache Management**: Automatically manages the `data/pdf/` directory, keeping up to 1024 results and cleaning the oldest half when the limit is reached.
+- **Organized Output**: Each extraction is saved in a unique directory (`result_date_time_hash/`) containing `text.md` and an `images/` folder. This facilitates easy integration with other tools.
+- **Precise Timing**: Extraction time is reported with 2 decimal places for better performance monitoring.
 
 ## Comparison with MinerU
 Unlike the advanced MinerU engine, this basic mode:
