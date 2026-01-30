@@ -38,25 +38,33 @@ class ReadTool(ToolBase):
                   self.get_translation("error_file_not_found", "File not found: {file}", file=args.file))
             return
 
-        # Default output directory: tool/READ/data/pdf/
+        # Default output directory: tool/READ/data/pdf/result_xxx_yyy/
+        import time
+        from datetime import datetime
+        import hashlib
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = hashlib.md5(f"{file_path}{time.time()}".encode()).hexdigest()[:8]
+        result_dir_name = f"result_{timestamp}_{unique_id}"
+        
         default_data_dir = self.script_dir / "data" / "pdf"
-        default_data_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = default_data_dir / result_dir_name
+        output_dir.mkdir(parents=True, exist_ok=True)
         
         if args.output:
             output_file = Path(args.output).resolve()
         else:
-            page_suffix = f"_p{args.page}" if args.page else ""
-            output_file = default_data_dir / f"{file_path.stem}{page_suffix}.md"
+            output_file = output_dir / "text.md"
             
-        images_dir = output_file.parent / "images"
+        images_dir = output_dir / "images"
 
         tm = ProgressTuringMachine()
+        start_time = time.time()
         
         def do_extract():
             suffix = file_path.suffix.lower()
             if suffix == ".pdf":
                 from tool.READ.logic.pdf import extract_pdf
-                # Update extract_pdf to handle page_spec
                 content = extract_pdf(file_path, images_dir, page_spec=args.page)
             elif suffix == ".docx":
                 from tool.READ.logic.docx import extract_docx
@@ -69,14 +77,12 @@ class ReadTool(ToolBase):
             
             # Cache management: limit 1024, clean 512
             from logic.utils import cleanup_old_files
-            cleanup_old_files(default_data_dir, "*.md", limit=1024, batch_size=512)
-            if images_dir.exists():
-                cleanup_old_files(images_dir, "*", limit=2048, batch_size=1024) # More images allowed
+            cleanup_old_files(default_data_dir, "result_*", limit=1024, batch_size=512)
                 
             return True
 
         tm.add_stage(TuringStage(
-            name="Extraction",
+            name=file_path.name,
             action=do_extract,
             active_status=self.get_translation("label_extracting", "Extracting"),
             success_status=self.get_translation("label_successfully", "Successfully") + " " + self.get_translation("label_extracted", "extracted"),
@@ -84,8 +90,16 @@ class ReadTool(ToolBase):
             bold_part=self.get_translation("label_extracting", "Extracting")
         ))
 
-        if tm.run():
-            print(f"\n{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_file}")
+        # Use ephemeral=True to allow our custom success message to overwrite the machine's output cleanly.
+        if tm.run(ephemeral=True):
+            duration = int(time.time() - start_time)
+            # Update success message format: Successfully extracted <filename> (<seconds>s)
+            success_msg = f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{self.get_translation('label_successfully', 'Successfully')} {self.get_translation('label_extracted', 'extracted')}{self.get_color('RESET')} {file_path.name} ({duration}s)"
+            sys.stdout.write(success_msg + "\n")
+            sys.stdout.flush()
+            
+            # Print result path without empty line
+            print(f"{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_file}")
 
 def main():
     tool = ReadTool()
