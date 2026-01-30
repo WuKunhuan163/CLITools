@@ -251,8 +251,11 @@
   "search_papers_for_source": "正在从 {source} 搜索论文：'{query}'...",
   "search_results_header": "搜索结果：'{query}'",
   "label_successfully_received_search_results": "成功接收搜索结果",
-  "label_results_saved_to": "结果已保存至",
-  "search_no_results": "未找到结果。",
+    "label_results_saved_to": "结果已保存至",
+    "label_pages": "页",
+    "label_successfully_extracted": "成功提取",
+    "label_failed_to_extract": "提取失败",
+    "search_no_results": "未找到结果。",
   "tool_list_purpose_label": "目的：",
   "tool_list_cache_warning": "警告：正在显示缓存数据。使用 --force 刷新。",
   "tool_not_found_locally": "本地未找到（运行 'TOOL install' 获取）"

@@ -102,5 +102,9 @@
   "on_branch": "على الفرع '{branch}'",
   "alignment_complete": "اكتمل محاذاة الفروع.",
   "aligning_branch": "جارٍ محاذاة الفرع '{branch}'",
-  "recreating_test": "جارٍ إعادة إنشاء الفرع 'test'"
+   "label_results_saved_to": "النتائج محفوظة في",
+   "label_pages": "صفحات",
+   "label_successfully_extracted": "تم الاستخراج بنجاح",
+   "label_failed_to_extract": "فشل الاستخراج",
+   "recreating_test": "جارٍ إعادة إنشاء الفرع 'test'"
 }

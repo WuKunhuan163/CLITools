@@ -2,7 +2,7 @@
 import threading
 import sys
 import time
-from typing import List, Dict, Optional, Any, Set
+from typing import List, Dict, Optional, Any, Set, Callable
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.config import get_color
 
@@ -60,9 +60,9 @@ class ParallelWorkerPool:
         self.max_workers = max_workers
         self.status_bar = DynamicStatusBar(label=status_label)
 
-    def run(self, tasks: List[Dict[str, Any]]) -> bool:
+    def run(self, tasks: List[Dict[str, Any]], success_callback: Optional[Callable] = None) -> bool:
         """
-        Run a list of tasks: [{"id": str, "func": callable, "args": tuple, "kwargs": dict}]
+        Run a list of tasks: [{"id": str, "action": callable, "args": tuple, "kwargs": dict}]
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
         all_success = True
@@ -70,8 +70,13 @@ class ParallelWorkerPool:
         def wrapper(task_id, func, *args, **kwargs):
             self.status_bar.update(task_id, "add")
             try:
-                return func(*args, **kwargs)
+                res = func(*args, **kwargs)
+                if success_callback:
+                    success_callback(task_id, res)
+                return res
             except:
+                if success_callback:
+                    success_callback(task_id, False)
                 return False
             finally:
                 self.status_bar.update(task_id, "remove")

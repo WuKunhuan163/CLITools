@@ -18,6 +18,36 @@ class ReadTool(ToolBase):
     def __init__(self):
         super().__init__("READ")
 
+    def format_page_list(self, pages: list) -> str:
+        """Format a list of page numbers into compact ranges (e.g., 1-3, 5, 7-10)."""
+        if not pages:
+            return ""
+        pages = sorted(list(set(pages)))
+        ranges = []
+        if not pages:
+            return ""
+            
+        start = pages[0]
+        end = pages[0]
+        
+        for i in range(1, len(pages)):
+            if pages[i] == end + 1:
+                end = pages[i]
+            else:
+                if start == end:
+                    ranges.append(str(start))
+                else:
+                    ranges.append(f"{start}-{end}")
+                start = pages[i]
+                end = pages[i]
+        
+        if start == end:
+            ranges.append(str(start))
+        else:
+            ranges.append(f"{start}-{end}")
+            
+        return ", ".join(ranges)
+
     def run(self):
         if self.handle_command_line(): return
 
@@ -56,24 +86,24 @@ class ReadTool(ToolBase):
         start_time = time.time()
         suffix = file_path.suffix.lower()
         
+        success_pages = []
+        failed_pages = []
+
         if suffix == ".pdf":
             import fitz
-            from tool.READ.logic.pdf.extractor import parse_page_spec, get_median_font_size, extract_single_pdf_page
+            from tool.READ.logic.pdf.extractor import parse_page_spec, get_median_font_size
             
             doc = fitz.open(str(file_path))
             pages = parse_page_spec(args.page, doc.page_count)
             
-            # Pre-calculate median size
             all_blocks = []
             for p_num in pages:
                 all_blocks.extend(doc[p_num].get_text("dict")["blocks"])
             median_size = get_median_font_size(all_blocks)
             doc.close()
 
-            # Using ParallelWorkerPool for parallel extraction
             extract_label = self.get_translation("label_extracting", "Extracting")
             pages_label = self.get_translation("label_pages", "pages")
-            
             pool = ParallelWorkerPool(max_workers=args.workers, status_label=f"{extract_label} {pages_label}")
             
             tasks = []
@@ -85,20 +115,25 @@ class ReadTool(ToolBase):
                     "args": (file_path, p_num, images_dir, median_size, pages_dir)
                 })
             
-            all_success = pool.run(tasks)
-            
-            if not all_success:
-                label_failed = self.get_translation("label_failed", "Failed")
-                label_extracted = self.get_translation("label_extracted", "extracted")
-                print(f"{self.get_color('BOLD')}{self.get_color('RED')}{label_failed}{self.get_color('RESET')} {label_extracted} {file_path.name}")
-                return
+            # Using success_callback to track which ones finished
+            def on_page_finish(page_id, result):
+                if result:
+                    success_pages.append(int(page_id))
+                else:
+                    failed_pages.append(int(page_id))
+
+            pool.run(tasks, success_callback=on_page_finish)
 
         elif suffix == ".docx":
             from tool.READ.logic.docx import extract_docx
-            content = extract_docx(file_path, images_dir)
-            page_file = pages_dir / "document.md"
-            with open(page_file, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                content = extract_docx(file_path, images_dir)
+                page_file = pages_dir / "document.md"
+                with open(page_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+                success_pages = [1] # Treat docx as a single logical page for summary
+            except:
+                failed_pages = [1]
         else:
             print(f"{self.get_color('RED')}{self.get_translation('label_error', 'Error')}{self.get_color('RESET')}: Unsupported file type: {suffix}")
             return
@@ -107,14 +142,29 @@ class ReadTool(ToolBase):
         from logic.utils import cleanup_old_files
         cleanup_old_files(default_data_dir, "result_*", limit=1024, batch_size=512)
 
-        # Final success message
+        # Final Summary messages
         duration = time.time() - start_time
-        success_label = self.get_translation('label_successfully', 'Successfully')
-        extracted_label = self.get_translation('label_extracted', 'extracted')
+        BOLD = self.get_color('BOLD', '\033[1m')
+        GREEN = self.get_color('GREEN', '\033[32m')
+        RED = self.get_color('RED', '\033[31m')
+        RESET = self.get_color('RESET', '\033[0m')
         
-        sys.stdout.write(f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{success_label} {extracted_label}{self.get_color('RESET')} {file_path.name} ({duration:.2f}s)\n")
+        # 1. Failed message first if any
+        if failed_pages:
+            failed_label = self.get_translation("label_failed_to_extract", "Failed to extract")
+            pages_str = self.format_page_list(failed_pages)
+            pages_label = self.get_translation("label_pages", "pages")
+            sys.stdout.write(f"\r\033[K{BOLD}{RED}{failed_label}{RESET} {pages_label} {pages_str} in {file_path.name}\n")
+
+        # 2. Success message
+        if success_pages:
+            success_label = self.get_translation("label_successfully_extracted", "Successfully extracted")
+            pages_str = self.format_page_list(success_pages)
+            pages_label = self.get_translation("label_pages", "pages")
+            sys.stdout.write(f"\r\033[K{BOLD}{GREEN}{success_label}{RESET} {pages_label} {pages_str} in {file_path.name} ({duration:.2f}s)\n")
+
         sys.stdout.flush()
-        print(f"{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_dir}")
+        print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}:{RESET} {output_dir}")
 
     def _extract_pdf_page_task(self, pdf_path, page_num, images_dir, median_size, pages_dir):
         """Task to extract a single page."""
@@ -132,7 +182,6 @@ class ReadTool(ToolBase):
             with open(page_file, "w", encoding="utf-8") as f:
                 f.write(content)
             
-            # Verify file exists and is not empty
             if page_file.exists() and page_file.stat().st_size > 0:
                 return True
             return False
