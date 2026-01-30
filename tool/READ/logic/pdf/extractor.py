@@ -14,6 +14,7 @@ def parse_page_spec(spec: str, total_pages: int) -> List[int]:
         
     for part in spec.split(','):
         part = part.strip()
+        if not part: continue
         if '-' in part:
             try:
                 start, end = map(int, part.split('-'))
@@ -38,10 +39,8 @@ def extract_pdf_pages(pdf_path: Path, output_images_dir: Path, page_spec: Option
     
     output_images_dir.mkdir(parents=True, exist_ok=True)
     pages = parse_page_spec(page_spec, doc.page_count)
-    print(f"DEBUG: Processing pages: {pages}")
     
     for page_num in pages:
-        print(f"DEBUG: Extracting page {page_num + 1}")
         page = doc[page_num]
         page_rect = page.rect
         
@@ -70,7 +69,6 @@ def extract_pdf_pages(pdf_path: Path, output_images_dir: Path, page_spec: Option
         sorted_blocks = ReadingOrderSorter.sort_blocks(blocks, page_rect.width, page_rect.height)
         
         page_content_parts = []
-        # Add images at the top of the page if any
         if page_images_content:
             page_content_parts.extend(page_images_content)
             
@@ -79,9 +77,12 @@ def extract_pdf_pages(pdf_path: Path, output_images_dir: Path, page_spec: Option
             
             block_text_parts = []
             for line in b["lines"]:
-                line_y = line["origin"][1]
+                # Use the bbox of the line to estimate the baseline if spans are missing origin
+                # But spans should have origin.
                 line_text = ""
                 for span in line["spans"]:
+                    # For line_y, we can use the origin of the first span in the line
+                    line_y = span["origin"][1]
                     line_text += format_span(span, median_size, line_y)
                 
                 if line_text.strip():
@@ -100,4 +101,3 @@ def extract_pdf_pages(pdf_path: Path, output_images_dir: Path, page_spec: Option
         
     doc.close()
     return extracted_pages
-
