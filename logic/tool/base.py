@@ -242,6 +242,11 @@ class ToolBase:
         # 3. Fallback to root project translations (logic/translation/*.json)
         return get_translation(str(self.project_root / "logic"), key, default)
 
+    def get_color(self, color_name, default=""):
+        """Get color from global config."""
+        from logic.config import get_color
+        return get_color(color_name, default)
+
     def setup_gui(self):
         """Centralized GUI environment setup."""
         from logic.gui.engine import setup_gui_environment

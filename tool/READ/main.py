@@ -24,6 +24,7 @@ class ReadTool(ToolBase):
         parser = argparse.ArgumentParser(description=self.get_translation("tool_READ_desc", "Read and extract content from PDF, Word, and images."))
         parser.add_argument("file", nargs="?", help="Path to the file to read")
         parser.add_argument("-o", "--output", help="Output markdown file path")
+        parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
         
         args, unknown = parser.parse_known_args()
 
@@ -37,7 +38,16 @@ class ReadTool(ToolBase):
                   self.get_translation("error_file_not_found", "File not found: {file}", file=args.file))
             return
 
-        output_file = Path(args.output).resolve() if args.output else file_path.with_suffix(".md")
+        # Default output directory: tool/READ/data/pdf/
+        default_data_dir = self.script_dir / "data" / "pdf"
+        default_data_dir.mkdir(parents=True, exist_ok=True)
+        
+        if args.output:
+            output_file = Path(args.output).resolve()
+        else:
+            page_suffix = f"_p{args.page}" if args.page else ""
+            output_file = default_data_dir / f"{file_path.stem}{page_suffix}.md"
+            
         images_dir = output_file.parent / "images"
 
         tm = ProgressTuringMachine()
@@ -46,7 +56,8 @@ class ReadTool(ToolBase):
             suffix = file_path.suffix.lower()
             if suffix == ".pdf":
                 from tool.READ.logic.pdf import extract_pdf
-                content = extract_pdf(file_path, images_dir)
+                # Update extract_pdf to handle page_spec
+                content = extract_pdf(file_path, images_dir, page_spec=args.page)
             elif suffix == ".docx":
                 from tool.READ.logic.docx import extract_docx
                 content = extract_docx(file_path, images_dir)
@@ -55,6 +66,13 @@ class ReadTool(ToolBase):
                 
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(content)
+            
+            # Cache management: limit 1024, clean 512
+            from logic.utils import cleanup_old_files
+            cleanup_old_files(default_data_dir, "*.md", limit=1024, batch_size=512)
+            if images_dir.exists():
+                cleanup_old_files(images_dir, "*", limit=2048, batch_size=1024) # More images allowed
+                
             return True
 
         tm.add_stage(TuringStage(
