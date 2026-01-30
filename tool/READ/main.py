@@ -24,9 +24,13 @@ class ReadTool(ToolBase):
         parser = argparse.ArgumentParser(description=self.get_translation("tool_READ_desc", "Read and extract content from PDF, Word, and images."))
         parser.add_argument("file", nargs="?", help="Path to the file to read")
         parser.add_argument("-o", "--output", help="Output markdown file path")
-        parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
+        parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
         
         args, unknown = parser.parse_known_args()
+
+        if args.demo:
+            self.show_demo()
+            return
 
         if not args.file:
             parser.print_help()
@@ -38,34 +42,16 @@ class ReadTool(ToolBase):
                   self.get_translation("error_file_not_found", "File not found: {file}", file=args.file))
             return
 
-        # Default output directory: tool/READ/data/pdf/result_xxx_yyy/
-        import time
-        from datetime import datetime
-        import hashlib
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        unique_id = hashlib.md5(f"{file_path}{time.time()}".encode()).hexdigest()[:8]
-        result_dir_name = f"result_{timestamp}_{unique_id}"
-        
-        default_data_dir = self.script_dir / "data" / "pdf"
-        output_dir = default_data_dir / result_dir_name
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        if args.output:
-            output_file = Path(args.output).resolve()
-        else:
-            output_file = output_dir / "text.md"
-            
-        images_dir = output_dir / "images"
+        output_file = Path(args.output).resolve() if args.output else file_path.with_suffix(".md")
+        images_dir = output_file.parent / "images"
 
         tm = ProgressTuringMachine()
-        start_time = time.time()
         
         def do_extract():
             suffix = file_path.suffix.lower()
             if suffix == ".pdf":
                 from tool.READ.logic.pdf import extract_pdf
-                content = extract_pdf(file_path, images_dir, page_spec=args.page)
+                content = extract_pdf(file_path, images_dir)
             elif suffix == ".docx":
                 from tool.READ.logic.docx import extract_docx
                 content = extract_docx(file_path, images_dir)
@@ -74,15 +60,10 @@ class ReadTool(ToolBase):
                 
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(content)
-            
-            # Cache management: limit 1024, clean 512
-            from logic.utils import cleanup_old_files
-            cleanup_old_files(default_data_dir, "result_*", limit=1024, batch_size=512)
-                
             return True
 
         tm.add_stage(TuringStage(
-            name=file_path.name,
+            name="Extraction",
             action=do_extract,
             active_status=self.get_translation("label_extracting", "Extracting"),
             success_status=self.get_translation("label_successfully", "Successfully") + " " + self.get_translation("label_extracted", "extracted"),
@@ -90,17 +71,15 @@ class ReadTool(ToolBase):
             bold_part=self.get_translation("label_extracting", "Extracting")
         ))
 
-        # Use final_newline=False to allow our custom success message to overwrite the machine's output cleanly.
-        if tm.run(ephemeral=True, final_newline=False):
-            duration = time.time() - start_time
-            success_label = self.get_translation('label_successfully', 'Successfully')
-            extracted_label = self.get_translation('label_extracted', 'extracted')
-            # Use \r\033[K to ensure we overwrite the last stage's transient status
-            sys.stdout.write(f"\r\033[K{self.get_color('BOLD')}{self.get_color('GREEN')}{success_label} {extracted_label}{self.get_color('RESET')} {file_path.name} ({duration:.2f}s)\n")
-            sys.stdout.flush()
-            
-            # Print result path (directory only)
-            print(f"{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_dir}")
+        if tm.run():
+            print(f"\n{self.get_color('BOLD')}{self.get_translation('label_results_saved_to', 'Results saved to')}:{self.get_color('RESET')} {output_file}")
+
+    def show_demo(self):
+        BOLD = self.get_color("BOLD")
+        GREEN = self.get_color("GREEN")
+        BLUE = self.get_color("BLUE")
+        RESET = self.get_color("RESET")
+        print(f"{BOLD}{BLUE}Progressing{RESET}... {BOLD}{GREEN}Successfully{RESET} finished!")
 
 def main():
     tool = ReadTool()
