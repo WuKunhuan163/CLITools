@@ -77,7 +77,7 @@ def main():
     parser.add_argument('--list', action='store_true',
                        help=_('list_help', '列出所有活跃的后台进程'))
     parser.add_argument('--status', nargs='?', const='all', metavar='PID',
-                       help=_('status_help', '查询指定PID进程的状态，无参数时列出所有进程（等同于--list）'))
+                       help=_('status_help', '查询指定PID进程的状态, 无参数时列出所有进程（等同于--list）'))
     parser.add_argument('--result', type=int, metavar='PID',
                        help=_('result_help', '获取指定PID进程的执行结果'))
     parser.add_argument('--log', type=int, metavar='PID',

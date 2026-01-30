@@ -21,7 +21,7 @@ class TestLangSet(unittest.TestCase):
         return None
 
     def test_06_lang_set(self):
-        """(6) 测试设置语言偏好。"""
+        """(6) 测试设置语言偏好. """
         original = self.get_current_lang()
         
         # Set to zh

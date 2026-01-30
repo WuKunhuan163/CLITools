@@ -2,6 +2,8 @@
 import argparse
 import sys
 import time
+import json
+import threading
 from datetime import datetime
 import hashlib
 from pathlib import Path
@@ -17,35 +19,23 @@ from logic.turing.models.worker import ParallelWorkerPool
 class ReadTool(ToolBase):
     def __init__(self):
         super().__init__("READ")
+        self.image_metadata = []
+        self.page_stats = {}
+        self.meta_lock = threading.Lock()
 
     def format_page_list(self, pages: list) -> str:
         """Format a list of page numbers into compact ranges (e.g., 1-3, 5, 7-10)."""
-        if not pages:
-            return ""
+        if not pages: return ""
         pages = sorted(list(set(pages)))
         ranges = []
-        if not pages:
-            return ""
-            
         start = pages[0]
         end = pages[0]
-        
         for i in range(1, len(pages)):
-            if pages[i] == end + 1:
-                end = pages[i]
+            if pages[i] == end + 1: end = pages[i]
             else:
-                if start == end:
-                    ranges.append(str(start))
-                else:
-                    ranges.append(f"{start}-{end}")
-                start = pages[i]
-                end = pages[i]
-        
-        if start == end:
-            ranges.append(str(start))
-        else:
-            ranges.append(f"{start}-{end}")
-            
+                ranges.append(str(start) if start == end else f"{start}-{end}")
+                start = end = pages[i]
+        ranges.append(str(start) if start == end else f"{start}-{end}")
         return ", ".join(ranges)
 
     def run(self):
@@ -56,8 +46,18 @@ class ReadTool(ToolBase):
         parser.add_argument("-o", "--output", help="Output directory path (optional)")
         parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
         parser.add_argument("-n", "--workers", type=int, default=4, help="Number of parallel workers (default: 4)")
+        parser.add_argument("--mode", default="academic", choices=["academic", "general", "code_snippet", "formula", "table"], help="Vision analysis mode for images")
+        parser.add_argument("--key", help="Google API Key (overrides env vars)")
+        parser.add_argument("--test-vision", action="store_true", help="Test vision API connectivity")
         
         args, unknown = parser.parse_known_args()
+
+        if args.test_vision:
+            from tool.READ.logic.vision.gemini import GeminiAnalyzer
+            analyzer = GeminiAnalyzer(api_key=args.key)
+            results = analyzer.test_connection()
+            print(json.dumps(results, indent=2))
+            return
 
         if not args.file:
             parser.print_help()
@@ -69,7 +69,6 @@ class ReadTool(ToolBase):
                   self.get_translation("error_file_not_found", f"File not found: {args.file}"))
             return
 
-        # Output directory structure: result_xxx_yyy/pages/page_001.md
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = hashlib.md5(f"{file_path}{time.time()}".encode()).hexdigest()[:8]
         result_dir_name = f"result_{timestamp}_{unique_id}"
@@ -83,19 +82,24 @@ class ReadTool(ToolBase):
         pages_dir.mkdir(parents=True, exist_ok=True)
         images_dir.mkdir(parents=True, exist_ok=True)
 
+        info = {
+            "source_file": str(file_path),
+            "timestamp": timestamp,
+            "extraction_mode": "basic",
+            "pages": {},
+            "images": []
+        }
+
         start_time = time.time()
         suffix = file_path.suffix.lower()
-        
         success_pages = []
         failed_pages = []
 
         if suffix == ".pdf":
             import fitz
             from tool.READ.logic.pdf.extractor import parse_page_spec, get_median_font_size
-            
             doc = fitz.open(str(file_path))
             pages = parse_page_spec(args.page, doc.page_count)
-            
             all_blocks = []
             for p_num in pages:
                 all_blocks.extend(doc[p_num].get_text("dict")["blocks"])
@@ -108,85 +112,114 @@ class ReadTool(ToolBase):
             
             tasks = []
             for p_num in pages:
-                actual_page_num = p_num + 1
                 tasks.append({
-                    "id": str(actual_page_num),
+                    "id": str(p_num + 1),
                     "action": self._extract_pdf_page_task,
                     "args": (file_path, p_num, images_dir, median_size, pages_dir)
                 })
             
-            # Using success_callback to track which ones finished
             def on_page_finish(page_id, result):
-                if result:
-                    success_pages.append(int(page_id))
-                else:
-                    failed_pages.append(int(page_id))
+                with self.meta_lock:
+                    self.page_stats[page_id] = result
+                    if result["success"]:
+                        success_pages.append(int(page_id))
+                        if result.get("images"):
+                            self.image_metadata.extend(result["images"])
+                    else:
+                        failed_pages.append(int(page_id))
 
             pool.run(tasks, success_callback=on_page_finish)
+            info["pages"] = self.page_stats
+            info["images"] = self.image_metadata
 
         elif suffix == ".docx":
             from tool.READ.logic.docx import extract_docx
             try:
                 content = extract_docx(file_path, images_dir)
-                page_file = pages_dir / "document.md"
-                with open(page_file, "w", encoding="utf-8") as f:
+                doc_md = pages_dir / "document.md"
+                with open(doc_md, "w", encoding="utf-8") as f:
                     f.write(content)
-                success_pages = [1] # Treat docx as a single logical page for summary
-            except:
+                success_pages = [1]
+                info["pages"]["1"] = {"success": True, "word_count": len(content.split()), "size_bytes": doc_md.stat().st_size}
+            except Exception as e:
                 failed_pages = [1]
+                info["pages"]["1"] = {"success": False, "error": str(e)}
+
+        elif suffix in [".png", ".jpg", ".jpeg", ".webp"]:
+            from tool.READ.logic.vision.gemini import GeminiAnalyzer
+            analyzer = GeminiAnalyzer(api_key=args.key)
+            sys.stdout.write(f"\r\033[K{self.get_color('BOLD')}{self.get_color('BLUE')}Analyzing image{self.get_color('RESET')} {file_path.name}...")
+            sys.stdout.flush()
+            
+            res = analyzer.analyze_image(file_path, mode=args.mode)
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            
+            if res["success"]:
+                analysis_md = pages_dir / "analysis.md"
+                with open(analysis_md, "w", encoding="utf-8") as f:
+                    f.write(f"# Vision Analysis: {file_path.name}\n\n")
+                    f.write(res["result"])
+                success_pages = [1]
+                info["vision_analysis"] = {
+                    "mode": args.mode,
+                    "key_used": res.get("key_type"),
+                    "word_count": len(res["result"].split()),
+                    "size_bytes": analysis_md.stat().st_size
+                }
+                info["pages"]["1"] = {"success": True}
+            else:
+                print(f"{self.get_color('BOLD')}{self.get_color('RED')}Vision Error{self.get_color('RESET')}: {res['error']}")
+                failed_pages = [1]
+                info["pages"]["1"] = {"success": False, "error": res["error"]}
         else:
             print(f"{self.get_color('RED')}{self.get_translation('label_error', 'Error')}{self.get_color('RESET')}: Unsupported file type: {suffix}")
             return
+
+        with open(output_dir / "info.json", "w", encoding="utf-8") as f:
+            json.dump(info, f, indent=2, ensure_ascii=False)
 
         # Cache management
         from logic.utils import cleanup_old_files
         cleanup_old_files(default_data_dir, "result_*", limit=1024, batch_size=512)
 
-        # Final Summary messages
+        # Final Summary
         duration = time.time() - start_time
-        BOLD = self.get_color('BOLD', '\033[1m')
-        GREEN = self.get_color('GREEN', '\033[32m')
-        RED = self.get_color('RED', '\033[31m')
-        RESET = self.get_color('RESET', '\033[0m')
+        BOLD, GREEN, RED, RESET = self.get_color('BOLD', '\033[1m'), self.get_color('GREEN', '\033[32m'), self.get_color('RED', '\033[31m'), self.get_color('RESET', '\033[0m')
         
-        # 1. Failed message first if any
         if failed_pages:
             failed_label = self.get_translation("label_failed_to_extract", "Failed to extract")
-            pages_str = self.format_page_list(failed_pages)
-            pages_label = self.get_translation("label_pages", "pages")
-            sys.stdout.write(f"\r\033[K{BOLD}{RED}{failed_label}{RESET} {pages_label} {pages_str} in {file_path.name}\n")
+            print(f"\r\033[K{BOLD}{RED}{failed_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(failed_pages)} in {file_path.name}")
 
-        # 2. Success message
         if success_pages:
             success_label = self.get_translation("label_successfully_extracted", "Successfully extracted")
-            pages_str = self.format_page_list(success_pages)
-            pages_label = self.get_translation("label_pages", "pages")
-            sys.stdout.write(f"\r\033[K{BOLD}{GREEN}{success_label}{RESET} {pages_label} {pages_str} in {file_path.name} ({duration:.2f}s)\n")
+            print(f"\r\033[K{BOLD}{GREEN}{success_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(success_pages)} in {file_path.name} ({duration:.2f}s)")
 
-        sys.stdout.flush()
         print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}:{RESET} {output_dir}")
 
     def _extract_pdf_page_task(self, pdf_path, page_num, images_dir, median_size, pages_dir):
-        """Task to extract a single page."""
+        """Task to extract a single page. Returns dict with metadata and stats."""
         import fitz
         from tool.READ.logic.pdf.extractor import extract_single_pdf_page
-        
         actual_page_num = page_num + 1
         page_file = pages_dir / f"page_{actual_page_num:03d}.md"
-        
         try:
             doc = fitz.open(str(pdf_path))
-            content = extract_single_pdf_page(doc, page_num, images_dir, median_size)
+            content, meta = extract_single_pdf_page(doc, page_num, images_dir, median_size, page_file)
             doc.close()
-            
             with open(page_file, "w", encoding="utf-8") as f:
                 f.write(content)
             
             if page_file.exists() and page_file.stat().st_size > 0:
-                return True
-            return False
-        except:
-            return False
+                return {
+                    "success": True,
+                    "word_count": len(content.split()),
+                    "size_bytes": page_file.stat().st_size,
+                    "images": meta
+                }
+            return {"success": False, "error": "File creation failed or empty"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
 def main():
     tool = ReadTool()

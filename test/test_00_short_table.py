@@ -10,7 +10,7 @@ from logic.utils import format_table, get_display_width
 
 class TestShortTable(unittest.TestCase):
     def test_01_short_table(self):
-        """(1) 输出一个短小的正常表格，验证每一行宽度一样。"""
+        """(1) 输出一个短小的正常表格, 验证每一行宽度一样. """
         headers = ["ID", "Name", "Status"]
         rows = [
             ["1", "Alice", "Active"],
