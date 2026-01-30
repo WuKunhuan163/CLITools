@@ -1,50 +1,43 @@
-# READ Tool Implementation (Basic Mode)
+# READ Tool Implementation Principles
 
-## Overview
-The current implementation of the `READ` tool is a "basic" extraction mode, primarily based on the logic from `EXTRACT_PDF`'s basic engine. It is designed to provide fast, reliable content extraction from PDF and Word documents without heavy external dependencies like MinerU.
+## 1. Overview
+The `READ` tool is designed to help AI agents understand various document formats (PDF, Word, Images) by converting them into clean, structured Markdown. This allows the AI to "read" papers and reports with their original layout and visual elements preserved.
 
-## PDF Extraction Principles
-The PDF extraction uses `PyMuPDF` (fitz) and follows these steps:
+## 2. PDF Extraction (Basic Mode)
+The basic mode uses **PyMuPDF (fitz)** for high-performance extraction.
 
-1.  **Page Selection**: Parses user-provided page specifications (e.g., "1,3,5-7") to target specific content.
-2.  **Image Extraction**: 
-    - Identifies all image objects on each page.
-    - Extracts raw image data and converts it to PNG (handling CMYK to RGB conversion if needed).
-    - Generates a unique hash-based filename for each image to avoid duplicates.
-    - Places a `[placeholder: image]` tag in the markdown output followed by the absolute path to the extracted image.
-3.  **Text Extraction**: 
-    - Retrieves text blocks from the page using `get_text("blocks")`.
-    - **Advanced Reading Order Algorithm**: To handle complex two-column paper layouts, the tool uses a multi-stage sorting heuristic:
-        1.  **Position-Based Header/Footer Detection**: Blocks in the top 10% or bottom 10% of the page are identified as potential headers/footers and prioritized for start/end placement.
-        2.  **Vertical Zone Segmentation**: The remaining body is divided into vertical zones by identifying "spanning" blocks (those spanning >60% of the page width, like wide figures or section headers).
-        3.  **X-Coordinate Clustering**: Within each body zone, sub-columns (like the nested columns in a References section) are detected by clustering blocks with similar horizontal alignments.
-        4.  **Sequential Merging**: Blocks are then merged in order: Headers -> (Top-to-Bottom Zones, each sorted Left-to-Right Column) -> Footers.
-    - **Smart Linebreak Handling**: Uses a heuristic based on ending punctuation to smartly merge lines, ensuring fluid sentences while respecting paragraph breaks.
-4.  **Organized Output**:
-    - Creates a timestamped and hash-identified directory in `data/pdf/`.
-    - Saves the final content as `text.md`.
-    - Saves all extracted images in an `images/` sub-directory.
+### 2.1 Advanced Layout Analysis
+Instead of simple top-to-bottom extraction, the `READ` tool uses a modular `ReadingOrderSorter` to handle complex academic layouts:
+- **Header/Footer Detection**: Identifies content in the top and bottom 10% of the page.
+- **Vertical Zone Segmentation**: Detects blocks that span across the entire page (like titles or full-width figures) and uses them as separators.
+- **Sub-column Detection**: Within body zones, it uses X-coordinate clustering to identify multiple columns and sorts them left-to-right, then top-to-bottom.
 
-## Word (.docx) Extraction Principles
-The Word extraction uses `python-docx`:
+### 2.2 Font and Style Awareness
+`READ` leverages PyMuPDF's detailed span information to detect styles:
+- **Bold**: Detected via font flags and font name inspection (`**text**`).
+- **Italic**: Detected via font flags and font name inspection (`*text*`).
+- **Subscripts/Superscripts**: Detected by comparing font size with the page median and checking the vertical origin relative to the baseline (`<sub>text</sub>` / `<sup>text</sup>`).
+- **Smart Line Joining**: Merges lines within a paragraph while maintaining separation between distinct sections.
 
-1.  **Paragraph Processing**: Iterates through all paragraphs in the document, preserving text content.
-2.  **Image Extraction**: Scans document relationships for image parts and extracts them, similar to the PDF process.
+### 2.3 Image Handling
+Images are extracted in their original resolution, hashed for deduplication, and saved to a dedicated `images/` directory within the result folder. Placeholders are inserted into the Markdown to indicate their original position.
 
-## Performance & Optimization
-- **Execution Speed**: The basic mode is extremely fast (typically < 1s for a single page) as it doesn't perform complex OCR or layout analysis.
-- **Cache Management**: Automatically manages the `data/pdf/` directory, keeping up to 1024 results and cleaning the oldest half when the limit is reached.
-- **Organized Output**: Each extraction is saved in a unique directory (`result_date_time_hash/`) containing `text.md` and an `images/` folder. This facilitates easy integration with other tools.
-- **Precise Timing**: Extraction time is reported with 2 decimal places for better performance monitoring.
+## 3. Word (.docx) Extraction
+Uses **python-docx** to iterate through paragraphs and extract relationships (images).
 
-## Comparison with MinerU
-Unlike the advanced MinerU engine, this basic mode:
-- Does **not** perform layout-aware table reconstruction (tables are extracted as raw text).
-- Does **not** recognize LaTeX formulas (formulas are extracted as text or images).
-- Does **not** perform high-level structural analysis (e.g., identifying headers vs. body text beyond basic formatting).
+## 4. Cache and Output Management
+- **Dynamic Directories**: Each extraction creates a unique `result_YYYYMMDD_HHMMSS_HASH/` folder.
+- **Centralized Cache**: Limits the number of stored results to 1024, automatically cleaning the oldest 512 when the limit is reached.
 
-## Future Improvements
-- **Formula & Table Placeholders**: Integrate with `UNIMERNET` to specifically identify and tag formulas/tables for better post-processing.
-- **Image Analysis**: Automatically trigger `IMG2TEXT` for extracted images to provide natural language descriptions within the markdown.
-- **Layout Awareness**: Improve structural detection (headers, footers, multi-column text) using bounding box heuristics from `PyMuPDF`.
+## 5. Comparison with Other Tools
+| Feature | READ (Basic) | MinerU / MinerU-like |
+|---------|--------------|----------------------|
+| **Speed** | Very Fast (ms) | Slower (seconds/minutes) |
+| **Dependencies** | Minimal | Heavy (Deep Learning models) |
+| **Accuracy** | High for standard layouts | Superior for extremely complex layouts |
+| **OCR Support** | No (future) | Yes |
 
+## 6. Future Improvements
+- **OCR Integration**: For scanned PDFs.
+- **Image Analysis**: Use Gemini/OpenRouter to describe extracted images.
+- **Table Reconstruction**: Better conversion of PDF tables to Markdown tables.
