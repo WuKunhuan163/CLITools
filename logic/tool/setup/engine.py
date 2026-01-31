@@ -59,7 +59,7 @@ class ToolEngine:
         # 1. Check if correctly installed
         if self.is_installed():
             status = self._("label_already_installed", "Already installed")
-            msg = f"\r\033[K{self.BOLD}{self.GREEN}{status}{self.RESET} {self.tool_name}"
+            msg = f"\r\033[K{self.BOLD}{self.WHITE}{status}{self.RESET} {self.tool_name}"
             if is_dependency:
                 sys.stdout.write(msg)
                 sys.stdout.flush()

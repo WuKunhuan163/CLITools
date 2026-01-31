@@ -92,6 +92,7 @@ RED = get_color("RED", "\033[31m")
 GREEN = get_color("GREEN", "\033[32m")
 YELLOW = get_color("YELLOW", "\033[33m")
 BLUE = get_color("BLUE", "\033[34m")
+WHITE = get_color("WHITE", "\033[37m")
 BOLD = get_color("BOLD", "\033[1m")
 RESET = get_color("RESET", "\033[0m")
 
@@ -209,18 +210,31 @@ def get_remote_resources():
 
     resources = {}
     for line in lines:
+        parts = line.split()
+        if len(parts) < 4: continue
+        file_path = parts[3]
+        
+        # Priority 1: PYTHON.json
         if "PYTHON.json" in line:
-            parts = line.split()
-            if len(parts) >= 4:
-                file_path = parts[3]
-                try:
-                    cmd = ["git", "show", f"origin/tool:{file_path}"]
-                    res = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True)
-                    if res.returncode == 0:
-                        data = json.loads(res.stdout)
-                        v_tag = Path(file_path).parent.name
-                        resources[v_tag] = data
-                except: pass
+            try:
+                cmd = ["git", "show", f"origin/tool:{file_path}"]
+                res = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True)
+                if res.returncode == 0:
+                    data = json.loads(res.stdout)
+                    v_tag = Path(file_path).parent.name
+                    resources[v_tag] = data
+            except: pass
+        # Priority 2: .tar.zst if not already seen via JSON
+        elif ".tar.zst" in line:
+            v_tag = Path(file_path).parent.name
+            if v_tag not in resources:
+                # Infer release from filename if possible
+                filename = Path(file_path).name
+                # cpython-VERSION-PLATFORM-TAG.tar.zst
+                # Tag is usually after the last dash before .tar.zst
+                match = re.search(r"-(\d{8}(?:T\d+)?)\.tar\.zst$", filename)
+                release = match.group(1) if match else "0"
+                resources[v_tag] = {"release": release, "asset": filename}
     return resources
 
 def push_step(asset, tag, worker_id, manager):
@@ -261,7 +275,7 @@ def push_step(asset, tag, worker_id, manager):
             prefix = f"{BOLD}{BLUE}Pushing{RESET} {v_tag}"
             manager.update(worker_id, f"{prefix}: 0.0%")
             
-            subprocess.run(["git", "add", str(rel_path / "PYTHON.json")], cwd=str(PROJECT_ROOT), capture_output=True)
+            subprocess.run(["git", "add", "-f", str(rel_path / "PYTHON.json")], cwd=str(PROJECT_ROOT), capture_output=True)
             subprocess.run(["git", "add", "-f", str(rel_path / asset["name"])], cwd=str(PROJECT_ROOT), capture_output=True)
             subprocess.run(["git", "commit", "-m", f"Add Python {v_tag}"], cwd=str(PROJECT_ROOT), capture_output=True)
             
@@ -316,17 +330,62 @@ def main():
             assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
             for a in assets:
                 v_tag = regularize_version_name(a['version'], a['platform'])
-                if v_tag not in matrix: matrix[v_tag] = []
-                matrix[v_tag].append(tag)
+                if v_tag not in matrix: matrix[v_tag] = set()
+                matrix[v_tag].add(tag)
         sys.stdout.write("\r\033[K")
         
         sorted_versions = sorted(matrix.keys(), reverse=args.reverse)
         
         if args.simple:
-            print(",".join(sorted_versions))
+            print(", ".join(sorted_versions))
         else:
             for v in sorted_versions:
-                print(f"{v}:{','.join(matrix[v])}")
+                # Version name in white bold
+                tag_list = sorted(list(matrix[v]))
+                print(f"{BOLD}{WHITE}{v}{RESET}:{','.join(tag_list)}")
+        
+        # Save audit cache
+        audit_releases_dir = AUDIT_DIR / "releases"
+        audit_releases_dir.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Categorize
+        by_version = {}
+        by_platform = {}
+        for v_tag in sorted_versions:
+            # Extract version and platform from v_tag (e.g. 3.11.1-macos)
+            v_match = re.match(r"(\d+\.\d+)", v_tag)
+            major_minor = v_match.group(1) if v_match else "unknown"
+            
+            platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
+            platform_name = platform_match.group(1) if platform_match else "unknown"
+            
+            if major_minor not in by_version: by_version[major_minor] = []
+            by_version[major_minor].append(v_tag)
+            
+            if platform_name not in by_platform: by_platform[platform_name] = []
+            by_platform[platform_name].append(v_tag)
+            
+        full_data = {v: sorted(list(matrix[v])) for v in sorted_versions}
+        
+        report = {
+            "timestamp": datetime.now().isoformat(),
+            "full": full_data,
+            "short": sorted_versions,
+            "by_version": by_version,
+            "by_platform": by_platform
+        }
+        
+        report_path = audit_releases_dir / f"report_{timestamp}.json"
+        with open(report_path, "w") as f:
+            json.dump(report, f, indent=2)
+            
+        # Cleanup
+        from logic.utils import cleanup_old_files
+        cleanup_old_files(audit_releases_dir, "report_*.json", limit=1024, batch_size=512)
+        
+        print(f"\n{BOLD}{WHITE}Full report saved to{RESET}: {report_path}")
         return
 
     if args.all_latest and not args.tag:
@@ -334,42 +393,58 @@ def main():
     else:
         target_tags = [args.tag] if args.tag else [tags[-1]]
 
-    for tag in target_tags:
-        # Use localized string for fetching message
-        fetch_msg = _("python_fetching_assets", "Fetching assets for {tag}...", tag=tag)
-        assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg)
-        # Clear the "Fetching" message completely
-        sys.stdout.write("\r\033[K")
-        sys.stdout.flush()
-        
-        filtered = assets
-        if args.version:
-            filtered = [a for a in filtered if a["version"].startswith(args.version)]
-        if args.platform:
-            filtered = [a for a in filtered if a["platform"] == args.platform]
+        for tag in target_tags:
+            # Use localized string for fetching message
+            fetch_msg = _("python_fetching_assets", "Fetching assets for {tag}...", tag=tag)
+            assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg)
+            # Clear the "Fetching" message completely
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
             
-        def vp(n):
-            if "pgo+lto-full" in n: return 0
-            if "pgo-full" in n: return 1
-            if "install_only" in n: return 2
-            return 10
-        filtered = sorted(filtered, key=lambda x: (x["patch"], -vp(x["name"])), reverse=True)
-        
-        to_migrate = []
-        seen = set()
-        for a in filtered:
-            v_tag = regularize_version_name(a['version'], a['platform'])
-            if v_tag in remote_resources and str(tag) <= str(remote_resources[v_tag].get("release", "0")):
-                continue
-            key = (a["minor"], a["platform"])
-            if key not in seen:
-                to_migrate.append(a)
-                seen.add(key)
-                if not args.all_latest and not args.version: break
+            filtered = assets
+            if args.version:
+                filtered = [a for a in filtered if a["version"].startswith(args.version)]
+            if args.platform:
+                filtered = [a for a in filtered if a["platform"] == args.platform]
+                
+            def vp(n):
+                if "pgo+lto-full" in n: return 0
+                if "pgo-full" in n: return 1
+                if "install_only" in n: return 2
+                return 10
+            filtered = sorted(filtered, key=lambda x: (x["patch"], -vp(x["name"])), reverse=True)
+            
+            to_migrate = []
+            already_migrated = []
+            seen = set()
+            for a in filtered:
+                v_tag = regularize_version_name(a['version'], a['platform'])
+                # If force is not set, skip already migrated versions
+                if not args.force and v_tag in remote_resources and str(tag) <= str(remote_resources[v_tag].get("release", "0")):
+                    already_migrated.append(v_tag)
+                    continue
+                
+                key = (a["minor"], a["platform"])
+                if key not in seen:
+                    to_migrate.append(a)
+                    seen.add(key)
+                    if not args.all_latest and not args.version: break
 
-        if not to_migrate:
-            print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')} for {tag}.{RESET}")
-            continue
+            if already_migrated:
+                already_label = f"{BOLD}{WHITE}Already migrated{RESET}"
+                assets_str = ", ".join(already_migrated)
+                # Build force command
+                force_cmd = f"PYTHON --py-update --force --limit-releases {args.limit_releases or 1}"
+                if args.tag: force_cmd += f" --tag {args.tag}"
+                if args.version: force_cmd += f" --version {args.version}"
+                if args.platform: force_cmd += f" --platform {args.platform}"
+                
+                print(f"{already_label} {assets_str}. To force migration, run: {BOLD}{force_cmd}{RESET}")
+
+            if not to_migrate:
+                if not already_migrated:
+                    print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')} for {tag}.{RESET}")
+                continue
 
         asset_count = len(to_migrate)
         asset_word = _("label_assets", "assets")
