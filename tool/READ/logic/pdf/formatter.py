@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 def process_text_linebreaks(text: str) -> str:
     """Smartly merge lines to avoid fragmented sentences."""
@@ -51,8 +51,8 @@ def get_span_style(span: Dict[str, Any], median_size: float, line_y: float) -> D
         r = (color_int >> 16) & 0xFF
         g = (color_int >> 8) & 0xFF
         b = color_int & 0xFF
-        if r > 30 or g > 30 or b > 30:
-            hex_color = f"#{r:02x}{g:02x}{b:02x}"
+        # Keep all colors, including near-black
+        hex_color = f"#{r:02x}{g:02x}{b:02x}"
             
     return {
         "bold": is_bold,
@@ -62,26 +62,96 @@ def get_span_style(span: Dict[str, Any], median_size: float, line_y: float) -> D
         "color": hex_color
     }
 
-def apply_style_to_text(text: str, style: Dict[str, Any]) -> str:
-    """Apply style attributes to a clean text string."""
-    if not text:
-        return ""
-        
+def apply_inner_style(text: str, style: Dict[str, Any]) -> str:
+    """Apply bold, italic, super, sub styles."""
     res = text
-    # 1. Bold/Italic
     if style["bold"] and style["italic"]: res = f"***{res}***"
     elif style["bold"]: res = f"**{res}**"
     elif style["italic"]: res = f"*{res}*"
         
-    # 2. Sub/Super
     if style["super"]: res = f"<sup>{res}</sup>"
     elif style["sub"]: res = f"<sub>{res}</sub>"
+    return res
+
+def apply_style_to_text(text: str, style: Dict[str, Any]) -> str:
+    """Apply all style attributes to a clean text string."""
+    if not text: return ""
     
-    # 3. Color
+    # Extract leading/trailing spaces
+    stripped = text.lstrip()
+    leading_spaces = text[:len(text) - len(stripped)]
+    text = stripped
+    
+    stripped = text.rstrip()
+    trailing_spaces = text[len(stripped):]
+    text = stripped
+    
+    if not text: return leading_spaces + trailing_spaces
+
+    res = apply_inner_style(text, style)
+    
     if style["color"]:
         res = f'<span style="color:{style["color"]}">{res}</span>'
         
-    return res
+    return leading_spaces + res + trailing_spaces
+
+def format_segments_with_color_merging(segments: List[Tuple[str, Dict[str, Any]]]) -> str:
+    """Merge segments with the same color into a single span."""
+    if not segments: return ""
+    
+    output_parts = []
+    current_color_group = []
+    current_color = None
+    
+    for text, style in segments:
+        color = style["color"]
+        if color == current_color:
+            current_color_group.append((text, style))
+        else:
+            if current_color_group:
+                output_parts.append(wrap_color_group(current_color_group, current_color))
+            current_color = color
+            current_color_group = [(text, style)]
+            
+    if current_color_group:
+        output_parts.append(wrap_color_group(current_color_group, current_color))
+        
+    return "".join(output_parts)
+
+def wrap_color_group(group: List[Tuple[str, Dict[str, Any]]], color: str) -> str:
+    """Wrap a group of segments in a single color span if color exists."""
+    inner_content = "".join([apply_inner_style(t, s) for t, s in group])
+    if color:
+        return f'<span style="color:{color}">{inner_content}</span>'
+    return inner_content
+
+def merge_spans(spans: List[Dict[str, Any]], median_size: float, line_y: float) -> str:
+    """Merge adjacent spans with identical styles into a single string."""
+    if not spans:
+        return ""
+    
+    merged_parts = []
+    current_text = ""
+    current_style = None
+    
+    for span in spans:
+        style = get_span_style(span, median_size, line_y)
+        
+        if current_style is None:
+            current_style = style
+            current_text = span["text"]
+        elif style == current_style:
+            current_text += span["text"]
+        else:
+            # Apply style to accumulated text and start new group
+            merged_parts.append(apply_style_to_text(current_text, current_style))
+            current_style = style
+            current_text = span["text"]
+            
+    if current_text:
+        merged_parts.append(apply_style_to_text(current_text, current_style))
+        
+    return "".join(merged_parts)
 
 def format_span(span: Dict[str, Any], median_size: float, line_y: float) -> str:
     """Legacy format_span, now uses apply_style_to_text."""

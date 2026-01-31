@@ -22,12 +22,28 @@ Instead of simple top-to-bottom extraction, the `READ` tool uses a modular `Read
 ### 2.3 Image Handling
 Images are extracted in their original resolution, hashed for deduplication, and saved to a dedicated `images/` directory within the result folder. Placeholders are inserted into the Markdown to indicate their original position.
 
-## 3. Word (.docx) Extraction
-Uses **python-docx** to iterate through paragraphs and extract relationships (images).
+## 3. Semantic Identification and Visualization
+The `READ` tool identifies semantic blocks (title, heading, paragraph, image, header, footer) and generates two visual aids:
+- **`source.png`**: A high-resolution (2x zoom) screenshot of the original page.
+- **`extracted.png`**: The same screenshot with semi-transparent color overlays and outlines highlighting each identified semantic block.
 
-## 4. Cache and Output Management
-- **Dynamic Directories**: Each extraction creates a unique `result_YYYYMMDD_HHMMSS_HASH/` folder.
-- **Centralized Cache**: Limits the number of stored results to 1024, automatically cleaning the oldest 512 when the limit is reached.
+### 3.1 Identification Heuristics
+- **Title**: Blocks with font size significantly larger (>1.5x) than the page median.
+- **Heading**: Blocks with slightly larger font size (>1.1x).
+- **Header/Footer**: Blocks located in the extreme top (<8%) or bottom (>92%) margins.
+- **Image**: Detected via PDF object metadata.
+
+## 4. Word (.docx) and Image Extraction
+- **Word**: Uses **python-docx** to iterate through paragraphs and extract images.
+- **Images**: Integrated vision analysis using Gemini API (with free/paid fallback) to describe subjects and extract text/code.
+
+## 5. Output and Cache Management
+- **Structured Pages**: Each page is saved in its own `pages/page_XXX/` directory containing:
+  - `extracted.md`: Markdown with style-aware text and HTML comments for block tracking.
+  - `extracted.png`: Visual semantic overlay.
+  - `source.pdf` / `source.png`: Original page references.
+  - `images/`: Page-specific raster images.
+- **Centralized Cache**: Limits the number of stored results to 1024, automatically cleaning the oldest 512.
 
 ## 5. Comparison with Other Tools
 | Feature | READ (Basic) | MinerU / MinerU-like |
