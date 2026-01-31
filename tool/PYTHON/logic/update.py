@@ -7,6 +7,8 @@ import sys
 import shutil
 import hashlib
 import threading
+import random
+import string
 from pathlib import Path
 from datetime import datetime
 from queue import Queue
@@ -163,34 +165,66 @@ def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
     if not silent and status_msg:
         print_erasable(status_msg)
 
-    url = f"{PROJECT_URL}/releases/expanded_assets/{tag}"
-    cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", url]
+    # Use GitHub API for full asset list (avoids 100-asset limit of expanded_assets scraping)
+    api_url = f"https://api.github.com/repos/{PROJECT_OWNER}/{PROJECT_NAME}/releases/tags/{tag}"
+    cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", api_url]
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     assets = []
-    matches = re.findall(r'cpython-([\w\+\-\.]+)\.tar\.zst', result.stdout)
-    for name_core in set(matches):
-        name = f"cpython-{name_core}.tar.zst"
-        v_match = re.search(r"(\d+\.\d+\.\d+)", name)
-        if not v_match: continue
-        
-        full_v = v_match.group(1)
-        minor_v = ".".join(full_v.split(".")[:2])
-        patch_str = full_v.split(".")[2]
-        try: patch = int(patch_str)
-        except ValueError: patch = 0
-        
-        platform = resolve_platform(name)
-        if platform:
-            assets.append({
-                "name": name,
-                "url": f"{PROJECT_URL}/releases/download/{tag}/{name}",
-                "version": full_v,
-                "minor": minor_v,
-                "patch": patch,
-                "platform": platform,
-                "tag": tag
-            })
+    try:
+        data = json.loads(result.stdout)
+        if "assets" in data:
+            for item in data["assets"]:
+                name = item["name"]
+                if not name.endswith(".tar.zst") or name.endswith(".sha256"):
+                    continue
+                
+                v_match = re.search(r"(\d+\.\d+\.\d+)", name)
+                if not v_match: continue
+                
+                full_v = v_match.group(1)
+                minor_v = ".".join(full_v.split(".")[:2])
+                patch_str = full_v.split(".")[2]
+                try: patch = int(patch_str)
+                except ValueError: patch = 0
+                
+                platform = resolve_platform(name)
+                if platform:
+                    assets.append({
+                        "name": name,
+                        "url": item["browser_download_url"],
+                        "version": full_v,
+                        "minor": minor_v,
+                        "patch": patch,
+                        "platform": platform,
+                        "tag": tag
+                    })
+    except:
+        # Fallback to scraping if API fails or rate limited
+        url = f"{PROJECT_URL}/releases/expanded_assets/{tag}"
+        cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", url]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        matches = re.findall(r'cpython-([\w\+\-\.]+)\.tar\.zst', result.stdout)
+        for name_core in set(matches):
+            name = f"cpython-{name_core}.tar.zst"
+            v_match = re.search(r"(\d+\.\d+\.\d+)", name)
+            if not v_match: continue
+            full_v = v_match.group(1)
+            minor_v = ".".join(full_v.split(".")[:2])
+            patch_str = full_v.split(".")[2]
+            try: patch = int(patch_str)
+            except ValueError: patch = 0
+            platform = resolve_platform(name)
+            if platform:
+                assets.append({
+                    "name": name,
+                    "url": f"{PROJECT_URL}/releases/download/{tag}/{name}",
+                    "version": full_v,
+                    "minor": minor_v,
+                    "patch": patch,
+                    "platform": platform,
+                    "tag": tag
+                })
             
     audit.save(f"assets_{tag}", {"assets": assets, "timestamp": datetime.now().isoformat()})
     return assets
@@ -237,10 +271,33 @@ def get_remote_resources():
                 resources[v_tag] = {"release": release, "asset": filename}
     return resources
 
-def push_step(asset, tag, worker_id, manager):
+def log_failure(asset_name, tag, error_msg):
+    """Log a migration failure to a JSON report."""
+    try:
+        report_dir = AUDIT_DIR / "failures"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rand_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        report_path = report_dir / f"failure_{timestamp}_{rand_id}.json"
+        
+        failure_data = {
+            "timestamp": datetime.now().isoformat(),
+            "asset": asset_name,
+            "release": tag,
+            "error": error_msg
+        }
+        
+        with open(report_path, "w") as f:
+            json.dump(failure_data, f, indent=2)
+            
+        from logic.utils import cleanup_old_files
+        cleanup_old_files(report_dir, "failure_*.json", limit=1000, batch_size=500)
+    except: pass
+
+def push_step(asset, tag, worker_id, manager, git_lock=None):
     def logic():
         v_tag = regularize_version_name(asset['version'], asset['platform'])
-        unique_str = f"{tag}-{asset['name']}"
+        unique_str = f"{tag}-{asset['name']}-{worker_id}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
         dir_hash = hashlib.md5(unique_str.encode()).hexdigest()[:8]
         tmp_path = TMP_INSTALL_DIR / f"migrate_{v_tag}_{dir_hash}"
         if tmp_path.exists(): shutil.rmtree(tmp_path)
@@ -255,8 +312,10 @@ def push_step(asset, tag, worker_id, manager):
             curl_cmd = ["curl", "-L", asset["url"], "-o", str(zst_path)]
             yield StepResult(f"{prefix}: 0.0%", state=WorkerState.CONTINUE)
             
-            if not run_with_progress(curl_cmd, prefix, worker_id=worker_id, manager=manager):
-                error_msg = f"{BOLD}{RED}Download failed{RESET} for {v_tag}"
+            success, err = run_with_progress(curl_cmd, prefix, worker_id=worker_id, manager=manager)
+            if not success:
+                error_msg = f"{BOLD}{RED}Download failed{RESET} for {v_tag}: {err}"
+                log_failure(asset["name"], tag, err)
                 yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
                 return
 
@@ -264,40 +323,51 @@ def push_step(asset, tag, worker_id, manager):
             meta = {"release": tag, "asset": asset["name"], "version": asset["version"], "platform": asset["platform"]}
             with open(json_path, "w") as f: json.dump(meta, f, indent=2)
             
-            # 3. Move to resource dir
-            res_dir = RESOURCE_ROOT / v_tag
-            res_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(zst_path), str(res_dir / asset["name"]))
-            shutil.move(str(json_path), str(res_dir / "PYTHON.json"))
-            
-            # 4. Git
-            rel_path = res_dir.relative_to(PROJECT_ROOT)
-            prefix = f"{BOLD}{BLUE}Pushing{RESET} {v_tag}"
-            manager.update(worker_id, f"{prefix}: 0.0%")
-            
-            subprocess.run(["git", "add", "-f", str(rel_path / "PYTHON.json")], cwd=str(PROJECT_ROOT), capture_output=True)
-            subprocess.run(["git", "add", "-f", str(rel_path / asset["name"])], cwd=str(PROJECT_ROOT), capture_output=True)
-            subprocess.run(["git", "commit", "-m", f"Add Python {v_tag}"], cwd=str(PROJECT_ROOT), capture_output=True)
-            
-            success = False
-            for i in range(3):
-                if run_with_progress(["git", "push", "origin", "HEAD:tool"], prefix, worker_id=worker_id, manager=manager):
-                    success = True
-                    break
-                subprocess.run(["git", "pull", "--rebase", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True)
+            # 3. Git Operations (must be serial due to .git/index lock)
+            if git_lock: git_lock.acquire()
+            try:
+                # Move to resource dir
+                res_dir = RESOURCE_ROOT / v_tag
+                res_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(zst_path), str(res_dir / asset["name"]))
+                shutil.copy2(str(json_path), str(res_dir / "PYTHON.json"))
                 
-            if success:
-                shutil.rmtree(res_dir)
-                success_status = _("python_migrated_success_status", "Successfully migrated")
-                from_label = _("label_from", "from")
-                msg = f"{BOLD}{GREEN}{success_status}{RESET} {v_tag} {from_label} {BOLD}{tag}{RESET}."
-                yield StepResult(msg, state=WorkerState.SUCCESS, is_final=True)
-            else:
-                error_msg = f"{BOLD}{RED}Push failed{RESET} for {v_tag}"
-                yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
+                rel_path = res_dir.relative_to(PROJECT_ROOT)
+                prefix = f"{BOLD}{BLUE}Pushing{RESET} {v_tag}"
+                manager.update(worker_id, f"{prefix}: 0.0%")
+                
+                subprocess.run(["git", "add", "-f", str(rel_path / "PYTHON.json")], cwd=str(PROJECT_ROOT), capture_output=True)
+                subprocess.run(["git", "add", "-f", str(rel_path / asset["name"])], cwd=str(PROJECT_ROOT), capture_output=True)
+                subprocess.run(["git", "commit", "-m", f"Add Python {v_tag}"], cwd=str(PROJECT_ROOT), capture_output=True)
+                
+                success = False
+                last_err = "Push failed"
+                import time
+                for i in range(10):  # Increase to 10 retries
+                    success, last_err = run_with_progress(["git", "push", "origin", "HEAD:tool"], prefix, worker_id=worker_id, manager=manager)
+                    if success:
+                        break
+                    # Small random sleep to avoid synchronized retries
+                    time.sleep(1 + i * 0.5 + random.random())
+                    subprocess.run(["git", "pull", "--rebase", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True)
+                    
+                if success:
+                    # Clean up local resource dir after success
+                    if res_dir.exists(): shutil.rmtree(res_dir)
+                    success_status = _("python_migrated_success_status", "Successfully migrated")
+                    from_label = _("label_from", "from")
+                    msg = f"{BOLD}{GREEN}{success_status}{RESET} {v_tag} {from_label} {BOLD}{tag}{RESET}."
+                    yield StepResult(msg, state=WorkerState.SUCCESS, is_final=True)
+                else:
+                    error_msg = f"{BOLD}{RED}Push failed{RESET} for {v_tag}: {last_err}"
+                    log_failure(asset["name"], tag, last_err)
+                    yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
+            finally:
+                if git_lock: git_lock.release()
                 
         except Exception as e:
             error_msg = f"{BOLD}{RED}Error{RESET} {v_tag}: {e}"
+            log_failure(asset["name"], tag, str(e))
             yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
         finally:
             if tmp_path.exists(): shutil.rmtree(tmp_path)
@@ -315,7 +385,30 @@ def main():
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     parser.add_argument("--simple", action="store_true", help="One-line comma-separated list of versions")
     parser.add_argument("--reverse", action="store_true", help="Reverse sort order (newest first)")
-    args = parser.parse_args()
+    
+    args, unknown = parser.parse_known_args()
+
+    # Precise tag:version pair support (e.g., 20211017:3.10.0-windows-x86)
+    precise_targets = [] # List of (tag, version)
+    
+    # Combined list of all positional/version arguments
+    all_raw_args = []
+    if args.version:
+        all_raw_args.extend([p.strip().strip('"').strip("'").strip(",") for p in args.version.split(",")])
+    for arg in unknown:
+        all_raw_args.extend([p.strip().strip('"').strip("'").strip(",") for p in arg.split(",")])
+    
+    target_versions = []
+    for arg in all_raw_args:
+        if ":" in arg:
+            parts = arg.split(":")
+            if len(parts) == 2:
+                precise_targets.append((parts[0], parts[1]))
+        else:
+            target_versions.append(arg)
+    
+    # Remove duplicates
+    target_versions = list(set([v for v in target_versions if v]))
 
     tags = get_release_tags(use_cache=not args.force)
     if args.limit_releases: tags = tags[:args.limit_releases]
@@ -323,6 +416,7 @@ def main():
     remote_resources = get_remote_resources()
     
     if args.list:
+        # ... (unchanged list logic)
         matrix = {}
         scan_label = f"{BOLD}{BLUE}Scanning{RESET}"
         for i, tag in enumerate(tags):
@@ -330,8 +424,8 @@ def main():
             assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
             for a in assets:
                 v_tag = regularize_version_name(a['version'], a['platform'])
-                if v_tag not in matrix: matrix[v_tag] = set()
-                matrix[v_tag].add(tag)
+                if v_tag not in matrix: matrix[v_tag] = {}
+                matrix[v_tag][tag] = a["url"]
         sys.stdout.write("\r\033[K")
         
         sorted_versions = sorted(matrix.keys(), reverse=args.reverse)
@@ -341,7 +435,7 @@ def main():
         else:
             for v in sorted_versions:
                 # Version name in white bold
-                tag_list = sorted(list(matrix[v]))
+                tag_list = sorted(list(matrix[v].keys()))
                 print(f"{BOLD}{WHITE}{v}{RESET}:{','.join(tag_list)}")
         
         # Save audit cache
@@ -354,7 +448,6 @@ def main():
         by_version = {}
         by_platform = {}
         for v_tag in sorted_versions:
-            # Extract version and platform from v_tag (e.g. 3.11.1-macos)
             v_match = re.match(r"(\d+\.\d+)", v_tag)
             major_minor = v_match.group(1) if v_match else "unknown"
             
@@ -367,11 +460,9 @@ def main():
             if platform_name not in by_platform: by_platform[platform_name] = []
             by_platform[platform_name].append(v_tag)
             
-        full_data = {v: sorted(list(matrix[v])) for v in sorted_versions}
-        
         report = {
             "timestamp": datetime.now().isoformat(),
-            "full": full_data,
+            "full": matrix,
             "short": sorted_versions,
             "by_version": by_version,
             "by_platform": by_platform
@@ -388,22 +479,70 @@ def main():
         print(f"\n{BOLD}{WHITE}Full report saved to{RESET}: {report_path}")
         return
 
-    if args.all_latest and not args.tag:
-        target_tags = tags
-    else:
-        target_tags = [args.tag] if args.tag else [tags[-1]]
+    # Collect all assets to migrate
+    all_to_migrate = [] # List of (asset_dict, tag)
+    already_migrated_total = set()
+
+    # 1. Handle precise targets first
+    if precise_targets:
+        # Group by tag to avoid multiple fetches for the same tag
+        tag_to_v = {}
+        for t, v in precise_targets:
+            if t not in tag_to_v: tag_to_v[t] = []
+            tag_to_v[t].append(v)
+        
+        for t, versions in tag_to_v.items():
+            fetch_msg = _("python_fetching_assets", "Fetching assets for {tag}...", tag=t)
+            assets = fetch_assets_for_tag(t, use_cache=not args.force, status_msg=fetch_msg)
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            
+            for v in versions:
+                found = False
+                for a in assets:
+                    v_tag = regularize_version_name(a['version'], a['platform'])
+                    if v_tag == v or a["version"] == v:
+                        # Check migration status
+                        if not args.force and v_tag in remote_resources and str(t) <= str(remote_resources[v_tag].get("release", "0")):
+                            already_migrated_total.add(v_tag)
+                        else:
+                            all_to_migrate.append((a, t))
+                        found = True
+                        break
+                if not found:
+                    error_msg = f"{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Asset {v} not found in release {t}."
+                    print(error_msg)
+
+    # 2. Handle version prefix / tag filters
+    if target_versions or args.all_latest or args.tag:
+        if args.all_latest and not args.tag:
+            target_tags = tags
+        elif target_versions and not args.tag:
+            target_tags = tags
+        else:
+            target_tags = [args.tag] if args.tag else [tags[-1]]
 
         for tag in target_tags:
-            # Use localized string for fetching message
             fetch_msg = _("python_fetching_assets", "Fetching assets for {tag}...", tag=tag)
             assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg)
-            # Clear the "Fetching" message completely
             sys.stdout.write("\r\033[K")
             sys.stdout.flush()
             
             filtered = assets
-            if args.version:
-                filtered = [a for a in filtered if a["version"].startswith(args.version)]
+            if target_versions:
+                filtered_match = []
+                for a in filtered:
+                    v_tag = regularize_version_name(a['version'], a['platform'])
+                    match = False
+                    for tv in target_versions:
+                        if "-" in tv:
+                            if v_tag == tv: match = True; break
+                        else:
+                            if a["version"].startswith(tv): match = True; break
+                    if match:
+                        filtered_match.append(a)
+                filtered = filtered_match
+                
             if args.platform:
                 filtered = [a for a in filtered if a["platform"] == args.platform]
                 
@@ -414,64 +553,59 @@ def main():
                 return 10
             filtered = sorted(filtered, key=lambda x: (x["patch"], -vp(x["name"])), reverse=True)
             
-            to_migrate = []
-            already_migrated = []
-            seen = set()
+            seen_in_tag = set()
             for a in filtered:
                 v_tag = regularize_version_name(a['version'], a['platform'])
-                # If force is not set, skip already migrated versions
                 if not args.force and v_tag in remote_resources and str(tag) <= str(remote_resources[v_tag].get("release", "0")):
-                    already_migrated.append(v_tag)
+                    already_migrated_total.add(v_tag)
                     continue
                 
                 key = (a["minor"], a["platform"])
-                if key not in seen:
-                    to_migrate.append(a)
-                    seen.add(key)
-                    if not args.all_latest and not args.version: break
+                if key not in seen_in_tag:
+                    all_to_migrate.append((a, tag))
+                    seen_in_tag.add(key)
+                    if not args.all_latest and not target_versions: break
 
-            if already_migrated:
-                already_label = f"{BOLD}{WHITE}Already migrated{RESET}"
-                assets_str = ", ".join(already_migrated)
-                # Build force command
-                force_cmd = f"PYTHON --py-update --force --limit-releases {args.limit_releases or 1}"
-                if args.tag: force_cmd += f" --tag {args.tag}"
-                if args.version: force_cmd += f" --version {args.version}"
-                if args.platform: force_cmd += f" --platform {args.platform}"
-                
-                print(f"{already_label} {assets_str}. To force migration, run: {BOLD}{force_cmd}{RESET}")
+    # 3. Execution
+    if already_migrated_total and not all_to_migrate:
+        print(f"{BOLD}{WHITE}Already migrated{RESET} {', '.join(sorted(list(already_migrated_total)))}. {BOLD}{_('python_remote_up_to_date', 'Remote up to date')}.{RESET}")
+        return
 
-            if not to_migrate:
-                if not already_migrated:
-                    print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')} for {tag}.{RESET}")
-                continue
+    if already_migrated_total:
+        print(f"{BOLD}{WHITE}Already migrated{RESET} {', '.join(sorted(list(already_migrated_total)))}.")
 
-        asset_count = len(to_migrate)
-        asset_word = _("label_assets", "assets")
-        found_label = _("python_found_assets_count", "Found {count} {word}", count=asset_count, word=asset_word)
-        v_display_tags = [regularize_version_name(a['version'], a['platform']) for a in to_migrate]
-        to_msg = _("label_to_migrate", "to migrate from release")
-        print(f"{BOLD}{found_label}{RESET} {to_msg} {BOLD}{tag}{RESET}: {', '.join(v_display_tags)}")
-        
-        manager = MultiLineManager()
-        task_queue = Queue()
-        for a in to_migrate: task_queue.put(a)
-        
-        def worker_loop(worker_id):
-            worker = TuringWorker(worker_id, manager)
-            while not task_queue.empty():
-                try: a = task_queue.get_nowait()
-                except: break
-                t = TuringTask(a['name'], [lambda a=a: push_step(a, tag, worker_id, manager)])
-                worker.execute(t)
-                task_queue.task_done()
+    if not all_to_migrate:
+        print(f"{BOLD}{_('python_remote_up_to_date', 'Remote up to date')}.{RESET}")
+        return
 
-        threads = []
-        for i in range(min(args.concurrency, len(to_migrate))):
-            t = threading.Thread(target=worker_loop, args=(f"W{i+1}",))
-            t.start()
-            threads.append(t)
-        for t in threads: t.join()
+    asset_count = len(all_to_migrate)
+    asset_word = _("label_assets", "assets")
+    found_label = _("python_found_assets_count", "Found {count} {word}", count=asset_count, word=asset_word)
+    v_display_tags = [f"{t}:{regularize_version_name(a['version'], a['platform'])}" for a, t in all_to_migrate]
+    to_msg = _("label_to_migrate", "to migrate")
+    print(f"{BOLD}{found_label}{RESET} {to_msg}: {', '.join(v_display_tags)}")
+    
+    manager = MultiLineManager()
+    task_queue = Queue()
+    for a, t in all_to_migrate: task_queue.put((a, t))
+    
+    git_lock = threading.Lock()
+
+    def worker_loop(worker_id):
+        worker = TuringWorker(worker_id, manager)
+        while not task_queue.empty():
+            try: a, t = task_queue.get_nowait()
+            except: break
+            t_task = TuringTask(a['name'], [lambda a=a, t=t: push_step(a, t, worker_id, manager, git_lock)])
+            worker.execute(t_task)
+            task_queue.task_done()
+
+    threads = []
+    for i in range(min(args.concurrency, len(all_to_migrate))):
+        t = threading.Thread(target=worker_loop, args=(f"W{i+1}",))
+        t.start()
+        threads.append(t)
+    for t in threads: t.join()
 
 if __name__ == "__main__":
     main()
