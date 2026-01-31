@@ -153,7 +153,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             
         color_key = f"SEMANTIC_{block_type.upper()}"
         color = get_color(color_key, [0, 255, 0, 60])
-        # Use 20% alpha as the final test value
+        # Use 20% alpha (approx 51)
         color = list(color[:3]) + [51]
         
         # Draw semi-transparent rectangle
@@ -209,8 +209,9 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     with open(md_file_path, "w", encoding="utf-8") as f:
         f.write(content)
         
-    # Save visualized image
-    vis_img.save(page_dir / "extracted.png")
+    # Composite the overlay onto the original image for true transparency
+    final_vis = Image.alpha_composite(vis_img, overlay)
+    final_vis.save(page_dir / "extracted.png")
     
     return content, image_metadata, semantic_info
 
