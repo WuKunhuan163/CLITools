@@ -156,11 +156,19 @@ def get_release_tags(use_cache=True):
     return tags
 
 def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
-    cache = audit.load(f"assets_{tag}")
-    if use_cache and cache and "assets" in cache:
-        if not silent:
-            print_cache_warning_once()
-        return cache["assets"]
+    asset_cache_dir = AUDIT_DIR / "assets"
+    asset_cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    cache_path = asset_cache_dir / f"assets_{tag}.json"
+    if use_cache and cache_path.exists():
+        try:
+            with open(cache_path, "r") as f:
+                cache = json.load(f)
+            if "assets" in cache:
+                if not silent:
+                    print_cache_warning_once()
+                return cache["assets"]
+        except: pass
 
     if not silent and status_msg:
         print_erasable(status_msg)
@@ -226,7 +234,12 @@ def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
                     "tag": tag
                 })
             
-    audit.save(f"assets_{tag}", {"assets": assets, "timestamp": datetime.now().isoformat()})
+    with open(cache_path, "w") as f:
+        json.dump({"assets": assets, "timestamp": datetime.now().isoformat()}, f, indent=2)
+    try:
+        from logic.utils import cleanup_old_files
+        cleanup_old_files(asset_cache_dir, "assets_*.json", limit=1000, batch_size=500)
+    except: pass
     return assets
 
 def get_remote_resources():
@@ -321,6 +334,14 @@ def push_step(asset, tag, worker_id, manager, git_lock=None):
 
             # 2. Metadata
             meta = {"release": tag, "asset": asset["name"], "version": asset["version"], "platform": asset["platform"]}
+            # Keep original metadata if it exists but merge our custom fields
+            if json_path.exists():
+                try:
+                    with open(json_path, "r") as f:
+                        original_meta = json.load(f)
+                    original_meta.update(meta)
+                    meta = original_meta
+                except: pass
             with open(json_path, "w") as f: json.dump(meta, f, indent=2)
             
             # 3. Git Operations (must be serial due to .git/index lock)
@@ -332,6 +353,13 @@ def push_step(asset, tag, worker_id, manager, git_lock=None):
                 shutil.copy2(str(zst_path), str(res_dir / asset["name"]))
                 shutil.copy2(str(json_path), str(res_dir / "PYTHON.json"))
                 
+                # Also update local installation if it exists
+                local_install_json = PROJECT_ROOT / "tool" / "PYTHON" / "data" / "install" / v_tag / "install" / "PYTHON.json"
+                if local_install_json.exists():
+                    try:
+                        shutil.copy2(str(json_path), str(local_install_json))
+                    except: pass
+
                 rel_path = res_dir.relative_to(PROJECT_ROOT)
                 prefix = f"{BOLD}{BLUE}Pushing{RESET} {v_tag}"
                 manager.update(worker_id, f"{prefix}: 0.0%")
@@ -429,6 +457,10 @@ def main():
         sys.stdout.write("\r\033[K")
         
         sorted_versions = sorted(matrix.keys(), reverse=args.reverse)
+        short_latest = []
+        for v in sorted_versions:
+            latest_tag = sorted(list(matrix[v].keys()))[-1]
+            short_latest.append(f"{latest_tag}:{v}")
         
         if args.simple:
             print(", ".join(sorted_versions))
@@ -464,6 +496,7 @@ def main():
             "timestamp": datetime.now().isoformat(),
             "full": matrix,
             "short": sorted_versions,
+            "short-latest": short_latest,
             "by_version": by_version,
             "by_platform": by_platform
         }
@@ -473,8 +506,10 @@ def main():
             json.dump(report, f, indent=2)
             
         # Cleanup
-        from logic.utils import cleanup_old_files
-        cleanup_old_files(audit_releases_dir, "report_*.json", limit=1024, batch_size=512)
+        try:
+            from logic.utils import cleanup_old_files
+            cleanup_old_files(audit_releases_dir, "report_*.json", limit=1024, batch_size=512)
+        except: pass
         
         print(f"\n{BOLD}{WHITE}Full report saved to{RESET}: {report_path}")
         return
