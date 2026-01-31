@@ -474,10 +474,14 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     Updates an erasable line (via sys.stdout.write or MultiLineManager).
     Ensures NO raw output from the command leaks to the terminal.
     Uses simple text format: 'Prefix: XX% (Speed) [Elapsed: t1, Left: t2]'
+    Returns: (success, error_message)
     """
     from logic.config import get_setting
+    from logic.turing.display.manager import _get_configured_width
+    
     decimal_places = get_setting("progress_decimal_places", 1)
     fmt = f"{{:.{decimal_places}f}}%"
+    full_error_output = []
 
     if cmd[0] == "curl":
         # Force a simple numeric progress if possible, or just parse default
@@ -491,7 +495,9 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     if manager and worker_id:
         manager.update(worker_id, initial_text)
     else:
-        sys.stdout.write(f"\r\033[K{initial_text}")
+        width = _get_configured_width()
+        display_text = truncate_to_display_width(initial_text, max(1, width - 1))
+        sys.stdout.write(f"\r\033[K{display_text}")
         sys.stdout.flush()
 
     env = os.environ.copy()
@@ -523,6 +529,7 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
             
             if char in ['\r', '\n']:
                 line = partial_line.strip()
+                full_error_output.append(partial_line) # Capture all output for error reporting
                 partial_line = ""
                 if not line:
                     continue
@@ -576,7 +583,9 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                     if manager and worker_id:
                         manager.update(worker_id, status_text)
                     else:
-                        sys.stdout.write(f"\r\033[K{status_text}")
+                        width = _get_configured_width()
+                        display_text = truncate_to_display_width(status_text, max(1, width - 1))
+                        sys.stdout.write(f"\r\033[K{display_text}")
                         sys.stdout.flush()
                     last_print = curr_time
             else:
@@ -584,17 +593,23 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     finally:
         process.wait()
     
+    error_msg = "".join(full_error_output).strip()
     if process.returncode == 0:
         total_time = format_seconds(time.time() - start_time)
         final_text = f"{prefix}: 100% ({total_time})"
         if manager and worker_id:
             manager.update(worker_id, final_text)
         else:
-            sys.stdout.write(f"\r\033[K{final_text}\n")
+            width = _get_configured_width()
+            display_text = truncate_to_display_width(final_text, max(1, width - 1))
+            sys.stdout.write(f"\r\033[K{display_text}\n")
             sys.stdout.flush()
+        return True, ""
     else:
         if not manager:
             sys.stdout.write(f"\r\033[K")
             sys.stdout.flush()
         
-    return process.returncode == 0
+        # Simplify error message
+        simplified_error = error_msg.splitlines()[-1] if error_msg.splitlines() else "Unknown error"
+        return False, simplified_error
