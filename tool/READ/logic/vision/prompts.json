@@ -1,0 +1,9 @@
+{
+  "academic": "You are an expert academic researcher. Analyze the following scientific image. Focus on extracting quantitative and qualitative information. Specifically:\n- **Identify the type of plot/figure.**\n- **Summarize the main finding or conclusion**.\n- **Extract key data points or significant numbers.**\n- **Describe the trend or relationship** shown.\nPresent your analysis in a concise, structured list.",
+  "general": "Provide a detailed description of the image, including subjects, setting, and mood.",
+  "code_snippet": "Accurately transcribe the code in the image into a raw code block. No explanations.",
+  "formula": "Accurately transcribe the mathematical formula in the image into LaTeX code. Wrap it in $$ symbols. No explanations.",
+  "table": "Accurately transcribe the table in the image into a Markdown table. No explanations.",
+  "default": "Please describe the following image:"
+}
+
