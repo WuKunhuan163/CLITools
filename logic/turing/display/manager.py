@@ -13,9 +13,9 @@ from logic.config import get_global_config, PROJECT_ROOT
 
 def truncate_to_width(text, max_width):
     """Truncate string to visible width, adding ellipsis and resetting color.
-    Ensures text is at most max_width - 1 to prevent cursor wrapping.
+    Ensures text is at most max_width - 2 to prevent cursor wrapping.
     """
-    safe_width = max(1, max_width - 1)
+    safe_width = max(1, max_width - 2)
     if get_visible_len(text) <= safe_width:
         return text
     return truncate_to_display_width(text, safe_width - 3) + "...\033[0m"
