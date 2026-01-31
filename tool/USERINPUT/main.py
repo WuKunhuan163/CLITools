@@ -292,13 +292,11 @@ class UserInputWindow(BaseGUIWindow):
         """Trigger FILEDIALOG when '@' is typed."""
         try:
             self.is_triggering_subtool = True
-            # We use the current python interpreter to run FILEDIALOG
-            fd_bin = PROJECT_ROOT / "bin" / "FILEDIALOG"
-            if not fd_bin.exists():
-                # Fallback to main.py if bin not yet installed
-                fd_bin = PROJECT_ROOT / "tool" / "FILEDIALOG" / "main.py"
+            # Use FILEDIALOG interface
+            from tool.FILEDIALOG.logic.interface.main import get_file_dialog_bin
+            fd_bin = get_file_dialog_bin()
             
-            cmd = [sys.executable, str(fd_bin), "--multiple", "--title", self._("select_entities", "Select Entities")]
+            cmd = [sys.executable, fd_bin, "--multiple", "--title", self._("select_entities", "Select Entities")]
             
             # Run FILEDIALOG and wait for selection
             res = subprocess.run(cmd, capture_output=True, text=True)
