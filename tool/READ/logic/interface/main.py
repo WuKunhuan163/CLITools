@@ -17,3 +17,8 @@ def get_docx_extractor_func():
     from tool.READ.logic.docx import extract_docx
     return extract_docx
 
+def get_span_merger_func():
+    """Returns a function to merge adjacent spans with identical styles."""
+    from tool.READ.logic.pdf.formatter import merge_spans
+    return merge_spans
+

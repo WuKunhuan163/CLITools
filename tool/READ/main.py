@@ -76,11 +76,9 @@ class ReadTool(ToolBase):
         default_data_dir = self.script_dir / "data" / "pdf"
         output_dir = Path(args.output).resolve() if args.output else default_data_dir / result_dir_name
         pages_dir = output_dir / "pages"
-        images_dir = output_dir / "images"
         
         output_dir.mkdir(parents=True, exist_ok=True)
         pages_dir.mkdir(parents=True, exist_ok=True)
-        images_dir.mkdir(parents=True, exist_ok=True)
 
         info = {
             "source_file": str(file_path),
@@ -115,7 +113,7 @@ class ReadTool(ToolBase):
                 tasks.append({
                     "id": str(p_num + 1),
                     "action": self._extract_pdf_page_task,
-                    "args": (file_path, p_num, images_dir, median_size, pages_dir)
+                    "args": (file_path, p_num, pages_dir, median_size)
                 })
             
             def on_page_finish(page_id, result):
@@ -134,6 +132,8 @@ class ReadTool(ToolBase):
 
         elif suffix == ".docx":
             from tool.READ.logic.docx import extract_docx
+            images_dir = output_dir / "images"
+            images_dir.mkdir(parents=True, exist_ok=True)
             try:
                 content = extract_docx(file_path, images_dir)
                 doc_md = pages_dir / "document.md"
@@ -197,25 +197,26 @@ class ReadTool(ToolBase):
 
         print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}:{RESET} {output_dir}")
 
-    def _extract_pdf_page_task(self, pdf_path, page_num, images_dir, median_size, pages_dir):
+    def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size):
         """Task to extract a single page. Returns dict with metadata and stats."""
         import fitz
         from tool.READ.logic.pdf.extractor import extract_single_pdf_page
         actual_page_num = page_num + 1
-        page_file = pages_dir / f"page_{actual_page_num:03d}.md"
         try:
             doc = fitz.open(str(pdf_path))
-            content, meta = extract_single_pdf_page(doc, page_num, images_dir, median_size, page_file)
+            content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size)
             doc.close()
-            with open(page_file, "w", encoding="utf-8") as f:
-                f.write(content)
+            
+            # The markdown file is now created inside extract_single_pdf_page
+            page_file = pages_dir / f"page_{actual_page_num:03d}" / "extracted.md"
             
             if page_file.exists() and page_file.stat().st_size > 0:
                 return {
                     "success": True,
                     "word_count": len(content.split()),
                     "size_bytes": page_file.stat().st_size,
-                    "images": meta
+                    "images": meta,
+                    "semantic_blocks": semantic
                 }
             return {"success": False, "error": "File creation failed or empty"}
         except Exception as e:

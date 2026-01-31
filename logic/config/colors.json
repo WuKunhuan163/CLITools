@@ -5,5 +5,11 @@
   "YELLOW": "\u001b[33m",
   "RED": "\u001b[31m",
   "WHITE": "\u001b[37m",
-  "RESET": "\u001b[0m"
+  "RESET": "\u001b[0m",
+  "SEMANTIC_TITLE": [255, 0, 0, 100],
+  "SEMANTIC_PARAGRAPH": [0, 255, 0, 60],
+  "SEMANTIC_HEADER": [0, 0, 255, 100],
+  "SEMANTIC_FOOTER": [128, 128, 128, 100],
+  "SEMANTIC_IMAGE": [255, 255, 0, 100],
+  "SEMANTIC_TABLE": [255, 165, 0, 100]
 }

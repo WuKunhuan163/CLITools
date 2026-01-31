@@ -8,6 +8,9 @@
   ],
   "pip_dependencies": [
     "pymupdf",
-    "python-docx"
+    "python-docx",
+    "Pillow",
+    "google-generativeai",
+    "python-dotenv"
   ]
 }
