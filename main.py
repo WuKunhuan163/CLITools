@@ -214,10 +214,28 @@ def _dev_sync(quiet=False):
 
     # 2. dev -> tool
     def align_tool():
+        # We want to keep the 'resource' directory on 'tool' branch
+        # because it contains the migrated Python assets.
         if not run_git(["checkout", "-f", "tool"]): return False
+        
+        # Instead of a full hard reset, we want to align everything EXCEPT 'resource'
+        # 1. Get the list of files in dev
         if not run_git(["reset", "--hard", "dev"]): return False
+        
+        # 2. Restore 'resource' from origin/tool if it was deleted/changed
+        # This ensures that 'tool' branch always has the latest resources from remote
+        # even if local 'dev' doesn't have them.
+        run_git(["checkout", "origin/tool", "--", "resource"])
+        
         if not run_git(["clean", "-fdx"]): return False
         cleanup_project_patterns(project_root)
+        
+        # Commit the alignment if there are changes (like restored resources)
+        status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+        if status:
+            run_git(["add", "-A"])
+            run_git(["commit", "-m", "Align 'tool' with 'dev' (preserving resources)"])
+            
         return True
 
     tm.add_stage(TuringStage(
