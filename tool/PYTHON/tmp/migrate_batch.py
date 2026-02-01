@@ -14,7 +14,9 @@ sys.path.append(str(project_root))
 
 def run_migration(version_tag, force=False):
     """Runs the migration for a single version."""
-    cmd = [sys.executable, "main.py", "PYTHON", "--py-update", version_tag]
+    # Call the tool's main.py directly
+    tool_main = project_root / "tool" / "PYTHON" / "main.py"
+    cmd = [sys.executable, str(tool_main), "--py-update", version_tag]
     if force:
         cmd.append("--force")
     
