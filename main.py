@@ -130,11 +130,25 @@ def update_config(key, value):
         detected = _get_configured_width()
         
         if detected > 0:
-            print(f"Current detected width: {detected}")
+            # Check if it was from fallback
+            from logic.config import get_global_config
+            # Re-run detection WITHOUT fallback to see if it's actually unknown
+            import shutil
+            actual = shutil.get_terminal_size(fallback=(0, 0)).columns
+            if actual <= 0:
+                import subprocess
+                try:
+                    res = subprocess.run(["stty", "size"], capture_output=True, text=True, timeout=0.1)
+                    if res.returncode == 0: actual = int(res.stdout.split()[1])
+                except: pass
+            
+            if actual > 0:
+                print(f"Current detected width: {detected}")
+            else:
+                print(f"Current detected width: unknown (using fallback: {detected})")
             print_terminal_width_separator(detected)
         else:
-            # Absolute fallback if detection failed completely
-            print("Current detected width: unknown (detection failed in current environment)")
+            print("Current detected width: unknown")
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
         if key == "terminal_width" and value and isinstance(value, int) and value > 0:
@@ -1222,6 +1236,7 @@ def main():
     
     config_parser = subparsers.add_parser("config", help="Manage global configuration")
     config_parser.add_argument("--terminal-width", type=str, help="Manually set terminal width (integer or 'auto')")
+    config_parser.add_argument("--terminal-width-fallback", type=int, help="Set fallback terminal width if dynamic detection fails (default: 60)")
     config_parser.add_argument("--manager-debug", type=int, choices=[0, 1], help="Enable or disable terminal manager debugging")
     
     subparsers.add_parser("clear", help="Clear the terminal screen")
@@ -1248,8 +1263,6 @@ def main():
             val = args.terminal_width
             if val.lower() == "auto":
                 update_config("terminal_width", 0)
-                from logic.utils import print_terminal_width_separator
-                print_terminal_width_separator()
             else:
                 try:
                     w = int(val)
@@ -1258,6 +1271,15 @@ def main():
                     print_terminal_width_separator(w)
                 except ValueError:
                     print(f"{BOLD}{RED}Error{RESET}: terminal-width must be an integer or 'auto'.")
+        
+        if args.terminal_width_fallback is not None:
+            w = args.terminal_width_fallback
+            if w > 0:
+                update_config("terminal_width_fallback", w)
+                print(f"Fallback terminal width updated to: {w}")
+            else:
+                print(f"{BOLD}{RED}Error{RESET}: terminal-width-fallback must be a positive integer.")
+                
         if args.manager_debug is not None:
             update_config("manager_debug", bool(args.manager_debug))
     elif args.command == "clear":

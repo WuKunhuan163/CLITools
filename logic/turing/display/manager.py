@@ -19,6 +19,7 @@ def truncate_to_width(text, max_width):
     if max_width <= 0:
         return text
     
+    # Use a safe minimum for truncation to avoid issues with very small values
     safe_width = max(1, max_width - 2)
     if get_visible_len(text) <= safe_width:
         return text
@@ -44,11 +45,13 @@ def _get_configured_width():
                 if res.returncode == 0: columns = int(res.stdout.split()[1])
             except: pass
             
-        # 3. Final fallback - use a safe minimum or let it be handled
-        if columns <= 0: columns = 0
+        # 3. Final fallback - use the configured fallback or default to 60
+        if columns <= 0:
+            columns = get_global_config("terminal_width_fallback") or 60
+            
         return columns
     except:
-        return 0
+        return get_global_config("terminal_width_fallback") or 60
 
 def wrap_text(text, width):
     """
