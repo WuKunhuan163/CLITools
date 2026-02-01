@@ -336,6 +336,13 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
             meta = {"release": tag, "asset": asset["name"], "version": asset["version"], "platform": asset["platform"]}
             with open(json_path, "w") as f: json.dump(meta, f, indent=2)
             
+            # Also update local installation if it exists
+            local_install_dir = DATA_DIR / "install" / v_tag
+            if local_install_dir.exists():
+                try:
+                    shutil.copy2(str(json_path), str(local_install_dir / "PYTHON.json"))
+                except: pass
+
             # 3. Git Operations (must be serial due to .git/index lock)
             if git_lock: git_lock.acquire()
             try:
