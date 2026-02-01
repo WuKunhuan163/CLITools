@@ -208,6 +208,9 @@ def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
                         "platform": platform,
                         "tag": tag
                     })
+        else:
+            # Trigger fallback if assets not in data (e.g. rate limit error)
+            raise ValueError("No assets in API response")
     except:
         # Fallback to scraping if API fails or rate limited
         url = f"{PROJECT_URL}/releases/expanded_assets/{tag}"
