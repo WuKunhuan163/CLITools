@@ -219,15 +219,13 @@ def _dev_sync(quiet=False):
         if not run_git(["checkout", "-f", "tool"]): return False
         
         # Instead of a full hard reset, we want to align everything EXCEPT 'resource'
-        # 1. Get the list of files in dev
         if not run_git(["reset", "--hard", "dev"]): return False
         
-        # 2. Restore 'resource' from origin/tool if it was deleted/changed
-        # This ensures that 'tool' branch always has the latest resources from remote
-        # even if local 'dev' doesn't have them.
+        # Restore 'resource' from origin/tool if it was deleted/changed
         run_git(["checkout", "origin/tool", "--", "resource"])
         
-        if not run_git(["clean", "-fdx"]): return False
+        # When cleaning, ignore the 'data' directory to preserve caches
+        if not run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"]): return False
         cleanup_project_patterns(project_root)
         
         # Commit the alignment if there are changes (like restored resources)
@@ -266,7 +264,7 @@ def _dev_sync(quiet=False):
                     else: p.unlink()
                 except: pass
         
-        run_git(["clean", "-fdx"])
+        run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
         run_git(["add", "-A"])
         run_git(["commit", "--allow-empty", "-m", "Align 'main' with 'tool' (framework only)"])
         return True
@@ -285,7 +283,7 @@ def _dev_sync(quiet=False):
     def align_test():
         if not run_git(["checkout", "-f", "test"]): return False
         if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
-        if not run_git(["clean", "-fdx"]): return False
+        if not run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"]): return False
         return True
 
     tm.add_stage(TuringStage(
@@ -362,7 +360,7 @@ def _dev_align():
         except: pass
 
         # 3. Clean up untracked files on dev
-        run_git(["clean", "-fdx"])
+        run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
         cleanup_project_patterns(project_root)
 
         # 4. Push dev to origin
@@ -371,7 +369,7 @@ def _dev_align():
     def align_tool_action():
         if not run_git(["checkout", "-f", "tool"]): return False
         if not run_git(["reset", "--hard", "dev"]): return False
-        if not run_git(["clean", "-fdx"]): return False
+        if not run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"]): return False
         return run_git(["push", "origin", "tool", "--force"])
 
     def align_main_action():
@@ -392,7 +390,7 @@ def _dev_align():
                 except: pass
         
         # Clean up EVERYTHING untracked
-        run_git(["clean", "-fdx"])
+        run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
         
         # Commit and push
         run_git(["add", "-A"])
@@ -508,7 +506,7 @@ def _dev_enter(branch, force=False):
         if force:
             print(f"{BOLD}{BLUE}Force switching to {branch} branch...{RESET}")
             subprocess.run(["git", "checkout", "-f", branch], cwd=str(project_root), check=True)
-            subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
+            subprocess.run(["git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
         else:
             # Auto-commit local changes if any
             status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
@@ -520,7 +518,7 @@ def _dev_enter(branch, force=False):
             
             subprocess.run(["git", "checkout", branch], cwd=str(project_root), check=True)
             # Always clean when entering test/main to remove leftover ignored files
-            subprocess.run(["git", "clean", "-fdx"], cwd=str(project_root), check=True)
+            subprocess.run(["git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
     except Exception as e:
         error_label = _("label_error", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
