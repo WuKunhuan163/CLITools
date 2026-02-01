@@ -1,0 +1,9 @@
+{
+  "name": "DRAW",
+  "version": "1.0.0",
+  "description": "Template tool DRAW",
+  "purpose": "Showcase tool development guidelines",
+  "dependencies": [
+    "PYTHON"
+  ]
+}
