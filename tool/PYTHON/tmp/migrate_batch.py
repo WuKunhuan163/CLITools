@@ -36,8 +36,6 @@ def main():
         print("No assets found in the latest report.")
         return
 
-    print(f"Found {len(all_assets)} assets in total.")
-    
     target_indices = []
     if args.ids:
         target_indices = [i for i in args.ids if 0 <= i < len(all_assets)]
@@ -53,17 +51,15 @@ def main():
     if not to_migrate:
         return
 
-    # Instead of running multiple main.py processes, call one main.py with all versions
-    # This allows the tool's internal MultiLineManager to handle concurrency correctly.
+    # Call the tool's main.py directly with all versions at once
+    # This is the key: passing ALL versions to ONE main.py call
     tool_main = project_root / "tool" / "PYTHON" / "main.py"
     cmd = [sys.executable, str(tool_main), "--py-update"] + to_migrate + ["--concurrency", str(args.max_concurrent)]
     if args.force:
         cmd.append("--force")
     
-    print(f"Preparing to migrate {len(to_migrate)} assets: {', '.join(to_migrate)}")
-    print(f"Running: {' '.join(cmd)}")
-    
     try:
+        # We don't need extra print here as main.py will handle it
         subprocess.run(cmd, cwd=str(project_root))
     except Exception as e:
         print(f"Error during batch migration: {e}")
