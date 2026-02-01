@@ -48,11 +48,11 @@ def _get_configured_width():
                 if res.returncode == 0: columns = int(res.stdout.split()[1])
             except: pass
             
-        # 4. Final fallback
-        if columns <= 0: columns = 80
+        # 4. Final fallback - use a safe minimum or let it be handled
+        if columns <= 0: columns = 0
         return columns
     except:
-        return 80
+        return 0
 
 def wrap_text(text, width):
     """
