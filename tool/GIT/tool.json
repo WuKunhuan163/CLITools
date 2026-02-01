@@ -1,0 +1,9 @@
+{
+  "name": "GIT",
+  "version": "1.0.0",
+  "description": "Template tool GIT",
+  "purpose": "Showcase tool development guidelines",
+  "dependencies": [
+    "PYTHON"
+  ]
+}
