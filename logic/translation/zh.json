@@ -252,5 +252,8 @@
     "search_no_results": "未找到结果. ",
   "tool_list_purpose_label": "目的：",
   "tool_list_cache_warning": "警告：正在显示缓存数据. 使用 --force 刷新. ",
-  "tool_not_found_locally": "本地未找到（运行 'TOOL install' 获取）"
+  "tool_not_found_locally": "本地未找到（运行 'TOOL install' 获取）",
+  "config_width_unknown": "未知",
+  "config_using_fallback": "使用回退",
+  "config_check_row": "请检查下面这行 '=' ({width}) 是否恰好占据一个终端行："
 }
