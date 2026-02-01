@@ -72,7 +72,7 @@ except ImportError as e:
     DATA_DIR = PROJECT_ROOT / "tool" / "PYTHON" / "data"
     AUDIT_DIR = DATA_DIR / "audit"
     RESOURCE_ROOT = PROJECT_ROOT / "resource" / "tool" / "PYTHON" / "data" / "install"
-    TMP_INSTALL_DIR = PROJECT_ROOT / "tmp" / "install"
+    TMP_INSTALL_DIR = DATA_DIR / "tmp" / "install"
     DEFAULT_CONCURRENCY = 1
 
 PYTHON_TOOL_DIR = PROJECT_ROOT / "tool" / "PYTHON"

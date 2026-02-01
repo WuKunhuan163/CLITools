@@ -45,6 +45,7 @@
   "non_interactive_skip": "جلسة غير تفاعلية، جارٍ تخطي التأكيد. استخدم -y للمتابعة القسرية.",
   "updated_path": "تم تحديث {profile} مع PATH.",
   "config_updated": "تم تحديث التكوين العالمي: {key} = {value}",
+  "config_updated_dynamic": "تم تحديث التكوين العالمي: سيتم حساب {key} ديناميكياً.",
   "lang_error_not_found_simple": "اللغة '{lang}' غير موجودة.",
   "not_git_repo": "ليس مستودع git.",
   "audit_force_help": "فرض تحديث ذاكرة التخزين المؤقت",

@@ -12,9 +12,12 @@ class DynamicStatusBar:
     Used for parallel tasks where status updates frequently.
     """
     def __init__(self, label: str = "Processing", use_bold_blue: bool = True):
+        from logic.terminal.keyboard import KeyboardSuppressor
         self.label = label
         self.active_items: Set[str] = set()
         self.lock = threading.Lock()
+        self.suppressor = KeyboardSuppressor()
+        self.is_suppressing = False
         
         self.BLUE = get_color("BLUE", "\033[34m") if use_bold_blue else ""
         self.BOLD = get_color("BOLD", "\033[1m") if use_bold_blue else ""
@@ -24,10 +27,16 @@ class DynamicStatusBar:
         """Add or remove an item from the active status."""
         with self.lock:
             if action == "add":
+                if not self.is_suppressing:
+                    self.suppressor.start()
+                    self.is_suppressing = True
                 self.active_items.add(item_id)
             elif action == "remove":
                 if item_id in self.active_items:
                     self.active_items.remove(item_id)
+                if not self.active_items and self.is_suppressing:
+                    self.suppressor.stop()
+                    self.is_suppressing = False
             self._render()
 
     def _render(self):
@@ -49,6 +58,10 @@ class DynamicStatusBar:
 
     def clear(self):
         """Clear the status line."""
+        with self.lock:
+            if self.is_suppressing:
+                self.suppressor.stop()
+                self.is_suppressing = False
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
 

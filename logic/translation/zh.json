@@ -6,7 +6,7 @@
   "non_interactive_skip": "非交互式会话, 跳过确认. 请使用 -y 强制卸载.",
   "updated_path": "已更新 {profile} 的 PATH. ",
   "config_updated": "全局配置已更新: {key} = {value}",
-  "config_updated_dynamic": "全局配置已更新: {key} 将动态计算",
+  "config_updated_dynamic": "全局配置已更新：{key} 将动态计算。",
   "registry_error": "错误: 全局 tool.json 未找到. ",
   "tool_not_in_registry": "错误: 工具 '{name}' 不在全局注册表中. ",
   "test_running": "开始运行 {tool} 工具的 {count} 个测试 (最多同时进行 {max} 个任务)...",
