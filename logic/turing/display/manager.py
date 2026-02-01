@@ -13,9 +13,13 @@ from logic.config import get_global_config, PROJECT_ROOT
 
 def truncate_to_width(text, max_width):
     """Truncate string to visible width, adding ellipsis and resetting color.
-    Ensures text is at most max_width - 1 to prevent cursor wrapping.
+    Ensures text is at most max_width - 2 to prevent cursor wrapping.
+    If max_width <= 0, no truncation is applied.
     """
-    safe_width = max(1, max_width - 1)
+    if max_width <= 0:
+        return text
+    
+    safe_width = max(1, max_width - 2)
     if get_visible_len(text) <= safe_width:
         return text
     # Reset color at the end of the visible part to avoid leaking styles to next lines
@@ -32,15 +36,7 @@ def _get_configured_width():
         # 1. Try standard shutil
         columns = shutil.get_terminal_size(fallback=(0, 0)).columns
         
-        # 2. Try tput cols (more reliable in some shells)
-        if columns <= 0:
-            import subprocess
-            try:
-                res = subprocess.run(["tput", "cols"], capture_output=True, text=True, timeout=0.1)
-                if res.returncode == 0: columns = int(res.stdout.strip())
-            except: pass
-            
-        # 3. Try stty size
+        # 2. Try stty size (more reliable in some pseudo-terminals)
         if columns <= 0:
             import subprocess
             try:
@@ -48,7 +44,7 @@ def _get_configured_width():
                 if res.returncode == 0: columns = int(res.stdout.split()[1])
             except: pass
             
-        # 4. Final fallback - use a safe minimum or let it be handled
+        # 3. Final fallback - use a safe minimum or let it be handled
         if columns <= 0: columns = 0
         return columns
     except:

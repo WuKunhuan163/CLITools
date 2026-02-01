@@ -1096,8 +1096,9 @@ def _list_languages():
     headers = [_("lang_table_name", "Language"), _("lang_table_keys", "Key Coverage"), _("lang_table_refs", "Ref Coverage")]
     table_rows = [[r['name'], r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
     from logic.turing.display.manager import _get_configured_width
-    width = _get_configured_width() or 80
-    table_str, report_path = format_table(headers, table_rows, max_width=width, save_dir="lang")
+    width = _get_configured_width()
+    # If width is unknown, format_table will handle it (usually no truncation)
+    table_str, report_path = format_table(headers, table_rows, max_width=width if width > 0 else None, save_dir="lang")
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)
 
 def _list_tools(force=False):

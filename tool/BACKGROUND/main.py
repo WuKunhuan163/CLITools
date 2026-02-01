@@ -114,7 +114,7 @@ def main():
                     print("\n" + _("all_processes", "All processes ({count}):").format(count=len(processes)))
                     
                     from logic.turing.display.manager import _get_configured_width
-                    terminal_width = _get_configured_width() or 80
+                    terminal_width = _get_configured_width()
                     
                     # Translated headers
                     status_label = _("status", "Status")
@@ -150,7 +150,7 @@ def main():
                     # Prioritize PID column for full display
                     table_str, report_path = format_table(
                         headers, table_rows, 
-                        max_width=terminal_width, 
+                        max_width=terminal_width if terminal_width > 0 else None, 
                         save_dir="background", 
                         full_display_cols=[pid_label]
                     )
@@ -194,7 +194,7 @@ def main():
                         print("\n" + _("all_processes", "All processes ({count}):").format(count=len(processes)))
                         
                         from logic.turing.display.manager import _get_configured_width
-                        terminal_width = _get_configured_width() or 80
+                        terminal_width = _get_configured_width()
                         
                         # Translated headers
                         status_label = _("status", "Status")
@@ -230,7 +230,7 @@ def main():
                         table_str, report_path = format_table(
                             headers, 
                             table_rows, 
-                            max_width=terminal_width, 
+                            max_width=terminal_width if terminal_width > 0 else None, 
                             save_dir="background",
                             full_display_cols=[pid_label]
                         )
