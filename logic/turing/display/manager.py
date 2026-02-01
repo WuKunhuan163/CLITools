@@ -157,6 +157,11 @@ class MultiLineManager:
         processed_text = " | ".join([line.strip() for line in text.splitlines() if line.strip()])
         
         with self.lock:
+            # Auto-start suppressor if it's a TTY
+            if not self.is_suppressing:
+                self.suppressor.start()
+                self.is_suppressing = True
+
             curr_width = self._get_current_width()
             now = time.time()
             is_rtl = get_rtl_mode()
@@ -267,6 +272,10 @@ class MultiLineManager:
             
             if is_final:
                 del self.worker_to_slot_idx[worker_id]
+                # If no more active workers, stop suppression
+                if not self.worker_to_slot_idx and self.is_suppressing:
+                    self.suppressor.stop()
+                    self.is_suppressing = False
             
             self._save_debug_state("update", worker_id, {"total_up": total_up, "old_h": old_height, "new_h": new_height})
             if callback:

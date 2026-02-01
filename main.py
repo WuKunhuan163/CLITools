@@ -101,12 +101,11 @@ def register_path(bin_dir):
 def _print_width_check(width, is_auto=False, actual_detected=True):
     """Unified display for terminal width check."""
     if is_auto:
-        status = ""
         if not actual_detected:
-            status = f" ({_('config_width_unknown', 'unknown')}, {_('config_using_fallback', 'using fallback')}: {width})"
+            status = f"{_('config_width_unknown', 'unknown')} ({_('config_using_fallback', 'using fallback')}: {width}. Use TOOL config --terminal-width-fallback xx to change the fallback value.)"
         else:
-            status = f" ({width})"
-        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key="terminal_width") + status)
+            status = str(width)
+        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically.", key="terminal_width") + " Current detected width: " + status)
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key="terminal_width", value=width))
     
@@ -158,7 +157,7 @@ def update_config(key, value):
             
             _print_width_check(detected, is_auto=True, actual_detected=(actual > 0))
         else:
-            print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
+            print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically.", key=key))
             print("Current detected width: unknown")
     else:
         if key == "terminal_width" and value and isinstance(value, int) and value > 0:
