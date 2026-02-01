@@ -1,9 +1,8 @@
 {
   "name": "DRAW",
   "version": "1.0.0",
-  "description": "Template tool DRAW",
-  "purpose": "Showcase tool development guidelines",
-  "dependencies": [
-    "PYTHON"
-  ]
+  "description": "A tool for drawing shapes, text, and legends on images.",
+  "purpose": "Provide image annotation and visualization capabilities for other tools.",
+  "dependencies": ["PYTHON"],
+  "pip_dependencies": ["Pillow"]
 }

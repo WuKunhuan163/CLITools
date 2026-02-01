@@ -4,7 +4,8 @@
   "description": "Read and extract content from PDF, Word, and images for AI analysis.",
   "purpose": "Help AI agents understand various document formats by converting them to clean markdown with image analysis.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "DRAW"
   ],
   "pip_dependencies": [
     "pymupdf",
