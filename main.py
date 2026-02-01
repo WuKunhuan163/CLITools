@@ -1267,8 +1267,6 @@ def main():
                 try:
                     w = int(val)
                     update_config("terminal_width", w)
-                    from logic.utils import print_terminal_width_separator
-                    print_terminal_width_separator(w)
                 except ValueError:
                     print(f"{BOLD}{RED}Error{RESET}: terminal-width must be an integer or 'auto'.")
         
