@@ -15,6 +15,7 @@ sys.path.append(str(project_root))
 
 from logic.tool.base import ToolBase
 from logic.turing.models.worker import ParallelWorkerPool
+from logic.config.tool_config_manager import ToolConfigManager
 
 class ReadTool(ToolBase):
     def __init__(self):
@@ -22,6 +23,7 @@ class ReadTool(ToolBase):
         self.image_metadata = []
         self.page_stats = {}
         self.meta_lock = threading.Lock()
+        self.config_manager = ToolConfigManager(self.tool_name, self.script_dir)
 
     def format_page_list(self, pages: list) -> str:
         """Format a list of page numbers into compact ranges (e.g., 1-3, 5, 7-10)."""
@@ -42,15 +44,42 @@ class ReadTool(ToolBase):
         if self.handle_command_line(): return
 
         parser = argparse.ArgumentParser(description=self.get_translation("tool_READ_desc", "Read and extract content from PDF, Word, and images."))
-        parser.add_argument("file", nargs="?", help="Path to the file to read")
-        parser.add_argument("-o", "--output", help="Output directory path (optional)")
-        parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
-        parser.add_argument("-n", "--workers", type=int, default=4, help="Number of parallel workers (default: 4)")
-        parser.add_argument("--mode", default="academic", choices=["academic", "general", "code_snippet", "formula", "table"], help="Vision analysis mode for images")
-        parser.add_argument("--key", help="Google API Key (overrides env vars)")
-        parser.add_argument("--test-vision", action="store_true", help="Test vision API connectivity")
+        
+        # Subparsers for commands like 'config'
+        subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+        # Config command
+        config_parser = subparsers.add_parser("config", help="Configure READ tool settings")
+        config_parser.add_argument("--alpha", type=float, help="Set alpha transparency for PDF semantic visualization (0.0-1.0)")
+
+        # Main extraction command (default)
+        extract_parser = subparsers.add_parser("extract", help="Extract content from a file", conflict_handler='resolve')
+        extract_parser.add_argument("file", nargs="?", help="Path to the file to read")
+        extract_parser.add_argument("-o", "--output", help="Output directory path (optional)")
+        extract_parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
+        extract_parser.add_argument("-n", "--workers", type=int, default=4, help="Number of parallel workers (default: 4)")
+        extract_parser.add_argument("--mode", default="academic", choices=["academic", "general", "code_snippet", "formula", "table"], help="Vision analysis mode for images")
+        extract_parser.add_argument("--key", help="Google API Key (overrides env vars)")
+        extract_parser.add_argument("--test-vision", action="store_true", help="Test vision API connectivity")
         
         args, unknown = parser.parse_known_args()
+
+        if args.command == "config":
+            if args.alpha is not None:
+                if 0.0 <= args.alpha <= 1.0:
+                    self.config_manager.set("pdf.visual_alpha", args.alpha)
+                    print(f"{self.get_color('GREEN')}Config updated{self.get_color('RESET')}: pdf.visual_alpha = {args.alpha}")
+                else:
+                    print(f"{self.get_color('RED')}Error{self.get_color('RESET')}: Alpha value must be between 0.0 and 1.0.")
+            else:
+                print(f"Current config: pdf.visual_alpha = {self.config_manager.get('pdf.visual_alpha', 0.20)}")
+            return
+
+        # If no command is specified, assume 'extract'
+        if args.command is None:
+            # Re-parse with 'extract' as default command
+            sys.argv.insert(1, "extract")
+            args = parser.parse_args()
 
         if args.test_vision:
             from tool.READ.logic.vision.gemini import GeminiAnalyzer
@@ -108,12 +137,16 @@ class ReadTool(ToolBase):
             pages_label = self.get_translation("label_pages", "pages")
             pool = ParallelWorkerPool(max_workers=args.workers, status_label=f"{extract_label} {pages_label}")
             
+            # Get alpha from config
+            visual_alpha = self.config_manager.get("pdf.visual_alpha", 0.20)
+            alpha_int = int(visual_alpha * 255) # Convert 0.0-1.0 to 0-255
+
             tasks = []
             for p_num in pages:
                 tasks.append({
                     "id": str(p_num + 1),
                     "action": self._extract_pdf_page_task,
-                    "args": (file_path, p_num, pages_dir, median_size)
+                    "args": (file_path, p_num, pages_dir, median_size, alpha_int)
                 })
             
             def on_page_finish(page_id, result):
@@ -197,14 +230,14 @@ class ReadTool(ToolBase):
 
         print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}:{RESET} {output_dir}")
 
-    def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size):
+    def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size, alpha_int):
         """Task to extract a single page. Returns dict with metadata and stats."""
         import fitz
         from tool.READ.logic.pdf.extractor import extract_single_pdf_page
         actual_page_num = page_num + 1
         try:
             doc = fitz.open(str(pdf_path))
-            content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size)
+            content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size, alpha_int)
             doc.close()
             
             # The markdown file is now created inside extract_single_pdf_page
