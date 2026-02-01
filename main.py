@@ -252,16 +252,30 @@ def _dev_sync(quiet=False):
         if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
         
         # Remove restricted folders on main
-        restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted, cwd=str(project_root), capture_output=True)
+        # We only want to remove them from GIT, not necessarily from disk
+        # if they are untracked and we want to preserve them (like 'data')
+        restricted_git = ["tool", "resource", "data", "tmp", "bin"]
+        subprocess.run(["git", "rm", "-rf"] + restricted_git, cwd=str(project_root), capture_output=True)
         
-        # Ensure they are gone from disk
-        for d in restricted:
+        # Ensure they are gone from DISK only if they are NOT 'data' or 'tool/*/data'
+        # Actually, 'main' branch should be a clean framework.
+        # But we want to preserve local untracked 'data' across branch switches.
+        for d in restricted_git:
+            if d == "data": continue # Preserve root data/
             p = project_root / d
             if p.exists():
                 try:
-                    if p.is_dir(): shutil.rmtree(p)
-                    else: p.unlink()
+                    if d == "tool":
+                        # For 'tool', we want to remove the code but preserve 'data' subdirectories
+                        for tool_dir in p.iterdir():
+                            if tool_dir.is_dir():
+                                for sub in tool_dir.iterdir():
+                                    if sub.name != "data":
+                                        if sub.is_dir(): shutil.rmtree(sub)
+                                        else: sub.unlink()
+                    else:
+                        if p.is_dir(): shutil.rmtree(p)
+                        else: p.unlink()
                 except: pass
         
         run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
