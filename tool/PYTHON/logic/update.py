@@ -137,9 +137,10 @@ def get_release_tags(use_cache=True):
             print_cache_warning_once()
             return cache["tags"]
 
-    fetch_msg = _("python_fetching_releases", "Fetching releases from GitHub project {owner} ({url})...", 
-                  owner=PROJECT_OWNER, url=PROJECT_URL)
-    print(fetch_msg)
+    fetch_label = f"{BOLD}{BLUE}" + _("label_fetching_releases", "Fetching releases") + f"{RESET}"
+    owner_label = f"{BOLD}{PROJECT_OWNER}{RESET}"
+    fetch_msg = f"{fetch_label} from GitHub project {owner_label} ({PROJECT_URL})..."
+    print_erasable(fetch_msg)
     
     cmd = ["git", "ls-remote", "--tags", REPO_URL]
     result = subprocess.run(cmd, capture_output=True, text=True)
