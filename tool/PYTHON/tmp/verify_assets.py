@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 import json
+import argparse
 from pathlib import Path
 
 # Add project root to sys.path
@@ -37,8 +38,9 @@ def verify_version(version_tag):
                 report["release"] = meta.get("release", "missing")
         except Exception as e:
             report["error"] = f"JSON read error: {e}"
-    
-    # 2. Check executable
+    else:
+        # Try to find it in remote to repair
+        report["error"] = "PYTHON.json missing locally"
     from tool.PYTHON.logic.config import get_executable_path
     exec_path = get_executable_path(version_tag)
     
@@ -60,6 +62,10 @@ def verify_version(version_tag):
     return report
 
 def main():
+    parser = argparse.ArgumentParser(description="Verify installed Python assets.")
+    parser.add_argument("--repair", action="store_true", help="Try to fetch missing PYTHON.json from remote")
+    args = parser.parse_args()
+
     install_root = project_root / "tool" / "PYTHON" / "data" / "install"
     installed_versions = sorted([d.name for d in install_root.iterdir() if d.is_dir()])
     
@@ -74,6 +80,24 @@ def main():
     all_reports = []
     for v in installed_versions:
         report = verify_version(v)
+        
+        if args.repair and not report["json_exists"]:
+            print(f"Attempting to repair {v}...")
+            try:
+                res_rel_path = f"resource/tool/PYTHON/data/install/{v}/PYTHON.json"
+                cmd = ["git", "show", f"origin/tool:{res_rel_path}"]
+                res = subprocess.run(cmd, cwd=str(project_root), capture_output=True, text=True)
+                if res.returncode == 0:
+                    json_path = install_root / v / "PYTHON.json"
+                    with open(json_path, "w") as f:
+                        f.write(res.stdout)
+                    print(f"  -> Successfully restored PYTHON.json for {v}")
+                    report = verify_version(v) # Re-verify
+                else:
+                    print(f"  -> Failed to find {v}/PYTHON.json on remote")
+            except Exception as e:
+                print(f"  -> Repair error: {e}")
+
         all_reports.append(report)
         
         json_status = "OK" if report["json_exists"] else "MISSING"

@@ -5,30 +5,11 @@ import subprocess
 import json
 import argparse
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add project root to sys.path
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent.parent
 sys.path.append(str(project_root))
-
-def run_migration(version_tag, force=False):
-    """Runs the migration for a single version."""
-    # Call the tool's main.py directly
-    tool_main = project_root / "tool" / "PYTHON" / "main.py"
-    cmd = [sys.executable, str(tool_main), "--py-update", version_tag]
-    if force:
-        cmd.append("--force")
-    
-    print(f"Starting migration for {version_tag}...")
-    try:
-        # Use subprocess.run to allow the TUI progress manager to handle its own output
-        # But for batch we might want to capture it or just let it print
-        result = subprocess.run(cmd, cwd=str(project_root))
-        return result.returncode == 0
-    except Exception as e:
-        print(f"Error migrating {version_tag}: {e}")
-        return False
 
 def main():
     parser = argparse.ArgumentParser(description="Batch migrate Python assets.")
@@ -68,28 +49,24 @@ def main():
         return
 
     to_migrate = [all_assets[i] for i in target_indices]
-    print(f"Preparing to migrate {len(to_migrate)} assets: {', '.join(to_migrate)}")
     
     if not to_migrate:
         return
 
-    # 2. Run migrations
-    results = {}
-    with ThreadPoolExecutor(max_workers=args.max_concurrent) as executor:
-        future_to_v = {executor.submit(run_migration, v, args.force): v for v in to_migrate}
-        for future in as_completed(future_to_v):
-            v = future_to_v[future]
-            try:
-                success = future.result()
-                results[v] = "Success" if success else "Failed"
-            except Exception as e:
-                results[v] = f"Error: {e}"
-
-    print("\n" + "="*40)
-    print("Batch Migration Summary:")
-    for v, res in results.items():
-        print(f"  {v}: {res}")
-    print("="*40)
+    # Instead of running multiple main.py processes, call one main.py with all versions
+    # This allows the tool's internal MultiLineManager to handle concurrency correctly.
+    tool_main = project_root / "tool" / "PYTHON" / "main.py"
+    cmd = [sys.executable, str(tool_main), "--py-update"] + to_migrate + ["--concurrency", str(args.max_concurrent)]
+    if args.force:
+        cmd.append("--force")
+    
+    print(f"Preparing to migrate {len(to_migrate)} assets: {', '.join(to_migrate)}")
+    print(f"Running: {' '.join(cmd)}")
+    
+    try:
+        subprocess.run(cmd, cwd=str(project_root))
+    except Exception as e:
+        print(f"Error during batch migration: {e}")
 
 if __name__ == "__main__":
     main()
