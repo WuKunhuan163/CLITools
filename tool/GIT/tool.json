@@ -1,9 +1,8 @@
 {
   "name": "GIT",
   "version": "1.0.0",
-  "description": "Template tool GIT",
-  "purpose": "Showcase tool development guidelines",
-  "dependencies": [
-    "PYTHON"
-  ]
+  "description": "Encapsulates Git operations and GitHub API interactions.",
+  "purpose": "Provide standardized Git and GitHub API access for other tools.",
+  "dependencies": ["PYTHON"],
+  "pip_dependencies": ["requests"]
 }
