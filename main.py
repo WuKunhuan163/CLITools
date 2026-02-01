@@ -134,8 +134,7 @@ def update_config(key, value):
             print_terminal_width_separator(detected)
         else:
             # Absolute fallback if detection failed completely
-            print("Current detected width: unknown (fallback to 80 for display)")
-            print_terminal_width_separator(80)
+            print("Current detected width: unknown (detection failed in current environment)")
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
         if key == "terminal_width" and value and isinstance(value, int) and value > 0:

@@ -145,7 +145,7 @@ def print_terminal_width_separator(width=None):
     if width is None:
         from logic.turing.display.manager import _get_configured_width
         width = _get_configured_width()
-    if width > 0:
+    if width and width > 0:
         sys.stdout.write("\r\033[K" + "=" * width + "\n")
         sys.stdout.flush()
 
