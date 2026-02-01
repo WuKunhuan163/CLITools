@@ -140,6 +140,15 @@ def get_display_width(text):
             
     return width
 
+def print_terminal_width_separator(width=None):
+    """Prints a separator line of '=' characters matching the terminal width."""
+    if width is None:
+        from logic.turing.display.manager import _get_configured_width
+        width = _get_configured_width()
+    if width > 0:
+        sys.stdout.write("\r\033[K" + "=" * width + "\n")
+        sys.stdout.flush()
+
 def truncate_to_display_width(text, max_width):
     """
     Truncate a string to a specific display width, taking multi-byte characters 
@@ -584,7 +593,8 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                         manager.update(worker_id, status_text)
                     else:
                         width = _get_configured_width()
-                        display_text = truncate_to_display_width(status_text, max(1, width - 2))
+                        # Use width-1 to be safe against wrapping
+                        display_text = truncate_to_display_width(status_text, max(1, width - 1))
                         sys.stdout.write(f"\r\033[K{display_text}")
                         sys.stdout.flush()
                     last_print = curr_time

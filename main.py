@@ -1261,9 +1261,14 @@ def main():
             val = args.terminal_width
             if val.lower() == "auto":
                 update_config("terminal_width", 0)
+                from logic.utils import print_terminal_width_separator
+                print_terminal_width_separator()
             else:
                 try:
-                    update_config("terminal_width", int(val))
+                    w = int(val)
+                    update_config("terminal_width", w)
+                    from logic.utils import print_terminal_width_separator
+                    print_terminal_width_separator(w)
                 except ValueError:
                     print(f"{BOLD}{RED}Error{RESET}: terminal-width must be an integer or 'auto'.")
         if args.manager_debug is not None:

@@ -13,11 +13,12 @@ from logic.config import get_global_config, PROJECT_ROOT
 
 def truncate_to_width(text, max_width):
     """Truncate string to visible width, adding ellipsis and resetting color.
-    Ensures text is at most max_width - 2 to prevent cursor wrapping.
+    Ensures text is at most max_width - 1 to prevent cursor wrapping.
     """
-    safe_width = max(1, max_width - 2)
+    safe_width = max(1, max_width - 1)
     if get_visible_len(text) <= safe_width:
         return text
+    # Reset color at the end of the visible part to avoid leaking styles to next lines
     return truncate_to_display_width(text, safe_width - 3) + "...\033[0m"
 
 def _get_configured_width():
@@ -122,6 +123,12 @@ class MultiLineManager:
     def _get_current_width(self):
         if self.forced_width:
             return self.forced_width
+        
+        config_width = get_global_config("terminal_width")
+        if config_width and isinstance(config_width, int) and config_width > 0:
+            return config_width
+            
+        # Dynamic detection if set to 0 or auto
         return _get_configured_width()
 
     def _save_debug_state(self, action, worker_id, extra=None):
@@ -154,6 +161,8 @@ class MultiLineManager:
             
             # 1. Handle resize
             if curr_width != self.last_width and now - self.last_resize_time > 1.0:
+                from logic.utils import print_terminal_width_separator
+                print_terminal_width_separator(curr_width)
                 self._reflow(curr_width)
                 self.last_width = curr_width
                 self.last_resize_time = now
