@@ -98,6 +98,23 @@ def register_path(bin_dir):
     if str(bin_dir) not in os.environ.get("PATH", ""):
         os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
 
+def _print_width_check(width, is_auto=False, actual_detected=True):
+    """Unified display for terminal width check."""
+    if is_auto:
+        status = ""
+        if not actual_detected:
+            status = f" ({_('config_width_unknown', 'unknown')}, {_('config_using_fallback', 'using fallback')}: {width})"
+        else:
+            status = f" ({width})"
+        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key="terminal_width") + status)
+    else:
+        print(_("config_updated", "Global configuration updated: {key} = {value}", key="terminal_width", value=width))
+    
+    print("\n" + _("config_check_row", "Please check whether the below line of '=' ({width}) exactly expands one terminal row:", width=width))
+    from logic.utils import print_terminal_width_separator
+    print_terminal_width_separator(width)
+    print("")
+
 def update_config(key, value):
     project_root = ROOT_PROJECT_ROOT
     data_dir = project_root / "data"
@@ -123,15 +140,12 @@ def update_config(key, value):
     with open(config_path, 'w') as f: json.dump(config, f, indent=2)
     
     if key == "terminal_width" and (value == 0 or value is None):
-        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
         # For dynamic mode, show the currently detected width for verification
-        from logic.utils import print_terminal_width_separator
         from logic.turing.display.manager import _get_configured_width
         detected = _get_configured_width()
         
         if detected > 0:
             # Check if it was from fallback
-            from logic.config import get_global_config
             # Re-run detection WITHOUT fallback to see if it's actually unknown
             import shutil
             actual = shutil.get_terminal_size(fallback=(0, 0)).columns
@@ -142,20 +156,15 @@ def update_config(key, value):
                     if res.returncode == 0: actual = int(res.stdout.split()[1])
                 except: pass
             
-            if actual > 0:
-                print(f"Current detected width: {detected}")
-            else:
-                print(f"Current detected width: unknown (using fallback: {detected})")
-            print_terminal_width_separator(detected)
+            _print_width_check(detected, is_auto=True, actual_detected=(actual > 0))
         else:
+            print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
             print("Current detected width: unknown")
     else:
-        print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
         if key == "terminal_width" and value and isinstance(value, int) and value > 0:
-            print(f"\nPlease check whether the below line of '=' ({value}) exactly expands one terminal row:")
-            from logic.utils import print_terminal_width_separator
-            print_terminal_width_separator(value)
-            print("")
+            _print_width_check(value, is_auto=False)
+        else:
+            print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
 
 def _dev_sync(quiet=False):
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""

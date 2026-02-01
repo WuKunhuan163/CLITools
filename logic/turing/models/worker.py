@@ -65,6 +65,7 @@ class ParallelWorkerPool:
         Run a list of tasks: [{"id": str, "action": callable, "args": tuple, "kwargs": dict}]
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
+        from logic.terminal.keyboard import KeyboardSuppressor
         all_success = True
         
         def wrapper(task_id, func, *args, **kwargs):
@@ -81,14 +82,15 @@ class ParallelWorkerPool:
             finally:
                 self.status_bar.update(task_id, "remove")
 
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(wrapper, t["id"], t["action"], *t.get("args", ()), **t.get("kwargs", {})): t 
-                for t in tasks
-            }
-            for future in as_completed(futures):
-                if not future.result():
-                    all_success = False
+        with KeyboardSuppressor():
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {
+                    executor.submit(wrapper, t["id"], t["action"], *t.get("args", ()), **t.get("kwargs", {})): t 
+                    for t in tasks
+                }
+                for future in as_completed(futures):
+                    if not future.result():
+                        all_success = False
         
         self.status_bar.clear()
         return all_success

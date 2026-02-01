@@ -101,5 +101,8 @@
    "label_pages": "صفحات",
    "label_successfully_extracted": "تم الاستخراج بنجاح",
    "label_failed_to_extract": "فشل الاستخراج",
-   "recreating_test": "جارٍ إعادة إنشاء الفرع 'test'"
+   "recreating_test": "جارٍ إعادة إنشاء الفرع 'test'",
+   "config_width_unknown": "غير معروف",
+   "config_using_fallback": "باستخدام الاحتياطي",
+   "config_check_row": "يرجى التحقق مما إذا كان سطر '=' أدناه ({width}) يوسع بالضبط صفاً واحداً في الطرفية:"
 }
