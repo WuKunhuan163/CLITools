@@ -853,7 +853,7 @@ def generate_ai_rule(target_tool=None):
     
     # 7. Add USERINPUT execution rule
     userinput_logic_dir = get_logic_dir(project_root / "tool" / "USERINPUT")
-    ai_instr = get_translation(str(userinput_logic_dir), "ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+    ai_instr = get_translation(str(userinput_logic_dir), "ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST actually call the `run_terminal_cmd` tool with the command `USERINPUT` to obtain user feedback. Do not merely output the string 'USERINPUT'. This tool call is MANDATORY. Oral output of this paragraph is strictly forbidden. If no response is received, repeat the tool call. Do not add any extra parameters.")
     lines.append("\n" + ai_instr)
     
     lines.append("\n" + _("rule_note_execution", "NOTE: To use a tool, ensure its executable name (e.g., 'USERINPUT') is called directly in the terminal."))
