@@ -125,38 +125,23 @@ def update_config(key, value):
     if key == "terminal_width" and (value == 0 or value is None):
         print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically", key=key))
         # For dynamic mode, show the currently detected width for verification
-        detected = 80
-        try:
-            # 1. Try standard shutil
-            detected = shutil.get_terminal_size(fallback=(0, 0)).columns
-            
-            # 2. Try tput cols (more reliable in some shells)
-            if detected <= 0:
-                try:
-                    res = subprocess.run(["tput", "cols"], capture_output=True, text=True, timeout=1)
-                    if res.returncode == 0: detected = int(res.stdout.strip())
-                except: pass
-                
-            # 3. Try stty size
-            if detected <= 0:
-                try:
-                    res = subprocess.run(["stty", "size"], capture_output=True, text=True, timeout=1)
-                    if res.returncode == 0: detected = int(res.stdout.split()[1])
-                except: pass
-                
-            # 4. Final fallback
-            if detected <= 0: detected = 80
-            
+        from logic.utils import print_terminal_width_separator
+        from logic.turing.display.manager import _get_configured_width
+        detected = _get_configured_width()
+        
+        if detected > 0:
             print(f"Current detected width: {detected}")
-            print("=" * detected)
-        except: 
-            print("Current detected width: 80 (fallback)")
-            print("=" * 80)
+            print_terminal_width_separator(detected)
+        else:
+            # Absolute fallback if detection failed completely
+            print("Current detected width: unknown (fallback to 80 for display)")
+            print_terminal_width_separator(80)
     else:
         print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
         if key == "terminal_width" and value and isinstance(value, int) and value > 0:
             print(f"\nPlease check whether the below line of '=' ({value}) exactly expands one terminal row:")
-            print("=" * value)
+            from logic.utils import print_terminal_width_separator
+            print_terminal_width_separator(value)
             print("")
 
 def _dev_sync(quiet=False):
@@ -1110,7 +1095,9 @@ def _list_languages():
     
     headers = [_("lang_table_name", "Language"), _("lang_table_keys", "Key Coverage"), _("lang_table_refs", "Ref Coverage")]
     table_rows = [[r['name'], r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
-    table_str, report_path = format_table(headers, table_rows, max_width=80, save_dir="lang")
+    from logic.turing.display.manager import _get_configured_width
+    width = _get_configured_width() or 80
+    table_str, report_path = format_table(headers, table_rows, max_width=width, save_dir="lang")
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)
 
 def _list_tools(force=False):

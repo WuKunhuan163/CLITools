@@ -113,10 +113,8 @@ def main():
                 if processes:
                     print("\n" + _("all_processes", "All processes ({count}):").format(count=len(processes)))
                     
-                    try:
-                        terminal_width = os.get_terminal_size().columns
-                    except (AttributeError, OSError):
-                        terminal_width = 80
+                    from logic.turing.display.manager import _get_configured_width
+                    terminal_width = _get_configured_width() or 80
                     
                     # Translated headers
                     status_label = _("status", "Status")
@@ -195,10 +193,8 @@ def main():
                     if processes:
                         print("\n" + _("all_processes", "All processes ({count}):").format(count=len(processes)))
                         
-                        try:
-                            terminal_width = os.get_terminal_size().columns
-                        except (AttributeError, OSError):
-                            terminal_width = 80
+                        from logic.turing.display.manager import _get_configured_width
+                        terminal_width = _get_configured_width() or 80
                         
                         # Translated headers
                         status_label = _("status", "Status")
