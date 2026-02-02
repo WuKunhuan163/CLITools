@@ -52,9 +52,14 @@ def identify_block_type(block: Dict[str, Any], page_rect: Any, median_font_size:
 
     # 4. References (specific patterns)
     # Refine to avoid matching headings like "7. CONCLUSION"
-    if re.match(r"^References", block_text_raw, re.IGNORECASE) or \
-       re.match(r"^\[\d+\]", block_text_raw) or \
-       (re.match(r"^\d+\.\s", block_text_raw) and len(block_text_raw) > 50 and not any(h in block_text_raw.upper() for h in ["CONCLUSION", "ABSTRACT", "INTRODUCTION", "DISCUSSION"])):
+    if re.match(r"^References", block_text_raw, re.IGNORECASE):
+        return "reference"
+    elif re.match(r"^\[\d+\]", block_text_raw):
+        return "reference"
+    elif (re.match(r"^\d+\.\s", block_text_raw) and len(block_text_raw) > 30 and not any(h in block_text_raw.upper() for h in ["CONCLUSION", "ABSTRACT", "INTRODUCTION", "DISCUSSION"])):
+        # Added length check and excluded common headings
+        return "reference"
+    elif "arXiv:" in block_text_raw:
         return "reference"
 
     # Default to paragraph

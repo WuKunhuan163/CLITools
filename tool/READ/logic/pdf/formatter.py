@@ -63,8 +63,12 @@ def get_span_style(span: Dict[str, Any], median_size: float, line_y: float) -> D
         g = (color_int >> 8) & 0xFF
         b = color_int & 0xFF
         
-        # Keep all colors, including near-black
-        hex_color = f"#{r:02x}{g:02x}{b:02x}"
+        # Keep all colors, but clear near-black (e.g. #231f20)
+        # Luminance-based or simple threshold? Simple threshold for each component is fine.
+        if r < 40 and g < 40 and b < 40:
+            hex_color = None
+        else:
+            hex_color = f"#{r:02x}{g:02x}{b:02x}"
             
     return {
         "bold": is_bold,
