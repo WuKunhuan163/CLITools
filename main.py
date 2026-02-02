@@ -807,7 +807,6 @@ This tool is part of the `TOOL` ecosystem, which provides:
     
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
-    _dev_sanity_check(tool_name)
 
 def generate_ai_rule(target_tool=None):
     project_root = ROOT_PROJECT_ROOT
