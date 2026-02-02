@@ -721,7 +721,20 @@ def main():
         GREEN = get_color("GREEN")
         BLUE = get_color("BLUE")
         RESET = get_color("RESET")
-        print(f"{{BOLD}}{{BLUE}}Progressing{{RESET}}... {{BOLD}}{{GREEN}}Successfully{{RESET}} finished!")
+        
+        import time
+        from logic.turing.display.manager import _get_configured_width, truncate_to_width
+        width = _get_configured_width()
+        
+        for i in range(3, 0, -1):
+            msg = f"\\r\\033[K{{BOLD}}{{BLUE}}Progressing{{RESET}}... {{i}}s"
+            sys.stdout.write(truncate_to_width(msg, width))
+            sys.stdout.flush()
+            time.sleep(1)
+            
+        msg = f"\\r\\033[K{{BOLD}}{{BLUE}}Progressing{{RESET}}... {{BOLD}}{{GREEN}}Successfully{{RESET}} finished!\\n"
+        sys.stdout.write(truncate_to_width(msg, width))
+        sys.stdout.flush()
         return
 
     print("Hello World!")
@@ -1013,29 +1026,31 @@ def _run_installation_test(tool_name, stay_on_test=False):
             # Install
             res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode != 0:
-                error_details.append(f"Installation with 'TOOL install {tool_name}' failed.")
-                if res.stdout: error_details.append(f"Install stdout: {res.stdout.strip()}")
-                if res.stderr: error_details.append(f"Install stderr: {res.stderr.strip()}")
+                error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed.")
+                if res.stdout: error_details.append(res.stdout.strip())
+                if res.stderr: error_details.append(res.stderr.strip())
                 install_test_action.error_msg = "\n".join(error_details)
                 return False
             
             # Simple check - use '--help'
             bin_path = project_root / "bin" / tool_name
             if not bin_path.exists():
-                error_details.append(f"Shortcut bin/{tool_name} cannot be found after installation. Please run 'TOOL install {tool_name}' manually.")
+                error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed: {BOLD}Shortcut bin/{tool_name} cannot be found after installation.{RESET} Please run 'TOOL install {tool_name}' manually.")
                 install_test_action.error_msg = "\n".join(error_details)
                 return False
             
             res = subprocess.run([str(bin_path), "--help"], capture_output=True, text=True)
             if res.returncode != 0:
-                error_details.append(f"Help command '{tool_name} --help' failed (code {res.returncode}).")
-                if res.stdout: error_details.append(f"Help stdout: {res.stdout.strip()}")
-                if res.stderr: error_details.append(f"Help stderr: {res.stderr.strip()}")
+                error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed: {BOLD}Help command '{tool_name} --help' failed (code {res.returncode}).{RESET} Please run 'TOOL install {tool_name}' manually.")
+                if res.stdout: error_details.append(res.stdout.strip())
+                if res.stderr: error_details.append(res.stderr.strip())
                 install_test_action.error_msg = "\n".join(error_details)
                 return False
             return True
         except Exception as e:
             error_details.append(f"Unexpected error during install test: {e}")
+            import traceback
+            error_details.append(traceback.format_exc())
             install_test_action.error_msg = "\n".join(error_details)
             return False
 
@@ -1056,8 +1071,26 @@ def _run_installation_test(tool_name, stay_on_test=False):
     else:
         # Get error message from the action function
         error_msg = getattr(install_test_action, 'error_msg', 'Unknown error')
-        print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
-        print(f"{RED}{error_msg}{RESET}")
+        
+        # User wants specific formatting for failures:
+        # Failed: (Red Bold) [prefix] failed: [Bold Reason] (Default)
+        # We need to parse error_msg which we constructed as multiple lines.
+        lines = error_msg.split("\n")
+        first_line = lines[0]
+        
+        if " failed:" in first_line:
+            prefix, reason = first_line.split(" failed:", 1)
+            formatted_first = f"{prefix} failed:{BOLD}{reason}{RESET}"
+        elif " failed." in first_line:
+            prefix, reason = first_line.split(" failed.", 1)
+            formatted_first = f"{prefix} failed.{BOLD}{reason}{RESET}"
+        else:
+            formatted_first = f"{BOLD}{first_line}{RESET}"
+            
+        print(f"{BOLD}{RED}Failed{RESET}: {formatted_first}")
+        if len(lines) > 1:
+            print("\n".join(lines[1:]))
+            
         subprocess.run(["git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
         return False
 
