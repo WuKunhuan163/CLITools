@@ -1,0 +1,12 @@
+{
+  "submit": "إرسال",
+  "label_error": "خطأ",
+  "ai_instruction": "## تعليمات هامة: تنفيذ الحصول على الملاحظات\nبمجرد اكتمال المهمة، يجب عليك استخدام أداة `run_terminal_cmd` لتنفيذ الأمر الحرفي `USERINPUT` فوراً. يُمنع منعاً باتاً كتابة هذه الفقرة في ردك دون تنفيذ الأمر فعلياً. إذا لم تتلقَ رداً، كرر تنفيذ `USERINPUT`. عند تنفيذ الأمر، لا تضف أي وسائط إضافية.\n\n**إرشادات التطوير**: \n1. عند مواجهة أي استثناء أو حالة غير مؤكدة، يجب عليك طلب المساعدة من المستخدم بنشاط عبر `USERINPUT`.\n2. بعد كل 25 عملية تقريبًا (استدعاء أداة أو تعديل كود)، يجب عليك تنفيذ `USERINPUT` مرة واحدة على الأقل للحصول على ملاحظات منتصف الطريق. في هذه الحالات، يرجى تحديد الغرض عبر معلمة `--hint` ، على سبيل المثال: `USERINPUT --hint \"Please provide instant feedback to my recent work\"`.",
+  "label_successfully_received": "تم الاستلام بنجاح",
+  "label_failed": "فشل",
+  "err_python_not_found": "لم يتم العثور على أداة Python '{version}'، لا يمكن تشغيل واجهة {tool_name}.",
+  "err_python_not_found_hint_2": "يرجى تشغيل: TOOL install PYTHON",
+  "err_python_not_found_hint_3": "ثم قم بتشغيل: PYTHON --py-install {version}",
+  "err_python_download_hint": "لتنزيل إصدار مفقود: PYTHON --py-update --version {version}",
+  "err_python_not_found_hint_4": "أخيراً، قم بتشغيل إعداد الأداة: {tool_name} setup"
+}

@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Standalone Python environment manager.",
   "purpose": "Provide a consistent Python runtime for other tools.",
-  "dependencies": [],
   "usage": [
     "PYTHON --py-list: List all installed and available Python versions.",
     "PYTHON --py-install <version>: Download and install a specific Python version (e.g., 3.11.14).",

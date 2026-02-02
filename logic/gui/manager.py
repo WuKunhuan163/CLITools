@@ -214,7 +214,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     if initial_content:
         hint_label = _("fallback_hint_label", "Hint")
         WHITE = get_color("WHITE", "\033[37m")
-        print(f"{BOLD}{WHITE}{hint_label}{RESET}: {initial_content}")
+        print(f"{BOLD}{BOLD}{hint_label}{RESET}: {initial_content}")
 
     try:
         rel_path = str(input_file.relative_to(tool_instance.project_root))
