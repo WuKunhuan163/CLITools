@@ -187,7 +187,7 @@ class ToolEngine:
     def reinstall(self):
         """Force reinstall of the tool."""
         self.uninstall()
-        self.install()
+        return self.install()
 
     # --- Actions ---
 
@@ -197,7 +197,13 @@ class ToolEngine:
             return False
         with open(self.registry_path, 'r') as f:
             registry = json.load(f)
-            if self.tool_name not in registry.get("tools", {}):
+            # Support both list and dict registry formats
+            tools = registry.get("tools", {})
+            if isinstance(tools, list):
+                if self.tool_name not in tools:
+                    print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
+                    return False
+            elif self.tool_name not in tools:
                 print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
                 return False
         
