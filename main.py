@@ -198,8 +198,8 @@ def _dev_sync(quiet=False):
     def auto_commit():
         status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            run_git(["add", "-A"])
-            run_git(["commit", "-m", f"Auto-commit before sync on '{start_branch}'"])
+            if not run_git(["add", "-A"]): return False
+            if not run_git(["commit", "-m", f"Auto-commit before sync on '{start_branch}'"]): return False
         return True
 
     tm.add_stage(TuringStage(
@@ -923,6 +923,12 @@ def generate_ai_rule(target_tool=None):
 
 def _test_tool_with_args(args):
     project_root = ROOT_PROJECT_ROOT
+    # 0. Capture current branch to return later
+    try:
+        start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+    except:
+        start_branch = "dev"
+
     # Support 'TOOL' as an alias for 'root'
     actual_tool_name = "root" if args.tool_name in ["root", "TOOL"] else args.tool_name
     tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
@@ -961,8 +967,8 @@ def _test_tool_with_args(args):
             # run_tests will print its own results
             runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout, quiet_if_no_tests=True)
             
-        # 3. Return to dev
-        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        # 3. Return to starting branch
+        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
 
 def _run_installation_test(tool_name, stay_on_test=False):
     """Run dev sync and then verify installation on test branch."""

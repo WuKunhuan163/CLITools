@@ -302,18 +302,24 @@ class ToolEngine:
         
         self.bin_dir.mkdir(exist_ok=True)
         link_path = self.bin_dir / self.tool_name
-        if link_path.exists() or link_path.is_symlink(): os.remove(link_path)
+        print(f"Creating shortcut at {link_path} pointing to {main_py}")
+        if link_path.exists() or link_path.is_symlink():
+            print(f"Removing existing link at {link_path}")
+            os.remove(link_path)
         
         try:
             st = os.stat(main_py); os.chmod(main_py, st.st_mode | stat.S_IEXEC)
             
             # Pure symlink - re-execution logic is now inside ToolBase
             os.symlink(main_py, link_path)
+            print(f"Symlink created successfully")
             
             from main import register_path
             register_path(self.bin_dir)
             return True
-        except: return False
+        except Exception as e:
+            print(f"Error creating shortcut: {e}")
+            return False
 
     def run_setup(self):
         setup_py = self.tool_dir / "setup.py"
