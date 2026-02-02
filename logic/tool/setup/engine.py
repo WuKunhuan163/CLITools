@@ -55,8 +55,17 @@ class ToolEngine:
             except: return False
         return True
 
-    def install(self, is_dependency=False):
-        # 1. Check if correctly installed
+    def install(self, is_dependency=False, visited=None):
+        if visited is None: visited = set()
+        
+        # 1. Check for circular dependency
+        if self.tool_name in visited:
+            # We already visited this tool in the current recursion stack
+            return True # Assume it will be handled by the outer call
+        
+        visited.add(self.tool_name)
+
+        # 2. Check if correctly installed
         if self.is_installed():
             status = self._("label_already_installed", "Already installed")
             msg = f"\r\033[K{self.BOLD}{self.WHITE}{status}{self.RESET} {self.tool_name}"
@@ -67,7 +76,7 @@ class ToolEngine:
                 print(msg)
             return True
 
-        # 2. Check for partial installation/missing deps
+        # 3. Check for partial installation/missing deps
         is_partial = self.tool_dir.exists() or (self.bin_dir / self.tool_name).exists()
         
         tm = ProgressTuringMachine()
@@ -83,15 +92,19 @@ class ToolEngine:
             ))
 
         # 1. Validation
+        def validation_action():
+            return self.validate_registry()
+
         tm.add_stage(TuringStage(
-            name=self._("label_validation", "Validation"),
-            action=self.validate_registry,
-            success_status=self._("label_passed", "Passed"),
-            success_color="WHITE"
+            name=self.tool_name,
+            action=validation_action,
+            active_status=self._("label_validating_existence", "Validating existence of tool '{name}' in global registry...", name=self.tool_name),
+            success_status=self._("label_validated", "Validated existence"),
+            success_color="WHITE",
+            is_sticky=False
         ))
         
         # 2. Fetching Source
-        # Check if the tool directory exists and has a main.py (not just leftover untracked data)
         if not (self.tool_dir.exists() and (self.tool_dir / "main.py").exists()):
             tm.add_stage(TuringStage(
                 name=self.tool_name,
@@ -103,9 +116,12 @@ class ToolEngine:
             ))
         
         # 3. Tool Dependencies (Recursive)
+        def handle_deps_action():
+            return self.handle_dependencies(visited=visited)
+
         tm.add_stage(TuringStage(
             name=self._("label_dependencies", "dependencies"),
-            action=self.handle_dependencies,
+            action=handle_deps_action,
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_ready", "Ready"),
             success_color="WHITE"
@@ -124,8 +140,8 @@ class ToolEngine:
         tm.add_stage(TuringStage(
             name=self.tool_name,
             action=self.create_shortcut,
-            active_status=self._("label_creating", "Creating shortcut for"),
-            success_status=self._("label_created", "Created shortcut for"),
+            active_status=self._("label_creating_shortcut", "Creating shortcut for"),
+            success_status=self._("label_created_shortcut", "Created shortcut for"),
             success_color="WHITE"
         ))
         
@@ -201,7 +217,7 @@ class ToolEngine:
             except: pass
         return False
 
-    def handle_dependencies(self):
+    def handle_dependencies(self, visited=None):
         tool_json_path = self.tool_dir / "tool.json"
         if not tool_json_path.exists(): return True
         try:
@@ -212,7 +228,7 @@ class ToolEngine:
                 for dep in deps:
                     # Recursive install
                     sub_engine = ToolEngine(dep, self.project_root)
-                    if not sub_engine.install(is_dependency=True): return False
+                    if not sub_engine.install(is_dependency=True, visited=visited): return False
             return True
         except: return False
 
@@ -240,9 +256,6 @@ class ToolEngine:
         python_tool_dir = self.project_root / "tool" / "PYTHON"
         if not python_tool_dir.exists():
             # If PYTHON is in dependencies, it will be installed in handle_dependencies.
-            # We should return True here and let the caller know we'll need to retry or 
-            # just rely on the fact that handle_pip_deps will be called again?
-            # Wait, the Turing Machine runs stages in order.
             return True 
         
         from logic.utils import get_logic_dir
@@ -253,8 +266,16 @@ class ToolEngine:
             mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
             python_exec = mod.get_python_exec()
             
-            cmd = [python_exec, "-m", "pip", "install"] + pip_deps
-            return subprocess.run(cmd, capture_output=True).returncode == 0
+            for package in pip_deps:
+                # Update status message for each package
+                status = self._("label_installing_pip_package", "Installing pip dependency: {package}...", package=package)
+                sys.stdout.write(f"\r\033[K{self.BOLD}{self.BLUE}{status}{self.RESET}")
+                sys.stdout.flush()
+                
+                cmd = [python_exec, "-m", "pip", "install", package]
+                if subprocess.run(cmd, capture_output=True).returncode != 0:
+                    return False
+            return True
         except: return False
 
     def create_shortcut(self):
