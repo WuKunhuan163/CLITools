@@ -72,12 +72,7 @@ class ProgressTuringMachine:
                         sys.stdout.write("\r\033[K")
                         sys.stdout.flush()
                         
-                        if ephemeral:
-                            if final_msg is not None:
-                                sys.stdout.write(f"{truncate_to_width(final_msg, width)}")
-                                if final_newline: sys.stdout.write("\n")
-                            # If ephemeral and final_msg is None, we just leave it erased
-                        else:
+                        if not ephemeral:
                             # Standard failure display
                             fail_name = stage.fail_name or stage.name
                             if stage.bold_part and fail_name.startswith(stage.bold_part):
@@ -95,18 +90,14 @@ class ProgressTuringMachine:
                     sys.stdout.write("\r\033[K")
                     sys.stdout.flush()
                     
-                    if ephemeral:
-                        if final_msg is not None:
-                            sys.stdout.write(f"{truncate_to_width(final_msg, width)}")
-                            if final_newline: sys.stdout.write("\n")
-                    else:
+                    if not ephemeral:
                         fail_name = stage.fail_name or stage.name
                         fail_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}: {e}"
                         sys.stdout.write(f"{truncate_to_width(fail_msg, width)}\n")
                     
                     sys.stdout.flush()
                     return False
-            
+
             # Ensure exactly one newline at the end if requested
             if ephemeral and final_newline:
                 # pass
