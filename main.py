@@ -991,28 +991,19 @@ def _run_installation_test(tool_name, stay_on_test=False):
             # Uninstall if exists
             subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
             
-            # Install
-            res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
-            if res.returncode != 0:
-                # If installation failed, we want to know why
-                if res.stdout: sys.stderr.write(f"\nInstall stdout: {res.stdout}")
-                if res.stderr: sys.stderr.write(f"\nInstall stderr: {res.stderr}")
-                return False
+            # Install - Silence this too as requested
+            with open(os.devnull, 'w') as f:
+                with redirect_stdout(f), redirect_stderr(f):
+                    res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0: return False
             
             # Simple check - use '--help'
             bin_path = project_root / "bin" / tool_name
-            if not bin_path.exists():
-                sys.stderr.write(f"\nShortcut missing: {bin_path}")
-                return False
+            if not bin_path.exists(): return False
             
             res = subprocess.run([str(bin_path), "--help"], capture_output=True, text=True)
-            if res.returncode != 0:
-                sys.stderr.write(f"\nHelp command failed (code {res.returncode})")
-                if res.stdout: sys.stderr.write(f"\nHelp stdout: {res.stdout}")
-                if res.stderr: sys.stderr.write(f"\nHelp stderr: {res.stderr}")
             return res.returncode == 0
-        except Exception as e:
-            sys.stderr.write(f"\nUnexpected error during install test: {e}")
+        except:
             return False
 
     tm_install.add_stage(TuringStage(
@@ -1031,7 +1022,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         return True
     else:
         print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
-        # subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
         return False
 
 def _audit_lang(lang_code, force=False):
