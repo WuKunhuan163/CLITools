@@ -159,6 +159,13 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     # Phase 1: Convert blocks to semantic items
     semantic_items = []
     for b in grouped_blocks:
+        # Calculate max font size in this block for merging heuristics
+        max_font_in_block = 0
+        for line in b["lines"]:
+            for span in line["spans"]:
+                if span.get("text", "").strip():
+                    max_font_in_block = max(max_font_in_block, span.get("size", 0))
+
         block_type = identify_block_type(b, page_rect, median_size)
         
         # State-based reference detection refinement
@@ -196,7 +203,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             "bbox": list(b["bbox"]),
             "segments": segments,
             "text": block_text_raw,
-            "lines": b["lines"]
+            "lines": b["lines"],
+            "max_font": max_font_in_block # Added font info for merging
         })
 
     # Phase 2: Merging logical blocks
@@ -213,6 +221,11 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             if not is_sentence_complete(prev["text"]):
                 should_merge = True
         
+        if prev["type"] == "title" and item["type"] == "title":
+            # Merge titles if font size is roughly the same (within 1pt)
+            if abs(prev.get("max_font", 0) - item.get("max_font", 0)) < 1.0:
+                should_merge = True
+
         if prev["type"] == "reference" and item["type"] == "reference":
             should_merge = True
             
