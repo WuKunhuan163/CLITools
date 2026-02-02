@@ -1,27 +1,47 @@
 # Ignore everything by default
 /*
 
-# But track these core folders and files
+# Core framework files
 !/main.py
 !/setup.py
 !/tool.json
 !/README.md
+!/.gitignore
+!/.gitattributes
+
+# Core framework directories
 !/logic/
 !/bin/
 !/test/
 !/tool/
-!/.gitignore
-!/.gitattributes
 
-# Within tool, ignore data and logs but track the code
+# Within tools, track the code but ignore transient data/logs
+!/tool/*/
 /tool/*/data/
 /tool/*/logs/
-!/tool/*/
 
-# Within logic, ignore pycache
+# Within logic, ignore transient data
+/logic/test/*.pdf
+!/logic/test/
+
+# Root transient folders (ignored but NOT cleaned by sync)
+/data/
+/logs/
+/tmp/
+/resource/
+
+# Python patterns
 **/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Keep gitignore and gitattributes
-!.gitignore
-!.gitattributes
-
+# System patterns
+.DS_Store
+Thumbs.db
