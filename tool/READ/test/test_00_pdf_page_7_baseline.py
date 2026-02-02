@@ -55,15 +55,18 @@ def test_page_7_baseline():
             errors.append("Paragraphs across columns were not correctly merged.")
             
         # 2. Check for heading formatting (newlines)
-        # The heading now has spaces and then newlines
+        # Match "**7. CONCLUSION ** \n\n Our work" or similar
         if not re.search(r"\*\*7\. CONCLUSION \*\* \n\n", md_content):
             errors.append("Heading '7. CONCLUSION' is missing expected double newline.")
             
         # 3. Check for reference split
         # References are now separate blocks, each starting with its number
         for i in range(1, 8):
+            # Match block ID tag followed by reference number
             if not re.search(fr"type: reference -->\n{i}\.", md_content):
-                errors.append(f"Reference {i} was not correctly split into its own block.")
+                # Try with tab
+                if not re.search(fr"type: reference -->\n{i}\.\s", md_content):
+                    errors.append(f"Reference {i} was not correctly split into its own block.")
             
         # 4. Check for non-standard characters
         if "\x08" in md_content:

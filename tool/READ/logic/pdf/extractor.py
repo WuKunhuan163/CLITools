@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 from logic.config import get_color
 from .algorithm.semantic import identify_block_type
 from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, format_segments_with_color_merging, strip_non_standard_chars, is_sentence_complete
-from .layout import parse_page_spec, get_median_font_size, ReadingOrderSorter
+from .layout import parse_page_spec, get_median_font_size
 
 def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
@@ -125,9 +125,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         if b.get("type") != 0: continue
         for line in b["lines"]:
             for span in line["spans"]:
-                # Convert span to a "token" compatible format
-                # If a span has multiple words, we might want to split it
-                # but for now let's treat span as a unit if it's small.
+                # Treat each span as a "token" unit
                 all_spans.append({
                     "text": span["text"],
                     "bbox": list(span["bbox"]),
@@ -246,7 +244,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             current_ref_lines = []
             for line in item["lines"]:
                 line_text = "".join([s["text"] for s in line["spans"]]).strip()
-                # Detection pattern for new reference start
+                # Detection pattern for new reference start or "References" title
                 if re.match(r'^(?:\[\d+\]|\d+\.)', line_text) or line_text.lower() == "references":
                     if current_ref_lines:
                         # Create a sub-item for the previous reference
@@ -306,7 +304,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         else:
             final_semantic_items.append(item)
 
-    # Process final items
+    # Process final items for output and visualization
     reference_count = 0
     for item in final_semantic_items:
         block_type = item["type"]
@@ -316,7 +314,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         
         color = semantic_color_map.get(block_type, [0, 255, 0, 60])
         
-        # Alpha alternation for references
+        # Alpha alternation for individual references
         current_alpha = alpha_int
         if block_type == "reference":
             reference_count += 1
@@ -325,13 +323,14 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         
         fill_color = tuple(list(color[:3]) + [current_alpha])
         
-        # Precise visualization: draw per-line rectangles
+        # Precise visualization: draw per-span rectangles to highlight gaps
         for line in item["lines"]:
-            l_bbox = line["bbox"]
-            rects_to_draw.append({
-                "bbox": [l_bbox[0]*zoom, l_bbox[1]*zoom, l_bbox[2]*zoom, l_bbox[3]*zoom],
-                "fill": fill_color
-            })
+            for span in line["spans"]:
+                s_bbox = span["bbox"]
+                rects_to_draw.append({
+                    "bbox": [s_bbox[0]*zoom, s_bbox[1]*zoom, s_bbox[2]*zoom, s_bbox[3]*zoom],
+                    "fill": fill_color
+                })
         
         type_label = block_type.capitalize()
         if type_label not in legend_items:
@@ -341,10 +340,12 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         block_id = f"b{block_id_num:03d}"
         extracted_block_counter += 1
         
-        # Label position: position of the first span of the first line
-        first_line = item["lines"][0]
-        first_span = first_line["spans"][0]
-        label_pos = (first_span["bbox"][0]*zoom, first_span["bbox"][1]*zoom)
+        # Label position: logically first token (first span of first line)
+        if item["lines"] and item["lines"][0]["spans"]:
+            first_span = item["lines"][0]["spans"][0]
+            label_pos = (first_span["bbox"][0]*zoom, first_span["bbox"][1]*zoom)
+        else:
+            label_pos = (bbox[0]*zoom, bbox[1]*zoom)
         
         labels_to_draw.append({
             "pos": label_pos,
@@ -354,6 +355,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             "border_color": (0, 0, 0, 255)
         })
 
+        # Formatting Markdown text
         block_md = ""
         if block_type in ["paragraph", "heading"]:
             first_is_bold = segments[0][1]["bold"]
@@ -364,6 +366,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                         bold_end_idx = i; break
                 if bold_end_idx != -1:
                     bold_text = "".join([s[0] for s in segments[:bold_end_idx]]).strip()
+                    # Forced line break for subheadings
                     if len(bold_text.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", bold_text):
                         heading_md = format_segments_with_color_merging(segments[:bold_end_idx]).strip()
                         body_md = format_segments_with_color_merging(segments[bold_end_idx:]).lstrip()
@@ -378,6 +381,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             raw_content = format_segments_with_color_merging(segments)
             # Bold "References" title if it exists
             raw_content = re.sub(r"(?i)(References)", r"**\1**", raw_content, count=1)
+            # Forced line break after "References" title or individual entries
             block_md = raw_content.strip()
         else:
             block_md = format_segments_with_color_merging(segments)
@@ -388,6 +392,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         if block_md.strip():
             page_content_parts.append(full_block_md.strip())
             
+        # info.json now contains full Markdown text
         semantic_info.append({
             "id": block_id, "type": block_type, "bbox": bbox,
             "text": block_md
@@ -397,11 +402,13 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     with open(md_file_path, "w", encoding="utf-8") as f:
         f.write(content)
         
+    # Use DRAW tool for final visualization
     if draw_iface:
         vis_img = draw_iface["draw_rects_with_alpha"](vis_img, rects_to_draw)
         vis_img = draw_iface["draw_labels"](vis_img, labels_to_draw)
         vis_img = draw_iface["append_legend"](vis_img, legend_items)
     else:
+        # Basic fallback if DRAW tool is unavailable
         draw = ImageDraw.Draw(vis_img)
         for r in rects_to_draw: draw.rectangle(r["bbox"], fill=r["fill"])
         for l in labels_to_draw: draw.text(l["pos"], l["text"], fill=(0,0,0,255), font=l["font"])

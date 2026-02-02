@@ -214,27 +214,46 @@ def _dev_sync(quiet=False):
 
     # 2. dev -> tool
     def align_tool():
-        # We want to keep the 'resource' directory on 'tool' branch
-        # because it contains the migrated Python assets.
-        if not run_git(["checkout", "-f", "tool"]): return False
+        # Update 'tool' branch to match 'dev'
+        # We use a temporary index to avoid checkouts
+        env = os.environ.copy()
+        side_index = project_root / ".git" / "index_sync_tool"
+        env["GIT_INDEX_FILE"] = str(side_index)
         
-        # Instead of a full hard reset, we want to align everything EXCEPT 'resource'
-        if not run_git(["reset", "--hard", "dev"]): return False
-        
-        # Restore 'resource' from origin/tool if it was deleted/changed
-        run_git(["checkout", "origin/tool", "--", "resource"])
-        
-        # DO NOT use git clean here. We want to preserve untracked state like data/ subdirs.
-        # run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
-        cleanup_project_patterns(project_root)
-        
-        # Commit the alignment if there are changes (like restored resources)
-        status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
-        if status:
-            run_git(["add", "-A"])
-            run_git(["commit", "-m", "Align 'tool' with 'dev' (preserving resources)"])
+        try:
+            # 1. Start with dev tree
+            res = subprocess.run(["git", "write-tree"], cwd=str(project_root), capture_output=True, text=True)
+            tree_sha = res.stdout.strip()
             
-        return True
+            # 2. Merge with origin/tool's resource directory
+            # We want to keep 'resource/' from 'tool' branch
+            subprocess.run(["git", "read-tree", tree_sha], cwd=str(project_root), env=env, check=True)
+            
+            # Fetch origin/tool to get its resource tree
+            subprocess.run(["git", "fetch", "origin", "tool"], cwd=str(project_root), capture_output=True)
+            
+            # Get resource tree from origin/tool
+            res = subprocess.run(["git", "ls-tree", "origin/tool", "resource"], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout:
+                # Add resource directory to our new tree
+                subprocess.run(["git", "read-tree", "--prefix=resource", "origin/tool:resource"], cwd=str(project_root), env=env, check=True)
+            
+            new_tree = subprocess.check_output(["git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
+            
+            # 3. Create commit on tool branch
+            res = subprocess.run(["git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
+            parent = res.stdout.strip() if res.returncode == 0 else None
+            
+            commit_args = ["git", "commit-tree", new_tree, "-m", "Align 'tool' with 'dev' (preserving resources)"]
+            if parent: commit_args.extend(["-p", parent])
+            
+            commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
+            
+            # 4. Update tool branch ref
+            subprocess.run(["git", "update-ref", "refs/heads/tool", commit_sha], cwd=str(project_root), check=True)
+            return True
+        finally:
+            if side_index.exists(): side_index.unlink()
 
     tm.add_stage(TuringStage(
         name="'tool' from 'dev'",
@@ -248,23 +267,38 @@ def _dev_sync(quiet=False):
 
     # 3. tool -> main
     def align_main():
-        if not run_git(["checkout", "-f", "main"]): return False
-        if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
+        # Update 'main' branch to match 'tool' (framework only)
+        env = os.environ.copy()
+        side_index = project_root / ".git" / "index_sync_main"
+        env["GIT_INDEX_FILE"] = str(side_index)
         
-        # Remove restricted folders on main
-        # We only want to remove them from GIT, NOT from disk.
-        # This keeps the local workspace intact while switching branches.
-        restricted_git = ["tool", "resource", "data", "tmp", "bin"]
-        
-        # Use --cached to only remove from index
-        subprocess.run(["git", "rm", "-rf", "--cached"] + restricted_git, cwd=str(project_root), capture_output=True)
-        
-        # DO NOT use shutil.rmtree or git clean here. 
-        # We want untracked files to stay on disk.
-        
-        run_git(["add", "-A"])
-        run_git(["commit", "--allow-empty", "-m", "Align 'main' with 'tool' (framework only)"])
-        return True
+        try:
+            # 1. Start with tool tree
+            res = subprocess.run(["git", "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
+            tool_tree = res.stdout.strip()
+            subprocess.run(["git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True)
+            
+            # 2. Remove restricted folders from index
+            restricted = ["tool", "resource", "data", "tmp", "bin"]
+            for folder in restricted:
+                subprocess.run(["git", "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
+            
+            new_tree = subprocess.check_output(["git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
+            
+            # 3. Create commit on main branch
+            res = subprocess.run(["git", "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
+            parent = res.stdout.strip() if res.returncode == 0 else None
+            
+            commit_args = ["git", "commit-tree", new_tree, "-m", "Align 'main' with 'tool' (framework only)"]
+            if parent: commit_args.extend(["-p", parent])
+            
+            commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
+            
+            # 4. Update main branch ref
+            subprocess.run(["git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True)
+            return True
+        finally:
+            if side_index.exists(): side_index.unlink()
 
     tm.add_stage(TuringStage(
         name="'main' from 'tool'",
@@ -276,11 +310,13 @@ def _dev_sync(quiet=False):
         bold_part="Aligning"
     ))
 
-    # 4. tool -> test (test needs tools for testing)
+    # 4. tool -> test
     def align_test():
-        if not run_git(["checkout", "-f", "test"]): return False
-        if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
-        # DO NOT clean here.
+        # test branch is identical to tool branch
+        res = subprocess.run(["git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
+        if res.returncode != 0: return False
+        tool_sha = res.stdout.strip()
+        subprocess.run(["git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True)
         return True
 
     tm.add_stage(TuringStage(

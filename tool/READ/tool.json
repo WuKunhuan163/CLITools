@@ -1,0 +1,19 @@
+{
+  "name": "READ",
+  "version": "1.0.0",
+  "description": "Read and extract content from PDF, Word, and images.",
+  "purpose": "A layout-aware document extraction tool.",
+  "dependencies": [
+    "DRAW"
+  ],
+  "pip_dependencies": [
+    "pymupdf",
+    "python-docx",
+    "Pillow"
+  ],
+  "usage": [
+    "READ extract <file> [--page <spec>]",
+    "READ config --alpha <0.0-1.0>"
+  ]
+}
+
