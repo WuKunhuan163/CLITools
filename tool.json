@@ -9,6 +9,8 @@
     "FILEDIALOG",
     "TEX",
     "SEARCH",
-    "READ"
+    "READ",
+    "DRAW",
+    "GIT"
   ]
 }
