@@ -59,7 +59,6 @@ GREEN = get_color("GREEN", RESET)
 BOLD = get_color("BOLD", RESET)
 BLUE = get_color("BLUE", RESET)
 YELLOW = get_color("YELLOW", RESET)
-WHITE = get_color("WHITE", RESET)
 RED = get_color("RED", RESET)
 
 def print_erasable(msg):
