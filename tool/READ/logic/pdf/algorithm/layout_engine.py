@@ -3,7 +3,7 @@ import re
 
 class LayoutEngine:
     """
-    Advanced layout analysis engine using token-level coordinates and gutter detection.
+    Advanced layout analysis engine using token-level coordinates and recursive gutter detection.
     """
     
     def __init__(self, page_width: float, page_height: float):
@@ -11,31 +11,30 @@ class LayoutEngine:
         self.page_height = page_height
 
     def segment_tokens(self, tokens: List[Dict[str, Any]], depth: int = 0) -> List[Dict[str, Any]]:
-        """
-        Recursively segment tokens into columns and blocks.
-        """
         if not tokens: return []
 
-        # 1. Position-based filtering for headers/footers (top 5%, bottom 5%)
-        # Only do this at the top level
-        body_tokens = tokens
+        # 1. Top-level Header/Footer detection
         header_blocks = []
         footer_blocks = []
+        body_tokens = tokens
+        
         if depth == 0:
             header_y_limit = self.page_height * 0.05
             footer_y_limit = self.page_height * 0.95
             
-            body_tokens = []
             header_t = []
             footer_t = []
+            new_body_t = []
             for t in tokens:
-                if t['bbox'][3] < header_y_limit:
+                mid_y = (t['bbox'][1] + t['bbox'][3]) / 2
+                if mid_y < header_y_limit:
                     header_t.append(t)
-                elif t['bbox'][1] > footer_y_limit:
+                elif mid_y > footer_y_limit:
                     footer_t.append(t)
                 else:
-                    body_tokens.append(t)
+                    new_body_t.append(t)
             
+            body_tokens = new_body_t
             if header_t:
                 header_blocks = self._cluster_tokens_into_blocks(header_t)
             if footer_t:
@@ -44,59 +43,127 @@ class LayoutEngine:
         if not body_tokens:
             return header_blocks + footer_blocks
 
-        # 2. Detect Gutter
-        x_min = min(t['bbox'][0] for t in body_tokens)
-        x_max = max(t['bbox'][2] for t in body_tokens)
+        # 2. Find ALL horizontal spanning lines that block vertical gutters
+        # We only want to split by a gutter if it's "clean" vertically.
+        # But wait, a spanning line (like a title) should be its own block.
         
-        gutters = self._find_gutters(body_tokens, x_min, x_max)
-        # Pick the most "central" and "significant" gutter
-        mid_x = (x_min + x_max) / 2
+        lines = self._tokens_to_lines(body_tokens)
+        mid_x = self.page_width / 2
         
-        # A gutter is significant if it's wide enough and somewhat central
-        significant_gutters = [g for g in gutters if (g[1] - g[0]) > 15] # at least 15 units wide
-        
-        if significant_gutters and depth < 2:
-            # Pick the one closest to the center
-            best_gutter = min(significant_gutters, key=lambda g: abs((g[0] + g[1])/2 - mid_x))
-            gutter_mid = (best_gutter[0] + best_gutter[1]) / 2
+        zones = []
+        curr_zone_tokens = []
+        for line in lines:
+            line_x0 = min(t['bbox'][0] for t in line)
+            line_x1 = max(t['bbox'][2] for t in line)
             
-            left_t = [t for t in body_tokens if t['bbox'][2] <= gutter_mid]
-            right_t = [t for t in body_tokens if t['bbox'][0] >= gutter_mid]
+            # Check for gap in this line
+            has_gap = False
+            for i in range(len(line) - 1):
+                if (line[i+1]['bbox'][0] - line[i]['bbox'][2]) > 10:
+                    gap_mid = (line[i+1]['bbox'][0] + line[i]['bbox'][2]) / 2
+                    if abs(gap_mid - mid_x) < self.page_width * 0.15:
+                        has_gap = True
+                        break
             
-            # Check if we actually split anything
-            if left_t and right_t:
-                return header_blocks + self.segment_tokens(left_t, depth + 1) + self.segment_tokens(right_t, depth + 1) + footer_blocks
+            is_spanning = (line_x1 - line_x0 > self.page_width * 0.5) and not has_gap
+            
+            if is_spanning:
+                if curr_zone_tokens:
+                    zones.append(('multi', curr_zone_tokens))
+                    curr_zone_tokens = []
+                zones.append(('spanning', line))
+            else:
+                curr_zone_tokens.extend(line)
+        
+        if curr_zone_tokens:
+            zones.append(('multi', curr_zone_tokens))
+            
+        final_blocks = []
+        for z_type, z_tokens in zones:
+            if z_type == 'spanning':
+                final_blocks.append(self._create_block([z_tokens]))
+            else:
+                # Find gutter in multi-column zone
+                x_min = min(t['bbox'][0] for t in z_tokens)
+                x_max = max(t['bbox'][2] for t in z_tokens)
+                gutters = self._find_gutters(z_tokens, x_min, x_max)
+                
+                # Use current zone center for gutter search
+                mid_zone_x = (x_min + x_max) / 2
+                
+                best_gutter = None
+                for g0, g1 in sorted(gutters, key=lambda g: g[1] - g[0], reverse=True):
+                    center = (g0 + g1) / 2
+                    # Gutter must be somewhat central to the current zone
+                    if abs(center - mid_zone_x) < (x_max - x_min) * 0.2:
+                        best_gutter = (g0, g1)
+                        break
+                
+                if best_gutter and depth < 3:
+                    g_mid = (best_gutter[0] + best_gutter[1]) / 2
+                    left_t = [t for t in z_tokens if t['bbox'][2] <= g_mid]
+                    right_t = [t for t in z_tokens if t['bbox'][0] >= g_mid]
+                    if left_t and right_t:
+                        final_blocks.extend(self.segment_tokens(left_t, depth + 1))
+                        final_blocks.extend(self.segment_tokens(right_t, depth + 1))
+                        continue
+                
+                final_blocks.extend(self._cluster_tokens_into_blocks(z_tokens))
+                
+        return header_blocks + final_blocks + footer_blocks
 
-        # 3. No significant gutter found, or max depth reached
-        # Segment vertically into blocks
-        return header_blocks + self._cluster_tokens_into_blocks(body_tokens) + footer_blocks
+    def _tokens_to_lines(self, tokens: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+        if not tokens: return []
+        tokens.sort(key=lambda t: (t['bbox'][1], t['bbox'][0]))
+        lines = []
+        curr_line = [tokens[0]]
+        for i in range(1, len(tokens)):
+            prev, curr = curr_line[-1], tokens[i]
+            overlap = min(prev['bbox'][3], curr['bbox'][3]) - max(prev['bbox'][1], curr['bbox'][1])
+            h = min(prev['bbox'][3] - prev['bbox'][1], curr['bbox'][3] - curr['bbox'][1])
+            if overlap > h * 0.4:
+                curr_line.append(curr)
+            else:
+                lines.append(sorted(curr_line, key=lambda t: t['bbox'][0]))
+                curr_line = [curr]
+        lines.append(sorted(curr_line, key=lambda t: t['bbox'][0]))
+        return sorted(lines, key=lambda l: min(t['bbox'][1] for t in l))
+
+    def _find_gutters(self, tokens: List[Dict[str, Any]], x_min: float, x_max: float) -> List[Tuple[float, float]]:
+        width = int(x_max - x_min) + 1
+        occ = [0] * width
+        for t in tokens:
+            x0 = int(max(0, t['bbox'][0] - x_min))
+            x1 = int(min(width - 1, t['bbox'][2] - x_min))
+            for x in range(x0, x1 + 1): occ[x] = 1
+        gutters = []
+        start = None
+        for x in range(width):
+            if occ[x] == 0:
+                if start is None: start = x
+            else:
+                if start is not None:
+                    if (x - start) >= 5: gutters.append((start + x_min, x + x_min))
+                    start = None
+        if start is not None:
+            if (width - start) >= 5: gutters.append((start + x_min, width - 1 + x_min))
+        return gutters
 
     def _cluster_tokens_into_blocks(self, tokens: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if not tokens: return []
         lines = self._tokens_to_lines(tokens)
-        
+        all_sizes = sorted([t.get('size', 10.0) for t in tokens])
+        median_size = all_sizes[len(all_sizes)//2] if all_sizes else 10.0
         blocks = []
-        if not lines: return []
-        
         curr_b_lines = [lines[0]]
         for i in range(1, len(lines)):
-            prev_l, curr_l = curr_b_lines[-1], lines[i]
-            prev_y1 = max(t['bbox'][3] for t in prev_l)
-            curr_y0 = min(t['bbox'][1] for t in curr_l)
-            
-            y_gap = curr_y0 - prev_y1
-            
-            # Heuristic for paragraph break: larger gap than usual line spacing
-            # Use median font size as reference
-            all_t = [t for l in lines for t in l]
-            median_size = sorted([t.get('size', 10.0) for t in all_t])[len(all_t)//2] if all_t else 10.0
-            
-            if y_gap < median_size * 0.5: # Tight gap, same block
-                curr_b_lines.append(curr_l)
-            else:
+            prev_y1 = max(t['bbox'][3] for t in lines[i-1])
+            curr_y0 = min(t['bbox'][1] for t in lines[i])
+            if (curr_y0 - prev_y1) > median_size * 0.5:
                 blocks.append(self._create_block(curr_b_lines))
-                curr_b_lines = [curr_l]
-        
+                curr_b_lines = [lines[i]]
+            else:
+                curr_b_lines.append(lines[i])
         blocks.append(self._create_block(curr_b_lines))
         return blocks
 
