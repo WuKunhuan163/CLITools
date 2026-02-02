@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 from typing import List, Dict, Any, Tuple
+import re
+
+def strip_non_standard_chars(text: str) -> str:
+    """Remove non-printable or non-standard characters."""
+    if not text:
+        return ""
+    # Keep standard printable characters, tabs, and newlines
+    # Avoid \b (backspace), \r, etc.
+    # [^\x20-\x7E\s] matches non-ASCII printable chars, but we want to keep some Unicode
+    # Let's just remove control characters except \n and \t
+    return "".join(c for c in text if ord(c) >= 32 or c in '\n\t')
 
 def process_text_linebreaks(text: str) -> str:
     """Smartly merge lines to avoid fragmented sentences."""
@@ -51,6 +62,7 @@ def get_span_style(span: Dict[str, Any], median_size: float, line_y: float) -> D
         r = (color_int >> 16) & 0xFF
         g = (color_int >> 8) & 0xFF
         b = color_int & 0xFF
+        
         # Keep all colors, including near-black
         hex_color = f"#{r:02x}{g:02x}{b:02x}"
             
@@ -161,15 +173,17 @@ def format_span(span: Dict[str, Any], median_size: float, line_y: float) -> str:
     trailing_space = " " if text.endswith(" ") else ""
     return f"{leading_space}{apply_style_to_text(text.strip(), style)}{trailing_space}"
 
-def get_median_font_size(blocks: List[Any]) -> float:
-    """Calculate the median font size of all text spans on the page."""
-    sizes = []
-    for b in blocks:
-        if b.get("type") != 0: continue
-        for line in b["lines"]:
-            for span in line["spans"]:
-                if span["text"].strip():
-                    sizes.append(span["size"])
-    if not sizes: return 12.0
-    sizes.sort()
-    return sizes[len(sizes) // 2]
+def is_sentence_complete(text: str) -> bool:
+    """Check if a text block ends with a sentence-ending punctuation."""
+    text = text.strip()
+    if not text: return True
+    # Standard sentence endings
+    if text[-1] in {'.', '!', '?', ':', ';', '。', '！', '？', '：', '；'}:
+        # Check if it's like "et al." or "Fig." which are NOT sentence endings
+        if text.endswith("et al.") or text.endswith("Fig.") or text.endswith("i.e.") or text.endswith("e.g."):
+            return False
+        return True
+    # Reference style endings like "[12]" or "12." at the end of a block are also "complete" in a sense
+    if re.search(r'\[\d+\]$', text) or re.search(r'\d+\.$', text):
+        return True
+    return False

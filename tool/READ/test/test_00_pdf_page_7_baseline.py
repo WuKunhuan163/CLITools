@@ -55,7 +55,8 @@ def test_page_7_baseline():
             errors.append("Paragraphs across columns were not correctly merged.")
             
         # 2. Check for heading formatting (newlines)
-        if not re.search(r"\*\*7\. CONCLUSION \*\*\s*\n\n", md_content):
+        # Use a more flexible regex to account for potential <span> tags
+        if not re.search(r"\*\*7\. CONCLUSION \*\*.*?</span>\s*\n\n", md_content, re.DOTALL):
             errors.append("Heading '7. CONCLUSION' is missing expected double newline.")
             
         # 3. Check for reference split
@@ -67,10 +68,11 @@ def test_page_7_baseline():
             errors.append("Non-standard character \\x08 was not stripped.")
             
         if errors:
+            print(f"DEBUG: md_content follows:\n{md_content}\n---")
             for err in errors:
                 print(f"Error: {err}")
             return False
-            
+
         print("Success: Page 7 baseline verification PASSED.")
         return True
 

@@ -251,8 +251,11 @@ class ReadTool(ToolBase):
                     "images": meta,
                     "semantic_blocks": semantic
                 }
+            print(f"DEBUG: File missing or empty: {page_file}")
             return {"success": False, "error": "File creation failed or empty"}
         except Exception as e:
+            import traceback
+            print(f"DEBUG: Exception in _extract_pdf_page_task: {e}\n{traceback.format_exc()}")
             return {"success": False, "error": str(e)}
 
 def main():
