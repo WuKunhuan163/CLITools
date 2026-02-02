@@ -42,13 +42,13 @@ def install_tool(tool_name):
     project_root = ROOT_PROJECT_ROOT
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
-    engine.install()
+    return engine.install()
 
 def reinstall_tool(tool_name):
     project_root = ROOT_PROJECT_ROOT
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
-    engine.reinstall()
+    return engine.reinstall()
 
 def uninstall_tool(tool_name, force_yes=False):
     project_root = ROOT_PROJECT_ROOT
@@ -56,7 +56,7 @@ def uninstall_tool(tool_name, force_yes=False):
     
     if not tool_dir.exists():
         print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("tool_not_found_local", "Tool '{name}' is not installed.", name=tool_name))
-        return
+        return False
 
     if not force_yes:
         if sys.stdin.isatty():
@@ -68,14 +68,14 @@ def uninstall_tool(tool_name, force_yes=False):
             
             if confirm.lower() not in ['y', 'yes']:
                 print(_("uninstall_cancelled", "Uninstall cancelled."))
-                return
+                return False
         else:
             print(_("non_interactive_skip", "Non-interactive session, skipping confirmation. Use -y to force."))
-            return
+            return False
 
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
-    engine.uninstall()
+    return engine.uninstall()
 
 def register_path(bin_dir):
     home = Path.home()
@@ -1320,9 +1320,15 @@ def main():
         return
     args = parser.parse_args()
     if args.command == "list": _list_tools(args.force)
-    elif args.command == "install": install_tool(args.tool_name)
-    elif args.command == "reinstall": reinstall_tool(args.tool_name)
-    elif args.command == "uninstall": uninstall_tool(args.tool_name, args.yes)
+    elif args.command == "install":
+        if not install_tool(args.tool_name):
+            sys.exit(1)
+    elif args.command == "reinstall":
+        if not reinstall_tool(args.tool_name):
+            sys.exit(1)
+    elif args.command == "uninstall":
+        if not uninstall_tool(args.tool_name, args.yes):
+            sys.exit(1)
     elif args.command == "test": _test_tool_with_args(args)
     elif args.command == "lang":
         if args.lang_command == "set": update_config("language", args.code)
