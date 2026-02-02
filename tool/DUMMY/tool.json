@@ -1,9 +1,0 @@
-{
-  "name": "DUMMY",
-  "version": "1.0.0",
-  "description": "Template tool DUMMY",
-  "purpose": "Showcase tool development guidelines",
-  "dependencies": [
-    "PYTHON"
-  ]
-}
