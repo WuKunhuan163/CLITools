@@ -24,7 +24,20 @@ def main():
         GREEN = get_color("GREEN")
         BLUE = get_color("BLUE")
         RESET = get_color("RESET")
-        print(f"{BOLD}{BLUE}Progressing{RESET}... {BOLD}{GREEN}Successfully{RESET} finished!")
+        
+        import time
+        from logic.turing.display.manager import _get_configured_width, truncate_to_width
+        width = _get_configured_width()
+        
+        for i in range(3, 0, -1):
+            msg = f"\r\033[K{BOLD}{BLUE}Progressing{RESET}... {i}s"
+            sys.stdout.write(truncate_to_width(msg, width))
+            sys.stdout.flush()
+            time.sleep(1)
+            
+        msg = f"\r\033[K{BOLD}{GREEN}Successfully{RESET} finished!\n"
+        sys.stdout.write(truncate_to_width(msg, width))
+        sys.stdout.flush()
         return
 
     print("Hello World!")
