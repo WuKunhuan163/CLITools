@@ -97,11 +97,10 @@ class ProgressTuringMachine:
                     
                     sys.stdout.flush()
                     return False
-
+            
             # Ensure exactly one newline at the end if requested
             if ephemeral and final_newline:
                 # pass
                 pass
                 
             return True
-
