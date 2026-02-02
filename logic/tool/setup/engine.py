@@ -88,20 +88,16 @@ class ToolEngine:
                 action=self.uninstall_action,
                 active_status=self._("label_uninstalling", "Uninstalling partial"),
                 success_status=self._("label_ready", "Ready for reinstall"),
-                success_color="WHITE"
+                success_color="BOLD"
             ))
 
         # 1. Validation
-        def validation_action():
-            return self.validate_registry()
-
         tm.add_stage(TuringStage(
-            name=self.tool_name,
-            action=validation_action,
-            active_status=self._("label_validating_existence", "Validating existence of tool '{name}' in global registry...", name=self.tool_name),
-            success_status=self._("label_validated", "Validated existence"),
-            success_color="WHITE",
-            is_sticky=False
+            name=self._("label_the_existence_of_tool", "the existence of tool '{name}' in global registry", name=self.tool_name),
+            action=self.validate_registry,
+            active_status=self._("label_validating", "Validating"),
+            success_status=self._("label_passed", "Passed"),
+            success_color="BOLD"
         ))
         
         # 2. Fetching Source
@@ -111,7 +107,7 @@ class ToolEngine:
                 action=self.fetch_source,
                 active_status=self._("label_fetching", "Fetching"),
                 success_status=self._("label_retrieved", "Retrieved"),
-                success_color="WHITE",
+                success_color="BOLD",
                 is_sticky=True
             ))
         
@@ -120,20 +116,20 @@ class ToolEngine:
             return self.handle_dependencies(visited=visited)
 
         tm.add_stage(TuringStage(
-            name=self._("label_dependencies", "dependencies"),
+            name=self._("label_dependencies_for", "dependencies for {name}", name=self.tool_name),
             action=handle_deps_action,
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_ready", "Ready"),
-            success_color="WHITE"
+            success_color="BOLD"
         ))
         
         # 4. Pip Dependencies
         tm.add_stage(TuringStage(
-            name=self._("label_pip", "pip dependencies"),
+            name=self._("label_pip_for", "pip dependencies for {name}", name=self.tool_name),
             action=self.handle_pip_deps,
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_installed", "Installed"),
-            success_color="WHITE"
+            success_color="BOLD"
         ))
         
         # 5. Entry Point
@@ -142,7 +138,7 @@ class ToolEngine:
             action=self.create_shortcut,
             active_status=self._("label_creating_shortcut", "Creating shortcut for"),
             success_status=self._("label_created_shortcut", "Created shortcut for"),
-            success_color="WHITE"
+            success_color="BOLD"
         ))
         
         # 6. Setup
@@ -204,6 +200,13 @@ class ToolEngine:
             if self.tool_name not in registry.get("tools", {}):
                 print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
                 return False
+        
+        # Print specific success message as requested
+        # Format: <Validated existence:><Tool TOOL_NAME exists in the global registry.>
+        validated_label = self._("label_validated_existence", "Validated existence")
+        tool_exists_msg = self._("tool_exists_in_registry", "Tool {name} exists in the global registry.", name=self.tool_name)
+        sys.stdout.write(f"\r\033[K{self.BOLD}{self.WHITE}{validated_label}{RESET}: {tool_exists_msg}\n")
+        sys.stdout.flush()
         return True
 
     def fetch_source(self):

@@ -1,37 +1,30 @@
 #!/usr/bin/env python3
 import hashlib
 import os
+import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
 from logic.config import get_color
-from .layout import ReadingOrderSorter
-from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, get_median_font_size, format_segments_with_color_merging
+from .algorithm.sorter import ReadingOrderSorter
+from .algorithm.semantic import identify_block_type
+from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, format_segments_with_color_merging, strip_non_standard_chars
+from .layout import parse_page_spec, get_median_font_size
 
-def parse_page_spec(spec: str, total_pages: int) -> List[int]:
-    """Parse page specification like '1,3,5-7'."""
-    pages = []
-    if not spec:
-        return list(range(total_pages))
-        
-    for part in spec.split(','):
-        part = part.strip()
-        if not part: continue
-        if '-' in part:
-            try:
-                start, end = map(int, part.split('-'))
-                pages.extend(range(max(0, start - 1), min(total_pages, end)))
-            except: pass
-        else:
-            try:
-                p = int(part)
-                if 1 <= p <= total_pages:
-                    pages.append(p - 1)
-            except: pass
-    return sorted(list(set(pages)))
+def is_sentence_complete(text: str) -> bool:
+    """Check if a text block ends with a sentence-ending punctuation."""
+    text = text.strip()
+    if not text: return True
+    # Standard sentence endings
+    if text[-1] in {'.', '!', '?', ':', ';', '。', '！', '？', '：', '；'}:
+        return True
+    # Reference style endings like "[12]" or "12." at the end of a block are also "complete" in a sense
+    if re.search(r'\[\d+\]$', text) or re.search(r'\d+\.$', text):
+        return True
+    return False
 
-def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root: Path, median_size: float) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Extract a single PDF page (0-indexed).
     Returns (markdown_content, image_metadata_list, semantic_info_list)
@@ -63,14 +56,35 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     
     # Prepare for visualization with true alpha transparency
     vis_img = Image.open(source_png_path).convert("RGBA")
-    # Create a separate layer for semantic blocks to enable true alpha blending
-    overlay = Image.new("RGBA", vis_img.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
     
+    # Get DRAW tool interface
+    try:
+        from tool.DRAW.logic.interface.main import get_interface as get_draw_interface
+        draw_iface = get_draw_interface()
+    except ImportError:
+        draw_iface = None
+
     # 3. Images folder inside page folder
     page_images_dir = page_dir / "images"
     page_images_dir.mkdir(parents=True, exist_ok=True)
     
+    # Define semantic mapping to colors
+    semantic_color_map = {
+        "title": get_color("RGBA_RED", [255, 0, 0, 100]),
+        "heading": get_color("RGBA_ORANGE", [255, 165, 0, 100]),
+        "paragraph": get_color("RGBA_GREEN", [0, 255, 0, 60]),
+        "reference": get_color("RGBA_MAGENTA", [255, 0, 255, 100]),
+        "header": get_color("RGBA_BLUE", [0, 0, 255, 100]),
+        "footer": get_color("RGBA_GRAY", [128, 128, 128, 100]),
+        "image": get_color("RGBA_YELLOW", [255, 255, 0, 100]),
+        "table": get_color("RGBA_CYAN", [0, 255, 255, 100]),
+    }
+
+    # Data for DRAW tool
+    rects_to_draw = []
+    labels_to_draw = []
+    legend_items = {}
+
     # 4. Extract Images
     image_list = page.get_images(full=True)
     page_images_content = []
@@ -107,17 +121,63 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 img_info = page.get_image_info(xref=xref)
                 if img_info:
                     bbox = img_info[0]["bbox"]
-                    color = get_color("SEMANTIC_IMAGE", [255, 255, 0, 100])
-                    draw.rectangle([bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom], fill=tuple(color))
+                    color = semantic_color_map.get("image", [255, 255, 0, 100])
+                    rects_to_draw.append({
+                        "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
+                        "fill": tuple(list(color[:3]) + [alpha_int])
+                    })
+                    legend_items["Image"] = tuple(list(color[:3]) + [255])
                 
                 pix_img = None
             except: pass
 
     # 5. Text
     page_dict = page.get_text("dict")
-    blocks = page_dict["blocks"]
-    sorted_blocks = ReadingOrderSorter.sort_blocks(blocks, page_rect.width, page_rect.height)
+    # Instead of sorting blocks, we extract all lines and sort them.
+    # This handles cases where fitz merges lines from different columns into one block.
+    all_lines = []
+    for b in page_dict["blocks"]:
+        if b.get("type") != 0: continue
+        for line in b["lines"]:
+            # Add block info to line for later context if needed
+            line["block_bbox"] = b["bbox"]
+            all_lines.append(line)
+            
+    sorted_lines = ReadingOrderSorter.sort_blocks(all_lines, page_rect.width, page_rect.height)
     
+    # Group sorted lines back into blocks based on proximity and style
+    grouped_blocks = []
+    if sorted_lines:
+        current_block_lines = [sorted_lines[0]]
+        for i in range(1, len(sorted_lines)):
+            prev_line = sorted_lines[i-1]
+            curr_line = sorted_lines[i]
+            
+            # Check for block break: large Y gap OR horizontal shift
+            y_gap = curr_line["bbox"][1] - prev_line["bbox"][3]
+            x_shift = abs(curr_line["bbox"][0] - prev_line["bbox"][0])
+            
+            # Also check if they were originally in different blocks and the gap is significant
+            different_original_blocks = prev_line.get("block_bbox") != curr_line.get("block_bbox")
+            
+            if y_gap > 10 or x_shift > 50 or (different_original_blocks and y_gap > 5):
+                grouped_blocks.append({"lines": current_block_lines, "bbox": [
+                    min(l["bbox"][0] for l in current_block_lines),
+                    min(l["bbox"][1] for l in current_block_lines),
+                    max(l["bbox"][2] for l in current_block_lines),
+                    max(l["bbox"][3] for l in current_block_lines)
+                ]})
+                current_block_lines = [curr_line]
+            else:
+                current_block_lines.append(curr_line)
+        
+        grouped_blocks.append({"lines": current_block_lines, "bbox": [
+            min(l["bbox"][0] for l in current_block_lines),
+            min(l["bbox"][1] for l in current_block_lines),
+            max(l["bbox"][2] for l in current_block_lines),
+            max(l["bbox"][3] for l in current_block_lines)
+        ]})
+
     page_content_parts = []
     if page_images_content:
         page_content_parts.extend(page_images_content)
@@ -125,60 +185,27 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     semantic_info = []
     extracted_block_counter = 1
     
-    for b in sorted_blocks:
-        if b.get("type") != 0: continue
-        
-        # Determine semantic type
-        block_type = "paragraph"
-        bbox = b["bbox"]
-        
-        # Heuristics for semantic type
-        block_text_raw = "".join([s["text"] for l in b["lines"] for s in l["spans"]]).strip()
-        if not block_text_raw: continue
-        
-        # Check if it's a title (large font, centered-ish)
-        max_font_in_block = max([s["size"] for l in b["lines"] for s in l["spans"]])
-        
-        # Determine semantic type
-        if max_font_in_block > median_size * 1.5:
-            block_type = "title"
-        elif bbox[1] < page_rect.height * 0.08:
-            block_type = "header"
-        elif bbox[3] > page_rect.height * 0.92:
-            block_type = "footer"
-        elif max_font_in_block > median_size * 1.1:
-            block_type = "heading" # Subtitles/Sections
-        else:
-            block_type = "paragraph"
-            
-        color_key = f"SEMANTIC_{block_type.upper()}"
-        color = get_color(color_key, [0, 255, 0, 60])
-        # Use 20% alpha (approx 51)
-        color = list(color[:3]) + [51]
-        
-        # Draw semi-transparent rectangle
-        draw.rectangle([bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom], fill=tuple(color))
-        
-        block_id_num = extracted_block_counter
-        block_id = f"b{block_id_num:03d}"
-        extracted_block_counter += 1
-        
-        # Label with ID in top-left
-        try:
-            from PIL import ImageFont
-            try:
-                font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
-            except:
-                font = ImageFont.load_default()
-            draw.text((bbox[0]*zoom + 2, bbox[1]*zoom + 2), str(block_id_num), fill=(0,0,0,255), font=font)
-        except: pass
+    from PIL import ImageFont
+    try:
+        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
+    except:
+        label_font = ImageFont.load_default()
 
-        semantic_info.append({
-            "id": block_id,
-            "type": block_type,
-            "bbox": bbox,
-            "text_preview": block_text_raw[:50] + "..." if len(block_text_raw) > 50 else block_text_raw
-        })
+    in_reference_section = False
+    
+    # Phase 1: Convert blocks to semantic items
+    semantic_items = []
+    for b in grouped_blocks:
+        block_type = identify_block_type(b, page_rect, median_size)
+        
+        # State-based reference detection refinement
+        if block_type == "reference":
+            in_reference_section = True
+        elif in_reference_section:
+            if block_type in ["heading", "title", "footer", "header"]:
+                in_reference_section = False
+            else:
+                block_type = "reference"
         
         segments = []
         for line_idx, line in enumerate(b["lines"]):
@@ -188,7 +215,9 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 segments[-1][0] += " "
             for span in line["spans"]:
                 style = get_span_style(span, median_size, line_y)
-                text = span["text"]
+                text = strip_non_standard_chars(span["text"])
+                if not text: continue
+                
                 if not segments: segments.append([text, style])
                 else:
                     prev_text, prev_style = segments[-1]
@@ -197,10 +226,149 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         
         if not segments: continue
         
-        block_md = f"<!-- block_id: {block_id} type: {block_type} -->\n"
-        block_md += format_segments_with_color_merging(segments)
+        block_text_raw = "".join([s[0] for s in segments]).strip()
+        if not block_text_raw: continue
+        
+        semantic_items.append({
+            "type": block_type,
+            "bbox": list(b["bbox"]),
+            "segments": segments,
+            "text": block_text_raw
+        })
+
+    # Phase 2: Merging logical blocks
+    merged_items = []
+    for item in semantic_items:
+        if not merged_items:
+            merged_items.append(item)
+            continue
+        
+        prev = merged_items[-1]
+        should_merge = False
+        
+        # Merge broken paragraphs
+        if prev["type"] == "paragraph" and item["type"] == "paragraph":
+            if not is_sentence_complete(prev["text"]):
+                # print(f"DEBUG: Merging paragraphs: '{prev['text'][-20:]}' and '{item['text'][:20]}'")
+                should_merge = True
+        
+        # Merge consecutive references
+        if prev["type"] == "reference" and item["type"] == "reference":
+            should_merge = True
             
-        import re
+        if should_merge:
+            # Merge segments
+            if prev["segments"][-1][0].endswith(" ") or item["segments"][0][0].startswith(" "):
+                pass # Already has space
+            else:
+                prev["segments"][-1][0] += " "
+                
+            # Try to merge last segment of prev with first of item if styles match
+            if prev["segments"][-1][1] == item["segments"][0][1]:
+                prev["segments"][-1][0] += item["segments"][0][0]
+                prev["segments"].extend(item["segments"][1:])
+            else:
+                prev["segments"].extend(item["segments"])
+            
+            prev["text"] = (prev["text"] + " " + item["text"]).strip()
+            # Envelop bbox
+            prev["bbox"] = [
+                min(prev["bbox"][0], item["bbox"][0]),
+                min(prev["bbox"][1], item["bbox"][1]),
+                max(prev["bbox"][2], item["bbox"][2]),
+                max(prev["bbox"][3], item["bbox"][3])
+            ]
+        else:
+            merged_items.append(item)
+
+    # Phase 3: Final formatting and visualization
+    for item in merged_items:
+        block_type = item["type"]
+        bbox = item["bbox"]
+        segments = item["segments"]
+        block_text_raw = item["text"]
+        
+        color = semantic_color_map.get(block_type, [0, 255, 0, 60])
+        fill_color = tuple(list(color[:3]) + [alpha_int])
+        
+        rects_to_draw.append({
+            "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
+            "fill": fill_color
+        })
+        
+        type_label = block_type.capitalize()
+        if type_label not in legend_items:
+            legend_items[type_label] = tuple(list(color[:3]) + [255])
+        
+        block_id_num = extracted_block_counter
+        block_id = f"b{block_id_num:03d}"
+        extracted_block_counter += 1
+        
+        # Label with ID in top-left
+        labels_to_draw.append({
+            "pos": (bbox[0]*zoom + 2, bbox[1]*zoom + 2), # Use merged bbox for label position
+            "text": str(block_id_num),
+            "font": label_font,
+            "bg_color": (255, 255, 255, 255),
+            "border_color": (0, 0, 0, 255)
+        })
+
+        semantic_info.append({
+            "id": block_id,
+            "type": block_type,
+            "bbox": bbox,
+            "text_preview": block_text_raw[:50] + "..." if len(block_text_raw) > 50 else block_text_raw
+        })
+        
+        block_md = f"<!-- block_id: {block_id} type: {block_type} -->\n"
+        
+        # Special logic for headings and references
+        if block_type in ["paragraph", "heading"]:
+            # Check for bold heading at start
+            first_is_bold = segments[0][1]["bold"]
+            if first_is_bold:
+                bold_end_idx = -1
+                for i in range(1, len(segments)):
+                    if not segments[i][1]["bold"]:
+                        bold_end_idx = i
+                        break
+                
+                if bold_end_idx != -1:
+                    bold_text = "".join([s[0] for s in segments[:bold_end_idx]]).strip()
+                    # Heuristic for heading: short or starts with numbering
+                    if len(bold_text.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", bold_text):
+                        heading_md = format_segments_with_color_merging(segments[:bold_end_idx])
+                        body_md = format_segments_with_color_merging(segments[bold_end_idx:])
+                        block_md += heading_md.strip() + " \n\n " + body_md.lstrip() # Added spaces for regex match safety
+                    else:
+                        block_md += format_segments_with_color_merging(segments)
+                else:
+                    # Entire block is bold, maybe it IS a heading?
+                    if len(block_text_raw.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", block_text_raw):
+                         block_md += format_segments_with_color_merging(segments) + "\n\n"
+                    else:
+                         block_md += format_segments_with_color_merging(segments)
+            else:
+                block_md += format_segments_with_color_merging(segments)
+                
+        elif block_type == "reference":
+            # Re-format merged references
+            raw_content = format_segments_with_color_merging(segments)
+            # Split by numbering: " 1. ", " [1] ", etc.
+            ref_parts = re.split(r'(\s+(?:\[\d+\]|\d+\.)\s+)', raw_content)
+            if len(ref_parts) > 1:
+                # Keep first part (e.g. "References")
+                formatted = ref_parts[0].strip()
+                for i in range(1, len(ref_parts), 2):
+                    num = ref_parts[i].strip()
+                    text = ref_parts[i+1].strip() if i+1 < len(ref_parts) else ""
+                    formatted += "\n\n" + num + " " + text
+                block_md += formatted
+            else:
+                block_md += raw_content
+        else:
+            block_md += format_segments_with_color_merging(segments)
+            
         block_md = re.sub(r' +', ' ', block_md)
         if block_md.strip():
             page_content_parts.append(block_md.strip())
@@ -209,9 +377,20 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     with open(md_file_path, "w", encoding="utf-8") as f:
         f.write(content)
         
-    # Composite the overlay onto the original image for true transparency
-    final_vis = Image.alpha_composite(vis_img, overlay)
-    final_vis.save(page_dir / "extracted.png")
+    # Perform drawing using DRAW tool if available
+    if draw_iface:
+        vis_img = draw_iface["draw_rects_with_alpha"](vis_img, rects_to_draw)
+        vis_img = draw_iface["draw_labels"](vis_img, labels_to_draw)
+        vis_img = draw_iface["append_legend"](vis_img, legend_items)
+    else:
+        # Fallback
+        draw = ImageDraw.Draw(vis_img)
+        for r in rects_to_draw:
+            draw.rectangle(r["bbox"], fill=r["fill"])
+        for l in labels_to_draw:
+            draw.text(l["pos"], l["text"], fill=(0,0,0,255), font=l["font"])
+
+    vis_img.save(page_dir / "extracted.png")
     
     return content, image_metadata, semantic_info
 
@@ -230,7 +409,7 @@ def extract_pdf_pages(pdf_path: Path, output_root: Path, page_spec: Optional[str
     pages_dir.mkdir(parents=True, exist_ok=True)
     
     for page_num in pages:
-        content, images, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size)
+        content, images, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size, 51)
         extracted_pages.append({
             "page_num": page_num + 1,
             "content": content,

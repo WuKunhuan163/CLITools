@@ -951,16 +951,33 @@ def _run_installation_test(tool_name, stay_on_test=False):
     from logic.config import get_color
     import io, time, os, sys
     from contextlib import redirect_stdout, redirect_stderr
-    BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
+    BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     start_time = time.time()
+    
+    # Get current branch to return later
+    try:
+        res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
+        start_branch = res.stdout.strip() if res.returncode == 0 else "dev"
+    except:
+        start_branch = "dev"
 
     # 1. Sync branches (quietly)
     def sync_action():
         # Silence all output from _dev_sync
         with open(os.devnull, 'w') as f:
             with redirect_stdout(f), redirect_stderr(f):
-                return _dev_sync(quiet=True)
+                # Ensure we are in a clean state on a test branch after sync
+                success = _dev_sync(quiet=True)
+                if success:
+                    # Clean up untracked files on test branch, preserving data
+                    subprocess.run(["git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True)
+                    subprocess.run(["git", "clean", "-fdx", 
+                                   "--exclude=tool/*/data/", 
+                                   "--exclude=data/",
+                                   "--exclude=bin/",
+                                   "--exclude=logic/config/tool_config_manager.py"], cwd=str(project_root), capture_output=True)
+                return success
 
     tm_sync = ProgressTuringMachine()
     tm_sync.add_stage(TuringStage(
@@ -980,8 +997,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
     def install_test_action():
         error_details = []
         try:
-            # Switch to test branch
-            subprocess.run(["git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True, check=True)
+            # We are already on 'test' branch due to sync_action
             
             # Uninstall if exists
             subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
