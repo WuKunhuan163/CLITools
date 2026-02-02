@@ -7,7 +7,7 @@ from pathlib import Path
 def run_git_command(args, cwd=None, capture_output=True, text=True, silent=False):
     """Executes a git command and returns the result."""
     try:
-        result = subprocess.run(["git"] + args, cwd=cwd, capture_output=capture_output, text=text)
+        result = subprocess.run(["/usr/bin/git"] + args, cwd=cwd, capture_output=capture_output, text=text)
         if result.returncode != 0 and not silent:
             # More friendly error message
             err = result.stderr.strip() if result.stderr else "Unknown error"

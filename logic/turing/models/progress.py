@@ -99,6 +99,10 @@ class ProgressTuringMachine:
                         sys.stdout.flush()
                         return False
                 
+                if ephemeral and final_newline:
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                    
                 return True
             except (KeyboardInterrupt, Exception):
                 # Ensure the current line is cleared on any top-level exit
