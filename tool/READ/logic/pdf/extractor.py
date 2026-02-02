@@ -196,7 +196,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             "type": block_type,
             "bbox": list(b["bbox"]),
             "segments": segments,
-            "text": block_text_raw
+            "text": block_text_raw,
+            "lines": b["lines"]
         })
 
     # Phase 2: Merging logical blocks
@@ -227,6 +228,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 prev["segments"].extend(item["segments"])
             
             prev["text"] = (prev["text"] + " " + item["text"]).strip()
+            prev["lines"].extend(item["lines"])
             prev["bbox"] = [
                 min(prev["bbox"][0], item["bbox"][0]),
                 min(prev["bbox"][1], item["bbox"][1]),
@@ -237,19 +239,99 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             merged_items.append(item)
 
     # Phase 3: Final formatting and visualization
+    final_semantic_items = []
     for item in merged_items:
+        if item["type"] == "reference":
+            # Split merged references into individual ones
+            current_ref_lines = []
+            for line in item["lines"]:
+                line_text = "".join([s["text"] for s in line["spans"]]).strip()
+                # Detection pattern for new reference start
+                if re.match(r'^(?:\[\d+\]|\d+\.)', line_text) or line_text.lower() == "references":
+                    if current_ref_lines:
+                        # Create a sub-item for the previous reference
+                        all_t = [t for l in current_ref_lines for t in l.get("spans", [])]
+                        sub_bbox = [min(t['bbox'][0] for t in all_t), min(t['bbox'][1] for t in all_t),
+                                    max(t['bbox'][2] for t in all_t), max(t['bbox'][3] for t in all_t)]
+                        
+                        # Re-calculate segments for this sub-item
+                        sub_segments = []
+                        for l in current_ref_lines:
+                            line_y = l["spans"][0]["origin"][1] if l["spans"] else 0
+                            for span in l["spans"]:
+                                style = get_span_style(span, median_size, line_y)
+                                text = strip_non_standard_chars(span["text"])
+                                if not text: continue
+                                if not sub_segments: sub_segments.append([text, style])
+                                else:
+                                    if style == sub_segments[-1][1]: sub_segments[-1][0] += text
+                                    else: sub_segments.append([text, style])
+                        
+                        final_semantic_items.append({
+                            "type": "reference",
+                            "bbox": sub_bbox,
+                            "segments": sub_segments,
+                            "text": "".join([s[0] for s in sub_segments]).strip(),
+                            "lines": current_ref_lines
+                        })
+                    current_ref_lines = [line]
+                else:
+                    if not current_ref_lines: current_ref_lines = [line]
+                    else: current_ref_lines.append(line)
+            
+            if current_ref_lines:
+                # Last reference
+                all_t = [t for l in current_ref_lines for t in l.get("spans", [])]
+                sub_bbox = [min(t['bbox'][0] for t in all_t), min(t['bbox'][1] for t in all_t),
+                            max(t['bbox'][2] for t in all_t), max(t['bbox'][3] for t in all_t)]
+                sub_segments = []
+                for l in current_ref_lines:
+                    line_y = l["spans"][0]["origin"][1] if l["spans"] else 0
+                    for span in l["spans"]:
+                        style = get_span_style(span, median_size, line_y)
+                        text = strip_non_standard_chars(span["text"])
+                        if not text: continue
+                        if not sub_segments: sub_segments.append([text, style])
+                        else:
+                            if style == sub_segments[-1][1]: sub_segments[-1][0] += text
+                            else: sub_segments.append([text, style])
+                
+                final_semantic_items.append({
+                    "type": "reference",
+                    "bbox": sub_bbox,
+                    "segments": sub_segments,
+                    "text": "".join([s[0] for s in sub_segments]).strip(),
+                    "lines": current_ref_lines
+                })
+        else:
+            final_semantic_items.append(item)
+
+    # Process final items
+    reference_count = 0
+    for item in final_semantic_items:
         block_type = item["type"]
         bbox = item["bbox"]
         segments = item["segments"]
         block_text_raw = item["text"]
         
         color = semantic_color_map.get(block_type, [0, 255, 0, 60])
-        fill_color = tuple(list(color[:3]) + [alpha_int])
         
-        rects_to_draw.append({
-            "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
-            "fill": fill_color
-        })
+        # Alpha alternation for references
+        current_alpha = alpha_int
+        if block_type == "reference":
+            reference_count += 1
+            if reference_count % 2 == 0:
+                current_alpha = alpha_int // 2
+        
+        fill_color = tuple(list(color[:3]) + [current_alpha])
+        
+        # Precise visualization: draw per-line rectangles
+        for line in item["lines"]:
+            l_bbox = line["bbox"]
+            rects_to_draw.append({
+                "bbox": [l_bbox[0]*zoom, l_bbox[1]*zoom, l_bbox[2]*zoom, l_bbox[3]*zoom],
+                "fill": fill_color
+            })
         
         type_label = block_type.capitalize()
         if type_label not in legend_items:
@@ -259,21 +341,20 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         block_id = f"b{block_id_num:03d}"
         extracted_block_counter += 1
         
+        # Label position: position of the first span of the first line
+        first_line = item["lines"][0]
+        first_span = first_line["spans"][0]
+        label_pos = (first_span["bbox"][0]*zoom, first_span["bbox"][1]*zoom)
+        
         labels_to_draw.append({
-            "pos": (bbox[0]*zoom + 2, bbox[1]*zoom + 2),
+            "pos": label_pos,
             "text": str(block_id_num),
             "font": label_font,
             "bg_color": (255, 255, 255, 255),
             "border_color": (0, 0, 0, 255)
         })
 
-        semantic_info.append({
-            "id": block_id, "type": block_type, "bbox": bbox,
-            "text_preview": block_text_raw[:50] + "..." if len(block_text_raw) > 50 else block_text_raw
-        })
-        
-        block_md = f"<!-- block_id: {block_id} type: {block_type} -->\n"
-        
+        block_md = ""
         if block_type in ["paragraph", "heading"]:
             first_is_bold = segments[0][1]["bold"]
             if first_is_bold:
@@ -286,37 +367,31 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     if len(bold_text.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", bold_text):
                         heading_md = format_segments_with_color_merging(segments[:bold_end_idx]).strip()
                         body_md = format_segments_with_color_merging(segments[bold_end_idx:]).lstrip()
-                        # Ensure no double bolding if format_segments already did it
-                        block_md += heading_md + " \n\n " + body_md
-                    else: block_md += format_segments_with_color_merging(segments)
+                        block_md = heading_md + " \n\n " + body_md
+                    else: block_md = format_segments_with_color_merging(segments)
                 else:
                     if len(block_text_raw.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", block_text_raw):
-                         block_md += format_segments_with_color_merging(segments) + "\n\n"
-                    else: block_md += format_segments_with_color_merging(segments)
-            else: block_md += format_segments_with_color_merging(segments)
+                         block_md = format_segments_with_color_merging(segments) + "\n\n"
+                    else: block_md = format_segments_with_color_merging(segments)
+            else: block_md = format_segments_with_color_merging(segments)
         elif block_type == "reference":
             raw_content = format_segments_with_color_merging(segments)
-            # Bold "References" title if it exists (handling potential <span> tags)
+            # Bold "References" title if it exists
             raw_content = re.sub(r"(?i)(References)", r"**\1**", raw_content, count=1)
-            
-            # Smart list formatting for references
-            # Try to identify patterns like "1. ", "[1] ", etc.
-            # We split by these patterns but keep the delimiters
-            ref_parts = re.split(r'(\s*(?:\[\d+\]|\d+\.)\s+)', raw_content)
-            if len(ref_parts) > 1:
-                formatted = ref_parts[0].strip()
-                for i in range(1, len(ref_parts), 2):
-                    num = ref_parts[i].strip()
-                    text = ref_parts[i+1].strip() if i+1 < len(ref_parts) else ""
-                    formatted += "\n\n" + num + " " + text
-                block_md += formatted.strip()
-            else:
-                block_md += raw_content.strip()
-        else: block_md += format_segments_with_color_merging(segments)
+            block_md = raw_content.strip()
+        else:
+            block_md = format_segments_with_color_merging(segments)
             
         block_md = re.sub(r' +', ' ', block_md)
+        full_block_md = f"<!-- block_id: {block_id} type: {block_type} -->\n{block_md}"
+        
         if block_md.strip():
-            page_content_parts.append(block_md.strip())
+            page_content_parts.append(full_block_md.strip())
+            
+        semantic_info.append({
+            "id": block_id, "type": block_type, "bbox": bbox,
+            "text": block_md
+        })
                 
     content = "\n\n".join(page_content_parts)
     with open(md_file_path, "w", encoding="utf-8") as f:

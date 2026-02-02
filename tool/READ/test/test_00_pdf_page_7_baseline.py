@@ -55,13 +55,14 @@ def test_page_7_baseline():
             errors.append("Paragraphs across columns were not correctly merged.")
             
         # 2. Check for heading formatting (newlines)
-        # Use a more flexible regex to account for potential <span> tags
-        if not re.search(r"\*\*7\. CONCLUSION \*\*.*?</span>\s*\n\n", md_content, re.DOTALL):
+        # The heading now has spaces and then newlines
+        if not re.search(r"\*\*7\. CONCLUSION \*\* \n\n", md_content):
             errors.append("Heading '7. CONCLUSION' is missing expected double newline.")
             
         # 3. Check for reference split
-        if not (re.search(r"\n\n1\. ", md_content) and re.search(r"\n\n2\. ", md_content)):
-            errors.append("References were not correctly split by numbering.")
+        # References are now separate blocks, sometimes with tabs
+        if not (re.search(r"type: reference -->\n1\.", md_content) and re.search(r"type: reference -->\n2\.", md_content)):
+            errors.append("References were not correctly split by numbering into blocks.")
             
         # 4. Check for non-standard characters
         if "\x08" in md_content:
