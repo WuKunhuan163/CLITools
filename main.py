@@ -224,8 +224,8 @@ def _dev_sync(quiet=False):
         # Restore 'resource' from origin/tool if it was deleted/changed
         run_git(["checkout", "origin/tool", "--", "resource"])
         
-        # When cleaning, ignore the 'data' directory to preserve caches
-        if not run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"]): return False
+        # DO NOT use git clean here. We want to preserve untracked state like data/ subdirs.
+        # run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
         cleanup_project_patterns(project_root)
         
         # Commit the alignment if there are changes (like restored resources)
@@ -252,33 +252,16 @@ def _dev_sync(quiet=False):
         if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
         
         # Remove restricted folders on main
-        # We only want to remove them from GIT, not necessarily from disk
-        # if they are untracked and we want to preserve them (like 'data')
+        # We only want to remove them from GIT, NOT from disk.
+        # This keeps the local workspace intact while switching branches.
         restricted_git = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted_git, cwd=str(project_root), capture_output=True)
         
-        # Ensure they are gone from DISK only if they are NOT 'data' or 'tool/*/data'
-        # Actually, 'main' branch should be a clean framework.
-        # But we want to preserve local untracked 'data' across branch switches.
-        for d in restricted_git:
-            if d == "data": continue # Preserve root data/
-            p = project_root / d
-            if p.exists():
-                try:
-                    if d == "tool":
-                        # For 'tool', we want to remove the code but preserve 'data' subdirectories
-                        for tool_dir in p.iterdir():
-                            if tool_dir.is_dir():
-                                for sub in tool_dir.iterdir():
-                                    if sub.name != "data":
-                                        if sub.is_dir(): shutil.rmtree(sub)
-                                        else: sub.unlink()
-                    else:
-                        if p.is_dir(): shutil.rmtree(p)
-                        else: p.unlink()
-                except: pass
+        # Use --cached to only remove from index
+        subprocess.run(["git", "rm", "-rf", "--cached"] + restricted_git, cwd=str(project_root), capture_output=True)
         
-        run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
+        # DO NOT use shutil.rmtree or git clean here. 
+        # We want untracked files to stay on disk.
+        
         run_git(["add", "-A"])
         run_git(["commit", "--allow-empty", "-m", "Align 'main' with 'tool' (framework only)"])
         return True
@@ -297,7 +280,7 @@ def _dev_sync(quiet=False):
     def align_test():
         if not run_git(["checkout", "-f", "test"]): return False
         if not run_git(["reset", "--hard", "refs/heads/tool"]): return False
-        if not run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"]): return False
+        # DO NOT clean here.
         return True
 
     tm.add_stage(TuringStage(
@@ -997,10 +980,10 @@ def _run_installation_test(tool_name, stay_on_test=False):
                 # Ensure we are in a clean state on a test branch after sync
                 success = _dev_sync(quiet=True)
                 if success:
-                    # Clean up untracked files on test branch, preserving data
+                    # Clean up untracked files on test branch, PRESERVING tools and data
                     subprocess.run(["git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True)
-                    subprocess.run(["git", "clean", "-fdx", 
-                                   "--exclude=tool/*/data/", 
+                    subprocess.run(["git", "clean", "-fd", 
+                                   "--exclude=tool/", 
                                    "--exclude=data/",
                                    "--exclude=bin/",
                                    "--exclude=logic/config/tool_config_manager.py"], cwd=str(project_root), capture_output=True)
