@@ -141,7 +141,7 @@ def get_release_tags(use_cache=True):
     fetch_msg = f"{fetch_label} from GitHub project {owner_label} ({PROJECT_URL})..."
     print_erasable(fetch_msg)
     
-    cmd = ["git", "ls-remote", "--tags", REPO_URL]
+    cmd = ["/usr/bin/git", "ls-remote", "--tags", REPO_URL]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Failed to fetch tags.")
@@ -252,9 +252,9 @@ def get_remote_resources():
         rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
         lines = list_remote_files("tool", rel_path, remote="origin", cwd=str(PROJECT_ROOT))
     except:
-        subprocess.run(["git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True)
+        subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True)
         rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
-        cmd = ["git", "ls-tree", "-r", "origin/tool", rel_path]
+        cmd = ["/usr/bin/git", "ls-tree", "-r", "origin/tool", rel_path]
         result = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True)
         lines = result.stdout.strip().split("\n") if result.returncode == 0 else []
 
@@ -267,7 +267,7 @@ def get_remote_resources():
         # Priority 1: PYTHON.json
         if "PYTHON.json" in line:
             try:
-                cmd = ["git", "show", f"origin/tool:{file_path}"]
+                cmd = ["/usr/bin/git", "show", f"origin/tool:{file_path}"]
                 res = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True)
                 if res.returncode == 0:
                     data = json.loads(res.stdout)
@@ -356,16 +356,16 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 env["GIT_INDEX_FILE"] = str(side_index)
                 
                 # Fetch latest tool branch to ensure we are up to date
-                subprocess.run(["git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
+                subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                 
                 # Check if it already exists on remote with SAME release tag
                 res_rel_path = f"resource/tool/PYTHON/data/install/{v_tag}"
                 if not force:
-                    check_cmd = ["git", "ls-tree", "-r", "origin/tool", res_rel_path]
+                    check_cmd = ["/usr/bin/git", "ls-tree", "-r", "origin/tool", res_rel_path]
                     res = subprocess.run(check_cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     if res.returncode == 0 and f"{v_tag}/PYTHON.json" in res.stdout:
                         # Check release tag
-                        show_cmd = ["git", "show", f"origin/tool:{res_rel_path}/PYTHON.json"]
+                        show_cmd = ["/usr/bin/git", "show", f"origin/tool:{res_rel_path}/PYTHON.json"]
                         res_json = subprocess.run(show_cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                         if res_json.returncode == 0:
                             try:
@@ -376,25 +376,25 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                             except: pass
 
                 # Initialize side index with current tool branch tree
-                subprocess.run(["git", "read-tree", "origin/tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
+                subprocess.run(["/usr/bin/git", "read-tree", "origin/tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                 
                 # Add files to side index
                 def git_add_file(file_path, repo_path):
-                    res = subprocess.run(["git", "hash-object", "-w", str(file_path)], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
+                    res = subprocess.run(["/usr/bin/git", "hash-object", "-w", str(file_path)], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     sha = res.stdout.strip()
-                    subprocess.run(["git", "update-index", "--add", "--cacheinfo", "100644", sha, repo_path], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
+                    subprocess.run(["/usr/bin/git", "update-index", "--add", "--cacheinfo", "100644", sha, repo_path], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
 
                 git_add_file(json_path, f"{res_rel_path}/PYTHON.json")
                 git_add_file(zst_path, f"{res_rel_path}/{asset['name']}")
                 
                 # Write tree
-                res = subprocess.run(["git", "write-tree"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
+                res = subprocess.run(["/usr/bin/git", "write-tree"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                 tree_sha = res.stdout.strip()
                 
                 # Create commit
                 import time
                 commit_msg = f"Add Python {v_tag} from release {tag} [{worker_id}]"
-                res = subprocess.run(["git", "commit-tree", tree_sha, "-p", "origin/tool", "-m", commit_msg], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
+                res = subprocess.run(["/usr/bin/git", "commit-tree", tree_sha, "-p", "origin/tool", "-m", commit_msg], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                 commit_sha = res.stdout.strip()
                 
                 prefix = f"{BOLD}{BLUE}Pushing{RESET} {v_tag}"
@@ -403,15 +403,15 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 success = False
                 last_err = "Push failed"
                 for i in range(5):
-                    res = subprocess.run(["git", "push", "origin", f"{commit_sha}:refs/heads/tool"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
+                    res = subprocess.run(["/usr/bin/git", "push", "origin", f"{commit_sha}:refs/heads/tool"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     if res.returncode == 0:
                         success = True
                         break
                     
                     last_err = res.stderr.strip()
                     time.sleep(1 + random.random())
-                    subprocess.run(["git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
-                    res = subprocess.run(["git", "commit-tree", tree_sha, "-p", "origin/tool", "-m", commit_msg], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
+                    subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
+                    res = subprocess.run(["/usr/bin/git", "commit-tree", tree_sha, "-p", "origin/tool", "-m", commit_msg], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     commit_sha = res.stdout.strip()
                 
                 if success:

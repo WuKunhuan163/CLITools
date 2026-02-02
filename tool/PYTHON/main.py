@@ -79,12 +79,12 @@ def _get_remote_versions():
     rel_path = RESOURCE_ROOT.relative_to(project_root)
     
     # Check origin/tool first
-    cmd = ["git", "ls-tree", "-r", "--name-only", "origin/tool", str(rel_path)]
+    cmd = ["/usr/bin/git", "ls-tree", "-r", "--name-only", "origin/tool", str(rel_path)]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
     
     if result.returncode != 0:
         # Try local tool branch
-        cmd = ["git", "ls-tree", "-r", "--name-only", "tool", str(rel_path)]
+        cmd = ["/usr/bin/git", "ls-tree", "-r", "--name-only", "tool", str(rel_path)]
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
     
     if result.returncode == 0:
@@ -339,12 +339,12 @@ def _install_version(version, install_dir=None):
         if not resource_ready:
             action = _("label_fetching", "Fetching")
             print_erasable(f"{BLUE}{BOLD}{action}{RESET} {version} from git...")
-            subprocess.run(["git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
+            subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
             
-            cmd = ["git", "checkout", "origin/tool", "--", source_dir_rel]
+            cmd = ["/usr/bin/git", "checkout", "origin/tool", "--", source_dir_rel]
             result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
             if result.returncode != 0:
-                cmd = ["git", "checkout", "tool", "--", source_dir_rel]
+                cmd = ["/usr/bin/git", "checkout", "tool", "--", source_dir_rel]
                 result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
             
             if result.returncode == 0 and full_source_path.exists():

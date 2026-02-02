@@ -100,7 +100,7 @@ def get_release_tags(use_cache=True):
                   owner=PROJECT_OWNER, url=PROJECT_URL)
     print(fetch_msg)
     
-    cmd = ["git", "ls-remote", "--tags", REPO_URL]
+    cmd = ["/usr/bin/git", "ls-remote", "--tags", REPO_URL]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Failed to fetch tags.")
