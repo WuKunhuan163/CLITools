@@ -805,6 +805,14 @@ This tool is part of the `TOOL` ecosystem, which provides:
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
+    # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
+    try:
+        rel_tool_dir = os.path.relpath(tool_dir, project_root)
+        subprocess.run(["git", "add", rel_tool_dir], cwd=str(project_root), check=True)
+        subprocess.run(["git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
+    except Exception as e:
+        print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit new tool: {e}")
+
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
 
