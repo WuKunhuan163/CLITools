@@ -20,23 +20,24 @@ def main():
     args, unknown = parser.parse_known_args()
     
     if args.demo:
-        BOLD = get_color("BOLD")
-        GREEN = get_color("GREEN")
-        BLUE = get_color("BLUE")
-        RESET = get_color("RESET")
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        BLUE = get_color("BLUE", "\033[34m")
+        RESET = get_color("RESET", "\033[0m")
         
         import time
         from logic.turing.display.manager import _get_configured_width, truncate_to_width
         width = _get_configured_width()
         
         for i in range(3, 0, -1):
-            msg = f"\r\033[K{BOLD}{BLUE}Progressing{RESET}... {i}s"
-            sys.stdout.write(truncate_to_width(msg, width))
+            msg = f"{BOLD}{BLUE}Progressing{RESET}... {i}s"
+            sys.stdout.write(f"\r\033[K{truncate_to_width(msg, width)}")
             sys.stdout.flush()
             time.sleep(1)
             
-        msg = f"\r\033[K{BOLD}{GREEN}Successfully{RESET} finished!\n"
-        sys.stdout.write(truncate_to_width(msg, width))
+        sys.stdout.write("\r\033[K") # Final erasure
+        success_msg = f"{BOLD}{GREEN}Successfully{RESET} finished!"
+        sys.stdout.write(f"{truncate_to_width(success_msg, width)}\n")
         sys.stdout.flush()
         return
 
@@ -44,3 +45,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# Sync Test

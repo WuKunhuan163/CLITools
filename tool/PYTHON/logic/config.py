@@ -15,8 +15,7 @@ PROJECT_ROOT = PYTHON_TOOL_DIR.parent.parent
 RESOURCE_ROOT = PROJECT_ROOT / "resource" / "tool" / "PYTHON" / "data" / "install"
 
 # Temporary download/install directory
-TMP_ROOT = PROJECT_ROOT / "tmp"
-TMP_INSTALL_DIR = TMP_ROOT / "install"
+TMP_INSTALL_DIR = DATA_DIR / "tmp" / "install"
 
 # Worker settings
 DEFAULT_CONCURRENCY = 3

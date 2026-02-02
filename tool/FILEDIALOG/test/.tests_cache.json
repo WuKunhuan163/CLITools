@@ -1,0 +1,8 @@
+[
+  "test_01_remote_cancel.py",
+  "test_02_remote_submit.py",
+  "test_03_directory.py",
+  "test_04_history_nav.py",
+  "test_05_header_sort.py",
+  "test_06_batch_selection.py"
+]

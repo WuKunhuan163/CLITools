@@ -56,10 +56,10 @@ def _(translation_key, default, **kwargs):
 # Define commonly used colors with defaults
 RESET = get_color("RESET", "\033[0m")
 GREEN = get_color("GREEN", RESET)
-BOLD = get_color("BOLD", RESET)
-BLUE = get_color("BLUE", RESET)
-YELLOW = get_color("YELLOW", RESET)
-RED = get_color("RED", RESET)
+BOLD = get_color("BOLD", "\033[1m")
+BLUE = get_color("BLUE", "\033[34m")
+YELLOW = get_color("YELLOW", "\033[33m")
+RED = get_color("RED", "\033[31m")
 
 def print_erasable(msg):
     # \r: move to start, \033[K: clear from cursor to end
@@ -269,10 +269,10 @@ def _list_versions():
     
     if missing:
         install_label = _("python_install_missing_label", "To install a missing version")
-        print(f"\n{BOLD}{BOLD}{install_label}{RESET}: PYTHON --py-install {missing[0]}")
+        print(f"\n{BOLD}{install_label}{RESET}: PYTHON --py-install {missing[0]}")
     
     default_label = _("python_set_default_label", "To set the default version")
-    print(f"\n{BOLD}{BOLD}{default_label}{RESET}: PYTHON --py-default {installed[0] if installed else '3.10.19'}")
+    print(f"\n{BOLD}{default_label}{RESET}: PYTHON --py-default {installed[0] if installed else '3.10.19'}")
 
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
