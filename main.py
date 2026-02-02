@@ -966,9 +966,9 @@ def _run_installation_test(tool_name, stay_on_test=False):
     # Get current branch to return later
     try:
         res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
-        start_branch = res.stdout.strip() if res.returncode == 0 else "dev"
+        current_branch = res.stdout.strip() if res.returncode == 0 else "dev"
     except:
-        start_branch = "dev"
+        current_branch = "dev"
 
     # 1. Sync branches (quietly)
     def sync_action():
@@ -1051,14 +1051,14 @@ def _run_installation_test(tool_name, stay_on_test=False):
         duration = time.time() - start_time
         print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
         if not stay_on_test:
-            subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
+            subprocess.run(["git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
         return True
     else:
         # Get error message from the action function
         error_msg = getattr(install_test_action, 'error_msg', 'Unknown error')
         print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
         print(f"{RED}{error_msg}{RESET}")
-        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
+        subprocess.run(["git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
         return False
 
 def _audit_lang(lang_code, force=False):
