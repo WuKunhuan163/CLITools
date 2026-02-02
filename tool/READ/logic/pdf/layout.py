@@ -74,6 +74,7 @@ class ReadingOrderSorter:
         # Body Zones
         for zone_type, zone_blocks in zones:
             if zone_type == 'spanning':
+                print(f"DEBUG: Spanning block: {''.join([s['text'] for s in zone_blocks[0].get('spans', [])])[:50]}")
                 final_sorted.extend(zone_blocks)
             else:
                 # Divide into columns based on center of gravity
@@ -81,6 +82,7 @@ class ReadingOrderSorter:
                 right_col = []
                 for b in zone_blocks:
                     center_x = (b["bbox"][0] + b["bbox"][2]) / 2
+                    print(f"DEBUG: Block center_x={center_x:.1f}, y={b['bbox'][1]:.1f}, text={''.join([s['text'] for s in b.get('spans', [])])[:30]}")
                     if center_x < mid_x:
                         left_col.append(b)
                     else:

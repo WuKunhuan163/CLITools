@@ -60,20 +60,15 @@ class ToolEngine:
         
         # 1. Check for circular dependency
         if self.tool_name in visited:
-            # We already visited this tool in the current recursion stack
-            return True # Assume it will be handled by the outer call
+            return True # Already being handled
         
         visited.add(self.tool_name)
 
-        # 2. Check if correctly installed
+        # 2. Check if already installed
         if self.is_installed():
-            status = self._("label_already_installed", "Already installed")
-            msg = f"\r\033[K{self.BOLD}{self.WHITE}{status}{self.RESET} {self.tool_name}"
-            if is_dependency:
-                sys.stdout.write(msg)
-                sys.stdout.flush()
-            else:
-                print(msg)
+            if not is_dependency:
+                status = self._("label_already_installed", "Already installed")
+                print(f"{self.BOLD}{self.WHITE}{status}{self.RESET} {self.tool_name}")
             return True
 
         # 3. Check for partial installation/missing deps
@@ -93,12 +88,12 @@ class ToolEngine:
 
         # 1. Validation
         tm.add_stage(TuringStage(
-            name=self._("tool_exists_in_registry", "Tool {name} exists in the global registry.", name=self.tool_name),
+            name=self._("label_the_existence_of_tool", "the existence of tool '{name}' in global registry", name=self.tool_name),
             action=self.validate_registry,
             active_status=self._("label_validating", "Validating"),
             success_status=self._("label_validated_existence", "Validated existence") + ":",
-            success_color="BOLD",
-            is_sticky=True # Make it sticky so it's not erased by the next stage
+            success_name=self._("label_tool_exists_in_registry", "Tool '{name}' exists in the global registry.", name=self.tool_name),
+            success_color="BOLD"
         ))
         
         # 2. Fetching Source
@@ -108,13 +103,26 @@ class ToolEngine:
                 action=self.fetch_source,
                 active_status=self._("label_fetching", "Fetching"),
                 success_status=self._("label_retrieved", "Retrieved"),
-                success_color="BOLD",
-                is_sticky=True
+                success_color="BOLD"
             ))
         
         # 3. Tool Dependencies (Recursive)
+        # We handle dependencies as a separate stage, but we want to avoid 
+        # the nested Turing Machine look.
         def handle_deps_action():
-            return self.handle_dependencies(visited=visited)
+            tool_json_path = self.tool_dir / "tool.json"
+            if not tool_json_path.exists(): return True
+            try:
+                with open(tool_json_path, 'r') as f:
+                    data = json.load(f)
+                    deps = data.get("dependencies", [])
+                    for dep in deps:
+                        sub_engine = ToolEngine(dep, self.project_root)
+                        # Call install with is_dependency=True to keep it quiet-ish
+                        if not sub_engine.install(is_dependency=True, visited=visited):
+                            return False
+                return True
+            except: return False
 
         tm.add_stage(TuringStage(
             name=self._("label_dependencies_for", "dependencies for {name}", name=self.tool_name),
@@ -153,19 +161,15 @@ class ToolEngine:
             bold_part="setup"
         ))
 
-        # IMPORTANT: Run TM. Only if successful we show the final GREEN Success message.
+        # Start TM
         success_label = self._("label_successfully_installed", "Successfully installed")
         final_msg = f"\r\033[K{self.BOLD}{self.GREEN}{success_label}{self.RESET} {self.tool_name}"
         
-        if is_dependency:
-            # If it's a dependency, we want its final success message to be erasable by the parent
-            # So we pass final_newline=False
-            if tm.run(ephemeral=True, final_msg=final_msg, final_newline=False):
-                return True
-        else:
-            if tm.run(ephemeral=True, final_msg=final_msg):
-                print("") # Final newline for top-level tool
-                return True
+        # Use ephemeral=True to erase progress lines
+        # Top-level tool prints final_msg and a newline
+        # Dependencies just return success/failure
+        if tm.run(ephemeral=True, final_msg=final_msg if not is_dependency else "", final_newline=not is_dependency):
+            return True
         return False
 
     def uninstall(self):
@@ -211,14 +215,19 @@ class ToolEngine:
         return True
 
     def fetch_source(self):
-        # Try local branch first, then remote
-        sources = ["tool", "origin/tool"]
+        # 1. Try checkout from known branches
+        sources = ["dev", "tool", "origin/tool", "origin/dev"]
         for branch in sources:
             try:
                 cmd = ["git", "checkout", branch, "--", f"tool/{self.tool_name}"]
                 if subprocess.run(cmd, capture_output=True, cwd=str(self.project_root)).returncode == 0:
                     return True
             except: pass
+        
+        # 2. If already on a branch that has it, just return True
+        if (self.tool_dir / "main.py").exists():
+            return True
+            
         return False
 
     def handle_dependencies(self, visited=None):
@@ -243,7 +252,8 @@ class ToolEngine:
         if tool_json_path.exists():
             try:
                 with open(tool_json_path, 'r') as f:
-                    pip_deps.extend(json.load(f).get("pip_dependencies", []))
+                    data = json.load(f)
+                    pip_deps.extend(data.get("pip_dependencies", []))
             except: pass
             
         req_path = self.tool_internal / "requirements.txt"
@@ -258,29 +268,33 @@ class ToolEngine:
         
         # Resolve python
         python_tool_dir = self.project_root / "tool" / "PYTHON"
-        if not python_tool_dir.exists():
-            # If PYTHON is in dependencies, it will be installed in handle_dependencies.
-            return True 
+        python_exec = sys.executable # Default fallback
         
-        from logic.utils import get_logic_dir
-        utils_path = get_logic_dir(python_tool_dir) / "utils.py"
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("py_utils", str(utils_path))
-            mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
-            python_exec = mod.get_python_exec()
+        if python_tool_dir.exists():
+            from logic.utils import get_logic_dir
+            utils_path = get_logic_dir(python_tool_dir) / "utils.py"
+            if utils_path.exists():
+                try:
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("py_utils", str(utils_path))
+                    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+                    python_exec = mod.get_python_exec()
+                except: pass
+        
+        from logic.turing.display.manager import _get_configured_width, truncate_to_width
+        width = _get_configured_width()
+        
+        for package in pip_deps:
+            # Update status message for each package
+            status_text = self._("label_installing_pip_package", "Installing pip dependency: {package}", package=package)
+            msg = f"\r\033[K{self.BOLD}{self.BLUE}{status_text}{self.RESET}..."
+            sys.stdout.write(truncate_to_width(msg, width))
+            sys.stdout.flush()
             
-            for package in pip_deps:
-                # Update status message for each package
-                status = self._("label_installing_pip_package", "Installing pip dependency: {package}...", package=package)
-                sys.stdout.write(f"\r\033[K{self.BOLD}{self.BLUE}{status}{self.RESET}")
-                sys.stdout.flush()
-                
-                cmd = [python_exec, "-m", "pip", "install", package]
-                if subprocess.run(cmd, capture_output=True).returncode != 0:
-                    return False
-            return True
-        except: return False
+            cmd = [python_exec, "-m", "pip", "install", package]
+            if subprocess.run(cmd, capture_output=True).returncode != 0:
+                return False
+        return True
 
     def create_shortcut(self):
         main_py = self.tool_dir / "main.py"
