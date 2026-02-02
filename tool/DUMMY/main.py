@@ -16,7 +16,6 @@ def main():
     if tool.handle_command_line(): return
     
     parser = argparse.ArgumentParser(description="Tool DUMMY")
-    import some_missing_module
     parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
     args, unknown = parser.parse_known_args()
     
