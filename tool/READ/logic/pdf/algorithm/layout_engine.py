@@ -3,7 +3,7 @@ import re
 
 class LayoutEngine:
     """
-    Advanced layout analysis engine using token-level coordinates and recursive gutter detection.
+    Advanced layout analysis engine using token-level coordinates and recursive zone detection.
     """
     
     def __init__(self, page_width: float, page_height: float):
@@ -43,12 +43,11 @@ class LayoutEngine:
         if not body_tokens:
             return header_blocks + footer_blocks
 
-        # 2. Find ALL horizontal spanning lines that block vertical gutters
-        # We only want to split by a gutter if it's "clean" vertically.
-        # But wait, a spanning line (like a title) should be its own block.
-        
+        # 2. Zone Detection: Identify spanning lines vs multi-column zones
         lines = self._tokens_to_lines(body_tokens)
-        mid_x = self.page_width / 2
+        curr_x_min = min(t['bbox'][0] for t in body_tokens)
+        curr_x_max = max(t['bbox'][2] for t in body_tokens)
+        mid_x = (curr_x_min + curr_x_max) / 2
         
         zones = []
         curr_zone_tokens = []
@@ -56,16 +55,17 @@ class LayoutEngine:
             line_x0 = min(t['bbox'][0] for t in line)
             line_x1 = max(t['bbox'][2] for t in line)
             
-            # Check for gap in this line
+            # Check for gap in this line relative to local mid_x
             has_gap = False
             for i in range(len(line) - 1):
-                if (line[i+1]['bbox'][0] - line[i]['bbox'][2]) > 10:
-                    gap_mid = (line[i+1]['bbox'][0] + line[i]['bbox'][2]) / 2
-                    if abs(gap_mid - mid_x) < self.page_width * 0.15:
-                        has_gap = True
-                        break
+                gap_w = line[i+1]['bbox'][0] - line[i]['bbox'][2]
+                gap_center = (line[i+1]['bbox'][0] + line[i]['bbox'][2]) / 2
+                if gap_w > 5 and abs(gap_center - mid_x) < (curr_x_max - curr_x_min) * 0.15:
+                    has_gap = True
+                    break
             
-            is_spanning = (line_x1 - line_x0 > self.page_width * 0.5) and not has_gap
+            # A line is spanning if it's wide AND has NO central gap
+            is_spanning = (line_x1 - line_x0 > (curr_x_max - curr_x_min) * 0.8) and not has_gap
             
             if is_spanning:
                 if curr_zone_tokens:
@@ -88,13 +88,10 @@ class LayoutEngine:
                 x_max = max(t['bbox'][2] for t in z_tokens)
                 gutters = self._find_gutters(z_tokens, x_min, x_max)
                 
-                # Use current zone center for gutter search
                 mid_zone_x = (x_min + x_max) / 2
-                
                 best_gutter = None
                 for g0, g1 in sorted(gutters, key=lambda g: g[1] - g[0], reverse=True):
                     center = (g0 + g1) / 2
-                    # Gutter must be somewhat central to the current zone
                     if abs(center - mid_zone_x) < (x_max - x_min) * 0.2:
                         best_gutter = (g0, g1)
                         break
@@ -121,7 +118,7 @@ class LayoutEngine:
             prev, curr = curr_line[-1], tokens[i]
             overlap = min(prev['bbox'][3], curr['bbox'][3]) - max(prev['bbox'][1], curr['bbox'][1])
             h = min(prev['bbox'][3] - prev['bbox'][1], curr['bbox'][3] - curr['bbox'][1])
-            if overlap > h * 0.4:
+            if overlap > h * 0.5:
                 curr_line.append(curr)
             else:
                 lines.append(sorted(curr_line, key=lambda t: t['bbox'][0]))
@@ -154,6 +151,7 @@ class LayoutEngine:
         lines = self._tokens_to_lines(tokens)
         all_sizes = sorted([t.get('size', 10.0) for t in tokens])
         median_size = all_sizes[len(all_sizes)//2] if all_sizes else 10.0
+        
         blocks = []
         curr_b_lines = [lines[0]]
         for i in range(1, len(lines)):
