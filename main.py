@@ -991,19 +991,28 @@ def _run_installation_test(tool_name, stay_on_test=False):
             # Uninstall if exists
             subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
             
-            # Install - Silence this too as requested
-            with open(os.devnull, 'w') as f:
-                with redirect_stdout(f), redirect_stderr(f):
-                    res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
-            if res.returncode != 0: return False
+            # Install
+            res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0:
+                # If installation failed, we want to know why
+                if res.stdout: sys.stderr.write(f"\nInstall stdout: {res.stdout}")
+                if res.stderr: sys.stderr.write(f"\nInstall stderr: {res.stderr}")
+                return False
             
             # Simple check - use '--help'
             bin_path = project_root / "bin" / tool_name
-            if not bin_path.exists(): return False
+            if not bin_path.exists():
+                sys.stderr.write(f"\nShortcut missing: {bin_path}")
+                return False
             
             res = subprocess.run([str(bin_path), "--help"], capture_output=True, text=True)
+            if res.returncode != 0:
+                sys.stderr.write(f"\nHelp command failed (code {res.returncode})")
+                if res.stdout: sys.stderr.write(f"\nHelp stdout: {res.stdout}")
+                if res.stderr: sys.stderr.write(f"\nHelp stderr: {res.stderr}")
             return res.returncode == 0
-        except:
+        except Exception as e:
+            sys.stderr.write(f"\nUnexpected error during install test: {e}")
             return False
 
     tm_install.add_stage(TuringStage(
