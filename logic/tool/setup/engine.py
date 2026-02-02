@@ -284,10 +284,14 @@ class ToolEngine:
 
     def create_shortcut(self):
         main_py = self.tool_dir / "main.py"
-        if not main_py.exists(): return False
+        print(f"DEBUG: main_py path: {main_py}")
+        if not main_py.exists():
+            print("DEBUG: main_py DOES NOT EXIST")
+            return False
         
         self.bin_dir.mkdir(exist_ok=True)
         link_path = self.bin_dir / self.tool_name
+        print(f"DEBUG: link_path: {link_path}")
         if link_path.exists() or link_path.is_symlink(): os.remove(link_path)
         
         try:
@@ -295,11 +299,15 @@ class ToolEngine:
             
             # Pure symlink - re-execution logic is now inside ToolBase
             os.symlink(main_py, link_path)
+            print("DEBUG: Symlink created")
             
             from main import register_path
             register_path(self.bin_dir)
+            print("DEBUG: Path registered")
             return True
-        except: return False
+        except Exception as e:
+            print(f"DEBUG: Error creating shortcut: {e}")
+            return False
 
     def run_setup(self):
         setup_py = self.tool_dir / "setup.py"
