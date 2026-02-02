@@ -24,11 +24,24 @@ class KeyboardSuppressor:
         self.running = False
         self._thread: Optional[threading.Thread] = None
         self._old_settings = None
-        self._fd = sys.stdin.fileno() if sys.stdin.isatty() else None
+        
+        # Try to get the terminal FD
+        self._fd = None
+        self._tty_f = None
+        try:
+            if sys.stdin.isatty():
+                self._fd = sys.stdin.fileno()
+            else:
+                # Try opening /dev/tty directly
+                self._tty_f = open('/dev/tty', 'rb', buffering=0)
+                self._fd = self._tty_f.fileno()
+        except:
+            self._fd = None
+            
         self._lock = threading.Lock()
 
     def start(self):
-        if not self._fd or termios is None:
+        if self._fd is None or termios is None:
             return
 
         with self._lock:
@@ -68,22 +81,36 @@ class KeyboardSuppressor:
                 return
             
             self.running = False
-            if self._thread:
-                self._thread.join(timeout=0.5)
             
-            if self._old_settings and self._fd:
-                try:
-                    termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
-                except Exception:
-                    pass
-            self._old_settings = None
+        # Join outside the lock to avoid potential deadlocks
+        if self._thread:
+            self._thread.join(timeout=0.5)
+        
+        # Restore settings
+        if self._old_settings and self._fd is not None:
+            try:
+                termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+            except Exception:
+                pass
+        
+        # Close /dev/tty if we opened it
+        if hasattr(self, '_tty_f'):
+            try:
+                self._tty_f.close()
+            except:
+                pass
+                
+        self._old_settings = None
 
     def _capture_loop(self):
-        """Background thread to read from stdin."""
+        """Background thread to read from stdin or /dev/tty."""
+        if self._fd is None:
+            return
+
         while self.running:
             try:
                 # Use select to avoid blocking forever, allowing thread to exit
-                r, _, _ = select.select([sys.stdin], [], [], 0.1)
+                r, _, _ = select.select([self._fd], [], [], 0.1)
                 if r:
                     # Read available bytes. We use os.read for raw bytes.
                     data = os.read(self._fd, 1024)
