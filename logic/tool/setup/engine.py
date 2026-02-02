@@ -199,6 +199,8 @@ class ToolEngine:
             registry = json.load(f)
             # Support both list and dict registry formats
             tools = registry.get("tools", {})
+            print(f"DEBUG: Registry tools: {tools}")
+            print(f"DEBUG: Target tool: {self.tool_name}")
             if isinstance(tools, list):
                 if self.tool_name not in tools:
                     print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
