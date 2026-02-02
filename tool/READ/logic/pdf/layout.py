@@ -37,34 +37,28 @@ class ReadingOrderSorter:
         
         # 3. Detect columns and zones
         mid_x = page_width / 2
-        spanning_threshold = page_width * 0.8
         
-        # Find horizontal gutter
-        # A gutter is a vertical strip with few or no block centers.
-        gutter_width = page_width * 0.05
-        gutter_left = mid_x - gutter_width / 2
-        gutter_right = mid_x + gutter_width / 2
-        
+        # Divide into vertical zones based on full-width (spanning) blocks
+        spanning_width_threshold = page_width * 0.6
         zones = []
         current_zone = []
         
         for b in body_blocks:
             bbox = b["bbox"]
             width = bbox[2] - bbox[0]
-            
-            # Restrictive spanning check
-            is_spanning = width > spanning_threshold or (bbox[0] < mid_x - 50 and bbox[2] > mid_x + 50 and width > page_width * 0.6)
+            # A block is spanning if it's wider than threshold AND centered
+            is_spanning = width > spanning_width_threshold and (bbox[0] < mid_x - 50) and (bbox[2] > mid_x + 50)
             
             if is_spanning:
                 if current_zone:
-                    zones.append(('multi_col', current_zone))
+                    zones.append(('body', current_zone))
                     current_zone = []
                 zones.append(('spanning', [b]))
             else:
                 current_zone.append(b)
                 
         if current_zone:
-            zones.append(('multi_col', current_zone))
+            zones.append(('body', current_zone))
             
         final_sorted = []
         # Headers
@@ -74,23 +68,31 @@ class ReadingOrderSorter:
         # Body Zones
         for zone_type, zone_blocks in zones:
             if zone_type == 'spanning':
-                print(f"DEBUG: Spanning block: {''.join([s['text'] for s in zone_blocks[0].get('spans', [])])[:50]}")
                 final_sorted.extend(zone_blocks)
             else:
-                # Divide into columns based on center of gravity
-                left_col = []
-                right_col = []
-                for b in zone_blocks:
-                    center_x = (b["bbox"][0] + b["bbox"][2]) / 2
-                    print(f"DEBUG: Block center_x={center_x:.1f}, y={b['bbox'][1]:.1f}, text={''.join([s['text'] for s in b.get('spans', [])])[:30]}")
-                    if center_x < mid_x:
-                        left_col.append(b)
-                    else:
-                        right_col.append(b)
-                
-                # Sort each column by Y
-                final_sorted.extend(sorted(left_col, key=lambda b: b["bbox"][1]))
-                final_sorted.extend(sorted(right_col, key=lambda b: b["bbox"][1]))
+                # Sub-column detection by X clustering
+                zone_blocks.sort(key=lambda b: b["bbox"][0])
+                columns = []
+                if zone_blocks:
+                    current_col = [zone_blocks[0]]
+                    for i in range(1, len(zone_blocks)):
+                        prev_b = zone_blocks[i-1]
+                        curr_b = zone_blocks[i]
+                        # If the horizontal gap between starts is significant, it's a new column
+                        if curr_b["bbox"][0] - prev_b["bbox"][0] > page_width * 0.05:
+                            columns.append(sorted(current_col, key=lambda b: b["bbox"][1]))
+                            current_col = [curr_b]
+                        else:
+                            current_col.append(curr_b)
+                    columns.append(sorted(current_col, key=lambda b: b["bbox"][1]))
+                    
+                for col in columns:
+                    final_sorted.extend(col)
+                    
+        # Footers
+        footers.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))
+        final_sorted.extend(footers)
+        return final_sorted
                     
         # Footers
         footers.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))

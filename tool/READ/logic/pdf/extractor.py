@@ -118,83 +118,29 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 pix_img = None
             except: pass
 
-    # 5. Text
+    # 5. Text Extraction using LayoutEngine
     page_dict = page.get_text("dict")
-    all_lines = []
+    all_spans = []
     for b in page_dict["blocks"]:
         if b.get("type") != 0: continue
         for line in b["lines"]:
-            spans = line["spans"]
-            if len(spans) > 1:
-                # Split lines across columns
-                current_line_spans = [spans[0]]
-                for i in range(1, len(spans)):
-                    gap = spans[i]["bbox"][0] - spans[i-1]["bbox"][2]
-                    if gap > 30:
-                        new_bbox = [
-                            min(s["bbox"][0] for s in current_line_spans),
-                            min(s["bbox"][1] for s in current_line_spans),
-                            max(s["bbox"][2] for s in current_line_spans),
-                            max(s["bbox"][3] for s in current_line_spans)
-                        ]
-                        all_lines.append({
-                            "spans": current_line_spans,
-                            "bbox": new_bbox,
-                            "block_bbox": b["bbox"]
-                        })
-                        current_line_spans = [spans[i]]
-                    else:
-                        current_line_spans.append(spans[i])
-                new_bbox = [
-                    min(s["bbox"][0] for s in current_line_spans),
-                    min(s["bbox"][1] for s in current_line_spans),
-                    max(s["bbox"][2] for s in current_line_spans),
-                    max(s["bbox"][3] for s in current_line_spans)
-                ]
-                all_lines.append({
-                    "spans": current_line_spans,
-                    "bbox": new_bbox,
-                    "block_bbox": b["bbox"]
+            for span in line["spans"]:
+                # Convert span to a "token" compatible format
+                # If a span has multiple words, we might want to split it
+                # but for now let's treat span as a unit if it's small.
+                all_spans.append({
+                    "text": span["text"],
+                    "bbox": list(span["bbox"]),
+                    "font": span["font"],
+                    "size": span["size"],
+                    "color": span["color"],
+                    "flags": span["flags"],
+                    "origin": list(span["origin"])
                 })
-            else:
-                line["block_bbox"] = b["bbox"]
-                all_lines.append(line)
-            
-    sorted_lines = ReadingOrderSorter.sort_blocks(all_lines, page_rect.width, page_rect.height)
-    
-    # Group sorted lines back into blocks based on proximity and style
-    grouped_blocks = []
-    if sorted_lines:
-        current_block_lines = [sorted_lines[0]]
-        for i in range(1, len(sorted_lines)):
-            prev_line = sorted_lines[i-1]
-            curr_line = sorted_lines[i]
-            
-            y_gap = curr_line["bbox"][1] - prev_line["bbox"][3]
-            x_shift = abs(curr_line["bbox"][0] - prev_line["bbox"][0])
-            different_original_blocks = prev_line.get("block_bbox") != curr_line.get("block_bbox")
-            
-            prev_center_x = (prev_line["bbox"][0] + prev_line["bbox"][2]) / 2
-            curr_center_x = (curr_line["bbox"][0] + curr_line["bbox"][2]) / 2
-            column_jump = abs(curr_center_x - prev_center_x) > 50
-            
-            if y_gap > 5 or x_shift > 20 or different_original_blocks or column_jump:
-                grouped_blocks.append({"lines": current_block_lines, "bbox": [
-                    min(l["bbox"][0] for l in current_block_lines),
-                    min(l["bbox"][1] for l in current_block_lines),
-                    max(l["bbox"][2] for l in current_block_lines),
-                    max(l["bbox"][3] for l in current_block_lines)
-                ]})
-                current_block_lines = [curr_line]
-            else:
-                current_block_lines.append(curr_line)
-        
-        grouped_blocks.append({"lines": current_block_lines, "bbox": [
-            min(l["bbox"][0] for l in current_block_lines),
-            min(l["bbox"][1] for l in current_block_lines),
-            max(l["bbox"][2] for l in current_block_lines),
-            max(l["bbox"][3] for l in current_block_lines)
-        ]})
+
+    from .algorithm.layout_engine import LayoutEngine
+    engine = LayoutEngine(page_rect.width, page_rect.height)
+    grouped_blocks = engine.segment_tokens(all_spans)
 
     page_content_parts = []
     if page_images_content:
@@ -338,9 +284,10 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 if bold_end_idx != -1:
                     bold_text = "".join([s[0] for s in segments[:bold_end_idx]]).strip()
                     if len(bold_text.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", bold_text):
-                        heading_md = format_segments_with_color_merging(segments[:bold_end_idx])
-                        body_md = format_segments_with_color_merging(segments[bold_end_idx:])
-                        block_md += heading_md.strip() + " \n\n " + body_md.lstrip()
+                        heading_md = format_segments_with_color_merging(segments[:bold_end_idx]).strip()
+                        body_md = format_segments_with_color_merging(segments[bold_end_idx:]).lstrip()
+                        # Ensure no double bolding if format_segments already did it
+                        block_md += heading_md + " \n\n " + body_md
                     else: block_md += format_segments_with_color_merging(segments)
                 else:
                     if len(block_text_raw.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", block_text_raw):
@@ -349,6 +296,12 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             else: block_md += format_segments_with_color_merging(segments)
         elif block_type == "reference":
             raw_content = format_segments_with_color_merging(segments)
+            # Bold "References" title if it exists (handling potential <span> tags)
+            raw_content = re.sub(r"(?i)(References)", r"**\1**", raw_content, count=1)
+            
+            # Smart list formatting for references
+            # Try to identify patterns like "1. ", "[1] ", etc.
+            # We split by these patterns but keep the delimiters
             ref_parts = re.split(r'(\s*(?:\[\d+\]|\d+\.)\s+)', raw_content)
             if len(ref_parts) > 1:
                 formatted = ref_parts[0].strip()
@@ -356,8 +309,9 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     num = ref_parts[i].strip()
                     text = ref_parts[i+1].strip() if i+1 < len(ref_parts) else ""
                     formatted += "\n\n" + num + " " + text
-                block_md += formatted
-            else: block_md += raw_content
+                block_md += formatted.strip()
+            else:
+                block_md += raw_content.strip()
         else: block_md += format_segments_with_color_merging(segments)
             
         block_md = re.sub(r' +', ' ', block_md)
