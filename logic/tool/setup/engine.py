@@ -93,11 +93,12 @@ class ToolEngine:
 
         # 1. Validation
         tm.add_stage(TuringStage(
-            name=self._("label_the_existence_of_tool", "the existence of tool '{name}' in global registry", name=self.tool_name),
+            name=self._("tool_exists_in_registry", "Tool {name} exists in the global registry.", name=self.tool_name),
             action=self.validate_registry,
             active_status=self._("label_validating", "Validating"),
-            success_status=self._("label_passed", "Passed"),
-            success_color="BOLD"
+            success_status=self._("label_validated_existence", "Validated existence") + ":",
+            success_color="BOLD",
+            is_sticky=True # Make it sticky so it's not erased by the next stage
         ))
         
         # 2. Fetching Source
@@ -199,8 +200,6 @@ class ToolEngine:
             registry = json.load(f)
             # Support both list and dict registry formats
             tools = registry.get("tools", {})
-            print(f"DEBUG: Registry tools: {tools}")
-            print(f"DEBUG: Target tool: {self.tool_name}")
             if isinstance(tools, list):
                 if self.tool_name not in tools:
                     print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
@@ -209,12 +208,6 @@ class ToolEngine:
                 print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
                 return False
         
-        # Print specific success message as requested
-        # Format: <Validated existence:><Tool TOOL_NAME exists in the global registry.>
-        validated_label = self._("label_validated_existence", "Validated existence")
-        tool_exists_msg = self._("tool_exists_in_registry", "Tool {name} exists in the global registry.", name=self.tool_name)
-        sys.stdout.write(f"\r\033[K{self.BOLD}{self.WHITE}{validated_label}{RESET}: {tool_exists_msg}\n")
-        sys.stdout.flush()
         return True
 
     def fetch_source(self):
