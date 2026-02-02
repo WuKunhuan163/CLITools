@@ -91,6 +91,9 @@ class UserInputTool(ToolBase):
     def __init__(self):
         super().__init__("USERINPUT")
 
+    def get_ai_instruction(self):
+        return get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+
     def get_python_exe(self, version=None):
         if not version:
             config = get_config()
@@ -265,10 +268,10 @@ class UserInputWindow(BaseGUIWindow):
 
         main_frame = tk.Frame(self.root, padx=15, pady=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
+            
         tk.Label(main_frame, text=self._("user_input_instruction", "Please enter your feedback:"), 
                  font=get_label_style(), fg="#555").pack(pady=(0, 5), anchor='w')
-        
+            
         text_frame = tk.Frame(main_frame, relief=tk.FLAT, borderwidth=1)
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
@@ -402,7 +405,7 @@ if __name__ == "__main__":
         elif res.get("status") == "error":
             err_msg = parse_gui_error(res.get("message", ""))
             raise RuntimeError(err_msg)
-            
+        
         raise RuntimeError("No valid response from GUI")
     finally:
         try:
