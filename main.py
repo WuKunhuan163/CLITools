@@ -732,7 +732,7 @@ def main():
             sys.stdout.flush()
             time.sleep(1)
             
-        msg = f"\\r\\033[K{{BOLD}}{{BLUE}}Progressing{{RESET}}... {{BOLD}}{{GREEN}}Successfully{{RESET}} finished!\\n"
+        msg = f"\\r\\033[K{{BOLD}}{{GREEN}}Successfully{{RESET}} finished!\\n"
         sys.stdout.write(truncate_to_width(msg, width))
         sys.stdout.flush()
         return

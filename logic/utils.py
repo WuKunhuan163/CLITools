@@ -117,7 +117,7 @@ def get_rtl_mode() -> bool:
 def get_display_width(text):
     """
     Calculate the display width of a string, considering multi-byte characters
-    and ignoring ANSI escape sequences and RTL markers.
+    and ignoring ANSI escape sequences, RTL markers, and control characters.
     """
     # Strip ANSI escape sequences and RTL markers (\u202b, \u202c, \u200f, \u202e)
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|[\u202b\u202c\u200f\u202e]')
@@ -125,6 +125,10 @@ def get_display_width(text):
     
     width = 0
     for char in stripped_text:
+        # Ignore control characters like \r, \n, \t
+        if ord(char) < 32:
+            continue
+            
         eaw = unicodedata.east_asian_width(char)
         if eaw in ('W', 'F'):
             width += 2
@@ -152,7 +156,7 @@ def print_terminal_width_separator(width=None):
 def truncate_to_display_width(text, max_width):
     """
     Truncate a string to a specific display width, taking multi-byte characters 
-    and ANSI escape sequences/RTL markers into account.
+    and ANSI escape sequences/RTL markers/control characters into account.
     """
     current_width = 0
     result = ""
@@ -168,8 +172,8 @@ def truncate_to_display_width(text, max_width):
                 continue
         
         char = text[i]
-        # Ignore RTL markers for width calculation
-        if char in ('\u202b', '\u202c'):
+        # Ignore RTL markers and control characters for width calculation
+        if char in ('\u202b', '\u202c') or ord(char) < 32:
             result += char
             i += 1
             continue
