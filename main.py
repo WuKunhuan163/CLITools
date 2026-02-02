@@ -978,6 +978,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
     # 2. Install and Verify
     tm_install = ProgressTuringMachine()
     def install_test_action():
+        error_details = []
         try:
             # Switch to test branch
             subprocess.run(["git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True, check=True)
@@ -985,19 +986,33 @@ def _run_installation_test(tool_name, stay_on_test=False):
             # Uninstall if exists
             subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
             
-            # Install - Silence this too as requested
-            with open(os.devnull, 'w') as f:
-                with redirect_stdout(f), redirect_stderr(f):
-                    res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
-            if res.returncode != 0: return False
+            # Install
+            res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0:
+                error_details.append(f"Installation with 'TOOL install {tool_name}' failed.")
+                if res.stdout: error_details.append(f"Install stdout: {res.stdout.strip()}")
+                if res.stderr: error_details.append(f"Install stderr: {res.stderr.strip()}")
+                install_test_action.error_msg = "\n".join(error_details)
+                return False
             
             # Simple check - use '--help'
             bin_path = project_root / "bin" / tool_name
-            if not bin_path.exists(): return False
+            if not bin_path.exists():
+                error_details.append(f"Shortcut bin/{tool_name} cannot be found after installation. Please run 'TOOL install {tool_name}' manually.")
+                install_test_action.error_msg = "\n".join(error_details)
+                return False
             
             res = subprocess.run([str(bin_path), "--help"], capture_output=True, text=True)
-            return res.returncode == 0
-        except:
+            if res.returncode != 0:
+                error_details.append(f"Help command '{tool_name} --help' failed (code {res.returncode}).")
+                if res.stdout: error_details.append(f"Help stdout: {res.stdout.strip()}")
+                if res.stderr: error_details.append(f"Help stderr: {res.stderr.strip()}")
+                install_test_action.error_msg = "\n".join(error_details)
+                return False
+            return True
+        except Exception as e:
+            error_details.append(f"Unexpected error during install test: {e}")
+            install_test_action.error_msg = "\n".join(error_details)
             return False
 
     tm_install.add_stage(TuringStage(
@@ -1012,11 +1027,14 @@ def _run_installation_test(tool_name, stay_on_test=False):
         duration = time.time() - start_time
         print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
         if not stay_on_test:
-            subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+            subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
         return True
     else:
+        # Get error message from the action function
+        error_msg = getattr(install_test_action, 'error_msg', 'Unknown error')
         print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
-        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        print(f"{RED}{error_msg}{RESET}")
+        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
         return False
 
 def _audit_lang(lang_code, force=False):
