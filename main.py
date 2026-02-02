@@ -174,7 +174,7 @@ def _dev_sync(quiet=False):
     import shutil
     
     try:
-        start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        start_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except subprocess.CalledProcessError:
         if not quiet:
             print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
@@ -183,7 +183,7 @@ def _dev_sync(quiet=False):
     # Helper to run git commands quietly
     def run_git(args):
         try:
-            res = subprocess.run(["git"] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run(["/usr/bin/git"] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
             return True
         except subprocess.CalledProcessError as e:
             if not quiet:
@@ -196,7 +196,7 @@ def _dev_sync(quiet=False):
 
     # 1. Commit current branch
     def auto_commit():
-        status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+        status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
             if not run_git(["add", "-A"]): return False
             if not run_git(["commit", "-m", f"Auto-commit before sync on '{start_branch}'"]): return False
@@ -222,35 +222,35 @@ def _dev_sync(quiet=False):
         
         try:
             # 1. Start with dev tree
-            res = subprocess.run(["git", "write-tree"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run(["/usr/bin/git", "write-tree"], cwd=str(project_root), capture_output=True, text=True)
             tree_sha = res.stdout.strip()
             
             # 2. Merge with origin/tool's resource directory
             # We want to keep 'resource/' from 'tool' branch
-            subprocess.run(["git", "read-tree", tree_sha], cwd=str(project_root), env=env, check=True)
+            subprocess.run(["/usr/bin/git", "read-tree", tree_sha], cwd=str(project_root), env=env, check=True)
             
             # Fetch origin/tool to get its resource tree
-            subprocess.run(["git", "fetch", "origin", "tool"], cwd=str(project_root), capture_output=True)
+            subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(project_root), capture_output=True)
             
             # Get resource tree from origin/tool
-            res = subprocess.run(["git", "ls-tree", "origin/tool", "resource"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run(["/usr/bin/git", "ls-tree", "origin/tool", "resource"], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode == 0 and res.stdout:
                 # Add resource directory to our new tree
-                subprocess.run(["git", "read-tree", "--prefix=resource", "origin/tool:resource"], cwd=str(project_root), env=env, check=True)
+                subprocess.run(["/usr/bin/git", "read-tree", "--prefix=resource", "origin/tool:resource"], cwd=str(project_root), env=env, check=True)
             
-            new_tree = subprocess.check_output(["git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
+            new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
             
             # 3. Create commit on tool branch
-            res = subprocess.run(["git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
             parent = res.stdout.strip() if res.returncode == 0 else None
             
-            commit_args = ["git", "commit-tree", new_tree, "-m", "Align 'tool' with 'dev' (preserving resources)"]
+            commit_args = ["/usr/bin/git", "commit-tree", new_tree, "-m", "Align 'tool' with 'dev' (preserving resources)"]
             if parent: commit_args.extend(["-p", parent])
             
             commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
             
             # 4. Update tool branch ref
-            subprocess.run(["git", "update-ref", "refs/heads/tool", commit_sha], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/tool", commit_sha], cwd=str(project_root), check=True)
             return True
         finally:
             if side_index.exists(): side_index.unlink()
@@ -274,28 +274,28 @@ def _dev_sync(quiet=False):
         
         try:
             # 1. Start with tool tree
-            res = subprocess.run(["git", "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
             tool_tree = res.stdout.strip()
-            subprocess.run(["git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True)
+            subprocess.run(["/usr/bin/git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True)
             
             # 2. Remove restricted folders from index
             restricted = ["tool", "resource", "data", "tmp", "bin"]
             for folder in restricted:
-                subprocess.run(["git", "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
+                subprocess.run(["/usr/bin/git", "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
             
-            new_tree = subprocess.check_output(["git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
+            new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
             
             # 3. Create commit on main branch
-            res = subprocess.run(["git", "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run(["/usr/bin/git", "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
             parent = res.stdout.strip() if res.returncode == 0 else None
             
-            commit_args = ["git", "commit-tree", new_tree, "-m", "Align 'main' with 'tool' (framework only)"]
+            commit_args = ["/usr/bin/git", "commit-tree", new_tree, "-m", "Align 'main' with 'tool' (framework only)"]
             if parent: commit_args.extend(["-p", parent])
             
             commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
             
             # 4. Update main branch ref
-            subprocess.run(["git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True)
             return True
         finally:
             if side_index.exists(): side_index.unlink()
@@ -313,10 +313,10 @@ def _dev_sync(quiet=False):
     # 4. tool -> test
     def align_test():
         # test branch is identical to tool branch
-        res = subprocess.run(["git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
+        res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
         if res.returncode != 0: return False
         tool_sha = res.stdout.strip()
-        subprocess.run(["git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True)
         return True
 
     tm.add_stage(TuringStage(
@@ -334,7 +334,7 @@ def _dev_sync(quiet=False):
         success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
         
         # End on start branch or dev
-        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
+        subprocess.run(["/usr/bin/git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
         
         if success and not quiet:
             success_status = _("label_success_completed", "Successfully completed")
@@ -345,7 +345,7 @@ def _dev_sync(quiet=False):
     except Exception as e:
         if not quiet:
             print(f"\n{BOLD}{RED}Error{RESET} during sync: {e}")
-        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        subprocess.run(["/usr/bin/git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
         return False
 
 def _dev_align():
@@ -357,7 +357,7 @@ def _dev_align():
     
     # 0. Detect starting branch
     try:
-        start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        start_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
         print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: Failed to detect current branch.")
         return
@@ -366,7 +366,7 @@ def _dev_align():
     def run_git(args, cwd=None):
         try:
             # Add --force or other flags if needed
-            subprocess.run(["git"] + args, check=True, cwd=cwd or str(project_root), capture_output=True)
+            subprocess.run(["/usr/bin/git"] + args, check=True, cwd=cwd or str(project_root), capture_output=True)
             return True
         except subprocess.CalledProcessError as e:
             return False
@@ -376,7 +376,7 @@ def _dev_align():
         if start_branch != "dev":
             # First, try to auto-commit any changes on the current branch to avoid data loss
             try:
-                status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+                status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
                 if status:
                     run_git(["add", "-A"])
                     run_git(["commit", "-m", f"Auto-commit local changes on '{start_branch}' before alignment"])
@@ -386,7 +386,7 @@ def _dev_align():
 
         # 2. Auto-commit local changes on dev if any
         try:
-            status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+            status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
             if status:
                 run_git(["add", "-A"])
                 run_git(["commit", "-m", "Auto-commit before alignment"])
@@ -411,7 +411,7 @@ def _dev_align():
         
         # Remove restricted folders on main
         restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["git", "rm", "-rf"] + restricted, cwd=str(project_root), capture_output=True)
+        subprocess.run(["/usr/bin/git", "rm", "-rf"] + restricted, cwd=str(project_root), capture_output=True)
         
         # Ensure they are gone from disk
         for d in restricted:
@@ -498,12 +498,12 @@ def _dev_reset():
     """Reset main and test branches to a clean state using templates."""
     project_root = ROOT_PROJECT_ROOT
     try:
-        current = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        current = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
         if current != "tool":
             warning_label = _("label_warning", "Warning")
             print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("reset_warning_branch", "Reset is recommended from 'tool' branch."))
             
-        subprocess.run(["git", "checkout", "main"], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "checkout", "main"], cwd=str(project_root), check=True)
         
         init_dir = SHARED_LOGIC_DIR / "init"
         if (init_dir / ".gitignore").exists():
@@ -511,20 +511,20 @@ def _dev_reset():
         if (init_dir / ".gitattributes").exists():
             shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
             
-        subprocess.run(["git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
-        subprocess.run(["git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
+        subprocess.run(["/usr/bin/git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
         
-        subprocess.run(["git", "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
+        subprocess.run(["/usr/bin/git", "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
         for d in ["data", "tmp", "tool", "resource"]:
             p = project_root / d
             if p.exists() and p.is_dir():
                 shutil.rmtree(p)
-                subprocess.run(["git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+                subprocess.run(["/usr/bin/git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
         
-        subprocess.run(["git", "commit", "--amend", "--no-edit"], cwd=str(project_root), capture_output=True)
-        subprocess.run(["git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
-        subprocess.run(["git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
-        subprocess.run(["git", "checkout", current], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "commit", "--amend", "--no-edit"], cwd=str(project_root), capture_output=True)
+        subprocess.run(["/usr/bin/git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        subprocess.run(["/usr/bin/git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "checkout", current], cwd=str(project_root), check=True)
         
         success_status = _("label_success", "Successfully")
         print(f"{BOLD}{GREEN}{success_status} reset{RESET} main and test branches.")
@@ -538,20 +538,20 @@ def _dev_enter(branch, force=False):
     try:
         if force:
             print(f"{BOLD}{BLUE}Force switching to {branch} branch...{RESET}")
-            subprocess.run(["git", "checkout", "-f", branch], cwd=str(project_root), check=True)
-            subprocess.run(["git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "checkout", "-f", branch], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
         else:
             # Auto-commit local changes if any
-            status = subprocess.check_output(["git", "status", "--porcelain"], text=True, cwd=str(project_root))
+            status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
             if status:
                 auto_commit_label = _("label_auto_committing", "Auto-committing")
                 print(f"{BOLD}{BLUE}{auto_commit_label}{RESET} local changes before switching...")
-                subprocess.run(["git", "add", "-A"], check=True, cwd=str(project_root))
-                subprocess.run(["git", "commit", "-m", f"Auto-commit before entering {branch}"], check=True, cwd=str(project_root), capture_output=True)
+                subprocess.run(["/usr/bin/git", "add", "-A"], check=True, cwd=str(project_root))
+                subprocess.run(["/usr/bin/git", "commit", "-m", f"Auto-commit before entering {branch}"], check=True, cwd=str(project_root), capture_output=True)
             
-            subprocess.run(["git", "checkout", branch], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "checkout", branch], cwd=str(project_root), check=True)
             # Always clean when entering test/main to remove leftover ignored files
-            subprocess.run(["git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
     except Exception as e:
         error_label = _("label_error", "Error")
         print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
@@ -693,16 +693,16 @@ def _dev_create(tool_name):
     
     # Auto-commit local changes before checkout to avoid errors
     try:
-        status = subprocess.run(["git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
+        status = subprocess.run(["/usr/bin/git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
         if status.stdout.strip():
             info_label = _("info_label", "Info")
             print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
-            subprocess.run(["git", "add", "."], cwd=str(project_root), check=True)
-            subprocess.run(["git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
+            subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
+            subprocess.run(["/usr/bin/git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
     except: pass
 
     try:
-        subprocess.run(["git", "checkout", "tool"], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "checkout", "tool"], cwd=str(project_root), check=True)
     except: pass
     
     if tool_dir.exists():
@@ -840,8 +840,8 @@ This tool is part of the `TOOL` ecosystem, which provides:
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
         rel_tool_dir = os.path.relpath(tool_dir, project_root)
-        subprocess.run(["git", "add", rel_tool_dir], cwd=str(project_root), check=True)
-        subprocess.run(["git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "add", rel_tool_dir], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
     except Exception as e:
         print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit new tool: {e}")
 
@@ -944,7 +944,7 @@ def _test_tool_with_args(args):
     project_root = ROOT_PROJECT_ROOT
     # 0. Capture current branch to return later
     try:
-        start_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        start_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
         start_branch = "dev"
 
@@ -987,7 +987,7 @@ def _test_tool_with_args(args):
             runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout, quiet_if_no_tests=True)
             
         # 3. Return to starting branch
-        subprocess.run(["git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
+        subprocess.run(["/usr/bin/git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
 
 def _run_installation_test(tool_name, stay_on_test=False):
     """Run dev sync and then verify installation on test branch."""
@@ -1003,7 +1003,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
     
     # Get current branch to return later
     try:
-        res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
+        res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
         current_branch = res.stdout.strip() if res.returncode == 0 else "dev"
     except:
         current_branch = "dev"
@@ -1017,8 +1017,8 @@ def _run_installation_test(tool_name, stay_on_test=False):
                 success = _dev_sync(quiet=True)
                 if success:
                     # Clean up untracked files on test branch, PRESERVING tools and data
-                    subprocess.run(["git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True)
-                    subprocess.run(["git", "clean", "-fd", 
+                    subprocess.run(["/usr/bin/git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True)
+                    subprocess.run(["/usr/bin/git", "clean", "-fd", 
                                    "--exclude=tool/", 
                                    "--exclude=data/",
                                    "--exclude=bin/",
@@ -1091,7 +1091,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         duration = time.time() - start_time
         print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
         if not stay_on_test:
-            subprocess.run(["git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
+            subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
         return True
     else:
         # Get error message from the action function
@@ -1116,7 +1116,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         if len(lines) > 1:
             print("\n".join(lines[1:]))
             
-        subprocess.run(["git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
+        subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
         return False
 
 def _audit_lang(lang_code, force=False):

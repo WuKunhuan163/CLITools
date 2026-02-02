@@ -185,7 +185,6 @@ class ToolEngine:
             success_color="GREEN"
         ))
         if tm.run(ephemeral=True, final_msg=final_msg):
-            print("")
             return True
         return False
 
@@ -219,7 +218,7 @@ class ToolEngine:
         sources = ["dev", "tool", "origin/tool", "origin/dev"]
         for branch in sources:
             try:
-                cmd = ["git", "checkout", branch, "--", f"tool/{self.tool_name}"]
+                cmd = ["/usr/bin/git", "checkout", branch, "--", f"tool/{self.tool_name}"]
                 if subprocess.run(cmd, capture_output=True, cwd=str(self.project_root)).returncode == 0:
                     return True
             except: pass
@@ -286,8 +285,9 @@ class ToolEngine:
         
         for package in pip_deps:
             # Update status message for each package
-            status_text = self._("label_installing_pip_package", "Installing pip dependency: {package}", package=package)
-            msg = f"\r\033[K{self.BOLD}{self.BLUE}{status_text}{self.RESET}..."
+            # "Installing pip dependency" is bold blue, package name is bold white
+            prefix = self._("label_installing_pip_dependency", "Installing pip dependency")
+            msg = f"\r\033[K{self.BOLD}{self.BLUE}{prefix}{self.RESET}: {self.BOLD}{self.WHITE}{package}{self.RESET}..."
             sys.stdout.write(truncate_to_width(msg, width))
             sys.stdout.flush()
             
@@ -298,13 +298,12 @@ class ToolEngine:
 
     def create_shortcut(self):
         main_py = self.tool_dir / "main.py"
-        if not main_py.exists(): return False
+        if not main_py.exists():
+            return False
         
         self.bin_dir.mkdir(exist_ok=True)
         link_path = self.bin_dir / self.tool_name
-        print(f"Creating shortcut at {link_path} pointing to {main_py}")
         if link_path.exists() or link_path.is_symlink():
-            print(f"Removing existing link at {link_path}")
             os.remove(link_path)
         
         try:
@@ -312,13 +311,11 @@ class ToolEngine:
             
             # Pure symlink - re-execution logic is now inside ToolBase
             os.symlink(main_py, link_path)
-            print(f"Symlink created successfully")
             
             from main import register_path
             register_path(self.bin_dir)
             return True
-        except Exception as e:
-            print(f"Error creating shortcut: {e}")
+        except:
             return False
 
     def run_setup(self):
