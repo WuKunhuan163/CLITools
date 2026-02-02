@@ -61,6 +61,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         "heading": get_color("RGBA_ORANGE", [255, 165, 0, 100]),
         "paragraph": get_color("RGBA_GREEN", [0, 255, 0, 60]),
         "reference": get_color("RGBA_MAGENTA", [255, 0, 255, 100]),
+        "doi": get_color("RGBA_PURPLE", [128, 0, 128, 100]),
         "header": get_color("RGBA_BLUE", [0, 0, 255, 100]),
         "footer": get_color("RGBA_GRAY", [128, 128, 128, 100]),
         "image": get_color("RGBA_YELLOW", [255, 255, 0, 100]),
@@ -305,21 +306,27 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             final_semantic_items.append(item)
 
     # Process final items for output and visualization
-    reference_count = 0
+    last_type = None
+    type_consecutive_count = 0
     for item in final_semantic_items:
         block_type = item["type"]
         bbox = item["bbox"]
         segments = item["segments"]
         block_text_raw = item["text"]
         
+        # Track consecutive blocks of the same type for alpha alternation
+        if block_type == last_type:
+            type_consecutive_count += 1
+        else:
+            type_consecutive_count = 0
+            last_type = block_type
+
         color = semantic_color_map.get(block_type, [0, 255, 0, 60])
         
-        # Alpha alternation for individual references
+        # Alpha alternation for consecutive blocks of same type
         current_alpha = alpha_int
-        if block_type == "reference":
-            reference_count += 1
-            if reference_count % 2 == 0:
-                current_alpha = alpha_int // 2
+        if type_consecutive_count % 2 != 0:
+            current_alpha = alpha_int // 2
         
         fill_color = tuple(list(color[:3]) + [current_alpha])
         

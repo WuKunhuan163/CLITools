@@ -50,7 +50,11 @@ def identify_block_type(block: Dict[str, Any], page_rect: Any, median_font_size:
         else:
             return "heading" # Fallback for large font if not header/footer
 
-    # 4. References (specific patterns)
+    # 4. DOI (specific patterns)
+    if re.search(r"doi:", block_text_raw, re.IGNORECASE) or re.match(r"^10\.\d{4,9}/", block_text_raw):
+        return "doi"
+
+    # 5. References (specific patterns)
     # Refine to avoid matching headings like "7. CONCLUSION"
     if re.match(r"^References", block_text_raw, re.IGNORECASE):
         return "reference"
