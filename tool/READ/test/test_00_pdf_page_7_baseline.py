@@ -60,9 +60,10 @@ def test_page_7_baseline():
             errors.append("Heading '7. CONCLUSION' is missing expected double newline.")
             
         # 3. Check for reference split
-        # References are now separate blocks, sometimes with tabs
-        if not (re.search(r"type: reference -->\n1\.", md_content) and re.search(r"type: reference -->\n2\.", md_content)):
-            errors.append("References were not correctly split by numbering into blocks.")
+        # References are now separate blocks, each starting with its number
+        for i in range(1, 8):
+            if not re.search(fr"type: reference -->\n{i}\.", md_content):
+                errors.append(f"Reference {i} was not correctly split into its own block.")
             
         # 4. Check for non-standard characters
         if "\x08" in md_content:
