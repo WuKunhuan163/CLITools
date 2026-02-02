@@ -1031,7 +1031,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         return True
     else:
         print(f"{BOLD}{RED}Failed{RESET}: {BOLD}installation{RESET}")
-        subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
+        # subprocess.run(["git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
         return False
 
 def _audit_lang(lang_code, force=False):
