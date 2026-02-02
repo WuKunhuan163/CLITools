@@ -54,10 +54,10 @@ class VpnEngine:
                 
         return target_path
 
-    def start_proxy(self, port: int = None) -> bool:
+    def start_proxy(self, port: int = None, forward: str = None) -> bool:
         """Starts the GOST proxy server."""
         if self.is_running():
-            return True
+            self.stop_proxy() # Restart to apply new settings
             
         port = port or self.default_port
         gost_bin = self.get_gost_bin()
@@ -66,6 +66,8 @@ class VpnEngine:
             return False
             
         cmd = [str(gost_bin), "-L", f":{port}"]
+        if forward:
+            cmd.extend(["-F", forward])
         
         # Start in background
         try:
@@ -130,7 +132,7 @@ class VpnEngine:
             return {}
             
         port = self.default_port
-        url = f"http://localhost:{port}"
+        url = f"http://127.0.0.1:{port}"
         return {
             "http": url,
             "https": url

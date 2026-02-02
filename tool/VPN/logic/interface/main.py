@@ -7,5 +7,6 @@ def get_vpn_interface():
         "start_proxy": engine.start_proxy,
         "stop_proxy": engine.stop_proxy,
         "is_running": engine.is_running,
-        "get_proxy_urls": engine.get_proxy_urls
+        "get_proxy_urls": engine.get_proxy_urls,
+        "get_gost_bin": engine.get_gost_bin
     }

@@ -19,6 +19,7 @@ def main():
     # start
     start_parser = subparsers.add_parser("start", help="Start the local proxy")
     start_parser.add_argument("--port", type=int, help="Proxy port")
+    start_parser.add_argument("--forward", help="Forward chain URL (e.g. socks5://user:pass@host:port)")
 
     # stop
     subparsers.add_parser("stop", help="Stop the local proxy")
@@ -31,7 +32,7 @@ def main():
     engine = VpnEngine()
 
     if args.command == "start":
-        if engine.start_proxy(port=args.port):
+        if engine.start_proxy(port=args.port, forward=args.forward):
             print("Proxy started successfully.")
             urls = engine.get_proxy_urls()
             print(f"HTTP Proxy: {urls.get('http')}")

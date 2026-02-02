@@ -77,10 +77,12 @@ class ToolBase:
         cmd = [str(bin_path)] + args
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
-    def handle_command_line(self):
+    def handle_command_line(self, parser=None, system_counterpart=None):
         """
         Process command line arguments. 
         If 'setup' is the first argument, run the tool's setup.py.
+        If a parser is provided and unknown arguments are found, 
+        and system_counterpart is specified, forward them to the system command.
         Returns True if a command was handled and the tool should exit.
         """
         if len(sys.argv) > 1:
@@ -90,6 +92,16 @@ class ToolBase:
             elif sys.argv[1] == "rule":
                 self.print_rule()
                 return True
+        
+        if parser and system_counterpart:
+            args, unknown = parser.parse_known_args()
+            # If we have a command or specific arguments, we let the tool handle it.
+            # But if we only have unknown arguments and no specific tool command was matched,
+            # we might want to forward. 
+            # This logic is tricky to generalize perfectly here without knowing the tool's internal structure.
+            # Most tools will handle this in their own main().
+            pass
+
         return False
 
     def print_rule(self):

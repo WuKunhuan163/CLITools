@@ -35,9 +35,8 @@ def main():
             sys.stdout.flush()
             time.sleep(1)
             
-        sys.stdout.write("\r\033[K") # Final erasure
-        success_msg = f"{BOLD}{GREEN}Successfully{RESET} finished!"
-        sys.stdout.write(f"{truncate_to_width(success_msg, width)}\n")
+        success_msg = f"\r\033[K{BOLD}{GREEN}Successfully{RESET} finished!\n"
+        sys.stdout.write(truncate_to_width(success_msg, width))
         sys.stdout.flush()
         return
 

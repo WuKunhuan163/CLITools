@@ -61,6 +61,8 @@ class ReadTool(ToolBase):
         extract_parser.add_argument("--mode", default="academic", choices=["academic", "general", "code_snippet", "formula", "table"], help="Vision analysis mode for images")
         extract_parser.add_argument("--key", help="Google API Key (overrides env vars)")
         extract_parser.add_argument("--test-vision", action="store_true", help="Test vision API connectivity")
+        extract_parser.add_argument("--use-vpn", action="store_true", help="Use VPN tool for requests")
+        extract_parser.add_argument("--vpn-port", type=int, help="Specify VPN port (default: 8080)")
         
         args, unknown = parser.parse_known_args()
 
@@ -80,6 +82,29 @@ class ReadTool(ToolBase):
             # Re-parse with 'extract' as default command
             sys.argv.insert(1, "extract")
             args = parser.parse_args()
+
+        # Handle VPN
+        if args.use_vpn:
+            try:
+                from tool.VPN.logic.interface.main import get_vpn_interface
+                vpn = get_vpn_interface()
+                if not vpn["is_running"]():
+                    print(f"{self.get_color('BLUE')}Starting VPN proxy{self.get_color('RESET')}...")
+                    if vpn["start_proxy"](port=args.vpn_port):
+                        print(f"{self.get_color('GREEN')}VPN started{self.get_color('RESET')}.")
+                    else:
+                        print(f"{self.get_color('RED')}Error{self.get_color('RESET')}: Failed to start VPN proxy.")
+                        return
+                
+                urls = vpn["get_proxy_urls"]()
+                if urls:
+                    import os
+                    os.environ["HTTP_PROXY"] = urls.get("http", "")
+                    os.environ["HTTPS_PROXY"] = urls.get("https", "")
+                    print(f"{self.get_color('BOLD')}Using proxy{self.get_color('RESET')}: {urls.get('http')}")
+            except (ImportError, ModuleNotFoundError):
+                print(f"{self.get_color('RED')}Error{self.get_color('RESET')}: VPN tool not found. Please install it with 'TOOL install VPN'.")
+                return
 
         if args.test_vision:
             from tool.READ.logic.vision.gemini import GeminiAnalyzer
