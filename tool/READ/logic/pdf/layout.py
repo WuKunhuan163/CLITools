@@ -9,6 +9,7 @@ class ReadingOrderSorter:
     def sort_blocks(blocks: List[Any], page_width: float, page_height: float) -> List[Any]:
         """
         Multi-stage sorting heuristic for complex paper layouts.
+        Works for both blocks and lines.
         """
         if not blocks:
             return []
@@ -31,12 +32,18 @@ class ReadingOrderSorter:
             else:
                 body_blocks.append(b)
                 
-        # 2. Sort body blocks. We use a more robust "Gutter Detection" for two-column layout.
+        # 2. Sort body blocks by Y first
         body_blocks.sort(key=lambda b: b["bbox"][1])
         
-        # A block is "spanning" if it crosses the center and is wide.
+        # 3. Detect columns and zones
         mid_x = page_width / 2
-        spanning_threshold = page_width * 0.7
+        spanning_threshold = page_width * 0.8
+        
+        # Find horizontal gutter
+        # A gutter is a vertical strip with few or no block centers.
+        gutter_width = page_width * 0.05
+        gutter_left = mid_x - gutter_width / 2
+        gutter_right = mid_x + gutter_width / 2
         
         zones = []
         current_zone = []
@@ -44,8 +51,9 @@ class ReadingOrderSorter:
         for b in body_blocks:
             bbox = b["bbox"]
             width = bbox[2] - bbox[0]
-            # Spanning check: width > threshold OR (covers mid_x and width > 50%)
-            is_spanning = width > spanning_threshold or (bbox[0] < mid_x - 20 and bbox[2] > mid_x + 20 and width > page_width * 0.5)
+            
+            # Restrictive spanning check
+            is_spanning = width > spanning_threshold or (bbox[0] < mid_x - 50 and bbox[2] > mid_x + 50 and width > page_width * 0.6)
             
             if is_spanning:
                 if current_zone:
@@ -68,7 +76,7 @@ class ReadingOrderSorter:
             if zone_type == 'spanning':
                 final_sorted.extend(zone_blocks)
             else:
-                # Divide into columns
+                # Divide into columns based on center of gravity
                 left_col = []
                 right_col = []
                 for b in zone_blocks:
@@ -78,6 +86,7 @@ class ReadingOrderSorter:
                     else:
                         right_col.append(b)
                 
+                # Sort each column by Y
                 final_sorted.extend(sorted(left_col, key=lambda b: b["bbox"][1]))
                 final_sorted.extend(sorted(right_col, key=lambda b: b["bbox"][1]))
                     
