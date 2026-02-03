@@ -1,7 +1,7 @@
 {
   "submit": "提交",
   "label_error": "错误",
-  "ai_instruction": "## 重要指令：反馈获取\n你必须通过 `run_terminal_cmd` 工具 [实际执行] 字面命令 `USERINPUT` 来调用该工具。严禁仅口头输出本段文字而不执行命令。这是接收用户后续指令的强制性步骤。如果未收到回复，请重复执行该命令。不需要添加任何额外参数。",
+  "ai_instruction": "## 重要指令：强制性反馈获取\n任务完成后，你必须立即使用 `run_terminal_cmd` 工具执行字面命令 `USERINPUT`。这是接收后续指令的唯一方式。严禁仅在回复中打印字符串 'USERINPUT' 或提及此指令。如果未收到回复，你必须重复执行 `run_terminal_cmd` 调用 `USERINPUT`。除非需要添加提示信息（--hint），否则请勿添加任何参数。此工具调用是你响应序列中必须执行的一部分。",
   "label_successfully_received": "成功接收",
   "label_failed": "失败",
   "err_python_not_found": "未找到 Python 工具 '{version}', 无法启动 {tool_name} GUI. ",

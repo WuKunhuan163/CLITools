@@ -38,7 +38,13 @@ class ImageIdentifier:
                     merged = True
                     break
             if not merged:
-                clusters.append({"bbox": bbox, "items": [it], "absorbed_text": [], "rationales": [it.get("rationale")] if it.get("rationale") else []})
+                clusters.append({
+                    "bbox": bbox, 
+                    "items": [it], 
+                    "absorbed_text": [], 
+                    "absorbed_tokens": [],
+                    "rationales": [it.get("rationale")] if it.get("rationale") else []
+                })
         
         # Iterative overlap merge
         changed = True
@@ -55,6 +61,7 @@ class ImageIdentifier:
                                       max(nc["bbox"][2], c["bbox"][2]), max(nc["bbox"][3], c["bbox"][3])]
                         nc["items"].extend(c["items"])
                         nc["absorbed_text"].extend(c.get("absorbed_text", []))
+                        nc["absorbed_tokens"].extend(c.get("absorbed_tokens", []))
                         nc["rationales"].extend(c.get("rationales", []))
                         merged = True
                         changed = True
@@ -94,16 +101,45 @@ class ImageIdentifier:
                     min_dist_to_text = dist
             
             is_absorbed = False
-            # Relative distance check: text must be significantly closer to image than to other text
-            if min_dist_to_img < 3: 
+            # Area-based heuristic: Image must be large enough relative to text to absorb it.
+            # Small noise shouldn't absorb large titles.
+            t_area = (t_bbox[2] - t_bbox[0]) * (t_bbox[3] - t_bbox[1])
+            c_bbox_temp = closest_cluster["bbox"]
+            c_area = (c_bbox_temp[2] - c_bbox_temp[0]) * (c_bbox_temp[3] - c_bbox_temp[1])
+            
+            # Relative distance check: text must be very close to image
+            if min_dist_to_img < 2.0: 
                 is_absorbed = True
-            elif min_dist_to_img < 10 and min_dist_to_img < min_dist_to_text / 4: # Stricter ratio
+            elif min_dist_to_img < 8.0 and min_dist_to_img < min_dist_to_text / 1.5:
                 is_absorbed = True
-                
+            # Special case for tokens entirely inside the image bbox
+            if not is_absorbed:
+                for c in clusters:
+                    c_bbox = c["bbox"]
+                    if (t_bbox[0] >= c_bbox[0] - 1.0 and t_bbox[2] <= c_bbox[2] + 1.0 and 
+                        t_bbox[1] >= c_bbox[1] - 1.0 and t_bbox[3] <= c_bbox[3] + 1.0):
+                        is_absorbed = True
+                        closest_cluster = c
+                        c_area = (c_bbox[2] - c_bbox[0]) * (c_bbox[3] - c_bbox[1])
+                        break
+            
+            # Apply size constraint: image area must be at least 1.0x text area to absorb it
+            # (unless it's already mostly inside)
+            size_factor = 1.0
+            if is_absorbed and c_area < t_area * size_factor:
+                # Check if it's mostly inside. if > 80% overlap, still absorb.
+                intersection = [max(t_bbox[0], c_bbox_temp[0]), max(t_bbox[1], c_bbox_temp[1]),
+                                min(t_bbox[2], c_bbox_temp[2]), min(t_bbox[3], c_bbox_temp[3])]
+                iw = max(0, intersection[2] - intersection[0])
+                ih = max(0, intersection[3] - intersection[1])
+                if (iw * ih) < t_area * 0.8:
+                    is_absorbed = False
+
             if is_absorbed and closest_cluster:
                 c_bbox = closest_cluster["bbox"]
                 closest_cluster["bbox"] = [min(c_bbox[0], t_bbox[0]), min(c_bbox[1], t_bbox[1]), 
                                            max(c_bbox[2], t_bbox[2]), max(c_bbox[3], t_bbox[3])]
+                closest_cluster["absorbed_tokens"].append(token)
                 closest_cluster["absorbed_text"].append(token["text"])
             else:
                 remaining_tokens.append(token)
@@ -115,7 +151,9 @@ class ImageIdentifier:
                 "bbox": c["bbox"],
                 "text": "[Merged Image Block]",
                 "is_image": True,
-                "lines": []
+                "lines": [],
+                "absorbed_tokens": c["absorbed_tokens"],
+                "merged_ids": [it["original_id"] for it in c["items"]]
             }
             if c["absorbed_text"]:
                 block["merged_texts"] = c["absorbed_text"]

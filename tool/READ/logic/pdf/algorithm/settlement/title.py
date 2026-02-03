@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Tuple
 import re
 import copy
-from tool.READ.logic.pdf.formatter import get_span_style
+from .utils import create_settled_block
 
 class TitleIdentifier:
     """
@@ -23,6 +23,12 @@ class TitleIdentifier:
         i = 0
         while i < len(lines):
             line = lines[i]
+            # Skip separator lines
+            if len(line) == 1 and line[0].get("type") == "separator":
+                remaining_lines.append(line)
+                i += 1
+                continue
+
             line_bbox = self._get_line_bbox(line)
             max_font = max(t["size"] for t in line)
             
@@ -41,7 +47,7 @@ class TitleIdentifier:
                     else:
                         break
                 
-                title_blocks.append(self._create_block(title_lines))
+                title_blocks.append(create_settled_block(title_lines, "title", self.median_size))
                 i = j
                 continue
             
@@ -53,36 +59,3 @@ class TitleIdentifier:
     def _get_line_bbox(self, line: List[Dict[str, Any]]) -> List[float]:
         return [min(t["bbox"][0] for t in line), min(t["bbox"][1] for t in line),
                 max(t["bbox"][2] for t in line), max(t["bbox"][3] for t in line)]
-
-    def _create_block(self, lines: List[List[Dict[str, Any]]]) -> Dict[str, Any]:
-        all_t = [t for l in lines for t in l]
-        bbox = [min(t['bbox'][0] for t in all_t), min(t['bbox'][1] for t in all_t),
-                max(t['bbox'][2] for t in all_t), max(t['bbox'][3] for t in all_t)]
-        
-        formatted_lines = [{"spans": copy.deepcopy(l), "bbox": self._get_line_bbox(l)} for l in lines]
-        
-        # Create segments for formatting using get_span_style
-        segments = []
-        for line in lines:
-            line_y = line[0]["origin"][1] if line else 0
-            for span in line:
-                style = get_span_style(span, self.median_size, line_y)
-                text = span["text"]
-                if not segments:
-                    segments.append([text, style])
-                else:
-                    if segments[-1][1] == style:
-                        segments[-1][0] += text
-                    else:
-                        segments.append([text, style])
-            # Add space between lines
-            if segments and not segments[-1][0].endswith(" "):
-                segments[-1][0] += " "
-
-        return {
-            "type": "title",
-            "bbox": bbox,
-            "lines": formatted_lines,
-            "segments": segments,
-            "text": " ".join(["".join([t["text"] for t in l]).strip() for l in lines])
-        }

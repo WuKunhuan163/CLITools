@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Tuple, Optional
 import re
 import copy
+from .utils import create_settled_block
 
 class HeaderFooterIdentifier:
     """
@@ -27,11 +28,15 @@ class HeaderFooterIdentifier:
         # Calculate gaps and line heights
         line_data = []
         for l in sorted_lines:
+            # Skip separator lines
+            if len(l) == 1 and l[0].get("type") == "separator":
+                line_data.append({"type": "separator", "bbox": l[0]["bbox"], "height": 0, "text": ""})
+                continue
             bbox = self._get_line_bbox(l)
             line_data.append({
                 "bbox": bbox,
                 "height": bbox[3] - bbox[1],
-                "text": "".join(t["text"] for t in l).strip()
+                "text": " ".join(t["text"] for t in l).strip()
             })
             
         header_end_idx = 0
@@ -40,7 +45,11 @@ class HeaderFooterIdentifier:
         # 1. Detect Header (Top-down)
         for i in range(min(5, len(sorted_lines) - 1)):
             curr = line_data[i]
+            if curr.get("type") == "separator": continue
+
             next_l = line_data[i+1]
+            if next_l.get("type") == "separator": continue
+
             gap = next_l["bbox"][1] - curr["bbox"][3]
             
             # Content heuristic (DOI)
@@ -79,51 +88,27 @@ class HeaderFooterIdentifier:
         # (e.g. sparse page). Ensure they are in respective halves.
         for i in range(header_end_idx):
             if line_data[i]["bbox"][3] < self.page_height * 0.5:
-                identified_blocks.append(self._create_block([sorted_lines[i]], "header"))
+                identified_blocks.append(create_settled_block([sorted_lines[i]], "header", self.median_size))
             else:
                 header_end_idx = i # Stop here
                 break
             
         for i in range(footer_start_idx, len(sorted_lines)):
             if line_data[i]["bbox"][1] > self.page_height * 0.5:
-                identified_blocks.append(self._create_block([sorted_lines[i]], "footer"))
+                identified_blocks.append(create_settled_block([sorted_lines[i]], "footer", self.median_size))
             else:
                 footer_start_idx = i + 1 # Adjust body start
                 break
             
         body_lines = sorted_lines[header_end_idx:footer_start_idx]
         
+        # Post-process for subtype (DOI)
+        for block in identified_blocks:
+            if self.doi_regex.search(block["text"]):
+                block["subtype"] = "DOI"
+
         return identified_blocks, body_lines
 
     def _get_line_bbox(self, line: List[Dict[str, Any]]) -> List[float]:
         return [min(t["bbox"][0] for t in line), min(t["bbox"][1] for t in line),
                 max(t["bbox"][2] for t in line), max(t["bbox"][3] for t in line)]
-
-    def _create_block(self, lines: List[List[Dict[str, Any]]], type_hint: str) -> Dict[str, Any]:
-        all_t = [t for l in lines for t in l]
-        bbox = [min(t['bbox'][0] for t in all_t), min(t['bbox'][1] for t in all_t),
-                max(t['bbox'][2] for t in all_t), max(t['bbox'][3] for t in all_t)]
-        
-        from tool.READ.logic.pdf.formatter import get_span_style
-        
-        formatted_lines = [{"spans": copy.deepcopy(l), "bbox": self._get_line_bbox(l)} for l in lines]
-        segments = []
-        for line in lines:
-            line_y = line[0]["origin"][1] if line else 0
-            for span in line:
-                style = get_span_style(span, self.median_size, line_y)
-                text = span["text"]
-                if not segments: segments.append([text, style])
-                else:
-                    if segments[-1][1] == style: segments[-1][0] += text
-                    else: segments.append([text, style])
-            if segments and not segments[-1][0].endswith(" "):
-                segments[-1][0] += " "
-
-        text = " ".join(["".join([t["text"] for t in l]).strip() for l in lines])
-        subtype = "DOI" if self.doi_regex.search(text) else None
-
-        return {
-            "type": type_hint, "subtype": subtype, "bbox": bbox,
-            "lines": formatted_lines, "segments": segments, "text": text
-        }

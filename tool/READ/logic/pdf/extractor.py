@@ -4,6 +4,7 @@ import os
 import re
 import copy
 import json
+import numpy as np
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import fitz  # PyMuPDF
@@ -25,8 +26,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     page_dir = output_pages_root / f"page_{actual_page_num:03d}"
     page_dir.mkdir(parents=True, exist_ok=True)
     
-    tagging_dir = page_dir / "tagging"
-    tagging_dir.mkdir(parents=True, exist_ok=True)
+    tags_dir = page_dir / "tags"
+    tags_dir.mkdir(parents=True, exist_ok=True)
     
     # Path for the markdown file
     md_file_path = page_dir / "extracted.md"
@@ -46,6 +47,11 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     
     vis_img = Image.open(source_png_path).convert("RGBA")
     
+    try:
+        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
+    except:
+        label_font = ImageFont.load_default()
+
     # Get DRAW tool interface
     try:
         from tool.DRAW.logic.interface.main import get_interface as get_draw_interface
@@ -53,9 +59,13 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     except ImportError:
         draw_iface = None
 
-    # 3. Images folder inside page folder
-    page_images_dir = page_dir / "images"
-    page_images_dir.mkdir(parents=True, exist_ok=True)
+    # 3. Images folder structure
+    page_images_root = page_dir / "images"
+    tokenized_dir = page_images_root / "tokenized"
+    processed_dir = page_images_root / "processed"
+    
+    tokenized_dir.mkdir(parents=True, exist_ok=True)
+    processed_dir.mkdir(parents=True, exist_ok=True)
     
     # Define semantic mapping to colors
     semantic_color_map = {
@@ -72,35 +82,109 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     labels_to_draw = []
     legend_items = {}
 
-    # 4. Text Extraction (Initial tokens)
-    page_dict = page.get_text("dict")
+    # New Visualization Data for Images
+    tokenized_vis_data = {"rects": [], "labels": []}
+    processed_vis_data = {"rects": [], "labels": []}
+
+    def add_image_label(labels_list, bbox, id_text, font, zoom_val):
+        """Helper to position label such that its top-right is at item's top-left."""
+        x, y = bbox[0] * zoom_val, bbox[1] * zoom_val
+        # Temporary draw to calculate text width
+        tmp_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+        t_bbox = tmp_draw.textbbox((0, 0), str(id_text), font=font)
+        w = t_bbox[2] - t_bbox[0]
+        # Top-right of background box (pos_x + w + 2, pos_y - 2) = (x, y)
+        # So pos_x = x - w - 2, pos_y = y + 2
+        labels_list.append({
+            "pos": (x - w - 4, y + 2), # Extra 2px for safety
+            "text": id_text,
+            "font": font,
+            "bg_color": (255, 255, 255, 255),
+            "border_color": (0, 0, 0, 255)
+        })
+
+    # 4. Text Extraction (Initial tokens - now at word level)
+    page_raw = page.get_text("rawdict")
     all_spans = []
-    seen_spans = set()
-    for b in page_dict["blocks"]:
+    seen_tokens = set()
+    
+    for b in page_raw["blocks"]:
         if b.get("type") != 0: continue
         for line in b["lines"]:
             for span in line["spans"]:
-                text_clean = span["text"].strip()
-                if not text_clean: continue
-                span_key = (text_clean, tuple(map(lambda x: round(x, 0), span["bbox"])))
-                if span_key in seen_spans: continue
-                seen_spans.add(span_key)
-                all_spans.append({
-                    "text": span["text"], "bbox": list(span["bbox"]),
-                    "font": span["font"], "size": span["size"],
-                    "color": span["color"], "flags": span["flags"],
-                    "origin": list(span["origin"])
-                })
+                # Group characters into words based on spaces
+                current_word_chars = []
+                
+                def flush_word(chars):
+                    if not chars: return
+                    text = "".join([c["c"] for c in chars])
+                    if not text.strip(): return
+                    
+                    bbox = [
+                        min(c["bbox"][0] for c in chars),
+                        min(c["bbox"][1] for c in chars),
+                        max(c["bbox"][2] for c in chars),
+                        max(c["bbox"][3] for c in chars)
+                    ]
+                    origin = [chars[0]["origin"][0], chars[0]["origin"][1]]
+                    
+                    token_key = (text, tuple(map(lambda x: round(x, 1), bbox)))
+                    if token_key in seen_tokens: return
+                    seen_tokens.add(token_key)
+                    
+                    all_spans.append({
+                        "text": text, "bbox": bbox,
+                        "font": span["font"], "size": span["size"],
+                        "color": span["color"], "flags": span["flags"],
+                        "origin": origin
+                    })
+
+                for char in span["chars"]:
+                    if char["c"] == " ":
+                        flush_word(current_word_chars)
+                        current_word_chars = []
+                    else:
+                        current_word_chars.append(char)
+                flush_word(current_word_chars)
+
+    # Assign original IDs to text tokens
+    for i, span in enumerate(all_spans):
+        span["original_id"] = f"text_{i+1:04d}"
 
     # 5. Salient Region Detection & Filtering
     img_for_detection = vis_img.copy().convert("RGB")
+    img_data = np.array(img_for_detection)
+    
+    # Threshold-based wiping for text: only wipe dark pixels (glyphs)
+    # Using character-level bboxes for maximum tightness
+    page_raw_for_wipe = page.get_text("rawdict")
+    for b in page_raw_for_wipe["blocks"]:
+        if b.get("type") != 0: continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                for char in span["chars"]:
+                    c_bbox = char["bbox"]
+                    x0, y0, x1, y1 = [int(c * zoom) for c in c_bbox]
+                    # Minimal padding for characters
+                    pad = 1
+                    x0, y0, x1, y1 = x0-pad, y0-pad, x1+pad, y1+pad
+                    
+                    x0, y0 = max(0, x0), max(0, y0)
+                    x1, y1 = min(img_data.shape[1], x1), min(img_data.shape[0], y1)
+                    
+                    if x1 > x0 and y1 > y0:
+                        region = img_data[y0:y1, x0:x1]
+                        # Use a stricter threshold (80) to avoid wiping medium-gray lines
+                        mask = np.mean(region, axis=2) < 100
+                        region[mask] = [255, 255, 255]
+                        img_data[y0:y1, x0:x1] = region
+            
+    img_for_detection = Image.fromarray(img_data)
     draw_detect = ImageDraw.Draw(img_for_detection)
-    for span in all_spans:
-        s_bbox = [span["bbox"][0]*zoom, span["bbox"][1]*zoom, span["bbox"][2]*zoom, span["bbox"][3]*zoom]
-        draw_detect.rectangle(s_bbox, fill=(255, 255, 255))
     
     img_infos = page.get_image_info(xrefs=True)
     for info in img_infos:
+        # For PDF image objects, we still wipe the whole rectangle as they are blocks
         i_bbox = [info["bbox"][0]*zoom, info["bbox"][1]*zoom, info["bbox"][2]*zoom, info["bbox"][3]*zoom]
         draw_detect.rectangle(i_bbox, fill=(255, 255, 255))
         
@@ -141,17 +225,50 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                         artifact_bboxes.append({"bbox": artifact_bbox, "rationale": f"stddev={stat.stddev}, mean={stat.mean}"})
 
     image_semantic_items = []
+    raw_img_id_counter = 1
     for info in img_infos:
         i_bbox = list(info["bbox"])
         crop_bbox = [i_bbox[0]*zoom, i_bbox[1]*zoom, i_bbox[2]*zoom, i_bbox[3]*zoom]
         try:
             region_img = vis_img.crop(crop_bbox).convert("RGB")
             stat = ImageStat.Stat(region_img)
-            if any(s > 8.0 for s in stat.stddev) and any(m < 250 for m in stat.mean):
-                image_semantic_items.append({"bbox": i_bbox, "text": "[Image Object]", "type": "unprocessed_image", "rationale": f"stddev={stat.stddev}, mean={stat.mean}"})
+            # Stricter background filter
+            is_background = (i_bbox[2]-i_bbox[0]) > page_rect.width * 0.8 and (i_bbox[3]-i_bbox[1]) > page_rect.height * 0.8
+            
+            if not is_background and any(s > 8.0 for s in stat.stddev) and any(m < 250 for m in stat.mean):
+                orig_id = f"img_{raw_img_id_counter:04d}"
+                raw_img_id_counter += 1
+                img_item = {"bbox": i_bbox, "text": "[Image Object]", "type": "unprocessed_image", "original_id": orig_id, "rationale": f"stddev={stat.stddev}, mean={stat.mean}"}
+                image_semantic_items.append(img_item)
+                
+                # Save to tokenized
+                region_img.save(tokenized_dir / f"{orig_id}.png")
         except: pass
+
     for art in artifact_bboxes:
-        image_semantic_items.append({"bbox": art["bbox"], "text": "[Detected Salient Region]", "type": "unprocessed_image", "rationale": art["rationale"]})
+        orig_id = f"art_{raw_img_id_counter:04d}"
+        raw_img_id_counter += 1
+        art_item = {"bbox": art["bbox"], "text": "[Detected Salient Region]", "type": "unprocessed_image", "original_id": orig_id, "rationale": art["rationale"]}
+        image_semantic_items.append(art_item)
+        
+        # Save to tokenized
+        try:
+            crop_bbox = [art["bbox"][0]*zoom, art["bbox"][1]*zoom, art["bbox"][2]*zoom, art["bbox"][3]*zoom]
+            vis_img.crop(crop_bbox).convert("RGB").save(tokenized_dir / f"{orig_id}.png")
+        except: pass
+
+    # Populate tokenized_vis_data
+    for item in image_semantic_items:
+        bbox = item["bbox"]
+        orig_id = item.get("original_id", "")
+        id_num = "".join(filter(str.isdigit, orig_id))
+        color = semantic_color_map["unprocessed_image"]
+        tokenized_vis_data["rects"].append({
+            "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
+            "fill": tuple(list(color[:3]) + [150])
+        })
+        if draw_iface:
+            add_image_label(tokenized_vis_data["labels"], bbox, id_num, label_font, zoom)
 
     # 6. Layout Engine Processing (ABC Pipeline)
     from .algorithm.settlement.academic_paper import LayoutEngine
@@ -163,52 +280,76 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     page_content_parts = []
     semantic_info = []
     extracted_block_counter = 1
-    
-    try:
-        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
-    except:
-        label_font = ImageFont.load_default()
 
     # Tagging Visualization Data
     tags_found = set()
     tag_visuals = {} # tag_name -> List[rects]
 
+    unprocessed_image_counter = 1
     for item in all_items:
         block_type = item["type"]
         bbox = item["bbox"]
         
-        # Collect tags from all tokens in this block
+        is_unprocessed = block_type.startswith("unprocessed_")
+        
+        # Save Unprocessed Image
+        if block_type == "unprocessed_image":
+            img_name = f"image_{unprocessed_image_counter:03d}.png"
+            img_path = processed_dir / img_name
+            unprocessed_image_counter += 1
+            
+            # Crop and save
+            crop_bbox = [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom]
+            try:
+                with Image.open(source_png_path) as source_img:
+                    img_crop = source_img.crop(crop_bbox)
+                    img_crop.save(img_path)
+                item["image_path"] = f"images/processed/{img_name}"
+                # Add to processed_vis_data
+                processed_vis_data["rects"].append({
+                    "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
+                    "fill": tuple(list(semantic_color_map["unprocessed_image"][:3]) + [150])
+                })
+                if draw_iface:
+                    add_image_label(processed_vis_data["labels"], bbox, str(unprocessed_image_counter - 1), label_font, zoom)
+            except:
+                pass
+
+        # Collect tags from all sources
+        tokens_to_check = []
         if "lines" in item:
             for line in item["lines"]:
-                for span in line["spans"]:
-                    if "tags" in span:
-                        for t_name, t_val in span["tags"].items():
-                            tags_found.add(t_name)
-                            if t_name not in tag_visuals: tag_visuals[t_name] = []
-                            s_bbox = span["bbox"]
-                            tag_visuals[t_name].append({
-                                "bbox": [s_bbox[0]*zoom, s_bbox[1]*zoom, s_bbox[2]*zoom, s_bbox[3]*zoom], 
-                                "fill": (255, 255, 0, 150)
-                            })
-        elif "tags" in item: # For items without lines (unprocessed_image maybe, or loose tokens)
-            for t_name in item["tags"]:
-                tags_found.add(t_name)
-                if t_name not in tag_visuals: tag_visuals[t_name] = []
-                tag_visuals[t_name].append({
-                    "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom], 
-                    "fill": (255, 255, 0, 150)
-                })
+                tokens_to_check.extend(line["spans"])
+        if item.get("absorbed_tokens"):
+            tokens_to_check.extend(item["absorbed_tokens"])
+            
+        for span in tokens_to_check:
+            if "tags" in span:
+                for t_name, t_val in span["tags"].items():
+                    tags_found.add(t_name)
+                    if t_name not in tag_visuals: tag_visuals[t_name] = []
+                    s_bbox = span["bbox"]
+                    tag_visuals[t_name].append({
+                        "bbox": [s_bbox[0]*zoom, s_bbox[1]*zoom, s_bbox[2]*zoom, s_bbox[3]*zoom], 
+                        "fill": (255, 255, 0, 150)
+                    })
 
         # Regular Visualization
         color = semantic_color_map.get(block_type, [128, 128, 128])
-        alpha = alpha_int if block_type in ["title", "header", "footer", "separator"] else (color[3] if len(color) > 3 else 60)
+        alpha = alpha_int if block_type in ["title", "header", "footer", "separator", "author"] else (color[3] if len(color) > 3 else 60)
         fill_color = tuple(list(color[:3]) + [alpha])
         
         if "lines" in item and item["lines"]:
             for line in item["lines"]:
-                for span in line["spans"]:
-                    s_bbox = span["bbox"]
-                    rects_to_draw.append({"bbox": [s_bbox[0]*zoom, s_bbox[1]*zoom, s_bbox[2]*zoom, s_bbox[3]*zoom], "fill": fill_color})
+                if block_type not in ["unprocessed_text"]:
+                    # For settled text blocks, render the whole line (includes spaces)
+                    l_bbox = line["bbox"]
+                    rects_to_draw.append({"bbox": [l_bbox[0]*zoom, l_bbox[1]*zoom, l_bbox[2]*zoom, l_bbox[3]*zoom], "fill": fill_color})
+                else:
+                    # For unprocessed text, render individual words (no spaces)
+                    for span in line["spans"]:
+                        s_bbox = span["bbox"]
+                        rects_to_draw.append({"bbox": [s_bbox[0]*zoom, s_bbox[1]*zoom, s_bbox[2]*zoom, s_bbox[3]*zoom], "fill": fill_color})
         else:
             rects_to_draw.append({"bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom], "fill": fill_color})
         
@@ -217,27 +358,34 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         elif "Unprocessed Image" in type_label: type_label = "Unprocessed Image"
         if type_label not in legend_items: legend_items[type_label] = tuple(list(color[:3]) + [255])
         
-        block_id_num = extracted_block_counter
-        block_id = f"b{block_id_num:03d}"
-        extracted_block_counter += 1
+        is_unprocessed = block_type.startswith("unprocessed_")
+        # Separators should be settled but NOT numbered and NOT in MD
+        is_numbered = not is_unprocessed and block_type != "separator"
+        block_id = None
         
-        if block_type in ["title", "header", "footer", "separator"]:
+        if is_numbered:
+            block_id_num = extracted_block_counter
+            block_id = f"b{block_id_num:03d}"
+            extracted_block_counter += 1
+            
             label_pos = (bbox[0]*zoom, bbox[1]*zoom)
             labels_to_draw.append({"pos": label_pos, "text": str(block_id_num), "font": label_font, "bg_color": (255, 255, 255, 255), "border_color": (0, 0, 0, 255)})
 
         # Markdown
+        block_md = ""
         if block_type == "title":
             block_md = f"# {format_segments_with_color_merging(item['segments']).strip()}"
         elif block_type in ["header", "footer"]:
             block_md = format_segments_with_color_merging(item["segments"]).strip()
             block_md = f"**{block_md}**" if item.get("subtype") == "DOI" else f"*{block_md}*"
-        elif block_type == "separator": block_md = "---"
-        else: block_md = item["text"]
+        elif block_type == "author": block_md = item["text"]
             
-        if block_md.strip():
+        # Only add to markdown if it has valid text and is not a separator or unprocessed
+        if block_md.strip() and not is_unprocessed and block_type != "separator":
             page_content_parts.append(f"<!-- block_id: {block_id} type: {block_type} -->\n{block_md}")
             
-        info_entry = {"id": block_id, "type": block_type, "bbox": bbox, "text": block_md}
+        info_entry = {"type": block_type, "bbox": bbox, "text": block_md if block_md else item.get("text", "")}
+        if block_id: info_entry["id"] = block_id
         if "lines" in item: 
             info_entry["lines"] = item["lines"]
             # Propagate tags from spans to block level if block level tags are missing
@@ -257,9 +405,14 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                                         block_tags[t_name]["rationale"] = f"{old_rat}; {new_rat}"
                 if block_tags: info_entry["tags"] = block_tags
 
-        for field in ["subtype", "merged_texts", "rationale", "rationales", "tags"]:
+        for field in ["subtype", "merged_texts", "rationale", "rationales", "tags", "image_path", "original_id", "merged_ids"]:
             if field == "tags" and "tags" in info_entry: continue # Already handled propagation
             if item.get(field): info_entry[field] = item[field]
+        
+        # If merged_ids exist, also add absorbed_ids
+        if item.get("absorbed_tokens"):
+            info_entry["absorbed_ids"] = [t["original_id"] for t in item["absorbed_tokens"]]
+            
         semantic_info.append(info_entry)
                 
     content = "\n\n".join(page_content_parts)
@@ -275,13 +428,24 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         # Generate Tagging Images
         for t_name in tags_found:
             t_img = Image.open(source_png_path).convert("RGBA")
-            # DIM the background
-            overlay = Image.new("RGBA", t_img.size, (255, 255, 255, 180))
-            t_img = Image.alpha_composite(t_img, overlay)
-            
             t_img = draw_iface["draw_rects_with_alpha"](t_img, tag_visuals[t_name])
             t_img = draw_iface["append_legend"](t_img, {f"Tag: {t_name}": (255, 255, 0, 255)})
-            t_img.save(tagging_dir / f"{t_name}.png")
+            t_img.save(tags_dir / f"{t_name}.png")
+        
+        # Generate tokenized.png and processed.png
+        if tokenized_vis_data["rects"]:
+            tk_img = Image.open(source_png_path).convert("RGBA")
+            tk_img = draw_iface["draw_rects_with_alpha"](tk_img, tokenized_vis_data["rects"])
+            tk_img = draw_iface["draw_labels"](tk_img, tokenized_vis_data["labels"])
+            tk_img = draw_iface["append_legend"](tk_img, {"Tokenized Images": tuple(list(semantic_color_map["unprocessed_image"][:3]) + [255])})
+            tk_img.save(page_images_root / "tokenized.png")
+            
+        if processed_vis_data["rects"]:
+            pr_img = Image.open(source_png_path).convert("RGBA")
+            pr_img = draw_iface["draw_rects_with_alpha"](pr_img, processed_vis_data["rects"])
+            pr_img = draw_iface["draw_labels"](pr_img, processed_vis_data["labels"])
+            pr_img = draw_iface["append_legend"](pr_img, {"Processed Images": tuple(list(semantic_color_map["unprocessed_image"][:3]) + [255])})
+            pr_img.save(page_images_root / "processed.png")
     else:
         vis_img.save(page_dir / "extracted.png")
 

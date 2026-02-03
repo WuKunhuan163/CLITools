@@ -3,7 +3,9 @@ import re
 import copy
 from ..settlement.title import TitleIdentifier
 from ..settlement.header_footer import HeaderFooterIdentifier
+from ..settlement.utils import create_settled_block
 from ..tokenization.image import ImageIdentifier
+from ..tokenization.reading_order import ReadingOrderIdentifier
 from ..tagging.name import NameIdentifier
 from ..tagging.email import EmailIdentifier
 from ..tagging.number import NumberIdentifier
@@ -20,6 +22,7 @@ class LayoutEngine:
         self.title_identifier = TitleIdentifier(page_width, page_height, median_size)
         self.hf_identifier = HeaderFooterIdentifier(page_width, page_height, median_size)
         self.image_identifier = ImageIdentifier(page_width, page_height, median_size)
+        self.reading_order_identifier = ReadingOrderIdentifier(page_width, page_height, median_size)
         self.name_tagger = NameIdentifier(median_size)
         self.email_tagger = EmailIdentifier()
         self.number_tagger = NumberIdentifier()
@@ -60,39 +63,38 @@ class LayoutEngine:
         all_settled.extend(separators)
         
         # 2. Image Assembly
-        merged_image_blocks, _ = self.image_identifier.identify(remaining_images, [])
+        merged_image_blocks, tokens = self.image_identifier.identify(remaining_images, tokens)
         
-        # 3. Tagging individual tokens
-        # Tag the raw spans first
+        # 3. Reading Order Prediction
+        # This will also synthesize separators if gutters are found
+        tokens, _ = self.reading_order_identifier.predict_order(tokens, separators)
+
+        # 4. Tagging individual tokens
+        # Tag the ordered tokens
         tokens = self.name_tagger.tag_tokens(tokens)
         tokens = self.email_tagger.tag_tokens(tokens)
         tokens = self.number_tagger.tag_tokens(tokens)
 
-        unprocessed_pool = []
-        for t in tokens:
-            pool_item = copy.deepcopy(t)
-            pool_item["type"] = "unprocessed_text"
-            # Ensure tags are present
-            if "tags" not in pool_item: pool_item["tags"] = {}
-            # lines for formatter compatibility
-            pool_item["lines"] = [{"spans": [copy.deepcopy(t)], "bbox": t["bbox"]}]
-            unprocessed_pool.append(pool_item)
-            
-        # 4. Settlement
-        lines = self._pool_to_lines(unprocessed_pool)
+        # 5. Settlement
+        lines = self._pool_to_lines(tokens)
         
-        # 4.1 Titles
+        # 5.1 Titles
         title_blocks, remaining_lines = self.title_identifier.identify(lines, self.preference)
         all_settled.extend(title_blocks)
         
-        # 4.2 Header/Footer
+        # 5.2 Header/Footer
         hf_blocks, remaining_lines = self.hf_identifier.identify(remaining_lines)
         all_settled.extend(hf_blocks)
         
-        # 4.3 Author Settlement (Based on tags and patterns)
+        # 5.3 Author Settlement (Based on tags and patterns)
         author_blocks = []
         body_lines = []
         for line in remaining_lines:
+            # Check if this is a separator line
+            if len(line) == 1 and line[0].get("type") == "separator":
+                body_lines.append(line)
+                continue
+
             line_text = "".join([t["text"] for t in line]).strip()
             line_bbox = [min(t["bbox"][0] for t in line), min(t["bbox"][1] for t in line),
                          max(t["bbox"][2] for t in line), max(t["bbox"][3] for t in line)]
@@ -103,53 +105,54 @@ class LayoutEngine:
             
             # Author heuristic: Top half, and (Multiple names OR starts with "By ")
             if line_bbox[1] < self.page_height * 0.5 and (name_tag_count >= 2 or is_by_pattern):
-                author_blocks.append(self._create_settled_block(line, "author"))
+                author_blocks.append(create_settled_block([line], "author", self.median_size))
             else:
                 body_lines.append(line)
         all_settled.extend(author_blocks)
         
-        # 5. Final Remainder
+        # 6. Final Remainder
         final_unprocessed_text = []
         for line in body_lines:
-            for it in line: final_unprocessed_text.append(it)
+            for it in line:
+                if it.get("type") != "separator":
+                    it["type"] = "unprocessed_text"
+                final_unprocessed_text.append(it)
         
         return all_settled + merged_image_blocks + final_unprocessed_text
 
-    def _create_settled_block(self, line: List[Dict[str, Any]], type_hint: str) -> Dict[str, Any]:
-        bbox = [min(it["bbox"][0] for it in line), min(it["bbox"][1] for it in line),
-                max(it["bbox"][2] for it in line), max(it["bbox"][3] for it in line)]
-        # Re-wrap spans for formatter
-        formatted_lines = [{"spans": [copy.deepcopy(it)], "bbox": it["bbox"]} for it in line]
-        
-        # Construct segments
-        from tool.READ.logic.pdf.formatter import get_span_style
-        segments = []
-        line_y = line[0]["origin"][1] if line else 0
-        for it in line:
-            style = get_span_style(it, self.median_size, line_y)
-            text = it["text"]
-            if not segments: segments.append([text, style])
-            else:
-                if segments[-1][1] == style: segments[-1][0] += text
-                else: segments.append([text, style])
-        
-        return {
-            "type": type_hint, "bbox": bbox, "lines": formatted_lines,
-            "segments": segments, "text": "".join([it["text"] for it in line]).strip()
-        }
-
     def _pool_to_lines(self, pool: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
         if not pool: return []
-        sorted_pool = sorted(pool, key=lambda x: (x['bbox'][1], x['bbox'][0]))
+        # Trust the input pool order (which is already reading order from predict_order)
+        # We only want to group adjacent tokens into horizontal lines where appropriate.
         lines = []
-        curr_line = [sorted_pool[0]]
-        for i in range(1, len(sorted_pool)):
-            prev, curr = curr_line[-1], sorted_pool[i]
-            overlap = min(prev['bbox'][3], curr['bbox'][3]) - max(prev['bbox'][1], curr['bbox'][1])
-            h = min(prev['bbox'][3] - prev['bbox'][1], curr['bbox'][3] - curr['bbox'][1])
-            if overlap > h * 0.6: curr_line.append(curr)
+        curr_line = []
+        for t in pool:
+            if t.get("type") == "separator":
+                if curr_line:
+                    lines.append(sorted(curr_line, key=lambda x: x['bbox'][0]))
+                    curr_line = []
+                lines.append([t])
+                continue
+
+            if not curr_line:
+                curr_line = [t]
+                continue
+
+            prev = curr_line[-1]
+            # Vertical overlap check
+            overlap = min(prev['bbox'][3], t['bbox'][3]) - max(prev['bbox'][1], t['bbox'][1])
+            h = min(prev['bbox'][3] - prev['bbox'][1], t['bbox'][3] - t['bbox'][1])
+            
+            # Horizontal distance check - if moving backwards or too far, it's a new line
+            dist_x = t['bbox'][0] - prev['bbox'][2]
+            
+            if overlap > h * 0.5 and dist_x > -self.page_width * 0.1 and dist_x < self.page_width * 0.3:
+                curr_line.append(t)
             else:
                 lines.append(sorted(curr_line, key=lambda x: x['bbox'][0]))
-                curr_line = [curr]
-        if curr_line: lines.append(sorted(curr_line, key=lambda x: x['bbox'][0]))
-        return sorted(lines, key=lambda l: min(t['bbox'][1] for t in l))
+                curr_line = [t]
+        
+        if curr_line:
+            lines.append(sorted(curr_line, key=lambda x: x['bbox'][0]))
+        
+        return lines

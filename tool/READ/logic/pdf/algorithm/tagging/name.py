@@ -12,6 +12,7 @@ class NameIdentifier:
 
     def tag_tokens(self, tokens: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for it in tokens:
+            # Type might not be set yet during initial tagging
             text = it.get("text", "").strip().strip(",").strip()
             if not text: continue
             
@@ -42,7 +43,10 @@ class NameIdentifier:
                     "view", "synthesis", "march", "camera", "rays", "through", "scene", "generate", "sampled",
                     "original", "version", "this", "paper", "was", "published", "proceedings", "european",
                     "conference", "computer", "vision", "january", "vol", "no", "communications", "acm",
-                    "drums", "input", "images", "render", "new", "views"
+                    "drums", "input", "images", "render", "new", "views",
+                    "we", "our", "here", "many", "in", "to", "rgb", "mlp", "by", "at", "it", "is", "of",
+                    "as", "be", "can", "an", "on", "are", "but", "if", "or", "which", "where", "when",
+                    "minimizing", "producing", "achieving", "representing", "synthesis", "synthesizing"
                 ]:
                     continue
                 
