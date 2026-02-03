@@ -620,16 +620,12 @@ def main():
     if result['status'] == 'success':
         selected_label = get_msg("label_filedialog_selected", "Selected")
         data = result['data']
-        import shlex
         if isinstance(data, list):
             print(f"{BOLD}{GREEN}{selected_label}{RESET} ({len(data)}):")
             for i, p in enumerate(data, 1):
-                # Quote if space exists
-                display_p = shlex.quote(p) if " " in p else p
-                print(f"  {i}. {display_p}")
+                print(f"  {i}. {p}")
         else:
-            display_data = shlex.quote(data) if " " in data else data
-            print(f"{BOLD}{GREEN}{selected_label}{RESET}: {display_data}")
+            print(f"{BOLD}{GREEN}{selected_label}{RESET}: {data}")
         return 0
     elif result['status'] in ['cancelled', 'terminated']:
         label = get_msg('label_terminated', 'Terminated')

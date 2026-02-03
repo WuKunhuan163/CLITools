@@ -294,7 +294,10 @@ class UserInputWindow(BaseGUIWindow):
         """Helper to determine if '@' was typed."""
         # Standard '@' char, or keysym 'at', or Shift+2 (common)
         is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
-        return (event.char == "@" or event.keysym == "at" or is_shift_2)
+        triggered = (event.char == "@" or event.keysym == "at" or is_shift_2)
+        if triggered:
+            print(f"DEBUG: @ detected! char='{event.char}', keysym='{event.keysym}', state={event.state}")
+        return triggered
 
     def on_key_press(self, event):
         if self.check_at_trigger(event):
@@ -309,24 +312,33 @@ class UserInputWindow(BaseGUIWindow):
         # Avoid duplicate triggers (debounce)
         now = time.time()
         last_time = getattr(self, "_last_trigger_time", 0)
-        if now - last_time < 0.5: # 500ms debounce
+        print(f"DEBUG: run_file_dialog_trigger called at {now:.4f}. Last call: {last_time:.4f} (diff: {now-last_time:.4f})")
+        
+        if now - last_time < 0.8: # Increased debounce to 800ms
+            print("DEBUG: Ignored call due to debounce.")
             return
         self._last_trigger_time = now
         
         if getattr(self, "is_triggering_subtool", False):
+            print("DEBUG: Ignored call because subtool is already running.")
             return
             
         try:
             self.is_triggering_subtool = True
+            print("DEBUG: Starting FILEDIALOG trigger...")
+            
             # Use FILEDIALOG interface
             try:
                 from tool.FILEDIALOG.logic.interface.main import get_file_dialog_bin
                 fd_bin = get_file_dialog_bin()
-            except (ImportError, ModuleNotFoundError):
+            except (ImportError, ModuleNotFoundError) as e:
+                print(f"DEBUG: Could not find FILEDIALOG interface: {e}")
                 return
             
             cmd = [sys.executable, fd_bin, "--multiple", "--title", self._("select_entities", "Select Entities")]
+            print(f"DEBUG: Executing command: {' '.join(cmd)}")
             res = subprocess.run(cmd, capture_output=True, text=True)
+            print(f"DEBUG: FILEDIALOG exit code: {res.returncode}")
             
             if res.returncode == 0:
                 # Output parsing
@@ -339,21 +351,39 @@ class UserInputWindow(BaseGUIWindow):
                         match = re.match(r"^\s*\d+\.\s*(.*)$", line)
                         if match: paths.append(match.group(1).strip())
                 
+                print(f"DEBUG: Detected paths: {paths}")
+                
                 if paths:
                     import shlex
                     # Find and replace the typed '@'
                     cursor_pos = self.text_widget.index(tk.INSERT)
                     # Look back 1 char
                     prev_char = self.text_widget.get(f"{cursor_pos}-1c", cursor_pos)
+                    print(f"DEBUG: Cursor at {cursor_pos}, char before: '{prev_char}'")
                     if prev_char == "@":
                         self.text_widget.delete(f"{cursor_pos}-1c", cursor_pos)
                     
-                    formatted = ", ".join([f"@{shlex.quote(p) if ' ' in p else p}" for p in paths])
+                    # Selective quoting - BE CAREFUL not to double quote
+                    # If FILEDIALOG already quotes (I just added that!), we shouldn't quote again.
+                    formatted_items = []
+                    for p in paths:
+                        # If p already starts and ends with quotes, don't quote
+                        if (p.startswith("'") and p.endswith("'")) or (p.startswith('"') and p.endswith('"')):
+                            formatted_items.append(f"@{p}")
+                        elif " " in p:
+                            formatted_items.append(f"@{shlex.quote(p)}")
+                        else:
+                            formatted_items.append(f"@{p}")
+                    
+                    formatted = ", ".join(formatted_items)
+                    print(f"DEBUG: Inserting formatted text: {formatted}")
                     self.text_widget.insert(tk.INSERT, formatted)
         except Exception as e:
-            print(f"Error triggering FILEDIALOG: {e}", file=sys.stderr)
+            print(f"DEBUG: Error triggering FILEDIALOG: {e}")
+            traceback.print_exc()
         finally:
             self.is_triggering_subtool = False
+            print("DEBUG: Trigger complete.")
 
 if __name__ == "__main__":
     try:
