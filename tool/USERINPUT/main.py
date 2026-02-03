@@ -55,7 +55,7 @@ except ImportError:
             self.script_dir = Path(__file__).resolve().parent
         def check_dependencies(self): return True
         def setup_gui(self): pass
-        def handle_command_line(self):
+        def handle_command_line(self, parser):
             if len(sys.argv) > 1 and sys.argv[1] == "setup":
                 setup_script = self.script_dir / "setup.py"
                 if setup_script.exists():
@@ -278,8 +278,10 @@ class UserInputWindow(BaseGUIWindow):
         
         self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        # ONLY use <Key> to avoid double trigger from Release
-        self.text_widget.bind("<Key>", self.on_key_press)
+        
+        # Use specific binding for '@' char and generic fallback
+        self.text_widget.bind("<Key-at>", self.on_at_symbol)
+        self.text_widget.bind("<Key>", self.on_any_key)
         scrollbar.config(command=self.text_widget.yview)
         
         if self.hint_text: 
@@ -290,29 +292,27 @@ class UserInputWindow(BaseGUIWindow):
         self.start_periodic_focus(self.focus_interval)
         self.play_bell()
 
-    def check_at_trigger(self, event):
-        """Helper to determine if '@' was typed."""
-        # Standard '@' char, or keysym 'at', or Shift+2 (common)
-        is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
-        return (event.char == "@" or event.keysym == "at" or is_shift_2)
+    def on_at_symbol(self, event):
+        self.root.after(10, self.run_file_dialog_trigger)
 
-    def on_key_press(self, event):
-        if self.check_at_trigger(event):
-            # Defer slightly to allow character to be inserted
+    def on_any_key(self, event):
+        # Fallback for systems where Key-at doesn't fire (Shift+2)
+        is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
+        if event.char == "@" or event.keysym == "at" or is_shift_2:
             self.root.after(10, self.run_file_dialog_trigger)
 
     def run_file_dialog_trigger(self):
-        # Persistent debounce (1 second)
+        # Debounce (1 second)
         now = time.time()
         if now - self._last_trigger_time < 1.0:
             return
-        self._last_trigger_time = now
         
         if self.is_triggering_subtool:
             return
             
         try:
             self.is_triggering_subtool = True
+            self._last_trigger_time = now # Update time IMMEDIATELY
             
             # Use FILEDIALOG interface
             try:
@@ -320,8 +320,12 @@ class UserInputWindow(BaseGUIWindow):
                 fd_bin = get_file_dialog_bin()
             except: return
             
+            # Setup environment for subprocess
+            env = os.environ.copy()
+            env["PYTHONPATH"] = f"{PROJECT_ROOT}:{env.get('PYTHONPATH', '')}"
+            
             cmd = [sys.executable, fd_bin, "--multiple", "--title", self._("select_entities", "Select Entities")]
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True, env=env)
             
             if res.returncode == 0:
                 output = res.stdout.strip()
@@ -338,7 +342,7 @@ class UserInputWindow(BaseGUIWindow):
                 
                 if paths:
                     cursor_pos = self.text_widget.index(tk.INSERT)
-                    # Try to find and replace the '@'
+                    # Try to find and replace the typed '@'
                     prev_char = self.text_widget.get(f"{cursor_pos}-1c", cursor_pos)
                     if prev_char == "@":
                         self.text_widget.delete(f"{cursor_pos}-1c", cursor_pos)
@@ -432,7 +436,7 @@ def main():
     parser.add_argument('--hint', type=str)
     
     tool = UserInputTool()
-    if tool.handle_command_line(): return 0
+    if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
     if args.hint:
         try:
