@@ -306,7 +306,13 @@ class UserInputWindow(BaseGUIWindow):
             self.root.after(10, self.run_file_dialog_trigger)
 
     def run_file_dialog_trigger(self):
-        # Avoid duplicate triggers if both events fire
+        # Avoid duplicate triggers (debounce)
+        now = time.time()
+        last_time = getattr(self, "_last_trigger_time", 0)
+        if now - last_time < 0.5: # 500ms debounce
+            return
+        self._last_trigger_time = now
+        
         if getattr(self, "is_triggering_subtool", False):
             return
             
