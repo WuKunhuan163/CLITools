@@ -75,8 +75,7 @@ def get_span_style(span: Dict[str, Any], median_size: float, line_y: float) -> D
         "italic": is_italic,
         "super": is_super,
         "sub": is_sub,
-        "color": hex_color,
-        "size": round(size, 2)
+        "color": hex_color
     }
 
 def apply_inner_style(text: str, style: Dict[str, Any]) -> str:

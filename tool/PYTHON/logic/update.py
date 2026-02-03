@@ -504,10 +504,10 @@ def main():
         if args.simple:
             print(", ".join(sorted_versions))
         else:
-        for v in sorted_versions:
-            # Version name in bold
-            tag_list = sorted(list(matrix[v].keys()))
-            print(f"{BOLD}{v}{RESET}:{','.join(tag_list)}")
+            for v in sorted_versions:
+                # Version name in bold
+                tag_list = sorted(list(matrix[v].keys()))
+                print(f"{BOLD}{v}{RESET}:{','.join(tag_list)}")
 
         # Save audit cache
         audit_releases_dir = AUDIT_DIR / "releases"

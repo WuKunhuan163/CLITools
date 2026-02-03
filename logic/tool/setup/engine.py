@@ -88,13 +88,12 @@ class ToolEngine:
 
         # 1. Validation
         tm.add_stage(TuringStage(
-            name=self.tool_name,
+            name=self._("label_the_existence_of_tool", "the existence of tool '{name}' in global registry", name=self.tool_name),
             action=self.validate_registry,
-            active_status=self._("label_validating_existence", "Validating the existence of tool '{name}' in global registry...", name=self.tool_name),
-            success_status=self._("label_validated_existence", "Validated existence:"),
+            active_status=self._("label_validating", "Validating"),
+            success_status=self._("label_validated_existence", "Validated existence") + ":",
             success_name=self._("label_tool_exists_in_registry", "Tool '{name}' exists in the global registry.", name=self.tool_name),
-            success_color="WHITE",
-            is_sticky=False # Ensure it is erased if ephemeral=True
+            success_color="BOLD"
         ))
         
         # 2. Fetching Source
@@ -119,7 +118,7 @@ class ToolEngine:
                     deps = data.get("dependencies", [])
                     for dep in deps:
                         sub_engine = ToolEngine(dep, self.project_root)
-                        # Pass visited to sub-install to handle circular dependencies
+                        # Call install with is_dependency=True to keep it quiet-ish
                         if not sub_engine.install(is_dependency=True, visited=visited):
                             return False
                 return True
@@ -198,6 +197,7 @@ class ToolEngine:
 
     def validate_registry(self):
         if not self.registry_path.exists():
+            print(self._("registry_error", "Global tool.json not found."))
             return False
         with open(self.registry_path, 'r') as f:
             registry = json.load(f)
@@ -205,8 +205,10 @@ class ToolEngine:
             tools = registry.get("tools", {})
             if isinstance(tools, list):
                 if self.tool_name not in tools:
+                    print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
                     return False
             elif self.tool_name not in tools:
+                print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
                 return False
         
         return True
@@ -291,14 +293,7 @@ class ToolEngine:
             
             cmd = [python_exec, "-m", "pip", "install", package]
             if subprocess.run(cmd, capture_output=True).returncode != 0:
-                # Clear the line before returning failure
-                sys.stdout.write("\r\033[K")
-                sys.stdout.flush()
                 return False
-        
-        # Clear the last pip dependency message
-        sys.stdout.write("\r\033[K")
-        sys.stdout.flush()
         return True
 
     def create_shortcut(self):

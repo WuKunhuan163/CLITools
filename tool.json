@@ -12,7 +12,6 @@
     "READ",
     "DRAW",
     "GIT", 
-    "DUMMY",
-    "VPN"
+    "DUMMY"
   ]
 }
