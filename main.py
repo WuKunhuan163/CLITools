@@ -720,20 +720,23 @@ import argparse
 from pathlib import Path
 
 # Add project root to sys.path
-script_dir = Path(__file__).resolve().parent
-project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
+script_path = Path(__file__).resolve()
+project_root = script_path.parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from logic.tool.base import ToolBase
 from logic.config import get_color
 
 def main():
     tool = ToolBase("{tool_name}")
-    if tool.handle_command_line(): return
     
-    parser = argparse.ArgumentParser(description="Tool {tool_name}")
+    parser = argparse.ArgumentParser(description="Tool {tool_name}", add_help=False)
     parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
-    args, unknown = parser.parse_known_args()
+    
+    if tool.handle_command_line(parser): return
+    
+    args = parser.parse_args()
     
     if args.demo:
         BOLD = get_color("BOLD")

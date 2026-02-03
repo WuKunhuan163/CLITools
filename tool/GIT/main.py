@@ -14,7 +14,6 @@ from tool.GIT.logic.engine import GitEngine
 
 def main():
     tool = ToolBase("GIT")
-    if tool.handle_command_line(): return
     
     parser = argparse.ArgumentParser(description="GIT Tool: A wrapper for Git operations and GitHub API.", add_help=False)
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
@@ -27,37 +26,21 @@ def main():
     fetch_api_parser = subparsers.add_parser("fetch-api", help="Fetch data from GitHub API", add_help=False)
     fetch_api_parser.add_argument("url", help="GitHub API URL")
 
-    # Only parse if the first argument is one of our commands
-    if len(sys.argv) > 1 and sys.argv[1] in ["list-tags", "fetch-api", "setup", "rule"]:
-        try:
-            # Re-enable help for our specific commands if needed, 
-            # but actually ToolBase handles setup and rule.
-            args, unknown = parser.parse_known_args()
-        except:
-            args = None
-    else:
-        args = None
+    if tool.handle_command_line(parser): return
+    
+    # If we are here, it means handle_command_line(parser) returned False,
+    # which means it's one of our defined commands (list-tags or fetch-api).
+    args = parser.parse_args()
+    engine = GitEngine()
 
-    if args and args.command == "list-tags":
-        engine = GitEngine()
+    if args.command == "list-tags":
         tags = engine.list_remote_tags(args.remote)
         for tag in tags:
             print(tag)
-    elif args and args.command == "fetch-api":
-        engine = GitEngine()
+    elif args.command == "fetch-api":
         result = engine.fetch_github_api(args.url)
         import json
         print(json.dumps(result, indent=2))
-    else:
-        # Pass unknown command to system git
-        import subprocess
-        cmd = ["/usr/bin/git"] + sys.argv[1:]
-        try:
-            res = subprocess.run(cmd)
-            sys.exit(res.returncode)
-        except Exception as e:
-            print(f"Error executing system git: {e}")
-            sys.exit(1)
 
 if __name__ == "__main__":
     main()

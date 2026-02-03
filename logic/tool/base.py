@@ -77,20 +77,72 @@ class ToolBase:
         cmd = [str(bin_path)] + args
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
-    def handle_command_line(self):
+    def handle_command_line(self, parser=None):
         """
         Process command line arguments. 
         If 'setup' is the first argument, run the tool's setup.py.
+        If a parser is provided, attempts to parse known args. 
+        If parsing fails or command is unknown, delegates to system fallback.
         Returns True if a command was handled and the tool should exit.
         """
         if len(sys.argv) > 1:
-            if sys.argv[1] == "setup":
+            cmd = sys.argv[1]
+            if cmd == "setup":
                 self.run_setup()
                 return True
-            elif sys.argv[1] == "rule":
+            elif cmd == "rule":
                 self.print_rule()
                 return True
+            
+            # If parser provided, check if it's one of our defined commands
+            if parser:
+                # Store original stderr to restore later
+                import io
+                original_stderr = sys.stderr
+                sys.stderr = io.StringIO()
+                
+                try:
+                    # We use parse_known_args to avoid exiting on unknown commands
+                    # and to allow delegating them to the system.
+                    args, unknown = parser.parse_known_args()
+                    if args.command:
+                        # Command is recognized by our parser
+                        return False
+                except:
+                    pass
+                finally:
+                    # Restore stderr
+                    sys.stderr = original_stderr
+                
+                # If we reach here, it's either an unknown command or parsing failed.
+                # Delegate to system fallback.
+                self.run_system_fallback()
+                return True
         return False
+
+    def run_system_fallback(self):
+        """Delegate unknown commands to the system equivalent (e.g. GIT -> /usr/bin/git)."""
+        import subprocess
+        
+        # Mapping for specific tools that act as wrappers
+        mapping = {
+            "GIT": "/usr/bin/git",
+            "PYTHON": sys.executable # or custom path
+        }
+        
+        system_cmd = mapping.get(self.tool_name)
+        if not system_cmd:
+            # For tools without a mapping, just print help or warning
+            print(f"Unknown command for {self.tool_name}. No system fallback defined.")
+            return
+
+        cmd = [system_cmd] + sys.argv[1:]
+        try:
+            res = subprocess.run(cmd)
+            sys.exit(res.returncode)
+        except Exception as e:
+            print(f"Error executing system fallback for {self.tool_name}: {e}")
+            sys.exit(1)
 
     def print_rule(self):
         """Print tool-specific rules from tool.json."""
