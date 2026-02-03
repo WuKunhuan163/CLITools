@@ -1,61 +1,46 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-import os
 from pathlib import Path
 
 # Add project root to sys.path
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
+sys.path.append(str(project_root))
 
-from tool.VPN.logic.engine import VpnEngine
+from logic.tool.base import ToolBase
+from logic.config import get_color
 
 def main():
-    parser = argparse.ArgumentParser(description="VPN Tool: Manages local proxies and VPN connections.")
-    subparsers = parser.add_subparsers(dest="command", help="Sub-commands")
+    tool = ToolBase("VPN")
+    if tool.handle_command_line(): return
+    
+    parser = argparse.ArgumentParser(description="Tool VPN")
+    parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
+    args, unknown = parser.parse_known_args()
+    
+    if args.demo:
+        BOLD = get_color("BOLD")
+        GREEN = get_color("GREEN")
+        BLUE = get_color("BLUE")
+        RESET = get_color("RESET")
+        
+        import time
+        from logic.turing.display.manager import _get_configured_width, truncate_to_width
+        width = _get_configured_width()
+        
+        for i in range(3, 0, -1):
+            msg = f"\r\033[K{BOLD}{BLUE}Progressing{RESET}... {i}s"
+            sys.stdout.write(truncate_to_width(msg, width))
+            sys.stdout.flush()
+            time.sleep(1)
+            
+        msg = f"\r\033[K{BOLD}{GREEN}Successfully{RESET} finished!\n"
+        sys.stdout.write(truncate_to_width(msg, width))
+        sys.stdout.flush()
+        return
 
-    # start
-    start_parser = subparsers.add_parser("start", help="Start the local proxy")
-    start_parser.add_argument("--port", type=int, help="Proxy port")
-    start_parser.add_argument("--forward", help="Forward chain URL (e.g. socks5://user:pass@host:port)")
-
-    # stop
-    subparsers.add_parser("stop", help="Stop the local proxy")
-
-    # status
-    subparsers.add_parser("status", help="Check proxy status")
-
-    args = parser.parse_args()
-
-    engine = VpnEngine()
-
-    if args.command == "start":
-        if engine.start_proxy(port=args.port, forward=args.forward):
-            print("Proxy started successfully.")
-            urls = engine.get_proxy_urls()
-            print(f"HTTP Proxy: {urls.get('http')}")
-            print(f"HTTPS Proxy: {urls.get('https')}")
-        else:
-            print("Failed to start proxy.")
-            sys.exit(1)
-    elif args.command == "stop":
-        if engine.stop_proxy():
-            print("Proxy stopped.")
-        else:
-            print("Failed to stop proxy.")
-            sys.exit(1)
-    elif args.command == "status":
-        if engine.is_running():
-            print("Proxy is running.")
-            urls = engine.get_proxy_urls()
-            print(f"HTTP Proxy: {urls.get('http')}")
-            print(f"HTTPS Proxy: {urls.get('https')}")
-        else:
-            print("Proxy is not running.")
-    else:
-        parser.print_help()
+    print("Hello World!")
 
 if __name__ == "__main__":
     main()

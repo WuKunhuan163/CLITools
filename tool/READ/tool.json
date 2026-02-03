@@ -4,8 +4,7 @@
   "description": "Read and extract content from PDF, Word, and images.",
   "purpose": "A layout-aware document extraction tool.",
   "dependencies": [
-    "DRAW",
-    "VPN"
+    "DRAW"
   ],
   "pip_dependencies": [
     "pymupdf",

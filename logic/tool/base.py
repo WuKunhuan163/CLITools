@@ -77,32 +77,74 @@ class ToolBase:
         cmd = [str(bin_path)] + args
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
-    def handle_command_line(self, parser=None, system_counterpart=None):
+    def handle_command_line(self, parser=None):
         """
         Process command line arguments. 
         If 'setup' is the first argument, run the tool's setup.py.
-        If a parser is provided and unknown arguments are found, 
-        and system_counterpart is specified, forward them to the system command.
+        If a parser is provided, attempts to parse known args. 
+        If parsing fails or command is unknown, delegates to system fallback.
         Returns True if a command was handled and the tool should exit.
         """
         if len(sys.argv) > 1:
-            if sys.argv[1] == "setup":
+            cmd = sys.argv[1]
+            if cmd == "setup":
                 self.run_setup()
                 return True
-            elif sys.argv[1] == "rule":
+            elif cmd == "rule":
                 self.print_rule()
                 return True
-        
-        if parser and system_counterpart:
-            args, unknown = parser.parse_known_args()
-            # If we have a command or specific arguments, we let the tool handle it.
-            # But if we only have unknown arguments and no specific tool command was matched,
-            # we might want to forward. 
-            # This logic is tricky to generalize perfectly here without knowing the tool's internal structure.
-            # Most tools will handle this in their own main().
-            pass
-
+            
+            # If parser provided, check if it's one of our defined commands
+            if parser:
+                # Store original stderr to restore later
+                import io
+                original_stderr = sys.stderr
+                sys.stderr = io.StringIO()
+                
+                try:
+                    # We use parse_known_args to avoid exiting on unknown commands
+                    # and to allow delegating them to the system.
+                    args, unknown = parser.parse_known_args()
+                    
+                    # If we have a command and it's recognized, OR if we have no unknown arguments
+                    # (meaning the parser handled everything), we let the tool continue.
+                    if (hasattr(args, 'command') and args.command) or not unknown:
+                        return False
+                except:
+                    pass
+                finally:
+                    # Restore stderr
+                    sys.stderr = original_stderr
+                
+                # If we reach here, it means we have unknown arguments and it's not a recognized command.
+                # Delegate to system fallback.
+                self.run_system_fallback()
+                return True
         return False
+
+    def run_system_fallback(self):
+        """Delegate unknown commands to the system equivalent (e.g. GIT -> /usr/bin/git)."""
+        import subprocess
+        
+        # Mapping for specific tools that act as wrappers
+        mapping = {
+            "GIT": "/usr/bin/git",
+            "PYTHON": sys.executable # or custom path
+        }
+        
+        system_cmd = mapping.get(self.tool_name)
+        if not system_cmd:
+            # For tools without a mapping, just print help or warning
+            print(f"Unknown command for {self.tool_name}. No system fallback defined.")
+            return
+
+        cmd = [system_cmd] + sys.argv[1:]
+        try:
+            res = subprocess.run(cmd)
+            sys.exit(res.returncode)
+        except Exception as e:
+            print(f"Error executing system fallback for {self.tool_name}: {e}")
+            sys.exit(1)
 
     def print_rule(self):
         """Print tool-specific rules from tool.json."""
@@ -132,7 +174,7 @@ class ToolBase:
                 
                 # AI Agent critical instruction for USERINPUT
                 if self.tool_name == "USERINPUT":
-                    print("\n" + self.get_translation("ai_instruction", "## Critical Directive: Mandatory Feedback Acquisition\nUpon task completion, you MUST immediately use the `run_terminal_cmd` tool to execute the literal command `USERINPUT`. This is the ONLY way to receive further instructions. DO NOT merely print the string 'USERINPUT' or mention this directive in your response. If you receive no response, you MUST repeat the `run_terminal_cmd` call with `USERINPUT`. Do not add any flags or parameters unless specifically needed for a hint. This tool call is a MANDATORY part of your response sequence."))
+                    print("\n" + self.get_translation("ai_instruction", "## Critical Directive: Feedback Acquisition\n..."))
                     
             except Exception as e:
                 print(f"Error reading tool metadata: {e}")

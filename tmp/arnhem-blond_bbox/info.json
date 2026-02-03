@@ -1,0 +1,1753 @@
+[
+  {
+    "char": "!",
+    "glyph_bbox": [
+      98.64,
+      139.61,
+      116.8,
+      207.61
+    ],
+    "actual_bbox": [
+      104,
+      147,
+      111,
+      190
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "\"",
+    "glyph_bbox": [
+      196.36,
+      139.61,
+      223.15,
+      207.61
+    ],
+    "actual_bbox": [
+      200,
+      147,
+      218,
+      159
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "#",
+    "glyph_bbox": [
+      286.48,
+      139.61,
+      337.14,
+      207.61
+    ],
+    "actual_bbox": [
+      290,
+      148,
+      332,
+      197
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "$",
+    "glyph_bbox": [
+      395.9,
+      139.61,
+      431.8,
+      207.61
+    ],
+    "actual_bbox": [
+      400,
+      142,
+      427,
+      195
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "%",
+    "glyph_bbox": [
+      491.4,
+      139.61,
+      540.43,
+      207.61
+    ],
+    "actual_bbox": [
+      492,
+      147,
+      538,
+      190
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "&",
+    "glyph_bbox": [
+      598.1,
+      139.61,
+      637.81,
+      207.61
+    ],
+    "actual_bbox": [
+      599,
+      146,
+      636,
+      190
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "'",
+    "glyph_bbox": [
+      712.14,
+      139.61,
+      727.85,
+      207.61
+    ],
+    "actual_bbox": [
+      716,
+      147,
+      723,
+      159
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "(",
+    "glyph_bbox": [
+      811.5,
+      139.61,
+      832.58,
+      207.61
+    ],
+    "actual_bbox": [
+      815,
+      143,
+      830,
+      200
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": ")",
+    "glyph_bbox": [
+      913.56,
+      139.61,
+      934.64,
+      207.61
+    ],
+    "actual_bbox": [
+      916,
+      143,
+      931,
+      200
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "*",
+    "glyph_bbox": [
+      1010.2,
+      139.61,
+      1042.09,
+      207.61
+    ],
+    "actual_bbox": [
+      1013,
+      145,
+      1038,
+      170
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "+",
+    "glyph_bbox": [
+      89.76,
+      252.99,
+      125.66,
+      320.99
+    ],
+    "actual_bbox": [
+      92,
+      270,
+      123,
+      305
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": ",",
+    "glyph_bbox": [
+      200.76,
+      252.99,
+      218.78,
+      320.99
+    ],
+    "actual_bbox": [
+      205,
+      295,
+      214,
+      316
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "-",
+    "glyph_bbox": [
+      302.16,
+      252.99,
+      321.47,
+      320.99
+    ],
+    "actual_bbox": [
+      304,
+      282,
+      319,
+      286
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": ".",
+    "glyph_bbox": [
+      404.84,
+      252.99,
+      422.86,
+      320.99
+    ],
+    "actual_bbox": [
+      410,
+      295,
+      418,
+      304
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "/",
+    "glyph_bbox": [
+      505.44,
+      252.99,
+      526.38,
+      320.99
+    ],
+    "actual_bbox": [
+      506,
+      257,
+      524,
+      308
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "0",
+    "glyph_bbox": [
+      600.0,
+      252.99,
+      635.9,
+      320.99
+    ],
+    "actual_bbox": [
+      603,
+      261,
+      632,
+      304
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "1",
+    "glyph_bbox": [
+      702.04,
+      252.99,
+      737.94,
+      320.99
+    ],
+    "actual_bbox": [
+      707,
+      261,
+      732,
+      303
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "2",
+    "glyph_bbox": [
+      804.1,
+      252.99,
+      840.0,
+      320.99
+    ],
+    "actual_bbox": [
+      807,
+      261,
+      836,
+      303
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "3",
+    "glyph_bbox": [
+      906.14,
+      252.99,
+      942.04,
+      320.99
+    ],
+    "actual_bbox": [
+      910,
+      261,
+      937,
+      304
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "4",
+    "glyph_bbox": [
+      1008.18,
+      252.99,
+      1044.08,
+      320.99
+    ],
+    "actual_bbox": [
+      1010,
+      261,
+      1039,
+      303
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "5",
+    "glyph_bbox": [
+      89.76,
+      366.39,
+      125.66,
+      434.39
+    ],
+    "actual_bbox": [
+      94,
+      375,
+      121,
+      417
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "6",
+    "glyph_bbox": [
+      191.82,
+      366.39,
+      227.72,
+      434.39
+    ],
+    "actual_bbox": [
+      196,
+      374,
+      224,
+      417
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "7",
+    "glyph_bbox": [
+      293.86,
+      366.39,
+      329.76,
+      434.39
+    ],
+    "actual_bbox": [
+      298,
+      375,
+      326,
+      416
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "8",
+    "glyph_bbox": [
+      395.9,
+      366.39,
+      431.8,
+      434.39
+    ],
+    "actual_bbox": [
+      400,
+      374,
+      427,
+      417
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "9",
+    "glyph_bbox": [
+      497.96,
+      366.39,
+      533.86,
+      434.39
+    ],
+    "actual_bbox": [
+      501,
+      374,
+      530,
+      417
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": ":",
+    "glyph_bbox": [
+      608.94,
+      366.39,
+      626.96,
+      434.39
+    ],
+    "actual_bbox": [
+      613,
+      388,
+      622,
+      417
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": ";",
+    "glyph_bbox": [
+      711.0,
+      366.39,
+      729.02,
+      434.39
+    ],
+    "actual_bbox": [
+      715,
+      388,
+      724,
+      429
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "<",
+    "glyph_bbox": [
+      804.1,
+      366.39,
+      840.0,
+      434.39
+    ],
+    "actual_bbox": [
+      805,
+      386,
+      836,
+      414
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "=",
+    "glyph_bbox": [
+      906.14,
+      366.39,
+      942.04,
+      434.39
+    ],
+    "actual_bbox": [
+      908,
+      392,
+      939,
+      408
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": ">",
+    "glyph_bbox": [
+      1008.18,
+      366.39,
+      1044.08,
+      434.39
+    ],
+    "actual_bbox": [
+      1010,
+      386,
+      1041,
+      414
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "?",
+    "glyph_bbox": [
+      92.08,
+      479.77,
+      123.36,
+      547.77
+    ],
+    "actual_bbox": [
+      96,
+      487,
+      118,
+      531
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      123.36,
+      479.77,
+      177.74,
+      547.77
+    ],
+    "actual_bbox": [
+      118,
+      493,
+      181,
+      520
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "@",
+    "glyph_bbox": [
+      177.74,
+      479.77,
+      241.8,
+      547.77
+    ],
+    "actual_bbox": [
+      181,
+      487,
+      238,
+      543
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      241.8,
+      479.77,
+      291.28,
+      547.77
+    ],
+    "actual_bbox": [
+      236,
+      503,
+      295,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "A",
+    "glyph_bbox": [
+      291.28,
+      479.77,
+      332.35,
+      547.77
+    ],
+    "actual_bbox": [
+      290,
+      487,
+      331,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "B",
+    "glyph_bbox": [
+      392.58,
+      479.77,
+      435.15,
+      547.77
+    ],
+    "actual_bbox": [
+      395,
+      489,
+      431,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "C",
+    "glyph_bbox": [
+      493.26,
+      479.77,
+      538.55,
+      547.77
+    ],
+    "actual_bbox": [
+      495,
+      487,
+      533,
+      531
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "D",
+    "glyph_bbox": [
+      593.64,
+      479.77,
+      642.26,
+      547.77
+    ],
+    "actual_bbox": [
+      596,
+      489,
+      639,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "E",
+    "glyph_bbox": [
+      699.4,
+      479.77,
+      740.61,
+      547.77
+    ],
+    "actual_bbox": [
+      701,
+      488,
+      736,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "F",
+    "glyph_bbox": [
+      803.08,
+      479.77,
+      841.02,
+      547.77
+    ],
+    "actual_bbox": [
+      805,
+      488,
+      838,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "G",
+    "glyph_bbox": [
+      900.44,
+      479.77,
+      947.77,
+      547.77
+    ],
+    "actual_bbox": [
+      902,
+      487,
+      944,
+      531
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      947.77,
+      479.77,
+      999.52,
+      547.77
+    ],
+    "actual_bbox": [
+      942,
+      489,
+      1003,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "H",
+    "glyph_bbox": [
+      999.52,
+      479.77,
+      1052.76,
+      547.77
+    ],
+    "actual_bbox": [
+      1002,
+      489,
+      1050,
+      530
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "I",
+    "glyph_bbox": [
+      95.62,
+      593.15,
+      119.83,
+      661.15
+    ],
+    "actual_bbox": [
+      98,
+      602,
+      117,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "J",
+    "glyph_bbox": [
+      197.66,
+      593.15,
+      221.87,
+      661.15
+    ],
+    "actual_bbox": [
+      194,
+      602,
+      219,
+      657
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "K",
+    "glyph_bbox": [
+      289.26,
+      593.15,
+      334.34,
+      661.15
+    ],
+    "actual_bbox": [
+      291,
+      602,
+      333,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "L",
+    "glyph_bbox": [
+      394.52,
+      593.15,
+      433.21,
+      661.15
+    ],
+    "actual_bbox": [
+      397,
+      602,
+      432,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      433.21,
+      593.15,
+      485.48,
+      661.15
+    ],
+    "actual_bbox": [
+      428,
+      601,
+      489,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "M",
+    "glyph_bbox": [
+      485.48,
+      593.15,
+      546.34,
+      661.15
+    ],
+    "actual_bbox": [
+      487,
+      601,
+      543,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      546.34,
+      593.15,
+      593.3,
+      661.15
+    ],
+    "actual_bbox": [
+      541,
+      602,
+      597,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "N",
+    "glyph_bbox": [
+      593.3,
+      593.15,
+      642.6,
+      661.15
+    ],
+    "actual_bbox": [
+      595,
+      602,
+      640,
+      644
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      642.6,
+      593.15,
+      695.46,
+      661.15
+    ],
+    "actual_bbox": [
+      637,
+      602,
+      699,
+      631
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "O",
+    "glyph_bbox": [
+      695.46,
+      593.15,
+      744.56,
+      661.15
+    ],
+    "actual_bbox": [
+      697,
+      600,
+      741,
+      644
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "P",
+    "glyph_bbox": [
+      802.3,
+      593.15,
+      841.81,
+      661.15
+    ],
+    "actual_bbox": [
+      804,
+      602,
+      840,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "Q",
+    "glyph_bbox": [
+      899.54,
+      593.15,
+      948.64,
+      661.15
+    ],
+    "actual_bbox": [
+      902,
+      600,
+      946,
+      657
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "R",
+    "glyph_bbox": [
+      1004.08,
+      593.15,
+      1048.21,
+      661.15
+    ],
+    "actual_bbox": [
+      1006,
+      602,
+      1048,
+      643
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "S",
+    "glyph_bbox": [
+      90.08,
+      706.53,
+      125.37,
+      774.53
+    ],
+    "actual_bbox": [
+      93,
+      713,
+      121,
+      757
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "T",
+    "glyph_bbox": [
+      189.2,
+      706.53,
+      230.34,
+      774.53
+    ],
+    "actual_bbox": [
+      189,
+      714,
+      229,
+      756
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "U",
+    "glyph_bbox": [
+      287.94,
+      706.53,
+      335.68,
+      774.53
+    ],
+    "actual_bbox": [
+      290,
+      715,
+      333,
+      757
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "V",
+    "glyph_bbox": [
+      393.06,
+      706.53,
+      434.68,
+      774.53
+    ],
+    "actual_bbox": [
+      392,
+      715,
+      435,
+      757
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      434.68,
+      706.53,
+      483.92,
+      774.53
+    ],
+    "actual_bbox": [
+      429,
+      715,
+      487,
+      723
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "W",
+    "glyph_bbox": [
+      483.92,
+      706.53,
+      547.91,
+      774.53
+    ],
+    "actual_bbox": [
+      483,
+      715,
+      548,
+      757
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      547.91,
+      706.53,
+      596.84,
+      774.53
+    ],
+    "actual_bbox": [
+      542,
+      715,
+      600,
+      756
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "X",
+    "glyph_bbox": [
+      596.84,
+      706.53,
+      639.07,
+      774.53
+    ],
+    "actual_bbox": [
+      597,
+      715,
+      639,
+      756
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "Y",
+    "glyph_bbox": [
+      699.46,
+      706.53,
+      740.53,
+      774.53
+    ],
+    "actual_bbox": [
+      699,
+      715,
+      739,
+      756
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "Z",
+    "glyph_bbox": [
+      802.9,
+      706.53,
+      841.18,
+      774.53
+    ],
+    "actual_bbox": [
+      805,
+      714,
+      840,
+      756
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "[",
+    "glyph_bbox": [
+      913.18,
+      706.53,
+      935.01,
+      774.53
+    ],
+    "actual_bbox": [
+      917,
+      710,
+      932,
+      768
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "\\",
+    "glyph_bbox": [
+      1015.66,
+      706.53,
+      1036.6,
+      774.53
+    ],
+    "actual_bbox": [
+      1017,
+      710,
+      1035,
+      761
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "]",
+    "glyph_bbox": [
+      96.84,
+      819.93,
+      118.6,
+      887.93
+    ],
+    "actual_bbox": [
+      99,
+      824,
+      114,
+      882
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "^",
+    "glyph_bbox": [
+      193.18,
+      819.93,
+      226.36,
+      887.93
+    ],
+    "actual_bbox": [
+      198,
+      822,
+      220,
+      836
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "_",
+    "glyph_bbox": [
+      294.82,
+      819.93,
+      328.82,
+      887.93
+    ],
+    "actual_bbox": [
+      295,
+      876,
+      328,
+      879
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "`",
+    "glyph_bbox": [
+      395.2,
+      819.93,
+      432.53,
+      887.93
+    ],
+    "actual_bbox": [
+      404,
+      821,
+      413,
+      833
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "a",
+    "glyph_bbox": [
+      498.84,
+      819.93,
+      532.98,
+      887.93
+    ],
+    "actual_bbox": [
+      501,
+      838,
+      531,
+      871
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "b",
+    "glyph_bbox": [
+      598.16,
+      819.93,
+      637.74,
+      887.93
+    ],
+    "actual_bbox": [
+      600,
+      823,
+      634,
+      871
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "c",
+    "glyph_bbox": [
+      703.98,
+      819.93,
+      736.01,
+      887.93
+    ],
+    "actual_bbox": [
+      707,
+      838,
+      732,
+      871
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "d",
+    "glyph_bbox": [
+      802.3,
+      819.93,
+      841.81,
+      887.93
+    ],
+    "actual_bbox": [
+      805,
+      823,
+      839,
+      871
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "e",
+    "glyph_bbox": [
+      907.4,
+      819.93,
+      940.79,
+      887.93
+    ],
+    "actual_bbox": [
+      910,
+      838,
+      936,
+      871
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "f",
+    "glyph_bbox": [
+      1014.76,
+      819.93,
+      1037.54,
+      887.93
+    ],
+    "actual_bbox": [
+      1017,
+      823,
+      1041,
+      870
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "g",
+    "glyph_bbox": [
+      90.2,
+      933.31,
+      125.22,
+      1001.31
+    ],
+    "actual_bbox": [
+      91,
+      951,
+      125,
+      1000
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "h",
+    "glyph_bbox": [
+      189.44,
+      933.31,
+      230.1,
+      1001.31
+    ],
+    "actual_bbox": [
+      191,
+      936,
+      227,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "i",
+    "glyph_bbox": [
+      301.62,
+      933.31,
+      322.02,
+      1001.31
+    ],
+    "actual_bbox": [
+      304,
+      936,
+      320,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "j",
+    "glyph_bbox": [
+      403.94,
+      933.31,
+      423.8,
+      1001.31
+    ],
+    "actual_bbox": [
+      398,
+      936,
+      417,
+      1000
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "k",
+    "glyph_bbox": [
+      497.34,
+      933.31,
+      534.47,
+      1001.31
+    ],
+    "actual_bbox": [
+      499,
+      936,
+      534,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "l",
+    "glyph_bbox": [
+      607.96,
+      933.31,
+      627.95,
+      1001.31
+    ],
+    "actual_bbox": [
+      610,
+      936,
+      625,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "m",
+    "glyph_bbox": [
+      689.26,
+      933.31,
+      750.73,
+      1001.31
+    ],
+    "actual_bbox": [
+      691,
+      951,
+      748,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": " ",
+    "glyph_bbox": [
+      750.73,
+      933.31,
+      801.44,
+      1001.31
+    ],
+    "actual_bbox": [
+      745,
+      952,
+      805,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "n",
+    "glyph_bbox": [
+      801.44,
+      933.31,
+      842.65,
+      1001.31
+    ],
+    "actual_bbox": [
+      803,
+      951,
+      840,
+      983
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "o",
+    "glyph_bbox": [
+      905.42,
+      933.31,
+      942.75,
+      1001.31
+    ],
+    "actual_bbox": [
+      907,
+      951,
+      939,
+      984
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "p",
+    "glyph_bbox": [
+      1006.46,
+      933.31,
+      1045.83,
+      1001.31
+    ],
+    "actual_bbox": [
+      1008,
+      951,
+      1041,
+      999
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "q",
+    "glyph_bbox": [
+      88.1,
+      1046.69,
+      127.34,
+      1114.69
+    ],
+    "actual_bbox": [
+      91,
+      1065,
+      125,
+      1113
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "r",
+    "glyph_bbox": [
+      196.64,
+      1046.69,
+      222.89,
+      1114.69
+    ],
+    "actual_bbox": [
+      199,
+      1065,
+      222,
+      1097
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "s",
+    "glyph_bbox": [
+      296.82,
+      1046.69,
+      326.81,
+      1114.69
+    ],
+    "actual_bbox": [
+      301,
+      1065,
+      323,
+      1098
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "t",
+    "glyph_bbox": [
+      402.34,
+      1046.69,
+      425.39,
+      1114.69
+    ],
+    "actual_bbox": [
+      404,
+      1058,
+      424,
+      1098
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "u",
+    "glyph_bbox": [
+      496.16,
+      1046.69,
+      535.67,
+      1114.69
+    ],
+    "actual_bbox": [
+      497,
+      1066,
+      532,
+      1098
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "v",
+    "glyph_bbox": [
+      603.24,
+      1046.69,
+      632.68,
+      1114.69
+    ],
+    "actual_bbox": [
+      602,
+      1067,
+      632,
+      1098
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "w",
+    "glyph_bbox": [
+      696.1,
+      1046.69,
+      743.9,
+      1114.69
+    ],
+    "actual_bbox": [
+      695,
+      1067,
+      744,
+      1098
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "x",
+    "glyph_bbox": [
+      806.48,
+      1046.69,
+      837.62,
+      1114.69
+    ],
+    "actual_bbox": [
+      806,
+      1067,
+      837,
+      1097
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "y",
+    "glyph_bbox": [
+      909.54,
+      1046.69,
+      938.64,
+      1114.69
+    ],
+    "actual_bbox": [
+      908,
+      1067,
+      939,
+      1113
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "z",
+    "glyph_bbox": [
+      1010.88,
+      1046.69,
+      1041.41,
+      1114.69
+    ],
+    "actual_bbox": [
+      1013,
+      1067,
+      1038,
+      1097
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "{",
+    "glyph_bbox": [
+      90.72,
+      1160.09,
+      124.72,
+      1228.09
+    ],
+    "actual_bbox": [
+      96,
+      1160,
+      118,
+      1227
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "|",
+    "glyph_bbox": [
+      197.32,
+      1160.09,
+      222.21,
+      1228.09
+    ],
+    "actual_bbox": [
+      207,
+      1160,
+      211,
+      1228
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "}",
+    "glyph_bbox": [
+      294.92,
+      1160.09,
+      328.72,
+      1228.09
+    ],
+    "actual_bbox": [
+      301,
+      1160,
+      323,
+      1227
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  },
+  {
+    "char": "~",
+    "glyph_bbox": [
+      393.16,
+      1160.09,
+      434.57,
+      1228.09
+    ],
+    "actual_bbox": [
+      403,
+      1165,
+      424,
+      1174
+    ],
+    "font_size": 34.0,
+    "type": "character"
+  }
+]

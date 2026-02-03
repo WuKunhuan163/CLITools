@@ -1,11 +1,9 @@
 {
   "name": "VPN",
-  "version": "0.1.0",
-  "description": "A tool for managing local proxies and VPN connections, primarily using GOST.",
-  "purpose": "Provides an interface for other tools to tunnel traffic through local or remote proxies.",
-  "dependencies": [],
-  "pip_dependencies": [
-    "psutil",
-    "requests"
+  "version": "1.0.0",
+  "description": "Template tool VPN",
+  "purpose": "Showcase tool development guidelines",
+  "dependencies": [
+    "PYTHON"
   ]
 }
