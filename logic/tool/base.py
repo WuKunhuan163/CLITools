@@ -105,8 +105,10 @@ class ToolBase:
                     # We use parse_known_args to avoid exiting on unknown commands
                     # and to allow delegating them to the system.
                     args, unknown = parser.parse_known_args()
-                    if args.command:
-                        # Command is recognized by our parser
+                    
+                    # If we have a command and it's recognized, OR if we have no unknown arguments
+                    # (meaning the parser handled everything), we let the tool continue.
+                    if (hasattr(args, 'command') and args.command) or not unknown:
                         return False
                 except:
                     pass
@@ -114,7 +116,7 @@ class ToolBase:
                     # Restore stderr
                     sys.stderr = original_stderr
                 
-                # If we reach here, it's either an unknown command or parsing failed.
+                # If we reach here, it means we have unknown arguments and it's not a recognized command.
                 # Delegate to system fallback.
                 self.run_system_fallback()
                 return True
