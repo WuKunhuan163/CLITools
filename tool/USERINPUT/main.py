@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v24)
+USERINPUT Tool (v25)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Standardized UI styling via logic.gui.style.
 - Robust registry-based stop mechanism and partial input capture.
 - Refactored to use centralized run_gui interface.
+- Fixed @ trigger double firing and double quoting.
 """
 
 import os
@@ -149,6 +150,8 @@ import time
 import subprocess
 import platform
 import traceback
+import shlex
+import re
 from pathlib import Path
 
 PROJECT_ROOT = Path(%(project_root)r)
@@ -163,7 +166,6 @@ except ImportError:
     sys.exit("Error: Could not import logic.gui.base")
 
 import tkinter as tk
-import re
 
 TOOL_INTERNAL = %(internal_dir)r
 
@@ -201,9 +203,8 @@ class UserInputWindow(BaseGUIWindow):
         self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        # Comprehensive bindings for '@'
+        # Only bind to Key (press), not KeyRelease, to avoid double trigger
         self.text_widget.bind("<Key>", self.on_any_key)
-        self.text_widget.bind("<KeyRelease>", self.on_any_key_release)
         scrollbar.config(command=self.text_widget.yview)
         
         if self.hint_text: 
@@ -221,29 +222,24 @@ class UserInputWindow(BaseGUIWindow):
         except: pass
 
     def on_any_key(self, event):
-        is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
-        if event.char == "@" or event.keysym == "at" or is_shift_2:
-            self.log_debug(f"on_any_key triggered: char='{event.char}', keysym='{event.keysym}'")
-            self.root.after(10, self.run_file_dialog_trigger)
+        # Immediate debounce check
+        now = time.time()
+        if now - self._last_trigger_time < 0.8: return
 
-    def on_any_key_release(self, event):
         is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
         if event.char == "@" or event.keysym == "at" or is_shift_2:
-            self.log_debug(f"on_any_key_release triggered: char='{event.char}', keysym='{event.keysym}'")
+            self.log_debug(f"on_any_key detected @: char='{event.char}', keysym='{event.keysym}'")
+            # Update time IMMEDIATELY to prevent on_any_key_release or repeat triggers
+            self._last_trigger_time = now
             self.root.after(10, self.run_file_dialog_trigger)
 
     def run_file_dialog_trigger(self):
-        now = time.time()
-        if now - self._last_trigger_time < 0.5:
-            self.log_debug("Ignored due to debounce")
-            return
         if self.is_triggering_subtool:
-            self.log_debug("Ignored because subtool running")
+            self.log_debug("Ignored because subtool already running")
             return
             
         try:
             self.is_triggering_subtool = True
-            self._last_trigger_time = now
             self.log_debug("Opening FILEDIALOG...")
             
             from tool.FILEDIALOG.logic.interface.main import get_file_dialog_bin
@@ -255,28 +251,46 @@ class UserInputWindow(BaseGUIWindow):
             
             if res.returncode == 0:
                 output = res.stdout.strip()
-                import shlex
                 paths = []
                 for line in output.splitlines():
-                    if line.startswith("Selected: "): paths.append(line[len("Selected: "):].strip())
+                    # Parse FILEDIALOG output format
+                    if line.startswith("Selected: "):
+                        path = line[len("Selected: "):].strip()
+                        paths.append(path)
                     else:
                         match = re.match(r"^\s*\d+\.\s*(.*)$", line)
-                        if match: paths.append(match.group(1).strip())
+                        if match:
+                            path = match.group(1).strip()
+                            paths.append(path)
                 
                 if paths:
+                    # Clean up paths: if they are already quoted (start/end with '), keep them as is
+                    # FILEDIALOG quotes paths with spaces.
+                    formatted_paths = []
+                    for p in paths:
+                        if (p.startswith("'") and p.endswith("'")) or (p.startswith('"') and p.endswith('"')):
+                            formatted_paths.append(f"@{p}")
+                        else:
+                            # Path was not quoted by FILEDIALOG (likely no spaces)
+                            # But we might want to quote it if it contains spaces just in case
+                            q_p = shlex.quote(p) if " " in p else p
+                            formatted_paths.append(f"@{q_p}")
+                    
                     cursor_pos = self.text_widget.index(tk.INSERT)
                     prev_char = self.text_widget.get(f"{cursor_pos}-1c", cursor_pos)
                     if prev_char == "@": self.text_widget.delete(f"{cursor_pos}-1c", cursor_pos)
-                    # Quoting handled here
-                    formatted = ", ".join([f"@{shlex.quote(p) if ' ' in p else p}" for p in paths])
+                    
+                    formatted = ", ".join(formatted_paths)
                     self.text_widget.insert(tk.INSERT, formatted)
-                    self.log_debug(f"Selection successful: {len(paths)} items")
+                    self.log_debug(f"Selection successful: {len(paths)} items inserted.")
             else:
                 self.log_debug(f"FILEDIALOG failed: code={res.returncode}, err={res.stderr}")
         except Exception as e:
-            self.log_debug(f"Exception: {e}")
+            self.log_debug(f"Exception in run_file_dialog_trigger: {e}\n{traceback.format_exc()}")
         finally:
             self.is_triggering_subtool = False
+            # Ensure the @ symbol typed isn't processed again soon
+            self._last_trigger_time = time.time()
 
 if __name__ == "__main__":
     try:
