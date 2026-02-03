@@ -51,6 +51,7 @@ class ReadTool(ToolBase):
         # Config command
         config_parser = subparsers.add_parser("config", help="Configure READ tool settings")
         config_parser.add_argument("--alpha", type=float, help="Set alpha transparency for PDF semantic visualization (0.0-1.0)")
+        config_parser.add_argument("--preference", choices=["default", "rtl", "vertical"], help="Set default reading preference for PDF layout")
 
         # Main extraction command (default)
         extract_parser = subparsers.add_parser("extract", help="Extract content from a file", conflict_handler='resolve')
@@ -59,6 +60,7 @@ class ReadTool(ToolBase):
         extract_parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
         extract_parser.add_argument("-n", "--workers", type=int, default=4, help="Number of parallel workers (default: 4)")
         extract_parser.add_argument("--mode", default="academic", choices=["academic", "general", "code_snippet", "formula", "table"], help="Vision analysis mode for images")
+        extract_parser.add_argument("--preference", choices=["default", "rtl", "vertical"], help="Override reading preference for this extraction")
         extract_parser.add_argument("--key", help="Google API Key (overrides env vars)")
         extract_parser.add_argument("--test-vision", action="store_true", help="Test vision API connectivity")
         extract_parser.add_argument("--use-vpn", action="store_true", help="Use VPN tool for requests")
@@ -73,8 +75,13 @@ class ReadTool(ToolBase):
                     print(f"{self.get_color('GREEN')}Config updated{self.get_color('RESET')}: pdf.visual_alpha = {args.alpha}")
                 else:
                     print(f"{self.get_color('RED')}Error{self.get_color('RESET')}: Alpha value must be between 0.0 and 1.0.")
+            elif args.preference is not None:
+                self.config_manager.set("pdf.reading_preference", args.preference)
+                print(f"{self.get_color('GREEN')}Config updated{self.get_color('RESET')}: pdf.reading_preference = {args.preference}")
             else:
-                print(f"Current config: pdf.visual_alpha = {self.config_manager.get('pdf.visual_alpha', 0.20)}")
+                print(f"Current config:")
+                print(f"  pdf.visual_alpha = {self.config_manager.get('pdf.visual_alpha', 0.20)}")
+                print(f"  pdf.reading_preference = {self.config_manager.get('pdf.reading_preference', 'default')}")
             return
 
         # If no command is specified, assume 'extract'
@@ -162,16 +169,18 @@ class ReadTool(ToolBase):
             pages_label = self.get_translation("label_pages", "pages")
             pool = ParallelWorkerPool(max_workers=args.workers, status_label=f"{extract_label} {pages_label}")
             
-            # Get alpha from config
+            # Get alpha and preference from config
             visual_alpha = self.config_manager.get("pdf.visual_alpha", 0.20)
-            alpha_int = int(visual_alpha * 255) # Convert 0.0-1.0 to 0-255
+            alpha_int = int(visual_alpha * 255)
+            
+            preference = args.preference or self.config_manager.get("pdf.reading_preference", "default")
 
             tasks = []
             for p_num in pages:
                 tasks.append({
                     "id": str(p_num + 1),
                     "action": self._extract_pdf_page_task,
-                    "args": (file_path, p_num, pages_dir, median_size, alpha_int)
+                    "args": (file_path, p_num, pages_dir, median_size, alpha_int, preference)
                 })
             
             def on_page_finish(page_id, result):
@@ -255,14 +264,14 @@ class ReadTool(ToolBase):
 
         print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}:{RESET} {output_dir}")
 
-    def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size, alpha_int):
+    def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size, alpha_int, preference):
         """Task to extract a single page. Returns dict with metadata and stats."""
         import fitz
         from tool.READ.logic.pdf.extractor import extract_single_pdf_page
         actual_page_num = page_num + 1
         try:
             doc = fitz.open(str(pdf_path))
-            content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size, alpha_int)
+            content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size, alpha_int, preference)
             doc.close()
             
             # The markdown file is now created inside extract_single_pdf_page

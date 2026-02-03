@@ -93,11 +93,6 @@ class ReadingOrderSorter:
         footers.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))
         final_sorted.extend(footers)
         return final_sorted
-                    
-        # Footers
-        footers.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))
-        final_sorted.extend(footers)
-        return final_sorted
 
 def parse_page_spec(spec: Optional[str], total_pages: int) -> List[int]:
     """Parse page specification like '1,3,5-7'."""
