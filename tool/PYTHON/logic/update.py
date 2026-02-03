@@ -39,7 +39,7 @@ try:
     
     from logic.lang.utils import get_translation
     from logic.config import get_color
-    from logic.utils import get_system_tag, regularize_version_name, run_with_progress
+    from logic.utils import get_system_tag, regularize_version_name, run_with_progress, truncate_to_display_width
     from logic.worker import TuringWorker
     from logic.turing.logic import TuringTask, StepResult, WorkerState
     from logic.turing.display.manager import MultiLineManager
@@ -52,6 +52,7 @@ except ImportError as e:
     def get_color(name, default="\033[0m"): return default
     def get_system_tag(): return "unknown"
     def regularize_version_name(v, p): return f"{v}-{p}"
+    def truncate_to_display_width(text, max_width): return text[:max_width]
     def run_with_progress(cmd, pref, **kwargs): return subprocess.run(cmd).returncode == 0
     class MultiLineManager:
         def update(self, w, t, is_final=False): print(t)
@@ -510,13 +511,17 @@ def main():
         matrix = {}
         scan_label = f"{BOLD}{BLUE}Scanning{RESET}"
         for i, tag in enumerate(tags):
-            print_erasable(f"{scan_label}: {tag} ({i+1}/{len(tags)})")
+            if not args.simple:
+                print_erasable(f"{scan_label}: {tag} ({i+1}/{len(tags)})")
             assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
             for a in assets:
                 v_tag = regularize_version_name(a['version'], a['platform'])
                 if v_tag not in matrix: matrix[v_tag] = {}
                 matrix[v_tag][tag] = a["url"]
-        sys.stdout.write("\r\033[K")
+        
+        if not args.simple:
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
         
         # Sort logic: if --reverse, newest version first. 
         # Versions are 3.x.y, so we need a numeric sort.

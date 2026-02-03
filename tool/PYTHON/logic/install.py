@@ -10,11 +10,11 @@ from datetime import datetime
 
 # Import shared utilities for translation and config
 try:
-    # Add tool's parent directory to prioritize tool-specific proj
+    # Add tool's parent directory to prioritize tool-specific logic
     tool_root = Path(__file__).resolve().parent.parent
     sys.path.insert(0, str(tool_root))
     
-    # Add project root to sys.path to find root proj modules
+    # Add project root to sys.path to find root logic modules
     sys.path.append(str(tool_root.parent.parent))
     
     from logic.lang.utils import get_translation
@@ -73,7 +73,7 @@ def resolve_platform(asset_name):
     return None
 
 def _(key, default, **kwargs):
-    return get_translation(str(PYTHON_TOOL_DIR / "proj"), key, default).format(**kwargs)
+    return get_translation(str(PYTHON_TOOL_DIR / "logic"), key, default).format(**kwargs)
 
 def load_json(path):
     if path.exists():
@@ -185,9 +185,9 @@ def download_and_verify(asset, target_dir):
         extract_dir = tmp_dir / "extract"
         extract_dir.mkdir()
         
-        # Clear existing proj modules to avoid conflicts with root proj
+        # Clear existing logic modules to avoid conflicts with root logic
         if 'logic.utils' in sys.modules: del sys.modules['logic.utils']
-        if 'proj' in sys.modules: del sys.modules['proj']
+        if 'logic' in sys.modules: del sys.modules['logic']
         
         from logic.utils import extract_resource
         if not extract_resource(zst_path, extract_dir):
