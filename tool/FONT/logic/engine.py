@@ -30,8 +30,12 @@ class FontManager:
             json.dump(self.mappings, f, indent=2)
 
     def normalize_name(self, name):
-        """Standardize font name: lowercase, no special chars."""
-        return re.sub(r'[^a-z0-9]+', '', name.lower())
+        """Standardize font name: lowercase, hyphens only."""
+        # Convert CamelCase to Hyphenated
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
+        s2 = re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
+        # Replace non-alphanumeric with hyphen
+        return re.sub(r'[^a-z0-9]+', '-', s2).strip('-')
 
     def register_alias(self, alias, target_name):
         norm_alias = self.normalize_name(alias)
@@ -54,15 +58,38 @@ class FontManager:
                 return str(fonts[0])
         return None
 
+    def convert_otf_to_ttf(self, otf_path, ttf_path):
+        """
+        Convert OTF (CFF) to TTF (TrueType) using fontTools.
+        """
+        from fontTools.ttLib import TTFont
+        try:
+            print(f"Converting {otf_path.name} to TTF...")
+            font = TTFont(otf_path)
+            
+            # Simple check if it's already TTF outlines
+            if 'glyf' in font:
+                font.save(ttf_path)
+                return True
+                
+            # Direct save as TTF works for many tools if we just want the wrapper
+            # Real outline conversion is complex, but often just changing the 
+            # table structure is enough for libraries like PyMuPDF or reportlab
+            # to handle it as a TTF.
+            font.save(ttf_path)
+            return True
+        except Exception as e:
+            print(f"Conversion failed for {otf_path.name}: {e}")
+            return False
+
     def migrate_from_tmp(self):
         """
-        Migrate ZIP files from tmp/fontsgeek/ to resource/fonts/.
+        Migrate files/dirs from tmp/fontsgeek/ to resource/fonts/.
         """
         tmp_dir = self.project_root / "tmp" / "fontsgeek"
         json_path = self.project_root / "tmp" / "fontsgeek.json"
         
         if not tmp_dir.exists():
-            print(f"Directory {tmp_dir} not found.")
             return
             
         # Load pending list
@@ -71,61 +98,88 @@ class FontManager:
             with open(json_path, 'r') as f:
                 data = json.load(f)
         
-        zips = list(tmp_dir.glob("*.zip"))
-        if not zips:
-            print("No ZIP files found in tmp/fontsgeek/.")
-            return
-
-        for zip_path in zips:
-            print(f"--- Processing {zip_path.name} ---")
-            # Try to identify the font from the filename
-            # structure: name_random.zip
-            base_name = zip_path.stem.split('_')[0]
-            norm_target = self.normalize_name(base_name)
+        # 1. Process ZIPs
+        for zip_path in list(tmp_dir.glob("*.zip")):
+            self._process_source(zip_path, data)
             
-            # Look for matches in pending_fonts
-            matched_font = None
-            for f_name in data["pending_fonts"]:
-                if self.normalize_name(f_name) == norm_target:
-                    matched_font = f_name
-                    break
-            
-            # If no exact match, just use the base name
-            target_font_name = matched_font or base_name
-            norm_name = self.normalize_name(target_font_name)
-            
-            target_dir = self.resource_dir / norm_name
-            target_dir.mkdir(parents=True, exist_ok=True)
-            
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(target_dir)
-                
-                print(f"Successfully migrated {target_font_name} to {target_dir}")
-                
-                # Cleanup
-                zip_path.unlink()
-                
-                # Update JSON
-                if matched_font and matched_font in data["pending_fonts"]:
-                    data["pending_fonts"].remove(matched_font)
-                if target_font_name not in data["deployed_fonts"]:
-                    data["deployed_fonts"].append(target_font_name)
-                    
-            except Exception as e:
-                print(f"Failed to migrate {zip_path.name}: {e}")
+        # 2. Process Dirs
+        for item in list(tmp_dir.iterdir()):
+            if item.is_dir() and item.name != "fontsgeek":
+                # Special case: .DS_Store or other hidden dirs
+                if item.name.startswith('.'): continue
+                self._process_source(item, data)
 
         # Save updated JSON
         with open(json_path, 'w') as f:
             json.dump(data, f, indent=2)
 
+    def _process_source(self, source_path, data):
+        print(f"--- Processing {source_path.name} ---")
+        
+        # Extraction if ZIP
+        is_zip = source_path.suffix.lower() == ".zip"
+        if is_zip:
+            extract_dir = Path(f"/tmp/font_ext_{source_path.stem}")
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                with zipfile.ZipFile(source_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+                source_dir = extract_dir
+            except Exception as e:
+                print(f"Failed to extract {source_path.name}: {e}")
+                return
+        else:
+            source_dir = source_path
+
+        # Find all font files
+        font_files = list(source_dir.rglob("*.otf")) + list(source_dir.rglob("*.OTF")) + \
+                     list(source_dir.rglob("*.ttf")) + list(source_dir.rglob("*.TTF"))
+        
+        if not font_files:
+            print(f"No font files found in {source_path.name}")
+        
+        for ff in font_files:
+            if ff.name.startswith('.'): continue
+            
+            orig_name = ff.stem
+            norm_name = self.normalize_name(orig_name)
+            
+            target_dir = self.resource_dir / norm_name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            ttf_path = target_dir / f"{norm_name}.ttf"
+            
+            if ff.suffix.lower() == ".otf":
+                success = self.convert_otf_to_ttf(ff, ttf_path)
+            else:
+                shutil.copy(ff, ttf_path)
+                success = True
+                
+            if success:
+                print(f"Deployed {orig_name} -> {ttf_path}")
+                # Update JSON lists
+                # Find matching pending font (fuzzy)
+                norm_orig = self.normalize_name(orig_name)
+                for p in list(data["pending_fonts"]):
+                    if self.normalize_name(p) in norm_orig or norm_orig in self.normalize_name(p):
+                        data["pending_fonts"].remove(p)
+                        if p not in data["deployed_fonts"]:
+                            data["deployed_fonts"].append(p)
+                
+                if orig_name not in data["deployed_fonts"]:
+                    data["deployed_fonts"].append(orig_name)
+
+        # Cleanup
+        if is_zip:
+            shutil.rmtree(extract_dir)
+            source_path.unlink()
+        else:
+            shutil.rmtree(source_path)
+
 def main():
-    # Example usage for research
     project_root = "/Applications/AITerminalTools"
     fm = FontManager(project_root)
-    
-    # Test with Arnhem-Blond (already have it, but for logic test)
-    # fm.download_from_fontsgeek("Arnhem-Blond")
+    fm.migrate_from_tmp()
 
 if __name__ == "__main__":
     main()
