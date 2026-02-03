@@ -31,11 +31,19 @@ class FontManager:
 
     def normalize_name(self, name):
         """Standardize font name: lowercase, hyphens only."""
-        # Convert CamelCase to Hyphenated
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
-        s2 = re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
-        # Replace non-alphanumeric with hyphen
-        return re.sub(r'[^a-z0-9]+', '-', s2).strip('-')
+        # 1. First, handle mixed case like "ArnhemBlond" or "ArialMT"
+        s = re.sub('([a-z0-9])([A-Z])', r'\1-\2', name)
+        s = re.sub('([A-Z])([A-Z][a-z])', r'\1-\2', s)
+        s = s.lower()
+        
+        # 2. Handle common suffixes like "MT", "PS", "Regular", "Bold"
+        # We can add hyphens before them if they aren't already hyphenated
+        for suffix in ["mt", "ps", "regular", "bold", "italic", "light", "black", "extra"]:
+            s = re.sub(rf'([a-z0-9])({suffix})', r'\1-\2', s)
+            
+        # 3. Clean up non-alphanumeric and double hyphens
+        s = re.sub(r'[^a-z0-9]+', '-', s)
+        return s.strip('-')
 
     def register_alias(self, alias, target_name):
         norm_alias = self.normalize_name(alias)
@@ -102,11 +110,12 @@ class FontManager:
         for zip_path in list(tmp_dir.glob("*.zip")):
             self._process_source(zip_path, data)
             
-        # 2. Process Dirs
+        # 2. Process Dirs and Individual Files
         for item in list(tmp_dir.iterdir()):
-            if item.is_dir() and item.name != "fontsgeek":
-                # Special case: .DS_Store or other hidden dirs
-                if item.name.startswith('.'): continue
+            if item.name.startswith('.'): continue
+            if item.name == "fontsgeek": continue
+            
+            if item.is_dir() or item.suffix.lower() in [".otf", ".ttf"]:
                 self._process_source(item, data)
 
         # Save updated JSON
@@ -116,24 +125,34 @@ class FontManager:
     def _process_source(self, source_path, data):
         print(f"--- Processing {source_path.name} ---")
         
-        # Extraction if ZIP
-        is_zip = source_path.suffix.lower() == ".zip"
-        if is_zip:
-            extract_dir = Path(f"/tmp/font_ext_{source_path.stem}")
-            extract_dir.mkdir(parents=True, exist_ok=True)
-            try:
-                with zipfile.ZipFile(source_path, 'r') as zip_ref:
-                    zip_ref.extractall(extract_dir)
-                source_dir = extract_dir
-            except Exception as e:
-                print(f"Failed to extract {source_path.name}: {e}")
-                return
+        # Handle individual file or directory/ZIP
+        if source_path.is_file():
+            if source_path.suffix.lower() == ".zip":
+                is_zip = True
+                extract_dir = Path(f"/tmp/font_ext_{source_path.stem}")
+                extract_dir.mkdir(parents=True, exist_ok=True)
+                try:
+                    with zipfile.ZipFile(source_path, 'r') as zip_ref:
+                        zip_ref.extractall(extract_dir)
+                    source_dir = extract_dir
+                except Exception as e:
+                    print(f"Failed to extract {source_path.name}: {e}")
+                    return
+            elif source_path.suffix.lower() in [".otf", ".ttf"]:
+                is_zip = False
+                source_dir = None # Marker for single file
+                font_files = [source_path]
+            else:
+                return # Unsupported file type
         else:
+            is_zip = False
             source_dir = source_path
-
-        # Find all font files
-        font_files = list(source_dir.rglob("*.otf")) + list(source_dir.rglob("*.OTF")) + \
-                     list(source_dir.rglob("*.ttf")) + list(source_dir.rglob("*.TTF"))
+            font_files = list(source_dir.rglob("*.otf")) + list(source_dir.rglob("*.OTF")) + \
+                         list(source_dir.rglob("*.ttf")) + list(source_dir.rglob("*.TTF"))
+        
+        if source_dir:
+            font_files = list(source_dir.rglob("*.otf")) + list(source_dir.rglob("*.OTF")) + \
+                         list(source_dir.rglob("*.ttf")) + list(source_dir.rglob("*.TTF"))
         
         if not font_files:
             print(f"No font files found in {source_path.name}")
@@ -173,8 +192,10 @@ class FontManager:
         if is_zip:
             shutil.rmtree(extract_dir)
             source_path.unlink()
-        else:
+        elif source_path.is_dir():
             shutil.rmtree(source_path)
+        else:
+            source_path.unlink()
 
 def main():
     project_root = "/Applications/AITerminalTools"

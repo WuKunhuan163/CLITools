@@ -13,14 +13,15 @@ from logic.config import get_global_config, PROJECT_ROOT
 
 def truncate_to_width(text, max_width):
     """Truncate string to visible width, adding ellipsis and resetting color.
-    Ensures text is at most max_width - 2 to prevent cursor wrapping.
+    Ensures text is at most max_width - 5 to prevent cursor wrapping in narrow terminals.
     If max_width <= 0, no truncation is applied.
     """
     if max_width <= 0:
         return text
     
     # Use a safe minimum for truncation to avoid issues with very small values
-    safe_width = max(1, max_width - 2)
+    # Increased buffer to -5 for better stability in narrow/wrapped terminals
+    safe_width = max(1, max_width - 5)
     if get_visible_len(text) <= safe_width:
         return text
     # Reset color at the end of the visible part to avoid leaking styles to next lines

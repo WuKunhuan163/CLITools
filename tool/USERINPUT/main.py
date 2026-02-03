@@ -277,7 +277,7 @@ class UserInputWindow(BaseGUIWindow):
         
         self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.text_widget.bind("<KeyRelease-at>", self.on_at_trigger)
+        self.text_widget.bind("<KeyRelease>", self.on_key_release)
         scrollbar.config(command=self.text_widget.yview)
         
         if self.hint_text: 
@@ -288,8 +288,11 @@ class UserInputWindow(BaseGUIWindow):
         self.start_periodic_focus(self.focus_interval)
         self.play_bell()
 
-    def on_at_trigger(self, event):
+    def on_key_release(self, event):
         """Trigger FILEDIALOG when '@' is typed."""
+        if event.char != "@":
+            return
+            
         try:
             self.is_triggering_subtool = True
             # Use FILEDIALOG interface
@@ -297,20 +300,12 @@ class UserInputWindow(BaseGUIWindow):
                 from tool.FILEDIALOG.logic.interface.main import get_file_dialog_bin
                 fd_bin = get_file_dialog_bin()
             except (ImportError, ModuleNotFoundError):
-                # If FILEDIALOG is not available, just let the '@' stay as plain text
                 return
             
             cmd = [sys.executable, fd_bin, "--multiple", "--title", self._("select_entities", "Select Entities")]
-            
-            # Run FILEDIALOG and wait for selection
             res = subprocess.run(cmd, capture_output=True, text=True)
             
             if res.returncode == 0:
-                # Parse paths from output
-                # Output format:
-                # Selected (N):
-                #   1. Path1
-                # ...
                 lines = res.stdout.strip().splitlines()
                 paths = []
                 for line in lines:
@@ -321,16 +316,24 @@ class UserInputWindow(BaseGUIWindow):
                         paths.append(line[len("Selected: "):].strip())
                 
                 if paths:
+                    import shlex
                     cursor_pos = self.text_widget.index(tk.INSERT)
                     start_pos = f"{cursor_pos}-1c"
                     
-                    # Ensure we are replacing the '@' that was just typed
                     if self.text_widget.get(start_pos, cursor_pos) == "@":
                         self.text_widget.delete(start_pos, cursor_pos)
-                        formatted = ", ".join([f"@{p}" for p in paths])
+                        # Selective quoting via shlex.quote if space exists
+                        quoted_paths = []
+                        for p in paths:
+                            if " " in p:
+                                # shlex.quote is safe for shell-like parsing
+                                quoted_paths.append(shlex.quote(p))
+                            else:
+                                quoted_paths.append(p)
+                        
+                        formatted = ", ".join([f"@{p}" for p in quoted_paths])
                         self.text_widget.insert(tk.INSERT, formatted)
         except Exception as e:
-            # Silently log error to stderr or ignore in production GUI
             print(f"Error triggering FILEDIALOG: {e}", file=sys.stderr)
         finally:
             self.is_triggering_subtool = False
