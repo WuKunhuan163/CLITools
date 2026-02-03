@@ -267,91 +267,95 @@ class FileDialogWindow(BaseGUIWindow):
             self.forward_btn.config(state=tk.NORMAL if self.history_index < len(self.history) - 1 else tk.DISABLED)
 
     def update_breadcrumbs(self):
-        # Use a localized method to clear to ensure all widgets are truly gone
-        for child in self.breadcrumb_frame.winfo_children():
-            child.destroy()
+        # Prevent recursive/concurrent calls causing duplication
+        if getattr(self, "_updating_breadcrumbs", False):
+            return
+        self._updating_breadcrumbs = True
         
-        # Explicitly update to process destruction before adding new widgets
-        self.breadcrumb_frame.update_idletasks()
-        
-        path = self.current_dir
-        parts = []
-        while True:
-            parts.append(path)
-            if path.parent == path: break
-            path = path.parent
-        parts.reverse()
-
-        blue_color = get_gui_colors().get("blue", "#007AFF")
-        text_color = get_gui_colors().get("text", "#333333")
-        font_style = get_label_style()
-        measure_font = tkFont.Font(family=font_style[0], size=font_style[1])
-        
-        def get_name(part, index):
-            if index == 0:
-                if platform.system() == "Darwin": return "Macintosh HD"
-                elif platform.system() == "Windows": return "Local Disk"
-                else: return "File System"
-            return part.name
-
-        # Calculate display strategy
-        # Ensure frame is updated to get actual width
-        self.breadcrumb_frame.update_idletasks()
-        max_w = self.breadcrumb_frame.winfo_width()
-        if max_w <= 1: max_w = 400 # Initial estimate
-        max_w -= 35 # Increased buffer significantly for stability
-
-        sep_w = measure_font.measure(" / ")
-        ellipsis_w = measure_font.measure("...")
-        
-        # 1. Try full path
-        names = [get_name(p, i) for i, p in enumerate(parts)]
-        full_w = sum(measure_font.measure(n) for n in names) + (len(names) - 1) * sep_w
+        try:
+            # Clear existing breadcrumbs
+            for widget in self.breadcrumb_frame.winfo_children():
+                widget.destroy()
             
-        if full_w <= max_w:
-            display_items = [(parts[i], i) for i in range(len(parts))]
-        else:
-            # 2. Need truncation: A / ... / [middle] / B
-            first_name = names[0]
-            last_name = names[-1]
+            # Process destruction before calculating width
+            self.breadcrumb_frame.update_idletasks()
             
-            # Base width: A / ... / B
-            # Account for both separators around ellipsis
-            current_w = measure_font.measure(first_name) + sep_w + ellipsis_w + sep_w + measure_font.measure(last_name)
-            
-            added_indices = []
-            for i in range(len(parts) - 2, 0, -1):
-                w = measure_font.measure(names[i]) + sep_w
-                if current_w + w < max_w:
-                    added_indices.insert(0, i)
-                    current_w += w
-                else:
-                    break
-            
-            display_items = [(parts[0], 0), ("...", -1)]
-            for idx in added_indices:
-                display_items.append((parts[idx], idx))
-            display_items.append((parts[-1], len(parts)-1))
+            path = self.current_dir
+            parts = []
+            while True:
+                parts.append(path)
+                if path.parent == path: break
+                path = path.parent
+            parts.reverse()
 
-        for i, (p, idx) in enumerate(display_items):
-            is_last = (i == len(display_items) - 1)
-            if p == "...":
-                lbl = tk.Label(self.breadcrumb_frame, text="...", bg="white", font=font_style)
+            blue_color = get_gui_colors().get("blue", "#007AFF")
+            text_color = get_gui_colors().get("text", "#333333")
+            font_style = get_label_style()
+            measure_font = tkFont.Font(family=font_style[0], size=font_style[1])
+            
+            def get_name(part, index):
+                if index == 0:
+                    if platform.system() == "Darwin": return "Macintosh HD"
+                    elif platform.system() == "Windows": return "Local Disk"
+                    else: return "File System"
+                return part.name
+
+            # Calculate display strategy
+            max_w = self.breadcrumb_frame.winfo_width()
+            if max_w <= 1: max_w = 400 # Initial estimate
+            max_w -= 35 # Buffer for stability
+
+            sep_w = measure_font.measure(" / ")
+            ellipsis_w = measure_font.measure("...")
+            
+            # 1. Try full path
+            names = [get_name(p, i) for i, p in enumerate(parts)]
+            full_w = sum(measure_font.measure(n) for n in names) + (len(names) - 1) * sep_w
+                
+            if full_w <= max_w:
+                display_items = [(parts[i], i) for i in range(len(parts))]
             else:
-                name = get_name(p, idx)
-                if is_last:
-                    # Current path: no blue, no interaction
-                    lbl = tk.Label(self.breadcrumb_frame, text=name, fg=text_color, 
-                                   bg="white", font=font_style)
+                # 2. Need truncation: A / ... / [middle] / B
+                first_name = names[0]
+                last_name = names[-1]
+                
+                # Base width: A / ... / B
+                current_w = measure_font.measure(first_name) + sep_w + ellipsis_w + sep_w + measure_font.measure(last_name)
+                
+                added_indices = []
+                for i in range(len(parts) - 2, 0, -1):
+                    w = measure_font.measure(names[i]) + sep_w
+                    if current_w + w < max_w:
+                        added_indices.insert(0, i)
+                        current_w += w
+                    else:
+                        break
+                
+                display_items = [(parts[0], 0), ("...", -1)]
+                for idx in added_indices:
+                    display_items.append((parts[idx], idx))
+                display_items.append((parts[-1], len(parts)-1))
+
+            for i, (p, idx) in enumerate(display_items):
+                is_last = (i == len(display_items) - 1)
+                if p == "...":
+                    lbl = tk.Label(self.breadcrumb_frame, text="...", bg="white", font=font_style)
                 else:
-                    lbl = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", 
-                                   bg="white", font=font_style)
-                    lbl.bind("<Button-1>", lambda e, path=p: self.jump_to(path))
-            
-            lbl.pack(side=tk.LEFT)
-            if i < len(display_items) - 1:
-                sep = tk.Label(self.breadcrumb_frame, text=" / ", bg="white", font=font_style)
-                sep.pack(side=tk.LEFT)
+                    name = get_name(p, idx)
+                    if is_last:
+                        lbl = tk.Label(self.breadcrumb_frame, text=name, fg=text_color, 
+                                       bg="white", font=font_style)
+                    else:
+                        lbl = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", 
+                                       bg="white", font=font_style)
+                        lbl.bind("<Button-1>", lambda e, path=p: self.jump_to(path))
+                
+                lbl.pack(side=tk.LEFT)
+                if i < len(display_items) - 1:
+                    sep = tk.Label(self.breadcrumb_frame, text=" / ", bg="white", font=font_style)
+                    sep.pack(side=tk.LEFT)
+        finally:
+            self._updating_breadcrumbs = False
 
     def jump_to(self, path):
         if path == self.current_dir: return
