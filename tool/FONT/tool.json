@@ -4,6 +4,8 @@
   "description": "Template tool FONT",
   "purpose": "Showcase tool development guidelines",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "fonttools",
+    "requests"
   ]
 }
