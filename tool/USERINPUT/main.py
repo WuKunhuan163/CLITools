@@ -290,7 +290,11 @@ class UserInputWindow(BaseGUIWindow):
 
     def on_key_release(self, event):
         """Trigger FILEDIALOG when '@' is typed."""
-        if event.char != "@":
+        # Standard '@' char, or keysym 'at', or Shift+2 (common)
+        is_at = (event.char == "@" or event.keysym == "at" or 
+                 (event.keysym == "2" and (event.state & 0x1))) # Shift is bit 0x1
+        
+        if not is_at:
             return
             
         try:

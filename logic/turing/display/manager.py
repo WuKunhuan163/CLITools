@@ -24,8 +24,9 @@ def truncate_to_width(text, max_width):
     safe_width = max(1, max_width - 5)
     if get_visible_len(text) <= safe_width:
         return text
-    # Reset color at the end of the visible part to avoid leaking styles to next lines
-    return truncate_to_display_width(text, safe_width - 3) + "...\033[0m"
+    # Reset color BEFORE the ellipsis to ensure ellipsis is default color
+    # and to stop any active styles from the truncated text.
+    return truncate_to_display_width(text, safe_width - 3) + "\033[0m..."
 
 def _get_configured_width():
     """Get the configured terminal width or the actual terminal size."""

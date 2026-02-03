@@ -267,8 +267,12 @@ class FileDialogWindow(BaseGUIWindow):
             self.forward_btn.config(state=tk.NORMAL if self.history_index < len(self.history) - 1 else tk.DISABLED)
 
     def update_breadcrumbs(self):
-        for widget in self.breadcrumb_frame.winfo_children():
-            widget.destroy()
+        # Use a localized method to clear to ensure all widgets are truly gone
+        for child in self.breadcrumb_frame.winfo_children():
+            child.destroy()
+        
+        # Explicitly update to process destruction before adding new widgets
+        self.breadcrumb_frame.update_idletasks()
         
         path = self.current_dir
         parts = []
@@ -291,6 +295,7 @@ class FileDialogWindow(BaseGUIWindow):
             return part.name
 
         # Calculate display strategy
+        # Ensure frame is updated to get actual width
         self.breadcrumb_frame.update_idletasks()
         max_w = self.breadcrumb_frame.winfo_width()
         if max_w <= 1: max_w = 400 # Initial estimate
