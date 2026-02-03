@@ -9,6 +9,7 @@ import hashlib
 import threading
 import random
 import string
+import time
 from pathlib import Path
 from datetime import datetime
 from queue import Queue
@@ -80,7 +81,6 @@ PYTHON_TOOL_DIR = PROJECT_ROOT / "tool" / "PYTHON"
 # Build full command for cache warning
 full_cmd = "PYTHON --py-update"
 if len(sys.argv) > 1:
-    # Filter out internal flags if any, but usually we just want what user typed
     full_cmd += " " + " ".join(sys.argv[1:])
 
 audit = AuditManager(AUDIT_DIR, component_name="PYTHON_UPDATE", audit_command=full_cmd)
@@ -94,11 +94,27 @@ RED = get_color("RED", "\033[31m")
 GREEN = get_color("GREEN", "\033[32m")
 YELLOW = get_color("YELLOW", "\033[33m")
 BLUE = get_color("BLUE", "\033[34m")
+WHITE = get_color("WHITE", "\033[37m")
 BOLD = get_color("BOLD", "\033[1m")
 RESET = get_color("RESET", "\033[0m")
 
+DEBUG_LOG_PATH = PROJECT_ROOT / "tmp" / "python_update_debug.log"
+
+def log_debug(msg):
+    try:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(DEBUG_LOG_PATH, "a") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except: pass
+
 def print_erasable(msg):
-    sys.stdout.write(f"\r\033[K{msg}")
+    from logic.turing.display.manager import _get_configured_width
+    width = _get_configured_width()
+    if width > 0:
+        display_text = truncate_to_display_width(msg, max(1, width - 2))
+    else:
+        display_text = msg
+    sys.stdout.write(f"\r\033[K{display_text}")
     sys.stdout.flush()
 
 def _(key, default, **kwargs):
@@ -140,19 +156,22 @@ def get_release_tags(use_cache=True):
     owner_label = f"{BOLD}{PROJECT_OWNER}{RESET}"
     fetch_msg = f"{fetch_label} from GitHub project {owner_label} ({PROJECT_URL})..."
     print_erasable(fetch_msg)
+    log_debug(f"Fetching tags from {REPO_URL}...")
     
     cmd = ["/usr/bin/git", "ls-remote", "--tags", REPO_URL]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Failed to fetch tags.")
+        print(f"\n{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Failed to fetch tags.")
+        log_debug(f"Failed to fetch tags: {result.stderr}")
         sys.exit(1)
     tags = []
     for line in result.stdout.strip().split("\n"):
         match = re.search(r"refs/tags/(\d{8}(?:T\d+)?)$", line)
         if match: tags.append(match.group(1))
     
-    tags = sorted(list(set(tags))) # Ascending (Oldest first)
+    tags = sorted(list(set(tags)), reverse=True) # NEWEST FIRST
     audit.save("tags_cache", {"tags": tags, "timestamp": datetime.now().isoformat()})
+    log_debug(f"Found {len(tags)} tags.")
     return tags
 
 def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
@@ -173,6 +192,7 @@ def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
     if not silent and status_msg:
         print_erasable(status_msg)
 
+    log_debug(f"Fetching assets for tag {tag}...")
     # Use GitHub API for full asset list (avoids 100-asset limit of expanded_assets scraping)
     api_url = f"https://api.github.com/repos/{PROJECT_OWNER}/{PROJECT_NAME}/releases/tags/{tag}"
     cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", api_url]
@@ -243,20 +263,20 @@ def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
         from logic.utils import cleanup_old_files
         cleanup_old_files(asset_cache_dir, "assets_*.json", limit=1000, batch_size=500)
     except: pass
+    log_debug(f"Found {len(assets)} compatible assets for tag {tag}.")
     return assets
 
 def get_remote_resources():
+    log_debug("Fetching remote resources status from 'tool' branch...")
     try:
-        from proj.git import list_remote_files, run_git_command
-        run_git_command(["fetch", "origin", "tool"], cwd=str(PROJECT_ROOT))
-        rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
-        lines = list_remote_files("tool", rel_path, remote="origin", cwd=str(PROJECT_ROOT))
-    except:
         subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True)
         rel_path = str(RESOURCE_ROOT.relative_to(PROJECT_ROOT)) + "/"
         cmd = ["/usr/bin/git", "ls-tree", "-r", "origin/tool", rel_path]
         result = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True)
         lines = result.stdout.strip().split("\n") if result.returncode == 0 else []
+    except Exception as e:
+        log_debug(f"Git fetch error: {e}")
+        lines = []
 
     resources = {}
     for line in lines:
@@ -264,7 +284,6 @@ def get_remote_resources():
         if len(parts) < 4: continue
         file_path = parts[3]
         
-        # Priority 1: PYTHON.json
         if "PYTHON.json" in line:
             try:
                 cmd = ["/usr/bin/git", "show", f"origin/tool:{file_path}"]
@@ -274,17 +293,14 @@ def get_remote_resources():
                     v_tag = Path(file_path).parent.name
                     resources[v_tag] = data
             except: pass
-        # Priority 2: .tar.zst if not already seen via JSON
         elif ".tar.zst" in line:
             v_tag = Path(file_path).parent.name
             if v_tag not in resources:
-                # Infer release from filename if possible
                 filename = Path(file_path).name
-                # cpython-VERSION-PLATFORM-TAG.tar.zst
-                # Tag is usually after the last dash before .tar.zst
                 match = re.search(r"-(\d{8}(?:T\d+)?)\.tar\.zst$", filename)
                 release = match.group(1) if match else "0"
                 resources[v_tag] = {"release": release, "asset": filename}
+    log_debug(f"Identified {len(resources)} resources already on remote.")
     return resources
 
 def log_failure(asset_name, tag, error_msg):
@@ -313,6 +329,7 @@ def log_failure(asset_name, tag, error_msg):
 def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
     def logic():
         v_tag = regularize_version_name(asset['version'], asset['platform'])
+        log_debug(f"[{worker_id}] Starting migration for {v_tag} from release {tag}...")
         unique_str = f"{tag}-{asset['name']}-{worker_id}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
         dir_hash = hashlib.md5(unique_str.encode()).hexdigest()[:8]
         tmp_path = TMP_INSTALL_DIR / f"migrate_{v_tag}_{dir_hash}"
@@ -331,6 +348,7 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
             success, err = run_with_progress(curl_cmd, prefix, worker_id=worker_id, manager=manager)
             if not success:
                 error_msg = f"{BOLD}{RED}Download failed{RESET} for {v_tag}: {err}"
+                log_debug(f"[{worker_id}] {error_msg}")
                 log_failure(asset["name"], tag, err)
                 yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
                 return
@@ -349,12 +367,11 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
             # 3. Git Operations (must be serial due to .git/index lock)
             if git_lock: git_lock.acquire()
             try:
-                # We use a side-index to avoid polluting the current branch (dev) 
-                # and to push ONLY the resource change to 'tool' branch.
                 env = os.environ.copy()
                 side_index = PROJECT_ROOT / ".git" / f"index_migrate_{worker_id}_{dir_hash}"
                 env["GIT_INDEX_FILE"] = str(side_index)
                 
+                log_debug(f"[{worker_id}] Performing Git operations for {v_tag}...")
                 # Fetch latest tool branch to ensure we are up to date
                 subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                 
@@ -371,6 +388,7 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                             try:
                                 remote_meta = json.loads(res_json.stdout)
                                 if str(remote_meta.get("release")) >= str(tag):
+                                    log_debug(f"[{worker_id}] Version {v_tag} already on remote with tag {remote_meta.get('release')}.")
                                     yield StepResult(f"{BOLD}Already migrated{RESET} {v_tag} (tag {tag}).", state=WorkerState.SUCCESS, is_final=True)
                                     return
                             except: pass
@@ -392,7 +410,6 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 tree_sha = res.stdout.strip()
                 
                 # Create commit
-                import time
                 commit_msg = f"Add Python {v_tag} from release {tag} [{worker_id}]"
                 res = subprocess.run(["/usr/bin/git", "commit-tree", tree_sha, "-p", "origin/tool", "-m", commit_msg], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                 commit_sha = res.stdout.strip()
@@ -403,13 +420,15 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 success = False
                 last_err = "Push failed"
                 for i in range(5):
+                    log_debug(f"[{worker_id}] Push attempt {i+1} for {v_tag}...")
                     res = subprocess.run(["/usr/bin/git", "push", "origin", f"{commit_sha}:refs/heads/tool"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     if res.returncode == 0:
                         success = True
                         break
                     
                     last_err = res.stderr.strip()
-                    time.sleep(1 + random.random())
+                    log_debug(f"[{worker_id}] Push failed: {last_err}")
+                    time.sleep(1 + random.random() * 2)
                     subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                     res = subprocess.run(["/usr/bin/git", "commit-tree", tree_sha, "-p", "origin/tool", "-m", commit_msg], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     commit_sha = res.stdout.strip()
@@ -418,9 +437,11 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                     success_status = _("python_migrated_success_status", "Successfully migrated")
                     from_label = _("label_from", "from")
                     msg = f"{BOLD}{GREEN}{success_status}{RESET} {v_tag} {from_label} {BOLD}{tag}{RESET}."
+                    log_debug(f"[{worker_id}] {msg}")
                     yield StepResult(msg, state=WorkerState.SUCCESS, is_final=True)
                 else:
                     error_msg = f"{BOLD}{RED}Push failed{RESET} for {v_tag}: {last_err}"
+                    log_debug(f"[{worker_id}] {error_msg}")
                     log_failure(asset["name"], tag, last_err)
                     yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
             finally:
@@ -434,6 +455,7 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 
         except Exception as e:
             error_msg = f"{BOLD}{RED}Error{RESET} {v_tag}: {e}"
+            log_debug(f"[{worker_id}] {error_msg}")
             log_failure(asset["name"], tag, str(e))
             yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
         finally:
@@ -455,6 +477,8 @@ def main():
     
     args, unknown = parser.parse_known_args()
 
+    log_debug(f"--- PYTHON --py-update command started: {' '.join(sys.argv)} ---")
+
     # Precise tag:version pair support (e.g., 20211017:3.10.0-windows-x86)
     precise_targets = [] # List of (tag, version)
     
@@ -474,8 +498,8 @@ def main():
         else:
             target_versions.append(arg)
     
-    # Remove duplicates
     target_versions = list(set([v for v in target_versions if v]))
+    log_debug(f"Target versions: {target_versions}, Precise targets: {precise_targets}")
 
     tags = get_release_tags(use_cache=not args.force)
     if args.limit_releases: tags = tags[:args.limit_releases]
@@ -483,7 +507,6 @@ def main():
     remote_resources = get_remote_resources()
     
     if args.list:
-        # ... (unchanged list logic)
         matrix = {}
         scan_label = f"{BOLD}{BLUE}Scanning{RESET}"
         for i, tag in enumerate(tags):
@@ -495,7 +518,15 @@ def main():
                 matrix[v_tag][tag] = a["url"]
         sys.stdout.write("\r\033[K")
         
-        sorted_versions = sorted(matrix.keys(), reverse=args.reverse)
+        # Sort logic: if --reverse, newest version first. 
+        # Versions are 3.x.y, so we need a numeric sort.
+        def version_key(v_str):
+            v_num = re.search(r"(\d+\.\d+\.\d+)", v_str)
+            if v_num:
+                return [int(x) for x in v_num.group(1).split(".")]
+            return [0, 0, 0]
+
+        sorted_versions = sorted(matrix.keys(), key=version_key, reverse=args.reverse)
         short_latest = []
         for v in sorted_versions:
             latest_tag = sorted(list(matrix[v].keys()))[-1]
@@ -505,29 +536,24 @@ def main():
             print(", ".join(sorted_versions))
         else:
             for v in sorted_versions:
-                # Version name in bold
                 tag_list = sorted(list(matrix[v].keys()))
                 print(f"{BOLD}{v}{RESET}:{','.join(tag_list)}")
 
         # Save audit cache
         audit_releases_dir = AUDIT_DIR / "releases"
         audit_releases_dir.mkdir(parents=True, exist_ok=True)
-        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Categorize
         by_version = {}
         by_platform = {}
         for v_tag in sorted_versions:
             v_match = re.match(r"(\d+\.\d+)", v_tag)
             major_minor = v_match.group(1) if v_match else "unknown"
-            
             platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
             platform_name = platform_match.group(1) if platform_match else "unknown"
             
             if major_minor not in by_version: by_version[major_minor] = []
             by_version[major_minor].append(v_tag)
-            
             if platform_name not in by_platform: by_platform[platform_name] = []
             by_platform[platform_name].append(v_tag)
             
@@ -544,7 +570,6 @@ def main():
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2)
             
-        # Cleanup
         try:
             from logic.utils import cleanup_old_files
             cleanup_old_files(audit_releases_dir, "report_*.json", limit=1024, batch_size=512)
@@ -559,7 +584,6 @@ def main():
 
     # 1. Handle precise targets first
     if precise_targets:
-        # Group by tag to avoid multiple fetches for the same tag
         tag_to_v = {}
         for t, v in precise_targets:
             if t not in tag_to_v: tag_to_v[t] = []
@@ -570,15 +594,12 @@ def main():
             date_label = f"{BOLD}{WHITE}{t}{RESET}"
             fetch_msg = f"{fetch_label} for {date_label}..."
             assets = fetch_assets_for_tag(t, use_cache=not args.force, status_msg=fetch_msg)
-            sys.stdout.write("\r\033[K")
-            sys.stdout.flush()
             
             for v in versions:
                 found = False
                 for a in assets:
                     v_tag = regularize_version_name(a['version'], a['platform'])
                     if v_tag == v or a["version"] == v:
-                        # Check migration status
                         if not args.force and v_tag in remote_resources and str(t) <= str(remote_resources[v_tag].get("release", "0")):
                             already_migrated_total.add(v_tag)
                         else:
@@ -586,26 +607,37 @@ def main():
                         found = True
                         break
                 if not found:
-                    error_msg = f"{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Asset {v} not found in release {t}."
+                    error_msg = f"\n{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Asset {v} not found in release {t}."
                     print(error_msg)
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
 
     # 2. Handle version prefix / tag filters
     if target_versions or args.all_latest or args.tag:
-        if args.all_latest and not args.tag:
-            target_tags = tags
-        elif target_versions and not args.tag:
-            target_tags = tags
+        if args.tag:
+            target_tags = [args.tag]
         else:
-            target_tags = [args.tag] if args.tag else [tags[-1]]
+            target_tags = tags # NEWEST FIRST
 
-        for tag in target_tags:
-            fetch_label = f"{BOLD}{BLUE}" + _("label_fetching_assets", "Fetching assets") + f"{RESET}"
-            date_label = f"{BOLD}{tag}{RESET}"
-            fetch_msg = f"{fetch_label} for {date_label}..."
-            # Use status_msg to show progress even if silent
+        log_debug(f"Scanning {len(target_tags)} tags for matching versions...")
+        
+        # Optimization: keep track of which versions we've already found to stop scanning tags early
+        remaining_targets = set(target_versions)
+        found_versions = set()
+
+        for i, tag in enumerate(target_tags):
+            # Check if we can stop scanning
+            if target_versions and not args.all_latest and not remaining_targets:
+                log_debug("All target versions found. Stopping tag scan.")
+                break
+
+            fetch_label = f"{BOLD}{BLUE}Scanning{RESET}"
+            date_label = f"{BOLD}{WHITE}{tag}{RESET}"
+            pct = i / len(target_tags) * 100
+            fetch_msg = f"{fetch_label}: {date_label} ({i+1}/{len(target_tags)}, {pct:.1f}%)..."
+            
             assets = fetch_assets_for_tag(tag, use_cache=not args.force, status_msg=fetch_msg, silent=True)
             
-            # Filter assets for this tag
             current_filtered = assets
             if target_versions:
                 match_in_tag = []
@@ -619,6 +651,13 @@ def main():
                             if a["version"].startswith(tv): match = True; break
                     if match:
                         match_in_tag.append(a)
+                        # Remove from remaining if it's an exact match or we found a version starting with it
+                        for tv in list(remaining_targets):
+                            if tv == v_tag or a["version"].startswith(tv):
+                                # If it's a prefix, we might want to keep it to find all platforms?
+                                # For now, if user said --version 3.11.13, we find all platforms in the LATEST tag that has it.
+                                # So once we find at least one match in a tag, we mark that version-prefix as 'found' for that tag.
+                                pass
                 current_filtered = match_in_tag
                 
             if args.platform:
@@ -626,6 +665,13 @@ def main():
                 
             if not current_filtered:
                 continue
+
+            # If we found matches in this tag, mark those versions as satisfied if they are newest
+            for a in current_filtered:
+                v_tag = regularize_version_name(a['version'], a['platform'])
+                for tv in list(remaining_targets):
+                    if tv == v_tag or a["version"].startswith(tv):
+                        remaining_targets.discard(tv)
 
             def vp(n):
                 if "pgo+lto-full" in n: return 0
@@ -641,17 +687,16 @@ def main():
                     already_migrated_total.add(v_tag)
                     continue
                 
-                # If target_versions is specified, we want to collect ALL matches across ALL tags
-                # and then filter for the latest tag later.
-                if target_versions:
-                    all_to_migrate.append((a, tag))
-                    continue
-
                 key = (a["minor"], a["platform"])
                 if key not in seen_in_tag:
                     all_to_migrate.append((a, tag))
                     seen_in_tag.add(key)
-                    if not args.all_latest and not target_versions: break
+                    if not args.all_latest and not target_versions: 
+                        # If just looking for "latest" (no filters), stop at first tag with assets
+                        break
+            
+            if not args.all_latest and not target_versions: break
+
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
 
@@ -666,7 +711,6 @@ def main():
     latest_per_vtag = {}
     for a, t in all_to_migrate:
         v_tag = regularize_version_name(a['version'], a['platform'])
-        # Use tag as secondary sort key if versions are identical
         if v_tag not in latest_per_vtag or str(t) > str(latest_per_vtag[v_tag][1]):
             latest_per_vtag[v_tag] = (a, t)
     

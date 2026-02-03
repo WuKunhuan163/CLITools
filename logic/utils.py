@@ -492,19 +492,21 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     from logic.config import get_setting
     from logic.turing.display.manager import _get_configured_width
     
-    decimal_places = get_setting("progress_decimal_places", 1)
+    # Precision changed to 0 by default per user request
+    decimal_places = get_setting("progress_decimal_places", 0)
     fmt = f"{{:.{decimal_places}f}}%"
     full_error_output = []
 
+    is_push = "git" in cmd[0] and "push" in cmd
     if cmd[0] == "curl":
         # Force a simple numeric progress if possible, or just parse default
         cmd = [arg for arg in cmd if arg not in ["-#", "--progress-bar", "-s", "--silent"]]
-    elif "git" in cmd[0] and "push" in cmd:
+    elif is_push:
         if "--progress" not in cmd:
             cmd.append("--progress")
 
     # Initial progress display
-    initial_text = f"{prefix}: " + fmt.format(0.0)
+    initial_text = f"{prefix}: " + (fmt.format(0.0) if not is_push else "...")
     if manager and worker_id:
         manager.update(worker_id, initial_text)
     else:
@@ -548,7 +550,11 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                 full_error_output.append(partial_line) # Capture all output for error reporting
                 partial_line = ""
                 if not line:
-                    continue
+                    # Update anyway if pushing to show time
+                    if is_push:
+                        pass
+                    else:
+                        continue
                 
                 # Parse percentage
                 match = re_percent.search(line)
@@ -568,34 +574,39 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                 # Update display at intervals
                 curr_time = time.time()
                 if curr_time - last_print >= interval:
-                    percent_str = fmt.format(max_percent)
-                    
                     # Time calculation
                     t1 = curr_time - start_time
-                    p = max_percent / 100.0
-                    if p > 0:
-                        t2 = t1 / p - t1
-                        t2_str = format_seconds(t2)
-                    else:
-                        t2_str = "unknown"
                     t1_str = format_seconds(t1)
-                    
-                    time_info = f" [{t1_str}<{t2_str}]"
-                    
-                    # Speed detection
-                    extra = ""
-                    speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
-                    if speed_match:
-                        extra = f" ({speed_match.group(1)})"
-                    elif cmd[0] == "curl":
-                        parts = line.split()
-                        if len(parts) >= 7:
-                            for p_arg in parts[6:]:
-                                if any(c.isdigit() for c in p_arg) and any(u in p_arg.upper() for u in ['K', 'M', 'G']):
-                                    extra = f" ({p_arg}/s)"
-                                    break
-                    
-                    status_text = f"{prefix}: {percent_str}{extra}{time_info}"
+
+                    if is_push and max_percent == 0:
+                        # Special handling for push: show elapsed time instead of 0%
+                        status_text = f"{prefix}... ({t1_str})"
+                    else:
+                        percent_str = fmt.format(max_percent)
+                        p = max_percent / 100.0
+                        if p > 0:
+                            t2 = t1 / p - t1
+                            t2_str = format_seconds(t2)
+                        else:
+                            t2_str = "unknown"
+                        
+                        time_info = f" [{t1_str}<{t2_str}]"
+                        
+                        # Speed detection
+                        extra = ""
+                        speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
+                        if speed_match:
+                            extra = f" ({speed_match.group(1)})"
+                        elif cmd[0] == "curl":
+                            parts = line.split()
+                            if len(parts) >= 7:
+                                for p_arg in parts[6:]:
+                                    if any(c.isdigit() for c in p_arg) and any(u in p_arg.upper() for u in ['K', 'M', 'G']):
+                                        extra = f" ({p_arg}/s)"
+                                        break
+                        
+                        status_text = f"{prefix}: {percent_str}{extra}{time_info}"
+
                     if manager and worker_id:
                         manager.update(worker_id, status_text)
                     else:

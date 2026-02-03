@@ -17,8 +17,8 @@ try:
     # Add project root to sys.path to find root proj modules
     sys.path.append(str(tool_root.parent.parent))
     
-    from core.lang.utils import get_translation
-    from core.config import get_color
+    from logic.lang.utils import get_translation
+    from logic.config import get_color
     from .config import DATA_DIR, RESOURCE_ROOT, INSTALL_DIR, TMP_INSTALL_DIR, PROJECT_ROOT
 except ImportError:
     def get_translation(dir, key, default): return default
@@ -186,10 +186,10 @@ def download_and_verify(asset, target_dir):
         extract_dir.mkdir()
         
         # Clear existing proj modules to avoid conflicts with root proj
-        if 'proj.utils' in sys.modules: del sys.modules['proj.utils']
+        if 'logic.utils' in sys.modules: del sys.modules['logic.utils']
         if 'proj' in sys.modules: del sys.modules['proj']
         
-        from core.utils import extract_resource
+        from logic.utils import extract_resource
         if not extract_resource(zst_path, extract_dir):
             print(f"{RED}Extraction failed for {asset['name']}{RESET}")
             return False

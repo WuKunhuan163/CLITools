@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 import sys
 
-# Add project root to path so we can import proj.utils
+# Add project root to path so we can import logic.utils
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
