@@ -26,7 +26,9 @@ def truncate_to_width(text, max_width):
         return text
     # Reset color BEFORE the ellipsis to ensure ellipsis is default color
     # and to stop any active styles from the truncated text.
-    return truncate_to_display_width(text, safe_width - 3) + "\033[0m..."
+    from logic.config import get_color
+    RESET = get_color("RESET", "\033[0m")
+    return truncate_to_display_width(text, safe_width - 3) + f"{RESET}..."
 
 def _get_configured_width():
     """Get the configured terminal width or the actual terminal size."""

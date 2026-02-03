@@ -277,6 +277,8 @@ class UserInputWindow(BaseGUIWindow):
         
         self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Use both Key and KeyRelease for better compatibility
+        self.text_widget.bind("<Key>", self.on_key_press)
         self.text_widget.bind("<KeyRelease>", self.on_key_release)
         scrollbar.config(command=self.text_widget.yview)
         
@@ -288,13 +290,24 @@ class UserInputWindow(BaseGUIWindow):
         self.start_periodic_focus(self.focus_interval)
         self.play_bell()
 
-    def on_key_release(self, event):
-        """Trigger FILEDIALOG when '@' is typed."""
+    def check_at_trigger(self, event):
+        """Helper to determine if '@' was typed."""
         # Standard '@' char, or keysym 'at', or Shift+2 (common)
-        is_at = (event.char == "@" or event.keysym == "at" or 
-                 (event.keysym == "2" and (event.state & 0x1))) # Shift is bit 0x1
-        
-        if not is_at:
+        is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
+        return (event.char == "@" or event.keysym == "at" or is_shift_2)
+
+    def on_key_press(self, event):
+        if self.check_at_trigger(event):
+            # Defer slightly to allow character to be inserted (or not if we prevent it)
+            self.root.after(10, self.run_file_dialog_trigger)
+
+    def on_key_release(self, event):
+        if self.check_at_trigger(event):
+            self.root.after(10, self.run_file_dialog_trigger)
+
+    def run_file_dialog_trigger(self):
+        # Avoid duplicate triggers if both events fire
+        if getattr(self, "is_triggering_subtool", False):
             return
             
         try:
@@ -310,33 +323,27 @@ class UserInputWindow(BaseGUIWindow):
             res = subprocess.run(cmd, capture_output=True, text=True)
             
             if res.returncode == 0:
+                # Output parsing
                 lines = res.stdout.strip().splitlines()
                 paths = []
                 for line in lines:
-                    match = re.match(r"^\s*\d+\.\s*(.*)$", line)
-                    if match:
-                        paths.append(match.group(1).strip())
-                    elif line.startswith("Selected: "):
+                    if line.startswith("Selected: "):
                         paths.append(line[len("Selected: "):].strip())
+                    else:
+                        match = re.match(r"^\s*\d+\.\s*(.*)$", line)
+                        if match: paths.append(match.group(1).strip())
                 
                 if paths:
                     import shlex
+                    # Find and replace the typed '@'
                     cursor_pos = self.text_widget.index(tk.INSERT)
-                    start_pos = f"{cursor_pos}-1c"
+                    # Look back 1 char
+                    prev_char = self.text_widget.get(f"{cursor_pos}-1c", cursor_pos)
+                    if prev_char == "@":
+                        self.text_widget.delete(f"{cursor_pos}-1c", cursor_pos)
                     
-                    if self.text_widget.get(start_pos, cursor_pos) == "@":
-                        self.text_widget.delete(start_pos, cursor_pos)
-                        # Selective quoting via shlex.quote if space exists
-                        quoted_paths = []
-                        for p in paths:
-                            if " " in p:
-                                # shlex.quote is safe for shell-like parsing
-                                quoted_paths.append(shlex.quote(p))
-                            else:
-                                quoted_paths.append(p)
-                        
-                        formatted = ", ".join([f"@{p}" for p in quoted_paths])
-                        self.text_widget.insert(tk.INSERT, formatted)
+                    formatted = ", ".join([f"@{shlex.quote(p) if ' ' in p else p}" for p in paths])
+                    self.text_widget.insert(tk.INSERT, formatted)
         except Exception as e:
             print(f"Error triggering FILEDIALOG: {e}", file=sys.stderr)
         finally:
