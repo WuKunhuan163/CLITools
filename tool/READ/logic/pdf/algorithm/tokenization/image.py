@@ -101,21 +101,46 @@ class ImageIdentifier:
                     min_dist_to_text = dist
             
             is_absorbed = False
-            # Relative distance check: text must be very close to image
-            if min_dist_to_img < 2.0: 
-                is_absorbed = True
-            elif min_dist_to_img < 8.0 and min_dist_to_img < min_dist_to_text / 1.5:
-                is_absorbed = True
-            # Special case for tokens entirely inside the image bbox
-            if not is_absorbed:
-                for c in clusters:
-                    c_bbox = c["bbox"]
-                    if (t_bbox[0] >= c_bbox[0] - 1.0 and t_bbox[2] <= c_bbox[2] + 1.0 and 
-                        t_bbox[1] >= c_bbox[1] - 1.0 and t_bbox[3] <= c_bbox[3] + 1.0):
-                        is_absorbed = True
-                        closest_cluster = c
-                        break
+            if closest_cluster:
+                c_bbox_temp = closest_cluster["bbox"]
+                # Relative distance check: text must be very close to image
+                if min_dist_to_img < 2.0: 
+                    is_absorbed = True
+                elif min_dist_to_img < 8.0 and min_dist_to_img < min_dist_to_text / 1.5:
+                    is_absorbed = True
                 
+                # Special case for tokens entirely inside any cluster bbox
+                if not is_absorbed:
+                    for c in clusters:
+                        cur_c_bbox = c["bbox"]
+                        if (t_bbox[0] >= cur_c_bbox[0] - 1.0 and t_bbox[2] <= cur_c_bbox[2] + 1.0 and 
+                            t_bbox[1] >= cur_c_bbox[1] - 1.0 and t_bbox[3] <= cur_c_bbox[3] + 1.0):
+                            is_absorbed = True
+                            closest_cluster = c
+                            c_bbox_temp = c["bbox"]
+                            break
+                
+                if is_absorbed:
+                    # Apply size constraint: image area must be at least 1.0x text area to absorb it
+                    # (unless it's already mostly inside)
+                    t_area = (t_bbox[2] - t_bbox[0]) * (t_bbox[3] - t_bbox[1])
+                    c_area = (c_bbox_temp[2] - c_bbox_temp[0]) * (c_bbox_temp[3] - c_bbox_temp[1])
+                    size_factor = 1.0
+                    is_mostly_inside = False
+                    
+                    intersection = [max(t_bbox[0], c_bbox_temp[0]), max(t_bbox[1], c_bbox_temp[1]),
+                                    min(t_bbox[2], c_bbox_temp[2]), min(t_bbox[3], c_bbox_temp[3])]
+                    iw = max(0, intersection[2] - intersection[0])
+                    ih = max(0, intersection[3] - intersection[1])
+                    if (iw * ih) > t_area * 0.8:
+                        is_mostly_inside = True
+
+                    if not is_mostly_inside and c_area < t_area * size_factor:
+                        # Add rationale for why absorption was rejected
+                        if "rationales" not in closest_cluster: closest_cluster["rationales"] = []
+                        closest_cluster["rationales"].append(f"Rejected text '{token['text']}' absorption: image area {c_area:.1f} < text area {t_area:.1f} * {size_factor}")
+                        is_absorbed = False
+
             if is_absorbed and closest_cluster:
                 c_bbox = closest_cluster["bbox"]
                 closest_cluster["bbox"] = [min(c_bbox[0], t_bbox[0]), min(c_bbox[1], t_bbox[1]), 

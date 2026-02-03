@@ -76,6 +76,47 @@ def append_legend(image: Image.Image, items: Dict[str, Tuple[int, int, int, int]
     new_img.paste(legend_img, (0, image.height))
     return new_img
 
+def draw_result_with_legend(image: Image.Image, items: List[Dict[str, Any]], legend_label: str, color: Tuple[int, int, int, int]) -> Image.Image:
+    """
+    Generalized logic to draw bboxes with IDs and a legend.
+    items: List of {'bbox': [x0,y0,x1,y1], 'id': '...'}
+    """
+    res_img = image.copy().convert("RGBA")
+    
+    rects = []
+    labels = []
+    
+    # Use a safe zoom-independent font size
+    try:
+        font = ImageFont.truetype("Arial.ttf", 20)
+    except:
+        font = ImageFont.load_default()
+
+    for item in items:
+        bbox = item["bbox"]
+        # Rectangle
+        rects.append({"bbox": bbox, "fill": tuple(list(color[:3]) + [150])})
+        
+        # Label (ID)
+        # Position: top-right of background box at top-left of item
+        id_str = str(item.get("id", ""))
+        if id_str:
+            tmp_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+            t_bbox = tmp_draw.textbbox((0, 0), id_str, font=font)
+            w = t_bbox[2] - t_bbox[0]
+            labels.append({
+                "pos": (bbox[0] - w - 4, bbox[1] + 2),
+                "text": id_str,
+                "font": font,
+                "bg_color": (255, 255, 255, 255),
+                "border_color": (0, 0, 0, 255)
+            })
+            
+    res_img = draw_rects_with_alpha(res_img, rects)
+    res_img = draw_labels(res_img, labels)
+    res_img = append_legend(res_img, {legend_label: color})
+    return res_img
+
 def get_text_width(text, font):
     draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     bbox = draw.textbbox((0, 0), text, font=font)

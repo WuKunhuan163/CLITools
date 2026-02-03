@@ -61,11 +61,16 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
 
     # 3. Images folder structure
     page_images_root = page_dir / "images"
-    tokenized_dir = page_images_root / "tokenized"
-    processed_dir = page_images_root / "processed"
+    preprocessed_dir = page_images_root / "1_preprocessed"
+    tokenized_dir = page_images_root / "2_tokenized"
+    processed_dir = page_images_root / "3_processed"
     
-    tokenized_dir.mkdir(parents=True, exist_ok=True)
-    processed_dir.mkdir(parents=True, exist_ok=True)
+    # Sub-folders for individual artifacts
+    tk_items_dir = tokenized_dir / "items"
+    pr_items_dir = processed_dir / "items"
+    
+    for d in [preprocessed_dir, tokenized_dir, processed_dir, tk_items_dir, pr_items_dir]:
+        d.mkdir(parents=True, exist_ok=True)
     
     # Define semantic mapping to colors
     semantic_color_map = {
@@ -153,49 +158,72 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
 
     # 5. Salient Region Detection & Filtering
     img_for_detection = vis_img.copy().convert("RGB")
-    draw_detect = ImageDraw.Draw(img_for_detection)
-    
-    # Use Glyph-aware wiping as suggested by user: only wipe pixels that "have values" (non-white)
     img_data = np.array(img_for_detection)
     h, w, _ = img_data.shape
     
+    # A. Detect Dominant Background Color (Sample corners)
+    corners = [img_data[0,0], img_data[0,-1], img_data[-1,0], img_data[-1,-1]]
+    bg_color = np.median(corners, axis=0).astype(np.uint8)
+    
+    # B. Generate Mask & Wipe Source
+    # mask_overlay will highlight wiped pixels in Red
+    mask = np.zeros((h, w), dtype=bool)
+    
+    def get_content_mask(region, color_hint=None):
+        """Find pixels in region that differ from bg_color."""
+        diff = np.abs(region.astype(float) - bg_color.astype(float))
+        return np.mean(diff, axis=2) > 15 # Threshold for content
+    
+    # Wipe Text Spans
     for span in all_spans:
         bbox = span["bbox"]
         x0, y0, x1, y1 = [int(c * zoom) for c in bbox]
-        # Small padding to catch anti-aliasing
         x0, y0, x1, y1 = max(0, x0-1), max(0, y0-1), min(w, x1+1), min(h, y1+1)
-        
         if x1 > x0 and y1 > y0:
             region = img_data[y0:y1, x0:x1]
-            # Wipe pixels that are NOT white (sum of RGB < 750)
-            # This handles overlapping bboxes by only removing "content" pixels
-            mask = np.sum(region, axis=2) < 750
-            region[mask] = [255, 255, 255]
-            img_data[y0:y1, x0:x1] = region
-
-    img_for_detection = Image.fromarray(img_data)
-    draw_detect = ImageDraw.Draw(img_for_detection)
-    
+            m = get_content_mask(region)
+            mask[y0:y1, x0:x1] |= m
+            
+    # Wipe Image Objects
     img_infos = page.get_image_info(xrefs=True)
     for info in img_infos:
-        i_bbox = [info["bbox"][0]*zoom, info["bbox"][1]*zoom, info["bbox"][2]*zoom, info["bbox"][3]*zoom]
-        # Also apply "non-white only" wiping for images if they might overlap?
-        # For now, whole-bbox wipe for PDF images is safer as they are intended blocks.
-        draw_detect.rectangle(i_bbox, fill=(255, 255, 255))
-        
-    img_gray = img_for_detection.convert("L")
-    bw = img_gray.point(lambda x: 0 if x > 240 else 255, '1')
+        i_bbox = info["bbox"]
+        x0, y0, x1, y1 = [int(c * zoom) for c in i_bbox]
+        x0, y0, x1, y1 = max(0, x0-1), max(0, y0-1), min(w, x1+1), min(h, y1+1)
+        if x1 > x0 and y1 > y0:
+            region = img_data[y0:y1, x0:x1]
+            m = get_content_mask(region)
+            mask[y0:y1, x0:x1] |= m
+
+    # Save Preprocessing Visualizations
+    overlay_img = img_for_detection.copy()
+    overlay_data = np.array(overlay_img)
+    overlay_data[mask] = [255, 0, 0] # Red
+    # Blend 50%
+    vis_overlay = Image.blend(img_for_detection, Image.fromarray(overlay_data), alpha=0.5)
+    vis_overlay.save(preprocessed_dir / "1_mask_overlay.png")
+    
+    wiped_data = img_data.copy()
+    wiped_data[mask] = bg_color
+    wiped_img = Image.fromarray(wiped_data)
+    wiped_img.save(preprocessed_dir / "2_wiped_source.png")
+
+    # C. Extract Artifacts from Wiped Source
+    img_gray = wiped_img.convert("L")
+    bg_gray = int(np.mean(bg_color))
+    # Artifacts are pixels that differ significantly from background gray
+    bw = img_gray.point(lambda x: 255 if abs(x - bg_gray) > 20 else 0, '1')
     bw_dilated = bw.filter(ImageFilter.MaxFilter(size=5))
     
     artifact_bboxes = []
     downscale = 2
     small_bw = bw_dilated.resize((bw_dilated.width // downscale, bw_dilated.height // downscale), resample=Image.NEAREST)
-    width, height = small_bw.size
+    sw, sh = small_bw.size
     pixels = small_bw.load()
     visited = set()
     
-    for y in range(height):
-        for x in range(width):
+    for y in range(sh):
+        for x in range(sw):
             if pixels[x, y] == 255 and (x, y) not in visited:
                 stack = [(x, y)]
                 visited.add((x, y))
@@ -206,18 +234,30 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     max_x, max_y = max(max_x, cx), max(max_y, cy)
                     for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
                         nx, ny = cx + dx, cy + dy
-                        if 0 <= nx < width and 0 <= ny < height and pixels[nx, ny] == 255 and (nx, ny) not in visited:
+                        if 0 <= nx < sw and 0 <= ny < sh and pixels[nx, ny] == 255 and (nx, ny) not in visited:
                             visited.add((nx, ny)); stack.append((nx, ny))
                 
-                artifact_bbox = [(min_x * downscale) / zoom, (min_y * downscale) / zoom,
-                                 ((max_x + 1) * downscale) / zoom, ((max_y + 1) * downscale) / zoom]
+                art_bbox = [(min_x * downscale) / zoom, (min_y * downscale) / zoom,
+                            ((max_x + 1) * downscale) / zoom, ((max_y + 1) * downscale) / zoom]
                 
-                if (artifact_bbox[2] - artifact_bbox[0]) > 2 and (artifact_bbox[3] - artifact_bbox[1]) > 2:
-                    crop_bbox = [artifact_bbox[0]*zoom, artifact_bbox[1]*zoom, artifact_bbox[2]*zoom, artifact_bbox[3]*zoom]
+                if (art_bbox[2] - art_bbox[0]) > 2 and (art_bbox[3] - art_bbox[1]) > 2:
+                    crop_bbox = [art_bbox[0]*zoom, art_bbox[1]*zoom, art_bbox[2]*zoom, art_bbox[3]*zoom]
                     region_img = img_for_detection.crop(crop_bbox).convert("RGB")
                     stat = ImageStat.Stat(region_img)
-                    if any(s > 8.0 for s in stat.stddev) and any(m < 250 for m in stat.mean):
-                        artifact_bboxes.append({"bbox": artifact_bbox, "rationale": f"stddev={stat.stddev}, mean={stat.mean}"})
+                    # Use difference from bg_color instead of just absolute variance
+                    mean_diff = np.mean(np.abs(np.array(region_img).astype(float) - bg_color.astype(float)))
+                    if mean_diff > 10: # Significant difference from background
+                        artifact_bboxes.append({"bbox": art_bbox, "rationale": f"mean_diff={mean_diff:.2f}, stat={stat.stddev}"})
+
+    # Generate 3_wiped_result.png
+    if draw_iface and artifact_bboxes:
+        items_for_draw = []
+        for i, art in enumerate(artifact_bboxes):
+            items_for_draw.append({"bbox": [c * zoom for c in art["bbox"]], "id": str(i + 1)})
+        w_res = draw_iface["draw_result_with_legend"](
+            vis_img, items_for_draw, "Wiped Artifacts", tuple(list(semantic_color_map["unprocessed_image"][:3]) + [255])
+        )
+        w_res.save(preprocessed_dir / "3_wiped_result.png")
 
     image_semantic_items = []
     raw_img_id_counter = 1
@@ -236,8 +276,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 img_item = {"bbox": i_bbox, "text": "[Image Object]", "type": "unprocessed_image", "original_id": orig_id, "rationale": f"stddev={stat.stddev}, mean={stat.mean}"}
                 image_semantic_items.append(img_item)
                 
-                # Save to tokenized
-                region_img.save(tokenized_dir / f"{orig_id}.png")
+                # Save to tokenized sub-folder
+                region_img.save(tk_items_dir / f"{orig_id}.png")
         except: pass
 
     for art in artifact_bboxes:
@@ -246,10 +286,10 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         art_item = {"bbox": art["bbox"], "text": "[Detected Salient Region]", "type": "unprocessed_image", "original_id": orig_id, "rationale": art["rationale"]}
         image_semantic_items.append(art_item)
         
-        # Save to tokenized
+        # Save to tokenized sub-folder
         try:
             crop_bbox = [art["bbox"][0]*zoom, art["bbox"][1]*zoom, art["bbox"][2]*zoom, art["bbox"][3]*zoom]
-            vis_img.crop(crop_bbox).convert("RGB").save(tokenized_dir / f"{orig_id}.png")
+            vis_img.crop(crop_bbox).convert("RGB").save(tk_items_dir / f"{orig_id}.png")
         except: pass
 
     # Populate tokenized_vis_data
@@ -290,7 +330,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         # Save Unprocessed Image
         if block_type == "unprocessed_image":
             img_name = f"image_{unprocessed_image_counter:03d}.png"
-            img_path = processed_dir / img_name
+            img_path = pr_items_dir / img_name
             unprocessed_image_counter += 1
             
             # Crop and save
@@ -299,7 +339,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 with Image.open(source_png_path) as source_img:
                     img_crop = source_img.crop(crop_bbox)
                     img_crop.save(img_path)
-                item["image_path"] = f"images/processed/{img_name}"
+                item["image_path"] = f"images/3_processed/items/{img_name}"
                 # Add to processed_vis_data
                 processed_vis_data["rects"].append({
                     "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
@@ -433,14 +473,14 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             tk_img = draw_iface["draw_rects_with_alpha"](tk_img, tokenized_vis_data["rects"])
             tk_img = draw_iface["draw_labels"](tk_img, tokenized_vis_data["labels"])
             tk_img = draw_iface["append_legend"](tk_img, {"Tokenized Images": tuple(list(semantic_color_map["unprocessed_image"][:3]) + [255])})
-            tk_img.save(page_images_root / "tokenized.png")
+            tk_img.save(tokenized_dir / "result.png")
             
         if processed_vis_data["rects"]:
             pr_img = Image.open(source_png_path).convert("RGBA")
             pr_img = draw_iface["draw_rects_with_alpha"](pr_img, processed_vis_data["rects"])
             pr_img = draw_iface["draw_labels"](pr_img, processed_vis_data["labels"])
             pr_img = draw_iface["append_legend"](pr_img, {"Processed Images": tuple(list(semantic_color_map["unprocessed_image"][:3]) + [255])})
-            pr_img.save(page_images_root / "processed.png")
+            pr_img.save(processed_dir / "result.png")
     else:
         vis_img.save(page_dir / "extracted.png")
 
