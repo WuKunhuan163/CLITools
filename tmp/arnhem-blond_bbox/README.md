@@ -18,8 +18,6 @@ Source: [FontsGeek - Arnhem Blond](https://fontsgeek.com/fonts/arnhem-blond/down
 ## Visualization Key
 -   **Red Rectangles**: Glyph BBox (theoretical).
 -   **Blue Rectangles**: Actual BBox (pixel-based).
--   **Green Rectangles**: Block BBox.
--   **Yellow Rectangles**: Line BBox.
 
 ## How to Run
 ```bash

@@ -53,13 +53,12 @@ def analyze_and_draw(pdf_path, font_path, base_dir):
         b_bbox = [c * zoom for c in block["bbox"]]
         b_type = block["type"]
         
-        # Draw block bbox in green to distinguish from char bboxes
-        draw_glyph.rectangle(b_bbox, outline="green", width=1)
+        # REMOVED: draw_glyph.rectangle(b_bbox, outline="green", width=1)
         
         if b_type == 0: # Text block
             for line in block["lines"]:
                 l_bbox = [c * zoom for c in line["bbox"]]
-                draw_glyph.rectangle(l_bbox, outline="yellow", width=1)
+                # REMOVED: draw_glyph.rectangle(l_bbox, outline="yellow", width=1)
                 
                 for span in line["spans"]:
                     font_size = span["size"]
