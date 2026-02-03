@@ -42,7 +42,7 @@ except ImportError:
             self.tool_name = name
             self.project_root = Path(__file__).resolve().parent.parent.parent
             self.script_dir = Path(__file__).resolve().parent
-        def handle_command_line(self): return False
+        def handle_command_line(self, parser): return False
     def get_translation(d, k, default): return default
     def get_logic_dir(d): return d / "logic"
 
@@ -175,7 +175,8 @@ class FileDialogWindow(BaseGUIWindow):
         self.forward_btn = None
         self.sort_column = "name"
         self.sort_reverse = False
-        self.last_selected = None # Anchor for shift-selection
+        self.last_selected = None
+        self._updating_breadcrumbs = False
 
     def get_current_state(self):
         if not self.tree: return None
@@ -184,7 +185,6 @@ class FileDialogWindow(BaseGUIWindow):
         
         paths = []
         for item in selected:
-            # item is usually the absolute path string we used as ID
             paths.append(item)
         
         if self.multiple: return paths
@@ -198,7 +198,7 @@ class FileDialogWindow(BaseGUIWindow):
             self.root, self, 
             submit_text=self._("btn_select", "Select"),
             submit_cmd=lambda: self.finalize("success", self.get_current_state()),
-            add_time_increment=60 # Enable add time for file dialog
+            add_time_increment=60 
         )
 
         main_frame = tk.Frame(self.root, padx=15, pady=10)
@@ -220,9 +220,10 @@ class FileDialogWindow(BaseGUIWindow):
         # Breadcrumb frame
         self.breadcrumb_frame = tk.Frame(nav_frame, bg="white", relief=tk.SUNKEN, borderwidth=1)
         self.breadcrumb_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.breadcrumb_frame.bind("<Configure>", lambda e: self.update_breadcrumbs())
+        self.breadcrumb_frame.bind("<Configure>", self.on_breadcrumb_configure)
         
-        self.update_breadcrumbs()
+        # Initial render after delay
+        self.root.after(100, self.update_breadcrumbs)
 
         # File list with Treeview
         tree_frame = tk.Frame(main_frame)
@@ -258,27 +259,20 @@ class FileDialogWindow(BaseGUIWindow):
         self.update_header_text()
         
         self.start_timer(self.status_label)
-        self.start_periodic_focus(90) # Default 90s for all GUIs
+        self.start_periodic_focus(90)
 
-    def update_history_buttons(self):
-        if self.back_btn:
-            self.back_btn.config(state=tk.NORMAL if self.history_index > 0 else tk.DISABLED)
-        if self.forward_btn:
-            self.forward_btn.config(state=tk.NORMAL if self.history_index < len(self.history) - 1 else tk.DISABLED)
+    def on_breadcrumb_configure(self, event):
+        if hasattr(self, "_breadcrumb_timer"):
+            self.root.after_cancel(self._breadcrumb_timer)
+        self._breadcrumb_timer = self.root.after(50, self.update_breadcrumbs)
 
     def update_breadcrumbs(self):
-        # Prevent recursive/concurrent calls causing duplication
-        if getattr(self, "_updating_breadcrumbs", False):
-            return
+        if self._updating_breadcrumbs: return
         self._updating_breadcrumbs = True
         
         try:
-            # Clear existing breadcrumbs
             for widget in self.breadcrumb_frame.winfo_children():
                 widget.destroy()
-            
-            # Process destruction before calculating width
-            self.breadcrumb_frame.update_idletasks()
             
             path = self.current_dir
             parts = []
@@ -300,28 +294,25 @@ class FileDialogWindow(BaseGUIWindow):
                     else: return "File System"
                 return part.name
 
-            # Calculate display strategy
+            self.root.update_idletasks()
             max_w = self.breadcrumb_frame.winfo_width()
-            if max_w <= 1: max_w = 400 # Initial estimate
-            max_w -= 35 # Buffer for stability
+            if max_w <= 1:
+                self.root.after(50, self.update_breadcrumbs)
+                return
+            max_w -= 35
 
             sep_w = measure_font.measure(" / ")
             ellipsis_w = measure_font.measure("...")
             
-            # 1. Try full path
             names = [get_name(p, i) for i, p in enumerate(parts)]
             full_w = sum(measure_font.measure(n) for n in names) + (len(names) - 1) * sep_w
                 
             if full_w <= max_w:
                 display_items = [(parts[i], i) for i in range(len(parts))]
             else:
-                # 2. Need truncation: A / ... / [middle] / B
                 first_name = names[0]
                 last_name = names[-1]
-                
-                # Base width: A / ... / B
                 current_w = measure_font.measure(first_name) + sep_w + ellipsis_w + sep_w + measure_font.measure(last_name)
-                
                 added_indices = []
                 for i in range(len(parts) - 2, 0, -1):
                     w = measure_font.measure(names[i]) + sep_w
@@ -343,11 +334,9 @@ class FileDialogWindow(BaseGUIWindow):
                 else:
                     name = get_name(p, idx)
                     if is_last:
-                        lbl = tk.Label(self.breadcrumb_frame, text=name, fg=text_color, 
-                                       bg="white", font=font_style)
+                        lbl = tk.Label(self.breadcrumb_frame, text=name, fg=text_color, bg="white", font=font_style)
                     else:
-                        lbl = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", 
-                                       bg="white", font=font_style)
+                        lbl = tk.Label(self.breadcrumb_frame, text=name, fg=blue_color, cursor="hand2", bg="white", font=font_style)
                         lbl.bind("<Button-1>", lambda e, path=p: self.jump_to(path))
                 
                 lbl.pack(side=tk.LEFT)
@@ -357,14 +346,17 @@ class FileDialogWindow(BaseGUIWindow):
         finally:
             self._updating_breadcrumbs = False
 
+    def update_history_buttons(self):
+        if self.back_btn:
+            self.back_btn.config(state=tk.NORMAL if self.history_index > 0 else tk.DISABLED)
+        if self.forward_btn:
+            self.forward_btn.config(state=tk.NORMAL if self.history_index < len(self.history) - 1 else tk.DISABLED)
+
     def jump_to(self, path):
         if path == self.current_dir: return
-        
-        # Record history
         self.history = self.history[:self.history_index + 1]
         self.history.append(path)
         self.history_index += 1
-        
         self.current_dir = path
         self.refresh_list()
         self.update_breadcrumbs()
@@ -388,13 +380,11 @@ class FileDialogWindow(BaseGUIWindow):
 
     def on_click(self, event):
         item = self.tree.identify_row(event.y)
-        if item:
-            self.last_selected = item
+        if item: self.last_selected = item
 
     def on_ctrl_click(self, event):
         item = self.tree.identify_row(event.y)
-        if item:
-            self.last_selected = item
+        if item: self.last_selected = item
 
     def on_shift_click(self, event):
         if not self.multiple: return
@@ -404,162 +394,87 @@ class FileDialogWindow(BaseGUIWindow):
             try:
                 idx1 = all_items.index(self.last_selected)
                 idx2 = all_items.index(item)
-                start = min(idx1, idx2)
-                end = max(idx1, idx2)
-                
+                start, end = min(idx1, idx2), max(idx1, idx2)
                 range_items = all_items[start:end+1]
                 current_selection = list(self.tree.selection())
-                
                 for ri in range_items:
-                    if ri not in current_selection:
-                        current_selection.append(ri)
-                
+                    if ri not in current_selection: current_selection.append(ri)
                 self.tree.selection_set(current_selection)
-                return "break" # Prevent default shift behavior
-            except ValueError:
-                pass
+                return "break"
+            except ValueError: pass
 
     def on_header_click(self, column):
-        if self.sort_column == column:
-            self.sort_reverse = not self.sort_reverse
-        else:
-            self.sort_column = column
-            self.sort_reverse = False
-        
-        self.refresh_list()
-        self.update_header_text()
+        if self.sort_column == column: self.sort_reverse = not self.sort_reverse
+        else: self.sort_column, self.sort_reverse = column, False
+        self.refresh_list(); self.update_header_text()
 
     def update_header_text(self):
-        columns = ("name", "size", "type")
-        for col in columns:
+        for col in ("name", "size", "type"):
             base_text = self._(f"col_{col}", col.capitalize())
             if col == self.sort_column:
-                indicator = " ↑" if self.sort_reverse else " ↓"
-                self.tree.heading(col, text=base_text + indicator)
-            else:
-                self.tree.heading(col, text=base_text)
+                self.tree.heading(col, text=base_text + (" ↑" if self.sort_reverse else " ↓"))
+            else: self.tree.heading(col, text=base_text)
 
     def refresh_list(self):
-        for i in self.tree.get_children():
-            self.tree.delete(i)
-        
+        for i in self.tree.get_children(): self.tree.delete(i)
         try:
-            # 1. Get all items in directory
-            try:
-                raw_items = list(self.current_dir.iterdir())
-            except (PermissionError, OSError):
-                self.tree.insert("", tk.END, values=(self._("err_access_denied", "Access Denied"), "", ""))
-                return
-
-            # Add ".." entry if not at root
+            try: raw_items = list(self.current_dir.iterdir())
+            except: self.tree.insert("", tk.END, values=(self._("err_access_denied", "Access Denied"), "", "")); return
             if self.current_dir.parent != self.current_dir:
                 self.tree.insert("", tk.END, iid="..", values=("..", "", self._("type_folder", "Folder")))
-
-            # 2. Sorting logic
+            
             def get_sort_val(item):
                 is_dir = item.is_dir()
-                if self.sort_column == "name":
-                    return item.name.lower()
+                if self.sort_column == "name": return item.name.lower()
                 if self.sort_column == "size":
-                    if is_dir: return -1 # Folders first or last depending on reverse
+                    if is_dir: return -1
                     try: return item.stat().st_size
                     except: return 0
-                if self.sort_column == "type":
-                    return (self._("type_folder", "Folder") if is_dir else self._("type_file", "File")).lower()
+                if self.sort_column == "type": return (self._("type_folder", "Folder") if is_dir else self._("type_file", "File")).lower()
                 return item.name.lower()
-
-            # We usually want folders grouped together even when sorting by other columns?
-            # User said "按照这一列排序", which implies strict sorting.
-            # But size for folders is empty, so they would naturally group together at the start or end.
+            
             items = sorted(raw_items, key=get_sort_val, reverse=self.sort_reverse)
-
             for item in items:
                 try:
-                    # Skip items that cause errors when checking directory status
                     is_dir = item.is_dir()
-                    
-                    if self.directory_only and not is_dir:
-                        continue
-                    
-                    # Simple extension check if not all
-                    if not self.directory_only and not is_dir:
-                        if not self.match_file_types(item):
-                            continue
-                    
+                    if self.directory_only and not is_dir: continue
+                    if not self.directory_only and not is_dir and not self.match_file_types(item): continue
                     name = item.name + ("/" if is_dir else "")
-                    
-                    # 3. Get size, skip if error (e.g. broken symlink)
-                    try:
-                        size = "" if is_dir else self.format_size(item.stat().st_size)
-                    except:
-                        size = "???"
-                        
+                    try: size = "" if is_dir else self.format_size(item.stat().st_size)
+                    except: size = "???"
                     itype = self._("type_folder", "Folder") if is_dir else self._("type_file", "File")
-                    
                     self.tree.insert("", tk.END, iid=str(item), values=(name, size, itype))
-                except (PermissionError, OSError, FileNotFoundError):
-                    # Silently skip inaccessible or problematic items
-                    continue
-                    
-        except Exception as e:
-            # Global error for the directory itself
-            self.tree.insert("", tk.END, values=(f"Error: {e}", "", ""))
+                except: continue
+        except Exception as e: self.tree.insert("", tk.END, values=(f"Error: {e}", "", ""))
 
     def match_file_types(self, path):
-        # file_types is like [('PDF files', '*.pdf'), ...]
-        if not self.file_types or any(t[1] == '*.*' for t in self.file_types):
-            return True
-        
+        if not self.file_types or any(t[1] == '*.*' for t in self.file_types): return True
         ext = path.suffix.lower()
         for label, pattern in self.file_types:
-            patterns = pattern.split()
-            for p in patterns:
-                if p.startswith("*.") and ext == p[1:]:
-                    return True
-                elif p == ext:
-                    return True
+            for p in pattern.split():
+                if (p.startswith("*.") and ext == p[1:]) or p == ext: return True
         return False
 
     def format_size(self, size):
         for unit in ['B', 'KB', 'MB', 'GB']:
-            if size < 1024.0:
-                return f"{size:.1f} {unit}"
+            if size < 1024.0: return f"{size:.1f} {unit}"
             size /= 1024.0
         return f"{size:.1f} TB"
 
-    def go_up(self):
-        self.jump_to(self.current_dir.parent)
+    def go_up(self): self.jump_to(self.current_dir.parent)
 
     def on_double_click(self, event):
         item_id = self.tree.identify_row(event.y)
         if not item_id: return
-        
-        if item_id == "..":
-            self.go_up()
-            return
-            
+        if item_id == "..": self.go_up(); return
         path = Path(item_id)
-        if path.is_dir():
-            self.jump_to(path)
+        if path.is_dir(): self.jump_to(path)
 
 if __name__ == "__main__":
     try:
         win = FileDialogWindow(%(title)r, 300, %(initial_dir)r, %(file_types)r, %(multiple)r, %(directory_only)r)
-        
-        on_show_script = os.environ.get("FILEDIALOG_ON_SHOW_SCRIPT")
-        on_show_cb = None
-        if on_show_script:
-            def on_show_cb():
-                try:
-                    # Execute the script in the context of the window
-                    exec(on_show_script, {"win": win, "tk": tk})
-                except Exception as e:
-                    print(f"Error in on_show_script: {e}")
-        
-        win.run(win.setup_ui, on_show=on_show_cb, custom_id=%(custom_id)r)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+        win.run(win.setup_ui, custom_id=%(custom_id)r)
+    except: import traceback; traceback.print_exc()
 ''' % {
         'project_root': str(tool.project_root),
         'internal_dir': str(TOOL_INTERNAL),
@@ -577,20 +492,14 @@ if __name__ == "__main__":
 
     try:
         res = tool.run_gui_with_fallback(python_exe, tmp_path, 300, custom_id)
-        # Handle fallback result which might be a list of strings
         if res.get("status") == "success" and isinstance(res.get("data"), list):
-            # If multiple is false, take only the first one
-            if not multiple:
-                res["data"] = res["data"][0]
+            if not multiple: res["data"] = res["data"][0]
         return res
     finally:
         if os.path.exists(tmp_path): os.remove(tmp_path)
 
 def main():
     tool = FileDialogTool()
-    if tool.handle_command_line():
-        return 0
-
     parser = argparse.ArgumentParser(description="FILEDIALOG Tool")
     parser.add_argument('command', nargs='?', help="Command to run (stop, submit, cancel)")
     parser.add_argument('--types', type=str, default="all")
@@ -600,12 +509,11 @@ def main():
     parser.add_argument('--directory', action='store_true')
     parser.add_argument('--id', type=str)
     
+    if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
     
-    # Standard remote commands
     if args.command in ["stop", "submit", "cancel", "add_time"]:
         from logic.gui.manager import handle_gui_remote_command
-        # Pass the original arguments to ensure --id is correctly handled
         remote_args = sys.argv[2:]
         return handle_gui_remote_command("FILEDIALOG", tool.project_root, args.command, remote_args, tool.get_translation)
 
@@ -620,30 +528,27 @@ def main():
     if result['status'] == 'success':
         selected_label = get_msg("label_filedialog_selected", "Selected")
         data = result['data']
+        import shlex
         if isinstance(data, list):
             print(f"{BOLD}{GREEN}{selected_label}{RESET} ({len(data)}):")
             for i, p in enumerate(data, 1):
-                print(f"  {i}. {p}")
+                display_p = shlex.quote(p) if " " in p else p
+                print(f"  {i}. {display_p}")
         else:
-            print(f"{BOLD}{GREEN}{selected_label}{RESET}: {data}")
+            display_data = shlex.quote(data) if " " in data else data
+            print(f"{BOLD}{GREEN}{selected_label}{RESET}: {display_data}")
         return 0
     elif result['status'] in ['cancelled', 'terminated']:
         label = get_msg('label_terminated', 'Terminated')
-        if result['status'] == 'cancelled':
-            msg = get_msg('msg_cancelled', 'Cancelled')
+        if result['status'] == 'cancelled': msg = get_msg('msg_cancelled', 'Cancelled')
         else:
             reason = result.get('reason', 'stop')
-            reason_map = {
-                "stop": get_msg("msg_terminated_external", "Instance terminated from external signal"),
-                "interrupted": get_msg("msg_interrupted", "Interrupted by user"),
-                "signal": get_msg("msg_terminated_external", "Instance terminated from external signal")
-            }
+            reason_map = {"stop": get_msg("msg_terminated_external", "Instance terminated from external signal"), "interrupted": get_msg("msg_interrupted", "Interrupted by user"), "signal": get_msg("msg_terminated_external", "Instance terminated from external signal")}
             msg = reason_map.get(reason, reason)
         print(f"{BOLD}{RED}{label}{RESET}: {msg}")
         return 1
     elif result['status'] == 'timeout':
-        label = get_msg('label_error', 'Error')
-        msg = get_msg('msg_timeout', 'Input Timeout')
+        label, msg = get_msg('label_error', 'Error'), get_msg('msg_timeout', 'Input Timeout')
         print(f"{BOLD}{RED}{label}{RESET}: {msg}")
         return 1
     else:
