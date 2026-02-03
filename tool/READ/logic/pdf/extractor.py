@@ -153,39 +153,34 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
 
     # 5. Salient Region Detection & Filtering
     img_for_detection = vis_img.copy().convert("RGB")
-    img_data = np.array(img_for_detection)
+    draw_detect = ImageDraw.Draw(img_for_detection)
     
-    # Threshold-based wiping for text: only wipe dark pixels (glyphs)
-    # Using character-level bboxes for maximum tightness
-    page_raw_for_wipe = page.get_text("rawdict")
-    for b in page_raw_for_wipe["blocks"]:
-        if b.get("type") != 0: continue
-        for line in b["lines"]:
-            for span in line["spans"]:
-                for char in span["chars"]:
-                    c_bbox = char["bbox"]
-                    x0, y0, x1, y1 = [int(c * zoom) for c in c_bbox]
-                    # Minimal padding for characters
-                    pad = 1
-                    x0, y0, x1, y1 = x0-pad, y0-pad, x1+pad, y1+pad
-                    
-                    x0, y0 = max(0, x0), max(0, y0)
-                    x1, y1 = min(img_data.shape[1], x1), min(img_data.shape[0], y1)
-                    
-                    if x1 > x0 and y1 > y0:
-                        region = img_data[y0:y1, x0:x1]
-                        # Use a stricter threshold (80) to avoid wiping medium-gray lines
-                        mask = np.mean(region, axis=2) < 100
-                        region[mask] = [255, 255, 255]
-                        img_data[y0:y1, x0:x1] = region
-            
+    # Use Glyph-aware wiping as suggested by user: only wipe pixels that "have values" (non-white)
+    img_data = np.array(img_for_detection)
+    h, w, _ = img_data.shape
+    
+    for span in all_spans:
+        bbox = span["bbox"]
+        x0, y0, x1, y1 = [int(c * zoom) for c in bbox]
+        # Small padding to catch anti-aliasing
+        x0, y0, x1, y1 = max(0, x0-1), max(0, y0-1), min(w, x1+1), min(h, y1+1)
+        
+        if x1 > x0 and y1 > y0:
+            region = img_data[y0:y1, x0:x1]
+            # Wipe pixels that are NOT white (sum of RGB < 750)
+            # This handles overlapping bboxes by only removing "content" pixels
+            mask = np.sum(region, axis=2) < 750
+            region[mask] = [255, 255, 255]
+            img_data[y0:y1, x0:x1] = region
+
     img_for_detection = Image.fromarray(img_data)
     draw_detect = ImageDraw.Draw(img_for_detection)
     
     img_infos = page.get_image_info(xrefs=True)
     for info in img_infos:
-        # For PDF image objects, we still wipe the whole rectangle as they are blocks
         i_bbox = [info["bbox"][0]*zoom, info["bbox"][1]*zoom, info["bbox"][2]*zoom, info["bbox"][3]*zoom]
+        # Also apply "non-white only" wiping for images if they might overlap?
+        # For now, whole-bbox wipe for PDF images is safer as they are intended blocks.
         draw_detect.rectangle(i_bbox, fill=(255, 255, 255))
         
     img_gray = img_for_detection.convert("L")
