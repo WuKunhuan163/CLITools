@@ -52,10 +52,27 @@ class SemanticsEngine:
         from tool.FONT.logic.engine import FontManager
         fm = FontManager(self.project_root)
 
+        # 1. Render Visual Tokens First
         for tk in tokens:
-            bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
-            
+            if tk["type"] == "visual":
+                v_bbox = [c / zoom for c in tk["bbox"]]
+                # Try to embed the merged image token if it exists
+                token_img_path = output_dir.parent / "step1_tokenization" / "7_merged_image_tokens" / f"{tk['id']}.png"
+                if token_img_path.exists():
+                    try:
+                        pdf.image(str(token_img_path), x=v_bbox[0], y=v_bbox[1], w=v_bbox[2]-v_bbox[0], h=v_bbox[3]-v_bbox[1])
+                    except Exception as e:
+                        print(f"Warning: Failed to embed image token {tk['id']} into PDF: {e}")
+                        pdf.set_draw_color(200, 200, 200)
+                        pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
+                else:
+                    pdf.set_draw_color(200, 200, 200)
+                    pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
+
+        # 2. Render Text Tokens Last (to avoid occlusion)
+        for tk in tokens:
             if tk["type"] == "text":
+                bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
                 raw_font = tk.get("font", "Arial")
                 style = ""
                 if tk.get("flags", 0) & 2: style += "I" # Italic
@@ -157,21 +174,6 @@ class SemanticsEngine:
                     clean_text = "".join([c if ord(c) < 256 else "?" for c in tk["text"]])
                     try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=0)
                     except: pass
-            
-            elif tk["type"] == "visual":
-                v_bbox = [c / zoom for c in tk["bbox"]]
-                # Try to embed the merged image token if it exists
-                token_img_path = output_dir.parent / "step1_tokenization" / "7_merged_image_tokens" / f"{tk['id']}.png"
-                if token_img_path.exists():
-                    try:
-                        pdf.image(str(token_img_path), x=v_bbox[0], y=v_bbox[1], w=v_bbox[2]-v_bbox[0], h=v_bbox[3]-v_bbox[1])
-                    except Exception as e:
-                        print(f"Warning: Failed to embed image token {tk['id']} into PDF: {e}")
-                        pdf.set_draw_color(200, 200, 200)
-                        pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
-                else:
-                    pdf.set_draw_color(200, 200, 200)
-                    pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
 
         pdf_output_path = output_dir / "1_initial_status_reproduced.pdf"
         pdf.output(str(pdf_output_path))
