@@ -119,7 +119,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             except: pass
 
     # 5. Text Extraction using LayoutEngine
-    page_dict = page.get_text("dict")
+    page_dict = page.get_text("rawdict")
     all_spans = []
     for b in page_dict["blocks"]:
         if b.get("type") != 0: continue
@@ -127,14 +127,20 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             for span in line["spans"]:
                 # Treat each span as a "token" unit
                 all_spans.append({
-                    "text": span["text"],
+                    "text": "".join([c["c"] for c in span.get("chars", [])]),
                     "bbox": list(span["bbox"]),
                     "font": span["font"],
                     "size": span["size"],
                     "color": span["color"],
                     "flags": span["flags"],
-                    "origin": list(span["origin"])
+                    "origin": list(span["origin"]),
+                    "chars": span.get("chars", [])
                 })
+
+    from .algorithm.tokenization.wiping import TextWiper
+    wiper = TextWiper("/Applications/AITerminalTools")
+    wiped_img = wiper.wipe_spans(vis_img.convert("RGB"), all_spans, zoom)
+    wiped_img.save(page_dir / "wiped.png")
 
     from .algorithm.layout_engine import LayoutEngine
     engine = LayoutEngine(page_rect.width, page_rect.height)

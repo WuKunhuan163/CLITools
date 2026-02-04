@@ -81,42 +81,51 @@ class BBoxAnalyzer:
                             f_size = span["size"]
                             for char_data in span["chars"]:
                                 char = char_data["c"]
+                                if char.isspace():
+                                    continue
+                                
                                 bbox = [c * self.zoom for c in char_data["bbox"]]
-                                draw_glyph.rectangle(bbox, outline="red", width=1)
                                 
                                 pad = 5
                                 ix0, iy0, ix1, iy1 = [int(c) for c in bbox]
                                 crop_x0, crop_y0 = max(0, ix0-pad), max(0, iy0-pad)
                                 crop_x1, crop_y1 = min(img.width, ix1+pad), min(img.height, iy1+pad)
                                 
+                                if crop_x1 <= crop_x0 or crop_y1 <= crop_y0:
+                                    continue
+                                    
                                 crop = img.crop((crop_x0, crop_y0, crop_x1, crop_y1))
                                 mask = np.mean(np.array(crop), axis=2) < 200
                                 
-                                actual_bbox = None
+                                if not np.any(mask):
+                                    continue
+
+                                # Only draw and record if there's actual content
+                                draw_glyph.rectangle(bbox, outline="red", width=1)
+                                
+                                rows = np.where(np.any(mask, axis=1))[0]
+                                cols = np.where(np.any(mask, axis=0))[0]
+                                ax0, ay0 = int(crop_x0 + cols[0]), int(crop_y0 + rows[0])
+                                ax1, ay1 = int(crop_x0 + cols[-1]), int(crop_y0 + rows[-1])
+                                actual_bbox = [ax0, ay0, ax1, ay1]
+                                draw_actual.rectangle(actual_bbox, outline="blue", width=1)
+                                
                                 normalized_heuristics = None
-                                if np.any(mask):
-                                    rows = np.where(np.any(mask, axis=1))[0]
-                                    cols = np.where(np.any(mask, axis=0))[0]
-                                    ax0, ay0 = int(crop_x0 + cols[0]), int(crop_y0 + rows[0])
-                                    ax1, ay1 = int(crop_x0 + cols[-1]), int(crop_y0 + rows[-1])
-                                    actual_bbox = [ax0, ay0, ax1, ay1]
-                                    draw_actual.rectangle(actual_bbox, outline="blue", width=1)
-                                    
-                                    gw = bbox[2] - bbox[0]
-                                    gh = bbox[3] - bbox[1]
-                                    if gw > 0 and gh > 0:
-                                        normalized_heuristics = [
-                                            (actual_bbox[0] - bbox[0]) / gw,
-                                            (actual_bbox[1] - bbox[1]) / gh,
-                                            (actual_bbox[2] - bbox[0]) / gw,
-                                            (actual_bbox[3] - bbox[1]) / gh
-                                        ]
+                                gw = bbox[2] - bbox[0]
+                                gh = bbox[3] - bbox[1]
+                                if gw > 0 and gh > 0:
+                                    normalized_heuristics = [
+                                        (actual_bbox[0] - bbox[0]) / gw,
+                                        (actual_bbox[1] - bbox[1]) / gh,
+                                        (actual_bbox[2] - bbox[0]) / gw,
+                                        (actual_bbox[3] - bbox[1]) / gh
+                                    ]
                                 
                                 all_info.append({
                                     "char": char,
                                     "page": page_idx,
                                     "glyph_bbox": [round(c, 2) for c in bbox],
-                                    "actual_bbox": [round(c, 2) for c in actual_bbox] if actual_bbox else None,
+                                    "actual_bbox": [round(c, 2) for c in actual_bbox],
                                     "heuristics": [round(c, 4) for c in normalized_heuristics] if normalized_heuristics else None,
                                     "font_size": f_size
                                 })
