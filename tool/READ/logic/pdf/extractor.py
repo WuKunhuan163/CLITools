@@ -28,44 +28,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     pix = page.get_pixmap(matrix=mat); pix.save(str(source_png_path))
     vis_img = Image.open(source_png_path).convert("RGBA")
     
-    try:
-        from tool.DRAW.logic.interface.main import get_interface as get_draw_interface
-        draw_iface = get_draw_interface()
-    except ImportError: draw_iface = None
-
-    page_images_dir = page_dir / "images"
-    page_images_dir.mkdir(parents=True, exist_ok=True)
-    step1_dir = page_images_dir / "1_tokenized"
-    step2_dir = page_images_dir / "2_semantic"
-    step3_dir = page_images_dir / "3_processed"
-    for d in [step1_dir, step2_dir, step3_dir]: d.mkdir(parents=True, exist_ok=True)
-    
-    semantic_color_map = {
-        "title": get_color("RGBA_RED", [255, 0, 0, 100]), "heading": get_color("RGBA_ORANGE", [255, 165, 0, 100]),
-        "paragraph": get_color("RGBA_GREEN", [0, 255, 0, 60]), "reference": get_color("RGBA_MAGENTA", [255, 0, 255, 100]),
-        "header": get_color("RGBA_BLUE", [0, 0, 255, 100]), "footer": get_color("RGBA_GRAY", [128, 128, 128, 100]),
-        "image": get_color("RGBA_YELLOW", [255, 255, 0, 100]), "table": get_color("RGBA_CYAN", [0, 255, 255, 100]),
-    }
-
-    rects_to_draw, labels_to_draw, legend_items = [], [], {}
-
-    # 4. Extract Images and BBoxes
-    image_info_list = page.get_image_info()
-    image_bboxes = []
-    page_images_content = []
-    for info in image_info_list:
-        bbox = info["bbox"]
-        image_bboxes.append([bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom])
-        
-    image_metadata = []
-    for idx, info in enumerate(image_info_list):
-        image_metadata.append({"page": actual_page_num, "index": idx + 1, "bbox": info["bbox"], "type": "unknown"})
-
-    try:
-        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
-    except: label_font = ImageFont.load_default()
-
-    # 5. Text Extraction
+    # 1. Extract Spans First
     page_dict = page.get_text("rawdict")
     all_spans = []
     for b in page_dict["blocks"]:
@@ -79,23 +42,99 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     "chars": span.get("chars", [])
                 })
 
+    try:
+        from tool.DRAW.logic.interface.main import get_interface as get_draw_interface
+        draw_iface = get_draw_interface()
+    except ImportError: draw_iface = None
+
+    page_images_dir = page_dir / "images"
+    page_images_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Define Pipeline Step Names
+    STEP1_NAME = "step1_tokenization"
+    STEP2_NAME = "step2_semantics"
+    
+    step1_dir = page_images_dir / STEP1_NAME
+    step2_dir = page_images_dir / STEP2_NAME
+    for d in [step1_dir, step2_dir]: d.mkdir(parents=True, exist_ok=True)
+    
+    semantic_color_map = {
+        "title": get_color("RGBA_RED", [255, 0, 0, 100]), "heading": get_color("RGBA_ORANGE", [255, 165, 0, 100]),
+        "paragraph": get_color("RGBA_GREEN", [0, 255, 0, 60]), "reference": get_color("RGBA_MAGENTA", [255, 0, 255, 100]),
+        "header": get_color("RGBA_BLUE", [0, 0, 255, 100]), "footer": get_color("RGBA_GRAY", [128, 128, 128, 100]),
+        "image": get_color("RGBA_YELLOW", [255, 255, 0, 100]), "table": get_color("RGBA_CYAN", [0, 255, 255, 100]),
+    }
+
     from .algorithm.pipeline.step1_tokenization.process import Preprocessor
-    from .algorithm.pipeline.step2_tagging.process import Tagger
-    from .algorithm.pipeline.step3_settlement.process import Settlement
+    from .algorithm.pipeline.step2_semantics.process import SemanticsEngine
     
     preprocessor = Preprocessor("/Applications/AITerminalTools")
     bg_color = preprocessor.get_background_color(vis_img)
-    
+
     # --- Step 1: Tokenization ---
     glyph_boxes, actual_boxes, offsets = preprocessor.get_token_bboxes(np.array(vis_img), all_spans, zoom)
-    with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
-        json.dump({"offsets": offsets, "glyph_boxes_count": len(glyph_boxes), "actual_boxes_count": len(actual_boxes), "image_boxes_count": len(image_bboxes)}, f, indent=2)
+    
+    # 4. Extract Image Metadata and Pixel-Aware Masks
+    # Use get_text("dict") to find and extract images (including inline ones)
+    page_dict_for_imgs = page.get_text("dict")
+    image_blocks = [b for b in page_dict_for_imgs["blocks"] if b["type"] == 1]
+    
+    image_bboxes = []
+    image_masks = [] # List of (bbox, mask_array, id)
+    
+    raw_images_dir = step1_dir / "2.1_raw_images"
+    raw_images_dir.mkdir(parents=True, exist_ok=True)
+    
+    import io
+    for i, b in enumerate(image_blocks):
+        bbox = b["bbox"]
+        zoomed_bbox = [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom]
+        image_bboxes.append(zoomed_bbox)
+        img_id = f"I{i+1}"
+        
+        try:
+            img_bytes = b["image"]
+            img = Image.open(io.BytesIO(img_bytes))
+            img.save(raw_images_dir / f"{img_id}.png")
+            
+            # Create mask from non-white pixels
+            mask_data = np.array(img.convert("RGB"))
+            content_mask = np.any(np.abs(mask_data.astype(float) - 255) > 20, axis=2)
+            image_masks.append({"bbox": zoomed_bbox, "mask": content_mask, "id": img_id})
+        except: pass
+
+    try:
+        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
+    except: label_font = ImageFont.load_default()
+
+    # --- Step 1: Tokenization ---
+    glyph_boxes, actual_boxes, offsets = preprocessor.get_token_bboxes(np.array(vis_img), all_spans, zoom)
     
     if draw_iface:
         draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1.1_raw_text_glyph_bbox_overlay.png")
         actual_viz = draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (200, 200, 200, 80)} for b in glyph_boxes])
         draw_iface["draw_rects_with_alpha"](actual_viz, [{"bbox": b, "fill": (0, 255, 0, 128)} for b in actual_boxes]).save(step1_dir / "1.2_raw_text_actual_bbox_overlay.png")
-        draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 255, 0, 128)} for b in image_bboxes]).save(step1_dir / "2_raw_images_overlay.png")
+        
+        # Pixel-Aware Image Overlay
+        img_ov = vis_img.convert("RGBA")
+        ov_data = np.array(img_ov)
+        ov_labels = []
+        for im_data in image_masks:
+            ibox, imask, iid = im_data["bbox"], im_data["mask"], im_data["id"]
+            ix0, iy0, ix1, iy1 = [int(round(c)) for c in ibox]
+            # Resize mask to fit zoomed bbox
+            mask_img = Image.fromarray(imask).resize((max(1, ix1-ix0), max(1, iy1-iy0)), Image.NEAREST)
+            m_arr = np.array(mask_img)
+            region = ov_data[iy0:iy1, ix0:ix1]
+            if region.shape[:2] == m_arr.shape:
+                region[m_arr] = [255, 255, 0, 128]
+            ov_labels.append({"pos": (ix0, iy0), "text": iid, "font": label_font})
+        
+        ov_img = Image.fromarray(ov_data)
+        if draw_iface:
+            draw_iface["draw_labels"](ov_img, ov_labels).save(step1_dir / "2.2_raw_images_overlay.png")
+        else:
+            ov_img.save(step1_dir / "2.2_raw_images_overlay.png")
     
     wiped_img, text_mask, wipe_offsets = preprocessor.wipe_content(vis_img, all_spans, image_bboxes, zoom, bg_color=bg_color)
     wiped_img.save(step1_dir / "3_background_remaining.png")
@@ -106,7 +145,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         a_rects = [{"bbox": b, "fill": (255, 255, 0, 100)} for b in artifact_bboxes]
         a_labels = [{"pos": (b[0], b[1]), "text": f"A{i+1}", "font": label_font} for i, b in enumerate(artifact_bboxes)]
         a_img = draw_iface["draw_rects_with_alpha"](a_img, a_rects)
-        draw_iface["draw_labels"](a_img, a_labels).save(step1_dir / "4_wiped_result.png")
+        draw_iface["draw_labels"](a_img, a_labels).save(step1_dir / "4_background_artifact.png")
 
     if draw_iface:
         c_img = vis_img.convert("RGBA")
@@ -116,20 +155,26 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
 
     tokens = preprocessor.join_tokens(actual_boxes, image_bboxes, artifact_bboxes)
+    visual_tokens = [t for t in tokens if t["type"] == "visual"]
+    text_tokens = [t for t in tokens if t["type"] == "text"]
+    
+    with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
+        json.dump({"offsets": offsets, "visual_tokens": visual_tokens, "text_tokens_count": len(text_tokens)}, f, indent=2)
+
     if draw_iface:
         t_img = vis_img.convert("RGBA")
-        t_rects = [{"bbox": t["bbox"], "fill": (0, 255, 0, 80) if t["type"] == "text" else (255, 255, 0, 80) if t["type"] == "image" else (255, 0, 255, 80)} for t in tokens]
-        draw_iface["draw_rects_with_alpha"](t_img, t_rects).save(step1_dir / "6_tokenization_result.png")
+        t_rects, t_labels = [], []
+        for vt in visual_tokens:
+            t_rects.append({"bbox": vt["bbox"], "fill": (255, 165, 0, 100)}) # Orange for all visual
+            t_labels.append({"pos": (vt["bbox"][0], vt["bbox"][1]), "text": vt["id"], "font": label_font})
+        for tt in text_tokens:
+            t_rects.append({"bbox": tt["bbox"], "fill": (0, 255, 0, 60)})
+        t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
+        draw_iface["draw_labels"](t_img, t_labels).save(step1_dir / "6_tokenization_result.png")
 
-    # --- Step 2: Semantic & Settlement ---
-    from .algorithm.layout_engine import LayoutEngine
-    engine = LayoutEngine(page_rect.width, page_rect.height)
-    grouped_blocks = engine.segment_tokens(all_spans)
-    tagger = Tagger(page_rect, median_size)
-    tagged_items = tagger.tag_and_merge(grouped_blocks)
-    
-    settlement = Settlement(median_size)
-    final_items = settlement.settle(tagged_items)
+    # --- Step 2: Semantics ---
+    semantics = SemanticsEngine(page_rect, median_size)
+    final_items = semantics.process(all_spans)
     
     if draw_iface:
         res_img = vis_img.convert("RGBA")
@@ -140,7 +185,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             res_labels.append({"pos": (item["bbox"][0]*zoom, item["bbox"][1]*zoom), "text": str(idx+1), "font": label_font})
         res_img = draw_iface["draw_rects_with_alpha"](res_img, res_rects)
         res_img = draw_iface["draw_labels"](res_img, res_labels)
-        draw_iface["append_legend"](res_img, legend_items).save(step3_dir / "result.png")
+        draw_iface["append_legend"](res_img, {"Title": (255,0,0,255), "Heading": (255,165,0,255), "Paragraph": (0,255,0,255), "Reference": (255,0,255,255), "Header/Footer": (128,128,128,255)}).save(step2_dir / "result.png")
         res_img.save(page_dir / "extracted.png")
 
     page_content_parts, semantic_info = [], []
@@ -153,4 +198,4 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     content = "\n\n".join(page_content_parts)
     with open(md_file_path, "w", encoding="utf-8") as f: f.write(content)
     
-    return content, image_metadata, semantic_info
+    return content, [], semantic_info
