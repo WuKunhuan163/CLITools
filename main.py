@@ -701,9 +701,20 @@ def _dev_create(tool_name):
             subprocess.run(["/usr/bin/git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
     except: pass
 
+    # Get current branch
     try:
-        subprocess.run(["/usr/bin/git", "checkout", "tool"], cwd=str(project_root), check=True)
-    except: pass
+        current_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+    except:
+        current_branch = "dev"
+
+    # Switch to tool branch if not already there
+    if current_branch != "tool":
+        try:
+            subprocess.run(["/usr/bin/git", "checkout", "tool"], cwd=str(project_root), check=True)
+            # Merge current branch into tool to preserve work
+            print(f"{BOLD}{BLUE}Merging '{current_branch}' into 'tool' branch...{RESET}")
+            subprocess.run(["/usr/bin/git", "merge", current_branch], cwd=str(project_root), check=True)
+        except: pass
     
     if tool_dir.exists():
         print(f"{BOLD}{RED}Error{RESET}: Tool '{tool_name}' already exists.")
@@ -847,6 +858,15 @@ This tool is part of the `TOOL` ecosystem, which provides:
         subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
     except Exception as e:
         print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit new tool: {e}")
+
+    # Return to original branch
+    if current_branch != "tool":
+        try:
+            print(f"{BOLD}{BLUE}Returning to '{current_branch}' branch...{RESET}")
+            subprocess.run(["/usr/bin/git", "checkout", current_branch], cwd=str(project_root), check=True)
+            # Merge tool branch back to original branch to get the new tool
+            subprocess.run(["/usr/bin/git", "merge", "tool"], cwd=str(project_root), check=True)
+        except: pass
 
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))

@@ -1,4 +1,3 @@
-import fitz
 import os
 import json
 import numpy as np
@@ -9,8 +8,9 @@ from logic.config import get_color
 from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, format_segments_with_color_merging, strip_non_standard_chars, is_sentence_complete
 from .layout import parse_page_spec, get_median_font_size
 
-def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     from tool.FITZ.logic.pdf.wrapper import FitzWrapper
+    import fitz
     page = doc[page_num]
     page_rect = page.rect
     actual_page_num = page_num + 1

@@ -14,13 +14,17 @@ if str(project_root) not in sys.path:
 
 from logic.tool.base import ToolBase
 from logic.config import get_color
-from tool.FONT.logic.engine import FontManager
-from tool.FONT.logic.bbox_analyzer import BBoxAnalyzer
-
 class FontTool(ToolBase):
     def __init__(self):
         super().__init__("FONT")
-        self.manager = FontManager(self.project_root)
+        self._manager = None
+
+    @property
+    def manager(self):
+        if self._manager is None:
+            from tool.FONT.logic.engine import FontManager
+            self._manager = FontManager(self.project_root)
+        return self._manager
 
 def main():
     tool = FontTool()
@@ -86,6 +90,7 @@ def main():
         output_dir = tool.manager.resource_dir / norm_name / "bbox_analysis"
         
         print(f"{BOLD}{BLUE}Analyzing{RESET} font {font_name}...", end="", flush=True)
+        from tool.FONT.logic.bbox_analyzer import BBoxAnalyzer
         analyzer = BBoxAnalyzer(font_path, output_dir, font_name)
         pdf = analyzer.generate_source_pdf()
         analyzer.analyze(pdf)
