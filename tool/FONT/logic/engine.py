@@ -157,7 +157,9 @@ class FontManager:
             success = True
             
         if success:
-            print(f"Deployed {name} -> {ttf_path}")
+            # Use \r\033[K to ensure we don't mess up Turing Machine UI
+            sys.stdout.write(f"\r\033[KDeployed {name} -> {ttf_path}\n")
+            sys.stdout.flush()
             return True
         return False
 
