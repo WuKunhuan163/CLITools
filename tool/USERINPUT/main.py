@@ -8,6 +8,7 @@ USERINPUT Tool (v26)
 - Robust registry-based stop mechanism and partial input capture.
 - Refactored to use centralized run_gui interface.
 - RESTORED: Original title, retry logic, timeout handling, and full hint output.
+- FIXED: Timeout no longer labeled as 'Successfully received' if empty.
 - ENHANCED: Clipboard now includes the full Critical Directive hint.
 """
 
@@ -372,8 +373,8 @@ if __name__ == "__main__":
         elif res.get("status") == "timeout":
             data = res.get('data', '')
             if data and data.strip():
-                status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
-                return f"{data} {status_hint}"
+                # For partial data on timeout, we return it but don't label it 'Successfully received' in main()
+                return "__PARTIAL_TIMEOUT__:" + data
             raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
         elif res.get("status") == "error":
             err_msg = parse_gui_error(res.get("message", ""))
@@ -399,25 +400,31 @@ def main():
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, sys.argv[2:], tool.get_translation)
 
     from logic.config import get_color
-    BOLD, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
+    BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
 
     for attempt in range(3):
         try:
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
             
-            # Restore successful message formatting
-            sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            success_label = get_msg("label_successfully_received", "Successfully received")
-            
             # FULL instruction from translation
             instruction = get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
             
-            output = f"{BOLD}{GREEN}{success_label}{RESET}: {result}\n\n{instruction}"
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            
+            if result.startswith("__PARTIAL_TIMEOUT__:"):
+                content = result[len("__PARTIAL_TIMEOUT__:"):]
+                status_label = get_msg("label_partial_timeout", "Partial input received (Timeout)")
+                output = f"{BOLD}{YELLOW}{status_label}{RESET}: {content}\n\n{instruction}"
+                clipboard_content = f"{content}\n\n{instruction}"
+            else:
+                success_label = get_msg("label_successfully_received", "Successfully received")
+                output = f"{BOLD}{GREEN}{success_label}{RESET}: {result}\n\n{instruction}"
+                clipboard_content = f"{result}\n\n{instruction}"
+            
             print(output, flush=True)
             
             # Copy only content and instruction to clipboard on macOS
             if platform.system() == "Darwin":
-                clipboard_content = f"{result}\n\n{instruction}"
                 try: subprocess.run('pbcopy', input=clipboard_content, text=True, encoding='utf-8', check=True)
                 except: pass
                 
