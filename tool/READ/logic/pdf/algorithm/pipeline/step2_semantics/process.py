@@ -161,7 +161,7 @@ class SemanticsEngine:
             elif tk["type"] == "visual":
                 v_bbox = [c / zoom for c in tk["bbox"]]
                 # Try to embed the merged image token if it exists
-                token_img_path = output_dir.parent / "step1_tokenization" / "6_merged_image_tokens" / f"{tk['id']}.png"
+                token_img_path = output_dir.parent / "step1_tokenization" / "7_merged_image_tokens" / f"{tk['id']}.png"
                 if token_img_path.exists():
                     try:
                         pdf.image(str(token_img_path), x=v_bbox[0], y=v_bbox[1], w=v_bbox[2]-v_bbox[0], h=v_bbox[3]-v_bbox[1])

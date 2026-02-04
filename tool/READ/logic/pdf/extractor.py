@@ -150,6 +150,18 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         a_labels = [{"pos": (b[0], b[1]), "text": f"A{i+1}", "font": label_font} for i, b in enumerate(artifact_bboxes)]
         a_img = draw_iface["draw_rects_with_alpha"](a_img, a_rects)
         draw_iface["draw_labels"](a_img, a_labels).save(step1_dir / "4_background_artifact.png")
+        
+        # Save individual artifacts to 4_background_artifacts/
+        artifacts_dir = step1_dir / "4_background_artifacts"
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        for i, b in enumerate(artifact_bboxes):
+            try:
+                ax0, ay0, ax1, ay1 = [int(round(c)) for c in b]
+                if ax1 > ax0 and ay1 > ay0:
+                    # Artifacts are by definition in the background, so use wiped_img
+                    a_crop = wiped_img.crop((ax0, ay0, ax1, ay1))
+                    a_crop.save(artifacts_dir / f"A{i+1}.png")
+            except: pass
 
     if draw_iface:
         c_img = vis_img.convert("RGBA")
@@ -170,38 +182,90 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
 
-    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes, all_spans)
+    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes, all_spans, vis_img=vis_img)
     with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
         json.dump({"offsets": offsets, "tokens": tokens}, f, indent=2)
 
     if draw_iface:
+        # 6. Semantic Images Visualization
+        # 50% bleached background
+        bleached = vis_img.copy()
+        bleached_data = np.array(bleached)
+        bleached_data[..., 3] = (bleached_data[..., 3] * 0.5).astype(np.uint8)
+        bleached = Image.fromarray(bleached_data)
+        
+        s_rects, s_labels = [], []
+        for tk in tokens:
+            if tk["type"] == "visual":
+                if tk.get("subtype") == "line":
+                    s_rects.append({"bbox": tk["bbox"], "fill": (255, 0, 255, 128)}) # Magenta for lines
+                    s_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
+                elif tk.get("subtype") == "box":
+                    s_rects.append({"bbox": tk["bbox"], "fill": (0, 255, 255, 128)}) # Cyan for boxes
+                    s_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
+        
+        s_img = draw_iface["draw_rects_with_alpha"](bleached, s_rects)
+        s_img = draw_iface["draw_labels"](s_img, s_labels)
+        legend_6 = {"Line": (255, 0, 255, 255), "Box": (0, 255, 255, 255)}
+        draw_iface["append_legend"](s_img, legend_6).save(step1_dir / "6_semantic_images.png")
+
+        # 7. Merged Image Tokens
         t_img = vis_img.convert("RGBA")
         t_rects, t_labels = [], []
         
         # Create directory for individual merged image tokens
-        merged_tokens_dir = step1_dir / "6_merged_image_tokens"
+        merged_tokens_dir = step1_dir / "7_merged_image_tokens"
         merged_tokens_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create a background-wiped image for cleaner token extraction
-        # (Already have vis_img, but let's use a copy for safety)
-        token_extract_img = vis_img.copy()
+        # Load component images for composition
+        comp_images = {}
+        for f in raw_images_dir.glob("*.png"):
+            comp_images[f.stem] = Image.open(f).convert("RGBA")
+        for f in artifacts_dir.glob("*.png"):
+            comp_images[f.stem] = Image.open(f).convert("RGBA")
+
+        # Map component IDs to their original bboxes for relative positioning
+        comp_bboxes = {}
+        for i, b in enumerate(image_bboxes): comp_bboxes[f"I{i+1}"] = b
+        for i, b in enumerate(artifact_bboxes): comp_bboxes[f"A{i+1}"] = b
 
         for tk in tokens:
             if tk["type"] == "visual":
-                if tk.get("subtype") == "separator":
-                    t_rects.append({"bbox": tk["bbox"], "fill": (255, 0, 255, 100)}) # Magenta for separators
+                if tk.get("subtype") == "line":
+                    t_rects.append({"bbox": tk["bbox"], "fill": (255, 0, 255, 100)}) 
+                elif tk.get("subtype") == "box":
+                    t_rects.append({"bbox": tk["bbox"], "fill": (0, 255, 255, 100)})
                 else:
                     t_rects.append({"bbox": tk["bbox"], "fill": (255, 255, 0, 100)}) # Yellow for blocks
                 t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
                 
-                # Save individual token image
+                # Compose merged token image from components
                 try:
                     tx0, ty0, tx1, ty1 = [int(round(c)) for c in tk["bbox"]]
                     if tx1 > tx0 and ty1 > ty0:
-                        token_crop = token_extract_img.crop((tx0, ty0, tx1, ty1))
-                        token_crop.save(merged_tokens_dir / f"{tk['id']}.png")
+                        # Create canvas with background color
+                        canvas = Image.new("RGBA", (tx1 - tx0, ty1 - ty0), bg_color + (255,))
+                        
+                        for cid in tk.get("comp_ids", []):
+                            if cid in comp_images and cid in comp_bboxes:
+                                cimg = comp_images[cid]
+                                cbbox = comp_bboxes[cid]
+                                
+                                # Resize component image to match its zoomed bbox size
+                                target_w = int(round(cbbox[2] - cbbox[0]))
+                                target_h = int(round(cbbox[3] - cbbox[1]))
+                                if target_w > 0 and target_h > 0:
+                                    if cimg.size != (target_w, target_h):
+                                        cimg = cimg.resize((target_w, target_h), Image.LANCZOS)
+                                
+                                # Relative position on canvas
+                                rel_x = int(round(cbbox[0] - tx0))
+                                rel_y = int(round(cbbox[1] - ty0))
+                                canvas.paste(cimg, (rel_x, rel_y), cimg)
+                        
+                        canvas.save(merged_tokens_dir / f"{tk['id']}.png")
                 except Exception as e:
-                    print(f"Warning: Failed to save image token {tk['id']}: {e}")
+                    print(f"Warning: Failed to compose image token {tk['id']}: {e}")
 
             elif tk["type"] == "text":
                 # Use GLYPH bbox for tokenization result visualization
@@ -209,8 +273,8 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
         t_img = draw_iface["draw_labels"](t_img, t_labels)
         
-        legend_6 = {"Word (Glyph)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Separator": (255, 0, 255, 255)}
-        draw_iface["append_legend"](t_img, legend_6).save(step1_dir / "7_tokenization_result.png")
+        legend_8 = {"Word (Glyph)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Line": (255, 0, 255, 255), "Box": (0, 255, 255, 255)}
+        draw_iface["append_legend"](t_img, legend_8).save(step1_dir / "8_tokenization_result.png")
 
     # --- Step 2: Semantics ---
     semantics = SemanticsEngine(page_rect, median_size, "/Applications/AITerminalTools")

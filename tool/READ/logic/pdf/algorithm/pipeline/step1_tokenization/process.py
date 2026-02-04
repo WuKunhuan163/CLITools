@@ -169,10 +169,11 @@ class Preprocessor:
                     bboxes.append((int(c[0]), int(r[0]), int(c[-1]), int(r[-1])))
         return bboxes
 
-    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]], spans: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]], spans: List[Dict[str, Any]] = None, vis_img: Image.Image = None) -> List[Dict[str, Any]]:
         """
         Tokenization: Merges characters into words using glyph bboxes for proximity.
         Preserves style information (font, size, bold, italic, color).
+        Identifies lines and boxes.
         """
         from .line_detector import is_separator
         
@@ -181,15 +182,17 @@ class Preprocessor:
         
         # 2. Prepare initial visual components
         vis_comps = []
-        for b in image_bboxes: vis_comps.append({"type": "image", "bbox": list(b)})
-        for b in artifact_bboxes: vis_comps.append({"type": "artifact", "bbox": list(b)})
+        for i, b in enumerate(image_bboxes): 
+            vis_comps.append({"type": "image", "bbox": list(b), "comp_ids": [f"I{i+1}"]})
+        for i, b in enumerate(artifact_bboxes): 
+            vis_comps.append({"type": "artifact", "bbox": list(b), "comp_ids": [f"A{i+1}"]})
 
-        # 3. Identify Separator Lines (Exclude from merging)
-        separators = []
+        # 3. Identify Lines (Exclude from merging)
+        lines = []
         mergeable_vis = []
         for v in vis_comps:
             if is_separator(v["bbox"]):
-                separators.append(v)
+                lines.append(v)
             else:
                 mergeable_vis.append(v)
 
@@ -206,40 +209,55 @@ class Preprocessor:
                             max(mergeable_vis[i]["bbox"][2], mergeable_vis[j]["bbox"][2]),
                             max(mergeable_vis[i]["bbox"][3], mergeable_vis[j]["bbox"][3])
                         ]
+                        # Merge component IDs
+                        mergeable_vis[i]["comp_ids"].extend(mergeable_vis[j]["comp_ids"])
                         mergeable_vis.pop(j)
                         merged = True
                         break
                 if merged: break
 
-        # 5. Absorb nearby words into visual blocks
-        final_text_tokens = []
+        # 5. Identify Boxes from merged visual blocks
+        final_mergeable = []
+        boxes = []
+        for mv in mergeable_vis:
+            if self._is_box(mv["bbox"], word_tokens, vis_img):
+                boxes.append(mv)
+            else:
+                final_mergeable.append(mv)
+
+        # 6. Absorb nearby words into visual blocks (NOT boxes)
+        # Note: We keep the text tokens in the final list so they are rendered,
+        # but we expand the visual block's bbox to include them.
         for w_data in word_tokens:
             w_bbox = w_data["bbox"]
-            absorbed = False
-            for mv in mergeable_vis:
-                if self._is_nearby(w_bbox, mv["bbox"], threshold=5):
-                    mv["bbox"] = [
-                        min(mv["bbox"][0], w_bbox[0]), min(mv["bbox"][1], w_bbox[1]),
-                        max(mv["bbox"][2], w_bbox[2]), max(mv["bbox"][3], w_bbox[3])
+            for fv in final_mergeable:
+                if self._is_nearby(w_bbox, fv["bbox"], threshold=5):
+                    fv["bbox"] = [
+                        min(fv["bbox"][0], w_bbox[0]), min(fv["bbox"][1], w_bbox[1]),
+                        max(fv["bbox"][2], w_bbox[2]), max(fv["bbox"][3], w_bbox[3])
                     ]
-                    absorbed = True
+                    # Link text to visual block if needed
+                    if "absorbed_text_ids" not in fv: fv["absorbed_text_ids"] = []
+                    # We'll assign IDs later, so this is just a marker
                     break
-            if not absorbed:
-                final_text_tokens.append(w_data)
 
-        # 6. Combine and assign IDs
+        # 7. Combine and assign IDs
         tokens = []
-        v_idx, s_idx, t_idx = 1, 1, 1
+        v_idx, l_idx, b_idx, t_idx = 1, 1, 1, 1
         
-        for s in separators:
-            tokens.append({"type": "visual", "subtype": "separator", "bbox": s["bbox"], "id": f"S{s_idx}"})
-            s_idx += 1
+        for l in lines:
+            tokens.append({"type": "visual", "subtype": "line", "bbox": l["bbox"], "id": f"L{l_idx}", "comp_ids": l["comp_ids"]})
+            l_idx += 1
             
-        for mv in mergeable_vis:
-            tokens.append({"type": "visual", "subtype": "block", "bbox": mv["bbox"], "id": f"V{v_idx}"})
+        for box in boxes:
+            tokens.append({"type": "visual", "subtype": "box", "bbox": box["bbox"], "id": f"B{b_idx}", "comp_ids": box["comp_ids"]})
+            b_idx += 1
+
+        for fv in final_mergeable:
+            tokens.append({"type": "visual", "subtype": "block", "bbox": fv["bbox"], "id": f"V{v_idx}", "comp_ids": fv["comp_ids"]})
             v_idx += 1
         
-        for w in final_text_tokens:
+        for w in word_tokens:
             tokens.append({
                 "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": f"T{t_idx}",
                 "text": w["text"], "font": w["font"], "size": w["size"],
@@ -248,6 +266,32 @@ class Preprocessor:
             t_idx += 1
         
         return tokens
+
+    def _is_box(self, bbox: List[float], word_tokens: List[Dict[str, Any]], vis_img: Image.Image) -> bool:
+        """
+        Predict if a visual component is a box.
+        Criteria:
+        1. High text density (text bboxes cover > 30% of box area).
+        2. Uniform interior color with contrasting border (TBD).
+        """
+        x0, y0, x1, y1 = bbox
+        box_area = (x1 - x0) * (y1 - y0)
+        if box_area <= 0: return False
+        
+        text_area = 0
+        for w in word_tokens:
+            wx0, wy0, wx1, wy1 = w["bbox"]
+            # Intersection
+            ix0, iy0 = max(x0, wx0), max(y0, wy0)
+            ix1, iy1 = min(x1, wx1), min(y1, wy1)
+            if ix1 > ix0 and iy1 > iy0:
+                text_area += (ix1 - ix0) * (iy1 - iy0)
+        
+        if text_area / box_area > 0.3:
+            return True
+            
+        # TODO: Implement color-based box detection
+        return False
 
     def _merge_chars_to_words(self, actual_bboxes: List[List[float]], glyph_bboxes: List[List[float]], spans: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         if not actual_bboxes: return []
