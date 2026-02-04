@@ -11,7 +11,7 @@ from pathlib import Path
 class FontManager:
     def __init__(self, project_root):
         self.project_root = Path(project_root)
-        self.resource_dir = self.project_root / "resource" / "fonts"
+        self.resource_dir = self.project_root / "resource" / "tool" / "FONT" / "data" / "install"
         self.mapping_file = self.project_root / "tool" / "FONT" / "logic" / "font_mapping.json"
         self.mappings = self._load_mappings()
 
@@ -65,6 +65,56 @@ class FontManager:
                 fonts.sort(key=lambda p: (p.name.startswith('.'), len(str(p))))
                 return str(fonts[0])
         return None
+
+    def download_and_deploy_google_font(self, font_family):
+        """
+        Download a font family from Google Fonts GitHub and deploy it.
+        """
+        norm_family = self.normalize_name(font_family)
+        # GitHub repo structure: ofl/familyname/filename.ttf
+        # We need to find the files in that directory.
+        
+        # We'll use the GitHub API to list files if we don't know them, 
+        # or we can try a few common patterns.
+        api_url = f"https://api.github.com/repos/google/fonts/contents/ofl/{font_family.lower().replace('-', '')}"
+        
+        try:
+            res = requests.get(api_url)
+            if res.status_code != 200:
+                # Try without stripping hyphens
+                api_url = f"https://api.github.com/repos/google/fonts/contents/ofl/{font_family.lower()}"
+                res = requests.get(api_url)
+                if res.status_code != 200:
+                    print(f"Font family {font_family} not found on Google Fonts GitHub.")
+                    return False
+            
+            files = res.json()
+            target_dir = self.resource_dir / norm_family
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            success_count = 0
+            for file_info in files:
+                if file_info["name"].lower().endswith(".ttf"):
+                    download_url = file_info["download_url"]
+                    file_res = requests.get(download_url)
+                    if file_res.status_code == 200:
+                        norm_file_name = self.normalize_name(Path(file_info["name"]).stem)
+                        # We might want to keep the family name as prefix if it's not already there
+                        if norm_family not in norm_file_name:
+                            final_name = f"{norm_family}-{norm_file_name}"
+                        else:
+                            final_name = norm_file_name
+                        
+                        font_path = target_dir / f"{final_name}.ttf"
+                        with open(font_path, "wb") as f:
+                            f.write(file_res.content)
+                        print(f"Deployed Google Font: {final_name} -> {font_path}")
+                        success_count += 1
+            
+            return success_count > 0
+        except Exception as e:
+            print(f"Failed to download Google Font {font_family}: {e}")
+            return False
 
     def convert_otf_to_ttf(self, otf_path, ttf_path):
         """

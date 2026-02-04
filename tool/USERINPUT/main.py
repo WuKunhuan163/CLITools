@@ -184,13 +184,27 @@ class UserInputWindow(BaseGUIWindow):
         if self.text_widget: return self.text_widget.get("1.0", tk.END).strip()
         return None
 
+    def on_submit(self):
+        content = self.get_current_state() or "USER_SUBMITTED_EMPTY"
+        self.copy_to_clipboard(content)
+        self.finalize("success", content)
+
+    def copy_to_clipboard(self, text):
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            self.root.update()
+            self.log_debug("Copied to clipboard.")
+        except Exception as e:
+            self.log_debug(f"Clipboard copy failed: {e}")
+
     def setup_ui(self):
         setup_gui_environment()
         self.root.geometry("450x250")
         self.status_label = setup_common_bottom_bar(
             self.root, self, 
             submit_text=self._("submit", "Submit"),
-            submit_cmd=lambda: self.finalize("success", self.get_current_state() or "USER_SUBMITTED_EMPTY"),
+            submit_cmd=self.on_submit,
             add_time_increment=self.time_increment
         )
         main_frame = tk.Frame(self.root, padx=15, pady=10)

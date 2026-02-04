@@ -190,6 +190,23 @@ class FileDialogWindow(BaseGUIWindow):
         if self.multiple: return paths
         return paths[0] if paths else None
 
+    def on_submit(self):
+        state = self.get_current_state()
+        if state:
+            if isinstance(state, list):
+                # Copy as a list (one per line)
+                self.copy_to_clipboard("\n".join(state))
+            else:
+                self.copy_to_clipboard(str(state))
+        self.finalize("success", state)
+
+    def copy_to_clipboard(self, text):
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            self.root.update()
+        except: pass
+
     def setup_ui(self):
         setup_gui_environment()
         self.root.geometry("600x450")
@@ -197,7 +214,7 @@ class FileDialogWindow(BaseGUIWindow):
         self.status_label = setup_common_bottom_bar(
             self.root, self, 
             submit_text=self._("btn_select", "Select"),
-            submit_cmd=lambda: self.finalize("success", self.get_current_state()),
+            submit_cmd=self.on_submit,
             add_time_increment=60 
         )
 
