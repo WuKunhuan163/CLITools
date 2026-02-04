@@ -166,7 +166,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
 
-    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes)
+    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes, all_spans)
     with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
         json.dump({"offsets": offsets, "tokens": tokens}, f, indent=2)
 
@@ -189,21 +189,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         draw_iface["append_legend"](t_img, legend_6).save(step1_dir / "6_tokenization_result.png")
 
     # --- Step 2: Semantics ---
-    semantics = SemanticsEngine(page_rect, median_size)
-    final_items = semantics.process(all_spans)
-    
-    # Disable result.png for now as requested
-    # if draw_iface:
-    #     res_img = vis_img.convert("RGBA")
-    #     res_rects, res_labels = [], []
-    #     for idx, item in enumerate(final_items):
-    #         color = semantic_color_map.get(item["type"], [0, 255, 0, 60])
-    #         res_rects.append({"bbox": [c*zoom for c in item["bbox"]], "fill": tuple(list(color[:3]) + [alpha_int])})
-    #         res_labels.append({"pos": (item["bbox"][0]*zoom, item["bbox"][1]*zoom), "text": str(idx+1), "font": label_font})
-    #     res_img = draw_iface["draw_rects_with_alpha"](res_img, res_rects)
-    #     res_img = draw_iface["draw_labels"](res_img, res_labels)
-    #     draw_iface["append_legend"](res_img, {"Title": (255,0,0,255), "Heading": (255,165,0,255), "Paragraph": (0,255,0,255), "Reference": (255,0,255,255), "Header/Footer": (128,128,128,255)}).save(step2_dir / "result.png")
-    #     res_img.save(page_dir / "extracted.png")
+    semantics = SemanticsEngine(page_rect, median_size, "/Applications/AITerminalTools")
+    final_items = semantics.process(tokens, step2_dir, zoom)
 
     page_content_parts, semantic_info = [], []
     for idx, item in enumerate(final_items):

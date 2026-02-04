@@ -137,6 +137,30 @@ class FontManager:
             
         return False, "No .ttf files found in the matched repository directory."
 
+    def deploy_font_file(self, font_path, custom_name=None):
+        """
+        Deploy a single font file to the resource directory.
+        """
+        font_path = Path(font_path)
+        name = custom_name or font_path.stem
+        norm_name = self.normalize_name(name)
+        
+        target_dir = self.resource_dir / norm_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        ttf_path = target_dir / "font.ttf"
+        
+        if font_path.suffix.lower() == ".otf":
+            success = self.convert_otf_to_ttf(font_path, ttf_path)
+        else:
+            shutil.copy(font_path, ttf_path)
+            success = True
+            
+        if success:
+            print(f"Deployed {name} -> {ttf_path}")
+            return True
+        return False
+
     def convert_otf_to_ttf(self, otf_path, ttf_path):
         """
         Convert OTF (CFF) to TTF (TrueType) using fontTools.

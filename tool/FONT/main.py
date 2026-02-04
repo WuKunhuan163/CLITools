@@ -27,8 +27,10 @@ def main():
     parser = argparse.ArgumentParser(description="Tool FONT: Font management and analysis")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
     
-    # Install (alias for migrating from tmp or manual)
-    parser_install = subparsers.add_parser("install", help="Install fonts from tmp/fontsgeek")
+    # Install
+    parser_install = subparsers.add_parser("install", help="Install a font file or migrate from tmp")
+    parser_install.add_argument("path", nargs="?", help="Path to the font file to install")
+    parser_install.add_argument("--name", help="Custom name for the font")
     
     # Analyze
     parser_analyze = subparsers.add_parser("analyze", help="Generate character table and heuristics for a font")
@@ -55,9 +57,19 @@ def main():
     RESET = get_color("RESET", "\033[0m")
 
     if args.subcommand == "install":
-        print(f"{BOLD}{BLUE}Migrating{RESET} fonts from tmp/fontsgeek...", end="", flush=True)
-        tool.manager.migrate_from_tmp()
-        print(f"\r\033[K{BOLD}{GREEN}Successfully migrated{RESET} fonts.")
+        if args.path:
+            font_path = Path(args.path)
+            if not font_path.exists():
+                print(f"\r\033[K{BOLD}{RED}Error{RESET}: File not found: {args.path}")
+                return 1
+            name = args.name or font_path.stem
+            print(f"{BOLD}{BLUE}Installing{RESET} font {name}...", end="", flush=True)
+            tool.manager.deploy_font_file(font_path, name)
+            print(f"\r\033[K{BOLD}{GREEN}Successfully installed{RESET} {name}.")
+        else:
+            print(f"{BOLD}{BLUE}Migrating{RESET} fonts from tmp/fontsgeek...", end="", flush=True)
+            tool.manager.migrate_from_tmp()
+            print(f"\r\033[K{BOLD}{GREEN}Successfully migrated{RESET} fonts.")
             
     elif args.subcommand == "analyze":
         font_name = args.name

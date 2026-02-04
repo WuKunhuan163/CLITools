@@ -169,16 +169,15 @@ class Preprocessor:
                     bboxes.append((int(c[0]), int(r[0]), int(c[-1]), int(r[-1])))
         return bboxes
 
-    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]]) -> List[Dict[str, Any]]:
+    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]], spans: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Tokenization: Merges characters into words using glyph bboxes for proximity.
-        Visual components (images, artifacts) are merged if nearby, but separators are kept individual.
+        Preserves style information (font, size, bold, italic, color).
         """
         from .line_detector import is_separator
         
-        # 1. Merge characters into words using GLYPH bboxes for proximity
-        # but outputting the merged ACTUAL bboxes.
-        word_tokens = self._merge_chars_to_words(char_bboxes, glyph_bboxes)
+        # 1. Merge characters into words
+        word_tokens = self._merge_chars_to_words(char_bboxes, glyph_bboxes, spans)
         
         # 2. Prepare initial visual components
         vis_comps = []
@@ -213,12 +212,11 @@ class Preprocessor:
                 if merged: break
 
         # 5. Absorb nearby words into visual blocks
-        # (Exclude separators from absorbing text for now)
         final_text_tokens = []
-        for w_bbox in word_tokens:
+        for w_data in word_tokens:
+            w_bbox = w_data["bbox"]
             absorbed = False
             for mv in mergeable_vis:
-                # Use a threshold of 5px for text absorption into visual blocks
                 if self._is_nearby(w_bbox, mv["bbox"], threshold=5):
                     mv["bbox"] = [
                         min(mv["bbox"][0], w_bbox[0]), min(mv["bbox"][1], w_bbox[1]),
@@ -227,41 +225,52 @@ class Preprocessor:
                     absorbed = True
                     break
             if not absorbed:
-                final_text_tokens.append(w_bbox)
+                final_text_tokens.append(w_data)
 
         # 6. Combine and assign IDs
         tokens = []
         v_idx, s_idx, t_idx = 1, 1, 1
         
-        # Add Separators (S)
         for s in separators:
             tokens.append({"type": "visual", "subtype": "separator", "bbox": s["bbox"], "id": f"S{s_idx}"})
             s_idx += 1
             
-        # Add Merged Visual Blocks (V)
         for mv in mergeable_vis:
             tokens.append({"type": "visual", "subtype": "block", "bbox": mv["bbox"], "id": f"V{v_idx}"})
             v_idx += 1
         
-        # Add Remaining Words (T)
         for w in final_text_tokens:
-            tokens.append({"type": "text", "bbox": w, "id": f"T{t_idx}"})
+            tokens.append({
+                "type": "text", "bbox": w["bbox"], "id": f"T{t_idx}",
+                "text": w["text"], "font": w["font"], "size": w["size"],
+                "color": w["color"], "flags": w["flags"]
+            })
             t_idx += 1
         
         return tokens
 
-    def _merge_chars_to_words(self, actual_bboxes: List[List[float]], glyph_bboxes: List[List[float]]) -> List[List[float]]:
+    def _merge_chars_to_words(self, actual_bboxes: List[List[float]], glyph_bboxes: List[List[float]], spans: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         if not actual_bboxes: return []
         
-        # Pair actual and glyph bboxes
+        char_list = []
+        if spans:
+            for span in spans:
+                for char_data in span.get("chars", []):
+                    if char_data["c"].isspace(): continue
+                    char_list.append({
+                        "c": char_data["c"],
+                        "font": span["font"], "size": span["size"],
+                        "color": span["color"], "flags": span["flags"]
+                    })
+        
         pairs = []
-        for a, g in zip(actual_bboxes, glyph_bboxes):
-            pairs.append({"actual": list(a), "glyph": list(g)})
+        for i in range(len(actual_bboxes)):
+            p = {"actual": list(actual_bboxes[i]), "glyph": list(glyph_bboxes[i])}
+            if char_list and i < len(char_list): p.update(char_list[i])
+            pairs.append(p)
             
-        # Sort by glyph y0 then x0
         pairs = sorted(pairs, key=lambda p: (p["glyph"][1], p["glyph"][0]))
         
-        # Group into lines based on glyph vertical overlap
         lines = []
         if pairs:
             curr_line = [pairs[0]]
@@ -269,45 +278,32 @@ class Preprocessor:
                 prev, curr = curr_line[-1]["glyph"], pairs[i]["glyph"]
                 overlap = min(prev[3], curr[3]) - max(prev[1], curr[1])
                 h = min(prev[3] - prev[1], curr[3] - curr[1])
-                if overlap > h * 0.6: # Stricter vertical overlap for lines
-                    curr_line.append(pairs[i])
-                else:
-                    lines.append(sorted(curr_line, key=lambda p: p["glyph"][0]))
-                    curr_line = [pairs[i]]
+                if overlap > h * 0.6: curr_line.append(pairs[i])
+                else: lines.append(sorted(curr_line, key=lambda p: p["glyph"][0])); curr_line = [pairs[i]]
             lines.append(sorted(curr_line, key=lambda p: p["glyph"][0]))
             
-        # Group lines into words based on glyph horizontal proximity
         words = []
         for line in lines:
             if not line: continue
-            curr_word_actual = line[0]["actual"]
-            curr_word_glyph = line[0]["glyph"]
+            curr_word = {
+                "text": line[0].get("c", ""), "bbox": list(line[0]["actual"]), "glyph_bbox": list(line[0]["glyph"]),
+                "font": line[0].get("font", "Arial"), "size": line[0].get("size", 10),
+                "color": line[0].get("color", 0), "flags": line[0].get("flags", 0)
+            }
             
             for i in range(1, len(line)):
-                prev_g = line[i-1]["glyph"]
-                curr_g = line[i]["glyph"]
-                curr_a = line[i]["actual"]
-                
-                # Use glyph bboxes to check horizontal "touching"
-                # In many fonts, glyph bboxes for adjacent characters touch or slightly overlap
+                prev_g, curr_g, curr_a, curr_c = line[i-1]["glyph"], line[i]["glyph"], line[i]["actual"], line[i].get("c", "")
                 gap = curr_g[0] - prev_g[2]
+                same_style = (line[i].get("font") == curr_word["font"] and line[i].get("size") == curr_word["size"])
                 
-                # Threshold for horizontal word grouping (e.g. 2px)
-                if gap < 3:
-                    curr_word_actual = [
-                        min(curr_word_actual[0], curr_a[0]), min(curr_word_actual[1], curr_a[1]),
-                        max(curr_word_actual[2], curr_a[2]), max(curr_word_actual[3], curr_a[3])
-                    ]
-                    curr_word_glyph = [
-                        min(curr_word_glyph[0], curr_g[0]), min(curr_word_glyph[1], curr_g[1]),
-                        max(curr_word_glyph[2], curr_g[2]), max(curr_word_glyph[3], curr_g[3])
-                    ]
+                if gap < 3 and same_style:
+                    curr_word["text"] += curr_c
+                    curr_word["bbox"] = [min(curr_word["bbox"][0], curr_a[0]), min(curr_word["bbox"][1], curr_a[1]), max(curr_word["bbox"][2], curr_a[2]), max(curr_word["bbox"][3], curr_a[3])]
+                    curr_word["glyph_bbox"] = [min(curr_word["glyph_bbox"][0], curr_g[0]), min(curr_word["glyph_bbox"][1], curr_g[1]), max(curr_word["glyph_bbox"][2], curr_g[2]), max(curr_word["glyph_bbox"][3], curr_g[3])]
                 else:
-                    words.append(curr_word_actual)
-                    curr_word_actual = curr_a
-                    curr_word_glyph = curr_g
-            words.append(curr_word_actual)
-            
+                    words.append(curr_word)
+                    curr_word = {"text": curr_c, "bbox": list(curr_a), "glyph_bbox": list(curr_g), "font": line[i].get("font", "Arial"), "size": line[i].get("size", 10), "color": line[i].get("color", 0), "flags": line[i].get("flags", 0)}
+            words.append(curr_word)
         return words
 
     def _is_nearby(self, bbox1: List[float], bbox2: List[float], threshold: float) -> bool:
