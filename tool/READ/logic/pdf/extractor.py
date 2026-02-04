@@ -8,7 +8,6 @@ import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
 import numpy as np
 from logic.config import get_color
-from .algorithm.semantic import identify_block_type
 from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, format_segments_with_color_merging, strip_non_standard_chars, is_sentence_complete
 from .layout import parse_page_spec, get_median_font_size
 
@@ -131,7 +130,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     except:
         label_font = ImageFont.load_default()
 
-    # 5. Text Extraction using LayoutEngine
+    # 5. Text Extraction using Pipeline
     page_dict = page.get_text("rawdict")
     all_spans = []
     for b in page_dict["blocks"]:
@@ -149,332 +148,84 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     "chars": span.get("chars", [])
                 })
 
-    from .algorithm.tokenization.background import get_background_color, detect_artifacts_from_wiped
-    from .algorithm.tokenization.wiping import TextWiper
+    from .algorithm.pipeline.step1_tokenization.process import Preprocessor
+    from .algorithm.pipeline.step2_tagging.process import Tagger
+    from .algorithm.pipeline.step3_settlement.process import Settlement
     
-    bg_color = get_background_color(vis_img)
-    wiper = TextWiper("/Applications/AITerminalTools")
+    preprocessor = Preprocessor("/Applications/AITerminalTools")
+    bg_color = preprocessor.get_background_color(vis_img)
     
-    # Step 1: Preprocessing
-    # 1.1 Wiped image & text content mask
-    wiped_img, text_mask = wiper.wipe_spans(vis_img.convert("RGB"), all_spans, zoom, bg_color=bg_color)
-    
-    # 1.2 Generate 1_mask_overlay.png (Original + 50% alpha red mask)
-    mask_overlay = vis_img.convert("RGBA")
-    red_mask = Image.new("RGBA", mask_overlay.size, (255, 0, 0, 128))
-    # Create mask for pixels where text_mask is True
-    overlay_mask = Image.fromarray((text_mask * 255).astype(np.uint8), mode='L')
-    mask_overlay.paste(red_mask, (0, 0), overlay_mask)
-    mask_overlay.save(step1_dir / "1_mask_overlay.png")
-    
-    # 1.3 Generate 2_background_remaining.png
-    wiped_img.save(step1_dir / "2_background_remaining.png")
-    
-    # 1.4 Artifact Detection & 3_wiped_result.png
-    artifact_mask = detect_artifacts_from_wiped(vis_img, wiped_img, bg_color)
-    from .algorithm.tokenization.background import get_artifact_bboxes
-    artifact_bboxes = get_artifact_bboxes(artifact_mask)
-    
-    artifact_img = wiped_img.convert("RGBA")
-    artifact_rects = []
-    artifact_labels = []
-    for idx, abox in enumerate(artifact_bboxes):
-        artifact_rects.append({
-            "bbox": abox,
-            "fill": (255, 255, 0, 100) # Yellow for artifacts
-        })
-        artifact_labels.append({
-            "pos": (abox[0], abox[1]),
-            "text": f"A{idx+1}",
-            "font": label_font,
-            "bg_color": (255, 255, 255, 255),
-            "border_color": (0, 0, 0, 255)
-        })
+    # --- Step 1: Preprocessing ---
+    # 1.1 Calculate BBoxes
+    glyph_boxes, actual_boxes = preprocessor.get_token_bboxes(all_spans, zoom)
     
     if draw_iface:
-        artifact_img = draw_iface["draw_rects_with_alpha"](artifact_img, artifact_rects)
-        artifact_img = draw_iface["draw_labels"](artifact_img, artifact_labels)
-    artifact_img.save(step1_dir / "3_wiped_result.png")
+        draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1_glyph_bbox_overlay.png")
+        draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (0, 255, 0, 128)} for b in actual_boxes]).save(step1_dir / "2_actual_bbox_overlay.png")
     
+    # 1.2 Wiping
+    wiped_img, text_mask = preprocessor.wipe_spans(vis_img, all_spans, zoom, bg_color=bg_color)
+    wiped_img.save(step1_dir / "3_background_remaining.png")
+    
+    # 1.3 Artifacts
+    artifact_bboxes = preprocessor.detect_artifacts(vis_img, wiped_img, bg_color)
+    if draw_iface:
+        a_img = wiped_img.convert("RGBA")
+        a_rects = [{"bbox": b, "fill": (255, 255, 0, 100)} for b in artifact_bboxes]
+        a_labels = [{"pos": (b[0], b[1]), "text": f"A{i+1}", "font": label_font} for i, b in enumerate(artifact_bboxes)]
+        a_img = draw_iface["draw_rects_with_alpha"](a_img, a_rects)
+        a_img = draw_iface["draw_labels"](a_img, a_labels)
+        a_img.save(step1_dir / "4_wiped_result.png")
+
+    # --- Step 2: Tokenization & Tagging ---
     from .algorithm.layout_engine import LayoutEngine
     engine = LayoutEngine(page_rect.width, page_rect.height)
     grouped_blocks = engine.segment_tokens(all_spans)
-
-    page_content_parts = []
-    if page_images_content:
-        page_content_parts.extend(page_images_content)
-        
-    semantic_info = []
-    extracted_block_counter = 1
     
-    in_reference_section = False
+    tagger = Tagger(page_rect, median_size)
+    tagged_items = tagger.tag_and_merge(grouped_blocks)
     
-    # Phase 1: Convert blocks to semantic items
-    semantic_items = []
-    for b in grouped_blocks:
-        block_type = identify_block_type(b, page_rect, median_size)
-        
-        # State-based reference detection refinement
-        if block_type == "reference":
-            in_reference_section = True
-        elif in_reference_section:
-            if block_type in ["heading", "title", "footer", "header"]:
-                in_reference_section = False
-            else:
-                block_type = "reference"
-        
-        segments = []
-        for line_idx, line in enumerate(b["lines"]):
-            if not line["spans"]: continue
-            line_y = line["spans"][0]["origin"][1]
-            if segments and not segments[-1][0].endswith(" "):
-                segments[-1][0] += " "
-            for span in line["spans"]:
-                style = get_span_style(span, median_size, line_y)
-                text = strip_non_standard_chars(span["text"])
-                if not text: continue
-                
-                if not segments: segments.append([text, style])
-                else:
-                    prev_text, prev_style = segments[-1]
-                    if style == prev_style: segments[-1][0] += text
-                    else: segments.append([text, style])
-        
-        if not segments: continue
-        block_text_raw = "".join([s[0] for s in segments]).strip()
-        if not block_text_raw: continue
-        
-        semantic_items.append({
-            "type": block_type,
-            "bbox": list(b["bbox"]),
-            "segments": segments,
-            "text": block_text_raw,
-            "lines": b["lines"]
-        })
-
-    # Phase 2: Merging logical blocks
-    merged_items = []
-    for item in semantic_items:
-        if not merged_items:
-            merged_items.append(item)
-            continue
-        
-        prev = merged_items[-1]
-        should_merge = False
-        
-        if prev["type"] == "paragraph" and item["type"] == "paragraph":
-            if not is_sentence_complete(prev["text"]):
-                should_merge = True
-        
-        if prev["type"] == "reference" and item["type"] == "reference":
-            should_merge = True
-            
-        if should_merge:
-            if not prev["segments"][-1][0].endswith(" ") and not item["segments"][0][0].startswith(" "):
-                prev["segments"][-1][0] += " "
-                
-            if prev["segments"][-1][1] == item["segments"][0][1]:
-                prev["segments"][-1][0] += item["segments"][0][0]
-                prev["segments"].extend(item["segments"][1:])
-            else:
-                prev["segments"].extend(item["segments"])
-            
-            prev["text"] = (prev["text"] + " " + item["text"]).strip()
-            prev["lines"].extend(item["lines"])
-            prev["bbox"] = [
-                min(prev["bbox"][0], item["bbox"][0]),
-                min(prev["bbox"][1], item["bbox"][1]),
-                max(prev["bbox"][2], item["bbox"][2]),
-                max(prev["bbox"][3], item["bbox"][3])
-            ]
-        else:
-            merged_items.append(item)
-
-    # Phase 3: Final formatting and visualization
-    final_semantic_items = []
-    for item in merged_items:
-        if item["type"] == "reference":
-            # Split merged references into individual ones
-            current_ref_lines = []
-            for line in item["lines"]:
-                line_text = "".join([s["text"] for s in line["spans"]]).strip()
-                # Detection pattern for new reference start or "References" title
-                if re.match(r'^(?:\[\d+\]|\d+\.)', line_text) or line_text.lower() == "references":
-                    if current_ref_lines:
-                        # Create a sub-item for the previous reference
-                        all_t = [t for l in current_ref_lines for t in l.get("spans", [])]
-                        sub_bbox = [min(t['bbox'][0] for t in all_t), min(t['bbox'][1] for t in all_t),
-                                    max(t['bbox'][2] for t in all_t), max(t['bbox'][3] for t in all_t)]
-                        
-                        # Re-calculate segments for this sub-item
-                        sub_segments = []
-                        for l in current_ref_lines:
-                            line_y = l["spans"][0]["origin"][1] if l["spans"] else 0
-                            for span in l["spans"]:
-                                style = get_span_style(span, median_size, line_y)
-                                text = strip_non_standard_chars(span["text"])
-                                if not text: continue
-                                if not sub_segments: sub_segments.append([text, style])
-                                else:
-                                    if style == sub_segments[-1][1]: sub_segments[-1][0] += text
-                                    else: sub_segments.append([text, style])
-                        
-                        final_semantic_items.append({
-                            "type": "reference",
-                            "bbox": sub_bbox,
-                            "segments": sub_segments,
-                            "text": "".join([s[0] for s in sub_segments]).strip(),
-                            "lines": current_ref_lines
-                        })
-                    current_ref_lines = [line]
-                else:
-                    if not current_ref_lines: current_ref_lines = [line]
-                    else: current_ref_lines.append(line)
-            
-            if current_ref_lines:
-                # Last reference
-                all_t = [t for l in current_ref_lines for t in l.get("spans", [])]
-                sub_bbox = [min(t['bbox'][0] for t in all_t), min(t['bbox'][1] for t in all_t),
-                            max(t['bbox'][2] for t in all_t), max(t['bbox'][3] for t in all_t)]
-                sub_segments = []
-                for l in current_ref_lines:
-                    line_y = l["spans"][0]["origin"][1] if l["spans"] else 0
-                    for span in l["spans"]:
-                        style = get_span_style(span, median_size, line_y)
-                        text = strip_non_standard_chars(span["text"])
-                        if not text: continue
-                        if not sub_segments: sub_segments.append([text, style])
-                        else:
-                            if style == sub_segments[-1][1]: sub_segments[-1][0] += text
-                            else: sub_segments.append([text, style])
-                
-                final_semantic_items.append({
-                    "type": "reference",
-                    "bbox": sub_bbox,
-                    "segments": sub_segments,
-                    "text": "".join([s[0] for s in sub_segments]).strip(),
-                    "lines": current_ref_lines
-                })
-        else:
-            final_semantic_items.append(item)
-
-    # Process final items for output and visualization
-    reference_count = 0
-    for item in final_semantic_items:
-        block_type = item["type"]
-        bbox = item["bbox"]
-        segments = item["segments"]
-        block_text_raw = item["text"]
-        
-        color = semantic_color_map.get(block_type, [0, 255, 0, 60])
-        
-        # Alpha alternation for individual references
-        current_alpha = alpha_int
-        if block_type == "reference":
-            reference_count += 1
-            if reference_count % 2 == 0:
-                current_alpha = alpha_int // 2
-        
-        fill_color = tuple(list(color[:3]) + [current_alpha])
-        
-        # Precise visualization: draw per-span rectangles to highlight gaps
-        for line in item["lines"]:
-            for span in line["spans"]:
-                s_bbox = span["bbox"]
-                rects_to_draw.append({
-                    "bbox": [s_bbox[0]*zoom, s_bbox[1]*zoom, s_bbox[2]*zoom, s_bbox[3]*zoom],
-                    "fill": fill_color
-                })
-        
-        type_label = block_type.capitalize()
-        if type_label not in legend_items:
-            legend_items[type_label] = tuple(list(color[:3]) + [255])
-        
-        block_id_num = extracted_block_counter
-        block_id = f"b{block_id_num:03d}"
-        extracted_block_counter += 1
-        
-        # Label position: logically first token (first span of first line)
-        if item["lines"] and item["lines"][0]["spans"]:
-            first_span = item["lines"][0]["spans"][0]
-            label_pos = (first_span["bbox"][0]*zoom, first_span["bbox"][1]*zoom)
-        else:
-            label_pos = (bbox[0]*zoom, bbox[1]*zoom)
-        
-        labels_to_draw.append({
-            "pos": label_pos,
-            "text": str(block_id_num),
-            "font": label_font,
-            "bg_color": (255, 255, 255, 255),
-            "border_color": (0, 0, 0, 255)
-        })
-
-        # Formatting Markdown text
-        block_md = ""
-        if block_type in ["paragraph", "heading"]:
-            first_is_bold = segments[0][1]["bold"]
-            if first_is_bold:
-                bold_end_idx = -1
-                for i in range(1, len(segments)):
-                    if not segments[i][1]["bold"]:
-                        bold_end_idx = i; break
-                if bold_end_idx != -1:
-                    bold_text = "".join([s[0] for s in segments[:bold_end_idx]]).strip()
-                    # Forced line break for subheadings
-                    if len(bold_text.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", bold_text):
-                        heading_md = format_segments_with_color_merging(segments[:bold_end_idx]).strip()
-                        body_md = format_segments_with_color_merging(segments[bold_end_idx:]).lstrip()
-                        block_md = heading_md + " \n\n " + body_md
-                    else: block_md = format_segments_with_color_merging(segments)
-                else:
-                    if len(block_text_raw.split()) < 12 or re.match(r"^\d+(\.\d+)*\s", block_text_raw):
-                         block_md = format_segments_with_color_merging(segments) + "\n\n"
-                    else: block_md = format_segments_with_color_merging(segments)
-            else: block_md = format_segments_with_color_merging(segments)
-        elif block_type == "reference":
-            raw_content = format_segments_with_color_merging(segments)
-            # Bold "References" title if it exists
-            raw_content = re.sub(r"(?i)(References)", r"**\1**", raw_content, count=1)
-            # Forced line break after "References" title or individual entries
-            block_md = raw_content.strip()
-        else:
-            block_md = format_segments_with_color_merging(segments)
-            
-        block_md = re.sub(r' +', ' ', block_md)
-        full_block_md = f"<!-- block_id: {block_id} type: {block_type} -->\n{block_md}"
-        
-        if block_md.strip():
-            page_content_parts.append(full_block_md.strip())
-            
-        # info.json now contains full Markdown text
-        semantic_info.append({
-            "id": block_id, "type": block_type, "bbox": bbox,
-            "text": block_md
-        })
-                
-    content = "\n\n".join(page_content_parts)
-    with open(md_file_path, "w", encoding="utf-8") as f:
-        f.write(content)
-        
-    # Use DRAW tool for final visualization
+    # Visualize tokenization
     if draw_iface:
-        processed_img = draw_iface["draw_rects_with_alpha"](vis_img, rects_to_draw)
-        processed_img = draw_iface["draw_labels"](processed_img, labels_to_draw)
-        processed_img = draw_iface["append_legend"](processed_img, legend_items)
-    else:
-        # Basic fallback if DRAW tool is unavailable
-        draw = ImageDraw.Draw(vis_img)
-        for r in rects_to_draw: draw.rectangle(r["bbox"], fill=r["fill"])
-        for l in labels_to_draw: draw.text(l["pos"], l["text"], fill=(0,0,0,255), font=l["font"])
-        processed_img = vis_img
+        t_img = vis_img.convert("RGBA")
+        t_rects = []
+        for item in tagged_items:
+            color = semantic_color_map.get(item["type"], [0, 255, 0, 60])
+            t_rects.append({"bbox": [c*zoom for c in item["bbox"]], "fill": tuple(list(color[:3]) + [alpha_int])})
+        t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
+        t_img.save(step2_dir / "result.png")
 
-    processed_img.save(step3_dir / "result.png")
+    # --- Step 3: Settlement ---
+    settlement = Settlement(median_size)
+    final_items = settlement.settle(tagged_items)
     
-    # Save tokenized image (Phase 1 results usually same as Phase 2 for now)
-    processed_img.save(step2_dir / "result.png")
+    # Final visualization
+    if draw_iface:
+        res_img = vis_img.convert("RGBA")
+        res_rects = []
+        res_labels = []
+        for idx, item in enumerate(final_items):
+            color = semantic_color_map.get(item["type"], [0, 255, 0, 60])
+            res_rects.append({"bbox": [c*zoom for c in item["bbox"]], "fill": tuple(list(color[:3]) + [alpha_int])})
+            res_labels.append({"pos": (item["bbox"][0]*zoom, item["bbox"][1]*zoom), "text": str(idx+1), "font": label_font})
+        res_img = draw_iface["draw_rects_with_alpha"](res_img, res_rects)
+        res_img = draw_iface["draw_labels"](res_img, res_labels)
+        res_img = draw_iface["append_legend"](res_img, legend_items)
+        res_img.save(step3_dir / "result.png")
+        res_img.save(page_dir / "extracted.png")
+
+    # Generate Markdown
+    page_content_parts = []
+    if page_images_content: page_content_parts.extend(page_images_content)
     
-    # Also save to old location for compatibility
-    processed_img.save(page_dir / "extracted.png")
+    semantic_info = []
+    for idx, item in enumerate(final_items):
+        md_text = item.get("md_text", item["text"])
+        page_content_parts.append(f"<!-- block_id: b{idx+1:03d} type: {item['type']} -->\n{md_text}")
+        semantic_info.append({"id": f"b{idx+1:03d}", "type": item["type"], "bbox": item["bbox"], "text": md_text})
+        
+    content = "\n\n".join(page_content_parts)
+    with open(md_file_path, "w", encoding="utf-8") as f: f.write(content)
     
     return content, image_metadata, semantic_info
 
