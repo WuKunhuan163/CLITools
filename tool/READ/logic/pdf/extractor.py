@@ -10,7 +10,7 @@ from .formatter import get_span_style, apply_style_to_text, process_text_linebre
 from .layout import parse_page_spec, get_median_font_size
 
 def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
-    fitz.TOOLS.mupdf_display_errors(False)
+    from tool.FITZ.logic.pdf.wrapper import FitzWrapper
     page = doc[page_num]
     page_rect = page.rect
     actual_page_num = page_num + 1
@@ -19,7 +19,6 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     md_file_path = page_dir / "extracted.md"
     
     source_pdf_path = page_dir / "source.pdf"
-    from tool.FITZ.logic.pdf.wrapper import FitzWrapper
     new_doc = FitzWrapper.open() # Create new empty doc
     new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
     FitzWrapper.save(new_doc, str(source_pdf_path))
@@ -28,7 +27,9 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     source_png_path = page_dir / "source.png"
     zoom = 2.0
     mat = fitz.Matrix(zoom, zoom)
-    pix = FitzWrapper.get_pixmap(page, matrix=mat); pix.save(str(source_png_path))
+    pix = FitzWrapper.get_pixmap(page, matrix=mat)
+    pix.save(str(source_png_path))
+    
     vis_img = Image.open(source_png_path).convert("RGBA")
     
     # 1. Extract Spans First
