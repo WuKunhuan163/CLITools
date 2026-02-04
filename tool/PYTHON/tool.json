@@ -15,5 +15,6 @@
     "!",
     "data/",
     "logs/"
-  ]
+  ],
+  "default_version": "3.11.14-macos-arm64"
 }

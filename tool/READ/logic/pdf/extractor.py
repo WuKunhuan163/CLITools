@@ -177,6 +177,15 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
     if draw_iface:
         t_img = vis_img.convert("RGBA")
         t_rects, t_labels = [], []
+        
+        # Create directory for individual merged image tokens
+        merged_tokens_dir = step1_dir / "6_merged_image_tokens"
+        merged_tokens_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create a background-wiped image for cleaner token extraction
+        # (Already have vis_img, but let's use a copy for safety)
+        token_extract_img = vis_img.copy()
+
         for tk in tokens:
             if tk["type"] == "visual":
                 if tk.get("subtype") == "separator":
@@ -184,6 +193,16 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                 else:
                     t_rects.append({"bbox": tk["bbox"], "fill": (255, 255, 0, 100)}) # Yellow for blocks
                 t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
+                
+                # Save individual token image
+                try:
+                    tx0, ty0, tx1, ty1 = [int(round(c)) for c in tk["bbox"]]
+                    if tx1 > tx0 and ty1 > ty0:
+                        token_crop = token_extract_img.crop((tx0, ty0, tx1, ty1))
+                        token_crop.save(merged_tokens_dir / f"{tk['id']}.png")
+                except Exception as e:
+                    print(f"Warning: Failed to save image token {tk['id']}: {e}")
+
             elif tk["type"] == "text":
                 # Use GLYPH bbox for tokenization result visualization
                 t_rects.append({"bbox": tk["glyph_bbox"], "fill": (0, 255, 0, 60)})
@@ -191,7 +210,7 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         t_img = draw_iface["draw_labels"](t_img, t_labels)
         
         legend_6 = {"Word (Glyph)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Separator": (255, 0, 255, 255)}
-        draw_iface["append_legend"](t_img, legend_6).save(step1_dir / "6_tokenization_result.png")
+        draw_iface["append_legend"](t_img, legend_6).save(step1_dir / "7_tokenization_result.png")
 
     # --- Step 2: Semantics ---
     semantics = SemanticsEngine(page_rect, median_size, "/Applications/AITerminalTools")

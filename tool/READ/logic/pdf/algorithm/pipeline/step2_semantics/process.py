@@ -71,18 +71,63 @@ class SemanticsEngine:
                     variants_found = []
                     # 1. Regular
                     p = self.font_dir / norm_family / "font.ttf"
-                    if p.exists(): pdf.add_font(norm_family, "", str(p)); variants_found.append("")
-                    # 2. Bold
-                    p = self.font_dir / f"{norm_family}-bold" / "font.ttf"
-                    if not p.exists(): p = self.font_dir / norm_family.replace("-blond", "-bold") / "font.ttf"
-                    if p.exists(): pdf.add_font(norm_family, "B", str(p)); variants_found.append("B")
-                    # 3. Italic
-                    p = self.font_dir / f"{norm_family}-italic" / "font.ttf"
-                    if p.exists(): pdf.add_font(norm_family, "I", str(p)); variants_found.append("I")
-                    # 4. Bold Italic
-                    p = self.font_dir / f"{norm_family}-bold-italic" / "font.ttf"
-                    if not p.exists(): p = self.font_dir / norm_family.replace("-blond", "-bold") / "font.ttf" # Fallback to bold if BI missing
-                    if p.exists(): pdf.add_font(norm_family, "BI", str(p)); variants_found.append("BI")
+                    if p.exists():
+                        pdf.add_font(norm_family, "", str(p))
+                        variants_found.append("")
+                        # If the font name itself implies bold or italic, register it as that variant too
+                        if "bold" in norm_family:
+                            pdf.add_font(norm_family, "B", str(p))
+                            variants_found.append("B")
+                        if "italic" in norm_family or "oblique" in norm_family:
+                            pdf.add_font(norm_family, "I", str(p))
+                            variants_found.append("I")
+                        if ("bold" in norm_family) and ("italic" in norm_family or "oblique" in norm_family):
+                            pdf.add_font(norm_family, "BI", str(p))
+                            variants_found.append("BI")
+                    
+                    # 2. Bold (if not already found)
+                    if "B" not in variants_found:
+                        p_bold = self.font_dir / f"{norm_family}-bold" / "font.ttf"
+                        if not p_bold.exists() and "-blond" in norm_family:
+                            p_bold = self.font_dir / norm_family.replace("-blond", "-bold") / "font.ttf"
+                        if not p_bold.exists() and "-book" in norm_family:
+                            p_bold = self.font_dir / norm_family.replace("-book", "-bold") / "font.ttf"
+                        if p_bold.exists(): pdf.add_font(norm_family, "B", str(p_bold)); variants_found.append("B")
+                    
+                    # 3. Italic (if not already found)
+                    if "I" not in variants_found:
+                        p_italic = self.font_dir / f"{norm_family}-italic" / "font.ttf"
+                        if not p_italic.exists() and "-blond" in norm_family:
+                            p_italic = self.font_dir / norm_family.replace("-blond", "-blonditalic") / "font.ttf"
+                        if p_italic.exists(): pdf.add_font(norm_family, "I", str(p_italic)); variants_found.append("I")
+                    
+                    # 4. Bold Italic (if not already found)
+                    if "BI" not in variants_found:
+                        p_bi = self.font_dir / f"{norm_family}-bold-italic" / "font.ttf"
+                        if not p_bi.exists() and "-blond" in norm_family:
+                            p_bi = self.font_dir / norm_family.replace("-blond", "-bolditalic") / "font.ttf"
+                        if not p_bi.exists():
+                            # Try to find any bold variant to use as fallback
+                            if "B" in variants_found:
+                                # We already registered it as "B", but fpdf2 needs it registered as "BI" too
+                                # We'll do this below
+                                pass
+                        
+                        if p_bi and p_bi.exists():
+                            pdf.add_font(norm_family, "BI", str(p_bi))
+                            variants_found.append("BI")
+                        elif "B" in variants_found:
+                            # Fallback BI to B if BI is missing but B exists
+                            # We need the path again
+                            p_fallback = self.font_dir / f"{norm_family}-bold" / "font.ttf"
+                            if not p_fallback.exists() and "-blond" in norm_family:
+                                p_fallback = self.font_dir / norm_family.replace("-blond", "-bold") / "font.ttf"
+                            if not p_fallback.exists():
+                                p_fallback = self.font_dir / norm_family / "font.ttf" # Last resort
+                            
+                            if p_fallback.exists():
+                                pdf.add_font(norm_family, "BI", str(p_fallback))
+                                variants_found.append("BI")
                     
                     if variants_found: registered_fonts[norm_family] = variants_found
                     else:
@@ -115,8 +160,18 @@ class SemanticsEngine:
             
             elif tk["type"] == "visual":
                 v_bbox = [c / zoom for c in tk["bbox"]]
-                pdf.set_draw_color(200, 200, 200)
-                pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
+                # Try to embed the merged image token if it exists
+                token_img_path = output_dir.parent / "step1_tokenization" / "6_merged_image_tokens" / f"{tk['id']}.png"
+                if token_img_path.exists():
+                    try:
+                        pdf.image(str(token_img_path), x=v_bbox[0], y=v_bbox[1], w=v_bbox[2]-v_bbox[0], h=v_bbox[3]-v_bbox[1])
+                    except Exception as e:
+                        print(f"Warning: Failed to embed image token {tk['id']} into PDF: {e}")
+                        pdf.set_draw_color(200, 200, 200)
+                        pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
+                else:
+                    pdf.set_draw_color(200, 200, 200)
+                    pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
 
         pdf_output_path = output_dir / "1_initial_status_reproduced.pdf"
         pdf.output(str(pdf_output_path))
