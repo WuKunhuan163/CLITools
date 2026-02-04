@@ -241,7 +241,7 @@ class Preprocessor:
         
         for w in final_text_tokens:
             tokens.append({
-                "type": "text", "bbox": w["bbox"], "id": f"T{t_idx}",
+                "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": f"T{t_idx}",
                 "text": w["text"], "font": w["font"], "size": w["size"],
                 "color": w["color"], "flags": w["flags"]
             })

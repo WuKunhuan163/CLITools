@@ -34,12 +34,13 @@ class SemanticsEngine:
 
     def reproduce_initial_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float):
         """
-        Reproduces the PDF layout using Stage 1 tokens.
+        Reproduces the PDF layout using Stage 1 tokens and glyph bboxes.
         """
         pdf = FPDF(unit="pt", format=[self.page_width, self.page_height])
+        pdf.set_auto_page_break(auto=False) # Disable auto page break
         pdf.add_page()
         
-        # Register Arial variants
+        # Register Arial variants as default fallback
         arial_path = self.font_dir / "arial" / "font.ttf"
         arial_b_path = self.font_dir / "arial-bold" / "font.ttf"
         arial_i_path = self.font_dir / "arial-italic" / "font.ttf"
@@ -50,27 +51,40 @@ class SemanticsEngine:
         if arial_i_path.exists(): pdf.add_font("Arial", "I", str(arial_i_path))
         if arial_bi_path.exists(): pdf.add_font("Arial", "BI", str(arial_bi_path))
         
-        # Register Helvetica
-        helvetica_path = self.font_dir / "helvetica" / "font.ttf"
-        if helvetica_path.exists(): pdf.add_font("Helvetica", "", str(helvetica_path))
+        # Cache for registered fonts: {family: [styles]}
+        registered_fonts = {"Arial": ["", "B", "I", "BI"]}
         
-        pdf.set_font("Arial", size=10) # Default
-        
+        from tool.FONT.logic.engine import FontManager
+        fm = FontManager(self.project_root)
+
         for tk in tokens:
-            bbox = [c / zoom for c in tk["bbox"]] # Convert back to PDF points
+            # Use glyph_bbox for positioning in the reconstructed PDF
+            # (Convert back to PDF points from zoomed pixels)
+            bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
             
             if tk["type"] == "text":
-                # Set style
+                raw_font = tk.get("font", "Arial")
                 style = ""
-                if tk.get("flags", 0) & 2: style += "I" # Italic
-                if tk.get("flags", 0) & 4: style += "B" # Bold
+                if tk.get("flags", 0) & 2: style += "I"
+                if tk.get("flags", 0) & 4: style += "B"
                 
-                # fpdf2 requires registering each style variant if it's a separate file
-                # For now, we'll just use the base font and let fpdf2 try to synthesize or fallback
+                font_to_use = "Arial"
+                if raw_font not in registered_fonts:
+                    font_path = fm.get_font_path(raw_font)
+                    if font_path and Path(font_path).exists():
+                        try:
+                            # Register the actual font
+                            pdf.add_font(raw_font, "", font_path)
+                            registered_fonts[raw_font] = [""]
+                            font_to_use = raw_font
+                        except: pass
+                else:
+                    font_to_use = raw_font
+                
                 try:
-                    pdf.set_font("Arial", style=style, size=tk.get("size", 10))
+                    pdf.set_font(font_to_use, style=style if style in registered_fonts.get(font_to_use, []) else "", size=tk.get("size", 10))
                 except:
-                    pdf.set_font("Arial", style="", size=tk.get("size", 10))
+                    pdf.set_font("Arial", style=style if style in registered_fonts["Arial"] else "", size=tk.get("size", 10))
                 
                 # Set color
                 color = tk.get("color", 0)
@@ -82,20 +96,18 @@ class SemanticsEngine:
                 # Position and write text
                 pdf.set_xy(bbox[0], bbox[1])
                 try:
-                    # Use a small width/height or the actual bbox
                     pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=tk["text"], border=0)
-                except Exception as e:
-                    # Fallback for unsupported characters: replace with '?'
+                except:
                     clean_text = "".join([c if ord(c) < 256 else "?" for c in tk["text"]])
-                    try:
-                        pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=0)
+                    try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=0)
                     except: pass
-                
+            
             elif tk["type"] == "visual":
-                # For now, just draw a rectangle or placeholder
+                # For visual blocks, use their actual bbox (already in PDF points)
+                v_bbox = [c / zoom for c in tk["bbox"]]
                 pdf.set_draw_color(200, 200, 200)
-                pdf.rect(bbox[0], bbox[1], bbox[2]-bbox[0], bbox[3]-bbox[1])
-                
+                pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
+
         pdf_output_path = output_dir / "1_initial_status_reproduced.pdf"
         pdf.output(str(pdf_output_path))
         

@@ -150,8 +150,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     if draw_iface:
         c_img = vis_img.convert("RGBA")
         c_rects, c_labels = [], []
-        # Text
-        for b in actual_boxes: c_rects.append({"bbox": b, "fill": (0, 255, 0, 80)})
+        # Text (Use GLYPH bboxes for combined elements view)
+        for b in glyph_boxes: c_rects.append({"bbox": b, "fill": (0, 255, 0, 80)})
         # Raw Images
         for i, b in enumerate(image_bboxes):
             c_rects.append({"bbox": b, "fill": (255, 255, 0, 80)})
@@ -161,7 +161,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
             c_rects.append({"bbox": b, "fill": (255, 0, 255, 80)})
             c_labels.append({"pos": (b[0], b[1]), "text": f"A{i+1}", "font": label_font})
             
-        legend = {"Text (Heuristic)": (0, 255, 0, 255), "Raw Image": (255, 255, 0, 255), "Artifact": (255, 0, 255, 255)}
+        legend = {"Text (Glyph)": (0, 255, 0, 255), "Raw Image": (255, 255, 0, 255), "Artifact": (255, 0, 255, 255)}
         c_img = draw_iface["draw_rects_with_alpha"](c_img, c_rects)
         c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
@@ -181,11 +181,12 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     t_rects.append({"bbox": tk["bbox"], "fill": (255, 255, 0, 100)}) # Yellow for blocks
                 t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
             elif tk["type"] == "text":
-                t_rects.append({"bbox": tk["bbox"], "fill": (0, 255, 0, 60)})
+                # Use GLYPH bbox for tokenization result visualization
+                t_rects.append({"bbox": tk["glyph_bbox"], "fill": (0, 255, 0, 60)})
         t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
         t_img = draw_iface["draw_labels"](t_img, t_labels)
         
-        legend_6 = {"Word (Merged)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Separator": (255, 0, 255, 255)}
+        legend_6 = {"Word (Glyph)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Separator": (255, 0, 255, 255)}
         draw_iface["append_legend"](t_img, legend_6).save(step1_dir / "6_tokenization_result.png")
 
     # --- Step 2: Semantics ---
