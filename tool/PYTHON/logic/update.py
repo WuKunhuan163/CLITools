@@ -774,5 +774,15 @@ def main():
         threads.append(t)
     for t in threads: t.join()
 
+    # Post-migration maintenance: prune local LFS objects to avoid repository bloat
+    if all_to_migrate:
+        log_debug("Starting post-migration maintenance: LFS prune...")
+        # Run pruning in background to avoid blocking user if it's very large
+        # But here we can run it since the tasks are done.
+        try:
+            subprocess.run(["/usr/bin/git", "lfs", "prune", "--force"], cwd=str(PROJECT_ROOT), capture_output=True)
+            log_debug("LFS prune complete.")
+        except: pass
+
 if __name__ == "__main__":
     main()
