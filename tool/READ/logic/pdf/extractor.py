@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
 import numpy as np
+import json
 from logic.config import get_color
 from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, format_segments_with_color_merging, strip_non_standard_chars, is_sentence_complete
 from .layout import parse_page_spec, get_median_font_size
@@ -158,7 +159,15 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     
     # --- Step 1: Preprocessing ---
     # 1.1 Calculate BBoxes
-    glyph_boxes, actual_boxes = preprocessor.get_token_bboxes(np.array(vis_img), all_spans, zoom)
+    glyph_boxes, actual_boxes, offsets = preprocessor.get_token_bboxes(np.array(vis_img), all_spans, zoom)
+    
+    # Save analysis.json for Step 1
+    with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "offsets": offsets,
+            "glyph_boxes_count": len(glyph_boxes),
+            "actual_boxes_count": len(actual_boxes)
+        }, f, indent=2)
     
     if draw_iface:
         draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1_glyph_bbox_overlay.png")
@@ -172,8 +181,8 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         ])
         actual_viz.save(step1_dir / "2_actual_bbox_overlay.png")
     
-    # 1.2 Wiping
-    wiped_img, text_mask = preprocessor.wipe_spans(vis_img, all_spans, zoom, bg_color=bg_color)
+    # 1.4 Wiping
+    wiped_img, text_mask, wipe_offsets = preprocessor.wipe_spans(vis_img, all_spans, zoom, bg_color=bg_color)
     wiped_img.save(step1_dir / "3_background_remaining.png")
     
     # 1.3 Artifacts
@@ -240,7 +249,6 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         })
         
     # Save semantic.json
-    import json
     with open(page_dir / "semantic.json", "w", encoding="utf-8") as f:
         json.dump(semantic_info, f, indent=2, ensure_ascii=False)
         

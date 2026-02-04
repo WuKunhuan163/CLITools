@@ -45,14 +45,12 @@ class Preprocessor:
         norm_name = self._normalize_font_name(font_name)
         heuristics_path = self.font_resource_dir / norm_name / "info.json"
         
-        # Stricter fallback: prevent matching Regular/Blond to Italic
         if not heuristics_path.exists():
             parts = norm_name.split('-')
             if parts:
                 family = parts[0]
                 for d in self.font_resource_dir.iterdir():
                     if d.is_dir() and family in d.name:
-                        # Check for italic/bold consistency
                         if ("italic" in norm_name) != ("italic" in d.name): continue
                         if ("bold" in norm_name) != ("bold" in d.name): continue
                         test_path = d / "info.json"
@@ -73,41 +71,44 @@ class Preprocessor:
         self.font_cache[font_name] = None
         return None
 
-    def find_optimal_v_offset(self, img_data: np.ndarray, spans: List[Dict[str, Any]], zoom: float) -> float:
+    def find_optimal_offsets(self, img_data: np.ndarray, spans: List[Dict[str, Any]], zoom: float) -> Tuple[float, float]:
         """
-        Finds a vertical offset (dy) that minimizes pixel intensity within heuristic bboxes.
+        Finds optimal (dx, dy) offsets that minimize pixel intensity within heuristic bboxes.
         """
-        best_dy = 0
+        best_dx, best_dy = 0, 0
         min_intensity = float('inf')
         h, w, _ = img_data.shape
         
-        # Test range: -2 to 2 points
-        for dy in np.linspace(-2, 2, 21):
-            total_intensity = 0
-            count = 0
-            for span in spans:
-                heuristics = self._get_font_heuristics(span.get("font", "unknown"))
-                if not heuristics: continue
-                for char_data in span.get("chars", []):
-                    char = char_data["c"]
-                    if char.isspace() or char not in heuristics: continue
-                    g_bbox = [c for c in char_data["bbox"]]
-                    hv = heuristics[char]
-                    gw, gh = g_bbox[2] - g_bbox[0], g_bbox[3] - g_bbox[1]
-                    
-                    ay0 = int(round((g_bbox[1] + dy + hv[1]*gh) * zoom))
-                    ay1 = int(round((g_bbox[1] + dy + hv[3]*gh) * zoom))
-                    ax0 = int(round((g_bbox[0] + hv[0]*gw) * zoom))
-                    ax1 = int(round((g_bbox[0] + hv[2]*gw) * zoom))
-                    
-                    crop = img_data[max(0, ay0):min(h, ay1), max(0, ax0):min(w, ax1)]
-                    if crop.size > 0:
-                        total_intensity += np.mean(crop)
-                        count += 1
-            if count > 0 and total_intensity / count < min_intensity:
-                min_intensity = total_intensity / count
-                best_dy = dy
-        return best_dy
+        # Test range: -1.5 to 1.5 points for both directions
+        search_vals = np.linspace(-1.5, 1.5, 13)
+        
+        for dy in search_vals:
+            for dx in search_vals:
+                total_intensity = 0
+                count = 0
+                for span in spans:
+                    heuristics = self._get_font_heuristics(span.get("font", "unknown"))
+                    if not heuristics: continue
+                    for char_data in span.get("chars", []):
+                        char = char_data["c"]
+                        if char.isspace() or char not in heuristics: continue
+                        g_bbox = char_data["bbox"]
+                        hv = heuristics[char]
+                        gw, gh = g_bbox[2] - g_bbox[0], g_bbox[3] - g_bbox[1]
+                        
+                        ay0 = int(round((g_bbox[1] + dy + hv[1]*gh) * zoom))
+                        ay1 = int(round((g_bbox[1] + dy + hv[3]*gh) * zoom))
+                        ax0 = int(round((g_bbox[0] + dx + hv[0]*gw) * zoom))
+                        ax1 = int(round((g_bbox[0] + dx + hv[2]*gw) * zoom))
+                        
+                        crop = img_data[max(0, ay0):min(h, ay1), max(0, ax0):min(w, ax1)]
+                        if crop.size > 0:
+                            total_intensity += np.mean(crop)
+                            count += 1
+                if count > 0 and total_intensity / count < min_intensity:
+                    min_intensity = total_intensity / count
+                    best_dx, best_dy = dx, dy
+        return float(best_dx), float(best_dy)
 
     def get_background_color(self, image: Image.Image) -> Tuple[int, int, int]:
         img_data = np.array(image.convert("RGB"))
@@ -116,11 +117,9 @@ class Preprocessor:
         samples = np.concatenate([c.reshape(-1, 3) for c in corners], axis=0)
         return tuple(np.median(samples, axis=0).astype(int))
 
-    def get_token_bboxes(self, img_data: np.ndarray, spans: List[Dict[str, Any]], zoom: float) -> Tuple[List[List[float]], List[List[float]]]:
+    def get_token_bboxes(self, img_data: np.ndarray, spans: List[Dict[str, Any]], zoom: float) -> Tuple[List[List[float]], List[List[float]], Dict[str, float]]:
         glyph_boxes, actual_boxes = [], []
-        
-        # Calculate global vertical offset to align heuristics with actual pixels
-        dy = self.find_optimal_v_offset(img_data, spans, zoom)
+        dx, dy = self.find_optimal_offsets(img_data, spans, zoom)
         
         for span in spans:
             heuristics = self._get_font_heuristics(span.get("font", "unknown"))
@@ -131,26 +130,23 @@ class Preprocessor:
                 
                 if heuristics and char_data["c"] in heuristics:
                     h = heuristics[char_data["c"]]
-                    # Raw bbox points (not zoomed) for offset application
                     raw_g = char_data["bbox"]
                     gw, gh = raw_g[2] - raw_g[0], raw_g[3] - raw_g[1]
                     actual_boxes.append([
-                        (raw_g[0] + h[0]*gw) * zoom,
+                        (raw_g[0] + dx + h[0]*gw) * zoom,
                         (raw_g[1] + dy + h[1]*gh) * zoom,
-                        (raw_g[0] + h[2]*gw) * zoom,
+                        (raw_g[0] + dx + h[2]*gw) * zoom,
                         (raw_g[1] + dy + h[3]*gh) * zoom
                     ])
                 else:
                     actual_boxes.append(g_bbox)
-        return glyph_boxes, actual_boxes
+        return glyph_boxes, actual_boxes, {"dx": dx, "dy": dy}
 
-    def wipe_spans(self, image: Image.Image, spans: List[Dict[str, Any]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray]:
+    def wipe_spans(self, image: Image.Image, spans: List[Dict[str, Any]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray, Dict[str, float]]:
         img_data = np.array(image.convert("RGB"))
         h, w, _ = img_data.shape
         mask = np.zeros((h, w), dtype=bool)
-        
-        # Calculate optimal offset for wiping as well
-        dy = self.find_optimal_v_offset(img_data, spans, zoom)
+        dx, dy = self.find_optimal_offsets(img_data, spans, zoom)
         
         for span in spans:
             heuristics = self._get_font_heuristics(span.get("font", "unknown"))
@@ -158,43 +154,45 @@ class Preprocessor:
                 if char_data["c"].isspace(): continue
                 g_bbox = [c * zoom for c in char_data["bbox"]]
                 w_bbox = None
+                
                 if heuristics and char_data["c"] in heuristics:
                     hv = heuristics[char_data["c"]]
                     raw_g = char_data["bbox"]
                     gw, gh = raw_g[2] - raw_g[0], raw_g[3] - raw_g[1]
                     w_bbox = [
-                        (raw_g[0] + hv[0]*gw) * zoom,
+                        (raw_g[0] + dx + hv[0]*gw) * zoom,
                         (raw_g[1] + dy + hv[1]*gh) * zoom,
-                        (raw_g[0] + hv[2]*gw) * zoom,
+                        (raw_g[0] + dx + hv[2]*gw) * zoom,
                         (raw_g[1] + dy + hv[3]*gh) * zoom
                     ]
                 else:
-                    # Fallback tight pixel mask check
-                    ix0, iy0, ix1, iy1 = [int(round(c)) for c in g_bbox]
-                    crop = img_data[max(0, iy0-1):min(h, iy1+1), max(0, ix0-1):min(w, ix1+1)]
-                    if crop.size > 0 and np.any(np.mean(crop, axis=2) < 200):
-                        m = np.mean(crop, axis=2) < 200
-                        r, c = np.where(m)
-                        w_bbox = [ix0-1+c[0]-1, iy0-1+r[0]-1, ix0-1+c[-1]+1, iy0-1+r[-1]+1]
+                    # Consistency Fix: If no heuristics, wipe the entire glyph bbox
+                    # instead of just the tight pixel mask. This matches Step 2's green boxes.
+                    w_bbox = g_bbox
+                
                 if w_bbox:
                     wx0, wy0, wx1, wy1 = [int(round(c)) for c in w_bbox]
-                    y0, y1, x0, x1 = max(0, wy0), min(h, wy1+1), max(0, wx0), min(w, wx1+1)
+                    # Add 1px padding
+                    y0, y1, x0, x1 = max(0, wy0-1), min(h, wy1+2), max(0, wx0-1), min(w, wx1+2)
                     img_data[y0:y1, x0:x1] = bg_color
                     mask[y0:y1, x0:x1] = True
-        return Image.fromarray(img_data), mask
+        return Image.fromarray(img_data), mask, {"dx": dx, "dy": dy}
 
     def detect_artifacts(self, original: Image.Image, wiped: Image.Image, bg_color: Tuple[int, int, int]) -> List[Tuple[int, int, int, int]]:
-        from scipy.ndimage import label
+        from scipy.ndimage import label, binary_opening, binary_closing
         w_data = np.array(wiped.convert("RGB")).astype(float)
         diff = np.abs(w_data - np.full_like(w_data, bg_color))
         mask = np.any(diff > 30, axis=2)
         if mask.ndim != 2: return []
+        
+        mask = binary_opening(mask, structure=np.ones((2, 2)))
+        mask = binary_closing(mask, structure=np.ones((3, 3)))
+        
         labeled, num = label(mask)
         bboxes = []
         for i in range(1, num + 1):
             m = (labeled == i)
             r, c = np.where(np.any(m, axis=1))[0], np.where(np.any(m, axis=0))[0]
-            if len(r) > 0 and len(c) > 0 and len(r)*len(c) >= 20:
+            if len(r) > 0 and len(c) > 0 and len(r)*len(c) >= 40:
                 bboxes.append((int(c[0]), int(r[0]), int(c[-1]), int(r[-1])))
         return bboxes
-
