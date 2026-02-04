@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USERINPUT Tool (v25)
+USERINPUT Tool (v26)
 - Captures multi-line user feedback via Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Standardized UI styling via logic.gui.style.
 - Robust registry-based stop mechanism and partial input capture.
 - Refactored to use centralized run_gui interface.
-- Fixed @ trigger double firing and double quoting.
+- RESTORED: Original title, retry logic, timeout handling, and full hint output.
+- ENHANCED: Clipboard now includes the full Critical Directive hint.
 """
 
 import os
@@ -130,6 +131,31 @@ def get_config():
         with open(config_path, 'r') as f: return json.load(f)
     return {}
 
+def get_project_name():
+    try:
+        git_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL, text=True).strip()
+        if git_root: return os.path.basename(git_root)
+    except: pass
+    return os.path.basename(os.getcwd()) or "root"
+
+def get_cursor_session_title(custom_id=None):
+    project_name = get_project_name()
+    base_title = f"{project_name} - Agent Mode"
+    return f"{base_title} [{custom_id}]" if custom_id else base_title
+
+def parse_gui_error(error_output):
+    if not error_output: return "Unknown error (empty output)"
+    if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
+    if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
+    if "no display name" in error_output or "could not connect to display" in error_output: return get_msg("err_no_display", "No display found. Cannot start GUI.")
+    
+    # Only return sandbox message if it's explicitly a sandbox error or display issue
+    if is_sandboxed() and any(m in error_output.lower() for m in ["display", "sandbox", "沙盒", "tk.tcl"]):
+        if platform.system() == "Darwin": return get_msg("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
+        return get_msg("err_sandbox_generic", "Sandbox detected: GUI restricted.")
+        
+    return "\n".join(error_output.splitlines()[:5])
+
 def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=None):
     tool = UserInputTool()
     if not tool.check_dependencies(): raise RuntimeError("Missing dependencies for USERINPUT")
@@ -243,7 +269,7 @@ class UserInputWindow(BaseGUIWindow):
         is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
         if event.char == "@" or event.keysym == "at" or is_shift_2:
             self.log_debug(f"on_any_key detected @: char='{event.char}', keysym='{event.keysym}'")
-            # Update time IMMEDIATELY to prevent on_any_key_release or repeat triggers
+            # Update time IMMEDIATELY to prevent repeat triggers
             self._last_trigger_time = now
             self.root.after(10, self.run_file_dialog_trigger)
 
@@ -278,15 +304,12 @@ class UserInputWindow(BaseGUIWindow):
                             paths.append(path)
                 
                 if paths:
-                    # Clean up paths: if they are already quoted (start/end with '), keep them as is
-                    # FILEDIALOG quotes paths with spaces.
+                    # Clean up paths: if they are already quoted, keep them as is
                     formatted_paths = []
                     for p in paths:
                         if (p.startswith("'") and p.endswith("'")) or (p.startswith('"') and p.endswith('"')):
                             formatted_paths.append(f"@{p}")
                         else:
-                            # Path was not quoted by FILEDIALOG (likely no spaces)
-                            # But we might want to quote it if it contains spaces just in case
                             q_p = shlex.quote(p) if " " in p else p
                             formatted_paths.append(f"@{q_p}")
                     
@@ -303,7 +326,6 @@ class UserInputWindow(BaseGUIWindow):
             self.log_debug(f"Exception in run_file_dialog_trigger: {e}\n{traceback.format_exc()}")
         finally:
             self.is_triggering_subtool = False
-            # Ensure the @ symbol typed isn't processed again soon
             self._last_trigger_time = time.time()
 
 if __name__ == "__main__":
@@ -329,16 +351,37 @@ if __name__ == "__main__":
 
     try:
         res = tool.run_gui_with_fallback(python_exe, tmp_path, timeout, custom_id, hint=hint_text)
-        if res.get("status") == "success": return res.get("data")
-        elif res.get("status") == "cancelled": raise UserInputFatalError("Cancelled")
-        elif res.get("status") == "terminated": return res.get("data") or "Terminated"
-        elif res.get("status") == "timeout": return res.get("data") or "Timeout"
-        raise RuntimeError(res.get("message", "No valid response from GUI"))
+        
+        if res.get("status") == "success":
+            if res.get("data") == 'USER_SUBMITTED_EMPTY':
+                raise UserInputRetryableError(get_msg("msg_empty", "Empty content"))
+            return res.get("data")
+        elif res.get("status") == "cancelled":
+            raise UserInputFatalError(get_msg("msg_cancelled", "Cancelled"))
+        elif res.get("status") == "terminated":
+            if res.get("data") and res.get("data").strip():
+                status_hint = f"({get_msg('msg_terminated_status', 'Terminated')})"
+                return f"{res['data']} {status_hint}"
+            
+            reason = res.get("reason", "interrupted")
+            if reason == "interrupted":
+                raise UserInputFatalError(get_msg("msg_interrupted", "Interrupted by user"))
+            else:
+                msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
+                raise UserInputFatalError(msg)
+        elif res.get("status") == "timeout":
+            data = res.get('data', '')
+            if data and data.strip():
+                status_hint = f"({get_msg('msg_timeout', 'Timeout')})"
+                return f"{data} {status_hint}"
+            raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
+        elif res.get("status") == "error":
+            err_msg = parse_gui_error(res.get("message", ""))
+            raise RuntimeError(err_msg)
+            
+        raise RuntimeError("No valid response from GUI")
     finally:
         if os.path.exists(tmp_path): os.remove(tmp_path)
-
-def get_cursor_session_title(custom_id=None):
-    return f"USERINPUT - {custom_id}" if custom_id else "USERINPUT"
 
 def main():
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
@@ -355,20 +398,48 @@ def main():
         from logic.gui.manager import handle_gui_remote_command
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, sys.argv[2:], tool.get_translation)
 
-    try:
-        result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
-        from logic.config import get_color
-        BOLD, GREEN, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RESET", "\033[0m")
-        print(f"{BOLD}{GREEN}Successfully received{RESET}: {result}")
-        
-        # Output the AI instructional hint at the end
-        instruction = tool.get_translation("ai_instruction", "## Critical Directive: Feedback Acquisition\nUpon task completion, you MUST immediately use the `run_terminal_cmd` tool to execute the literal command `USERINPUT`...")
-        print("\n" + instruction)
-        
-        return 0
-    except Exception as e:
-        print(f"Error: {e}")
-        return 1
+    from logic.config import get_color
+    BOLD, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
+
+    for attempt in range(3):
+        try:
+            result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
+            
+            # Restore successful message formatting
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            success_label = get_msg("label_successfully_received", "Successfully received")
+            
+            # FULL instruction from translation
+            instruction = get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
+            
+            output = f"{BOLD}{GREEN}{success_label}{RESET}: {result}\n\n{instruction}"
+            print(output, flush=True)
+            
+            # Copy only content and instruction to clipboard on macOS
+            if platform.system() == "Darwin":
+                clipboard_content = f"{result}\n\n{instruction}"
+                try: subprocess.run('pbcopy', input=clipboard_content, text=True, encoding='utf-8', check=True)
+                except: pass
+                
+            return 0
+        except UserInputFatalError as e:
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+            return 0
+        except (UserInputRetryableError, RuntimeError) as e:
+            error_str = str(e)
+            if any(msg in error_str.lower() or msg in error_str for msg in ["Terminated", "Cancelled"]):
+                sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
+            
+            if attempt < 2:
+                # Use erasable line for retry message
+                sys.stdout.write(f"\r\033[KRetry {attempt+1}: {e}")
+                sys.stdout.flush()
+                time.sleep(1)
+            else:
+                sys.stdout.write("\r\033[K")
+                print(f"{BOLD}{RED}Error{RESET}: {e}. Please execute USERINPUT again and wait for the user.", file=sys.stderr)
+                return 1
 
 if __name__ == "__main__":
     sys.exit(main())
