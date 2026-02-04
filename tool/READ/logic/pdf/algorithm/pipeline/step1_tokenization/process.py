@@ -267,11 +267,11 @@ class Preprocessor:
             v_idx += 1
         
         for w in word_tokens:
-            if w["id"] in consumed_text_ids: continue
             tokens.append({
                 "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": w["id"],
                 "text": w["text"], "font": w["font"], "size": w["size"],
-                "color": w["color"], "flags": w["flags"]
+                "color": w["color"], "flags": w["flags"],
+                "is_absorbed": w["id"] in consumed_text_ids
             })
         
         return tokens

@@ -25,7 +25,7 @@ class SemanticsEngine:
         # 2. Return tokens as semantic items for now to avoid empty output
         semantic_items = []
         for tk in tokens:
-            if tk["type"] == "text":
+            if tk["type"] == "text" and not tk.get("is_absorbed"):
                 semantic_items.append({
                     "type": "paragraph", "bbox": [c / zoom for c in tk["bbox"]],
                     "text": tk["text"], "md_text": tk["text"]
@@ -71,7 +71,7 @@ class SemanticsEngine:
 
         # 2. Render Text Tokens Last (to avoid occlusion)
         for tk in tokens:
-            if tk["type"] == "text":
+            if tk["type"] == "text" and not tk.get("is_absorbed"):
                 bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
                 raw_font = tk.get("font", "Arial")
                 style = ""
