@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw
+import numpy as np
 from logic.config import get_color
 from .algorithm.semantic import identify_block_type
 from .formatter import get_span_style, apply_style_to_text, process_text_linebreaks, format_segments_with_color_merging, strip_non_standard_chars, is_sentence_complete
@@ -54,6 +55,12 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     # 3. Images folder inside page folder
     page_images_dir = page_dir / "images"
     page_images_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Subdirectories for organized steps
+    step1_dir = page_images_dir / "1_preprocessed"
+    step2_dir = page_images_dir / "2_tokenized"
+    step3_dir = page_images_dir / "3_processed"
+    for d in [step1_dir, step2_dir, step3_dir]: d.mkdir(parents=True, exist_ok=True)
     
     # Define semantic mapping to colors
     semantic_color_map = {
@@ -118,6 +125,12 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 pix_img = None
             except: pass
 
+    from PIL import ImageFont
+    try:
+        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
+    except:
+        label_font = ImageFont.load_default()
+
     # 5. Text Extraction using LayoutEngine
     page_dict = page.get_text("rawdict")
     all_spans = []
@@ -125,7 +138,6 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         if b.get("type") != 0: continue
         for line in b["lines"]:
             for span in line["spans"]:
-                # Treat each span as a "token" unit
                 all_spans.append({
                     "text": "".join([c["c"] for c in span.get("chars", [])]),
                     "bbox": list(span["bbox"]),
@@ -137,11 +149,53 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                     "chars": span.get("chars", [])
                 })
 
+    from .algorithm.tokenization.background import get_background_color, detect_artifacts_from_wiped
     from .algorithm.tokenization.wiping import TextWiper
+    
+    bg_color = get_background_color(vis_img)
     wiper = TextWiper("/Applications/AITerminalTools")
-    wiped_img = wiper.wipe_spans(vis_img.convert("RGB"), all_spans, zoom)
-    wiped_img.save(page_dir / "wiped.png")
-
+    
+    # Step 1: Preprocessing
+    # 1.1 Wiped image & text content mask
+    wiped_img, text_mask = wiper.wipe_spans(vis_img.convert("RGB"), all_spans, zoom, bg_color=bg_color)
+    
+    # 1.2 Generate 1_mask_overlay.png (Original + 50% alpha red mask)
+    mask_overlay = vis_img.convert("RGBA")
+    red_mask = Image.new("RGBA", mask_overlay.size, (255, 0, 0, 128))
+    # Create mask for pixels where text_mask is True
+    overlay_mask = Image.fromarray((text_mask * 255).astype(np.uint8), mode='L')
+    mask_overlay.paste(red_mask, (0, 0), overlay_mask)
+    mask_overlay.save(step1_dir / "1_mask_overlay.png")
+    
+    # 1.3 Generate 2_background_remaining.png
+    wiped_img.save(step1_dir / "2_background_remaining.png")
+    
+    # 1.4 Artifact Detection & 3_wiped_result.png
+    artifact_mask = detect_artifacts_from_wiped(vis_img, wiped_img, bg_color)
+    from .algorithm.tokenization.background import get_artifact_bboxes
+    artifact_bboxes = get_artifact_bboxes(artifact_mask)
+    
+    artifact_img = wiped_img.convert("RGBA")
+    artifact_rects = []
+    artifact_labels = []
+    for idx, abox in enumerate(artifact_bboxes):
+        artifact_rects.append({
+            "bbox": abox,
+            "fill": (255, 255, 0, 100) # Yellow for artifacts
+        })
+        artifact_labels.append({
+            "pos": (abox[0], abox[1]),
+            "text": f"A{idx+1}",
+            "font": label_font,
+            "bg_color": (255, 255, 255, 255),
+            "border_color": (0, 0, 0, 255)
+        })
+    
+    if draw_iface:
+        artifact_img = draw_iface["draw_rects_with_alpha"](artifact_img, artifact_rects)
+        artifact_img = draw_iface["draw_labels"](artifact_img, artifact_labels)
+    artifact_img.save(step1_dir / "3_wiped_result.png")
+    
     from .algorithm.layout_engine import LayoutEngine
     engine = LayoutEngine(page_rect.width, page_rect.height)
     grouped_blocks = engine.segment_tokens(all_spans)
@@ -153,12 +207,6 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     semantic_info = []
     extracted_block_counter = 1
     
-    from PIL import ImageFont
-    try:
-        label_font = ImageFont.truetype("Arial.ttf", int(10 * zoom))
-    except:
-        label_font = ImageFont.load_default()
-
     in_reference_section = False
     
     # Phase 1: Convert blocks to semantic items
@@ -410,16 +458,24 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         
     # Use DRAW tool for final visualization
     if draw_iface:
-        vis_img = draw_iface["draw_rects_with_alpha"](vis_img, rects_to_draw)
-        vis_img = draw_iface["draw_labels"](vis_img, labels_to_draw)
-        vis_img = draw_iface["append_legend"](vis_img, legend_items)
+        processed_img = draw_iface["draw_rects_with_alpha"](vis_img, rects_to_draw)
+        processed_img = draw_iface["draw_labels"](processed_img, labels_to_draw)
+        processed_img = draw_iface["append_legend"](processed_img, legend_items)
     else:
         # Basic fallback if DRAW tool is unavailable
         draw = ImageDraw.Draw(vis_img)
         for r in rects_to_draw: draw.rectangle(r["bbox"], fill=r["fill"])
         for l in labels_to_draw: draw.text(l["pos"], l["text"], fill=(0,0,0,255), font=l["font"])
+        processed_img = vis_img
 
-    vis_img.save(page_dir / "extracted.png")
+    processed_img.save(step3_dir / "result.png")
+    
+    # Save tokenized image (Phase 1 results usually same as Phase 2 for now)
+    processed_img.save(step2_dir / "result.png")
+    
+    # Also save to old location for compatibility
+    processed_img.save(page_dir / "extracted.png")
+    
     return content, image_metadata, semantic_info
 
 def extract_pdf_pages(pdf_path: Path, output_root: Path, page_spec: Optional[str] = None) -> List[Dict[str, Any]]:

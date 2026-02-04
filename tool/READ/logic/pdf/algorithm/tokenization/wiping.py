@@ -3,7 +3,7 @@ import json
 import numpy as np
 from pathlib import Path
 from PIL import Image, ImageDraw
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 class TextWiper:
     """
@@ -87,13 +87,15 @@ class TextWiper:
         self.font_cache[font_name] = None
         return None
 
-    def wipe_spans(self, image: Image.Image, spans: List[Dict[str, Any]], zoom: float) -> Image.Image:
+    def wipe_spans(self, image: Image.Image, spans: List[Dict[str, Any]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray]:
         """
         Wipe text spans from the image.
         Uses actual bboxes from heuristics if available, otherwise tight glyph bboxes.
+        Returns (wiped_image, content_mask).
         """
         img_data = np.array(image.convert("RGB"))
         h, w, _ = img_data.shape
+        content_mask = np.zeros((h, w), dtype=bool)
         
         for span in spans:
             font_name = span.get("font", "unknown")
@@ -143,7 +145,10 @@ class TextWiper:
                 
                 if wipe_bbox:
                     wx0, wy0, wx1, wy1 = [int(round(c)) for c in wipe_bbox]
-                    img_data[max(0, wy0):min(h, wy1+1), max(0, wx0):min(w, wx1+1)] = [255, 255, 255]
+                    y_start, y_end = max(0, wy0), min(h, wy1+1)
+                    x_start, x_end = max(0, wx0), min(w, wx1+1)
+                    img_data[y_start:y_end, x_start:x_end] = bg_color
+                    content_mask[y_start:y_end, x_start:x_end] = True
         
-        return Image.fromarray(img_data)
+        return Image.fromarray(img_data), content_mask
 
