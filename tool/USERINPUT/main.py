@@ -402,6 +402,28 @@ def main():
     from logic.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
+    # AUTO-COMMIT: Save progress before waiting for feedback
+    try:
+        from tool.GIT.logic.engine import GitEngine
+        git_engine = GitEngine(tool.project_root)
+        current_branch = git_engine.get_current_branch()
+        
+        # Check for changes
+        status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(tool.project_root)).strip()
+        if status:
+            ts = time.strftime("%H:%M:%S")
+            msg = f"USERINPUT auto-commit at {ts}"
+            print(f"{BOLD}{get_color('BLUE')}Saving progress...{RESET}")
+            subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True)
+            subprocess.run(["/usr/bin/git", "commit", "-m", msg], cwd=str(tool.project_root), capture_output=True)
+            
+            # Force push to origin
+            print(f"{BOLD}{get_color('BLUE')}Backing up to remote...{RESET}")
+            subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True)
+    except Exception as e:
+        # Ignore errors during auto-commit so it doesn't block the tool
+        pass
+
     for attempt in range(3):
         try:
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)

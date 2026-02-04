@@ -837,8 +837,9 @@ This tool is part of the `TOOL` ecosystem, which provides:
     if registry_path.exists():
         try:
             with open(registry_path, 'r') as f: registry = json.load(f)
-            if tool_name not in registry.get("tools", {}):
-                registry.get("tools", {})[tool_name] = {
+            if "tools" not in registry: registry["tools"] = {}
+            if tool_name not in registry["tools"]:
+                registry["tools"][tool_name] = {
                     "description": tool_json["description"],
                     "purpose": tool_json["purpose"]
                 }
@@ -853,20 +854,28 @@ This tool is part of the `TOOL` ecosystem, which provides:
     
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
-        rel_tool_dir = os.path.relpath(tool_dir, project_root)
-        subprocess.run(["/usr/bin/git", "add", rel_tool_dir], cwd=str(project_root), check=True)
-        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
-    except Exception as e:
-        print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit new tool: {e}")
+        from tool.GIT.logic.engine import GitEngine
+        git_engine = GitEngine(project_root)
+        dev_branch = git_engine.get_dev_branch()
+        current_branch_for_commit = dev_branch if dev_branch else "tool"
+        
+        # If we are not on the designated branch, try to switch
+        current_real = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        if dev_branch and current_real != dev_branch:
+            print(f"{BOLD}{BLUE}Switching to designated development branch '{dev_branch}'...{RESET}")
+            subprocess.run(["/usr/bin/git", "checkout", dev_branch], cwd=str(project_root), check=True)
+            current_branch_for_commit = dev_branch
 
-    # Return to original branch
-    if current_branch != "tool":
-        try:
-            print(f"{BOLD}{BLUE}Returning to '{current_branch}' branch...{RESET}")
-            subprocess.run(["/usr/bin/git", "checkout", current_branch], cwd=str(project_root), check=True)
-            # Merge tool branch back to original branch to get the new tool
-            subprocess.run(["/usr/bin/git", "merge", "tool"], cwd=str(project_root), check=True)
-        except: pass
+        rel_tool_dir = os.path.relpath(tool_dir, project_root)
+        subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
+        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
+        
+        # Push to remote
+        print(f"{BOLD}{BLUE}Pushing to remote...{RESET}")
+        subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch_for_commit}", "--force"], cwd=str(project_root), check=True)
+        
+    except Exception as e:
+        print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit/push new tool: {e}")
 
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))

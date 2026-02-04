@@ -232,6 +232,7 @@ class Preprocessor:
         # 6. Absorb nearby words into visual blocks (NOT boxes)
         # Note: We keep the text tokens in the final list so they are rendered,
         # but we expand the visual block's bbox to include them.
+        consumed_text_ids = set()
         for w_data in word_tokens:
             w_bbox = w_data["bbox"]
             for fv in final_mergeable:
@@ -243,6 +244,7 @@ class Preprocessor:
                     # Link text to visual block
                     if "absorbed_text_ids" not in fv: fv["absorbed_text_ids"] = []
                     fv["absorbed_text_ids"].append(w_data["id"])
+                    consumed_text_ids.add(w_data["id"])
                     break
 
         # 7. Combine and assign IDs
@@ -265,6 +267,7 @@ class Preprocessor:
             v_idx += 1
         
         for w in word_tokens:
+            if w["id"] in consumed_text_ids: continue
             tokens.append({
                 "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": w["id"],
                 "text": w["text"], "font": w["font"], "size": w["size"],

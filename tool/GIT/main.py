@@ -85,7 +85,8 @@ def main():
             from logic.git.engine import auto_push_if_needed
             auto_push_if_needed()
         else:
-            print(f"{get_color('RED')}Commit failed{get_color('RESET')}: {res.stderr}")
+            reason = res.stderr.strip() or res.stdout.strip() or "Unknown reason"
+            print(f"{get_color('RED')}Commit failed{get_color('RESET')}: {reason}")
             sys.exit(1)
 
 if __name__ == "__main__":
