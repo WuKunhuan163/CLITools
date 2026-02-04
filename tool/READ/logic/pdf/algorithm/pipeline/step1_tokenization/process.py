@@ -212,7 +212,24 @@ class Preprocessor:
                         break
                 if merged: break
 
-        # 5. Combine and assign IDs
+        # 5. Absorb nearby words into visual blocks
+        # (Exclude separators from absorbing text for now)
+        final_text_tokens = []
+        for w_bbox in word_tokens:
+            absorbed = False
+            for mv in mergeable_vis:
+                # Use a threshold of 5px for text absorption into visual blocks
+                if self._is_nearby(w_bbox, mv["bbox"], threshold=5):
+                    mv["bbox"] = [
+                        min(mv["bbox"][0], w_bbox[0]), min(mv["bbox"][1], w_bbox[1]),
+                        max(mv["bbox"][2], w_bbox[2]), max(mv["bbox"][3], w_bbox[3])
+                    ]
+                    absorbed = True
+                    break
+            if not absorbed:
+                final_text_tokens.append(w_bbox)
+
+        # 6. Combine and assign IDs
         tokens = []
         v_idx, s_idx, t_idx = 1, 1, 1
         
@@ -226,8 +243,8 @@ class Preprocessor:
             tokens.append({"type": "visual", "subtype": "block", "bbox": mv["bbox"], "id": f"V{v_idx}"})
             v_idx += 1
         
-        # Add Words (T)
-        for w in word_tokens:
+        # Add Remaining Words (T)
+        for w in final_text_tokens:
             tokens.append({"type": "text", "bbox": w, "id": f"T{t_idx}"})
             t_idx += 1
         
