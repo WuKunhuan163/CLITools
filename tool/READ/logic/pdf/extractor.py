@@ -136,7 +136,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         else:
             ov_img.save(step1_dir / "2.2_raw_images_overlay.png")
     
-    wiped_img, text_mask, wipe_offsets = preprocessor.wipe_content(vis_img, all_spans, image_bboxes, zoom, bg_color=bg_color)
+    wiped_img, text_mask, wipe_offsets = preprocessor.wipe_content(vis_img, all_spans, image_masks, zoom, bg_color=bg_color)
     wiped_img.save(step1_dir / "3_background_remaining.png")
     
     artifact_bboxes = preprocessor.detect_artifacts(vis_img, wiped_img, bg_color)
@@ -149,26 +149,39 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
 
     if draw_iface:
         c_img = vis_img.convert("RGBA")
-        c_rects = [{"bbox": b, "fill": (0, 255, 0, 80)} for b in actual_boxes] + [{"bbox": b, "fill": (255, 255, 0, 80)} for b in image_bboxes] + [{"bbox": b, "fill": (255, 0, 255, 80)} for b in artifact_bboxes]
+        c_rects, c_labels = [], []
+        # Text
+        for b in actual_boxes: c_rects.append({"bbox": b, "fill": (0, 255, 0, 80)})
+        # Raw Images
+        for i, b in enumerate(image_bboxes):
+            c_rects.append({"bbox": b, "fill": (255, 255, 0, 80)})
+            c_labels.append({"pos": (b[0], b[1]), "text": f"I{i+1}", "font": label_font})
+        # Artifacts
+        for i, b in enumerate(artifact_bboxes):
+            c_rects.append({"bbox": b, "fill": (255, 0, 255, 80)})
+            c_labels.append({"pos": (b[0], b[1]), "text": f"A{i+1}", "font": label_font})
+            
         legend = {"Text (Heuristic)": (0, 255, 0, 255), "Raw Image": (255, 255, 0, 255), "Artifact": (255, 0, 255, 255)}
         c_img = draw_iface["draw_rects_with_alpha"](c_img, c_rects)
+        c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
 
     tokens = preprocessor.join_tokens(actual_boxes, image_bboxes, artifact_bboxes)
-    visual_tokens = [t for t in tokens if t["type"] == "visual"]
-    text_tokens = [t for t in tokens if t["type"] == "text"]
-    
     with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
-        json.dump({"offsets": offsets, "visual_tokens": visual_tokens, "text_tokens_count": len(text_tokens)}, f, indent=2)
+        json.dump({"offsets": offsets, "tokens": tokens}, f, indent=2)
 
     if draw_iface:
         t_img = vis_img.convert("RGBA")
         t_rects, t_labels = [], []
-        for vt in visual_tokens:
-            t_rects.append({"bbox": vt["bbox"], "fill": (255, 165, 0, 100)}) # Orange for all visual
-            t_labels.append({"pos": (vt["bbox"][0], vt["bbox"][1]), "text": vt["id"], "font": label_font})
-        for tt in text_tokens:
-            t_rects.append({"bbox": tt["bbox"], "fill": (0, 255, 0, 60)})
+        for tk in tokens:
+            if tk["type"] == "image":
+                t_rects.append({"bbox": tk["bbox"], "fill": (255, 255, 0, 100)})
+                t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
+            elif tk["type"] == "artifact":
+                t_rects.append({"bbox": tk["bbox"], "fill": (255, 0, 255, 100)})
+                t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
+            elif tk["type"] == "text":
+                t_rects.append({"bbox": tk["bbox"], "fill": (0, 255, 0, 60)})
         t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
         draw_iface["draw_labels"](t_img, t_labels).save(step1_dir / "6_tokenization_result.png")
 
@@ -176,17 +189,18 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     semantics = SemanticsEngine(page_rect, median_size)
     final_items = semantics.process(all_spans)
     
-    if draw_iface:
-        res_img = vis_img.convert("RGBA")
-        res_rects, res_labels = [], []
-        for idx, item in enumerate(final_items):
-            color = semantic_color_map.get(item["type"], [0, 255, 0, 60])
-            res_rects.append({"bbox": [c*zoom for c in item["bbox"]], "fill": tuple(list(color[:3]) + [alpha_int])})
-            res_labels.append({"pos": (item["bbox"][0]*zoom, item["bbox"][1]*zoom), "text": str(idx+1), "font": label_font})
-        res_img = draw_iface["draw_rects_with_alpha"](res_img, res_rects)
-        res_img = draw_iface["draw_labels"](res_img, res_labels)
-        draw_iface["append_legend"](res_img, {"Title": (255,0,0,255), "Heading": (255,165,0,255), "Paragraph": (0,255,0,255), "Reference": (255,0,255,255), "Header/Footer": (128,128,128,255)}).save(step2_dir / "result.png")
-        res_img.save(page_dir / "extracted.png")
+    # Disable result.png for now as requested
+    # if draw_iface:
+    #     res_img = vis_img.convert("RGBA")
+    #     res_rects, res_labels = [], []
+    #     for idx, item in enumerate(final_items):
+    #         color = semantic_color_map.get(item["type"], [0, 255, 0, 60])
+    #         res_rects.append({"bbox": [c*zoom for c in item["bbox"]], "fill": tuple(list(color[:3]) + [alpha_int])})
+    #         res_labels.append({"pos": (item["bbox"][0]*zoom, item["bbox"][1]*zoom), "text": str(idx+1), "font": label_font})
+    #     res_img = draw_iface["draw_rects_with_alpha"](res_img, res_rects)
+    #     res_img = draw_iface["draw_labels"](res_img, res_labels)
+    #     draw_iface["append_legend"](res_img, {"Title": (255,0,0,255), "Heading": (255,165,0,255), "Paragraph": (0,255,0,255), "Reference": (255,0,255,255), "Header/Footer": (128,128,128,255)}).save(step2_dir / "result.png")
+    #     res_img.save(page_dir / "extracted.png")
 
     page_content_parts, semantic_info = [], []
     for idx, item in enumerate(final_items):

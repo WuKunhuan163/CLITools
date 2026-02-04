@@ -107,11 +107,13 @@ class Preprocessor:
                 else: actual_boxes.append(g_bbox)
         return glyph_boxes, actual_boxes, {"dx": dx, "dy": dy}
 
-    def wipe_content(self, image: Image.Image, spans: List[Dict[str, Any]], image_bboxes: List[List[float]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray, Dict[str, float]]:
+    def wipe_content(self, image: Image.Image, spans: List[Dict[str, Any]], image_masks: List[Dict[str, Any]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray, Dict[str, float]]:
         img_data = np.array(image.convert("RGB"))
         h, w, _ = img_data.shape
         mask = np.zeros((h, w), dtype=bool)
         dx, dy = self.find_optimal_offsets(img_data, spans, zoom)
+        
+        # 1. Wipe Text
         for span in spans:
             heuristics = self._get_font_heuristics(span.get("font", "unknown"))
             for char_data in span.get("chars", []):
@@ -124,20 +126,27 @@ class Preprocessor:
                 else: w_box = g_bbox
                 if w_box:
                     ix0, iy0, ix1, iy1 = [int(round(c)) for c in w_box]
+                    # Use 1px padding for text wiping
                     y0, y1, x0, x1 = max(0, iy0-1), min(h, iy1+2), max(0, ix0-1), min(w, ix1+2)
                     img_data[y0:y1, x0:x1] = bg_color; mask[y0:y1, x0:x1] = True
         
+        # 2. Wipe Images (Pixel-Aware)
         from scipy.ndimage import binary_dilation
-        for ibox in image_bboxes:
+        for im_data in image_masks:
+            ibox, imask = im_data["bbox"], im_data["mask"]
             ix0, iy0, ix1, iy1 = [int(round(c)) for c in ibox]
-            crop = img_data[max(0, iy0):min(h, iy1), max(0, ix0):min(w, ix1)]
-            if crop.size > 0:
-                diff = np.abs(crop.astype(float) - bg_color)
-                content_mask = np.any(diff > 20, axis=2)
-                content_mask = binary_dilation(content_mask, structure=np.ones((3, 3)))
-                target_region = img_data[max(0, iy0):min(h, iy1), max(0, ix0):min(w, ix1)]
-                target_region[content_mask] = bg_color
-                mask[max(0, iy0):min(h, iy1), max(0, ix0):min(w, ix1)][content_mask] = True
+            # Resize mask to fit zoomed bbox
+            mask_img = Image.fromarray(imask).resize((max(1, ix1-ix0), max(1, iy1-iy0)), Image.NEAREST)
+            m_arr = np.array(mask_img)
+            
+            # Apply mask to wipe
+            target_region = img_data[iy0:iy1, ix0:ix1]
+            if target_region.shape[:2] == m_arr.shape:
+                # Dilation to ensure clean edges
+                m_arr = binary_dilation(m_arr, structure=np.ones((3, 3)))
+                target_region[m_arr] = bg_color
+                mask[iy0:iy1, ix0:ix1][m_arr] = True
+                
         return Image.fromarray(img_data), mask, {"dx": dx, "dy": dy}
 
     def detect_artifacts(self, original: Image.Image, wiped: Image.Image, bg_color: Tuple[int, int, int]) -> List[Tuple[int, int, int, int]]:
@@ -162,96 +171,71 @@ class Preprocessor:
 
     def join_tokens(self, char_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]]) -> List[Dict[str, Any]]:
         """
-        Merges visual components (images, artifacts) and nearby text into unified tokens.
+        Tokenization: Merges characters into words. Visual components (images, artifacts) are kept separate for now.
         """
-        # 1. Start with initial visual components
-        vis_comps = []
-        for b in image_bboxes: vis_comps.append({"type": "visual", "bbox": list(b)})
-        for b in artifact_bboxes: vis_comps.append({"type": "visual", "bbox": list(b)})
-
-        # 2. Iteratively merge overlapping/nearby visual components
-        merged = True
-        while merged:
-            merged = False
-            for i in range(len(vis_comps)):
-                for j in range(i + 1, len(vis_comps)):
-                    if self._is_nearby(vis_comps[i]["bbox"], vis_comps[j]["bbox"], threshold=15):
-                        vis_comps[i]["bbox"] = [
-                            min(vis_comps[i]["bbox"][0], vis_comps[j]["bbox"][0]),
-                            min(vis_comps[i]["bbox"][1], vis_comps[j]["bbox"][1]),
-                            max(vis_comps[i]["bbox"][2], vis_comps[j]["bbox"][2]),
-                            max(vis_comps[i]["bbox"][3], vis_comps[j]["bbox"][3])
-                        ]
-                        vis_comps.pop(j)
-                        merged = True
-                        break
-                if merged: break
-
-        # 3. Absorb nearby text into visual components
-        remaining_chars = []
-        for c_bbox in char_bboxes:
-            absorbed = False
-            for v_comp in vis_comps:
-                # Use a tighter threshold for text absorption (e.g., 5px)
-                if self._is_nearby(c_bbox, v_comp["bbox"], threshold=5):
-                    v_comp["bbox"] = [
-                        min(v_comp["bbox"][0], c_bbox[0]),
-                        min(v_comp["bbox"][1], c_bbox[1]),
-                        max(v_comp["bbox"][2], c_bbox[2]),
-                        max(v_comp["bbox"][3], c_bbox[3])
-                    ]
-                    absorbed = True
-                    break
-            if not absorbed:
-                remaining_chars.append(c_bbox)
-
-        # 4. Group remaining text characters into word/line-like tokens
-        text_tokens = self._group_text_tokens(remaining_chars)
-
-        # 5. Combine and assign IDs
+        # 1. Merge characters into words
+        word_tokens = self._merge_chars_to_words(char_bboxes)
+        
         tokens = []
-        for i, v in enumerate(vis_comps):
-            tokens.append({"type": "visual", "bbox": v["bbox"], "id": f"V{i+1}"})
-        for i, t in enumerate(text_tokens):
-            tokens.append({"type": "text", "bbox": t, "id": f"T{i+1}"})
+        # 2. Add Raw Images (I)
+        for i, b in enumerate(image_bboxes):
+            tokens.append({"type": "image", "bbox": list(b), "id": f"I{i+1}"})
+        
+        # 3. Add Artifacts (A)
+        for i, b in enumerate(artifact_bboxes):
+            tokens.append({"type": "artifact", "bbox": list(b), "id": f"A{i+1}"})
+            
+        # 4. Add Words (T)
+        for i, w in enumerate(word_tokens):
+            tokens.append({"type": "text", "bbox": w, "id": f"T{i+1}"})
         
         return tokens
+
+    def _merge_chars_to_words(self, char_bboxes: List[List[float]]) -> List[List[float]]:
+        if not char_bboxes: return []
+        
+        # Sort by y0 then x0
+        chars = sorted([list(b) for b in char_bboxes], key=lambda b: (b[1], b[0]))
+        
+        # Group into lines
+        lines = []
+        if chars:
+            curr_line = [chars[0]]
+            for i in range(1, len(chars)):
+                prev, curr = curr_line[-1], chars[i]
+                # Check vertical overlap
+                overlap = min(prev[3], curr[3]) - max(prev[1], curr[1])
+                h = min(prev[3] - prev[1], curr[3] - curr[1])
+                if overlap > h * 0.5:
+                    curr_line.append(curr)
+                else:
+                    lines.append(sorted(curr_line, key=lambda b: b[0]))
+                    curr_line = [curr]
+            lines.append(sorted(curr_line, key=lambda b: b[0]))
+            
+        # Group lines into words
+        words = []
+        for line in lines:
+            if not line: continue
+            curr_word = line[0]
+            for i in range(1, len(line)):
+                prev, curr = line[i-1], line[i]
+                # Horizontal gap threshold (e.g. 3px)
+                gap = curr[0] - prev[2]
+                if gap < 4:
+                    curr_word = [
+                        min(curr_word[0], curr[0]), min(curr_word[1], curr[1]),
+                        max(curr_word[2], curr[2]), max(curr_word[3], curr[3])
+                    ]
+                else:
+                    words.append(curr_word)
+                    curr_word = curr
+            words.append(curr_word)
+            
+        return words
 
     def _is_nearby(self, bbox1: List[float], bbox2: List[float], threshold: float) -> bool:
         return not (bbox1[2] < bbox2[0] - threshold or
                     bbox1[0] > bbox2[2] + threshold or
                     bbox1[3] < bbox2[1] - threshold or
                     bbox1[1] > bbox2[3] + threshold)
-
-    def _group_text_tokens(self, char_bboxes: List[List[float]]) -> List[List[float]]:
-        if not char_bboxes: return []
-        # Simple proximity-based grouping for characters into words/fragments
-        groups = []
-        for bbox in char_bboxes:
-            merged = False
-            for g in groups:
-                # Threshold for horizontal character grouping (e.g. 10px)
-                if self._is_nearby(bbox, g, threshold=8):
-                    g[0], g[1] = min(g[0], bbox[0]), min(g[1], bbox[1])
-                    g[2], g[3] = max(g[2], bbox[2]), max(g[3], bbox[3])
-                    merged = True
-                    break
-            if not merged:
-                groups.append(list(bbox))
-        
-        # Second pass to merge groups that became nearby after expansion
-        merged = True
-        while merged:
-            merged = False
-            for i in range(len(groups)):
-                for j in range(i + 1, len(groups)):
-                    if self._is_nearby(groups[i], groups[j], threshold=5):
-                        groups[i] = [
-                            min(groups[i][0], groups[j][0]), min(groups[i][1], groups[j][1]),
-                            max(groups[i][2], groups[j][2]), max(groups[i][3], groups[j][3])
-                        ]
-                        groups.pop(j)
-                        merged = True
-                        break
-                if merged: break
-        return groups
