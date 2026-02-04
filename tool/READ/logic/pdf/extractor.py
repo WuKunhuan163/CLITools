@@ -166,7 +166,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
 
-    tokens = preprocessor.join_tokens(actual_boxes, image_bboxes, artifact_bboxes)
+    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes)
     with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
         json.dump({"offsets": offsets, "tokens": tokens}, f, indent=2)
 
@@ -174,16 +174,19 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         t_img = vis_img.convert("RGBA")
         t_rects, t_labels = [], []
         for tk in tokens:
-            if tk["type"] == "image":
-                t_rects.append({"bbox": tk["bbox"], "fill": (255, 255, 0, 100)})
-                t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
-            elif tk["type"] == "artifact":
-                t_rects.append({"bbox": tk["bbox"], "fill": (255, 0, 255, 100)})
+            if tk["type"] == "visual":
+                if tk.get("subtype") == "separator":
+                    t_rects.append({"bbox": tk["bbox"], "fill": (255, 0, 255, 100)}) # Magenta for separators
+                else:
+                    t_rects.append({"bbox": tk["bbox"], "fill": (255, 255, 0, 100)}) # Yellow for blocks
                 t_labels.append({"pos": (tk["bbox"][0], tk["bbox"][1]), "text": tk["id"], "font": label_font})
             elif tk["type"] == "text":
                 t_rects.append({"bbox": tk["bbox"], "fill": (0, 255, 0, 60)})
         t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
-        draw_iface["draw_labels"](t_img, t_labels).save(step1_dir / "6_tokenization_result.png")
+        t_img = draw_iface["draw_labels"](t_img, t_labels)
+        
+        legend_6 = {"Word (Merged)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Separator": (255, 0, 255, 255)}
+        draw_iface["append_legend"](t_img, legend_6).save(step1_dir / "6_tokenization_result.png")
 
     # --- Step 2: Semantics ---
     semantics = SemanticsEngine(page_rect, median_size)

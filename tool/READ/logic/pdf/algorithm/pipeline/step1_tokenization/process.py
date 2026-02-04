@@ -169,68 +169,127 @@ class Preprocessor:
                     bboxes.append((int(c[0]), int(r[0]), int(c[-1]), int(r[-1])))
         return bboxes
 
-    def join_tokens(self, char_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]]) -> List[Dict[str, Any]]:
+    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]]) -> List[Dict[str, Any]]:
         """
-        Tokenization: Merges characters into words. Visual components (images, artifacts) are kept separate for now.
+        Tokenization: Merges characters into words using glyph bboxes for proximity.
+        Visual components (images, artifacts) are merged if nearby, but separators are kept individual.
         """
-        # 1. Merge characters into words
-        word_tokens = self._merge_chars_to_words(char_bboxes)
+        from .line_detector import is_separator
         
+        # 1. Merge characters into words using GLYPH bboxes for proximity
+        # but outputting the merged ACTUAL bboxes.
+        word_tokens = self._merge_chars_to_words(char_bboxes, glyph_bboxes)
+        
+        # 2. Prepare initial visual components
+        vis_comps = []
+        for b in image_bboxes: vis_comps.append({"type": "image", "bbox": list(b)})
+        for b in artifact_bboxes: vis_comps.append({"type": "artifact", "bbox": list(b)})
+
+        # 3. Identify Separator Lines (Exclude from merging)
+        separators = []
+        mergeable_vis = []
+        for v in vis_comps:
+            if is_separator(v["bbox"]):
+                separators.append(v)
+            else:
+                mergeable_vis.append(v)
+
+        # 4. Iteratively merge 'mergeable_vis' visual components
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(mergeable_vis)):
+                for j in range(i + 1, len(mergeable_vis)):
+                    if self._is_nearby(mergeable_vis[i]["bbox"], mergeable_vis[j]["bbox"], threshold=15):
+                        mergeable_vis[i]["bbox"] = [
+                            min(mergeable_vis[i]["bbox"][0], mergeable_vis[j]["bbox"][0]),
+                            min(mergeable_vis[i]["bbox"][1], mergeable_vis[j]["bbox"][1]),
+                            max(mergeable_vis[i]["bbox"][2], mergeable_vis[j]["bbox"][2]),
+                            max(mergeable_vis[i]["bbox"][3], mergeable_vis[j]["bbox"][3])
+                        ]
+                        mergeable_vis.pop(j)
+                        merged = True
+                        break
+                if merged: break
+
+        # 5. Combine and assign IDs
         tokens = []
-        # 2. Add Raw Images (I)
-        for i, b in enumerate(image_bboxes):
-            tokens.append({"type": "image", "bbox": list(b), "id": f"I{i+1}"})
+        v_idx, s_idx, t_idx = 1, 1, 1
         
-        # 3. Add Artifacts (A)
-        for i, b in enumerate(artifact_bboxes):
-            tokens.append({"type": "artifact", "bbox": list(b), "id": f"A{i+1}"})
+        # Add Separators (S)
+        for s in separators:
+            tokens.append({"type": "visual", "subtype": "separator", "bbox": s["bbox"], "id": f"S{s_idx}"})
+            s_idx += 1
             
-        # 4. Add Words (T)
-        for i, w in enumerate(word_tokens):
-            tokens.append({"type": "text", "bbox": w, "id": f"T{i+1}"})
+        # Add Merged Visual Blocks (V)
+        for mv in mergeable_vis:
+            tokens.append({"type": "visual", "subtype": "block", "bbox": mv["bbox"], "id": f"V{v_idx}"})
+            v_idx += 1
+        
+        # Add Words (T)
+        for w in word_tokens:
+            tokens.append({"type": "text", "bbox": w, "id": f"T{t_idx}"})
+            t_idx += 1
         
         return tokens
 
-    def _merge_chars_to_words(self, char_bboxes: List[List[float]]) -> List[List[float]]:
-        if not char_bboxes: return []
+    def _merge_chars_to_words(self, actual_bboxes: List[List[float]], glyph_bboxes: List[List[float]]) -> List[List[float]]:
+        if not actual_bboxes: return []
         
-        # Sort by y0 then x0
-        chars = sorted([list(b) for b in char_bboxes], key=lambda b: (b[1], b[0]))
+        # Pair actual and glyph bboxes
+        pairs = []
+        for a, g in zip(actual_bboxes, glyph_bboxes):
+            pairs.append({"actual": list(a), "glyph": list(g)})
+            
+        # Sort by glyph y0 then x0
+        pairs = sorted(pairs, key=lambda p: (p["glyph"][1], p["glyph"][0]))
         
-        # Group into lines
+        # Group into lines based on glyph vertical overlap
         lines = []
-        if chars:
-            curr_line = [chars[0]]
-            for i in range(1, len(chars)):
-                prev, curr = curr_line[-1], chars[i]
-                # Check vertical overlap
+        if pairs:
+            curr_line = [pairs[0]]
+            for i in range(1, len(pairs)):
+                prev, curr = curr_line[-1]["glyph"], pairs[i]["glyph"]
                 overlap = min(prev[3], curr[3]) - max(prev[1], curr[1])
                 h = min(prev[3] - prev[1], curr[3] - curr[1])
-                if overlap > h * 0.5:
-                    curr_line.append(curr)
+                if overlap > h * 0.6: # Stricter vertical overlap for lines
+                    curr_line.append(pairs[i])
                 else:
-                    lines.append(sorted(curr_line, key=lambda b: b[0]))
-                    curr_line = [curr]
-            lines.append(sorted(curr_line, key=lambda b: b[0]))
+                    lines.append(sorted(curr_line, key=lambda p: p["glyph"][0]))
+                    curr_line = [pairs[i]]
+            lines.append(sorted(curr_line, key=lambda p: p["glyph"][0]))
             
-        # Group lines into words
+        # Group lines into words based on glyph horizontal proximity
         words = []
         for line in lines:
             if not line: continue
-            curr_word = line[0]
+            curr_word_actual = line[0]["actual"]
+            curr_word_glyph = line[0]["glyph"]
+            
             for i in range(1, len(line)):
-                prev, curr = line[i-1], line[i]
-                # Horizontal gap threshold (e.g. 3px)
-                gap = curr[0] - prev[2]
-                if gap < 4:
-                    curr_word = [
-                        min(curr_word[0], curr[0]), min(curr_word[1], curr[1]),
-                        max(curr_word[2], curr[2]), max(curr_word[3], curr[3])
+                prev_g = line[i-1]["glyph"]
+                curr_g = line[i]["glyph"]
+                curr_a = line[i]["actual"]
+                
+                # Use glyph bboxes to check horizontal "touching"
+                # In many fonts, glyph bboxes for adjacent characters touch or slightly overlap
+                gap = curr_g[0] - prev_g[2]
+                
+                # Threshold for horizontal word grouping (e.g. 2px)
+                if gap < 3:
+                    curr_word_actual = [
+                        min(curr_word_actual[0], curr_a[0]), min(curr_word_actual[1], curr_a[1]),
+                        max(curr_word_actual[2], curr_a[2]), max(curr_word_actual[3], curr_a[3])
+                    ]
+                    curr_word_glyph = [
+                        min(curr_word_glyph[0], curr_g[0]), min(curr_word_glyph[1], curr_g[1]),
+                        max(curr_word_glyph[2], curr_g[2]), max(curr_word_glyph[3], curr_g[3])
                     ]
                 else:
-                    words.append(curr_word)
-                    curr_word = curr
-            words.append(curr_word)
+                    words.append(curr_word_actual)
+                    curr_word_actual = curr_a
+                    curr_word_glyph = curr_g
+            words.append(curr_word_actual)
             
         return words
 
