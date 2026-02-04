@@ -5,7 +5,7 @@ from pathlib import Path
 class GitIgnoreManager:
     """
     Centralized manager for project-wide .gitignore.
-    Allows tools to dynamically register ignore/track patterns.
+    Allows tools to dynamically register ignore/track patterns via their tool.json.
     """
     def __init__(self, project_root):
         self.project_root = Path(project_root)
@@ -52,8 +52,8 @@ class GitIgnoreManager:
 
     def get_tool_rules(self):
         """
-        Scans all tools for a 'git_ignore.json' file or 'logic/git_ignore.json'.
-        Returns a dictionary of tool_name -> list of patterns.
+        Scans all tools for their 'tool.json' and extracts 'git_ignore' field.
+        Converts relative patterns to project-relative patterns.
         """
         tool_dir = self.project_root / "tool"
         rules = {}
@@ -65,23 +65,36 @@ class GitIgnoreManager:
                 continue
             
             tool_name = tool_path.name
-            # Look for git_ignore.json in tool root or tool/logic/
-            paths = [
-                tool_path / "git_ignore.json",
-                tool_path / "logic" / "git_ignore.json"
-            ]
+            tool_json_path = tool_path / "tool.json"
             
-            for p in paths:
-                if p.exists():
-                    try:
-                        with open(p, 'r') as f:
-                            data = json.load(f)
-                            if isinstance(data, list):
-                                rules[tool_name] = data
-                            elif isinstance(data, dict) and "patterns" in data:
-                                rules[tool_name] = data["patterns"]
-                    except Exception as e:
-                        print(f"Error reading {p}: {e}")
+            if tool_json_path.exists():
+                try:
+                    with open(tool_json_path, 'r') as f:
+                        data = json.load(f)
+                        rel_patterns = data.get("git_ignore")
+                        if rel_patterns and isinstance(rel_patterns, list):
+                            # Convert relative tool patterns to project-relative patterns
+                            # e.g. "!" -> "!/tool/TOOL_NAME/"
+                            # e.g. "data/" -> "/tool/TOOL_NAME/data/"
+                            tool_rel_root = f"/tool/{tool_name}"
+                            
+                            processed = []
+                            for p in rel_patterns:
+                                if p == "!":
+                                    processed.append(f"!{tool_rel_root}/")
+                                elif p.startswith("!"):
+                                    # Handle negation like "!src/" -> "!/tool/TOOL_NAME/src/"
+                                    inner = p[1:]
+                                    if not inner.startswith("/"): inner = "/" + inner
+                                    processed.append(f"!{tool_rel_root}{inner}")
+                                else:
+                                    # Handle ignore like "data/" -> "/tool/TOOL_NAME/data/"
+                                    inner = p
+                                    if not inner.startswith("/"): inner = "/" + inner
+                                    processed.append(f"{tool_rel_root}{inner}")
+                            rules[tool_name] = processed
+                except Exception as e:
+                    print(f"Error reading {tool_json_path}: {e}")
         return rules
 
     def generate(self):
@@ -115,6 +128,4 @@ def initialize_git_state(project_root):
     """
     manager = GitIgnoreManager(project_root)
     manager.rewrite()
-    # Placeholder for other initialization logic (e.g. LFS check)
     return True
-

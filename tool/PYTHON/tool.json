@@ -10,5 +10,10 @@
     "PYTHON --py-update --version <version>: Force refresh/re-download specific version metadata.",
     "PYTHON @3.x [args]: Run a specific major/minor version shortcut.",
     "PYTHON --py-uninstall <version>: Remove an installed version."
+  ],
+  "git_ignore": [
+    "!",
+    "data/",
+    "logs/"
   ]
 }

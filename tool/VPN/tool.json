@@ -5,5 +5,10 @@
   "purpose": "Showcase tool development guidelines",
   "dependencies": [
     "PYTHON"
+  ],
+  "git_ignore": [
+    "!",
+    "data/",
+    "logs/"
   ]
 }
