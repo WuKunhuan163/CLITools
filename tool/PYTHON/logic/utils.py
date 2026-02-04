@@ -209,6 +209,7 @@ def resolve_python_version(version_str=None):
         return f"python3.10.19" # Hard fallback
 
     if (INSTALL_DIR / version_str).exists(): return version_str
+    if (INSTALL_DIR / f"{version_str}-{tag}").exists(): return f"{version_str}-{tag}"
     if (INSTALL_DIR / f"python{version_str}-{tag}").exists(): return f"python{version_str}-{tag}"
     
     return version_str

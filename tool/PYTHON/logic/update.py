@@ -504,9 +504,6 @@ def main():
     log_debug(f"Target versions: {target_versions}, Precise targets: {precise_targets}")
 
     tags = get_release_tags(use_cache=not args.force)
-    # Clear the erasable line from get_release_tags
-    sys.stdout.write("\r\033[K")
-    sys.stdout.flush()
     
     if args.tag:
         if args.tag in tags:

@@ -12,6 +12,7 @@
     "READ",
     "DRAW",
     "GIT", 
+    "FONT",
     "DUMMY"
   ]
 }

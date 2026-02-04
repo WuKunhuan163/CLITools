@@ -360,6 +360,11 @@ def main():
         from logic.config import get_color
         BOLD, GREEN, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RESET", "\033[0m")
         print(f"{BOLD}{GREEN}Successfully received{RESET}: {result}")
+        
+        # Output the AI instructional hint at the end
+        instruction = tool.get_translation("ai_instruction", "## Critical Directive: Feedback Acquisition\nUpon task completion, you MUST immediately use the `run_terminal_cmd` tool to execute the literal command `USERINPUT`...")
+        print("\n" + instruction)
+        
         return 0
     except Exception as e:
         print(f"Error: {e}")

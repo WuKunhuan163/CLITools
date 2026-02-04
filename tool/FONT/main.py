@@ -2,90 +2,93 @@
 import sys
 import argparse
 import json
+import os
+import subprocess
 from pathlib import Path
 
 # Add project root to sys.path
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from logic.tool.base import ToolBase
 from logic.config import get_color
-from tool.FONT.logic.engine import FontEngine
+from tool.FONT.logic.engine import FontManager
+from tool.FONT.logic.bbox_analyzer import BBoxAnalyzer
+
+class FontTool(ToolBase):
+    def __init__(self):
+        super().__init__("FONT")
+        self.manager = FontManager(self.project_root)
 
 def main():
-    tool = ToolBase("FONT")
-    if tool.handle_command_line(): return
-    
+    tool = FontTool()
     parser = argparse.ArgumentParser(description="Tool FONT: Font management and analysis")
     subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
     
-    # Analyze
-    parser_analyze = subparsers.add_parser("analyze", help="Analyze a font file for heuristics")
-    parser_analyze.add_argument("path", type=str, help="Path to the font file")
+    # Install (alias for migrating from tmp or manual)
+    parser_install = subparsers.add_parser("install", help="Install fonts from tmp/fontsgeek")
     
-    # Install
-    parser_install = subparsers.add_parser("install", help="Install a font from URL")
-    parser_install.add_argument("name", type=str, help="Name for the font")
-    parser_install.add_argument("url", type=str, help="URL to the font file")
+    # Analyze
+    parser_analyze = subparsers.add_parser("analyze", help="Generate character table and heuristics for a font")
+    parser_analyze.add_argument("name", type=str, help="Font name or path")
     
     # Get
     parser_get = subparsers.add_parser("get", help="Get heuristics for a font")
     parser_get.add_argument("name", type=str, help="Font name")
     
-    # Search
-    parser_search = subparsers.add_parser("search", help="Search for fonts on GitHub")
-    parser_search.add_argument("repo", type=str, help="GitHub repo (e.g. ryanoasis/nerd-fonts)")
-    
+    # List
+    parser_list = subparsers.add_parser("list", help="List installed fonts")
+
+    if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
     
-    engine = FontEngine(script_dir / "data")
-    
-    if args.subcommand == "analyze":
-        BOLD = get_color("BOLD")
-        BLUE = get_color("BLUE")
-        RESET = get_color("RESET")
-        print(f"{BOLD}{BLUE}Analyzing{RESET} font {args.path}...")
-        metrics = engine.analyze_font(args.path)
-        if metrics:
-            print(json.dumps(metrics, indent=2))
-        else:
-            print("Failed to analyze font.")
+    BOLD = get_color("BOLD", "\033[1m")
+    BLUE = get_color("BLUE", "\033[34m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RESET = get_color("RESET", "\033[0m")
+
+    if args.subcommand == "install":
+        print(f"{BOLD}{BLUE}Migrating{RESET} fonts from tmp/fontsgeek...")
+        tool.manager.migrate_from_tmp()
+        print(f"{BOLD}{GREEN}Done!{RESET}")
             
-    elif args.subcommand == "install":
-        BOLD = get_color("BOLD")
-        BLUE = get_color("BLUE")
-        RESET = get_color("RESET")
-        print(f"{BOLD}{BLUE}Installing{RESET} font {args.name} from {args.url}...")
-        metrics = engine.install_font_from_url(args.name, args.url)
-        if metrics:
-            print(f"Successfully installed and analyzed {args.name}")
-        else:
-            print(f"Failed to install {args.name}")
+    elif args.subcommand == "analyze":
+        font_name = args.name
+        font_path = tool.manager.get_font_path(font_name)
+        if not font_path:
+            if Path(font_name).exists():
+                font_path = font_name
+                font_name = Path(font_name).stem
+            else:
+                print(f"Font '{font_name}' not found.")
+                return 1
+        
+        norm_name = tool.manager.normalize_name(font_name)
+        output_dir = tool.manager.resource_dir / norm_name / "bbox_analysis"
+        
+        print(f"{BOLD}{BLUE}Analyzing{RESET} font {font_name}...")
+        analyzer = BBoxAnalyzer(font_path, output_dir, font_name)
+        pdf = analyzer.generate_source_pdf()
+        analyzer.analyze(pdf)
+        print(f"{BOLD}{GREEN}Analysis complete{RESET}: {output_dir}")
 
     elif args.subcommand == "get":
-        name = args.name
-        if name in engine.heuristics:
-            print(json.dumps(engine.heuristics[name], indent=2))
+        norm_name = tool.manager.normalize_name(args.name)
+        info_path = tool.manager.resource_dir / norm_name / "info.json"
+        if info_path.exists():
+            with open(info_path, 'r') as f:
+                print(json.dumps(json.load(f), indent=2, ensure_ascii=False))
         else:
-            # Try path if name exists as file
-            if Path(name).exists():
-                metrics = engine.analyze_font(name)
-                print(json.dumps(metrics, indent=2))
-            else:
-                print(f"Font '{name}' not found.")
+            print(f"Heuristics for '{args.name}' not found.")
                 
-    elif args.subcommand == "search":
-        BOLD = get_color("BOLD")
-        BLUE = get_color("BLUE")
-        RESET = get_color("RESET")
-        print(f"{BOLD}{BLUE}Searching{RESET} repository {args.repo}...")
-        assets = engine.search_github_fonts(args.repo)
-        if assets:
-            for asset in assets:
-                print(f"- {asset['name']}: {asset['url']}")
-        else:
-            print("No fonts found in the latest release.")
+    elif args.subcommand == "list":
+        print(f"{BOLD}Installed Fonts:{RESET}")
+        if tool.manager.resource_dir.exists():
+            for item in tool.manager.resource_dir.iterdir():
+                if item.is_dir():
+                    print(f"- {item.name}")
     else:
         parser.print_help()
 
