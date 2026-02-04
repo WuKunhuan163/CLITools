@@ -57,6 +57,11 @@ class FontManager:
         # Search in resource directory
         font_dir = self.resource_dir / target_name
         if font_dir.exists():
+            # Prioritize 'font.ttf'
+            standard_path = font_dir / "font.ttf"
+            if standard_path.exists():
+                return str(standard_path)
+                
             # Look for .otf or .ttf files recursively
             fonts = list(font_dir.rglob("*.otf")) + list(font_dir.rglob("*.ttf"))
             if fonts:
@@ -64,6 +69,73 @@ class FontManager:
                 fonts.sort(key=lambda p: (p.name.startswith('.'), len(str(p))))
                 return str(fonts[0])
         return None
+
+    def download_and_deploy_google_font(self, font_family):
+        """
+        Download a font family from Google Fonts GitHub and deploy it.
+        """
+        norm_family = self.normalize_name(font_family)
+        # GitHub repo structure: ofl/familyname/filename.ttf
+        
+        # We'll try a few common patterns for the directory name in GitHub
+        patterns = [
+            font_family.lower().replace('-', '').replace(' ', ''),
+            font_family.lower().replace(' ', '-'),
+            font_family.lower().replace('-', '')
+        ]
+        
+        for p in patterns:
+            api_url = f"https://api.github.com/repos/google/fonts/contents/ofl/{p}"
+            res = requests.get(api_url)
+            if res.status_code == 200:
+                break
+        else:
+            # Try apache and ufl too
+            for base in ["apache", "ufl"]:
+                for p in patterns:
+                    api_url = f"https://api.github.com/repos/google/fonts/contents/{base}/{p}"
+                    res = requests.get(api_url)
+                    if res.status_code == 200:
+                        break
+                if res.status_code == 200:
+                    break
+            else:
+                return False
+        
+        files = res.json()
+        target_dir = self.resource_dir / norm_family
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        success_count = 0
+        for file_info in files:
+            if file_info["name"].lower().endswith(".ttf"):
+                download_url = file_info["download_url"]
+                file_res = requests.get(download_url)
+                if file_res.status_code == 200:
+                    norm_file_name = self.normalize_name(Path(file_info["name"]).stem)
+                    if norm_family not in norm_file_name:
+                        final_name = f"{norm_family}-{norm_file_name}"
+                    else:
+                        final_name = norm_file_name
+                    
+                    # Google Fonts often has many variants (Regular, Bold, etc.)
+                    # We'll keep the descriptive names for now but allow the first one to be 'font.ttf'
+                    # Or better: if it's the only one, call it 'font.ttf'. If many, we'll need to choose.
+                    font_path = target_dir / f"{final_name}.ttf"
+                    with open(font_path, "wb") as f:
+                        f.write(file_res.content)
+                    print(f"Deployed Google Font: {final_name} -> {font_path}")
+                    success_count += 1
+        
+        # Post-process: if only one font exists, or if a 'regular' one exists, link it to font.ttf
+        if success_count > 0:
+            all_fonts = list(target_dir.glob("*.ttf"))
+            regular = [f for f in all_fonts if "regular" in f.name.lower()]
+            target_font = regular[0] if regular else all_fonts[0]
+            shutil.copy(target_font, target_dir / "font.ttf")
+            print(f"Standardized {target_font.name} -> font.ttf")
+            
+        return success_count > 0
 
     def convert_otf_to_ttf(self, otf_path, ttf_path):
         """
@@ -161,7 +233,7 @@ class FontManager:
             target_dir = self.resource_dir / norm_name
             target_dir.mkdir(parents=True, exist_ok=True)
             
-            ttf_path = target_dir / f"{norm_name}.ttf"
+            ttf_path = target_dir / "font.ttf"
             
             if ff.suffix.lower() == ".otf":
                 success = self.convert_otf_to_ttf(ff, ttf_path)
