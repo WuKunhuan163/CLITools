@@ -13,6 +13,7 @@
     "DRAW",
     "GIT", 
     "FONT",
-    "DUMMY"
+    "DUMMY", 
+    "FITZ"
   ]
 }

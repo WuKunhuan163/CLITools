@@ -180,6 +180,10 @@ class Preprocessor:
         # 1. Merge characters into words
         word_tokens = self._merge_chars_to_words(char_bboxes, glyph_bboxes, spans)
         
+        # 1.5 Assign IDs to word tokens early for absorption tracking
+        for i, w in enumerate(word_tokens):
+            w["id"] = f"T{i+1}"
+        
         # 2. Prepare initial visual components
         vis_comps = []
         for i, b in enumerate(image_bboxes): 
@@ -236,14 +240,14 @@ class Preprocessor:
                         min(fv["bbox"][0], w_bbox[0]), min(fv["bbox"][1], w_bbox[1]),
                         max(fv["bbox"][2], w_bbox[2]), max(fv["bbox"][3], w_bbox[3])
                     ]
-                    # Link text to visual block if needed
+                    # Link text to visual block
                     if "absorbed_text_ids" not in fv: fv["absorbed_text_ids"] = []
-                    # We'll assign IDs later, so this is just a marker
+                    fv["absorbed_text_ids"].append(w_data["id"])
                     break
 
         # 7. Combine and assign IDs
         tokens = []
-        v_idx, l_idx, b_idx, t_idx = 1, 1, 1, 1
+        v_idx, l_idx, b_idx = 1, 1, 1
         
         for l in lines:
             tokens.append({"type": "visual", "subtype": "line", "bbox": l["bbox"], "id": f"L{l_idx}", "comp_ids": l["comp_ids"]})
@@ -254,16 +258,18 @@ class Preprocessor:
             b_idx += 1
 
         for fv in final_mergeable:
-            tokens.append({"type": "visual", "subtype": "block", "bbox": fv["bbox"], "id": f"V{v_idx}", "comp_ids": fv["comp_ids"]})
+            tokens.append({
+                "type": "visual", "subtype": "block", "bbox": fv["bbox"], "id": f"V{v_idx}", 
+                "comp_ids": fv["comp_ids"], "absorbed_text_ids": fv.get("absorbed_text_ids", [])
+            })
             v_idx += 1
         
         for w in word_tokens:
             tokens.append({
-                "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": f"T{t_idx}",
+                "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": w["id"],
                 "text": w["text"], "font": w["font"], "size": w["size"],
                 "color": w["color"], "flags": w["flags"]
             })
-            t_idx += 1
         
         return tokens
 

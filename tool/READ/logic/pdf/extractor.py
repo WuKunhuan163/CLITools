@@ -229,6 +229,9 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         for i, b in enumerate(image_bboxes): comp_bboxes[f"I{i+1}"] = b
         for i, b in enumerate(artifact_bboxes): comp_bboxes[f"A{i+1}"] = b
 
+        # Map text IDs for absorption composition
+        text_tokens_map = {tk["id"]: tk for tk in tokens if tk["type"] == "text"}
+
         for tk in tokens:
             if tk["type"] == "visual":
                 if tk.get("subtype") == "line":
@@ -246,6 +249,7 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                         # Create canvas with background color
                         canvas = Image.new("RGBA", (tx1 - tx0, ty1 - ty0), bg_color + (255,))
                         
+                        # 1. Paste Image/Artifact Components
                         for cid in tk.get("comp_ids", []):
                             if cid in comp_images and cid in comp_bboxes:
                                 cimg = comp_images[cid]
@@ -263,6 +267,20 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                                 rel_y = int(round(cbbox[1] - ty0))
                                 canvas.paste(cimg, (rel_x, rel_y), cimg)
                         
+                        # 2. Paste Absorbed Text Tokens (Clipped from original vis_img)
+                        for tid in tk.get("absorbed_text_ids", []):
+                            if tid in text_tokens_map:
+                                ttk = text_tokens_map[tid]
+                                wbox = ttk["bbox"]
+                                wx0, wy0, wx1, wy1 = [int(round(c)) for c in wbox]
+                                if wx1 > wx0 and wy1 > wy0:
+                                    # Crop from original vis_img (which contains the text)
+                                    text_crop = vis_img.crop((wx0, wy0, wx1, wy1)).convert("RGBA")
+                                    # Relative position on canvas
+                                    rel_x = int(round(wbox[0] - tx0))
+                                    rel_y = int(round(wbox[1] - ty0))
+                                    canvas.paste(text_crop, (rel_x, rel_y), text_crop)
+
                         canvas.save(merged_tokens_dir / f"{tk['id']}.png")
                 except Exception as e:
                     print(f"Warning: Failed to compose image token {tk['id']}: {e}")
