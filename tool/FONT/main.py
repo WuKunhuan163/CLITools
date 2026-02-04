@@ -98,10 +98,11 @@ def main():
     elif args.subcommand == "download":
         family = args.family
         print(f"{BOLD}{BLUE}Downloading{RESET} font family '{family}' from Google Fonts...", end="", flush=True)
-        if tool.manager.download_and_deploy_google_font(family):
-            print(f"\r\033[K{BOLD}{GREEN}Successfully deployed{RESET} {family}")
+        success, reason = tool.manager.download_and_deploy_google_font(family)
+        if success:
+            print(f"\r\033[K{BOLD}{GREEN}Successfully deployed{RESET} {family}. {BOLD}Reason{RESET}: {reason}")
         else:
-            print(f"\r\033[K{BOLD}{RED}Error{RESET}: Failed to download {family}")
+            print(f"\r\033[K{BOLD}{RED}Error{RESET}: Failed to download {family}. {BOLD}Reason{RESET}: {reason}")
     else:
         parser.print_help()
 

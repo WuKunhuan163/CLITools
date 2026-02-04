@@ -1,5 +1,6 @@
 import re
 from typing import List, Dict, Any, Tuple
+from tool.READ.logic.pdf.formatter import get_span_style, strip_non_standard_chars, is_sentence_complete
 
 def identify_block_type(block: Dict[str, Any], page_rect: Any, median_size: float) -> str:
     """
@@ -12,8 +13,8 @@ def identify_block_type(block: Dict[str, Any], page_rect: Any, median_size: floa
     if block.get("is_image"): return "image"
     
     # 2. Header/Footer detection
-    # Top/Bottom 10% of the page
-    margin = page_rect.height * 0.1
+    # Top/Bottom 5% of the page (stricter than 10%)
+    margin = page_rect.height * 0.05
     if bbox[3] < margin: return "header"
     if bbox[1] > page_rect.height - margin: return "footer"
     
@@ -35,8 +36,7 @@ def identify_block_type(block: Dict[str, Any], page_rect: Any, median_size: floa
         return "heading"
     
     # 4. Reference detection
-    if re.match(r'^\[\d+\]', text) or re.match(r'^\d+\.', text):
-        # Additional checks might be needed to distinguish from list items
+    if re.match(r'^(?:\[\d+\]|\d+\.)', text) or text.lower() == "references":
         return "reference"
         
     return "paragraph"
@@ -50,45 +50,86 @@ class Tagger:
         self.median_size = median_size
 
     def tag_and_merge(self, grouped_blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        # Phase 1: Initial Tagging
+        # Phase 1: Initial Tagging and Segment Extraction
         semantic_items = []
         in_reference_section = False
         
         for b in grouped_blocks:
             b_type = identify_block_type(b, self.page_rect, self.median_size)
             
-            # State-based refinement
-            if b_type == "reference": in_reference_section = True
-            elif in_reference_section and b_type not in ["heading", "title", "footer", "header"]:
-                b_type = "reference"
+            # State-based refinement for references
+            if b_type == "reference":
+                in_reference_section = True
+            elif in_reference_section:
+                if b_type in ["heading", "title", "footer", "header"]:
+                    in_reference_section = False
+                else:
+                    b_type = "reference"
             
-            # Simple segment extraction
             segments = []
             for line in b["lines"]:
+                if not line["spans"]: continue
+                line_y = line["spans"][0]["origin"][1]
+                
                 for span in line["spans"]:
-                    segments.append([span["text"], {"bold": span["flags"] & 2, "italic": span["flags"] & 1}])
+                    style = get_span_style(span, self.median_size, line_y)
+                    text = strip_non_standard_chars(span["text"])
+                    if not text: continue
+                    
+                    if not segments:
+                        segments.append([text, style])
+                    else:
+                        prev_text, prev_style = segments[-1]
+                        if style == prev_style:
+                            segments[-1][0] += text
+                        else:
+                            segments.append([text, style])
+            
+            if not segments: continue
+            block_text = "".join([s[0] for s in segments]).strip()
+            if not block_text: continue
             
             semantic_items.append({
                 "type": b_type,
-                "bbox": b["bbox"],
-                "text": "".join([s[0] for s in segments]).strip(),
+                "bbox": list(b["bbox"]),
                 "segments": segments,
+                "text": block_text,
                 "lines": b["lines"]
             })
             
-        # Phase 2: Merging
+        # Phase 2: Merging logical blocks
         merged = []
         for item in semantic_items:
-            if not merged: merged.append(item); continue
+            if not merged:
+                merged.append(item)
+                continue
+            
             prev = merged[-1]
+            should_merge = False
+            
             if prev["type"] == item["type"] and item["type"] in ["paragraph", "reference"]:
-                # Logic for merging could be more complex (sentence completion check)
-                prev["text"] += " " + item["text"]
-                prev["segments"].extend(item["segments"])
+                if not is_sentence_complete(prev["text"]):
+                    should_merge = True
+            
+            if prev["type"] == "reference" and item["type"] == "reference":
+                should_merge = True
+                
+            if should_merge:
+                if prev["segments"][-1][1] == item["segments"][0][1]:
+                    prev["segments"][-1][0] += item["segments"][0][0]
+                    prev["segments"].extend(item["segments"][1:])
+                else:
+                    prev["segments"].extend(item["segments"])
+                
+                prev["text"] = (prev["text"] + " " + item["text"]).strip()
                 prev["lines"].extend(item["lines"])
-                prev["bbox"] = [min(prev["bbox"][0], item["bbox"][0]), min(prev["bbox"][1], item["bbox"][1]),
-                                max(prev["bbox"][2], item["bbox"][2]), max(prev["bbox"][3], item["bbox"][3])]
+                prev["bbox"] = [
+                    min(prev["bbox"][0], item["bbox"][0]),
+                    min(prev["bbox"][1], item["bbox"][1]),
+                    max(prev["bbox"][2], item["bbox"][2]),
+                    max(prev["bbox"][3], item["bbox"][3])
+                ]
             else:
                 merged.append(item)
+        
         return merged
-

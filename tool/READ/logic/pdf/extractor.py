@@ -158,7 +158,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     
     # --- Step 1: Preprocessing ---
     # 1.1 Calculate BBoxes
-    glyph_boxes, actual_boxes = preprocessor.get_token_bboxes(all_spans, zoom)
+    glyph_boxes, actual_boxes = preprocessor.get_token_bboxes(np.array(vis_img), all_spans, zoom)
     
     if draw_iface:
         draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1_glyph_bbox_overlay.png")
@@ -231,7 +231,18 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     for idx, item in enumerate(final_items):
         md_text = item.get("md_text", item["text"])
         page_content_parts.append(f"<!-- block_id: b{idx+1:03d} type: {item['type']} -->\n{md_text}")
-        semantic_info.append({"id": f"b{idx+1:03d}", "type": item["type"], "bbox": item["bbox"], "text": md_text})
+        semantic_info.append({
+            "id": f"b{idx+1:03d}", 
+            "type": item["type"], 
+            "bbox": item["bbox"], 
+            "text": md_text,
+            "segments": item.get("segments", [])
+        })
+        
+    # Save semantic.json
+    import json
+    with open(page_dir / "semantic.json", "w", encoding="utf-8") as f:
+        json.dump(semantic_info, f, indent=2, ensure_ascii=False)
         
     content = "\n\n".join(page_content_parts)
     with open(md_file_path, "w", encoding="utf-8") as f: f.write(content)

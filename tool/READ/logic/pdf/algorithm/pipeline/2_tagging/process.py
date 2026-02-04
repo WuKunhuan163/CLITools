@@ -1,6 +1,6 @@
 import re
 from typing import List, Dict, Any, Tuple
-from ...formatter import get_span_style, strip_non_standard_chars, is_sentence_complete
+from tool.READ.logic.pdf.formatter import get_span_style, strip_non_standard_chars, is_sentence_complete
 
 def identify_block_type(block: Dict[str, Any], page_rect: Any, median_size: float) -> str:
     """

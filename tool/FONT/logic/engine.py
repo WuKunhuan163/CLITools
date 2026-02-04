@@ -73,6 +73,7 @@ class FontManager:
     def download_and_deploy_google_font(self, font_family):
         """
         Download a font family from Google Fonts GitHub and deploy it.
+        Returns (success, reason).
         """
         norm_family = self.normalize_name(font_family)
         # GitHub repo structure: ofl/familyname/filename.ttf
@@ -84,25 +85,29 @@ class FontManager:
             font_family.lower().replace('-', '')
         ]
         
+        last_res = None
         for p in patterns:
             api_url = f"https://api.github.com/repos/google/fonts/contents/ofl/{p}"
-            res = requests.get(api_url)
-            if res.status_code == 200:
+            last_res = requests.get(api_url)
+            if last_res.status_code == 200:
                 break
         else:
             # Try apache and ufl too
             for base in ["apache", "ufl"]:
                 for p in patterns:
                     api_url = f"https://api.github.com/repos/google/fonts/contents/{base}/{p}"
-                    res = requests.get(api_url)
-                    if res.status_code == 200:
+                    last_res = requests.get(api_url)
+                    if last_res.status_code == 200:
                         break
-                if res.status_code == 200:
+                if last_res.status_code == 200:
                     break
             else:
-                return False
+                reason = f"Font family '{font_family}' not found in Google Fonts repository (tried patterns: {patterns})."
+                if last_res and last_res.status_code != 404:
+                    reason = f"GitHub API error: {last_res.status_code} - {last_res.text}"
+                return False, reason
         
-        files = res.json()
+        files = last_res.json()
         target_dir = self.resource_dir / norm_family
         target_dir.mkdir(parents=True, exist_ok=True)
         
@@ -118,24 +123,19 @@ class FontManager:
                     else:
                         final_name = norm_file_name
                     
-                    # Google Fonts often has many variants (Regular, Bold, etc.)
-                    # We'll keep the descriptive names for now but allow the first one to be 'font.ttf'
-                    # Or better: if it's the only one, call it 'font.ttf'. If many, we'll need to choose.
                     font_path = target_dir / f"{final_name}.ttf"
                     with open(font_path, "wb") as f:
                         f.write(file_res.content)
-                    print(f"Deployed Google Font: {final_name} -> {font_path}")
                     success_count += 1
         
-        # Post-process: if only one font exists, or if a 'regular' one exists, link it to font.ttf
         if success_count > 0:
             all_fonts = list(target_dir.glob("*.ttf"))
             regular = [f for f in all_fonts if "regular" in f.name.lower()]
             target_font = regular[0] if regular else all_fonts[0]
             shutil.copy(target_font, target_dir / "font.ttf")
-            print(f"Standardized {target_font.name} -> font.ttf")
+            return True, f"Successfully deployed {success_count} font variants to {target_dir.name}/."
             
-        return success_count > 0
+        return False, "No .ttf files found in the matched repository directory."
 
     def convert_otf_to_ttf(self, otf_path, ttf_path):
         """
