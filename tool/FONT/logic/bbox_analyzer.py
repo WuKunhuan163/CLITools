@@ -58,6 +58,7 @@ class BBoxAnalyzer:
         all_info = []
         glyph_images = []
         actual_images = []
+        combined_images = []
         
         for page_idx in range(len(doc)):
             page = doc[page_idx]
@@ -69,8 +70,10 @@ class BBoxAnalyzer:
             img = Image.open(page_png_path).convert("RGB")
             img_glyph = img.copy()
             img_actual = img.copy()
+            img_combined = img.copy()
             draw_glyph = ImageDraw.Draw(img_glyph)
             draw_actual = ImageDraw.Draw(img_actual)
+            draw_combined = ImageDraw.Draw(img_combined, "RGBA")
             
             raw = page.get_text("rawdict")
             
@@ -100,7 +103,7 @@ class BBoxAnalyzer:
                                 if not np.any(mask):
                                     continue
 
-                                # Only draw and record if there's actual content
+                                # Draw Glyph BBox
                                 draw_glyph.rectangle(bbox, outline="red", width=1)
                                 
                                 rows = np.where(np.any(mask, axis=1))[0]
@@ -108,7 +111,13 @@ class BBoxAnalyzer:
                                 ax0, ay0 = int(crop_x0 + cols[0]), int(crop_y0 + rows[0])
                                 ax1, ay1 = int(crop_x0 + cols[-1]), int(crop_y0 + rows[-1])
                                 actual_bbox = [ax0, ay0, ax1, ay1]
+                                
+                                # Draw Actual BBox
                                 draw_actual.rectangle(actual_bbox, outline="blue", width=1)
+                                
+                                # Draw Combined (Glyph: light grey, Actual: blue)
+                                draw_combined.rectangle(bbox, outline=(200, 200, 200, 150), width=1)
+                                draw_combined.rectangle(actual_bbox, outline=(0, 0, 255, 255), width=1)
                                 
                                 normalized_heuristics = None
                                 gw = bbox[2] - bbox[0]
@@ -132,21 +141,25 @@ class BBoxAnalyzer:
             
             glyph_images.append(img_glyph)
             actual_images.append(img_actual)
+            combined_images.append(img_combined)
             os.remove(page_png_path)
             
         total_width = glyph_images[0].width
         total_height = sum(img.height for img in glyph_images)
         final_glyph = Image.new("RGB", (total_width, total_height))
         final_actual = Image.new("RGB", (total_width, total_height))
+        final_combined = Image.new("RGB", (total_width, total_height))
         
         y_offset = 0
-        for g_img, a_img in zip(glyph_images, actual_images):
+        for g_img, a_img, c_img in zip(glyph_images, actual_images, combined_images):
             final_glyph.paste(g_img, (0, y_offset))
             final_actual.paste(a_img, (0, y_offset))
+            final_combined.paste(c_img, (0, y_offset))
             y_offset += g_img.height
             
         final_glyph.save(str(self.output_dir / "glyph_bbox.png"))
         final_actual.save(str(self.output_dir / "actual_bbox.png"))
+        final_combined.save(str(self.output_dir / "combined_bbox.png"))
         source_pix = doc[0].get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
         source_pix.save(str(self.output_dir / "source.png"))
         

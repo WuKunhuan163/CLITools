@@ -56,10 +56,11 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     page_images_dir.mkdir(parents=True, exist_ok=True)
     
     # Subdirectories for organized steps
+    raw_images_dir = page_images_dir / "0_raw_images"
     step1_dir = page_images_dir / "1_preprocessed"
     step2_dir = page_images_dir / "2_tokenized"
     step3_dir = page_images_dir / "3_processed"
-    for d in [step1_dir, step2_dir, step3_dir]: d.mkdir(parents=True, exist_ok=True)
+    for d in [raw_images_dir, step1_dir, step2_dir, step3_dir]: d.mkdir(parents=True, exist_ok=True)
     
     # Define semantic mapping to colors
     semantic_color_map = {
@@ -92,7 +93,7 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
                 img_bytes = pix_img.tobytes("png")
                 
                 img_filename = f"image_{img_index + 1:03d}.png"
-                img_path = page_images_dir / img_filename
+                img_path = raw_images_dir / img_filename
                 
                 with open(img_path, "wb") as f: f.write(img_bytes)
                 
@@ -161,7 +162,15 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     
     if draw_iface:
         draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1_glyph_bbox_overlay.png")
-        draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (0, 255, 0, 128)} for b in actual_boxes]).save(step1_dir / "2_actual_bbox_overlay.png")
+        
+        # 1.3 Generate 2_actual_bbox_overlay.png (Original + grey glyph boxes + green actual boxes)
+        actual_viz = draw_iface["draw_rects_with_alpha"](vis_img, [
+            {"bbox": b, "fill": (200, 200, 200, 80)} for b in glyph_boxes
+        ])
+        actual_viz = draw_iface["draw_rects_with_alpha"](actual_viz, [
+            {"bbox": b, "fill": (0, 255, 0, 128)} for b in actual_boxes
+        ])
+        actual_viz.save(step1_dir / "2_actual_bbox_overlay.png")
     
     # 1.2 Wiping
     wiped_img, text_mask = preprocessor.wipe_spans(vis_img, all_spans, zoom, bg_color=bg_color)
