@@ -56,7 +56,7 @@ class ReadTool(ToolBase):
         extract_parser = subparsers.add_parser("extract", help="Extract content from a file", conflict_handler='resolve')
         extract_parser.add_argument("file", nargs="?", help="Path to the file to read")
         extract_parser.add_argument("-o", "--output", help="Output directory path (optional)")
-        extract_parser.add_argument("--page", help="Specific page(s) to extract (e.g. 7, 1-5)")
+        extract_parser.add_argument("--page", "--pages", dest="page", help="Specific page(s) to extract (e.g. 7, 1-5)")
         extract_parser.add_argument("-n", "--workers", type=int, default=4, help="Number of parallel workers (default: 4)")
         extract_parser.add_argument("--mode", default="academic", choices=["academic", "general", "code_snippet", "formula", "table"], help="Vision analysis mode for images")
         extract_parser.add_argument("--key", help="Google API Key (overrides env vars)")
@@ -124,8 +124,25 @@ class ReadTool(ToolBase):
 
         if suffix == ".pdf":
             import fitz
+            import os
+            fitz.TOOLS.mupdf_display_errors(False)
             from tool.READ.logic.pdf.extractor import parse_page_spec, get_median_font_size
-            doc = fitz.open(str(file_path))
+            
+            # Suppress fitz warnings on stderr (aggressive)
+            try:
+                stderr_fd = sys.stderr.fileno()
+                with os.fdopen(os.dup(stderr_fd), 'w') as old_stderr:
+                    with open(os.devnull, 'w') as devnull:
+                        sys.stderr.flush()
+                        os.dup2(devnull.fileno(), stderr_fd)
+                        try:
+                            doc = fitz.open(str(file_path))
+                        finally:
+                            sys.stderr.flush()
+                            os.dup2(old_stderr.fileno(), stderr_fd)
+            except:
+                doc = fitz.open(str(file_path))
+            
             pages = parse_page_spec(args.page, doc.page_count)
             all_blocks = []
             for p_num in pages:
@@ -236,7 +253,12 @@ class ReadTool(ToolBase):
         from tool.READ.logic.pdf.extractor import extract_single_pdf_page
         actual_page_num = page_num + 1
         try:
-            doc = fitz.open(str(pdf_path))
+            import os
+            from contextlib import redirect_stderr
+            with open(os.devnull, 'w') as f:
+                with redirect_stderr(f):
+                    doc = fitz.open(str(pdf_path))
+            
             content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size, alpha_int)
             doc.close()
             

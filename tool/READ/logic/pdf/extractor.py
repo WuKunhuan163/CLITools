@@ -10,6 +10,7 @@ from .formatter import get_span_style, apply_style_to_text, process_text_linebre
 from .layout import parse_page_spec, get_median_font_size
 
 def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    fitz.TOOLS.mupdf_display_errors(False)
     page = doc[page_num]
     page_rect = page.rect
     actual_page_num = page_num + 1
@@ -20,7 +21,13 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     source_pdf_path = page_dir / "source.pdf"
     new_doc = fitz.open()
     new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-    new_doc.save(str(source_pdf_path)); new_doc.close()
+    
+    import sys
+    from contextlib import redirect_stderr
+    with open(os.devnull, 'w') as f:
+        with redirect_stderr(f):
+            new_doc.save(str(source_pdf_path))
+    new_doc.close()
     
     source_png_path = page_dir / "source.png"
     zoom = 2.0
