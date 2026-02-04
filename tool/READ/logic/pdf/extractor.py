@@ -19,20 +19,16 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     md_file_path = page_dir / "extracted.md"
     
     source_pdf_path = page_dir / "source.pdf"
-    new_doc = fitz.open()
+    from tool.FITZ.logic.pdf.wrapper import FitzWrapper
+    new_doc = FitzWrapper.open() # Create new empty doc
     new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-    
-    import sys
-    from contextlib import redirect_stderr
-    with open(os.devnull, 'w') as f:
-        with redirect_stderr(f):
-            new_doc.save(str(source_pdf_path))
+    FitzWrapper.save(new_doc, str(source_pdf_path))
     new_doc.close()
     
     source_png_path = page_dir / "source.png"
     zoom = 2.0
     mat = fitz.Matrix(zoom, zoom)
-    pix = page.get_pixmap(matrix=mat); pix.save(str(source_png_path))
+    pix = FitzWrapper.get_pixmap(page, matrix=mat); pix.save(str(source_png_path))
     vis_img = Image.open(source_png_path).convert("RGBA")
     
     # 1. Extract Spans First
@@ -54,15 +50,15 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         draw_iface = get_draw_interface()
     except ImportError: draw_iface = None
 
-    page_images_dir = page_dir / "images"
-    page_images_dir.mkdir(parents=True, exist_ok=True)
+    page_viz_dir = page_dir / "analysis_viz"
+    page_viz_dir.mkdir(parents=True, exist_ok=True)
     
     # 3. Define Pipeline Step Names
     STEP1_NAME = "step1_tokenization"
     STEP2_NAME = "step2_semantics"
     
-    step1_dir = page_images_dir / STEP1_NAME
-    step2_dir = page_images_dir / STEP2_NAME
+    step1_dir = page_viz_dir / STEP1_NAME
+    step2_dir = page_viz_dir / STEP2_NAME
     for d in [step1_dir, step2_dir]: d.mkdir(parents=True, exist_ok=True)
     
     semantic_color_map = {

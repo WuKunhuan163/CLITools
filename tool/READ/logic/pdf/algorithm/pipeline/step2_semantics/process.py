@@ -58,8 +58,8 @@ class SemanticsEngine:
             if tk["type"] == "text":
                 raw_font = tk.get("font", "Arial")
                 style = ""
-                if tk.get("flags", 0) & 2: style += "I"
-                if tk.get("flags", 0) & 4: style += "B"
+                if tk.get("flags", 0) & 2: style += "I" # Italic
+                if tk.get("flags", 0) & 16: style += "B" # Bold
                 
                 norm_family = fm.normalize_name(raw_font)
                 

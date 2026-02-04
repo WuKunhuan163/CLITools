@@ -123,26 +123,10 @@ class ReadTool(ToolBase):
         failed_pages = []
 
         if suffix == ".pdf":
-            import fitz
-            import os
-            fitz.TOOLS.mupdf_display_errors(False)
+            from tool.FITZ.logic.pdf.wrapper import FitzWrapper
             from tool.READ.logic.pdf.extractor import parse_page_spec, get_median_font_size
             
-            # Suppress fitz warnings on stderr (aggressive)
-            try:
-                stderr_fd = sys.stderr.fileno()
-                with os.fdopen(os.dup(stderr_fd), 'w') as old_stderr:
-                    with open(os.devnull, 'w') as devnull:
-                        sys.stderr.flush()
-                        os.dup2(devnull.fileno(), stderr_fd)
-                        try:
-                            doc = fitz.open(str(file_path))
-                        finally:
-                            sys.stderr.flush()
-                            os.dup2(old_stderr.fileno(), stderr_fd)
-            except:
-                doc = fitz.open(str(file_path))
-            
+            doc = FitzWrapper.open(str(file_path))
             pages = parse_page_spec(args.page, doc.page_count)
             all_blocks = []
             for p_num in pages:
@@ -253,12 +237,8 @@ class ReadTool(ToolBase):
         from tool.READ.logic.pdf.extractor import extract_single_pdf_page
         actual_page_num = page_num + 1
         try:
-            import os
-            from contextlib import redirect_stderr
-            with open(os.devnull, 'w') as f:
-                with redirect_stderr(f):
-                    doc = fitz.open(str(pdf_path))
-            
+            from tool.FITZ.logic.pdf.wrapper import FitzWrapper
+            doc = FitzWrapper.open(str(pdf_path))
             content, meta, semantic = extract_single_pdf_page(doc, page_num, pages_dir, median_size, alpha_int)
             doc.close()
             
