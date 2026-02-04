@@ -142,12 +142,16 @@ class Preprocessor:
                     actual_boxes.append(g_bbox)
         return glyph_boxes, actual_boxes, {"dx": dx, "dy": dy}
 
-    def wipe_spans(self, image: Image.Image, spans: List[Dict[str, Any]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray, Dict[str, float]]:
+    def wipe_content(self, image: Image.Image, spans: List[Dict[str, Any]], image_bboxes: List[List[float]], zoom: float, bg_color=(255, 255, 255)) -> Tuple[Image.Image, np.ndarray, Dict[str, float]]:
+        """
+        Wipe both text spans and image regions from the background.
+        """
         img_data = np.array(image.convert("RGB"))
         h, w, _ = img_data.shape
         mask = np.zeros((h, w), dtype=bool)
         dx, dy = self.find_optimal_offsets(img_data, spans, zoom)
         
+        # 1. Wipe Text Spans
         for span in spans:
             heuristics = self._get_font_heuristics(span.get("font", "unknown"))
             for char_data in span.get("chars", []):
@@ -166,16 +170,23 @@ class Preprocessor:
                         (raw_g[1] + dy + hv[3]*gh) * zoom
                     ]
                 else:
-                    # Consistency Fix: If no heuristics, wipe the entire glyph bbox
-                    # instead of just the tight pixel mask. This matches Step 2's green boxes.
                     w_bbox = g_bbox
                 
                 if w_bbox:
                     wx0, wy0, wx1, wy1 = [int(round(c)) for c in w_bbox]
-                    # Add 1px padding
                     y0, y1, x0, x1 = max(0, wy0-1), min(h, wy1+2), max(0, wx0-1), min(w, wx1+2)
                     img_data[y0:y1, x0:x1] = bg_color
                     mask[y0:y1, x0:x1] = True
+                    
+        # 2. Wipe Image Regions
+        for ibox in image_bboxes:
+            # ibox is already zoomed
+            ix0, iy0, ix1, iy1 = [int(round(c)) for c in ibox]
+            # Use 2px padding for images to be safe
+            y0, y1, x0, x1 = max(0, iy0-2), min(h, iy1+2), max(0, ix0-2), min(w, ix1+2)
+            img_data[y0:y1, x0:x1] = bg_color
+            mask[y0:y1, x0:x1] = True
+            
         return Image.fromarray(img_data), mask, {"dx": dx, "dy": dy}
 
     def detect_artifacts(self, original: Image.Image, wiped: Image.Image, bg_color: Tuple[int, int, int]) -> List[Tuple[int, int, int, int]]:

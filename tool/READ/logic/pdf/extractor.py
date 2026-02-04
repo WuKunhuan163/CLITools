@@ -57,11 +57,10 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     page_images_dir.mkdir(parents=True, exist_ok=True)
     
     # Subdirectories for organized steps
-    raw_images_dir = page_images_dir / "0_raw_images"
     step1_dir = page_images_dir / "1_preprocessed"
     step2_dir = page_images_dir / "2_tokenized"
     step3_dir = page_images_dir / "3_processed"
-    for d in [raw_images_dir, step1_dir, step2_dir, step3_dir]: d.mkdir(parents=True, exist_ok=True)
+    for d in [step1_dir, step2_dir, step3_dir]: d.mkdir(parents=True, exist_ok=True)
     
     # Define semantic mapping to colors
     semantic_color_map = {
@@ -80,51 +79,26 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
     labels_to_draw = []
     legend_items = {}
 
-    # 4. Extract Images
-    image_list = page.get_images(full=True)
-    page_images_content = []
+    # 4. Extract Images and BBoxes
+    image_info_list = page.get_image_info()
+    image_bboxes = []
+    page_images_content = [] # Initialize even if not saving files
+    for info in image_info_list:
+        bbox = info["bbox"]
+        image_bboxes.append([bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom])
+        
     image_metadata = []
+    # (Optional: we can still extract images if needed for internal purposes, 
+    # but the user said "不保存0_raw_images文件夹了")
+    # For now, I'll stop the file saving but keep metadata if needed.
     
-    if image_list:
-        for img_index, img in enumerate(image_list):
-            try:
-                xref = img[0]
-                pix_img = fitz.Pixmap(doc, xref)
-                if pix_img.n - pix_img.alpha >= 4: pix_img = fitz.Pixmap(fitz.csRGB, pix_img)
-                img_bytes = pix_img.tobytes("png")
-                
-                img_filename = f"image_{img_index + 1:03d}.png"
-                img_path = raw_images_dir / img_filename
-                
-                with open(img_path, "wb") as f: f.write(img_bytes)
-                
-                # Relative path for Markdown preview
-                rel_img_path = os.path.relpath(img_path, page_dir)
-                page_images_content.append(f"![]({rel_img_path})\n")
-                
-                # Metadata for info.json
-                image_metadata.append({
-                    "page": actual_page_num,
-                    "index": img_index + 1,
-                    "filename": img_filename,
-                    "rel_path": rel_img_path,
-                    "abs_path": str(img_path.resolve()),
-                    "type": "unknown"
-                })
-                
-                # Visualize image region
-                img_info = page.get_image_info(xref=xref)
-                if img_info:
-                    bbox = img_info[0]["bbox"]
-                    color = semantic_color_map.get("image", [255, 255, 0, 100])
-                    rects_to_draw.append({
-                        "bbox": [bbox[0]*zoom, bbox[1]*zoom, bbox[2]*zoom, bbox[3]*zoom],
-                        "fill": tuple(list(color[:3]) + [alpha_int])
-                    })
-                    legend_items["Image"] = tuple(list(color[:3]) + [255])
-                
-                pix_img = None
-            except: pass
+    for idx, info in enumerate(image_info_list):
+        image_metadata.append({
+            "page": actual_page_num,
+            "index": idx + 1,
+            "bbox": info["bbox"],
+            "type": "unknown"
+        })
 
     from PIL import ImageFont
     try:
@@ -166,23 +140,31 @@ def extract_single_pdf_page(doc: fitz.Document, page_num: int, output_pages_root
         json.dump({
             "offsets": offsets,
             "glyph_boxes_count": len(glyph_boxes),
-            "actual_boxes_count": len(actual_boxes)
+            "actual_boxes_count": len(actual_boxes),
+            "image_boxes_count": len(image_bboxes)
         }, f, indent=2)
     
     if draw_iface:
-        draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1_glyph_bbox_overlay.png")
+        # 1.1 Raw Text Glyph BBox Overlay
+        draw_iface["draw_rects_with_alpha"](vis_img, [{"bbox": b, "fill": (255, 0, 0, 128)} for b in glyph_boxes]).save(step1_dir / "1.1_raw_text_glyph_bbox_overlay.png")
         
-        # 1.3 Generate 2_actual_bbox_overlay.png (Original + grey glyph boxes + green actual boxes)
+        # 1.2 Raw Text Actual BBox Overlay (Original + grey glyph boxes + green actual boxes)
         actual_viz = draw_iface["draw_rects_with_alpha"](vis_img, [
             {"bbox": b, "fill": (200, 200, 200, 80)} for b in glyph_boxes
         ])
         actual_viz = draw_iface["draw_rects_with_alpha"](actual_viz, [
             {"bbox": b, "fill": (0, 255, 0, 128)} for b in actual_boxes
         ])
-        actual_viz.save(step1_dir / "2_actual_bbox_overlay.png")
+        actual_viz.save(step1_dir / "1.2_raw_text_actual_bbox_overlay.png")
+        
+        # 2. Raw Images Overlay
+        img_overlay = draw_iface["draw_rects_with_alpha"](vis_img, [
+            {"bbox": b, "fill": (255, 255, 0, 128)} for b in image_bboxes
+        ])
+        img_overlay.save(step1_dir / "2_raw_images_overlay.png")
     
-    # 1.4 Wiping
-    wiped_img, text_mask, wipe_offsets = preprocessor.wipe_spans(vis_img, all_spans, zoom, bg_color=bg_color)
+    # 3. Comprehensive Wiping
+    wiped_img, text_mask, wipe_offsets = preprocessor.wipe_content(vis_img, all_spans, image_bboxes, zoom, bg_color=bg_color)
     wiped_img.save(step1_dir / "3_background_remaining.png")
     
     # 1.3 Artifacts
