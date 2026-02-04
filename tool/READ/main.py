@@ -101,7 +101,7 @@ class ReadTool(ToolBase):
 
         file_path = Path(args.file).resolve()
         if not file_path.exists():
-            print(f"{self.get_color('RED')}{self.get_translation('label_error', 'Error')}{self.get_color('RESET')}: " + 
+            print(f"{self.get_color('RED')}Error{self.get_color('RESET')}: " + 
                   self.get_translation("error_file_not_found", f"File not found: {args.file}"))
             return
 
@@ -226,17 +226,18 @@ class ReadTool(ToolBase):
 
         # Final Summary
         duration = time.time() - start_time
-        BOLD, GREEN, RED, RESET = self.get_color('BOLD', '\033[1m'), self.get_color('GREEN', '\033[32m'), self.get_color('RED', '\033[31m'), self.get_color('RESET', '\033[0m')
+        GREEN, RED, RESET = self.get_color('GREEN'), self.get_color('RED'), self.get_color('RESET')
         
         if failed_pages:
             failed_label = self.get_translation("label_failed_to_extract", "Failed to extract")
-            print(f"\r\033[K{BOLD}{RED}{failed_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(failed_pages)} in {file_path.name}")
+            print(f"\r\033[K{RED}{failed_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(failed_pages)} in {file_path.name}")
 
         if success_pages:
             success_label = self.get_translation("label_successfully_extracted", "Successfully extracted")
-            print(f"\r\033[K{BOLD}{GREEN}{success_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(success_pages)} in {file_path.name} ({duration:.2f}s)")
+            print(f"\r\033[K{GREEN}{success_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(success_pages)} in {file_path.name} ({duration:.2f}s)")
 
-        print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}:{RESET} {output_dir}")
+        BOLD = self.get_color('BOLD')
+        print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}{RESET}: {output_dir}")
 
     def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size, alpha_int):
         """Task to extract a single page. Runs in a subprocess to suppress output."""

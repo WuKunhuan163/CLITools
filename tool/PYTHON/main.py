@@ -153,6 +153,12 @@ def main():
         print(_("python_pass_args_hint", "All other arguments will be passed to the selected Python executable."))
         return
 
+    RED = get_color("RED")
+    BOLD = get_color("BOLD")
+    BLUE = get_color("BLUE")
+    GREEN = get_color("GREEN")
+    RESET = get_color("RESET")
+
     if args.py_list:
         _list_versions()
         return
@@ -175,7 +181,7 @@ def main():
             subprocess.run([sys.executable, str(update_script)] + unknown)
             sys.exit(0)
         else:
-            print(f"{RED}{BOLD}Error{RESET}: Update script not found.")
+            print(f"{RED}Error{RESET}: Update script not found.")
             sys.exit(1)
 
     selected_version = args.py_version or shorthand_version or os.environ.get("PY_VERSION") or default_version

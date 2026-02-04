@@ -400,7 +400,7 @@ def main():
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, sys.argv[2:], tool.get_translation)
 
     from logic.config import get_color
-    BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
+    BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     for attempt in range(3):
         try:
@@ -414,11 +414,11 @@ def main():
             if result.startswith("__PARTIAL_TIMEOUT__:"):
                 content = result[len("__PARTIAL_TIMEOUT__:"):]
                 status_label = get_msg("label_partial_timeout", "Partial input received (Timeout)")
-                output = f"{BOLD}{YELLOW}{status_label}{RESET}: {content}\n\n{instruction}"
+                output = f"{YELLOW}{status_label}{RESET}: {content}\n\n{instruction}"
                 clipboard_content = f"{content}\n\n{instruction}"
             else:
                 success_label = get_msg("label_successfully_received", "Successfully received")
-                output = f"{BOLD}{GREEN}{success_label}{RESET}: {result}\n\n{instruction}"
+                output = f"{GREEN}{success_label}{RESET}: {result}\n\n{instruction}"
                 clipboard_content = f"{result}\n\n{instruction}"
             
             print(output, flush=True)
@@ -431,12 +431,12 @@ def main():
             return 0
         except UserInputFatalError as e:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            print(f"{BOLD}{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+            print(f"{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
             return 0
         except (UserInputRetryableError, RuntimeError) as e:
             error_str = str(e)
             if any(msg in error_str.lower() or msg in error_str for msg in ["Terminated", "Cancelled"]):
-                sys.stdout.write("\r\033[K"); print(f"{BOLD}{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
+                sys.stdout.write("\r\033[K"); print(f"{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
             
             if attempt < 2:
                 # Use erasable line for retry message
@@ -445,7 +445,7 @@ def main():
                 time.sleep(1)
             else:
                 sys.stdout.write("\r\033[K")
-                print(f"{BOLD}{RED}Error{RESET}: {e}. Please execute USERINPUT again and wait for the user.", file=sys.stderr)
+                print(f"{RED}Error{RESET}: {e}. Please execute USERINPUT again and wait for the user.", file=sys.stderr)
                 return 1
 
 if __name__ == "__main__":

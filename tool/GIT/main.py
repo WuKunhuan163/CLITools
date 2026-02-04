@@ -52,7 +52,7 @@ def main():
         print(json.dumps(result, indent=2))
     elif args.command == "config-dev":
         engine.set_dev_branch(args.branch)
-        print(f"{get_color('GREEN')}Designated development branch set to:{get_color('RESET')} {args.branch}")
+        print(f"{get_color('GREEN')}Designated development branch set to{get_color('RESET')}: {args.branch}")
     elif args.command == "commit":
         dev_branch = engine.get_dev_branch()
         current_branch = engine.get_current_branch()
@@ -63,16 +63,16 @@ def main():
                 # 1. Switch to dev
                 res = engine.run_git(["checkout", dev_branch])
                 if res.returncode != 0:
-                    print(f"{get_color('RED')}Error:{get_color('RESET')} Failed to checkout '{dev_branch}': {res.stderr}")
+                    print(f"{get_color('RED')}Error{get_color('RESET')}: Failed to checkout '{dev_branch}': {res.stderr}")
                     sys.exit(1)
                 # 2. Merge
                 res = engine.run_git(["merge", current_branch])
                 if res.returncode != 0:
-                    print(f"{get_color('RED')}Error:{get_color('RESET')} Merge conflict occurred. Please resolve manually.")
+                    print(f"{get_color('RED')}Error{get_color('RESET')}: Merge conflict occurred. Please resolve manually.")
                     sys.exit(1)
                 # 3. Commit will happen below
             else:
-                print(f"{get_color('RED')}Error:{get_color('RESET')} You are currently on branch '{current_branch}', but the designated development branch is '{dev_branch}'.")
+                print(f"{get_color('RED')}Error{get_color('RESET')}: You are currently on branch '{current_branch}', but the designated development branch is '{dev_branch}'.")
                 print(f"Use {get_color('BOLD')}--force{get_color('RESET')} to commit anyway, or {get_color('BOLD')}--merge{get_color('RESET')} to merge and commit on '{dev_branch}'.")
                 sys.exit(1)
         
@@ -80,12 +80,12 @@ def main():
         res = engine.run_git(["add", "."])
         res = engine.run_git(["commit", "-m", args.message])
         if res.returncode == 0:
-            print(f"{get_color('GREEN')}Successfully committed:{get_color('RESET')} {args.message}")
+            print(f"{get_color('GREEN')}Successfully committed{get_color('RESET')}: {args.message}")
             # Trigger auto-push if needed (via post-commit hook or manually)
             from logic.git.engine import auto_push_if_needed
             auto_push_if_needed()
         else:
-            print(f"{get_color('RED')}Commit failed:{get_color('RESET')} {res.stderr}")
+            print(f"{get_color('RED')}Commit failed{get_color('RESET')}: {res.stderr}")
             sys.exit(1)
 
 if __name__ == "__main__":

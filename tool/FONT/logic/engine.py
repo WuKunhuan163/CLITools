@@ -132,7 +132,10 @@ class FontManager:
             all_fonts = list(target_dir.glob("*.ttf"))
             regular = [f for f in all_fonts if "regular" in f.name.lower()]
             target_font = regular[0] if regular else all_fonts[0]
-            shutil.copy(target_font, target_dir / "font.ttf")
+            
+            dest_font = target_dir / "font.ttf"
+            if target_font != dest_font:
+                shutil.copy(target_font, dest_font)
             return True, f"Successfully deployed {success_count} font variants to {target_dir.name}/."
             
         return False, "No .ttf files found in the matched repository directory."
@@ -150,6 +153,10 @@ class FontManager:
         
         ttf_path = target_dir / "font.ttf"
         
+        # Erasable line for installation status
+        sys.stdout.write(f"\r\033[K\033[1m\033[34mInstalling\033[0m font {name}...")
+        sys.stdout.flush()
+
         if font_path.suffix.lower() == ".otf":
             success = self.convert_otf_to_ttf(font_path, ttf_path)
         else:
@@ -163,13 +170,38 @@ class FontManager:
             return True
         return False
 
+    def convert_font(self, source_path, target_path):
+        """
+        Convert between font formats. Currently supports OTF to TTF.
+        """
+        source_path = Path(source_path)
+        target_path = Path(target_path)
+        
+        if source_path.suffix.lower() == ".otf" and target_path.suffix.lower() == ".ttf":
+            return self.convert_otf_to_ttf(source_path, target_path)
+        
+        # If formats are the same, just copy
+        if source_path.suffix.lower() == target_path.suffix.lower():
+            try:
+                shutil.copy(source_path, target_path)
+                return True
+            except Exception as e:
+                print(f"Failed to copy font: {e}")
+                return False
+                
+        print(f"Unsupported conversion: {source_path.suffix} -> {target_path.suffix}")
+        return False
+
     def convert_otf_to_ttf(self, otf_path, ttf_path):
         """
         Convert OTF (CFF) to TTF (TrueType) using fontTools.
         """
         from fontTools.ttLib import TTFont
         try:
-            print(f"Converting {otf_path.name} to TTF...")
+            # Use erasable line for conversion status
+            sys.stdout.write(f"\r\033[K\033[1m\033[34mConverting\033[0m {otf_path.name} to TTF...")
+            sys.stdout.flush()
+            
             font = TTFont(otf_path)
             
             # Simple check if it's already TTF outlines
@@ -180,7 +212,8 @@ class FontManager:
             font.save(ttf_path)
             return True
         except Exception as e:
-            print(f"Conversion failed for {otf_path.name}: {e}")
+            sys.stdout.write(f"\r\033[K\033[1m\033[31mConversion failed\033[0m for {otf_path.name}: {e}\n")
+            sys.stdout.flush()
             return False
 
     def migrate_from_tmp(self):
@@ -216,8 +249,6 @@ class FontManager:
             json.dump(data, f, indent=2)
 
     def _process_source(self, source_path, data):
-        print(f"--- Processing {source_path.name} ---")
-        
         # Handle individual file or directory/ZIP
         if source_path.is_file():
             if source_path.suffix.lower() == ".zip":
@@ -261,6 +292,10 @@ class FontManager:
             
             ttf_path = target_dir / "font.ttf"
             
+            # Erasable line for installation status
+            sys.stdout.write(f"\r\033[K\033[1m\033[34mInstalling\033[0m font {orig_name}...")
+            sys.stdout.flush()
+
             if ff.suffix.lower() == ".otf":
                 success = self.convert_otf_to_ttf(ff, ttf_path)
             else:
@@ -268,7 +303,8 @@ class FontManager:
                 success = True
                 
             if success:
-                print(f"Deployed {orig_name} -> {ttf_path}")
+                sys.stdout.write(f"\r\033[KDeployed {orig_name} -> {ttf_path}\n")
+                sys.stdout.flush()
                 # Update JSON lists
                 norm_orig = self.normalize_name(orig_name)
                 for p in list(data["pending_fonts"]):
