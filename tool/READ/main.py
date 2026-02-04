@@ -8,6 +8,13 @@ from datetime import datetime
 import hashlib
 from pathlib import Path
 
+# Suppress fitz warnings early
+try:
+    import fitz
+    fitz.TOOLS.mupdf_display_errors(False)
+except ImportError:
+    pass
+
 # Add project root to sys.path
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent

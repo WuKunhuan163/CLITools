@@ -1,11 +1,47 @@
 import subprocess
 import requests
 import time
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 class GitEngine:
-    def __init__(self):
-        pass
+    def __init__(self, project_root: Optional[Path] = None):
+        self.project_root = project_root
+
+    def get_current_branch(self) -> str:
+        """Returns the name of the current branch."""
+        res = self.run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(self.project_root) if self.project_root else None)
+        return res.stdout.strip() if res.returncode == 0 else ""
+
+    def get_dev_branch(self) -> Optional[str]:
+        """Reads the designated development branch from config."""
+        if not self.project_root: return None
+        config_path = self.project_root / "data" / "config.json"
+        if config_path.exists():
+            try:
+                import json
+                with open(config_path, 'r') as f:
+                    return json.load(f).get("git_dev_branch")
+            except: pass
+        return None
+
+    def set_dev_branch(self, branch: str):
+        """Sets the designated development branch in config."""
+        if not self.project_root: return
+        data_dir = self.project_root / "data"
+        data_dir.mkdir(exist_ok=True)
+        config_path = data_dir / "config.json"
+        config = {}
+        if config_path.exists():
+            try:
+                import json
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            except: pass
+        config["git_dev_branch"] = branch
+        import json
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
 
     def run_git(self, args: List[str], cwd: Optional[str] = None) -> subprocess.CompletedProcess:
         """Runs a git command and returns the result."""
