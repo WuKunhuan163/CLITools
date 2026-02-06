@@ -230,7 +230,14 @@ class ReadTool(ToolBase):
         
         if failed_pages:
             failed_label = self.get_translation("label_failed_to_extract", "Failed to extract")
-            print(f"\r\033[K{RED}{failed_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(failed_pages)} in {file_path.name}")
+            # Include reasons for failures
+            reasons = []
+            for p_id in sorted(failed_pages):
+                reason = self.page_stats[str(p_id)].get("error", "Unknown error")
+                reasons.append(f"Page {p_id}: {reason}")
+            
+            reason_str = ". ".join(reasons)
+            print(f"\r\033[K{RED}{failed_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(failed_pages)} in {file_path.name}. Reason: {reason_str}")
 
         if success_pages:
             success_label = self.get_translation("label_successfully_extracted", "Successfully extracted")

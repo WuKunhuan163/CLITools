@@ -192,7 +192,7 @@ def _dev_sync(quiet=False):
                 if e.stderr: print(f"STDERR: {e.stderr}")
             return False
 
-    tm = ProgressTuringMachine()
+    tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
 
     # 1. Commit current branch
     def auto_commit():
@@ -435,7 +435,7 @@ def _dev_align():
         if not run_git(["checkout", "-b", "test"]): return False
         return run_git(["push", "origin", "test", "--force"])
 
-    tm = ProgressTuringMachine()
+    tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     
     # Using 'bold_part' to bold only the verb+noun part
     tm.add_stage(TuringStage(

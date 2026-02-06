@@ -87,10 +87,13 @@ class ParallelWorkerPool:
                 res = func(*args, **kwargs)
                 if success_callback:
                     success_callback(task_id, res)
-                return res
-            except:
+                # Assume success if res is not False or a dict with success=False
+                if isinstance(res, dict) and not res.get("success", True):
+                    return False
+                return res if res is not False else False
+            except Exception as e:
                 if success_callback:
-                    success_callback(task_id, False)
+                    success_callback(task_id, {"success": False, "error": str(e)})
                 return False
             finally:
                 self.status_bar.update(task_id, "remove")

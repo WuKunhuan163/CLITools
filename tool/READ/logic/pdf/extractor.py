@@ -9,6 +9,8 @@ from .formatter import get_span_style, apply_style_to_text, process_text_linebre
 from .layout import parse_page_spec, get_median_font_size
 
 def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, median_size: float, alpha_int: int = 51) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    # FORCED ERROR FOR TESTING
+    raise ValueError("Test Error for Turing Machine")
     from tool.FITZ.logic.pdf.wrapper import FitzWrapper
     import fitz
     page = doc[page_num]

@@ -17,9 +17,16 @@ class TuringTask:
         self.name = name
         self.steps = steps
 
+class TuringError(Exception):
+    """Custom exception for reporting detailed errors in Turing stages."""
+    def __init__(self, brief: str, full: Optional[str] = None):
+        self.brief = brief
+        self.full = full or brief
+        super().__init__(brief)
+
 class TuringStage:
     """Represents a single stage in a command execution pipeline."""
-    def __init__(self, name: str, action: Callable[[], bool], 
+    def __init__(self, name: str, action: Callable[..., bool], 
                  active_status: str = "Running", 
                  success_status: str = "Successfully", 
                  fail_status: str = "Failed",
@@ -40,4 +47,13 @@ class TuringStage:
         self.success_name = success_name
         self.fail_name = fail_name
         self.bold_part = bold_part
+        
+        # New: Support for brief and full failure information
+        self.error_brief: Optional[str] = None # For terminal display (A)
+        self.error_full: Optional[str] = None  # For log file (B)
+
+    def report_error(self, brief: str, full: Optional[str] = None):
+        """Allows the action to report detailed error information."""
+        self.error_brief = brief
+        self.error_full = full or brief
 
