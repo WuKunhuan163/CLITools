@@ -37,6 +37,12 @@ class Preprocessor:
         s = re.sub(r'[^a-z0-9]+', '-', s)
         return s.strip('-')
 
+    def get_space_width(self, font_name: str, font_size: float) -> float:
+        heuristics = self._get_font_heuristics(font_name)
+        if heuristics and " " in heuristics:
+            return heuristics[" "][2] * font_size
+        return font_size * 0.25
+
     def _get_font_heuristics(self, font_name: str):
         if font_name in self.font_cache: return self.font_cache[font_name]
         norm_name = self._normalize_font_name(font_name)
@@ -349,11 +355,12 @@ class Preprocessor:
                 prev_g, curr_g, curr_a, curr_c = line[i-1]["glyph"], line[i]["glyph"], line[i]["actual"], line[i].get("c", "")
                 gap = curr_g[0] - prev_g[2]
                 
-                # Dynamic space detection
-                # Default expected space width is ~0.3 of font size
-                # User parameter: space_threshold_ratio = 0.5
+                # Dynamic space detection using font heuristics
+                font_name = curr_word["font"]
                 font_size = curr_word["size"]
-                expected_space = font_size * 0.3
+                expected_space = self.get_space_width(font_name, font_size)
+                
+                # User parameter: space_threshold_ratio = 0.5
                 # Ensure a minimum threshold to avoid splitting tight characters in small fonts
                 space_threshold = max(1.5, 0.5 * expected_space)
                 
