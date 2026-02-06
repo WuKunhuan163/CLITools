@@ -47,13 +47,19 @@ class SemanticsEngine:
         # 2.2 Separator Reproduction (High quality PDF-based background + black separators)
         active_seps = [s for s in separators if s.get("order_changing")]
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.2_separator_reproduced", 
-                            exclude_lines=True, separators=active_seps, draw_text_bbox=True)
+                            exclude_lines=True, separators=active_seps, draw_text_bbox=False, fill_text_bbox=False)
+        
+        # 3.0 Token Glyph Info (Light green shading for tokens)
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.0_token_glyph_info", 
+                            exclude_lines=True, draw_text_bbox=False, fill_text_bbox=True)
         
         # 3.1 Line & Block Info Visualization (Background text + outlines)
-        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.1_line_block_info", exclude_lines=True)
+        # For 3.1, we also want the light green shading for tokens
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.1_line_block_info", 
+                            exclude_lines=True, fill_text_bbox=True)
         viz_31_img = Image.open(output_dir / "3.1_line_block_info.png").convert("RGBA")
         draw_31 = ImageDraw.Draw(viz_31_img)
-        # Line & Block outlines
+        # Line & Block outlines (using PIL draw on top of shaded PDF)
         vh.render_line_block_info(draw_31, tokens)
         # Active separators (black)
         vh.render_separators(draw_31, active_seps, only_order_changing=True)

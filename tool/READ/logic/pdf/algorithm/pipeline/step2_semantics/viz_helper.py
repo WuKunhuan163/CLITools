@@ -112,7 +112,7 @@ class VizHelper:
             by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in all_tkns)
             draw.rectangle([bx0-2, by0-2, bx1+2, by1+2], outline=(0, 0, 255, 150), width=1)
 
-    def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False):
+    def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False, fill_text_bbox: bool = False):
         """
         Reproduces the PDF layout using Stage 1 tokens and glyph bboxes via FPDF.
         Then renders to PNG for high-quality background.
@@ -120,6 +120,8 @@ class VizHelper:
         from fpdf import FPDF
         pdf = FPDF(unit="pt", format=[page_width, page_height])
         pdf.set_auto_page_break(auto=False)
+        pdf.set_margins(0, 0, 0)
+        pdf.c_margin = 0 # Remove internal cell padding which causes horizontal shift
         pdf.add_page()
         
         # Register fonts
@@ -148,6 +150,9 @@ class VizHelper:
                     pdf.set_draw_color(200, 200, 200); pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
 
         # 2. Render Text Tokens
+        if fill_text_bbox:
+            pdf.set_fill_color(200, 255, 200) # Light green shading
+
         for tk in tokens:
             if tk["type"] == "text" and not tk.get("is_absorbed"):
                 bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
@@ -182,10 +187,11 @@ class VizHelper:
                 pdf.set_text_color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF)
                 pdf.set_xy(bbox[0], bbox[1])
                 
-                try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=tk["text"], border=1 if draw_text_bbox else 0)
+                # Use fill=True if fill_text_bbox is set
+                try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=tk["text"], border=1 if draw_text_bbox else 0, fill=fill_text_bbox)
                 except:
                     clean_text = "".join([c if ord(c) < 256 else "?" for c in tk["text"]])
-                    try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=1 if draw_text_bbox else 0)
+                    try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=1 if draw_text_bbox else 0, fill=fill_text_bbox)
                     except: pass
                     
         # 3. Render Separators
