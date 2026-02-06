@@ -37,7 +37,14 @@ class ProgressTuringMachine:
                     is_last = (i == len(self.stages) - 1)
                     active_name = stage.active_name or stage.name
                     width = _get_configured_width()
-                    active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                    
+                    if stage.bold_part and active_name.startswith(stage.bold_part):
+                        bold_text = f"{stage.active_status} {stage.bold_part}"
+                        rest_text = active_name[len(stage.bold_part):].lstrip()
+                        active_msg = f"{BOLD}{BLUE}{bold_text}{RESET} {rest_text}..."
+                    else:
+                        active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                    
                     sys.stdout.write(f"\r\033[K{truncate_to_width(active_msg, width)}")
                     sys.stdout.flush()
                     

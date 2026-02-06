@@ -427,8 +427,8 @@ def main():
                 return res.returncode == 0
 
             pm = ProgressTuringMachine([
-                TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress"),
-                TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote")
+                TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress", bold_part="progress"),
+                TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote", bold_part="to remote")
             ])
             pm.run(ephemeral=True, final_newline=False)
             
