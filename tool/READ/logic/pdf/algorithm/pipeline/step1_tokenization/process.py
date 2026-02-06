@@ -350,11 +350,12 @@ class Preprocessor:
                 gap = curr_g[0] - prev_g[2]
                 
                 # Dynamic space detection
-                # Default expected space width is ~0.25 of font size
+                # Default expected space width is ~0.3 of font size
                 # User parameter: space_threshold_ratio = 0.5
                 font_size = curr_word["size"]
-                expected_space = font_size * 0.25
-                space_threshold = 0.5 * expected_space
+                expected_space = font_size * 0.3
+                # Ensure a minimum threshold to avoid splitting tight characters in small fonts
+                space_threshold = max(1.5, 0.5 * expected_space)
                 
                 same_style = (line[i].get("font") == curr_word["font"] and abs(line[i].get("size", 0) - curr_word["size"]) < 0.1)
                 
