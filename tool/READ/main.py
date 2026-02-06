@@ -305,9 +305,21 @@ doc.close()
                     "semantic_blocks": semantic_data
                 }
             
-            error_msg = f"Subprocess failed or empty output. Stderr: {res.stderr}"
-            stage.report_error("Subprocess error", error_msg)
-            return {"success": False, "error": error_msg}
+            # Extract actual error from stderr if possible
+            stderr = res.stderr or ""
+            brief = "Subprocess error"
+            if stderr:
+                lines = [l.strip() for l in stderr.splitlines() if l.strip()]
+                if lines:
+                    # Look for lines like "Exception: ..." or the last line if it's not a traceback header
+                    last_line = lines[-1]
+                    if ":" in last_line and not last_line.startswith("File"):
+                        brief = last_line
+                    else:
+                        brief = f"Subprocess failed ({last_line})"
+            
+            stage.report_error(brief, f"Subprocess failed or empty output. Stderr:\n{stderr}")
+            return {"success": False, "error": brief}
         except Exception as e:
             stage.report_error("Exception in task", str(e))
             return {"success": False, "error": str(e)}
