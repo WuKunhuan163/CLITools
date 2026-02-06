@@ -349,36 +349,69 @@ class LayoutAnalyzer:
         
         img.save(output_path)
 
-    def visualize_reproduction(self, separators: List[Dict[str, Any]], tokens: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int):
+    def visualize_line_block_info(self, separators: List[Dict[str, Any]], tokens: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int):
         """
-        Draws only active separators as thin black lines and remaining tokens with text content.
+        Draws text tokens (light green), line spans (darker green), and block spans (blue).
+        Includes separators and other visual tokens as in 2.2.
         """
         img = Image.new("RGBA", (page_width, page_height), (255, 255, 255, 255))
         draw = ImageDraw.Draw(img)
         
-        # 1. Draw remaining tokens (excluding lines)
+        # 1. Group tokens by block and line for visualization
+        blocks = {} # block_id -> {line_id -> [tokens]}
+        other_tokens = []
+        
         for t in tokens:
-            if t.get("subtype") in ["line", "rect"]: continue
             if t.get("is_absorbed"): continue
+            if t.get("subtype") in ["line", "rect"]: continue
             
-            tb = t.get("glyph_bbox", t["bbox"])
             if t["type"] == "text":
-                # Draw glyph bbox outline
-                draw.rectangle(tb, outline=(0, 255, 0, 60), width=1)
-                # Draw actual text
-                # Try to use a small font size for content
-                try:
-                    # You might need to provide a path to a font file here for better results
-                    # For now, use default
-                    draw.text((tb[0], tb[1]), t["text"], fill=(0, 0, 0, 255))
-                except: pass
+                bid, lid = t.get("block_id"), t.get("line_id")
+                if bid is not None and lid is not None:
+                    if bid not in blocks: blocks[bid] = {}
+                    if lid not in blocks[bid]: blocks[bid][lid] = []
+                    blocks[bid][lid].append(t)
+                else:
+                    other_tokens.append(t)
             else:
-                # For blocks/images, draw a subtle blue/gray outline
-                draw.rectangle(tb, outline=(0, 0, 255, 60), width=1)
-                # Label it
-                draw.text((tb[0] + 2, tb[1] + 2), t["id"], fill=(0, 0, 255, 100))
+                other_tokens.append(t)
+
+        # 2. Draw Text Tokens (Light Green)
+        for bid, lines in blocks.items():
+            for lid, tkns in lines.items():
+                for t in tkns:
+                    tb = t.get("glyph_bbox", t["bbox"])
+                    draw.rectangle(tb, outline=(0, 255, 0, 60), width=1) # Light green
+        
+        # 3. Draw Line Spans (Darker Green)
+        for bid, lines in blocks.items():
+            for lid, tkns in lines.items():
+                if not tkns: continue
+                # Calculate line bbox
+                lx0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in tkns)
+                ly0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in tkns)
+                lx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in tkns)
+                ly1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in tkns)
+                draw.rectangle([lx0, ly0, lx1, ly1], outline=(0, 128, 0, 150), width=1) # Darker green
+                
+        # 4. Draw Block Spans (Blue)
+        for bid, lines in blocks.items():
+            all_block_tkns = [t for l in lines.values() for t in l]
+            if not all_block_tkns: continue
+            bx0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in all_block_tkns)
+            by0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in all_block_tkns)
+            bx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in all_block_tkns)
+            by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in all_block_tkns)
+            # Slightly expand block bbox
+            draw.rectangle([bx0-2, by0-2, bx1+2, by1+2], outline=(0, 0, 255, 150), width=1) # Blue
             
-        # 2. Draw separators as thin black lines
+        # 5. Draw Other Tokens (Visual Blocks etc)
+        for t in other_tokens:
+            tb = t.get("glyph_bbox", t["bbox"])
+            draw.rectangle(tb, outline=(0, 0, 255, 60), width=1)
+            draw.text((tb[0]+2, tb[1]+2), t["id"], fill=(0, 0, 255, 100))
+
+        # 6. Draw Separators
         for s in separators:
             if not s.get("order_changing"): continue
             bbox = s["bbox"]

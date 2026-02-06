@@ -40,6 +40,10 @@ class SemanticsEngine:
         self.reproduce_initial_pdf(tokens, output_dir, zoom, name="2.2_separator_reproduced", 
                                    exclude_lines=True, separators=active_seps)
         
+        # 3.1 Line & Block Info Visualization
+        viz_line_block_path = output_dir / "3.1_line_block_info.png"
+        la.visualize_line_block_info(separators, la.all_tokens, viz_line_block_path, int(self.page_width*zoom), int(self.page_height*zoom))
+        
         # Save analysis data
         analysis_data = {
             "page_width": self.page_width,

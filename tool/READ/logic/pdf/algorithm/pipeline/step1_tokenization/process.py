@@ -278,7 +278,8 @@ class Preprocessor:
                 "type": "text", "bbox": w["bbox"], "glyph_bbox": w["glyph_bbox"], "id": w["id"],
                 "text": w["text"], "font": w["font"], "size": w["size"],
                 "color": w["color"], "flags": w["flags"],
-                "is_absorbed": w["id"] in consumed_text_ids
+                "is_absorbed": w["id"] in consumed_text_ids,
+                "block_id": w.get("block_id"), "line_id": w.get("line_id") # NEW
             })
         
         return tokens
@@ -320,7 +321,8 @@ class Preprocessor:
                     char_list.append({
                         "c": char_data["c"],
                         "font": span["font"], "size": span["size"],
-                        "color": span["color"], "flags": span["flags"]
+                        "color": span["color"], "flags": span["flags"],
+                        "block_id": span.get("block_id"), "line_id": span.get("line_id") # NEW
                     })
         
         pairs = []
@@ -348,7 +350,8 @@ class Preprocessor:
             curr_word = {
                 "text": line[0].get("c", ""), "bbox": list(line[0]["actual"]), "glyph_bbox": list(line[0]["glyph"]),
                 "font": line[0].get("font", "Arial"), "size": line[0].get("size", 10),
-                "color": line[0].get("color", 0), "flags": line[0].get("flags", 0)
+                "color": line[0].get("color", 0), "flags": line[0].get("flags", 0),
+                "block_id": line[0].get("block_id"), "line_id": line[0].get("line_id") # NEW
             }
             
             for i in range(1, len(line)):
@@ -360,20 +363,19 @@ class Preprocessor:
                 font_size = curr_word["size"]
                 expected_space = self.get_space_width(font_name, font_size)
                 
-                # User parameter: space_threshold_ratio = 0.5
-                # Ensure a minimum threshold to avoid splitting tight characters in small fonts
                 space_threshold = max(1.5, 0.5 * expected_space)
                 
                 same_style = (line[i].get("font") == curr_word["font"] and abs(line[i].get("size", 0) - curr_word["size"]) < 0.1)
+                same_raw_line = (line[i].get("block_id") == curr_word["block_id"] and line[i].get("line_id") == curr_word["line_id"]) # NEW
                 
-                # Split if gap is larger than threshold or styles differ
-                if gap < space_threshold and same_style:
+                # Split if gap is larger than threshold or styles differ OR it's from a different raw line/block
+                if gap < space_threshold and same_style and same_raw_line:
                     curr_word["text"] += curr_c
                     curr_word["bbox"] = [min(curr_word["bbox"][0], curr_a[0]), min(curr_word["bbox"][1], curr_a[1]), max(curr_word["bbox"][2], curr_a[2]), max(curr_word["bbox"][3], curr_a[3])]
                     curr_word["glyph_bbox"] = [min(curr_word["glyph_bbox"][0], curr_g[0]), min(curr_word["glyph_bbox"][1], curr_g[1]), max(curr_word["glyph_bbox"][2], curr_g[2]), max(curr_word["glyph_bbox"][3], curr_g[3])]
                 else:
                     words.append(curr_word)
-                    curr_word = {"text": curr_c, "bbox": list(curr_a), "glyph_bbox": list(curr_g), "font": line[i].get("font", "Arial"), "size": line[i].get("size", 10), "color": line[i].get("color", 0), "flags": line[i].get("flags", 0)}
+                    curr_word = {"text": curr_c, "bbox": list(curr_a), "glyph_bbox": list(curr_g), "font": line[i].get("font", "Arial"), "size": line[i].get("size", 10), "color": line[i].get("color", 0), "flags": line[i].get("flags", 0), "block_id": line[i].get("block_id"), "line_id": line[i].get("line_id")}
             words.append(curr_word)
         return words
 

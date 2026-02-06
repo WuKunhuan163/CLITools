@@ -35,15 +35,16 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
     # 1. Extract Spans First
     page_dict = page.get_text("rawdict")
     all_spans = []
-    for b in page_dict["blocks"]:
+    for b_idx, b in enumerate(page_dict["blocks"]):
         if b.get("type") != 0: continue
-        for line in b["lines"]:
+        for l_idx, line in enumerate(b["lines"]):
             for span in line["spans"]:
                 all_spans.append({
                     "text": "".join([c["c"] for c in span.get("chars", [])]),
                     "bbox": list(span["bbox"]), "font": span["font"], "size": span["size"],
                     "color": span["color"], "flags": span["flags"], "origin": list(span["origin"]),
-                    "chars": span.get("chars", [])
+                    "chars": span.get("chars", []),
+                    "block_id": b_idx, "line_id": l_idx # Preserve raw structure
                 })
 
     try:
@@ -294,6 +295,9 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                     print(f"Warning: Failed to compose image token {tk['id']}: {e}")
 
             elif tk["type"] == "text":
+                # User request: Do not render text tokens that have been absorbed into images
+                if tk.get("is_absorbed"): continue
+                
                 # Use GLYPH bbox for tokenization result visualization
                 t_rects.append({"bbox": tk["glyph_bbox"], "fill": (0, 255, 0, 60)})
         t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
