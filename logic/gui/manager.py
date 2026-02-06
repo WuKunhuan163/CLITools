@@ -105,22 +105,6 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     sys.stdout.write(f"\r\033[K{display_msg}")
     sys.stdout.flush()
 
-    stdout_content = []
-    def read_stdout():
-        for line in iter(proc.stdout.readline, ''):
-            if line.startswith("GDS_GUI_TIME_ADDED:"):
-                try:
-                    inc = int(line[len("GDS_GUI_TIME_ADDED:"):].strip())
-                    # Non-local update of parent_timeout
-                    nonlocal parent_timeout
-                    parent_timeout += inc
-                except: pass
-            stdout_content.append(line)
-        proc.stdout.close()
-    
-    t_stdout = threading.Thread(target=read_stdout, daemon=True)
-    t_stdout.start()
-
     stderr_content = []
     def read_stderr():
         for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
@@ -131,17 +115,34 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     parent_timeout = timeout + 300
     start_wait = time.time()
     
+    # Path for add_time events
+    added_time_dir = tool_instance.project_root / "data" / "run" / "added_time"
+    added_time_dir.mkdir(parents=True, exist_ok=True)
+    
     is_interrupted = False
     try:
         while proc.poll() is None:
+            # 1. Check for add_time events
+            try:
+                for f in list(added_time_dir.glob(f"{proc.pid}_*.add")):
+                    # Extract increment from filename
+                    parts = f.stem.split('_')
+                    if len(parts) >= 3:
+                        try:
+                            inc = int(parts[2])
+                            parent_timeout += inc
+                        except: pass
+                    f.unlink() # Consume event
+            except: pass
+
+            # 2. Watchdog check
             if time.time() - start_wait > parent_timeout:
                 proc.kill()
                 sys.stdout.write("\r\033[K"); sys.stdout.flush()
                 return {"status": "timeout", "data": None}
             time.sleep(0.5)
-        # Wait a bit for threads to finish capturing last output
-        t_stdout.join(timeout=1)
-        t_stderr.join(timeout=1)
+        stdout, _ = proc.communicate()
+        t_stderr.join(timeout=2)
     except (Exception, KeyboardInterrupt) as e:
         if isinstance(e, KeyboardInterrupt):
             is_interrupted = True
@@ -154,13 +155,13 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         
         try:
             # Wait for GUI to detect flag, finalize and print JSON
-            # We don't use communicate() here because we are reading in threads
-            t_stdout.join(timeout=4)
+            stdout, _ = proc.communicate(timeout=4)
             t_stderr.join(timeout=1)
         except:
             proc.kill()
+            stdout = ""
         
-        if not "".join(stdout_content):
+        if not stdout:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
             if is_interrupted:
                 return {"status": "terminated", "data": None, "reason": "interrupted"}

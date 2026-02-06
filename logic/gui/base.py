@@ -181,16 +181,40 @@ class BaseGUIWindow:
         if self.root:
             self.root.after(self.focus_interval * 1000, refocus)
 
-    def finalize(self, status: str, data: Any, reason: Optional[str] = None):
-        """Unified closure point (Interface I). status: success, cancelled, timeout, terminated, error."""
-        if not self.window_closed:
-            self.window_closed = True
-            self.result = {"status": status, "data": data}
-            if reason:
-                self.result["reason"] = reason
-            try:
-                if self.root: self.root.destroy()
-            except: pass
+    def trigger_add_time(self, increment: int, status_label: Optional[tk.Label] = None):
+        """
+        Atomically increments remaining time, notifies parent, and updates UI.
+        The signal notification happens BEFORE UI updates.
+        """
+        # 1. Signal Parent (via flag file for atomicity and avoiding stdout pollution)
+        try:
+            project_root = Path(self.internal_dir).parent.parent.parent
+            added_time_dir = project_root / "data" / "run" / "added_time"
+            added_time_dir.mkdir(parents=True, exist_ok=True)
+            # Use a unique file for each add event to ensure they are all processed
+            ts = time.time()
+            flag_file = added_time_dir / f"{os.getpid()}_{ts}_{increment}.add"
+            flag_file.touch()
+        except:
+            # Fallback to print if file system fails
+            print(f"GDS_GUI_TIME_ADDED:{increment}", flush=True)
+
+        # 2. Update Internal State
+        self.remaining_time += increment
+        self.pulse_active = True
+        
+        # 3. Update UI
+        if status_label and not self.window_closed:
+            added_msg = self._("time_added", "Time added!")
+            status_label.config(text=f"{added_msg} {self.remaining_time}s", fg=get_gui_colors()["pulse"])
+            
+            def reset_pulse():
+                if not self.window_closed:
+                    self.pulse_active = False
+                    rem_msg = self._('time_remaining', 'Remaining:')
+                    status_label.config(text=f"{rem_msg} {self.remaining_time}s", fg=self._default_status_fg)
+            
+            self.root.after(2000, reset_pulse)
 
     def get_current_state(self) -> Any:
         """Subclasses MUST override this to return their current state (State A)."""
@@ -287,24 +311,7 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     if add_time_increment > 0:
         add_msg = window_instance._("add_time", "Add {seconds}s", seconds=add_time_increment)
         def on_add_time():
-            window_instance.remaining_time += add_time_increment
-            window_instance.pulse_active = True
-            
-            # Notify parent process to extend its watchdog timeout
-            print(f"GDS_GUI_TIME_ADDED:{add_time_increment}", flush=True)
-            
-            # Update label immediately to avoid flashing
-            added_msg = window_instance._("time_added", "Time added!")
-            status_label.config(text=f"{added_msg} {window_instance.remaining_time}s", fg=get_gui_colors()["pulse"])
-            
-            def reset_pulse():
-                if not window_instance.window_closed:
-                    window_instance.pulse_active = False
-                    # Switch back to normal countdown text immediately
-                    rem_msg = window_instance._('time_remaining', 'Remaining:')
-                    status_label.config(text=f"{rem_msg} {window_instance.remaining_time}s", fg=window_instance._default_status_fg)
-            
-            window_instance.root.after(2000, reset_pulse)
+            window_instance.trigger_add_time(add_time_increment, status_label)
         
         # Register for remote trigger
         window_instance.on_remote_add_time = on_add_time
