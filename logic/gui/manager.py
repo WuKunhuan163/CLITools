@@ -105,6 +105,13 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     sys.stdout.write(f"\r\033[K{display_msg}")
     sys.stdout.flush()
 
+    stdout_content = []
+    def read_stdout():
+        for line in iter(proc.stdout.readline, ''): stdout_content.append(line)
+        proc.stdout.close()
+    t_stdout = threading.Thread(target=read_stdout, daemon=True)
+    t_stdout.start()
+
     stderr_content = []
     def read_stderr():
         for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
@@ -138,11 +145,18 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             # 2. Watchdog check
             if time.time() - start_wait > parent_timeout:
                 proc.kill()
-                sys.stdout.write("\r\033[K"); sys.stdout.flush()
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
+                t_stdout.join(timeout=2)
+                t_stderr.join(timeout=2)
                 return {"status": "timeout", "data": None}
             time.sleep(0.5)
-        stdout, _ = proc.communicate()
+        
+        proc.wait() # Wait for process to exit
+        t_stdout.join(timeout=2)
         t_stderr.join(timeout=2)
+        stdout = "".join(stdout_content)
+        stderr = "".join(stderr_content)
     except (Exception, KeyboardInterrupt) as e:
         if isinstance(e, KeyboardInterrupt):
             is_interrupted = True
@@ -155,11 +169,24 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         
         try:
             # Wait for GUI to detect flag, finalize and print JSON
-            stdout, _ = proc.communicate(timeout=4)
+            # Instead of communicate, we wait for proc and join threads
+            start_grace = time.time()
+            while proc.poll() is None and time.time() - start_grace < 4:
+                time.sleep(0.1)
+            
+            if proc.poll() is None:
+                proc.kill()
+            
+            t_stdout.join(timeout=1)
             t_stderr.join(timeout=1)
+            stdout = "".join(stdout_content)
+            stderr = "".join(stderr_content)
         except:
             proc.kill()
-            stdout = ""
+            t_stdout.join(timeout=1)
+            t_stderr.join(timeout=1)
+            stdout = "".join(stdout_content)
+            stderr = "".join(stderr_content)
         
         if not stdout:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
@@ -168,8 +195,6 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             raise e
 
     sys.stdout.write("\r\033[K"); sys.stdout.flush()
-    stdout = "".join(stdout_content)
-    stderr = "".join(stderr_content)
     
     # Parse JSON result
     res = None
