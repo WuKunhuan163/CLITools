@@ -30,8 +30,8 @@ class SemanticsEngine:
         # Use very strict thresholds to find atomic blocks
         clusters = la.cluster_tokens(tokens, h_threshold=4, v_threshold=4)
         
-        # Predict separators
-        separators = la.predict_separators(clusters, self.page_width*zoom, self.page_height*zoom)
+        # Predict separators using tokens
+        separators = la.predict_separators(tokens, self.page_width*zoom, self.page_height*zoom)
         
         # Visualize layout
         viz_path = output_dir / "2_layout_analysis.png"

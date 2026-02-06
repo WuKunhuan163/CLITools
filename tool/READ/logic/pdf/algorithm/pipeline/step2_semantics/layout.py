@@ -63,57 +63,64 @@ class LayoutAnalyzer:
             
         return False
 
-    def predict_separators(self, clusters: List[Dict[str, Any]], page_width: float, page_height: float) -> List[Dict[str, Any]]:
+    def predict_separators(self, tokens: List[Dict[str, Any]], page_width: float, page_height: float) -> List[Dict[str, Any]]:
         """
-        Predicts logical separators between clusters.
+        Predicts logical separators using Distance Transform Ridges with aggressive filtering.
         """
+        import numpy as np
+        from scipy.ndimage import distance_transform_edt, maximum_filter, label
+        
+        w, h = int(round(page_width)), int(round(page_height))
+        
+        # 1. Create content mask
+        mask = np.zeros((h, w), dtype=bool)
+        for tk in tokens:
+            if tk.get("is_absorbed"): continue
+            x0, y0, x1, y1 = [int(round(c)) for c in tk["bbox"]]
+            mask[max(0, y0):min(h, y1), max(0, x0):min(w, x1)] = True
+            
+        # 2. Distance Transform of background
+        dt = distance_transform_edt(~mask)
+        
+        # 3. Find ridges (local maxima)
+        # Increase threshold to find significant gaps (at least 8px wide at zoom=2)
+        # dt > 4 means gap is > 8px wide.
+        local_max = (dt == maximum_filter(dt, size=7)) & (dt > 4)
+        
+        # 4. Connected components of ridges
+        labeled_ridges, num_ridges = label(local_max)
+        
         separators = []
+        for i in range(1, num_ridges + 1):
+            m = (labeled_ridges == i)
+            coords = np.where(m)
+            y_coords, x_coords = coords[0], coords[1]
+            
+            # Use a much longer minimum length (at least 100px)
+            if len(y_coords) < 100: continue 
+            
+            x0, y0, x1, y1 = np.min(x_coords), np.min(y_coords), np.max(x_coords), np.max(y_coords)
+            width = x1 - x0
+            height = y1 - y0
+            
+            # Refine bbox: take the average width/height if it's very thin
+            if height > width * 5: # Vertical
+                # Adjust x0, x1 to be the center x +/- 2
+                avg_x = np.mean(x_coords)
+                separators.append({
+                    "type": "separator", "subtype": "vertical",
+                    "bbox": [float(avg_x - 2), float(y0), float(avg_x + 2), float(y1)],
+                    "order_changing": True
+                })
+            elif width > height * 5: # Horizontal
+                avg_y = np.mean(y_coords)
+                separators.append({
+                    "type": "separator", "subtype": "horizontal",
+                    "bbox": [float(x0), float(avg_y - 2), float(x1), float(avg_y + 2)],
+                    "order_changing": False
+                })
         
-        # 1. Vertical Separators (Potential Column Splits)
-        sorted_x = sorted(clusters, key=lambda c: c["bbox"][0])
-        for i in range(len(sorted_x)):
-            for j in range(i + 1, len(sorted_x)):
-                c1, c2 = sorted_x[i], sorted_x[j]
-                
-                # Gap in X
-                gap_x0 = c1["bbox"][2]
-                gap_x1 = c2["bbox"][0]
-                
-                if gap_x1 > gap_x0 + 10:
-                    # Vertical overlap
-                    v_overlap_y0 = max(c1["bbox"][1], c2["bbox"][1])
-                    v_overlap_y1 = min(c1["bbox"][3], c2["bbox"][3])
-                    
-                    if v_overlap_y1 > v_overlap_y0 + 100: # Significant vertical overlap
-                        separators.append({
-                            "type": "separator", "subtype": "vertical",
-                            "bbox": [gap_x0, v_overlap_y0, gap_x1, v_overlap_y1],
-                            "order_changing": True
-                        })
-                        
-        # 2. Horizontal Separators (Content Divisions)
-        sorted_y = sorted(clusters, key=lambda c: c["bbox"][1])
-        for i in range(len(sorted_y)):
-            for j in range(i + 1, len(sorted_y)):
-                c1, c2 = sorted_y[i], sorted_y[j]
-                
-                # Gap in Y
-                gap_y0 = c1["bbox"][3]
-                gap_y1 = c2["bbox"][1]
-                
-                if gap_y1 > gap_y0 + 15:
-                    # Horizontal overlap
-                    h_overlap_x0 = max(c1["bbox"][0], c2["bbox"][0])
-                    h_overlap_x1 = min(c1["bbox"][2], c2["bbox"][2])
-                    
-                    if h_overlap_x1 > h_overlap_x0 + 100: # Significant horizontal overlap
-                        separators.append({
-                            "type": "separator", "subtype": "horizontal",
-                            "bbox": [h_overlap_x0, gap_y0, h_overlap_x1, gap_y1],
-                            "order_changing": False
-                        })
-        
-        # 3. Refine: Merge overlapping/nearby separators of the same type
+        # Merge collinear separators
         separators = self._merge_separators(separators)
         
         return separators
@@ -129,15 +136,26 @@ class LayoutAnalyzer:
                     s1, s2 = separators[i], separators[j]
                     if s1["subtype"] != s2["subtype"]: continue
                     
-                    # If they overlap or are very close, merge them
-                    if self._is_nearby(s1["bbox"], s2["bbox"], 10, 10):
+                    # Collinear check
+                    is_collinear = False
+                    if s1["subtype"] == "vertical":
+                        # Check X proximity and Y gap
+                        if abs(s1["bbox"][0] - s2["bbox"][0]) < 10:
+                            y_gap = max(0, s1["bbox"][1] - s2["bbox"][3], s2["bbox"][1] - s1["bbox"][3])
+                            if y_gap < 50: is_collinear = True
+                    else: # horizontal
+                        # Check Y proximity and X gap
+                        if abs(s1["bbox"][1] - s2["bbox"][1]) < 10:
+                            x_gap = max(0, s1["bbox"][0] - s2["bbox"][2], s2["bbox"][0] - s1["bbox"][2])
+                            if x_gap < 50: is_collinear = True
+                    
+                    if is_collinear:
                         separators[i]["bbox"] = [
                             min(s1["bbox"][0], s2["bbox"][0]),
                             min(s1["bbox"][1], s2["bbox"][1]),
                             max(s1["bbox"][2], s2["bbox"][2]),
                             max(s1["bbox"][3], s2["bbox"][3])
                         ]
-                        # If either is order-changing, the merged one is too (aggressive)
                         separators[i]["order_changing"] = s1["order_changing"] or s2["order_changing"]
                         separators.pop(j)
                         merged = True
