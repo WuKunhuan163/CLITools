@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from fpdf import FPDF
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 from typing import List, Dict, Any, Tuple
 
@@ -29,20 +29,39 @@ class SemanticsEngine:
         # Perform Recursive Slicing Analysis
         separators, ordered_tokens = la.analyze(tokens, self.page_width*zoom, self.page_height*zoom)
         
-        # Visualize layout
-        # 2.1 Separator Analysis (Rename from 2_layout_analysis.png)
-        viz_analysis_path = output_dir / "2.1_separator_analysis.png"
-        la.visualize_layout(separators, la.zones, la.all_tokens, viz_analysis_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
+        # --- Visualization Refactoring ---
+        from .viz_helper import VizHelper
+        vh = VizHelper(str(self.project_root), self.font_dir)
         
-        # 2.2 Separator Reproduction (High quality PDF-based)
-        # Draw only order-changing separators
+        w_z, h_z = int(self.page_width*zoom), int(self.page_height*zoom)
+        
+        # 2.1 Separator Analysis (Colored separators, zones, background text)
+        viz_21_img = Image.new("RGBA", (w_z, h_z), (255, 255, 255, 255))
+        draw_21 = ImageDraw.Draw(viz_21_img)
+        # Background text (no bbox)
+        vh.render_tokens(draw_21, la.all_tokens, draw_text=True, draw_bbox=False)
+        # Zones
+        for zone in la.zones: draw_21.rectangle(zone["bbox"], fill=(200, 200, 200, 100))
+        # Separators (all, colored)
+        vh.render_separators(draw_21, separators, only_order_changing=False)
+        viz_21_img.save(output_dir / "2.1_separator_analysis.png")
+        
+        # 2.2 Separator Reproduction (High quality PDF-based background + black separators)
+        # Actually, for 2.2, we keep the high-quality PDF background as requested
         active_seps = [s for s in separators if s.get("order_changing")]
         self.reproduce_initial_pdf(tokens, output_dir, zoom, name="2.2_separator_reproduced", 
                                    exclude_lines=True, separators=active_seps)
         
-        # 3.1 Line & Block Info Visualization
-        viz_line_block_path = output_dir / "3.1_line_block_info.png"
-        la.visualize_line_block_info(separators, la.all_tokens, viz_line_block_path, int(self.page_width*zoom), int(self.page_height*zoom))
+        # 3.1 Line & Block Info Visualization (Background text + outlines)
+        viz_31_img = Image.new("RGBA", (w_z, h_z), (255, 255, 255, 255))
+        draw_31 = ImageDraw.Draw(viz_31_img)
+        # Background text (with light green bbox as requested)
+        vh.render_tokens(draw_31, la.all_tokens, draw_text=True, draw_bbox=True, bbox_alpha=60)
+        # Line & Block outlines
+        vh.render_line_block_info(draw_31, la.all_tokens)
+        # Active separators
+        vh.render_separators(draw_31, separators, only_order_changing=True)
+        viz_31_img.save(output_dir / "3.1_line_block_info.png")
         
         # Save analysis data
         analysis_data = {
