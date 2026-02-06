@@ -348,9 +348,18 @@ class Preprocessor:
             for i in range(1, len(line)):
                 prev_g, curr_g, curr_a, curr_c = line[i-1]["glyph"], line[i]["glyph"], line[i]["actual"], line[i].get("c", "")
                 gap = curr_g[0] - prev_g[2]
-                same_style = (line[i].get("font") == curr_word["font"] and line[i].get("size") == curr_word["size"])
                 
-                if gap < 3 and same_style:
+                # Dynamic space detection
+                # Default expected space width is ~0.25 of font size
+                # User parameter: space_threshold_ratio = 0.5
+                font_size = curr_word["size"]
+                expected_space = font_size * 0.25
+                space_threshold = 0.5 * expected_space
+                
+                same_style = (line[i].get("font") == curr_word["font"] and abs(line[i].get("size", 0) - curr_word["size"]) < 0.1)
+                
+                # Split if gap is larger than threshold or styles differ
+                if gap < space_threshold and same_style:
                     curr_word["text"] += curr_c
                     curr_word["bbox"] = [min(curr_word["bbox"][0], curr_a[0]), min(curr_word["bbox"][1], curr_a[1]), max(curr_word["bbox"][2], curr_a[2]), max(curr_word["bbox"][3], curr_a[3])]
                     curr_word["glyph_bbox"] = [min(curr_word["glyph_bbox"][0], curr_g[0]), min(curr_word["glyph_bbox"][1], curr_g[1]), max(curr_word["glyph_bbox"][2], curr_g[2]), max(curr_word["glyph_bbox"][3], curr_g[3])]
