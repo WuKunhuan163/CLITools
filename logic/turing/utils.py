@@ -9,7 +9,12 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path], tool_name
     """Saves full error information to a log file."""
     if not project_root or not tool_name: return None
     
-    log_dir = project_root / "data" / "log" / tool_name
+    # User requested to save log inside the tool's data/log directory
+    if tool_name != "TOOL":
+        log_dir = project_root / "tool" / tool_name / "data" / "log"
+    else:
+        log_dir = project_root / "data" / "log"
+    
     log_dir.mkdir(parents=True, exist_ok=True)
     
     ts = time.strftime("%Y%m%d_%H%M%S")
