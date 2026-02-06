@@ -110,9 +110,11 @@ class ProgressTuringMachine:
                                 full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
                             
                             full_msg_fail += f". Reason: {brief_reason}"
-                            if log_path: full_msg_fail += f" (Log: {log_path})"
+                            sys.stdout.write(f"\r\033[K{full_msg_fail}\n")
+                            if log_path:
+                                log_msg = f"{BOLD}Traceback saved to{RESET}: {log_path}"
+                                sys.stdout.write(f"{log_msg}\n")
                                 
-                            sys.stdout.write(f"{truncate_to_width(full_msg_fail, width)}\n")
                             sys.stdout.flush()
                             return False
                     except Exception as e:
@@ -130,9 +132,11 @@ class ProgressTuringMachine:
                         brief_reason = stage.error_brief or str(e).split('\n')[0]
                         
                         fail_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}"
-                        if log_path: fail_msg += f" (Log: {log_path})"
+                        sys.stdout.write(f"{fail_msg}\n")
+                        if log_path:
+                            log_msg = f"{BOLD}Traceback saved to{RESET}: {log_path}"
+                            sys.stdout.write(f"{log_msg}\n")
                             
-                        sys.stdout.write(f"{truncate_to_width(fail_msg, width)}\n")
                         sys.stdout.flush()
                         return False
                 
