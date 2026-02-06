@@ -98,10 +98,6 @@ class ParallelWorkerPool:
                 else:
                     res = func(*args, **kwargs)
                 
-                if success_callback:
-                    success_callback(task_id, res)
-                
-                # Assume success if res is not False or a dict with success=False
                 if isinstance(res, dict) and not res.get("success", True):
                     log_path = log_turing_error(stage, self.project_root, self.tool_name)
                     res["log_path"] = log_path
@@ -109,6 +105,9 @@ class ParallelWorkerPool:
                     if success_callback:
                         success_callback(task_id, res)
                     return False
+                
+                if success_callback:
+                    success_callback(task_id, res)
                 return res if res is not False else False
             except Exception as e:
                 if isinstance(e, TuringError):

@@ -241,10 +241,11 @@ class ReadTool(ToolBase):
                 reason = stats.get("error_brief", stats.get("error", "Unknown error"))
                 log_path = stats.get("log_path")
                 
-                msg = f"\r\033[K{RED}{failed_label}{RESET} Page {p_id} in {file_path.name}. Reason: {reason}"
-                if log_path:
-                    msg += f" ({self.get_color('BOLD')}Traceback saved to: {log_path}{RESET})"
+                msg = f"\r\033[K{RED}{failed_label}{RESET} Page {p_id} in {file_path.name}. Reason: {reason}."
                 print(msg)
+                if log_path:
+                    log_msg = f"{self.get_color('BOLD')}Traceback saved to:{RESET} {log_path}"
+                    print(log_msg)
 
         if success_pages:
             success_label = self.get_translation("label_successfully_extracted", "Successfully extracted")

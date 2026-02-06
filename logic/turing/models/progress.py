@@ -98,10 +98,10 @@ class ProgressTuringMachine:
                             else:
                                 full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
                             
-                            full_msg_fail += f". Reason: {brief_reason}"
+                            full_msg_fail += f". Reason: {brief_reason}."
                             sys.stdout.write(f"\r\033[K{full_msg_fail}\n")
                             if log_path:
-                                log_msg = f"{BOLD}Traceback saved to{RESET}: {log_path}"
+                                log_msg = f"{BOLD}Traceback saved to:{RESET} {log_path}"
                                 sys.stdout.write(f"{log_msg}\n")
                                 
                             sys.stdout.flush()
@@ -120,10 +120,10 @@ class ProgressTuringMachine:
                         fail_name = stage.fail_name or stage.name
                         brief_reason = stage.error_brief or str(e).split('\n')[0]
                         
-                        fail_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}"
+                        fail_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}."
                         sys.stdout.write(f"{fail_msg}\n")
                         if log_path:
-                            log_msg = f"{BOLD}Traceback saved to{RESET}: {log_path}"
+                            log_msg = f"{BOLD}Traceback saved to:{RESET} {log_path}"
                             sys.stdout.write(f"{log_msg}\n")
                             
                         sys.stdout.flush()

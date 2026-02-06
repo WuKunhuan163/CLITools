@@ -46,7 +46,7 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                     "chars": span.get("chars", []),
                     "block_id": b_idx, "line_id": l_idx # Preserve raw structure
                 })
-
+    
     try:
         from tool.DRAW.logic.interface.main import get_interface as get_draw_interface
         draw_iface = get_draw_interface()
