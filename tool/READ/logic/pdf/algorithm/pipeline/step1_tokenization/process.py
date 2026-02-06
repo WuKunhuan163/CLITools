@@ -166,7 +166,8 @@ class Preprocessor:
             if len(r) > 0 and len(c) > 0:
                 width, height = len(c), len(r)
                 if (width * height >= 40) or (width > 50) or (height > 50):
-                    bboxes.append((int(c[0]), int(r[0]), int(c[-1]), int(r[-1])))
+                    # Use index + 1 for the end coordinates to correctly include the last pixels in PIL crops
+                    bboxes.append((int(c[0]), int(r[0]), int(c[-1]) + 1, int(r[-1]) + 1))
         return bboxes
 
     def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]], spans: List[Dict[str, Any]] = None, vis_img: Image.Image = None) -> List[Dict[str, Any]]:

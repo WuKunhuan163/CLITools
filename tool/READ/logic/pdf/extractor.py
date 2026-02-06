@@ -244,7 +244,11 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                 
                 # Compose merged token image from components
                 try:
+                    # Apply +1 padding to right and bottom boundaries to handle PIL's exclusive crop
                     tx0, ty0, tx1, ty1 = [int(round(c)) for c in tk["bbox"]]
+                    tx1 += 1
+                    ty1 += 1
+                    
                     if tx1 > tx0 and ty1 > ty0:
                         # Create canvas with background color
                         canvas = Image.new("RGBA", (tx1 - tx0, ty1 - ty0), bg_color + (255,))
@@ -272,7 +276,11 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
                             if tid in text_tokens_map:
                                 ttk = text_tokens_map[tid]
                                 wbox = ttk["bbox"]
+                                # Also include +1 padding for absorbed text crops
                                 wx0, wy0, wx1, wy1 = [int(round(c)) for c in wbox]
+                                wx1 += 1
+                                wy1 += 1
+                                
                                 if wx1 > wx0 and wy1 > wy0:
                                     # Crop from original vis_img (which contains the text)
                                     text_crop = vis_img.crop((wx0, wy0, wx1, wy1)).convert("RGBA")
