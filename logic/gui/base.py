@@ -181,6 +181,17 @@ class BaseGUIWindow:
         if self.root:
             self.root.after(self.focus_interval * 1000, refocus)
 
+    def finalize(self, status: str, data: Any, reason: Optional[str] = None):
+        """Unified closure point (Interface I). status: success, cancelled, timeout, terminated, error."""
+        if not self.window_closed:
+            self.window_closed = True
+            self.result = {"status": status, "data": data}
+            if reason:
+                self.result["reason"] = reason
+            try:
+                if self.root: self.root.destroy()
+            except: pass
+
     def trigger_add_time(self, increment: int, status_label: Optional[tk.Label] = None):
         """
         Atomically increments remaining time, notifies parent, and updates UI.
@@ -196,8 +207,7 @@ class BaseGUIWindow:
             flag_file = added_time_dir / f"{os.getpid()}_{ts}_{increment}.add"
             flag_file.touch()
         except:
-            # Fallback to print if file system fails
-            print(f"GDS_GUI_TIME_ADDED:{increment}", flush=True)
+            pass
 
         # 2. Update Internal State
         self.remaining_time += increment
