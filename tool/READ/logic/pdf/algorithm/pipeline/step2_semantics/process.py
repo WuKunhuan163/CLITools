@@ -19,8 +19,8 @@ class SemanticsEngine:
         self.font_dir = self.project_root / "resource" / "tool" / "FONT" / "data" / "install"
 
     def process(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, background_img: Image.Image = None) -> List[Dict[str, Any]]:
-        # 1. Initial PDF Reconstruction
-        self.reproduce_initial_pdf(tokens, output_dir, zoom)
+        # 1. Initial PDF Reconstruction (Stage 1 status)
+        self.reproduce_initial_pdf(tokens, output_dir, zoom, name="1_initial_status_reproduced")
         
         # 2. Layout Analysis (Recursive Slicing)
         from .layout import LayoutAnalyzer
@@ -34,9 +34,11 @@ class SemanticsEngine:
         viz_analysis_path = output_dir / "2.1_separator_analysis.png"
         la.visualize_layout(separators, la.zones, la.all_tokens, viz_analysis_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
         
-        # 2.2 Separator Reproduction
-        viz_repro_path = output_dir / "2.2_separator_reproduced.png"
-        la.visualize_reproduction(separators, la.all_tokens, viz_repro_path, int(self.page_width*zoom), int(self.page_height*zoom))
+        # 2.2 Separator Reproduction (High quality PDF-based)
+        # Draw only order-changing separators
+        active_seps = [s for s in separators if s.get("order_changing")]
+        self.reproduce_initial_pdf(tokens, output_dir, zoom, name="2.2_separator_reproduced", 
+                                   exclude_lines=True, separators=active_seps)
         
         # Save analysis data
         analysis_data = {
@@ -58,9 +60,10 @@ class SemanticsEngine:
                 })
         return semantic_items
 
-    def reproduce_initial_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float):
+    def reproduce_initial_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, name: str = "1_initial_status_reproduced", exclude_lines: bool = False, separators: List[Dict[str, Any]] = None):
         """
         Reproduces the PDF layout using Stage 1 tokens and glyph bboxes.
+        Optionally excludes lines and adds separators.
         """
         pdf = FPDF(unit="pt", format=[self.page_width, self.page_height])
         pdf.set_auto_page_break(auto=False)
@@ -68,8 +71,8 @@ class SemanticsEngine:
         
         # Register Arial variants as default fallback
         arial_variants = {"": "arial", "B": "arial-bold", "I": "arial-italic", "BI": "arial-bold-italic"}
-        for style, name in arial_variants.items():
-            p = self.font_dir / name / "font.ttf"
+        for style, name_v in arial_variants.items():
+            p = self.font_dir / name_v / "font.ttf"
             if p.exists(): pdf.add_font("Arial", style, str(p))
         
         # Cache for registered fonts: {family: [styles]}
@@ -81,6 +84,8 @@ class SemanticsEngine:
         # 1. Render Visual Tokens First
         for tk in tokens:
             if tk["type"] == "visual":
+                if exclude_lines and tk.get("subtype") in ["line", "rect"]: continue
+                
                 v_bbox = [c / zoom for c in tk["bbox"]]
                 # Try to embed the merged image token if it exists
                 token_img_path = output_dir.parent / "step1_tokenization" / "7_merged_image_tokens" / f"{tk['id']}.png"
@@ -95,7 +100,7 @@ class SemanticsEngine:
                     pdf.set_draw_color(200, 200, 200)
                     pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
 
-        # 2. Render Text Tokens Last (to avoid occlusion)
+        # 2. Render Text Tokens
         for tk in tokens:
             if tk["type"] == "text" and not tk.get("is_absorbed"):
                 bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
@@ -117,7 +122,6 @@ class SemanticsEngine:
                     if p.exists():
                         pdf.add_font(norm_family, "", str(p))
                         variants_found.append("")
-                        # If the font name itself implies bold or italic, register it as that variant too
                         if "bold" in norm_family:
                             pdf.add_font(norm_family, "B", str(p))
                             variants_found.append("B")
@@ -128,7 +132,7 @@ class SemanticsEngine:
                             pdf.add_font(norm_family, "BI", str(p))
                             variants_found.append("BI")
                     
-                    # 2. Bold (if not already found)
+                    # 2. Bold
                     if "B" not in variants_found:
                         p_bold = self.font_dir / f"{norm_family}-bold" / "font.ttf"
                         if not p_bold.exists() and "-blond" in norm_family:
@@ -137,40 +141,25 @@ class SemanticsEngine:
                             p_bold = self.font_dir / norm_family.replace("-book", "-bold") / "font.ttf"
                         if p_bold.exists(): pdf.add_font(norm_family, "B", str(p_bold)); variants_found.append("B")
                     
-                    # 3. Italic (if not already found)
+                    # 3. Italic
                     if "I" not in variants_found:
                         p_italic = self.font_dir / f"{norm_family}-italic" / "font.ttf"
                         if not p_italic.exists() and "-blond" in norm_family:
                             p_italic = self.font_dir / norm_family.replace("-blond", "-blonditalic") / "font.ttf"
                         if p_italic.exists(): pdf.add_font(norm_family, "I", str(p_italic)); variants_found.append("I")
                     
-                    # 4. Bold Italic (if not already found)
+                    # 4. Bold Italic
                     if "BI" not in variants_found:
                         p_bi = self.font_dir / f"{norm_family}-bold-italic" / "font.ttf"
                         if not p_bi.exists() and "-blond" in norm_family:
                             p_bi = self.font_dir / norm_family.replace("-blond", "-bolditalic") / "font.ttf"
-                        if not p_bi.exists():
-                            # Try to find any bold variant to use as fallback
-                            if "B" in variants_found:
-                                # We already registered it as "B", but fpdf2 needs it registered as "BI" too
-                                # We'll do this below
-                                pass
-                        
-                        if p_bi and p_bi.exists():
-                            pdf.add_font(norm_family, "BI", str(p_bi))
-                            variants_found.append("BI")
-                        elif "B" in variants_found:
-                            # Fallback BI to B if BI is missing but B exists
-                            # We need the path again
+                        if not p_bi.exists() and "B" in variants_found:
                             p_fallback = self.font_dir / f"{norm_family}-bold" / "font.ttf"
                             if not p_fallback.exists() and "-blond" in norm_family:
                                 p_fallback = self.font_dir / norm_family.replace("-blond", "-bold") / "font.ttf"
-                            if not p_fallback.exists():
-                                p_fallback = self.font_dir / norm_family / "font.ttf" # Last resort
-                            
-                            if p_fallback.exists():
-                                pdf.add_font(norm_family, "BI", str(p_fallback))
-                                variants_found.append("BI")
+                            if not p_fallback.exists(): p_fallback = self.font_dir / norm_family / "font.ttf"
+                            if p_fallback.exists(): pdf.add_font(norm_family, "BI", str(p_fallback)); variants_found.append("BI")
+                        elif p_bi and p_bi.exists(): pdf.add_font(norm_family, "BI", str(p_bi)); variants_found.append("BI")
                     
                     if variants_found: registered_fonts[norm_family] = variants_found
                     else:
@@ -200,8 +189,17 @@ class SemanticsEngine:
                     clean_text = "".join([c if ord(c) < 256 else "?" for c in tk["text"]])
                     try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=0)
                     except: pass
+                    
+        # 3. Render Separators Last
+        if separators:
+            pdf.set_draw_color(0, 0, 0)
+            pdf.set_line_width(0.5)
+            for s in separators:
+                bbox = [c / zoom for c in s["bbox"]]
+                # Draw a thin line
+                pdf.line(bbox[0], bbox[1], bbox[2], bbox[3])
 
-        pdf_output_path = output_dir / "1_initial_status_reproduced.pdf"
+        pdf_output_path = output_dir / f"{name}.pdf"
         pdf.output(str(pdf_output_path))
         
         # Render to PNG for verification
@@ -209,5 +207,5 @@ class SemanticsEngine:
         doc = fitz.open(str(pdf_output_path))
         page = doc[0]
         pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom))
-        pix.save(str(output_dir / "1_initial_status_reproduced.png"))
+        pix.save(str(output_dir / f"{name}.png"))
         doc.close()
