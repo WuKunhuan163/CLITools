@@ -65,62 +65,130 @@ class LayoutAnalyzer:
 
     def predict_separators(self, clusters: List[Dict[str, Any]], page_width: float, page_height: float) -> List[Dict[str, Any]]:
         """
-        Predicts logical separators between clusters that change reading order.
+        Predicts logical separators between clusters.
         """
         separators = []
         
-        # For now, let's look for vertical column separators
-        # A vertical separator is a gap that:
-        # 1. Has significant height.
-        # 2. Has clusters on both its left and right.
-        
-        # Sort clusters by x
-        sorted_clusters = sorted(clusters, key=lambda c: c["bbox"][0])
-        
-        for i in range(len(sorted_clusters)):
-            for j in range(i + 1, len(sorted_clusters)):
-                c1 = sorted_clusters[i]
-                c2 = sorted_clusters[j]
+        # 1. Vertical Separators (Potential Column Splits)
+        sorted_x = sorted(clusters, key=lambda c: c["bbox"][0])
+        for i in range(len(sorted_x)):
+            for j in range(i + 1, len(sorted_x)):
+                c1, c2 = sorted_x[i], sorted_x[j]
                 
-                # Check for horizontal gap
+                # Gap in X
                 gap_x0 = c1["bbox"][2]
                 gap_x1 = c2["bbox"][0]
                 
-                if gap_x1 > gap_x0 + 10: # Minimum 10pt gap
-                    # Check vertical overlap
-                    overlap_y0 = max(c1["bbox"][1], c2["bbox"][1])
-                    overlap_y1 = min(c1["bbox"][3], c2["bbox"][3])
+                if gap_x1 > gap_x0 + 10:
+                    # Vertical overlap
+                    v_overlap_y0 = max(c1["bbox"][1], c2["bbox"][1])
+                    v_overlap_y1 = min(c1["bbox"][3], c2["bbox"][3])
                     
-                    if overlap_y1 > overlap_y0 + 50: # Minimum 50pt vertical overlap
-                        # This is a candidate for a vertical separator
+                    if v_overlap_y1 > v_overlap_y0 + 100: # Significant vertical overlap
                         separators.append({
-                            "type": "separator",
-                            "subtype": "vertical",
-                            "bbox": [gap_x0, overlap_y0, gap_x1, overlap_y1],
+                            "type": "separator", "subtype": "vertical",
+                            "bbox": [gap_x0, v_overlap_y0, gap_x1, v_overlap_y1],
                             "order_changing": True
                         })
+                        
+        # 2. Horizontal Separators (Content Divisions)
+        sorted_y = sorted(clusters, key=lambda c: c["bbox"][1])
+        for i in range(len(sorted_y)):
+            for j in range(i + 1, len(sorted_y)):
+                c1, c2 = sorted_y[i], sorted_y[j]
+                
+                # Gap in Y
+                gap_y0 = c1["bbox"][3]
+                gap_y1 = c2["bbox"][1]
+                
+                if gap_y1 > gap_y0 + 15:
+                    # Horizontal overlap
+                    h_overlap_x0 = max(c1["bbox"][0], c2["bbox"][0])
+                    h_overlap_x1 = min(c1["bbox"][2], c2["bbox"][2])
+                    
+                    if h_overlap_x1 > h_overlap_x0 + 100: # Significant horizontal overlap
+                        separators.append({
+                            "type": "separator", "subtype": "horizontal",
+                            "bbox": [h_overlap_x0, gap_y0, h_overlap_x1, gap_y1],
+                            "order_changing": False
+                        })
+        
+        # 3. Refine: Merge overlapping/nearby separators of the same type
+        separators = self._merge_separators(separators)
         
         return separators
 
-    def visualize_layout(self, clusters: List[Dict[str, Any]], separators: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int):
-        img = Image.new("RGBA", (page_width, page_height), (255, 255, 255, 255))
+    def _merge_separators(self, separators: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not separators: return []
+        
+        merged = True
+        while merged:
+            merged = False
+            for i in range(len(separators)):
+                for j in range(i + 1, len(separators)):
+                    s1, s2 = separators[i], separators[j]
+                    if s1["subtype"] != s2["subtype"]: continue
+                    
+                    # If they overlap or are very close, merge them
+                    if self._is_nearby(s1["bbox"], s2["bbox"], 10, 10):
+                        separators[i]["bbox"] = [
+                            min(s1["bbox"][0], s2["bbox"][0]),
+                            min(s1["bbox"][1], s2["bbox"][1]),
+                            max(s1["bbox"][2], s2["bbox"][2]),
+                            max(s1["bbox"][3], s2["bbox"][3])
+                        ]
+                        # If either is order-changing, the merged one is too (aggressive)
+                        separators[i]["order_changing"] = s1["order_changing"] or s2["order_changing"]
+                        separators.pop(j)
+                        merged = True
+                        break
+                if merged: break
+        return separators
+
+    def visualize_layout(self, clusters: List[Dict[str, Any]], separators: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int, background_img: Image.Image = None):
+        if background_img:
+            img = background_img.convert("RGBA").copy()
+            # Ensure background matches expected size
+            if img.size != (page_width, page_height):
+                img = img.resize((page_width, page_height), Image.LANCZOS)
+        else:
+            img = Image.new("RGBA", (page_width, page_height), (255, 255, 255, 255))
+            
         draw = ImageDraw.Draw(img)
         
-        # Draw clusters
+        # 1. Draw clusters (subtle outline)
         for i, c in enumerate(clusters):
             bbox = c["bbox"]
-            draw.rectangle(bbox, outline="blue", width=2)
-            draw.text((bbox[0], bbox[1]), f"C{i+1}", fill="blue")
+            draw.rectangle(bbox, outline=(0, 0, 255, 100), width=1)
+            # draw.text((bbox[0], bbox[1]), f"C{i+1}", fill=(0, 0, 255, 150))
             
-        # Draw separators
+        # 2. Draw separators
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        d_overlay = ImageDraw.Draw(overlay)
+        
         for s in separators:
             bbox = s["bbox"]
-            color = "red" if s.get("order_changing") else "cyan"
-            # Draw as a filled rectangle with alpha
-            overlay = Image.new("RGBA", img.size, (0,0,0,0))
-            d_overlay = ImageDraw.Draw(overlay)
-            d_overlay.rectangle(bbox, fill=(255, 0, 0, 100) if color == "red" else (0, 255, 255, 100))
-            img = Image.alpha_composite(img, overlay)
+            is_order_changing = s.get("order_changing", False)
+            color = (255, 0, 0, 180) if is_order_changing else (0, 0, 255, 180)
             
+            # Draw as a slightly thicker line/box
+            d_overlay.rectangle(bbox, fill=color)
+            
+        img = Image.alpha_composite(img, overlay)
+        draw = ImageDraw.Draw(img) # Refresh draw for final elements
+        
+        # 3. Draw Legend at the bottom
+        legend_h = 40
+        legend_y = page_height - legend_h
+        draw.rectangle([0, legend_y, page_width, page_height], fill=(240, 240, 240, 255))
+        
+        # Red Legend
+        draw.rectangle([20, legend_y + 10, 50, legend_y + 30], fill=(255, 0, 0, 255))
+        draw.text((60, legend_y + 12), "Order-Changing Separator", fill="black")
+        
+        # Blue Legend
+        draw.rectangle([250, legend_y + 10, 280, legend_y + 30], fill=(0, 0, 255, 255))
+        draw.text((290, legend_y + 12), "Content-Dividing Separator (Order-Preserving)", fill="black")
+        
         img.save(output_path)
 

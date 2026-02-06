@@ -18,7 +18,7 @@ class SemanticsEngine:
         self.project_root = Path(project_root)
         self.font_dir = self.project_root / "resource" / "tool" / "FONT" / "data" / "install"
 
-    def process(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float) -> List[Dict[str, Any]]:
+    def process(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, background_img: Image.Image = None) -> List[Dict[str, Any]]:
         # 1. Initial PDF Reconstruction
         self.reproduce_initial_pdf(tokens, output_dir, zoom)
         
@@ -34,7 +34,7 @@ class SemanticsEngine:
         
         # Visualize layout
         viz_path = output_dir / "2_layout_analysis.png"
-        la.visualize_layout(clusters, separators, viz_path, int(self.page_width*zoom), int(self.page_height*zoom))
+        la.visualize_layout(clusters, separators, viz_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
         
         # 3. Return tokens as semantic items for now
         semantic_items = []

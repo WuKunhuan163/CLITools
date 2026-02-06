@@ -304,7 +304,7 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
 
     # --- Step 2: Semantics ---
     semantics = SemanticsEngine(page_rect, median_size, "/Applications/AITerminalTools")
-    final_items = semantics.process(tokens, step2_dir, zoom)
+    final_items = semantics.process(tokens, step2_dir, zoom, background_img=vis_img)
 
     page_content_parts, semantic_info = [], []
     for idx, item in enumerate(final_items):
