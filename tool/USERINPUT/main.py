@@ -405,6 +405,9 @@ def main():
     # AUTO-COMMIT: Save progress before waiting for feedback
     try:
         from tool.GIT.logic.engine import GitEngine
+        from logic.turing.logic import TuringStage
+        from logic.turing.models.progress import ProgressTuringMachine
+        
         git_engine = GitEngine(tool.project_root)
         current_branch = git_engine.get_current_branch()
         
@@ -412,20 +415,35 @@ def main():
         status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(tool.project_root)).strip()
         if status:
             ts = time.strftime("%H:%M:%S")
-            msg = f"USERINPUT auto-commit at {ts}"
-            print(f"{BOLD}{get_color('BLUE')}Saving progress...{RESET}")
-            subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True)
-            subprocess.run(["/usr/bin/git", "commit", "-m", msg], cwd=str(tool.project_root), capture_output=True)
+            commit_msg = f"USERINPUT auto-commit at {ts}"
             
-            # Force push to origin
-            print(f"{BOLD}{get_color('BLUE')}Backing up to remote...{RESET}")
-            subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True)
+            def do_save():
+                subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True)
+                res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True)
+                return res.returncode == 0
+                
+            def do_backup():
+                res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True)
+                return res.returncode == 0
+
+            pm = ProgressTuringMachine([
+                TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress"),
+                TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote")
+            ])
+            pm.run(ephemeral=True, final_newline=False)
+            
     except Exception as e:
         # Ignore errors during auto-commit so it doesn't block the tool
         pass
 
     for attempt in range(3):
         try:
+            # Show waiting message with properly styled ellipsis
+            waiting_label = get_msg("label_waiting", "Waiting for USERINPUT feedback via GUI")
+            waiting_msg = f"{BOLD}{get_color('BLUE')}{waiting_label}{RESET} (PID: {os.getpid()})..."
+            sys.stdout.write(f"\r\033[K{waiting_msg}")
+            sys.stdout.flush()
+            
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
             
             # FULL instruction from translation
