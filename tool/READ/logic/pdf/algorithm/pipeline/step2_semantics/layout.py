@@ -1,212 +1,303 @@
 import numpy as np
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from pathlib import Path
 from PIL import Image, ImageDraw
 
 class LayoutAnalyzer:
     def __init__(self, median_size: float):
         self.median_size = median_size
+        self.separators = []
+        self.zones = []
+        self.line_tokens = []
+        self.content_tokens = []
+        self.all_tokens = []
 
-    def cluster_tokens(self, tokens: List[Dict[str, Any]], h_threshold: float = 30, v_threshold: float = 10) -> List[Dict[str, Any]]:
+    def analyze(self, tokens: List[Dict[str, Any]], page_width: float, page_height: float) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
-        Groups tokens into clusters based on proximity.
+        Main entry point for layout analysis using Recursive Slicing.
+        Returns (separators, ordered_tokens).
         """
-        if not tokens: return []
+        self.all_tokens = tokens
+        self.line_tokens = [t for t in tokens if t.get("subtype") == "line" or t.get("subtype") == "rect"]
+        self.content_tokens = [t for t in tokens if t not in self.line_tokens and not t.get("is_absorbed")]
+        self.separators = []
+        self.zones = []
+
+        bbox = [0.0, 0.0, page_width, page_height]
+        self._slice_recursive(tokens, bbox)
         
-        # Prepare clusters (initially each token is a cluster)
-        clusters = []
-        for tk in tokens:
-            if tk.get("is_absorbed"): continue
-            clusters.append({
-                "bbox": list(tk["bbox"]),
-                "token_ids": [tk["id"]],
-                "type": tk["type"]
+        ordered_tokens = self._get_reading_order(tokens, bbox)
+        
+        # Format separators for final output
+        final_separators = []
+        for i, s in enumerate(self.separators):
+            final_separators.append({
+                "type": "separator",
+                "subtype": s["type"],
+                "id": f"S{i+1}",
+                "bbox": s["bbox"],
+                "order_changing": s["order_changing"],
+                "via_line": s.get("via_line", False)
             })
             
-        merged = True
-        while merged:
-            merged = False
-            for i in range(len(clusters)):
-                for j in range(i + 1, len(clusters)):
-                    if self._is_nearby(clusters[i]["bbox"], clusters[j]["bbox"], h_threshold, v_threshold):
-                        # Merge j into i
-                        clusters[i]["bbox"] = [
-                            min(clusters[i]["bbox"][0], clusters[j]["bbox"][0]),
-                            min(clusters[i]["bbox"][1], clusters[j]["bbox"][1]),
-                            max(clusters[i]["bbox"][2], clusters[j]["bbox"][2]),
-                            max(clusters[i]["bbox"][3], clusters[j]["bbox"][3])
-                        ]
-                        clusters[i]["token_ids"].extend(clusters[j]["token_ids"])
-                        clusters.pop(j)
-                        merged = True
-                        break
-                if merged: break
-        
-        return clusters
+        return final_separators, ordered_tokens
 
-    def _is_nearby(self, bbox1: List[float], bbox2: List[float], h_thresh: float, v_thresh: float) -> bool:
-        # Check horizontal proximity
-        h_overlap = min(bbox1[2], bbox2[2]) - max(bbox1[0], bbox2[0])
-        v_overlap = min(bbox1[3], bbox2[3]) - max(bbox1[1], bbox2[1])
-        
-        # If they overlap or are very close
-        if h_overlap > -h_thresh and v_overlap > -v_thresh:
-            # Additional check: are they actually close in at least one dimension?
-            # (If they are far in both, they are not nearby)
-            
-            # Horizontal distance
-            dx = max(0, bbox1[0] - bbox2[2], bbox2[0] - bbox1[2])
-            # Vertical distance
-            dy = max(0, bbox1[1] - bbox2[3], bbox2[1] - bbox1[3])
-            
-            return dx < h_thresh and dy < v_thresh
-            
-        return False
+    def _slice_recursive(self, tokens: List[Dict[str, Any]], bbox: List[float], depth: int = 0):
+        if not tokens or depth > 50:
+            return
 
-    def predict_separators(self, tokens: List[Dict[str, Any]], page_width: float, page_height: float) -> List[Dict[str, Any]]:
-        """
-        Predicts logical separators using Distance Transform Ridges with aggressive filtering.
-        """
-        import numpy as np
-        from scipy.ndimage import distance_transform_edt, maximum_filter, label
+        x0, y0, x1, y1 = bbox
+        curr_content = [t for t in tokens if t in self.content_tokens]
+        curr_lines = [t for t in tokens if t in self.line_tokens]
         
-        w, h = int(round(page_width)), int(round(page_height))
-        
-        # 1. Create content mask
-        mask = np.zeros((h, w), dtype=bool)
-        for tk in tokens:
-            if tk.get("is_absorbed"): continue
-            x0, y0, x1, y1 = [int(round(c)) for c in tk["bbox"]]
-            mask[max(0, y0):min(h, y1), max(0, x0):min(w, x1)] = True
+        if not curr_content:
+            return
+
+        text_tokens = [t for t in curr_content if t["type"] == "text"]
+        if text_tokens:
+            heights = [t.get("glyph_bbox", t["bbox"])[3] - t.get("glyph_bbox", t["bbox"])[1] for t in text_tokens]
+            median_h = np.median(heights)
+        else:
+            median_h = self.median_size
             
-        # 2. Distance Transform of background
-        dt = distance_transform_edt(~mask)
+        v_gap_threshold = median_h * 0.5
+        h_gap_threshold = median_h * 0.2
         
-        # 3. Find ridges (local maxima)
-        # Increase threshold to find significant gaps (at least 8px wide at zoom=2)
-        # dt > 4 means gap is > 8px wide.
-        local_max = (dt == maximum_filter(dt, size=7)) & (dt > 4)
+        best_line_cut = self._find_line_heuristic(curr_lines, curr_content, bbox)
         
-        # 4. Connected components of ridges
-        labeled_ridges, num_ridges = label(local_max)
+        cut_type = None
+        if best_line_cut:
+            cut_type = best_line_cut["type"]
+        else:
+            best_v_gap = self._find_best_gap(curr_content, bbox, "vertical", threshold=v_gap_threshold)
+            best_h_gap = self._find_best_gap(curr_content, bbox, "horizontal", threshold=h_gap_threshold)
+            
+            # Prioritize vertical (columns) in T-B layout
+            if best_v_gap: cut_type = "vertical"
+            elif best_h_gap: cut_type = "horizontal"
         
-        separators = []
-        for i in range(1, num_ridges + 1):
-            m = (labeled_ridges == i)
-            coords = np.where(m)
-            y_coords, x_coords = coords[0], coords[1]
+        if not cut_type:
+            return
+
+        # Find parallel gaps
+        if best_line_cut:
+            all_gaps = [best_line_cut["gap"]]
+        else:
+            all_gaps = self._find_all_gaps(curr_content, bbox, cut_type, 
+                                           threshold=(v_gap_threshold if cut_type == "vertical" else h_gap_threshold))
+        
+        if not all_gaps: return
+        all_gaps.sort()
+        
+        sub_bboxes = []
+        curr_bound = x0 if cut_type == "vertical" else y0
+        
+        for gap_start, gap_end in all_gaps:
+            mid = (gap_start + gap_end) / 2
             
-            # Use a much longer minimum length (at least 100px)
-            if len(y_coords) < 100: continue 
+            # Order-changing detection
+            natural_order = self._get_natural_order(curr_content, median_h)
             
-            x0, y0, x1, y1 = np.min(x_coords), np.min(y_coords), np.max(x_coords), np.max(y_coords)
-            width = x1 - x0
-            height = y1 - y0
-            
-            # Refine bbox: take the average width/height if it's very thin
-            if height > width * 5: # Vertical
-                # Adjust x0, x1 to be the center x +/- 2
-                avg_x = np.mean(x_coords)
-                separators.append({
-                    "type": "separator", "subtype": "vertical",
-                    "bbox": [float(avg_x - 2), float(y0), float(avg_x + 2), float(y1)],
-                    "order_changing": True
+            if cut_type == "vertical":
+                left_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[2] <= gap_start]
+                right_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= gap_end]
+                split_order = self._get_natural_order([t for t in left_tokens if t in self.content_tokens], median_h) + \
+                              self._get_natural_order([t for t in right_tokens if t in self.content_tokens], median_h)
+                order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
+                
+                self.separators.append({
+                    "type": "vertical", "bbox": [mid, y0, mid, y1],
+                    "order_changing": order_changing, "depth": depth, "width": gap_end - gap_start,
+                    "via_line": True if best_line_cut else False
                 })
-            elif width > height * 5: # Horizontal
-                avg_y = np.mean(y_coords)
-                separators.append({
-                    "type": "separator", "subtype": "horizontal",
-                    "bbox": [float(x0), float(avg_y - 2), float(x1), float(avg_y + 2)],
-                    "order_changing": False
+                self.zones.append({"bbox": [gap_start, y0, gap_end, y1], "type": "v_zone"})
+                sub_bboxes.append([curr_bound, y0, gap_start, y1])
+                curr_bound = gap_end
+            else:
+                top_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[3] <= gap_start]
+                bottom_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[1] >= gap_end]
+                split_order = self._get_natural_order([t for t in top_tokens if t in self.content_tokens], median_h) + \
+                              self._get_natural_order([t for t in bottom_tokens if t in self.content_tokens], median_h)
+                order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
+
+                self.separators.append({
+                    "type": "horizontal", "bbox": [x0, mid, x1, mid],
+                    "order_changing": order_changing, "depth": depth, "height": gap_end - gap_start,
+                    "via_line": True if best_line_cut else False
                 })
+                self.zones.append({"bbox": [x0, gap_start, x1, gap_end], "type": "h_zone"})
+                sub_bboxes.append([x0, curr_bound, x1, gap_start])
+                curr_bound = gap_end
         
-        # Merge collinear separators
-        separators = self._merge_separators(separators)
+        if cut_type == "vertical": sub_bboxes.append([curr_bound, y0, x1, y1])
+        else: sub_bboxes.append([x0, curr_bound, x1, y1])
         
-        return separators
+        for sb in sub_bboxes:
+            sb_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= sb[0] - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= sb[2] + 0.1 and \
+                                             t.get("glyph_bbox", t["bbox"])[1] >= sb[1] - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= sb[3] + 0.1]
+            self._slice_recursive(sb_tokens, sb, depth + 1)
 
-    def _merge_separators(self, separators: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not separators: return []
+    def _get_reading_order(self, tokens: List[Dict[str, Any]], bbox: List[float]) -> List[Dict[str, Any]]:
+        tokens = [t for t in tokens if t not in self.line_tokens and not t.get("is_absorbed")]
+        if not tokens: return []
+            
+        x0, y0, x1, y1 = bbox
+        text_tokens = [t for t in tokens if t["type"] == "text"]
+        median_h = np.median([t.get("glyph_bbox", t["bbox"])[3] - t.get("glyph_bbox", t["bbox"])[1] for t in text_tokens]) if text_tokens else self.median_size
+            
+        curr_lines = [t for t in self.line_tokens if t.get("glyph_bbox", t["bbox"])[0] >= x0 - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= x1 + 0.1 and \
+                                                  t.get("glyph_bbox", t["bbox"])[1] >= y0 - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= y1 + 0.1]
+        best_line_cut = self._find_line_heuristic(curr_lines, tokens, bbox)
         
-        merged = True
-        while merged:
-            merged = False
-            for i in range(len(separators)):
-                for j in range(i + 1, len(separators)):
-                    s1, s2 = separators[i], separators[j]
-                    if s1["subtype"] != s2["subtype"]: continue
-                    
-                    # Collinear check
-                    is_collinear = False
-                    if s1["subtype"] == "vertical":
-                        # Check X proximity and Y gap
-                        if abs(s1["bbox"][0] - s2["bbox"][0]) < 10:
-                            y_gap = max(0, s1["bbox"][1] - s2["bbox"][3], s2["bbox"][1] - s1["bbox"][3])
-                            if y_gap < 50: is_collinear = True
-                    else: # horizontal
-                        # Check Y proximity and X gap
-                        if abs(s1["bbox"][1] - s2["bbox"][1]) < 10:
-                            x_gap = max(0, s1["bbox"][0] - s2["bbox"][2], s2["bbox"][0] - s1["bbox"][2])
-                            if x_gap < 50: is_collinear = True
-                    
-                    if is_collinear:
-                        separators[i]["bbox"] = [
-                            min(s1["bbox"][0], s2["bbox"][0]),
-                            min(s1["bbox"][1], s2["bbox"][1]),
-                            max(s1["bbox"][2], s2["bbox"][2]),
-                            max(s1["bbox"][3], s2["bbox"][3])
-                        ]
-                        separators[i]["order_changing"] = s1["order_changing"] or s2["order_changing"]
-                        separators.pop(j)
-                        merged = True
-                        break
-                if merged: break
-        return separators
+        cut_type = None
+        if best_line_cut:
+            cut_type = best_line_cut["type"]
+            best_gap = best_line_cut["gap"]
+        else:
+            v_gap = self._find_best_gap(tokens, bbox, "vertical", threshold=median_h * 0.5)
+            h_gap = self._find_best_gap(tokens, bbox, "horizontal", threshold=median_h * 0.2)
+            if v_gap:
+                cut_type, best_gap = "vertical", v_gap
+            elif h_gap:
+                cut_type, best_gap = "horizontal", h_gap
+            
+        if cut_type:
+            # For reading order, we process parallel gaps in order
+            all_gaps = self._find_all_gaps(tokens, bbox, cut_type, threshold=(median_h * 0.5 if cut_type == "vertical" else median_h * 0.2))
+            if not all_gaps: return self._get_natural_order(tokens, median_h)
+            all_gaps.sort()
+            
+            result_order = []
+            curr_bound = x0 if cut_type == "vertical" else y0
+            for gap_start, gap_end in all_gaps:
+                if cut_type == "vertical":
+                    sb = [curr_bound, y0, gap_start, y1]
+                    curr_bound = gap_end
+                else:
+                    sb = [x0, curr_bound, x1, gap_start]
+                    curr_bound = gap_end
+                
+                sb_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= sb[0] - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= sb[2] + 0.1 and \
+                                                 t.get("glyph_bbox", t["bbox"])[1] >= sb[1] - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= sb[3] + 0.1]
+                result_order.extend(self._get_reading_order(sb_tokens, sb))
+            
+            # Last block
+            if cut_type == "vertical": sb = [curr_bound, y0, x1, y1]
+            else: sb = [x0, curr_bound, x1, y1]
+            sb_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= sb[0] - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= sb[2] + 0.1 and \
+                                             t.get("glyph_bbox", t["bbox"])[1] >= sb[1] - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= sb[3] + 0.1]
+            result_order.extend(self._get_reading_order(sb_tokens, sb))
+            return result_order
+        else:
+            return self._get_natural_order(tokens, median_h)
 
-    def visualize_layout(self, clusters: List[Dict[str, Any]], separators: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int, background_img: Image.Image = None):
+    def _get_natural_order(self, tokens: List[Dict[str, Any]], median_h: float) -> List[Dict[str, Any]]:
+        if not tokens: return []
+        vertical_tolerance = median_h * 0.5
+        sorted_tokens = sorted(tokens, key=lambda t: (t.get("glyph_bbox", t["bbox"])[1], t.get("glyph_bbox", t["bbox"])[0]))
+        final_sorted = []
+        while sorted_tokens:
+            curr = sorted_tokens.pop(0)
+            line = [curr]
+            curr_y = curr.get("glyph_bbox", curr["bbox"])[1]
+            i = 0
+            while i < len(sorted_tokens):
+                t = sorted_tokens[i]
+                if abs(t.get("glyph_bbox", t["bbox"])[1] - curr_y) < vertical_tolerance:
+                    line.append(sorted_tokens.pop(i))
+                else: i += 1
+            line.sort(key=lambda t: t.get("glyph_bbox", t["bbox"])[0])
+            final_sorted.extend(line)
+        return final_sorted
+
+    def _find_best_gap(self, tokens: List[Dict[str, Any]], bbox: List[float], orientation: str, threshold: float) -> Optional[Tuple[float, float]]:
+        gaps = self._find_all_gaps(tokens, bbox, orientation, threshold)
+        if not gaps: return None
+        return max(gaps, key=lambda g: g[1] - g[0])
+
+    def _find_all_gaps(self, tokens: List[Dict[str, Any]], bbox: List[float], orientation: str, threshold: float) -> List[Tuple[float, float]]:
+        x0, y0, x1, y1 = bbox
+        intervals = []
+        for t in tokens:
+            tb = t.get("glyph_bbox", t["bbox"])
+            if orientation == "vertical":
+                if tb[3] > y0 + 1 and tb[1] < y1 - 1: intervals.append((max(x0, tb[0]), min(x1, tb[2])))
+            else:
+                if tb[2] > x0 + 1 and tb[0] < x1 - 1: intervals.append((max(y0, tb[1]), min(y1, tb[3])))
+        if not intervals: return []
+        intervals.sort()
+        merged = []
+        if intervals:
+            curr_start, curr_end = intervals[0]
+            for next_start, next_end in intervals[1:]:
+                if next_start < curr_end: curr_end = max(curr_end, next_end)
+                else:
+                    merged.append((curr_start, curr_end))
+                    curr_start, curr_end = next_start, next_end
+            merged.append((curr_start, curr_end))
+        gaps = []
+        for i in range(len(merged) - 1):
+            gap_start, gap_end = merged[i][1], merged[i+1][0]
+            if gap_end - gap_start > threshold:
+                gaps.append((gap_start, gap_end))
+        return gaps
+
+    def _find_line_heuristic(self, curr_lines: List[Dict[str, Any]], curr_content: List[Dict[str, Any]], bbox: List[float]) -> Optional[Dict[str, Any]]:
+        x0, y0, x1, y1 = bbox
+        for line in curr_lines:
+            lb = line.get("glyph_bbox", line["bbox"])
+            if (lb[2] - lb[0]) > (lb[3] - lb[1]) * 5: # Horizontal
+                if lb[0] < x0 + 10 and lb[2] > x1 - 10:
+                    top_content = [t for t in curr_content if t.get("glyph_bbox", t["bbox"])[3] <= lb[1]]
+                    bot_content = [t for t in curr_content if t.get("glyph_bbox", t["bbox"])[1] >= lb[3]]
+                    if top_content and bot_content:
+                        gap_y0 = max([t.get("glyph_bbox", t["bbox"])[3] for t in top_content])
+                        gap_y1 = min([t.get("glyph_bbox", t["bbox"])[1] for t in bot_content])
+                        return {"type": "horizontal", "gap": (gap_y0, gap_y1), "line_id": line["id"]}
+            elif (lb[3] - lb[1]) > (lb[2] - lb[0]) * 5: # Vertical
+                if lb[1] < y0 + 10 and lb[3] > y1 - 10:
+                    left_content = [t for t in curr_content if t.get("glyph_bbox", t["bbox"])[2] <= lb[0]]
+                    right_content = [t for t in curr_content if t.get("glyph_bbox", t["bbox"])[0] >= lb[2]]
+                    if left_content and right_content:
+                        gap_x0 = max([t.get("glyph_bbox", t["bbox"])[2] for t in left_content])
+                        gap_x1 = min([t.get("glyph_bbox", t["bbox"])[0] for t in right_content])
+                        return {"type": "vertical", "gap": (gap_x0, gap_x1), "line_id": line["id"]}
+        return None
+
+    def visualize_layout(self, separators: List[Dict[str, Any]], zones: List[Dict[str, Any]], all_tokens: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int, background_img: Image.Image = None):
         if background_img:
             img = background_img.convert("RGBA").copy()
-            # Ensure background matches expected size
             if img.size != (page_width, page_height):
                 img = img.resize((page_width, page_height), Image.LANCZOS)
         else:
             img = Image.new("RGBA", (page_width, page_height), (255, 255, 255, 255))
-            
         draw = ImageDraw.Draw(img)
         
-        # 1. Draw clusters (subtle outline)
-        for i, c in enumerate(clusters):
-            bbox = c["bbox"]
-            draw.rectangle(bbox, outline=(0, 0, 255, 100), width=1)
-            # draw.text((bbox[0], bbox[1]), f"C{i+1}", fill=(0, 0, 255, 150))
+        # 1. Draw zones
+        for zone in zones:
+            draw.rectangle(zone["bbox"], fill=(200, 200, 200, 100))
             
         # 2. Draw separators
-        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        d_overlay = ImageDraw.Draw(overlay)
-        
         for s in separators:
             bbox = s["bbox"]
-            is_order_changing = s.get("order_changing", False)
-            color = (255, 0, 0, 180) if is_order_changing else (0, 0, 255, 180)
-            
-            # Draw as a slightly thicker line/box
-            d_overlay.rectangle(bbox, fill=color)
-            
-        img = Image.alpha_composite(img, overlay)
-        draw = ImageDraw.Draw(img) # Refresh draw for final elements
+            color = (255, 0, 0, 255) if s.get("order_changing") else (0, 0, 255, 255)
+            # Ensure it's a line even if bbox is a rect
+            if s["subtype"] == "vertical":
+                mid_x = (bbox[0] + bbox[2]) / 2
+                draw.line([mid_x, bbox[1], mid_x, bbox[3]], fill=color, width=3)
+                draw.text((mid_x + 5, (bbox[1] + bbox[3]) / 2), s["id"], fill=color)
+            else:
+                mid_y = (bbox[1] + bbox[3]) / 2
+                draw.line([bbox[0], mid_y, bbox[2], mid_y], fill=color, width=3)
+                draw.text(((bbox[0] + bbox[2]) / 2, mid_y + 5), s["id"], fill=color)
         
-        # 3. Draw Legend at the bottom
+        # 3. Draw Legend
         legend_h = 40
         legend_y = page_height - legend_h
         draw.rectangle([0, legend_y, page_width, page_height], fill=(240, 240, 240, 255))
-        
-        # Red Legend
         draw.rectangle([20, legend_y + 10, 50, legend_y + 30], fill=(255, 0, 0, 255))
         draw.text((60, legend_y + 12), "Order-Changing Separator", fill="black")
-        
-        # Blue Legend
         draw.rectangle([250, legend_y + 10, 280, legend_y + 30], fill=(0, 0, 255, 255))
-        draw.text((290, legend_y + 12), "Content-Dividing Separator (Order-Preserving)", fill="black")
+        draw.text((290, legend_y + 12), "Order-Preserving Separator", fill="black")
         
         img.save(output_path)
-

@@ -22,49 +22,31 @@ class SemanticsEngine:
         # 1. Initial PDF Reconstruction
         self.reproduce_initial_pdf(tokens, output_dir, zoom)
         
-        # 2. Layout Analysis (Clustering & Separator Prediction)
+        # 2. Layout Analysis (Recursive Slicing)
         from .layout import LayoutAnalyzer
         la = LayoutAnalyzer(self.median_size)
         
-        # Perform clustering on zoomed tokens
-        # Use very strict thresholds to find atomic blocks
-        clusters = la.cluster_tokens(tokens, h_threshold=4, v_threshold=4)
-        
-        # Predict separators using tokens
-        separators = la.predict_separators(tokens, self.page_width*zoom, self.page_height*zoom)
+        # Perform Recursive Slicing Analysis
+        separators, ordered_tokens = la.analyze(tokens, self.page_width*zoom, self.page_height*zoom)
         
         # Visualize layout
         viz_path = output_dir / "2_layout_analysis.png"
-        la.visualize_layout(clusters, separators, viz_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
+        la.visualize_layout(separators, la.zones, la.all_tokens, viz_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
         
         # Save analysis data
         analysis_data = {
             "page_width": self.page_width,
             "page_height": self.page_height,
             "zoom": zoom,
-            "clusters": [
-                {
-                    "id": f"C{i+1}",
-                    "bbox": c["bbox"],
-                    "token_ids": c["token_ids"]
-                } for i, c in enumerate(clusters)
-            ],
-            "separators": [
-                {
-                    "id": f"S{i+1}",
-                    "type": s["subtype"],
-                    "bbox": s["bbox"],
-                    "order_changing": s["order_changing"]
-                } for i, s in enumerate(separators)
-            ]
+            "separators": separators
         }
         with open(output_dir / "analysis.json", "w", encoding="utf-8") as f:
             json.dump(analysis_data, f, indent=2, ensure_ascii=False)
             
-        # 3. Return tokens as semantic items for now
+        # 3. Return ordered tokens as semantic items
         semantic_items = []
-        for tk in tokens:
-            if tk["type"] == "text" and not tk.get("is_absorbed"):
+        for tk in ordered_tokens:
+            if tk["type"] == "text":
                 semantic_items.append({
                     "type": "paragraph", "bbox": [c / zoom for c in tk["bbox"]],
                     "text": tk["text"], "md_text": tk["text"]
