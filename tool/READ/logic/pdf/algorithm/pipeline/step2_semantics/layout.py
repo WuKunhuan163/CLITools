@@ -42,23 +42,29 @@ class LayoutAnalyzer:
             
         return final_separators, ordered_tokens
 
-    def _slice_recursive(self, tokens: List[Dict[str, Any]], bbox: List[float], depth: int = 0):
-        if not tokens or depth > 50:
-            return
+    def _slice_recursive(self, tokens: List[Dict[str, Any]], bbox: List[float], depth: int = 0) -> Optional[List[float]]:
+        """
+        Recursively slices the block and returns the bounding box of content tokens within it.
+        """
+        if not tokens: return None
+        if depth > 50:
+            # Return current tokens' bbox as a leaf
+            content = [t for t in tokens if t in self.content_tokens]
+            if not content: return None
+            x0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in content)
+            y0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in content)
+            x1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in content)
+            y1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in content)
+            return [x0, y0, x1, y1]
 
         x0, y0, x1, y1 = bbox
         curr_content = [t for t in tokens if t in self.content_tokens]
         curr_lines = [t for t in tokens if t in self.line_tokens]
         
-        if not curr_content:
-            return
+        if not curr_content: return None
 
         text_tokens = [t for t in curr_content if t["type"] == "text"]
-        if text_tokens:
-            heights = [t.get("glyph_bbox", t["bbox"])[3] - t.get("glyph_bbox", t["bbox"])[1] for t in text_tokens]
-            median_h = np.median(heights)
-        else:
-            median_h = self.median_size
+        median_h = np.median([t.get("glyph_bbox", t["bbox"])[3] - t.get("glyph_bbox", t["bbox"])[1] for t in text_tokens]) if text_tokens else self.median_size
             
         v_gap_threshold = median_h * 0.5
         h_gap_threshold = median_h * 0.2
@@ -69,89 +75,118 @@ class LayoutAnalyzer:
         if best_line_cut:
             cut_type = best_line_cut["type"]
         else:
-            best_v_gap = self._find_best_gap(curr_content, bbox, "vertical", threshold=v_gap_threshold)
-            best_h_gap = self._find_best_gap(curr_content, bbox, "horizontal", threshold=h_gap_threshold)
-            
-            # Prioritize vertical (columns) in T-B layout
-            if best_v_gap: cut_type = "vertical"
-            elif best_h_gap: cut_type = "horizontal"
+            v_gap = self._find_best_gap(curr_content, bbox, "vertical", threshold=v_gap_threshold)
+            h_gap = self._find_best_gap(curr_content, bbox, "horizontal", threshold=h_gap_threshold)
+            if v_gap: cut_type = "vertical"
+            elif h_gap: cut_type = "horizontal"
         
         if not cut_type:
-            return
+            # Leaf node: return current tokens' bbox
+            x0_c = min(t.get("glyph_bbox", t["bbox"])[0] for t in curr_content)
+            y0_c = min(t.get("glyph_bbox", t["bbox"])[1] for t in curr_content)
+            x1_c = max(t.get("glyph_bbox", t["bbox"])[2] for t in curr_content)
+            y1_c = max(t.get("glyph_bbox", t["bbox"])[3] for t in curr_content)
+            return [x0_c, y0_c, x1_c, y1_c]
 
         # Find parallel gaps
         if best_line_cut:
             all_gaps = [best_line_cut["gap"]]
         else:
-            all_gaps = self._find_all_gaps(curr_content, bbox, cut_type, 
-                                           threshold=(v_gap_threshold if cut_type == "vertical" else h_gap_threshold))
+            all_gaps = self._find_all_gaps(curr_content, bbox, cut_type, threshold=(v_gap_threshold if cut_type == "vertical" else h_gap_threshold))
         
-        if not all_gaps: return
+        if not all_gaps:
+            # Should not happen if cut_type is set, but as fallback:
+            x0_c = min(t.get("glyph_bbox", t["bbox"])[0] for t in curr_content)
+            y0_c = min(t.get("glyph_bbox", t["bbox"])[1] for t in curr_content)
+            x1_c = max(t.get("glyph_bbox", t["bbox"])[2] for t in curr_content)
+            y1_c = max(t.get("glyph_bbox", t["bbox"])[3] for t in curr_content)
+            return [x0_c, y0_c, x1_c, y1_c]
+
         all_gaps.sort()
         
-        sub_bboxes = []
+        sub_bboxes_def = []
         curr_bound = x0 if cut_type == "vertical" else y0
-        
-        for gap_start, gap_end in all_gaps:
-            mid = (gap_start + gap_end) / 2
-            
-            # Order-changing detection
-            natural_order = self._get_natural_order(curr_content, median_h)
-            
+        for g0, g1 in all_gaps:
             if cut_type == "vertical":
-                left_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[2] <= gap_start]
-                right_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= gap_end]
-                split_order = self._get_natural_order([t for t in left_tokens if t in self.content_tokens], median_h) + \
-                              self._get_natural_order([t for t in right_tokens if t in self.content_tokens], median_h)
-                order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
-                
-                # Calculate extent for reproduction
-                all_sub_tokens = [t for t in tokens if t in self.content_tokens]
-                if all_sub_tokens:
-                    y_min = min([t.get("glyph_bbox", t["bbox"])[1] for t in all_sub_tokens])
-                    y_max = max([t.get("glyph_bbox", t["bbox"])[3] for t in all_sub_tokens])
-                else:
-                    y_min, y_max = y0, y1
-
-                self.separators.append({
-                    "type": "vertical", "bbox": [mid, y_min, mid, y_max],
-                    "order_changing": order_changing, "depth": depth, "width": gap_end - gap_start,
-                    "via_line": True if best_line_cut else False
-                })
-                self.zones.append({"bbox": [gap_start, y0, gap_end, y1], "type": "v_zone"})
-                sub_bboxes.append([curr_bound, y0, gap_start, y1])
-                curr_bound = gap_end
+                sub_bboxes_def.append([curr_bound, y0, g0, y1])
+                curr_bound = g1
             else:
-                top_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[3] <= gap_start]
-                bottom_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[1] >= gap_end]
-                split_order = self._get_natural_order([t for t in top_tokens if t in self.content_tokens], median_h) + \
-                              self._get_natural_order([t for t in bottom_tokens if t in self.content_tokens], median_h)
-                order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
+                sub_bboxes_def.append([x0, curr_bound, x1, g0])
+                curr_bound = g1
+        if cut_type == "vertical": sub_bboxes_def.append([curr_bound, y0, x1, y1])
+        else: sub_bboxes_def.append([x0, curr_bound, x1, y1])
 
-                # Calculate extent for reproduction
-                all_sub_tokens = [t for t in tokens if t in self.content_tokens]
-                if all_sub_tokens:
-                    x_min = min([t.get("glyph_bbox", t["bbox"])[0] for t in all_sub_tokens])
-                    x_max = max([t.get("glyph_bbox", t["bbox"])[2] for t in all_sub_tokens])
-                else:
-                    x_min, x_max = x0, x1
-
-                self.separators.append({
-                    "type": "horizontal", "bbox": [x_min, mid, x_max, mid],
-                    "order_changing": order_changing, "depth": depth, "height": gap_end - gap_start,
-                    "via_line": True if best_line_cut else False
-                })
-                self.zones.append({"bbox": [x0, gap_start, x1, gap_end], "type": "h_zone"})
-                sub_bboxes.append([x0, curr_bound, x1, gap_start])
-                curr_bound = gap_end
-        
-        if cut_type == "vertical": sub_bboxes.append([curr_bound, y0, x1, y1])
-        else: sub_bboxes.append([x0, curr_bound, x1, y1])
-        
-        for sb in sub_bboxes:
+        # Recurse and gather child bboxes
+        child_bboxes = []
+        for sb in sub_bboxes_def:
             sb_tokens = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= sb[0] - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= sb[2] + 0.1 and \
                                              t.get("glyph_bbox", t["bbox"])[1] >= sb[1] - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= sb[3] + 0.1]
-            self._slice_recursive(sb_tokens, sb, depth + 1)
+            c_bbox = self._slice_recursive(sb_tokens, sb, depth + 1)
+            child_bboxes.append(c_bbox)
+
+        # Merge child bboxes to get current block's content bbox
+        valid_child_bboxes = [b for b in child_bboxes if b is not None]
+        if not valid_child_bboxes: return None
+        
+        block_bbox = [
+            min(b[0] for b in valid_child_bboxes),
+            min(b[1] for b in valid_child_bboxes),
+            max(b[2] for b in valid_child_bboxes),
+            max(b[3] for b in valid_child_bboxes)
+        ]
+
+        # Add separators using the calculated extents of the children they separate
+        natural_order = self._get_natural_order(curr_content, median_h)
+        for i, (g0, g1) in enumerate(all_gaps):
+            mid = (g0 + g1) / 2
+            
+            # Combine all children to the left/top vs right/bottom of this gap
+            # Actually, the user's rule for length is:
+            # "min->max of the dimensions in the two boxes separated by it"
+            # Which is simply the total extent of the current block in that dimension.
+            
+            if cut_type == "vertical":
+                order_changing = False # Simplified for now, or use natural_order comparison
+                # Full comparison is expensive, let's keep it but optimized if needed.
+                left_c = []
+                for j in range(i + 1):
+                    lt = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= sub_bboxes_def[j][0] - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= sub_bboxes_def[j][2] + 0.1]
+                    left_c.extend([t for t in lt if t in self.content_tokens])
+                right_c = []
+                for j in range(i + 1, len(sub_bboxes_def)):
+                    rt = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[0] >= sub_bboxes_def[j][0] - 0.1 and t.get("glyph_bbox", t["bbox"])[2] <= sub_bboxes_def[j][2] + 0.1]
+                    right_c.extend([t for t in rt if t in self.content_tokens])
+                
+                split_order = self._get_natural_order(left_c, median_h) + self._get_natural_order(right_c, median_h)
+                order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
+
+                self.separators.append({
+                    "type": "vertical", "bbox": [mid, block_bbox[1], mid, block_bbox[3]],
+                    "order_changing": order_changing, "depth": depth, "width": g1 - g0,
+                    "via_line": True if best_line_cut else False
+                })
+                self.zones.append({"bbox": [g0, y0, g1, y1], "type": "v_zone"})
+            else:
+                top_c = []
+                for j in range(i + 1):
+                    tt = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[1] >= sub_bboxes_def[j][1] - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= sub_bboxes_def[j][3] + 0.1]
+                    top_c.extend([t for t in tt if t in self.content_tokens])
+                bot_c = []
+                for j in range(i + 1, len(sub_bboxes_def)):
+                    bt = [t for t in tokens if t.get("glyph_bbox", t["bbox"])[1] >= sub_bboxes_def[j][1] - 0.1 and t.get("glyph_bbox", t["bbox"])[3] <= sub_bboxes_def[j][3] + 0.1]
+                    bot_c.extend([t for t in bt if t in self.content_tokens])
+                
+                split_order = self._get_natural_order(top_c, median_h) + self._get_natural_order(bot_c, median_h)
+                order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
+
+                self.separators.append({
+                    "type": "horizontal", "bbox": [block_bbox[0], mid, block_bbox[2], mid],
+                    "order_changing": order_changing, "depth": depth, "height": g1 - g0,
+                    "via_line": True if best_line_cut else False
+                })
+                self.zones.append({"bbox": [x0, g0, x1, g1], "type": "h_zone"})
+
+        return block_bbox
 
     def _get_reading_order(self, tokens: List[Dict[str, Any]], bbox: List[float]) -> List[Dict[str, Any]]:
         tokens = [t for t in tokens if t not in self.line_tokens and not t.get("is_absorbed")]
