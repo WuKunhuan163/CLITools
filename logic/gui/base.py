@@ -40,6 +40,7 @@ class BaseGUIWindow:
         self.focus_interval = 0
         self.bell_path = str(Path(__file__).resolve().parent / "tkinter_bell.mp3")
         self.is_triggering_subtool = False
+        self.add_time_increment = 60 # Default
 
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)
@@ -112,7 +113,8 @@ class BaseGUIWindow:
                         self.on_remote_add_time()
                     else:
                         # Fallback if no specific callback
-                        self.remaining_time += 60 
+                        self.remaining_time += self.add_time_increment
+                        print(f"GDS_GUI_TIME_ADDED:{self.add_time_increment}", flush=True)
             except Exception:
                 pass
 
@@ -268,6 +270,7 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     """
     Creates a standardized bottom bar with status, countdown, and buttons.
     """
+    window_instance.add_time_increment = add_time_increment
     bottom_frame = tk.Frame(parent)
     # Standard padding matching USERINPUT style
     bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(5, 15))
@@ -286,6 +289,9 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
         def on_add_time():
             window_instance.remaining_time += add_time_increment
             window_instance.pulse_active = True
+            
+            # Notify parent process to extend its watchdog timeout
+            print(f"GDS_GUI_TIME_ADDED:{add_time_increment}", flush=True)
             
             # Update label immediately to avoid flashing
             added_msg = window_instance._("time_added", "Time added!")
