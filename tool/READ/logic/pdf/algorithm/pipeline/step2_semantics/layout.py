@@ -351,7 +351,7 @@ class LayoutAnalyzer:
 
     def visualize_reproduction(self, separators: List[Dict[str, Any]], tokens: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int):
         """
-        Draws only active separators as thin black lines and remaining tokens.
+        Draws only active separators as thin black lines and remaining tokens with text content.
         """
         img = Image.new("RGBA", (page_width, page_height), (255, 255, 255, 255))
         draw = ImageDraw.Draw(img)
@@ -363,20 +363,25 @@ class LayoutAnalyzer:
             
             tb = t.get("glyph_bbox", t["bbox"])
             if t["type"] == "text":
+                # Draw glyph bbox outline
                 draw.rectangle(tb, outline=(0, 255, 0, 60), width=1)
+                # Draw actual text
+                # Try to use a small font size for content
+                try:
+                    # You might need to provide a path to a font file here for better results
+                    # For now, use default
+                    draw.text((tb[0], tb[1]), t["text"], fill=(0, 0, 0, 255))
+                except: pass
             else:
-                # For blocks/images, draw a subtle blue/gray outline or fill
+                # For blocks/images, draw a subtle blue/gray outline
                 draw.rectangle(tb, outline=(0, 0, 255, 60), width=1)
                 # Label it
                 draw.text((tb[0] + 2, tb[1] + 2), t["id"], fill=(0, 0, 255, 100))
             
         # 2. Draw separators as thin black lines
-        # ONLY draw order-changing separators as requested
         for s in separators:
             if not s.get("order_changing"): continue
-            
             bbox = s["bbox"]
-            # Draw thin black line
             draw.line([bbox[0], bbox[1], bbox[2], bbox[3]], fill=(0, 0, 0, 255), width=1)
             
         img.save(output_path)
