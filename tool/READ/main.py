@@ -143,7 +143,12 @@ class ReadTool(ToolBase):
 
             extract_label = self.get_translation("label_extracting", "Extracting")
             pages_label = self.get_translation("label_pages", "pages")
-            pool = ParallelWorkerPool(max_workers=args.workers, status_label=f"{extract_label} {pages_label}")
+            pool = ParallelWorkerPool(
+                max_workers=args.workers, 
+                status_label=f"{extract_label} {pages_label}",
+                project_root=self.project_root,
+                tool_name=self.tool_name
+            )
             
             # Get alpha from config
             visual_alpha = self.config_manager.get("pdf.visual_alpha", 0.20)
@@ -230,14 +235,16 @@ class ReadTool(ToolBase):
         
         if failed_pages:
             failed_label = self.get_translation("label_failed_to_extract", "Failed to extract")
-            # Include reasons for failures
-            reasons = []
+            # For each failed page, we find its log path if it exists
             for p_id in sorted(failed_pages):
-                reason = self.page_stats[str(p_id)].get("error", "Unknown error")
-                reasons.append(f"Page {p_id}: {reason}")
-            
-            reason_str = ". ".join(reasons)
-            print(f"\r\033[K{RED}{failed_label}{RESET} {self.get_translation('label_pages', 'pages')} {self.format_page_list(failed_pages)} in {file_path.name}. Reason: {reason_str}")
+                stats = self.page_stats[str(p_id)]
+                reason = stats.get("error_brief", stats.get("error", "Unknown error"))
+                log_path = stats.get("log_path")
+                
+                msg = f"\r\033[K{RED}{failed_label}{RESET} Page {p_id} in {file_path.name}. Reason: {reason}"
+                if log_path:
+                    msg += f" ({self.get_color('BOLD')}Traceback saved to: {log_path}{RESET})"
+                print(msg)
 
         if success_pages:
             success_label = self.get_translation("label_successfully_extracted", "Successfully extracted")
@@ -246,7 +253,7 @@ class ReadTool(ToolBase):
         BOLD = self.get_color('BOLD')
         print(f"{BOLD}{self.get_translation('label_results_saved_to', 'Results saved to')}{RESET}: {output_dir}")
 
-    def _extract_pdf_page_task(self, pdf_path, page_num, pages_dir, median_size, alpha_int):
+    def _extract_pdf_page_task(self, stage, pdf_path, page_num, pages_dir, median_size, alpha_int):
         """Task to extract a single page. Runs in a subprocess to suppress output."""
         import subprocess
         import sys
@@ -268,6 +275,9 @@ doc.close()
             # Run the script in a subprocess, suppressing stderr
             res = subprocess.run([sys.executable, "-c", script], 
                                 capture_output=True, text=True)
+            
+            # Record output for debugging
+            stage.set_captured_output(res.stdout + res.stderr)
             
             actual_page_num = page_num + 1
             page_file = pages_dir / f"page_{actual_page_num:03d}" / "extracted.md"
@@ -293,8 +303,12 @@ doc.close()
                     "images": [], # meta is not easily returned, but it's not critical for now
                     "semantic_blocks": semantic_data
                 }
-            return {"success": False, "error": f"Subprocess failed or empty output. Stderr: {res.stderr}"}
+            
+            error_msg = f"Subprocess failed or empty output. Stderr: {res.stderr}"
+            stage.report_error("Subprocess error", error_msg)
+            return {"success": False, "error": error_msg}
         except Exception as e:
+            stage.report_error("Exception in task", str(e))
             return {"success": False, "error": str(e)}
 
 def main():

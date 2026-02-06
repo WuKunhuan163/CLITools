@@ -16,34 +16,8 @@ class ProgressTuringMachine:
         
     def _log_error(self, stage: TuringStage, exception: Optional[Exception] = None):
         """Saves full error information to a log file."""
-        if not self.project_root or not self.tool_name: return
-        
-        import time
-        import traceback
-        from pathlib import Path
-        
-        log_dir = self.project_root / "data" / "log" / self.tool_name
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        ts = time.strftime("%Y%m%d_%H%M%S")
-        log_file = log_dir / f"fail_{ts}.log"
-        
-        full_info = stage.error_full or (str(exception) if exception else "Unknown failure")
-        if exception:
-            full_info += "\n\nTraceback:\n" + traceback.format_exc()
-            
-        try:
-            with open(log_file, 'w', encoding='utf-8') as f:
-                f.write(f"Stage: {stage.name}\n")
-                f.write(f"Timestamp: {ts}\n")
-                f.write("-" * 20 + "\n")
-                f.write(full_info)
-            
-            # Basic cleanup (limit 100 logs)
-            from logic.utils import cleanup_old_files
-            cleanup_old_files(log_dir, "fail_*.log", limit=100)
-            return log_file
-        except: return None
+        from logic.turing.utils import log_turing_error
+        return log_turing_error(stage, self.project_root, self.tool_name, exception)
 
     def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
         from logic.config import get_color
@@ -68,7 +42,15 @@ class ProgressTuringMachine:
                     sys.stdout.flush()
                     
                     try:
-                        success = stage.action()
+                        # Pass the stage itself to the action so it can report errors/output
+                        # Support both Callable[[], bool] and Callable[[TuringStage], bool]
+                        import inspect
+                        sig = inspect.signature(stage.action)
+                        if len(sig.parameters) > 0:
+                            success = stage.action(stage)
+                        else:
+                            success = stage.action()
+                            
                         if success:
                             # ... (success logic) ...
                             success_name = stage.success_name or stage.name

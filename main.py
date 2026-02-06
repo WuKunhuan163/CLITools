@@ -8,6 +8,7 @@ import shutil
 import re
 import platform
 from pathlib import Path
+from typing import Optional, List, Dict, Any, Callable
 
 # Import colors and shared utils from logic
 from logic.config import get_color
@@ -180,26 +181,27 @@ def _dev_sync(quiet=False):
             print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
         return False
 
-    # Helper to run git commands quietly
-    def run_git(args):
+    # Helper to run git commands quietly and capture output
+    def run_git(args, stage: Optional[TuringStage] = None):
         try:
             res = subprocess.run(["/usr/bin/git"] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
+            if stage: stage.set_captured_output(res.stdout + res.stderr)
             return True
         except subprocess.CalledProcessError as e:
-            if not quiet:
-                print(f"\nGit error: {e}")
-                if e.stdout: print(f"STDOUT: {e.stdout}")
-                if e.stderr: print(f"STDERR: {e.stderr}")
+            output = (e.stdout or "") + (e.stderr or "")
+            if stage:
+                stage.set_captured_output(output)
+                stage.report_error(f"Git command failed: {' '.join(args)}", output)
             return False
 
     tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
 
     # 1. Commit current branch
-    def auto_commit():
+    def auto_commit(stage: TuringStage):
         status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
-            if not run_git(["add", "-A"]): return False
-            if not run_git(["commit", "-m", f"Auto-commit before sync on '{start_branch}'"]): return False
+            if not run_git(["add", "-A"], stage): return False
+            if not run_git(["commit", "-m", f"Auto-commit before sync on '{start_branch}'"], stage): return False
         return True
 
     tm.add_stage(TuringStage(
@@ -213,9 +215,8 @@ def _dev_sync(quiet=False):
     ))
 
     # 2. dev -> tool
-    def align_tool():
+    def align_tool(stage: TuringStage):
         # Update 'tool' branch to match 'dev'
-        # We use a temporary index to avoid checkouts
         env = os.environ.copy()
         side_index = project_root / ".git" / "index_sync_tool"
         env["GIT_INDEX_FILE"] = str(side_index)
@@ -223,24 +224,26 @@ def _dev_sync(quiet=False):
         try:
             # 1. Start with dev tree
             res = subprocess.run(["/usr/bin/git", "write-tree"], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0:
+                stage.report_error("Failed to write tree", res.stderr)
+                return False
             tree_sha = res.stdout.strip()
             
             # 2. Merge with origin/tool's resource directory
-            # We want to keep 'resource/' from 'tool' branch
-            subprocess.run(["/usr/bin/git", "read-tree", tree_sha], cwd=str(project_root), env=env, check=True)
+            subprocess.run(["/usr/bin/git", "read-tree", tree_sha], cwd=str(project_root), env=env, check=True, capture_output=True)
             
-            # Fetch origin/tool to get its resource tree
-            subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(project_root), capture_output=True)
+            # Fetch origin/tool
+            if not run_git(["fetch", "origin", "tool"], stage): return False
             
-            # Get resource tree from origin/tool
+            # Get resource tree
             res = subprocess.run(["/usr/bin/git", "ls-tree", "origin/tool", "resource"], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode == 0 and res.stdout:
-                # Add resource directory to our new tree
-                subprocess.run(["/usr/bin/git", "read-tree", "--prefix=resource", "origin/tool:resource"], cwd=str(project_root), env=env, check=True)
+                # Add resource directory
+                subprocess.run(["/usr/bin/git", "read-tree", "--prefix=resource", "origin/tool:resource"], cwd=str(project_root), env=env, check=True, capture_output=True)
             
             new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
             
-            # 3. Create commit on tool branch
+            # 3. Create commit
             res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
             parent = res.stdout.strip() if res.returncode == 0 else None
             
@@ -249,9 +252,14 @@ def _dev_sync(quiet=False):
             
             commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
             
-            # 4. Update tool branch ref
-            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/tool", commit_sha], cwd=str(project_root), check=True)
+            # 4. Update ref
+            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/tool", commit_sha], cwd=str(project_root), check=True, capture_output=True)
             return True
+        except subprocess.CalledProcessError as e:
+            output = (e.stdout or "") + (e.stderr or "")
+            stage.set_captured_output(output)
+            stage.report_error(f"Git operation failed", output)
+            return False
         finally:
             if side_index.exists(): side_index.unlink()
 
@@ -266,7 +274,7 @@ def _dev_sync(quiet=False):
     ))
 
     # 3. tool -> main
-    def align_main():
+    def align_main(stage: TuringStage):
         # Update 'main' branch to match 'tool' (framework only)
         env = os.environ.copy()
         side_index = project_root / ".git" / "index_sync_main"
@@ -275,17 +283,20 @@ def _dev_sync(quiet=False):
         try:
             # 1. Start with tool tree
             res = subprocess.run(["/usr/bin/git", "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0:
+                stage.report_error("Failed to get tool tree", res.stderr)
+                return False
             tool_tree = res.stdout.strip()
-            subprocess.run(["/usr/bin/git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True)
+            subprocess.run(["/usr/bin/git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True, capture_output=True)
             
-            # 2. Remove restricted folders from index
+            # 2. Remove restricted folders
             restricted = ["tool", "resource", "data", "tmp", "bin"]
             for folder in restricted:
                 subprocess.run(["/usr/bin/git", "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
             
             new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
             
-            # 3. Create commit on main branch
+            # 3. Create commit
             res = subprocess.run(["/usr/bin/git", "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
             parent = res.stdout.strip() if res.returncode == 0 else None
             
@@ -294,9 +305,14 @@ def _dev_sync(quiet=False):
             
             commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
             
-            # 4. Update main branch ref
-            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True)
+            # 4. Update ref
+            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True, capture_output=True)
             return True
+        except subprocess.CalledProcessError as e:
+            output = (e.stdout or "") + (e.stderr or "")
+            stage.set_captured_output(output)
+            stage.report_error("Git operation failed", output)
+            return False
         finally:
             if side_index.exists(): side_index.unlink()
 
@@ -311,13 +327,20 @@ def _dev_sync(quiet=False):
     ))
 
     # 4. tool -> test
-    def align_test():
-        # test branch is identical to tool branch
-        res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
-        if res.returncode != 0: return False
-        tool_sha = res.stdout.strip()
-        subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True)
-        return True
+    def align_test(stage: TuringStage):
+        try:
+            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0:
+                stage.report_error("Failed to get tool ref", res.stderr)
+                return False
+            tool_sha = res.stdout.strip()
+            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True, capture_output=True)
+            return True
+        except subprocess.CalledProcessError as e:
+            output = (e.stdout or "") + (e.stderr or "")
+            stage.set_captured_output(output)
+            stage.report_error("Git update-ref failed", output)
+            return False
 
     tm.add_stage(TuringStage(
         name="'test' from 'tool'",

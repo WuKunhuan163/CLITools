@@ -48,12 +48,17 @@ class TuringStage:
         self.fail_name = fail_name
         self.bold_part = bold_part
         
-        # New: Support for brief and full failure information
-        self.error_brief: Optional[str] = None # For terminal display (A)
-        self.error_full: Optional[str] = None  # For log file (B)
+        # Support for failure information and captured output
+        self.error_brief: Optional[str] = None 
+        self.error_full: Optional[str] = None  
+        self.captured_output: Optional[str] = None # NEW: Captured stdout/stderr from commands
 
     def report_error(self, brief: str, full: Optional[str] = None):
         """Allows the action to report detailed error information."""
         self.error_brief = brief
         self.error_full = full or brief
+
+    def set_captured_output(self, output: str):
+        """Sets captured output from commands to be included in logs."""
+        self.captured_output = output
 

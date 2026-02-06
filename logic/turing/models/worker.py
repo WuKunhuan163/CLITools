@@ -69,9 +69,12 @@ class ParallelWorkerPool:
     """
     Separated logic for managing parallel workers with integrated status display.
     """
-    def __init__(self, max_workers: int = 4, status_label: str = "Processing"):
+    def __init__(self, max_workers: int = 4, status_label: str = "Processing", project_root: Optional[str] = None, tool_name: Optional[str] = None):
         self.max_workers = max_workers
         self.status_bar = DynamicStatusBar(label=status_label)
+        from pathlib import Path
+        self.project_root = Path(project_root) if project_root else None
+        self.tool_name = tool_name
 
     def run(self, tasks: List[Dict[str, Any]], success_callback: Optional[Callable] = None) -> bool:
         """
@@ -79,21 +82,44 @@ class ParallelWorkerPool:
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
         from logic.terminal.keyboard import KeyboardSuppressor
+        from logic.turing.logic import TuringStage, TuringError
+        from logic.turing.utils import log_turing_error
         all_success = True
         
         def wrapper(task_id, func, *args, **kwargs):
             self.status_bar.update(task_id, "add")
+            stage = TuringStage(name=f"Task {task_id}", action=func)
             try:
-                res = func(*args, **kwargs)
+                # Support passing stage to func if it accepts it
+                import inspect
+                sig = inspect.signature(func)
+                if len(sig.parameters) > 0:
+                    res = func(stage, *args, **kwargs)
+                else:
+                    res = func(*args, **kwargs)
+                
                 if success_callback:
                     success_callback(task_id, res)
+                
                 # Assume success if res is not False or a dict with success=False
                 if isinstance(res, dict) and not res.get("success", True):
                     return False
                 return res if res is not False else False
             except Exception as e:
+                if isinstance(e, TuringError):
+                    stage.error_brief = e.brief
+                    stage.error_full = e.full
+                
+                log_path = log_turing_error(stage, self.project_root, self.tool_name, e if not isinstance(e, TuringError) else None)
+                
+                error_data = {
+                    "success": False, 
+                    "error": str(e),
+                    "error_brief": stage.error_brief or str(e).split('\n')[0],
+                    "log_path": log_path
+                }
                 if success_callback:
-                    success_callback(task_id, {"success": False, "error": str(e)})
+                    success_callback(task_id, error_data)
                 return False
             finally:
                 self.status_bar.update(task_id, "remove")
