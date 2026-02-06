@@ -359,11 +359,22 @@ class LayoutAnalyzer:
         # 1. Draw remaining tokens (excluding lines)
         for t in tokens:
             if t.get("subtype") in ["line", "rect"]: continue
+            if t.get("is_absorbed"): continue
+            
             tb = t.get("glyph_bbox", t["bbox"])
-            draw.rectangle(tb, outline=(0, 255, 0, 60), width=1)
+            if t["type"] == "text":
+                draw.rectangle(tb, outline=(0, 255, 0, 60), width=1)
+            else:
+                # For blocks/images, draw a subtle blue/gray outline or fill
+                draw.rectangle(tb, outline=(0, 0, 255, 60), width=1)
+                # Label it
+                draw.text((tb[0] + 2, tb[1] + 2), t["id"], fill=(0, 0, 255, 100))
             
         # 2. Draw separators as thin black lines
+        # ONLY draw order-changing separators as requested
         for s in separators:
+            if not s.get("order_changing"): continue
+            
             bbox = s["bbox"]
             # Draw thin black line
             draw.line([bbox[0], bbox[1], bbox[2], bbox[3]], fill=(0, 0, 0, 255), width=1)
