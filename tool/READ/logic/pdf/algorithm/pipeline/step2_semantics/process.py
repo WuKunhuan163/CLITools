@@ -22,7 +22,21 @@ class SemanticsEngine:
         # 1. Initial PDF Reconstruction
         self.reproduce_initial_pdf(tokens, output_dir, zoom)
         
-        # 2. Return tokens as semantic items for now to avoid empty output
+        # 2. Layout Analysis (Clustering & Separator Prediction)
+        from .layout import LayoutAnalyzer
+        la = LayoutAnalyzer(self.median_size)
+        
+        # Perform clustering on zoomed tokens
+        clusters = la.cluster_tokens(tokens, h_threshold=30*zoom, v_threshold=10*zoom)
+        
+        # Predict separators
+        separators = la.predict_separators(clusters, self.page_width*zoom, self.page_height*zoom)
+        
+        # Visualize layout
+        viz_path = output_dir / "2_layout_analysis.png"
+        la.visualize_layout(clusters, separators, viz_path, int(self.page_width*zoom), int(self.page_height*zoom))
+        
+        # 3. Return tokens as semantic items for now
         semantic_items = []
         for tk in tokens:
             if tk["type"] == "text" and not tk.get("is_absorbed"):
