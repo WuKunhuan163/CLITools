@@ -105,8 +105,16 @@ class LayoutAnalyzer:
                               self._get_natural_order([t for t in right_tokens if t in self.content_tokens], median_h)
                 order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
                 
+                # Calculate extent for reproduction
+                all_sub_tokens = [t for t in tokens if t in self.content_tokens]
+                if all_sub_tokens:
+                    y_min = min([t.get("glyph_bbox", t["bbox"])[1] for t in all_sub_tokens])
+                    y_max = max([t.get("glyph_bbox", t["bbox"])[3] for t in all_sub_tokens])
+                else:
+                    y_min, y_max = y0, y1
+
                 self.separators.append({
-                    "type": "vertical", "bbox": [mid, y0, mid, y1],
+                    "type": "vertical", "bbox": [mid, y_min, mid, y_max],
                     "order_changing": order_changing, "depth": depth, "width": gap_end - gap_start,
                     "via_line": True if best_line_cut else False
                 })
@@ -120,8 +128,16 @@ class LayoutAnalyzer:
                               self._get_natural_order([t for t in bottom_tokens if t in self.content_tokens], median_h)
                 order_changing = [t["id"] for t in natural_order] != [t["id"] for t in split_order]
 
+                # Calculate extent for reproduction
+                all_sub_tokens = [t for t in tokens if t in self.content_tokens]
+                if all_sub_tokens:
+                    x_min = min([t.get("glyph_bbox", t["bbox"])[0] for t in all_sub_tokens])
+                    x_max = max([t.get("glyph_bbox", t["bbox"])[2] for t in all_sub_tokens])
+                else:
+                    x_min, x_max = x0, x1
+
                 self.separators.append({
-                    "type": "horizontal", "bbox": [x0, mid, x1, mid],
+                    "type": "horizontal", "bbox": [x_min, mid, x_max, mid],
                     "order_changing": order_changing, "depth": depth, "height": gap_end - gap_start,
                     "via_line": True if best_line_cut else False
                 })
@@ -281,15 +297,11 @@ class LayoutAnalyzer:
         for s in separators:
             bbox = s["bbox"]
             color = (255, 0, 0, 255) if s.get("order_changing") else (0, 0, 255, 255)
-            # Ensure it's a line even if bbox is a rect
-            if s["subtype"] == "vertical":
-                mid_x = (bbox[0] + bbox[2]) / 2
-                draw.line([mid_x, bbox[1], mid_x, bbox[3]], fill=color, width=3)
-                draw.text((mid_x + 5, (bbox[1] + bbox[3]) / 2), s["id"], fill=color)
-            else:
-                mid_y = (bbox[1] + bbox[3]) / 2
-                draw.line([bbox[0], mid_y, bbox[2], mid_y], fill=color, width=3)
-                draw.text(((bbox[0] + bbox[2]) / 2, mid_y + 5), s["id"], fill=color)
+            # Use original vertical/horizontal span from slicing logic, not the restricted one
+            # Wait, the bbox in s is now restricted. I should probably store both.
+            # For now, let's just draw the separator as a line.
+            draw.line([bbox[0], bbox[1], bbox[2], bbox[3]], fill=color, width=3)
+            draw.text((bbox[0] + 5, bbox[1] + 5), s["id"], fill=color)
         
         # 3. Draw Legend
         legend_h = 40
@@ -300,4 +312,25 @@ class LayoutAnalyzer:
         draw.rectangle([250, legend_y + 10, 280, legend_y + 30], fill=(0, 0, 255, 255))
         draw.text((290, legend_y + 12), "Order-Preserving Separator", fill="black")
         
+        img.save(output_path)
+
+    def visualize_reproduction(self, separators: List[Dict[str, Any]], tokens: List[Dict[str, Any]], output_path: Path, page_width: int, page_height: int):
+        """
+        Draws only active separators as thin black lines and remaining tokens.
+        """
+        img = Image.new("RGBA", (page_width, page_height), (255, 255, 255, 255))
+        draw = ImageDraw.Draw(img)
+        
+        # 1. Draw remaining tokens (excluding lines)
+        for t in tokens:
+            if t.get("subtype") in ["line", "rect"]: continue
+            tb = t.get("glyph_bbox", t["bbox"])
+            draw.rectangle(tb, outline=(0, 255, 0, 60), width=1)
+            
+        # 2. Draw separators as thin black lines
+        for s in separators:
+            bbox = s["bbox"]
+            # Draw thin black line
+            draw.line([bbox[0], bbox[1], bbox[2], bbox[3]], fill=(0, 0, 0, 255), width=1)
+            
         img.save(output_path)

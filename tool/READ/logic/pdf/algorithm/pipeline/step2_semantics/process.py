@@ -30,8 +30,13 @@ class SemanticsEngine:
         separators, ordered_tokens = la.analyze(tokens, self.page_width*zoom, self.page_height*zoom)
         
         # Visualize layout
-        viz_path = output_dir / "2_layout_analysis.png"
-        la.visualize_layout(separators, la.zones, la.all_tokens, viz_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
+        # 2.1 Separator Analysis (Rename from 2_layout_analysis.png)
+        viz_analysis_path = output_dir / "2.1_separator_analysis.png"
+        la.visualize_layout(separators, la.zones, la.all_tokens, viz_analysis_path, int(self.page_width*zoom), int(self.page_height*zoom), background_img=background_img)
+        
+        # 2.2 Separator Reproduction
+        viz_repro_path = output_dir / "2.2_separator_reproduced.png"
+        la.visualize_reproduction(separators, la.all_tokens, viz_repro_path, int(self.page_width*zoom), int(self.page_height*zoom))
         
         # Save analysis data
         analysis_data = {
