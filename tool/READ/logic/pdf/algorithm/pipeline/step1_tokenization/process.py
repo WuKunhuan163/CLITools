@@ -176,11 +176,12 @@ class Preprocessor:
                     bboxes.append((int(c[0]), int(r[0]), int(c[-1]) + 1, int(r[-1]) + 1))
         return bboxes
 
-    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]], spans: List[Dict[str, Any]] = None, vis_img: Image.Image = None) -> List[Dict[str, Any]]:
+    def join_tokens(self, char_bboxes: List[List[float]], glyph_bboxes: List[List[float]], image_bboxes: List[List[float]], artifact_bboxes: List[Tuple[int, int, int, int]], spans: List[Dict[str, Any]] = None, vis_img: Image.Image = None, artifact_ocr_results: Dict[str, List[Any]] = None) -> List[Dict[str, Any]]:
         """
         Tokenization: Merges characters into words using glyph bboxes for proximity.
         Preserves style information (font, size, bold, italic, color).
         Identifies lines and boxes.
+        Handles OCR results for artifacts.
         """
         from .line_detector import is_separator
         
@@ -195,8 +196,41 @@ class Preprocessor:
         vis_comps = []
         for i, b in enumerate(image_bboxes): 
             vis_comps.append({"type": "image", "bbox": list(b), "comp_ids": [f"I{i+1}"]})
-        for i, b in enumerate(artifact_bboxes): 
-            vis_comps.append({"type": "artifact", "bbox": list(b), "comp_ids": [f"A{i+1}"]})
+        
+        # Handle Artifacts with optional OCR results
+        consumed_artifact_ids = set()
+        ocr_text_tokens = []
+        
+        for i, b in enumerate(artifact_bboxes):
+            aid = f"A{i+1}"
+            if artifact_ocr_results and aid in artifact_ocr_results:
+                results = artifact_ocr_results[aid]
+                # Each result is (bbox, text, prob)
+                # If we have high-confidence text, we might want to convert it
+                # For now, if there's any text, we'll consider it "consumed"
+                if results:
+                    consumed_artifact_ids.add(aid)
+                    for (rel_bbox, text, prob) in results:
+                        # Convert relative bbox to absolute
+                        # EasyOCR returns [[x,y], [x,y], [x,y], [x,y]]
+                        # rel_bbox is [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+                        x0, y0 = rel_bbox[0]
+                        x1, y1 = rel_bbox[2]
+                        abs_bbox = [b[0] + x0, b[1] + y0, b[0] + x1, b[1] + y1]
+                        ocr_text_tokens.append({
+                            "type": "text", "bbox": abs_bbox, "glyph_bbox": abs_bbox,
+                            "text": text, "font": "OCR-Detected", "size": 10, # Fallback style
+                            "color": 0, "flags": 0, "is_ocr": True, "prob": prob
+                        })
+            
+            if aid not in consumed_artifact_ids:
+                vis_comps.append({"type": "artifact", "bbox": list(b), "comp_ids": [aid]})
+
+        # Add OCR detected text to word_tokens
+        # We'll assign IDs to them later
+        for i, ot in enumerate(ocr_text_tokens):
+            ot["id"] = f"T{len(word_tokens) + i + 1}"
+        word_tokens.extend(ocr_text_tokens)
 
         # 3. Identify Lines (Exclude from merging)
         lines = []

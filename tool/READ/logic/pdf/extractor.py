@@ -145,6 +145,9 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
     wiped_img.save(step1_dir / "3_background_remaining.png")
     
     artifact_bboxes = preprocessor.detect_artifacts(vis_img, wiped_img, bg_color)
+    artifact_ocr_results = {}
+    ocr_reader = None
+
     if draw_iface:
         a_img = wiped_img.convert("RGBA")
         a_rects = [{"bbox": b, "fill": (255, 255, 0, 100)} for b in artifact_bboxes]
@@ -152,16 +155,34 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         a_img = draw_iface["draw_rects_with_alpha"](a_img, a_rects)
         draw_iface["draw_labels"](a_img, a_labels).save(step1_dir / "4_background_artifact.png")
         
-        # Save individual artifacts to 4_background_artifacts/
+        # Save individual artifacts and perform OCR
         artifacts_dir = step1_dir / "4_background_artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
         for i, b in enumerate(artifact_bboxes):
+            aid = f"A{i+1}"
             try:
                 ax0, ay0, ax1, ay1 = [int(round(c)) for c in b]
                 if ax1 > ax0 and ay1 > ay0:
-                    # Artifacts are by definition in the background, so use wiped_img
                     a_crop = wiped_img.crop((ax0, ay0, ax1, ay1))
-                    a_crop.save(artifacts_dir / f"A{i+1}.png")
+                    a_crop.save(artifacts_dir / f"{aid}.png")
+                    
+                    # OCR Recognition
+                    try:
+                        import easyocr
+                        if ocr_reader is None:
+                            print(f"Loading OCR reader for artifact analysis...")
+                            ocr_reader = easyocr.Reader(['en'])
+                        
+                        # Use numpy array for easyocr
+                        results = ocr_reader.readtext(np.array(a_crop))
+                        if results:
+                            # Filter for high-confidence text or text-like structures
+                            valid_results = [r for r in results if r[2] > 0.5]
+                            if valid_results:
+                                artifact_ocr_results[aid] = valid_results
+                                print(f"OCR detected text in artifact {aid}: {[r[1] for r in valid_results]}")
+                    except Exception as e:
+                        print(f"Warning: OCR failed for artifact {aid}: {e}")
             except: pass
 
     if draw_iface:
@@ -187,7 +208,7 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
 
-    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes, all_spans, vis_img=vis_img)
+    tokens = preprocessor.join_tokens(actual_boxes, glyph_boxes, image_bboxes, artifact_bboxes, spans=all_spans, vis_img=vis_img, artifact_ocr_results=artifact_ocr_results)
     with open(step1_dir / "analysis.json", "w", encoding="utf-8") as f:
         json.dump({"offsets": offsets, "tokens": tokens}, f, indent=2)
 

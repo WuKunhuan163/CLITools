@@ -13,7 +13,11 @@
     "python-docx",
     "Pillow",
     "numpy",
-    "scipy"
+    "scipy",
+    "easyocr",
+    "torch",
+    "torchvision",
+    "opencv-python-headless"
   ],
   "usage": [
     "READ extract <file> [--page <spec>]",
