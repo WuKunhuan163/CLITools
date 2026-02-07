@@ -78,13 +78,22 @@ class SemanticsEngine:
         viz_32_img.save(output_dir / "3.2_line_block_order.png")
 
         # 3.3 Rearranged Structure Visualization
-        # Background: Unbroken are green, others are gray
+        # Use reproduce_to_pdf with unbroken_block_ids to get green/gray tokens/images automatically
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.3_rearranged_structure", 
                             exclude_lines=True, keep_pdf=False, unbroken_block_ids=unbroken_block_ids)
         viz_33_img = Image.open(output_dir / "3.3_rearranged_structure.png").convert("RGBA")
         draw_33 = ImageDraw.Draw(viz_33_img)
-        # Unbroken block outlines and order
-        vh.render_rearranged_structure(draw_33, tokens, unbroken_block_ids, draw_order=True)
+        
+        # Calculate unbroken block order based on ordered_tokens
+        ordered_unbroken_block_ids = []
+        for tk in ordered_tokens:
+            bid = tk.get("block_id")
+            if bid is not None and bid in unbroken_block_ids:
+                if bid not in ordered_unbroken_block_ids:
+                    ordered_unbroken_block_ids.append(bid)
+        
+        # Unbroken block outlines and order numbers
+        vh.render_rearranged_structure(draw_33, tokens, ordered_unbroken_block_ids, draw_order=True)
         # Active separators
         vh.render_separators(draw_33, active_seps, only_order_changing=True)
         viz_33_img.save(output_dir / "3.3_rearranged_structure.png")
