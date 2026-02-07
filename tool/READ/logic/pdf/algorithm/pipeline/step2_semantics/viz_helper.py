@@ -133,19 +133,63 @@ class VizHelper:
                 # Draw number slightly shifted
                 draw.text((tb[0] - 10, tb[1] - 10), str(i + 1), fill=(255, 0, 0, 255), font=font)
 
-    def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False, fill_text_bbox: bool = False, keep_pdf: bool = True):
+    def render_rearranged_structure(self, draw: ImageDraw.Draw, tokens: List[Dict[str, Any]], unbroken_block_ids: List[int], draw_order: bool = True):
+        """
+        Draws unbroken blocks (blue outline, numbered, light green tokens) 
+        and broken tokens (light gray).
+        """
+        blocks = {}
+        broken_tokens = []
+        
+        unbroken_set = set(unbroken_block_ids)
+        
+        for t in tokens:
+            if t.get("is_absorbed"): continue
+            if t.get("subtype") in ["line", "rect"]: continue
+            
+            bid = t.get("block_id")
+            if bid is not None and bid in unbroken_set:
+                if bid not in blocks: blocks[bid] = []
+                blocks[bid].append(t)
+            else:
+                broken_tokens.append(t)
+
+        # 1. Draw unbroken blocks
+        sorted_block_ids = sorted(blocks.keys())
+        for i, bid in enumerate(sorted_block_ids):
+            tkns = blocks[bid]
+            if not tkns: continue
+            
+            bx0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in tkns)
+            by0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in tkns)
+            bx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in tkns)
+            by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in tkns)
+            
+            # Shaded tokens (Light Green)
+            # We already have shaded tokens in the background from reproduce_to_pdf(fill_text_bbox=True)
+            # but wait, broken tokens should be gray. So we can't just use shaded PDF as background.
+            # Actually, I'll draw the shading here if needed, or rely on calling logic.
+            # User says: "对比没被打散的blocks的绿色tokens"
+            
+            # Blue outline
+            draw.rectangle([bx0-2, by0-2, bx1+2, by1+2], outline=(0, 0, 255, 150), width=1)
+            
+            if draw_order:
+                font = self.get_pil_font("Arial-Bold", 14)
+                draw.text((bx0 - 15, by0 - 15), str(i + 1), fill=(0, 0, 255, 255), font=font)
+
+    def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False, fill_text_bbox: bool = False, keep_pdf: bool = True, unbroken_block_ids: List[int] = None):
         """
         Reproduces the PDF layout using Stage 1 tokens and glyph bboxes via FPDF.
-        Then renders to PNG for high-quality background.
+        If unbroken_block_ids is provided, unbroken blocks are light green, others are light gray.
         """
         from fpdf import FPDF
         pdf = FPDF(unit="pt", format=[page_width, page_height])
         pdf.set_auto_page_break(auto=False)
         pdf.set_margins(0, 0, 0)
-        pdf.c_margin = 0 # Remove internal cell padding which causes horizontal shift
+        pdf.c_margin = 0
         pdf.add_page()
         
-        # Register fonts
         arial_variants = {"": "arial", "B": "arial-bold", "I": "arial-italic", "BI": "arial-bold-italic"}
         for style, name_v in arial_variants.items():
             p = self.font_dir / name_v / "font.ttf"
@@ -155,12 +199,23 @@ class VizHelper:
         from tool.FONT.logic.engine import FontManager
         fm = FontManager(self.project_root)
 
+        unbroken_set = set(unbroken_block_ids) if unbroken_block_ids is not None else None
+
         # 1. Render Visual Tokens
         for tk in tokens:
             if tk["type"] == "visual":
                 if exclude_lines and tk.get("subtype") in ["line", "rect"]: continue
                 
                 v_bbox = [c / zoom for c in tk["bbox"]]
+                
+                # Check color for structural view
+                if unbroken_set is not None:
+                    # Visual tokens (images) are usually broken if not specifically part of a block
+                    # But the user says "图片tokens也要渲染（应当是浅灰色）"
+                    # For images, we apply a gray filter or just a gray rect if we want to be simple.
+                    # Actually, let's just draw them normally but maybe with a gray overlay if they are 'broken'.
+                    pass
+
                 token_img_path = output_dir.parent / "step1_tokenization" / "7_merged_image_tokens" / f"{tk['id']}.png"
                 if token_img_path.exists():
                     try:
@@ -169,14 +224,37 @@ class VizHelper:
                         pdf.set_draw_color(200, 200, 200); pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
                 else:
                     pdf.set_draw_color(200, 200, 200); pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1])
+                
+                if unbroken_set is not None:
+                    # If it's a visual token and we are in rearranged view, 
+                    # and it's not explicitly part of an unbroken block, overlay gray
+                    bid = tk.get("block_id")
+                    if bid is None or bid not in unbroken_set:
+                        # Draw a semi-transparent gray rectangle using PIL later, 
+                        # or just a light gray rect in PDF.
+                        # For simplicity in PDF reproduction, use a light gray fill.
+                        pdf.set_fill_color(230, 230, 230)
+                        pdf.rect(v_bbox[0], v_bbox[1], v_bbox[2]-v_bbox[0], v_bbox[3]-v_bbox[1], style="F")
 
         # 2. Render Text Tokens
-        if fill_text_bbox:
-            pdf.set_fill_color(200, 255, 200) # Light green shading
-
         for tk in tokens:
             if tk["type"] == "text" and not tk.get("is_absorbed"):
                 bbox = [c / zoom for c in tk.get("glyph_bbox", tk["bbox"])]
+                
+                # Shading logic
+                if unbroken_set is not None:
+                    bid = tk.get("block_id")
+                    if bid is not None and bid in unbroken_set:
+                        pdf.set_fill_color(200, 255, 200) # Light green
+                    else:
+                        pdf.set_fill_color(230, 230, 230) # Light gray
+                    do_fill = True
+                elif fill_text_bbox:
+                    pdf.set_fill_color(200, 255, 200)
+                    do_fill = True
+                else:
+                    do_fill = False
+
                 raw_font = tk.get("font", "Arial")
                 style = ""
                 if tk.get("flags", 0) & 2: style += "I"
@@ -188,13 +266,10 @@ class VizHelper:
                 
                 if norm_family not in registered_fonts:
                     variants = []
-                    # Simple registration logic
                     for s, suffix in [("", ""), ("B", "-bold"), ("I", "-italic"), ("BI", "-bold-italic")]:
                         p = self.font_dir / (norm_family + suffix) / "font.ttf"
                         if p.exists(): 
-                            try:
-                                pdf.add_font(norm_family, s, str(p))
-                                variants.append(s)
+                            try: pdf.add_font(norm_family, s, str(p)); variants.append(s)
                             except: pass
                     registered_fonts[norm_family] = variants
 
@@ -208,11 +283,10 @@ class VizHelper:
                 pdf.set_text_color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF)
                 pdf.set_xy(bbox[0], bbox[1])
                 
-                # Use fill=True if fill_text_bbox is set
-                try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=tk["text"], border=1 if draw_text_bbox else 0, fill=fill_text_bbox)
+                try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=tk["text"], border=1 if draw_text_bbox else 0, fill=do_fill)
                 except:
                     clean_text = "".join([c if ord(c) < 256 else "?" for c in tk["text"]])
-                    try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=1 if draw_text_bbox else 0, fill=fill_text_bbox)
+                    try: pdf.cell(w=bbox[2]-bbox[0], h=bbox[3]-bbox[1], text=clean_text, border=1 if draw_text_bbox else 0, fill=do_fill)
                     except: pass
                     
         # 3. Render Separators
@@ -220,7 +294,6 @@ class VizHelper:
             pdf.set_draw_color(0, 0, 0)
             pdf.set_line_width(0.5)
             for s in separators:
-                # Separators in analysis are already zoomed
                 s_bbox = [c / zoom for c in s["bbox"]]
                 pdf.line(s_bbox[0], s_bbox[1], s_bbox[2], s_bbox[3])
 

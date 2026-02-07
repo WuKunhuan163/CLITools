@@ -12,10 +12,10 @@ class LayoutAnalyzer:
         self.content_tokens = []
         self.all_tokens = []
 
-    def analyze(self, tokens: List[Dict[str, Any]], page_width: float, page_height: float) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def analyze(self, tokens: List[Dict[str, Any]], page_width: float, page_height: float) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[int]]:
         """
         Main entry point for layout analysis using Recursive Slicing.
-        Returns (separators, ordered_tokens).
+        Returns (separators, ordered_tokens, unbroken_block_ids).
         """
         self.all_tokens = tokens
         self.line_tokens = [t for t in tokens if t.get("subtype") == "line" or t.get("subtype") == "rect"]
@@ -28,6 +28,36 @@ class LayoutAnalyzer:
         
         ordered_tokens = self._get_reading_order(tokens, bbox)
         
+        # Identify unbroken blocks
+        # A block is unbroken if all its original tokens are still contiguous in the final ordered_tokens
+        # Wait, the user's rule: "如果段落里指明的tokens是A、B、C（相邻三个），实际识别结果里也会有A、B、C"
+        # We check if for each raw block_id, its tokens appear contiguously in ordered_tokens.
+        raw_blocks = {}
+        for t in self.content_tokens:
+            bid = t.get("block_id")
+            if bid is not None:
+                if bid not in raw_blocks: raw_blocks[bid] = []
+                raw_blocks[bid].append(t["id"])
+        
+        unbroken_block_ids = []
+        ordered_ids = [t["id"] for t in ordered_tokens]
+        for bid, tids in raw_blocks.items():
+            if not tids: continue
+            # Find first and last occurrence of these tokens in ordered_tokens
+            indices = [ordered_ids.index(tid) for tid in tids if tid in ordered_ids]
+            if not indices: continue
+            
+            first, last = min(indices), max(indices)
+            # Contiguous if length matches and all tokens in range belong to this block
+            if last - first + 1 == len(tids):
+                # Also check if all tokens in this range are actually from this block
+                is_contiguous = True
+                for idx in range(first, last + 1):
+                    if ordered_tokens[idx]["id"] not in tids:
+                        is_contiguous = False; break
+                if is_contiguous:
+                    unbroken_block_ids.append(bid)
+
         # Format separators for final output
         final_separators = []
         for i, s in enumerate(self.separators):
@@ -40,7 +70,7 @@ class LayoutAnalyzer:
                 "via_line": s.get("via_line", False)
             })
             
-        return final_separators, ordered_tokens
+        return final_separators, ordered_tokens, unbroken_block_ids
 
     def _slice_recursive(self, tokens: List[Dict[str, Any]], bbox: List[float], depth: int = 0) -> Optional[List[float]]:
         """

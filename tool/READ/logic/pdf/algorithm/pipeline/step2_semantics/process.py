@@ -30,7 +30,7 @@ class SemanticsEngine:
         la = LayoutAnalyzer(self.median_size)
         
         # Perform Recursive Slicing Analysis
-        separators, ordered_tokens = la.analyze(tokens, self.page_width*zoom, self.page_height*zoom)
+        separators, ordered_tokens, unbroken_block_ids = la.analyze(tokens, self.page_width*zoom, self.page_height*zoom)
         
         # 2.1 Separator Analysis (Colored separators, zones, background text)
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.1_separator_analysis", exclude_lines=False, keep_pdf=False)
@@ -76,6 +76,18 @@ class SemanticsEngine:
         vh.render_line_block_info(draw_32, tokens, draw_order=True)
         vh.render_separators(draw_32, active_seps, only_order_changing=True)
         viz_32_img.save(output_dir / "3.2_line_block_order.png")
+
+        # 3.3 Rearranged Structure Visualization
+        # Background: Unbroken are green, others are gray
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.3_rearranged_structure", 
+                            exclude_lines=True, keep_pdf=False, unbroken_block_ids=unbroken_block_ids)
+        viz_33_img = Image.open(output_dir / "3.3_rearranged_structure.png").convert("RGBA")
+        draw_33 = ImageDraw.Draw(viz_33_img)
+        # Unbroken block outlines and order
+        vh.render_rearranged_structure(draw_33, tokens, unbroken_block_ids, draw_order=True)
+        # Active separators
+        vh.render_separators(draw_33, active_seps, only_order_changing=True)
+        viz_33_img.save(output_dir / "3.3_rearranged_structure.png")
         
         # Save analysis data
         analysis_data = {
