@@ -354,7 +354,7 @@ class ToolEngine:
             rel_main_py = os.path.relpath(main_py, self.bin_dir)
             os.symlink(rel_main_py, link_path)
             
-            from main import register_path
+            from logic.utils import register_path
             register_path(self.bin_dir)
             return True
         except:

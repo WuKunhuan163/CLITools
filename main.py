@@ -78,27 +78,6 @@ def uninstall_tool(tool_name, force_yes=False):
     engine = ToolEngine(tool_name, project_root)
     return engine.uninstall()
 
-def register_path(bin_dir):
-    home = Path.home()
-    shell = os.environ.get("SHELL", "")
-    profiles = []
-    if "zsh" in shell: profiles.append(home / ".zshrc")
-    elif "bash" in shell:
-        profiles.append(home / ".bash_profile")
-        profiles.append(home / ".bashrc")
-    else: profiles.extend([home / ".zshrc", home / ".bash_profile", home / ".bashrc"])
-
-    export_cmd = f'\nexport PATH="{bin_dir}:$PATH"\n'
-    for profile in profiles:
-        if profile.exists():
-            with open(profile, 'r') as f: content = f.read()
-            if str(bin_dir) not in content:
-                with open(profile, 'a') as f: f.write(export_cmd)
-                print(_("updated_path", "Updated {profile} with PATH.", profile=profile))
-
-    if str(bin_dir) not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
-
 def _print_width_check(width, is_auto=False, actual_detected=True):
     """Unified display for terminal width check."""
     if is_auto:

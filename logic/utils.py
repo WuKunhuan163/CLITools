@@ -644,3 +644,28 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
         # Simplify error message
         simplified_error = error_msg.splitlines()[-1] if error_msg.splitlines() else "Unknown error"
         return False, simplified_error
+
+def register_path(bin_dir):
+    """Add bin directory to PATH in shell profiles."""
+    import os
+    from pathlib import Path
+    home = Path.home()
+    shell = os.environ.get("SHELL", "")
+    profiles = []
+    if "zsh" in shell: profiles.append(home / ".zshrc")
+    elif "bash" in shell:
+        profiles.append(home / ".bash_profile")
+        profiles.append(home / ".bashrc")
+    else: profiles.extend([home / ".zshrc", home / ".bash_profile", home / ".bashrc"])
+
+    export_cmd = f'\nexport PATH="{bin_dir}:$PATH"\n'
+    for profile in profiles:
+        if profile.exists():
+            try:
+                with open(profile, 'r') as f: content = f.read()
+                if str(bin_dir) not in content:
+                    with open(profile, 'a') as f: f.write(export_cmd)
+            except: pass
+
+    if str(bin_dir) not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
