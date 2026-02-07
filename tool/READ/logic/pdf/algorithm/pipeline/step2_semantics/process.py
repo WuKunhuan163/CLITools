@@ -23,7 +23,7 @@ class SemanticsEngine:
         vh = VizHelper(str(self.project_root), self.font_dir)
         
         # 1. Initial PDF Reconstruction (Stage 1 status)
-        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="1_initial_status_reproduced")
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="1_initial_status_reproduced", keep_pdf=True)
         
         # 2. Layout Analysis (Recursive Slicing)
         from .layout import LayoutAnalyzer
@@ -33,24 +33,20 @@ class SemanticsEngine:
         separators, ordered_tokens = la.analyze(tokens, self.page_width*zoom, self.page_height*zoom)
         
         # 2.1 Separator Analysis (Colored separators, zones, background text)
-        # Use the perfect PDF background instead of PIL rendering
-        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.1_separator_analysis", exclude_lines=False)
-        # Add analysis overlays on top of the reproduced image
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.1_separator_analysis", exclude_lines=False, keep_pdf=False)
         viz_21_img = Image.open(output_dir / "2.1_separator_analysis.png").convert("RGBA")
         draw_21 = ImageDraw.Draw(viz_21_img)
-        # Zones
         for zone in la.zones: draw_21.rectangle(zone["bbox"], fill=(200, 200, 200, 100))
-        # Separators (all, colored)
         vh.render_separators(draw_21, separators, only_order_changing=False)
         viz_21_img.save(output_dir / "2.1_separator_analysis.png")
         
         # 2.2 Separator Reproduction (High quality PDF-based background + black separators)
         active_seps = [s for s in separators if s.get("order_changing")]
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.2_separator_reproduced", 
-                            exclude_lines=True, separators=active_seps, draw_text_bbox=False, fill_text_bbox=False)
+                            exclude_lines=True, separators=active_seps, draw_text_bbox=False, fill_text_bbox=False, keep_pdf=False)
         
         # 2.3 Token Order Visualization
-        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.3_token_order", exclude_lines=True)
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.3_token_order", exclude_lines=True, keep_pdf=False)
         viz_23_img = Image.open(output_dir / "2.3_token_order.png").convert("RGBA")
         draw_23 = ImageDraw.Draw(viz_23_img)
         vh.render_token_order(draw_23, ordered_tokens)
@@ -58,12 +54,12 @@ class SemanticsEngine:
 
         # 3.0 Token Glyph Info (Light green shading for tokens)
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.0_token_glyph_info", 
-                            exclude_lines=True, draw_text_bbox=False, fill_text_bbox=True)
+                            exclude_lines=True, draw_text_bbox=False, fill_text_bbox=True, keep_pdf=False)
         
         # 3.1 Line & Block Info Visualization (Background text + outlines)
         # For 3.1, we also want the light green shading for tokens
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.1_line_block_info", 
-                            exclude_lines=True, fill_text_bbox=True)
+                            exclude_lines=True, fill_text_bbox=True, keep_pdf=False)
         viz_31_img = Image.open(output_dir / "3.1_line_block_info.png").convert("RGBA")
         draw_31 = ImageDraw.Draw(viz_31_img)
         # Line & Block outlines (using PIL draw on top of shaded PDF)
@@ -74,7 +70,7 @@ class SemanticsEngine:
 
         # 3.2 Line & Block Order Visualization
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.2_line_block_order", 
-                            exclude_lines=True, fill_text_bbox=True)
+                            exclude_lines=True, fill_text_bbox=True, keep_pdf=False)
         viz_32_img = Image.open(output_dir / "3.2_line_block_order.png").convert("RGBA")
         draw_32 = ImageDraw.Draw(viz_32_img)
         vh.render_line_block_info(draw_32, tokens, draw_order=True)

@@ -133,7 +133,7 @@ class VizHelper:
                 # Draw number slightly shifted
                 draw.text((tb[0] - 10, tb[1] - 10), str(i + 1), fill=(255, 0, 0, 255), font=font)
 
-    def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False, fill_text_bbox: bool = False):
+    def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False, fill_text_bbox: bool = False, keep_pdf: bool = True):
         """
         Reproduces the PDF layout using Stage 1 tokens and glyph bboxes via FPDF.
         Then renders to PNG for high-quality background.
@@ -232,3 +232,6 @@ class VizHelper:
         pix = doc[0].get_pixmap(matrix=fitz.Matrix(zoom, zoom))
         pix.save(str(output_dir / f"{name}.png"))
         doc.close()
+        
+        if not keep_pdf:
+            pdf_output_path.unlink()
