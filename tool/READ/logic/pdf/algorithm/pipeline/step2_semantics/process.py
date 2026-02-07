@@ -78,7 +78,6 @@ class SemanticsEngine:
         viz_32_img.save(output_dir / "3.2_line_block_order.png")
 
         # 3.3 Rearranged Structure Visualization
-        # Use reproduce_to_pdf with unbroken_block_ids to get green/gray tokens/images automatically
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.3_rearranged_structure", 
                             exclude_lines=True, keep_pdf=False, unbroken_block_ids=unbroken_block_ids)
         viz_33_img = Image.open(output_dir / "3.3_rearranged_structure.png").convert("RGBA")
@@ -92,28 +91,89 @@ class SemanticsEngine:
                 if bid not in ordered_unbroken_block_ids:
                     ordered_unbroken_block_ids.append(bid)
         
-        # Unbroken block outlines and order numbers
         vh.render_rearranged_structure(draw_33, tokens, ordered_unbroken_block_ids, draw_order=True)
-        # Active separators
         vh.render_separators(draw_33, active_seps, only_order_changing=True)
         viz_33_img.save(output_dir / "3.3_rearranged_structure.png")
+
+        # 3.4 Final Structural Analysis Visualization
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.4_final_structural_analysis", 
+                            exclude_lines=True, keep_pdf=False, unbroken_block_ids=unbroken_block_ids)
+        viz_34_img = Image.open(output_dir / "3.4_final_structural_analysis.png").convert("RGBA")
+        draw_34 = ImageDraw.Draw(viz_34_img)
+        
+        # Calculate final merged blocks for visualization
+        final_merged_blocks = []
+        curr_merged_block = []
+        
+        for tk in ordered_tokens:
+            if tk["type"] == "visual":
+                if curr_merged_block:
+                    final_merged_blocks.append({"type": "paragraph", "tokens": curr_merged_block})
+                    curr_merged_block = []
+                final_merged_blocks.append({"type": "image", "tokens": [tk]})
+            else: # text
+                if not curr_merged_block:
+                    curr_merged_block.append(tk)
+                else:
+                    prev = curr_merged_block[-1]
+                    # Style similarity check
+                    same_size = abs(tk.get("size", 0) - prev.get("size", 0)) < 0.1
+                    same_style = tk.get("flags", 0) == prev.get("flags", 0)
+                    
+                    if same_size and same_style:
+                        curr_merged_block.append(tk)
+                    else:
+                        final_merged_blocks.append({"type": "paragraph", "tokens": curr_merged_block})
+                        curr_merged_block = [tk]
+        if curr_merged_block:
+            final_merged_blocks.append({"type": "paragraph", "tokens": curr_merged_block})
+
+        # Draw final blocks
+        for i, block in enumerate(final_merged_blocks):
+            tkns = block["tokens"]
+            bx0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in tkns)
+            by0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in tkns)
+            bx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in tkns)
+            by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in tkns)
+            
+            outline_color = (0, 0, 255, 150) if block["type"] == "paragraph" else (255, 165, 0, 150)
+            draw_34.rectangle([bx0-2, by0-2, bx1+2, by1+2], outline=outline_color, width=1)
+            
+            font = vh.get_pil_font("Arial-Bold", 14)
+            draw_34.text((bx0 - 15, by0 - 15), str(i + 1), fill=outline_color, font=font)
+
+        vh.render_separators(draw_34, active_seps, only_order_changing=True)
+        viz_34_img.save(output_dir / "3.4_final_structural_analysis.png")
         
         # Save analysis data
         analysis_data = {
             "page_width": self.page_width,
             "page_height": self.page_height,
             "zoom": zoom,
-            "separators": separators
+            "separators": separators,
+            "final_blocks": [{"type": b["type"], "token_ids": [t["id"] for t in b["tokens"]]} for b in final_merged_blocks]
         }
         with open(output_dir / "analysis.json", "w", encoding="utf-8") as f:
             json.dump(analysis_data, f, indent=2, ensure_ascii=False)
             
-        # 3. Return ordered tokens as semantic items
+        # 3. Return final blocks as semantic items
         semantic_items = []
-        for tk in ordered_tokens:
-            if tk["type"] == "text":
-                semantic_items.append({
-                    "type": "paragraph", "bbox": [c / zoom for c in tk["bbox"]],
-                    "text": tk["text"], "md_text": tk["text"]
-                })
+        for block in final_merged_blocks:
+            tkns = block["tokens"]
+            full_text = " ".join([t["text"] for t in tkns if t["type"] == "text"])
+            bx0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in tkns)
+            by0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in tkns)
+            bx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in tkns)
+            by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in tkns)
+            
+            item = {
+                "type": block["type"],
+                "bbox": [bx0/zoom, by0/zoom, bx1/zoom, by1/zoom],
+                "text": full_text,
+                "md_text": full_text
+            }
+            if block["type"] == "image":
+                item["id"] = tkns[0]["id"]
+            semantic_items.append(item)
+            
         return semantic_items
