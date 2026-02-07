@@ -1,9 +1,22 @@
 {
   "name": "GOOGLE",
   "version": "1.0.0",
-  "description": "Template tool GOOGLE",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Google Ecosystem Proxy Tool",
+  "purpose": "Provide access to Google services like Search, Drive, and Colab (GCS).",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "USERINPUT"
+  ],
+  "pip_dependencies": [
+    "google-api-python-client",
+    "google-auth",
+    "google-auth-oauthlib",
+    "google-auth-httplib2"
+  ],
+  "usage": [
+    "GOOGLE search <query>: Search Google",
+    "GOOGLE drive <cmd>: Manage Google Drive files",
+    "GOOGLE gcs <cmd>: Google Colab Shell interaction",
+    "GOOGLE --install <subtool>: Install sub-tools like GCS"
   ]
 }
