@@ -49,6 +49,13 @@ class SemanticsEngine:
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.2_separator_reproduced", 
                             exclude_lines=True, separators=active_seps, draw_text_bbox=False, fill_text_bbox=False)
         
+        # 2.3 Token Order Visualization
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="2.3_token_order", exclude_lines=True)
+        viz_23_img = Image.open(output_dir / "2.3_token_order.png").convert("RGBA")
+        draw_23 = ImageDraw.Draw(viz_23_img)
+        vh.render_token_order(draw_23, ordered_tokens)
+        viz_23_img.save(output_dir / "2.3_token_order.png")
+
         # 3.0 Token Glyph Info (Light green shading for tokens)
         vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.0_token_glyph_info", 
                             exclude_lines=True, draw_text_bbox=False, fill_text_bbox=True)
@@ -64,6 +71,15 @@ class SemanticsEngine:
         # Active separators (black)
         vh.render_separators(draw_31, active_seps, only_order_changing=True)
         viz_31_img.save(output_dir / "3.1_line_block_info.png")
+
+        # 3.2 Line & Block Order Visualization
+        vh.reproduce_to_pdf(tokens, output_dir, zoom, self.page_width, self.page_height, name="3.2_line_block_order", 
+                            exclude_lines=True, fill_text_bbox=True)
+        viz_32_img = Image.open(output_dir / "3.2_line_block_order.png").convert("RGBA")
+        draw_32 = ImageDraw.Draw(viz_32_img)
+        vh.render_line_block_info(draw_32, tokens, draw_order=True)
+        vh.render_separators(draw_32, active_seps, only_order_changing=True)
+        viz_32_img.save(output_dir / "3.2_line_block_order.png")
         
         # Save analysis data
         analysis_data = {

@@ -77,9 +77,10 @@ class VizHelper:
                 # Add label for analysis
                 draw.text((bbox[0] + 5, bbox[1] + 5), s["id"], fill=color)
 
-    def render_line_block_info(self, draw: ImageDraw.Draw, tokens: List[Dict[str, Any]]):
+    def render_line_block_info(self, draw: ImageDraw.Draw, tokens: List[Dict[str, Any]], draw_order: bool = False):
         """
         Draws line and block outlines using PIL.
+        If draw_order is True, also numbers the blocks based on block_id.
         """
         blocks = {}
         for t in tokens:
@@ -103,7 +104,11 @@ class VizHelper:
                 draw.rectangle([lx0, ly0, lx1, ly1], outline=(0, 128, 0, 150), width=1)
                 
         # Draw Blocks (Blue)
-        for bid, lines in blocks.items():
+        # We want to sort blocks to ensure numbering matches logic if possible, 
+        # but here we follow raw block_id as requested ("原始blocks的信息").
+        sorted_block_ids = sorted(blocks.keys())
+        for i, bid in enumerate(sorted_block_ids):
+            lines = blocks[bid]
             all_tkns = [t for l in lines.values() for t in l]
             if not all_tkns: continue
             bx0 = min(t.get("glyph_bbox", t["bbox"])[0] for t in all_tkns)
@@ -111,6 +116,22 @@ class VizHelper:
             bx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in all_tkns)
             by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in all_tkns)
             draw.rectangle([bx0-2, by0-2, bx1+2, by1+2], outline=(0, 0, 255, 150), width=1)
+            
+            if draw_order:
+                # Draw block number near top-left
+                font = self.get_pil_font("Arial-Bold", 14)
+                draw.text((bx0 - 15, by0 - 15), str(i + 1), fill=(0, 0, 255, 255), font=font)
+
+    def render_token_order(self, draw: ImageDraw.Draw, ordered_tokens: List[Dict[str, Any]]):
+        """
+        Draws numbers for every 10th token.
+        """
+        font = self.get_pil_font("Arial-Bold", 12)
+        for i, t in enumerate(ordered_tokens):
+            if i % 10 == 0:
+                tb = t.get("glyph_bbox", t["bbox"])
+                # Draw number slightly shifted
+                draw.text((tb[0] - 10, tb[1] - 10), str(i + 1), fill=(255, 0, 0, 255), font=font)
 
     def reproduce_to_pdf(self, tokens: List[Dict[str, Any]], output_dir: Path, zoom: float, page_width: float, page_height: float, name: str, exclude_lines: bool = False, separators: List[Dict[str, Any]] = None, draw_text_bbox: bool = False, fill_text_bbox: bool = False):
         """
