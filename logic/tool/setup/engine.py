@@ -10,11 +10,11 @@ from logic.turing.logic import TuringStage
 from logic.config import get_color
 
 class ToolEngine:
-    def __init__(self, tool_name, project_root):
+    def __init__(self, tool_name, project_root, parent_tool_dir=None):
         from logic.utils import get_logic_dir
         self.tool_name = tool_name
         self.project_root = project_root
-        self.tool_parent_dir = project_root / "tool"
+        self.tool_parent_dir = parent_tool_dir if parent_tool_dir else project_root / "tool"
         self.tool_dir = self.tool_parent_dir / tool_name
         self.tool_internal = get_logic_dir(self.tool_dir)
         self.bin_dir = project_root / "bin"
@@ -196,6 +196,11 @@ class ToolEngine:
     # --- Actions ---
 
     def validate_registry(self):
+        # If it's a subtool, we skip global registry check for now
+        # or we could check the parent's metadata.
+        if self.tool_parent_dir != (self.project_root / "tool"):
+            return True
+
         if not self.registry_path.exists():
             print(self._("registry_error", "Global tool.json not found."))
             return False
@@ -214,12 +219,47 @@ class ToolEngine:
         return True
 
     def fetch_source(self):
+        # 1. Determine relative path for checkout
+        # If this is a subtool, its parent is not project_root / "tool"
+        # Standard tool: project_root / "tool" / tool_name -> tool/tool_name
+        # Subtool: parent_dir / "tool" / subtool_name -> tool/parent/tool/subtool
+        rel_tool_path = self.tool_dir.relative_to(self.project_root)
+        
+        # Determine remote resource path
+        # Pattern: resource/tool/PARENT/tool/SUBTOOL
+        # If standard tool: resource/tool/tool_name (actually it's usually just checked out from tool/tool_name)
+        # Wait, standard tools are checked out from 'tool/NAME'.
+        # Subtools are checked out from 'resource/tool/PARENT/tool/SUBTOOL'.
+        
+        # Heuristic: if parent_tool_dir is not project_root / "tool", it's a subtool.
+        is_subtool = self.tool_parent_dir != (self.project_root / "tool")
+        
+        if is_subtool:
+            # Subtool logic
+            # Remote structure: resource/tool/PARENT/tool/SUBTOOL
+            # We need to construct this.
+            # Local: tool/PARENT/tool/SUBTOOL
+            # We can get the local path relative to project root, then prepend 'resource/'
+            remote_source_path = Path("resource") / rel_tool_path
+        else:
+            remote_source_path = rel_tool_path
+
         # 1. Try checkout from known branches
         sources = ["dev", "tool", "origin/tool", "origin/dev"]
         for branch in sources:
             try:
-                cmd = ["/usr/bin/git", "checkout", branch, "--", f"tool/{self.tool_name}"]
+                cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
                 if subprocess.run(cmd, capture_output=True, cwd=str(self.project_root)).returncode == 0:
+                    # If it's a subtool, we need to move it from resource/ to actual tool/ path
+                    if is_subtool:
+                        local_resource_path = self.project_root / remote_source_path
+                        if local_resource_path.exists():
+                            if self.tool_dir.exists(): shutil.rmtree(self.tool_dir)
+                            self.tool_dir.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.move(str(local_resource_path), str(self.tool_dir))
+                            # Cleanup empty resource parent if needed
+                            try: local_resource_path.parent.rmdir() 
+                            except: pass
                     return True
             except: pass
         
@@ -309,8 +349,10 @@ class ToolEngine:
         try:
             st = os.stat(main_py); os.chmod(main_py, st.st_mode | stat.S_IEXEC)
             
-            # Pure symlink - re-execution logic is now inside ToolBase
-            os.symlink(main_py, link_path)
+            # Pure symlink
+            # We need to make sure the relative path is correct from bin/ to tool/...
+            rel_main_py = os.path.relpath(main_py, self.bin_dir)
+            os.symlink(rel_main_py, link_path)
             
             from main import register_path
             register_path(self.bin_dir)

@@ -81,6 +81,7 @@ class ToolBase:
         """
         Process command line arguments. 
         If 'setup' is the first argument, run the tool's setup.py.
+        If 'install' is the first argument, handle sub-tool installation.
         If a parser is provided, attempts to parse known args. 
         If parsing fails or command is unknown, delegates to system fallback.
         Returns True if a command was handled and the tool should exit.
@@ -89,6 +90,13 @@ class ToolBase:
             cmd = sys.argv[1]
             if cmd == "setup":
                 self.run_setup()
+                return True
+            elif cmd == "install":
+                if len(sys.argv) > 2:
+                    subtool_name = sys.argv[2]
+                    self.run_subtool_install(subtool_name)
+                else:
+                    print(f"Usage: {self.tool_name} install <SUBTOOL_NAME>")
                 return True
             elif cmd == "rule":
                 self.print_rule()
@@ -350,6 +358,15 @@ class ToolBase:
         """Hook for tools to customize initial fallback file content."""
         return hint or ""
 
-    def process_fallback_result(self, content):
-        """Hook for tools to post-process fallback file content (e.g. split into lines)."""
-        return content
+    def run_subtool_install(self, subtool_name):
+        """Standardized sub-tool installation logic."""
+        from logic.tool.setup.engine import ToolEngine
+        
+        # Subtools are stored in tool/PARENT/tool/SUBTOOL
+        subtool_parent_dir = self.script_dir / "tool"
+        engine = ToolEngine(subtool_name, self.project_root, parent_tool_dir=subtool_parent_dir)
+        
+        if engine.install():
+            # If successful, sub-tool is now in tool/PARENT/tool/SUBTOOL
+            return True
+        return False
