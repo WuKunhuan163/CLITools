@@ -178,7 +178,11 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
             c_rects.append({"bbox": b, "fill": (255, 0, 255, 80)})
             c_labels.append({"pos": (b[0], b[1]), "text": f"A{i+1}", "font": label_font})
             
-        legend = {"Text (Glyph)": (0, 255, 0, 255), "Raw Image": (255, 255, 0, 255), "Artifact": (255, 0, 255, 255)}
+        legend = [
+            {"label": "Text (Glyph)", "color": (0, 255, 0, 255)},
+            {"label": "Raw Image", "color": (255, 255, 0, 255)},
+            {"label": "Artifact", "color": (255, 0, 255, 255)}
+        ]
         c_img = draw_iface["draw_rects_with_alpha"](c_img, c_rects)
         c_img = draw_iface["draw_labels"](c_img, c_labels)
         draw_iface["append_legend"](c_img, legend).save(step1_dir / "5_combined_elements.png")
@@ -207,7 +211,10 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         
         s_img = draw_iface["draw_rects_with_alpha"](bleached, s_rects)
         s_img = draw_iface["draw_labels"](s_img, s_labels)
-        legend_6 = {"Line": (255, 0, 255, 255), "Box": (0, 255, 255, 255)}
+        legend_6 = [
+            {"label": "Line", "color": (255, 0, 255, 255)},
+            {"label": "Box", "color": (0, 255, 255, 255)}
+        ]
         draw_iface["append_legend"](s_img, legend_6).save(step1_dir / "6_semantic_images.png")
 
         # 7. Merged Image Tokens
@@ -303,7 +310,12 @@ def extract_single_pdf_page(doc: Any, page_num: int, output_pages_root: Path, me
         t_img = draw_iface["draw_rects_with_alpha"](t_img, t_rects)
         t_img = draw_iface["draw_labels"](t_img, t_labels)
         
-        legend_8 = {"Word (Glyph)": (0, 255, 0, 255), "Visual Block": (255, 255, 0, 255), "Line": (255, 0, 255, 255), "Box": (0, 255, 255, 255)}
+        legend_8 = [
+            {"label": "Word (Glyph)", "color": (0, 255, 0, 255)},
+            {"label": "Visual Block", "color": (255, 255, 0, 255)},
+            {"label": "Line", "color": (255, 0, 255, 255)},
+            {"label": "Box", "color": (0, 255, 255, 255)}
+        ]
         draw_iface["append_legend"](t_img, legend_8).save(step1_dir / "8_tokenization_result.png")
 
     # --- Step 2: Semantics ---
