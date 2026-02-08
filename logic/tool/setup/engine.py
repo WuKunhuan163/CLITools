@@ -248,8 +248,10 @@ class ToolEngine:
         sources = ["dev", "tool", "origin/tool", "origin/dev"]
         for branch in sources:
             try:
+                # Use shlex to safely handle paths with spaces if any
                 cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
-                if subprocess.run(cmd, capture_output=True, cwd=str(self.project_root)).returncode == 0:
+                res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
+                if res.returncode == 0:
                     # If it's a subtool, we need to move it from resource/ to actual tool/ path
                     if is_subtool:
                         local_resource_path = self.project_root / remote_source_path
@@ -258,7 +260,12 @@ class ToolEngine:
                             self.tool_dir.parent.mkdir(parents=True, exist_ok=True)
                             shutil.move(str(local_resource_path), str(self.tool_dir))
                             # Cleanup empty resource parent if needed
-                            try: local_resource_path.parent.rmdir() 
+                            try:
+                                # Recursively remove empty parents up to 'resource'
+                                curr = local_resource_path.parent
+                                while curr != self.project_root / "resource" and curr.exists() and not any(curr.iterdir()):
+                                    curr.rmdir()
+                                    curr = curr.parent
                             except: pass
                     return True
             except: pass

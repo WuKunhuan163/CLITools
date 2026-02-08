@@ -102,6 +102,18 @@ class ToolBase:
                 self.print_rule()
                 return True
             
+            # 2. Check if it's a subtool
+            subtool_main = self.script_dir / "tool" / cmd / "main.py"
+            if subtool_main.exists():
+                # Proxy to subtool
+                cmd_args = [sys.executable, str(subtool_main)] + sys.argv[2:]
+                try:
+                    res = subprocess.run(cmd_args)
+                    sys.exit(res.returncode)
+                except Exception as e:
+                    print(f"Error executing subtool {cmd}: {e}")
+                    sys.exit(1)
+
             # If parser provided, check if it's one of our defined commands
             if parser:
                 # Store original stderr to restore later

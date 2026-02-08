@@ -3,9 +3,17 @@ import sys
 import argparse
 from pathlib import Path
 
-# Add project root to sys.path
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent.parent.parent
+# Find project root by looking for .git or tool.json
+def find_project_root():
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / "tool.json").exists():
+            return curr
+        curr = curr.parent
+    return Path(__file__).resolve().parent.parent.parent.parent # Fallback
+
+project_root = find_project_root()
+print(f"DEBUG: DUMMY project_root={project_root}", file=sys.stderr)
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
@@ -20,6 +28,8 @@ class DummySubtool(ToolBase):
 
 def main():
     tool = DummySubtool()
+    if tool.handle_command_line():
+        return
     tool.run()
 
 if __name__ == "__main__":
