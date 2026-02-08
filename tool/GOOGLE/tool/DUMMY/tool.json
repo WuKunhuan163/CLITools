@@ -1,8 +1,0 @@
-{
-  "name": "DUMMY",
-  "version": "1.0.0",
-  "description": "Dummy subtool for GOOGLE",
-  "purpose": "Verify recursive subtool installation",
-  "dependencies": []
-}
-
