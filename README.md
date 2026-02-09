@@ -120,3 +120,5 @@ Many tools depend on specific versions of Python or complex libraries. The `PYTH
 ## Contribution
 
 Active development happens on the `dev` branch. For detailed information on building new tools, refer to the **[Development Guide](logic/tool/template/README.md)** and the **[GUI Architecture](report/gui_architecture.md)**.
+
+
