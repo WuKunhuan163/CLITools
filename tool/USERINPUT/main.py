@@ -417,20 +417,29 @@ def main():
             ts = time.strftime("%H:%M:%S")
             commit_msg = f"USERINPUT auto-commit at {ts}"
             
-            def do_save():
+            def do_save(stage=None):
                 subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True)
-                res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True)
+                res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True, text=True)
+                if res.returncode != 0:
+                    if stage: stage.error_brief = f"Commit failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
                 return res.returncode == 0
                 
-            def do_backup():
-                res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True)
+            def do_backup(stage=None):
+                res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True, text=True)
+                if res.returncode != 0:
+                    if stage: stage.error_brief = f"Push failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
                 return res.returncode == 0
 
             pm = ProgressTuringMachine([
                 TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress", bold_part="progress"),
                 TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote", bold_part="to remote")
             ])
-            pm.run(ephemeral=True, final_newline=False)
+            # Use ephemeral=True but if it fails, the error will be printed by pm.run or we handle it
+            if not pm.run(ephemeral=True, final_newline=False):
+                # The pm.run will already print the failed stage with error_brief if we provided it
+                # But we want to ensure a newline if it failed during ephemeral run
+                sys.stdout.write("\n")
+                sys.stdout.flush()
             
     except Exception as e:
         # Ignore errors during auto-commit so it doesn't block the tool
