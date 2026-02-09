@@ -1212,11 +1212,11 @@ def _audit_lang(lang_code, force=False):
     print_metric("audit_en_violations_label", summary.get("en_violations_count", 0), color=RED)
 
     # Display report path
-    report_path = project_root / "report" / "lang" / f"audit_{lang_code}.json"
+    report_path = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
     print("\n" + _("audit_full_report", "Full report saved to: {path}", path=str(report_path)))
 
     if cached:
-        AuditManager(project_root / "report" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
+        AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
 
 def _show_current_language():
     """Display the current language and its code."""

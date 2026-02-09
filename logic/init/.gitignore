@@ -10,6 +10,7 @@
 !/bin/
 !/test/
 !/tool/
+!/report/
 !/.gitignore
 !/.gitattributes
 

@@ -434,10 +434,11 @@ def main():
                 TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress", bold_part="progress"),
                 TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote", bold_part="to remote")
             ], project_root=tool.project_root, tool_name=tool.tool_name)
-            # Use ephemeral=False so they stay on the screen as intermediate steps
-            if not pm.run(ephemeral=False):
-                # If it failed, we already have a newline from pm.run failure logic
-                pass
+            # Use ephemeral=True to keep them on one line as intermediate steps
+            if pm.run(ephemeral=True, final_newline=False):
+                # Print a newline so the next message doesn't overwrite the final success status
+                sys.stdout.write("\n")
+                sys.stdout.flush()
             
     except Exception as e:
         # Ignore errors during auto-commit so it doesn't block the tool

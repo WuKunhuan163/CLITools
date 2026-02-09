@@ -25,6 +25,7 @@ class GitIgnoreManager:
             "!/bin/",
             "!/test/",
             "!/tool/",
+            "!/report/",
             "",
             "# --- Transient Directories ---",
             "/data/",
