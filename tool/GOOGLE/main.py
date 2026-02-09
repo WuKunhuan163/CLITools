@@ -38,17 +38,29 @@ class GoogleTool(ToolBase):
 
         if args.help or not args.command:
             parser.print_help()
-            # Show rules if no command
             self.print_rule()
             return
 
-        # Basic commands
+        # Initialize internal modules
+        from tool.GOOGLE.logic.engine import GoogleEngine
+        engine = GoogleEngine(self.project_root)
+
         if args.command == "search":
-            print(f"Searching for: {' '.join(args.args)}")
-            print("Feature not yet implemented (placeholder).")
+            if not args.args:
+                print("Usage: GOOGLE search <query>")
+                return
+            engine.search(" ".join(args.args))
         elif args.command == "drive":
-            print(f"Drive command: {args.args}")
-            print("Feature not yet implemented (placeholder).")
+            if not args.args:
+                print("Usage: GOOGLE drive <list|upload|download>")
+                return
+            subcmd = args.args[0]
+            if subcmd == "list":
+                engine.drive_list()
+            else:
+                print(f"Unknown drive command: {subcmd}")
+        elif args.command == "trends":
+            engine.trends()
         else:
             print(f"Unknown command: {args.command}")
             parser.print_help()

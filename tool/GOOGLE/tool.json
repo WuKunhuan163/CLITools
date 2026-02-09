@@ -16,7 +16,7 @@
   "usage": [
     "GOOGLE search <query>: Search Google",
     "GOOGLE drive <cmd>: Manage Google Drive files",
-    "GOOGLE gcs <cmd>: Google Colab Shell interaction",
+    "GOOGLE trends: View trending topics",
     "GOOGLE --install <subtool>: Install sub-tools like GCS"
   ]
 }
