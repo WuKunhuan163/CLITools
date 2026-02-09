@@ -433,7 +433,7 @@ def main():
             pm = ProgressTuringMachine([
                 TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress", bold_part="progress"),
                 TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote", bold_part="to remote")
-            ])
+            ], project_root=tool.project_root, tool_name=tool.tool_name)
             # Use ephemeral=False so they stay on the screen as intermediate steps
             if not pm.run(ephemeral=False):
                 # If it failed, we already have a newline from pm.run failure logic

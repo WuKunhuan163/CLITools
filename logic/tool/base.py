@@ -260,7 +260,7 @@ class ToolBase:
                 self.handle_exception(e)
                 return False
 
-        tm = ProgressTuringMachine()
+        tm = ProgressTuringMachine(project_root=self.project_root, tool_name=self.tool_name)
         # "Running setup" should be blue and bold. 
         # In ProgressTuringMachine, active_status is colored and bolded.
         tm.add_stage(TuringStage(

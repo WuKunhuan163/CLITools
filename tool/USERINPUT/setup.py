@@ -100,7 +100,7 @@ def main():
         except:
             return False
 
-    tm = ProgressTuringMachine()
+    tm = ProgressTuringMachine(project_root=project_root, tool_name="USERINPUT")
     tm.add_stage(TuringStage(
         name=f"Python {version}",
         action=install_python,

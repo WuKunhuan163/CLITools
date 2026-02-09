@@ -723,6 +723,7 @@ def _dev_create(tool_name):
         return
     
     tool_dir.mkdir(parents=True)
+    (tool_dir / "report").mkdir(exist_ok=True)
     tool_internal = get_logic_dir(tool_dir)
     tool_internal.mkdir()
     (tool_internal / "translation").mkdir(parents=True)
@@ -1059,7 +1060,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
                                    "--exclude=logic/config/tool_config_manager.py"], cwd=str(project_root), capture_output=True)
                 return success
 
-    tm_sync = ProgressTuringMachine()
+    tm_sync = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     tm_sync.add_stage(TuringStage(
         name="branches...",
         action=sync_action,
@@ -1073,7 +1074,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         return False
 
     # 2. Install and Verify
-    tm_install = ProgressTuringMachine()
+    tm_install = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     def install_test_action():
         error_details = []
         try:
@@ -1211,11 +1212,11 @@ def _audit_lang(lang_code, force=False):
     print_metric("audit_en_violations_label", summary.get("en_violations_count", 0), color=RED)
 
     # Display report path
-    report_path = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
+    report_path = project_root / "report" / "lang" / f"audit_{lang_code}.json"
     print("\n" + _("audit_full_report", "Full report saved to: {path}", path=str(report_path)))
 
     if cached:
-        AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL audit-lang {lang_code}").print_cache_warning()
+        AuditManager(project_root / "report" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
 
 def _show_current_language():
     """Display the current language and its code."""
