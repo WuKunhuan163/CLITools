@@ -105,11 +105,19 @@ class ReadTool(ToolBase):
                   self.get_translation("error_file_not_found", f"File not found: {args.file}"))
             return
 
+        suffix = file_path.suffix.lower()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = hashlib.md5(f"{file_path}{time.time()}".encode()).hexdigest()[:8]
-        result_dir_name = f"result_{timestamp}_{unique_id}"
+        result_dir_name = f"{timestamp}_{unique_id}"
         
-        default_data_dir = self.script_dir / "data" / "pdf"
+        base_result_dir = self.script_dir / "data" / "result"
+        if suffix == ".pdf":
+            default_data_dir = base_result_dir / "pdf"
+        elif suffix == ".docx":
+            default_data_dir = base_result_dir / "docx"
+        else:
+            default_data_dir = base_result_dir / "image"
+            
         output_dir = Path(args.output).resolve() if args.output else default_data_dir / result_dir_name
         pages_dir = output_dir / "pages"
         
@@ -125,7 +133,6 @@ class ReadTool(ToolBase):
         }
 
         start_time = time.time()
-        suffix = file_path.suffix.lower()
         success_pages = []
         failed_pages = []
 
@@ -227,7 +234,7 @@ class ReadTool(ToolBase):
 
         # Cache management
         from logic.utils import cleanup_old_files
-        cleanup_old_files(default_data_dir, "result_*", limit=1024, batch_size=512)
+        cleanup_old_files(default_data_dir, "*_*", limit=1024, batch_size=512)
 
         # Final Summary
         duration = time.time() - start_time

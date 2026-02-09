@@ -101,32 +101,11 @@ class SemanticsEngine:
         viz_34_img = Image.open(output_dir / "3.4_final_structural_analysis.png").convert("RGBA")
         draw_34 = ImageDraw.Draw(viz_34_img)
         
-        # Calculate final merged blocks for visualization
-        final_merged_blocks = []
-        curr_merged_block = []
-        
-        for tk in ordered_tokens:
-            if tk["type"] == "visual":
-                if curr_merged_block:
-                    final_merged_blocks.append({"type": "paragraph", "tokens": curr_merged_block})
-                    curr_merged_block = []
-                final_merged_blocks.append({"type": "image", "tokens": [tk]})
-            else: # text
-                if not curr_merged_block:
-                    curr_merged_block.append(tk)
-                else:
-                    prev = curr_merged_block[-1]
-                    # Style similarity check
-                    same_size = abs(tk.get("size", 0) - prev.get("size", 0)) < 0.1
-                    same_style = tk.get("flags", 0) == prev.get("flags", 0)
-                    
-                    if same_size and same_style:
-                        curr_merged_block.append(tk)
-                    else:
-                        final_merged_blocks.append({"type": "paragraph", "tokens": curr_merged_block})
-                        curr_merged_block = [tk]
-        if curr_merged_block:
-            final_merged_blocks.append({"type": "paragraph", "tokens": curr_merged_block})
+        # Organize remaining text tokens into paragraphs
+        from .paragraph import ParagraphEngine
+        pe = ParagraphEngine(self.median_size)
+        # Use ordered_tokens which already respects reading order
+        final_merged_blocks = pe.merge_paragraphs(ordered_tokens, self.median_size)
 
         # Draw final blocks
         for i, block in enumerate(final_merged_blocks):

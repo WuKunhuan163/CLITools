@@ -128,7 +128,8 @@ class VizHelper:
             by0 = min(t.get("glyph_bbox", t["bbox"])[1] for t in all_tkns)
             bx1 = max(t.get("glyph_bbox", t["bbox"])[2] for t in all_tkns)
             by1 = max(t.get("glyph_bbox", t["bbox"])[3] for t in all_tkns)
-            draw.rectangle([bx0-2, by0-2, bx1+2, by1+2], outline=(0, 0, 255, 150), width=1)
+            # Slightly expand block bbox to avoid overlapping with line bboxes
+            draw.rectangle([bx0-3, by0-3, bx1+3, by1+3], outline=(0, 0, 255, 150), width=1)
             
             if draw_order:
                 # Draw block number near top-left
@@ -250,7 +251,11 @@ class VizHelper:
                         do_fill = True
                         opacity = 0.3
                 elif fill_text_bbox:
-                    pdf.set_fill_color(200, 255, 200)
+                    # Non-embedded tokens (e.g. OCR restored) get gray shading in 3.1 view
+                    if tk.get("block_id") is not None:
+                        pdf.set_fill_color(200, 255, 200) # Light green
+                    else:
+                        pdf.set_fill_color(230, 230, 230) # Light gray
                     do_fill = True
                 
                 raw_font = tk.get("font", "Arial")
