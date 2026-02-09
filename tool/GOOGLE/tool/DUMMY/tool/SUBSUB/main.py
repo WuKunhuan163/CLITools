@@ -10,7 +10,7 @@ def find_project_root():
         if (curr / "bin" / "TOOL").exists():
             return curr
         curr = curr.parent
-    return Path(__file__).resolve().parent.parent.parent.parent
+    return Path(__file__).resolve().parent.parent.parent.parent.parent.parent
 
 project_root = find_project_root()
 if str(project_root) not in sys.path:
@@ -18,15 +18,15 @@ if str(project_root) not in sys.path:
 
 from logic.tool.base import ToolBase
 
-class DummySubtool(ToolBase):
+class SubSubtool(ToolBase):
     def __init__(self):
-        super().__init__("DUMMY")
+        super().__init__("SUBSUB")
 
     def run(self):
-        print("Hello from DUMMY subtool of GOOGLE!")
+        print("Hello from SUBSUB sub-subtool of DUMMY!")
 
 def main():
-    tool = DummySubtool()
+    tool = SubSubtool()
     if tool.handle_command_line():
         return
     tool.run()

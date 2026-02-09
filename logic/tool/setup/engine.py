@@ -220,36 +220,12 @@ class ToolEngine:
 
     def fetch_source(self):
         # 1. Determine relative path for checkout
-        # If this is a subtool, its parent is not project_root / "tool"
-        # Standard tool: project_root / "tool" / tool_name -> tool/tool_name
-        # Subtool: parent_dir / "tool" / subtool_name -> tool/parent/tool/subtool
         rel_tool_path = self.tool_dir.relative_to(self.project_root)
         
         # Determine remote resource path
-        # Pattern: resource/tool/PARENT/tool/SUBTOOL
-        # If standard tool: resource/tool/tool_name (actually it's usually just checked out from tool/tool_name)
-        # Wait, standard tools are checked out from 'tool/NAME'.
-        # Subtools are checked out from 'resource/tool/PARENT/tool/SUBTOOL'.
-        
-        # Heuristic: if parent_tool_dir is not project_root / "tool", it's a subtool.
         is_subtool = self.tool_parent_dir != (self.project_root / "tool")
         
         if is_subtool:
-            # Subtool logic
-            # Remote structure: resource/tool/PARENT/tool/SUBTOOL
-            # Local structure: tool/PARENT/tool/SUBTOOL
-            # We need to find the parent tool name.
-            # parent_tool_dir = project_root / "tool" / PARENT / "tool"
-            # tool_dir = parent_tool_dir / SUBTOOL
-            # rel_tool_path = tool/PARENT/tool/SUBTOOL
-            # remote_source_path = resource/tool/PARENT/tool/SUBTOOL
-            
-            # The rel_tool_path is already tool/PARENT/tool/SUBTOOL
-            # But wait, what if it's deeply nested?
-            # tool/P1/tool/P2/tool/P3
-            # remote should be resource/tool/P1/tool/P2/tool/P3
-            # rel_tool_path is tool/P1/tool/P2/tool/P3
-            # remote_source_path = resource / rel_tool_path
             remote_source_path = Path("resource") / rel_tool_path
         else:
             remote_source_path = rel_tool_path
@@ -261,9 +237,6 @@ class ToolEngine:
                 # Use shlex to safely handle paths with spaces if any
                 cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
                 res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
-                # Keep it very visible for debugging
-                sys.stderr.write(f"\r\nDEBUG: cmd={cmd}, exit={res.returncode}, err={res.stderr}\r\n")
-                sys.stderr.flush()
                 if res.returncode == 0:
                     # If it's a subtool, we need to move it from resource/ to actual tool/ path
                     if is_subtool:
