@@ -6,7 +6,15 @@ import subprocess
 from pathlib import Path
 
 # Add project root to sys.path
-ROOT_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+def find_project_root():
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / "bin" / "TOOL").exists():
+            return curr
+        curr = curr.parent
+    return Path(__file__).resolve().parent.parent.parent
+
+ROOT_PROJECT_ROOT = find_project_root()
 if str(ROOT_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT_PROJECT_ROOT))
 

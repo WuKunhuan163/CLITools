@@ -12,7 +12,20 @@ class ToolBase:
     def __init__(self, tool_name):
         self.tool_name = tool_name
         self.script_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
-        self.project_root = self.script_dir.parent.parent
+        
+        # Robust project root detection: find the directory containing 'bin/TOOL' or 'tool.json' (root)
+        def find_root(start_path):
+            curr = start_path
+            while curr != curr.parent:
+                if (curr / "bin" / "TOOL").exists() or ((curr / "tool.json").exists() and curr.parent.name != "tool" and curr.name != "tool"):
+                    # Additional check to avoid misidentifying subtool dir as root
+                    if (curr / "tool.json").exists() and (curr / "bin").exists():
+                        return curr
+                curr = curr.parent
+            # Fallback to the old logic if nothing found
+            return start_path.parent.parent
+            
+        self.project_root = find_root(self.script_dir)
         
         # Ensure project root is in path for imports
         if str(self.project_root) not in sys.path:
