@@ -693,29 +693,31 @@ def _dev_create(tool_name):
     project_root = ROOT_PROJECT_ROOT
     tool_dir = project_root / "tool" / tool_name
     
-    # Auto-commit local changes before checkout to avoid errors
-    try:
-        status = subprocess.run(["/usr/bin/git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
-        if status.stdout.strip():
-            info_label = _("info_label", "Info")
-            print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
-            subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
-            subprocess.run(["/usr/bin/git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
-    except: pass
-
     # Get current branch
     try:
         current_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
         current_branch = "dev"
 
-    # Switch to tool branch if not already there
-    if current_branch != "tool":
+    # Only auto-commit and switch if we are NOT on a dev/tool branch already
+    # or if we want to enforce tool development on 'tool' branch.
+    # But as per user request, we should allow development on 'dev'.
+    is_dev_branch = current_branch in ["dev", "tool"] or current_branch.startswith("feature/")
+    
+    if not is_dev_branch:
+        # Auto-commit local changes before checkout to avoid errors
         try:
-            subprocess.run(["/usr/bin/git", "checkout", "tool"], cwd=str(project_root), check=True)
-            # Merge current branch into tool to preserve work
-            print(f"{BOLD}{BLUE}Merging '{current_branch}' into 'tool' branch...{RESET}")
-            subprocess.run(["/usr/bin/git", "merge", current_branch], cwd=str(project_root), check=True)
+            status = subprocess.run(["/usr/bin/git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
+            if status.stdout.strip():
+                info_label = _("info_label", "Info")
+                print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
+                subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
+                subprocess.run(["/usr/bin/git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
+        except: pass
+
+        try:
+            subprocess.run(["/usr/bin/git", "checkout", "dev"], cwd=str(project_root), check=True)
+            current_branch = "dev"
         except: pass
     
     if tool_dir.exists():
@@ -857,25 +859,16 @@ This tool is part of the `TOOL` ecosystem, which provides:
     
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
-        from tool.GIT.logic.engine import GitEngine
-        git_engine = GitEngine(project_root)
-        dev_branch = git_engine.get_dev_branch()
-        current_branch_for_commit = dev_branch if dev_branch else "tool"
-        
-        # If we are not on the designated branch, try to switch
-        current_real = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
-        if dev_branch and current_real != dev_branch:
-            print(f"{BOLD}{BLUE}Switching to designated development branch '{dev_branch}'...{RESET}")
-            subprocess.run(["/usr/bin/git", "checkout", dev_branch], cwd=str(project_root), check=True)
-            current_branch_for_commit = dev_branch
+        # Get current branch to push to
+        res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
+        current_real = res.stdout.strip() if res.returncode == 0 else "dev"
 
-        rel_tool_dir = os.path.relpath(tool_dir, project_root)
         subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
         subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
         
         # Push to remote
-        print(f"{BOLD}{BLUE}Pushing to remote...{RESET}")
-        subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch_for_commit}", "--force"], cwd=str(project_root), check=True)
+        print(f"{BOLD}{BLUE}Pushing to remote branch '{current_real}'...{RESET}")
+        subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_real}", "--force"], cwd=str(project_root), check=True)
         
     except Exception as e:
         print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit/push new tool: {e}")

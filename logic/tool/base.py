@@ -95,8 +95,8 @@ class ToolBase:
         Process command line arguments. 
         If 'setup' is the first argument, run the tool's setup.py.
         If 'install' is the first argument, handle sub-tool installation.
-        If a parser is provided, attempts to parse known args. 
-        If parsing fails or command is unknown, delegates to system fallback.
+        If a parser is provided, attempts to determine if the command is recognized.
+        If not recognized, delegates to system fallback.
         Returns True if a command was handled and the tool should exit.
         """
         if len(sys.argv) > 1:
@@ -127,56 +127,72 @@ class ToolBase:
                     print(f"Error executing subtool {cmd}: {e}")
                     sys.exit(1)
 
-            # If parser provided, check if it's one of our defined commands
+            # 3. Check against parser if provided
             if parser:
-                # Store original stderr to restore later
-                import io
-                original_stderr = sys.stderr
-                sys.stderr = io.StringIO()
+                import argparse
                 
-                try:
-                    # We use parse_known_args to avoid exiting on unknown commands
-                    # and to allow delegating them to the system.
-                    args, unknown = parser.parse_known_args()
-                    
-                    # If we have a command and it's recognized, OR if we have no unknown arguments
-                    # (meaning the parser handled everything), we let the tool continue.
-                    if (hasattr(args, 'command') and args.command) or not unknown:
-                        return False
-                except:
-                    pass
-                finally:
-                    # Restore stderr
-                    sys.stderr = original_stderr
+                # Check if it's a known sub-command or flag
+                is_recognized = False
+                choices = []
+                for action in parser._actions:
+                    if isinstance(action, argparse._SubParsersAction):
+                        choices.extend(action.choices.keys())
+                    if cmd in action.option_strings:
+                        is_recognized = True
                 
-                # If we reach here, it means we have unknown arguments and it's not a recognized command.
-                # Delegate to system fallback.
-                self.run_system_fallback()
-                return True
+                if cmd in choices:
+                    is_recognized = True
+                
+                # Special cases for help
+                if cmd in ["-h", "--help"]:
+                    is_recognized = True
+
+                if not is_recognized:
+                    # Not a recognized tool command, delegate to system
+                    self.run_system_fallback()
+                    return True
         return False
 
     def run_system_fallback(self):
-        """Delegate unknown commands to the system equivalent (e.g. GIT -> /usr/bin/git)."""
+        """Delegate unknown commands to the system equivalent."""
         import subprocess
+        import shutil
         
         # Mapping for specific tools that act as wrappers
+        # Use absolute paths to avoid recursion
         mapping = {
             "GIT": "/usr/bin/git",
-            "PYTHON": sys.executable # or custom path
+            "PYTHON": sys.executable 
         }
         
-        system_cmd = mapping.get(self.tool_name)
+        system_cmd = mapping.get(self.tool_name.upper())
         if not system_cmd:
-            # For tools without a mapping, just print help or warning
-            print(f"Unknown command for {self.tool_name}. No system fallback defined.")
+            # Try to find the command in standard system paths, bypassing our own bin dir
+            # Save original PATH
+            original_path = os.environ.get("PATH", "")
+            # Filter out our own bin directory from PATH for this search
+            our_bin = str(self.project_root / "bin")
+            filtered_path = os.pathsep.join([p for p in original_path.split(os.pathsep) if p != our_bin])
+            
+            system_cmd = shutil.which(self.tool_name.lower(), path=filtered_path)
+        
+        if not system_cmd:
+            # For tools without a mapping and not found in PATH, just print a warning
+            print(f"Unknown command '{sys.argv[1]}' for {self.tool_name}. No system fallback found.")
             return
 
         cmd = [system_cmd] + sys.argv[1:]
         try:
-            res = subprocess.run(cmd)
+            # Use original environment but with filtered PATH for this execution too
+            # to ensure the system command doesn't accidentally call us back
+            env = os.environ.copy()
+            our_bin = str(self.project_root / "bin")
+            env["PATH"] = os.pathsep.join([p for p in env.get("PATH", "").split(os.pathsep) if p != our_bin])
+            
+            res = subprocess.run(cmd, env=env)
             sys.exit(res.returncode)
         except Exception as e:
-            print(f"Error executing system fallback for {self.tool_name}: {e}")
+            print(f"Error executing system fallback for {self.tool_name} ({system_cmd}): {e}")
             sys.exit(1)
 
     def print_rule(self):
