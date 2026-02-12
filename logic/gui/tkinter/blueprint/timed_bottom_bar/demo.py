@@ -43,7 +43,22 @@ class DemoWindow(BaseGUIWindow):
         self.start_timer(self.status_label)
 
 if __name__ == "__main__":
-    from logic.gui.engine import setup_gui_environment
+    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
+    import subprocess
+    import os
+
+    # Auto-reexecute with safe python if current one lacks tkinter
+    try:
+        import _tkinter
+    except ImportError:
+        py_exe = get_safe_python_for_gui()
+        if py_exe and py_exe != sys.executable:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(project_root)
+            sys.exit(subprocess.call([py_exe, __file__], env=env))
+        else:
+            sys.exit("Error: Tkinter not found and no safe Python alternative discovered.")
+
     setup_gui_environment()
     
     win = DemoWindow("Timed Bottom Bar Demo", 10)

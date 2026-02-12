@@ -308,8 +308,8 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
             now = time.time()
             # Periodic Audio Alert (Focus replacement)
             if fi > 0 and now - last_focus >= fi:
-                if platform.system() == "Darwin" and bell_path.exists():
-                    subprocess.run(["afplay", str(bell_path)], capture_output=True)
+                from logic.gui.engine import play_notification_bell
+                play_notification_bell(tool_instance.project_root)
                 last_focus = now
                 
             if input_file.exists():

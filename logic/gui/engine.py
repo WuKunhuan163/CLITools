@@ -54,26 +54,30 @@ def get_safe_python_for_gui():
     """
     Returns a Python executable path that is known to work with GUI in the current environment.
     """
-    # Prioritize the Python tool's version as requested by the user
-    # Specifically version 3.10.19 which supports tkinter
-    version = "python3.10.19"
+    # 1. Try to use the PYTHON tool's interface first
     project_root = Path(__file__).resolve().parent.parent
+    python_tool_interface = project_root / "tool" / "PYTHON" / "logic" / "interface" / "main.py"
     
-    # Same logic as USERINPUT for flexibility
+    if python_tool_interface.exists():
+        try:
+            sys.path.append(str(project_root))
+            from tool.PYTHON.logic.interface.main import get_python_exe_func
+            get_python_exe = get_python_exe_func()
+            # Request version 3.10.19 which is known to have tkinter in this ecosystem
+            py_exe = get_python_exe("3.10.19")
+            if py_exe and os.path.exists(py_exe):
+                return str(py_exe)
+        except Exception:
+            pass
+
+    # 2. Fallback to manual detection (same as before)
+    version = "python3.10.19"
     system_tag = "macos"
     if sys.platform == "linux": system_tag = "linux64"
     elif sys.platform == "win32": system_tag = "windows-amd64"
 
     possible_dirs = [version, f"{version}-{system_tag}", f"{version}-macos", f"{version}-linux64"]
-    
-    # Try to use centralized config from PYTHON tool
-    try:
-        sys.path.append(str(project_root / "tool" / "PYTHON" / "logic"))
-        from config import INSTALL_DIR
-        install_root = INSTALL_DIR
-    except ImportError:
-        # Fallback path if config not available
-        install_root = project_root / "tool" / "PYTHON" / "data" / "install"
+    install_root = project_root / "tool" / "PYTHON" / "data" / "install"
     
     for d in possible_dirs:
         python_exec = install_root / d / "install" / "bin" / "python3"
@@ -81,21 +85,8 @@ def get_safe_python_for_gui():
         python_exec_win = install_root / d / "install" / "python.exe"
         if python_exec_win.exists(): return str(python_exec_win)
     
-    # Try importing from PYTHON tool utilities if available
-    python_utils = project_root / "tool" / "PYTHON" / "logic" / "utils.py"
-    if python_utils.exists():
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("python_utils", str(python_utils))
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                return module.get_python_exec(version)
-        except Exception:
-            pass
-
+    # 3. Darwin specific system fallbacks
     if platform.system() == "Darwin":
-        # Check system paths as a very last resort, though user warned against it
         for py in ["/usr/local/bin/python3", "/usr/bin/python3"]:
             if os.path.exists(py):
                 return py
