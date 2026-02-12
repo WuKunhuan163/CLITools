@@ -166,9 +166,6 @@ def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=No
     if focus_interval > 0 and focus_interval < 90: focus_interval = 90
     time_increment = config.get("time_increment", 60)
 
-    bell_path = tool.project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
-    if not bell_path.exists(): raise FileNotFoundError(f"Asset missing: {bell_path}")
-
     tkinter_script = r'''
 import os
 import sys
@@ -187,7 +184,7 @@ if PROJECT_ROOT.exists() and str(PROJECT_ROOT) not in sys.path:
 
 try:
     from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
-    from logic.gui.engine import setup_gui_environment
+    from logic.gui.engine import setup_gui_environment, play_notification_bell
     from logic.gui.tkinter.style import get_label_style
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
@@ -197,14 +194,13 @@ import tkinter as tk
 TOOL_INTERNAL = %(internal_dir)r
 
 class UserInputWindow(BaseGUIWindow):
-    def __init__(self, title, timeout, hint_text, focus_interval, bell_path, time_increment):
+    def __init__(self, title, timeout, hint_text, focus_interval, time_increment):
         super().__init__(title, timeout, TOOL_INTERNAL, tool_name="USERINPUT")
         self.hint_text = hint_text
         self.time_increment = time_increment
         self.text_widget = None
         self._last_trigger_time = 0
         self.is_triggering_subtool = False
-        self.bell_path = bell_path
         self.focus_interval = focus_interval
 
     def get_current_state(self):
@@ -331,7 +327,7 @@ class UserInputWindow(BaseGUIWindow):
 
 if __name__ == "__main__":
     try:
-        win = UserInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(bell_path)r, %(time_increment)d)
+        win = UserInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(time_increment)d)
         win.run(win.setup_ui, custom_id=%(custom_id)r)
     except: traceback.print_exc()
 ''' % {
@@ -341,7 +337,6 @@ if __name__ == "__main__":
         'timeout': timeout,
         'hint': hint_text,
         'focus_interval': focus_interval,
-        'bell_path': str(bell_path),
         'time_increment': time_increment,
         'custom_id': custom_id
     }

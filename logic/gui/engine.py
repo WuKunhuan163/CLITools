@@ -125,3 +125,19 @@ def setup_gui_environment():
     # Add other platforms if needed
     pass
 
+def play_notification_bell(project_root: Path):
+    """Unified interface to play the notification bell."""
+    import subprocess
+    import threading
+    bell_path = project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
+    if bell_path.exists():
+        def run_play():
+            try:
+                if platform.system() == "Darwin":
+                    subprocess.run(["afplay", str(bell_path)], stderr=subprocess.DEVNULL, timeout=5)
+                elif platform.system() == "Linux":
+                    subprocess.run(["aplay", str(bell_path)], stderr=subprocess.DEVNULL, timeout=5)
+            except: pass
+        threading.Thread(target=run_play, daemon=True).start()
+
+

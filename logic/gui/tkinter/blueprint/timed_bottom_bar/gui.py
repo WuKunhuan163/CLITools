@@ -145,22 +145,14 @@ class BaseGUIWindow:
             self.finalize("timeout", self.get_current_state())
 
     def play_bell(self):
-        """Standard bell notification logic."""
+        """Standard bell notification logic using unified interface."""
         if self.root:
             try: self.root.bell()
             except: pass
-        if self.bell_path and os.path.exists(self.bell_path):
-            def run_play():
-                try:
-                    if platform.system() == "Darwin":
-                        subprocess.run(["afplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
-                    elif platform.system() == "Linux":
-                        subprocess.run(["aplay", self.bell_path], stderr=subprocess.DEVNULL, timeout=5)
-                except: pass
-            threading.Thread(target=run_play, daemon=True).start()
-        elif self.bell_path:
-            # If path specified but missing, it's a critical error
-            raise FileNotFoundError(f"Critical asset missing: {self.bell_path}")
+        
+        project_root = Path(self.internal_dir).parent.parent.parent
+        from logic.gui.engine import play_notification_bell
+        play_notification_bell(project_root)
 
     def start_periodic_focus(self, interval: int):
         """Starts periodic refocusing and bell."""
