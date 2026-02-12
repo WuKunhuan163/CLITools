@@ -14,7 +14,7 @@ project_root = script_path.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.gui.base import BaseGUIWindow, setup_common_bottom_bar
+from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
 from logic.gui.style import get_label_style, get_gui_colors
 
 class ICloudLoginWindow(BaseGUIWindow):

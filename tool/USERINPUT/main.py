@@ -166,7 +166,7 @@ def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=No
     if focus_interval > 0 and focus_interval < 90: focus_interval = 90
     time_increment = config.get("time_increment", 60)
 
-    bell_path = tool.project_root / "logic" / "gui" / "tkinter_bell.mp3"
+    bell_path = tool.project_root / "logic" / "gui" / "bell.mp3"
     if not bell_path.exists(): raise FileNotFoundError(f"Asset missing: {bell_path}")
 
     tkinter_script = r'''
@@ -186,11 +186,11 @@ if PROJECT_ROOT.exists() and str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from logic.gui.base import BaseGUIWindow, setup_common_bottom_bar
+    from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
     from logic.gui.engine import setup_gui_environment
     from logic.gui.style import get_label_style
 except ImportError:
-    sys.exit("Error: Could not import logic.gui.base")
+    sys.exit("Error: Could not import GUI blueprint components")
 
 import tkinter as tk
 

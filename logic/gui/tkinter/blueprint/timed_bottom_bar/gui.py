@@ -38,7 +38,7 @@ class BaseGUIWindow:
         
         # Shared behavior state
         self.focus_interval = 0
-        self.bell_path = str(Path(__file__).resolve().parent / "tkinter_bell.mp3")
+        self.bell_path = str(Path(__file__).resolve().parent.parent.parent.parent / "bell.mp3")
         self.is_triggering_subtool = False
         self.add_time_increment = 60 # Default
 
@@ -50,8 +50,8 @@ class BaseGUIWindow:
         # 1. Try tool-specific translation
         val = get_translation(self.internal_dir, key, None)
         if val is None:
-            # 2. Try shared GUI component translation
-            gui_logic_dir = str(Path(__file__).resolve().parent)
+            # 2. Try shared GUI component translation (from logic/gui/translation)
+            gui_logic_dir = str(Path(__file__).resolve().parent.parent.parent.parent)
             val = get_translation(gui_logic_dir, key, default)
         return val.format(**kwargs)
 
