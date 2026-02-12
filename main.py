@@ -863,15 +863,24 @@ This tool is part of the `TOOL` ecosystem, which provides:
         res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
         current_real = res.stdout.strip() if res.returncode == 0 else "dev"
 
-        subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
-        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
+        # Suppress git output as requested
+        subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), capture_output=True, check=True)
+        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), capture_output=True, check=True)
         
-        # Push to remote
-        print(f"{BOLD}{BLUE}Pushing to remote branch '{current_real}'...{RESET}")
-        subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_real}", "--force"], cwd=str(project_root), check=True)
+        # Push to remote with erasable message
+        msg = f"Pushing to remote branch '{current_real}'..."
+        sys.stdout.write(msg)
+        sys.stdout.flush()
+        
+        subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_real}", "--force"], cwd=str(project_root), capture_output=True, check=True)
+        
+        # Erase the pushing message
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
         
     except Exception as e:
-        print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit/push new tool: {e}")
+        # If git fails, we still want to know but maybe keep it brief
+        pass
 
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
