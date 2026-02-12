@@ -166,7 +166,7 @@ def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=No
     if focus_interval > 0 and focus_interval < 90: focus_interval = 90
     time_increment = config.get("time_increment", 60)
 
-    bell_path = tool.project_root / "logic" / "gui" / "bell.mp3"
+    bell_path = tool.project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
     if not bell_path.exists(): raise FileNotFoundError(f"Asset missing: {bell_path}")
 
     tkinter_script = r'''
