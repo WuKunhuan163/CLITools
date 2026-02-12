@@ -100,13 +100,23 @@ class ToolBase:
         Returns True if a command was handled and the tool should exit.
         """
         if len(sys.argv) > 1:
-            cmd = sys.argv[1]
+            # Check for tool-specific quiet flag
+            is_quiet = False
+            args_to_check = sys.argv[1:]
+            if "--tool-quiet" in args_to_check:
+                is_quiet = True
+                # Create a copy of args without the flag for further processing
+                args_to_check = [a for p, a in enumerate(sys.argv[1:]) if a != "--tool-quiet"]
+
+            cmd = args_to_check[0] if args_to_check else None
+            if not cmd: return False
+
             if cmd == "setup":
                 self.run_setup()
                 return True
             elif cmd == "install":
-                if len(sys.argv) > 2:
-                    subtool_name = sys.argv[2]
+                if len(args_to_check) > 1:
+                    subtool_name = args_to_check[1]
                     self.run_subtool_install(subtool_name)
                 else:
                     print(f"Usage: {self.tool_name} install <SUBTOOL_NAME>")
@@ -119,7 +129,7 @@ class ToolBase:
             subtool_main = self.script_dir / "tool" / cmd / "main.py"
             if subtool_main.exists():
                 # Proxy to subtool
-                cmd_args = [sys.executable, str(subtool_main)] + sys.argv[2:]
+                cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
                 try:
                     res = subprocess.run(cmd_args)
                     sys.exit(res.returncode)
@@ -149,17 +159,24 @@ class ToolBase:
 
                 if not is_recognized:
                     # Not a recognized tool command, delegate to system
-                    self.run_system_fallback()
+                    res = self.run_system_fallback(capture_output=is_quiet, filtered_args=args_to_check)
+                    if is_quiet:
+                        # Print JSON result for interface use
+                        print("TOOL_RESULT_JSON:" + json.dumps({
+                            "returncode": res.returncode,
+                            "stdout": res.stdout,
+                            "stderr": res.stderr
+                        }))
+                        return True
                     return True
         return False
 
-    def run_system_fallback(self):
+    def run_system_fallback(self, capture_output=False, filtered_args=None):
         """Delegate unknown commands to the system equivalent."""
         import subprocess
         import shutil
         
         # Mapping for specific tools that act as wrappers
-        # Use absolute paths to avoid recursion
         mapping = {
             "GIT": "/usr/bin/git",
             "PYTHON": sys.executable 
@@ -167,30 +184,27 @@ class ToolBase:
         
         system_cmd = mapping.get(self.tool_name.upper())
         if not system_cmd:
-            # Try to find the command in standard system paths, bypassing our own bin dir
-            # Save original PATH
             original_path = os.environ.get("PATH", "")
-            # Filter out our own bin directory from PATH for this search
             our_bin = str(self.project_root / "bin")
             filtered_path = os.pathsep.join([p for p in original_path.split(os.pathsep) if p != our_bin])
-            
             system_cmd = shutil.which(self.tool_name.lower(), path=filtered_path)
         
         if not system_cmd:
-            # For tools without a mapping and not found in PATH, just print a warning
             print(f"Unknown command '{sys.argv[1]}' for {self.tool_name}. No system fallback found.")
-            return
+            return None
 
-        cmd = [system_cmd] + sys.argv[1:]
+        cmd = [system_cmd] + (filtered_args if filtered_args is not None else sys.argv[1:])
         try:
-            # Use original environment but with filtered PATH for this execution too
-            # to ensure the system command doesn't accidentally call us back
             env = os.environ.copy()
             our_bin = str(self.project_root / "bin")
             env["PATH"] = os.pathsep.join([p for p in env.get("PATH", "").split(os.pathsep) if p != our_bin])
             
-            res = subprocess.run(cmd, env=env)
-            sys.exit(res.returncode)
+            if capture_output:
+                res = subprocess.run(cmd, env=env, capture_output=True, text=True)
+                return res
+            else:
+                res = subprocess.run(cmd, env=env)
+                sys.exit(res.returncode)
         except Exception as e:
             print(f"Error executing system fallback for {self.tool_name} ({system_cmd}): {e}")
             sys.exit(1)

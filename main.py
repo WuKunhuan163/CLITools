@@ -859,27 +859,29 @@ This tool is part of the `TOOL` ecosystem, which provides:
     
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
-        # Get current branch to push to
-        res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
+        from tool.GIT.logic.interface.main import run_git_tool_managed
+        
+        # Get current branch
+        res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))
         current_real = res.stdout.strip() if res.returncode == 0 else "dev"
 
-        # Suppress git output as requested
-        subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), capture_output=True, check=True)
-        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), capture_output=True, check=True)
+        # Suppress git output using GIT tool's managed execution
+        run_git_tool_managed(["add", "."], cwd=str(project_root))
+        run_git_tool_managed(["commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root))
         
         # Push to remote with erasable message
         msg = f"Pushing to remote branch '{current_real}'..."
         sys.stdout.write(msg)
         sys.stdout.flush()
         
-        subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_real}", "--force"], cwd=str(project_root), capture_output=True, check=True)
+        run_git_tool_managed(["push", "origin", f"HEAD:{current_real}", "--force"], cwd=str(project_root))
         
         # Erase the pushing message
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
         
     except Exception as e:
-        # If git fails, we still want to know but maybe keep it brief
+        # Fallback if interface fails
         pass
 
     success_status = _("label_success", "Successfully")
