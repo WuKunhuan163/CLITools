@@ -188,7 +188,7 @@ if PROJECT_ROOT.exists() and str(PROJECT_ROOT) not in sys.path:
 try:
     from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
     from logic.gui.engine import setup_gui_environment
-    from logic.gui.style import get_label_style
+    from logic.gui.tkinter.style import get_label_style
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
 

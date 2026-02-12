@@ -15,7 +15,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
-from logic.gui.style import get_label_style, get_gui_colors
+from logic.gui.tkinter.style import get_label_style, get_gui_colors
 
 class ICloudLoginWindow(BaseGUIWindow):
     def __init__(self, title, timeout, internal_dir):

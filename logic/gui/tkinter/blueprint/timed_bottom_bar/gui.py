@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
 try:
-    from logic.gui.style import get_label_style, get_button_style, get_status_style, get_gui_colors, get_secondary_label_style
+    from logic.gui.tkinter.style import get_label_style, get_button_style, get_status_style, get_gui_colors, get_secondary_label_style
     from logic.lang.utils import get_translation
 except ImportError:
     # Fallbacks for standalone execution
@@ -38,7 +38,7 @@ class BaseGUIWindow:
         
         # Shared behavior state
         self.focus_interval = 0
-        self.bell_path = str(Path(__file__).resolve().parent.parent.parent.parent / "bell.mp3")
+        self.bell_path = str(Path(__file__).resolve().parent.parent.parent.parent / "asset" / "audio" / "bell.mp3")
         self.is_triggering_subtool = False
         self.add_time_increment = 60 # Default
 
