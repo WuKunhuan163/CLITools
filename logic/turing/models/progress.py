@@ -91,12 +91,14 @@ class ProgressTuringMachine:
                             fail_name = stage.fail_name or stage.name
                             brief_reason = stage.error_brief or "Action returned False"
                             
+                            fail_color_code = get_color(stage.fail_color, "\033[31m")
+                            
                             if stage.bold_part and fail_name.startswith(stage.bold_part):
                                 bold_text = f"{stage.fail_status} {stage.bold_part}"
                                 rest_text = fail_name[len(stage.bold_part):].lstrip()
-                                full_msg_fail = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}"
+                                full_msg_fail = f"{BOLD}{fail_color_code}{bold_text}{RESET} {rest_text}"
                             else:
-                                full_msg_fail = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}"
+                                full_msg_fail = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                             
                             # Ensure we don't have double periods
                             brief_reason = brief_reason.rstrip(".")
@@ -123,12 +125,14 @@ class ProgressTuringMachine:
                         brief_reason = stage.error_brief or str(e).split('\n')[0]
                         brief_reason = brief_reason.rstrip(".")
                         
+                        fail_color_code = get_color(stage.fail_color, "\033[31m")
+                        
                         if stage.bold_part and fail_name.startswith(stage.bold_part):
                             bold_text = f"{stage.fail_status} {stage.bold_part}"
                             rest_text = fail_name[len(stage.bold_part):].lstrip()
-                            fail_msg = f"{BOLD}{RED}{bold_text}{RESET} {rest_text}. Reason: {brief_reason}."
+                            fail_msg = f"{BOLD}{fail_color_code}{bold_text}{RESET} {rest_text}. Reason: {brief_reason}."
                         else:
-                            fail_msg = f"{BOLD}{RED}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}."
+                            fail_msg = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}."
                         sys.stdout.write(f"{fail_msg}\n")
                         if log_path:
                             log_msg = f"{BOLD}Traceback saved to:{RESET} {log_path}"

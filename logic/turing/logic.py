@@ -31,6 +31,7 @@ class TuringStage:
                  success_status: str = "Successfully", 
                  fail_status: str = "Failed",
                  success_color: str = "GREEN",
+                 fail_color: str = "RED",
                  is_sticky: bool = False,
                  active_name: Optional[str] = None,
                  success_name: Optional[str] = None,
@@ -42,6 +43,7 @@ class TuringStage:
         self.success_status = success_status
         self.fail_status = fail_status
         self.success_color = success_color
+        self.fail_color = fail_color
         self.is_sticky = is_sticky
         self.active_name = active_name
         self.success_name = success_name

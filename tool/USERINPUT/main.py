@@ -432,13 +432,13 @@ def main():
 
             pm = ProgressTuringMachine([
                 TuringStage("save", do_save, active_status="Saving", active_name="progress", success_status="Saved", success_name="progress", bold_part="progress"),
-                TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", success_status="Backed up", success_name="to remote", bold_part="to remote")
+                TuringStage("backup", do_backup, active_status="Backing up", active_name="to remote", 
+                            success_status="Backed up", success_name="to remote", 
+                            fail_status="Warning", fail_color="YELLOW",
+                            bold_part="to remote")
             ], project_root=tool.project_root, tool_name=tool.tool_name)
-            # Use ephemeral=True to keep them on one line as intermediate steps
-            if pm.run(ephemeral=True, final_newline=False):
-                # Print a newline so the next message doesn't overwrite the final success status
-                sys.stdout.write("\n")
-                sys.stdout.flush()
+            # Use ephemeral=True and final_msg="" to suppress final success status
+            pm.run(ephemeral=True, final_newline=False, final_msg="")
             
     except Exception as e:
         # Ignore errors during auto-commit so it doesn't block the tool
