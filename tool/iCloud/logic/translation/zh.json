@@ -1,3 +1,11 @@
 {
-  "hello": "\u4f60\u597d, \u4e16\u754c!"
+  "label_apple_id": "Apple ID:",
+  "label_password": "密码:",
+  "btn_login": "登录",
+  "login_instruction": "登录 iCloud",
+  "login_error_empty": "请输入 Apple ID 和密码。",
+  "time_remaining": "剩余时间:",
+  "btn_cancel": "取消",
+  "add_time": "延长 {seconds}秒",
+  "time_added": "时间已延长！"
 }
