@@ -73,12 +73,16 @@ class TwoStepLoginWindow(BaseGUIWindow):
     def on_submit(self):
         """Validates input and processes the next step or login."""
         state = self.get_current_state()
+        # Use account/apple_id interchangeably for compatibility
+        account_val = state.get("account") or state.get("apple_id")
+        password_val = state.get("password")
+
         if self.step == "account":
-            if not state["account"]:
+            if not account_val:
                 self.show_error(self._("login_error_empty_account", "Please enter your account."))
                 return
         else:
-            if not state["password"]:
+            if not password_val:
                 self.show_error(self._("login_error_empty_password", "Please enter your password."))
                 return
 
@@ -119,8 +123,15 @@ class TwoStepLoginWindow(BaseGUIWindow):
         self.step = "password"
         self.account_entry.config(state="disabled")
         
-        # Inside fields_frame, so it appears after account but before error_label
+        # Ensure password_frame appears between account and error label
+        if self.error_label:
+            self.error_label.pack_forget()
+        
         self.password_frame.pack(fill="x", pady=(0, 10))
+        
+        if self.error_label:
+            self.error_label.pack(fill="x", pady=10)
+            
         self.password_entry.focus_set()
         
         if self.submit_btn:

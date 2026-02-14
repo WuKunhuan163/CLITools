@@ -84,7 +84,13 @@ def main():
             import getpass
             import pickle
             
-            apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
+            try:
+                apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
+            except (EOFError, KeyboardInterrupt) as e:
+                msg = "Operation not supported by device (Non-interactive terminal)" if isinstance(e, EOFError) else "Cancelled by user"
+                if stage: stage.report_error(f"Input Error: {msg}", msg)
+                return False
+
             # Try session reuse first
             cookie_dir = tool.get_data_dir() / apple_id
             cookie_dir.mkdir(parents=True, exist_ok=True)

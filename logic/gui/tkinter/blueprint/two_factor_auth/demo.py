@@ -39,8 +39,8 @@ if __name__ == "__main__":
                 "interaction", demo_action,
                 active_status="Waiting for demo feedback",
                 active_name="via GUI",
-                success_status="Received",
-                success_name="demo feedback"
+                success_status="",
+                success_name=""
             ))
             
             # Use ephemeral=True and final_newline=False to completely erase without blank line
