@@ -353,7 +353,7 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 log_failure(asset["name"], tag, err)
                 yield StepResult(error_msg, state=WorkerState.ERROR, is_final=True)
                 return
-2
+
             # 2. Metadata
             meta = {"release": tag, "asset": asset["name"], "version": asset["version"], "platform": asset["platform"]}
             with open(json_path, "w") as f: json.dump(meta, f, indent=2)

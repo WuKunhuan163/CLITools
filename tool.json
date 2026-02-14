@@ -1,6 +1,12 @@
 {
+  "name": "TOOL",
+  "version": "1.0.0",
   "dependencies": [
     "psutil"
+  ],
+  "tool_dependencies": [
+    "PYTHON",
+    "GIT"
   ],
   "tools": [
     "PYTHON",

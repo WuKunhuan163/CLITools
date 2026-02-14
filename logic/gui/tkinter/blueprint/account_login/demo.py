@@ -3,8 +3,8 @@ from pathlib import Path
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()
-# logic/gui/tkinter/blueprint/account_login/demo.py -> 5 levels up to project root
-project_root = script_path.parent.parent.parent.parent.parent
+# logic/gui/tkinter/blueprint/account_login/demo.py -> 6 levels up to project root
+project_root = script_path.parent.parent.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 

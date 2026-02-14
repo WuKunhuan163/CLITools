@@ -1,11 +1,13 @@
 import sys
-import tkinter as tk
 from pathlib import Path
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()
 # logic/gui/tkinter/blueprint/timed_bottom_bar/demo.py -> 5 levels up to project root
 project_root = script_path.parent.parent.parent.parent.parent
+# Actually it should be 5 levels to reach project root if logic is the first level
+# Wait: demo.py(0) -> timed_bottom_bar(1) -> blueprint(2) -> tkinter(3) -> gui(4) -> logic(5) -> ROOT(6)
+project_root = script_path.parent.parent.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
@@ -22,6 +24,7 @@ class DemoWindow(BaseGUIWindow):
         return "Demo data"
 
     def setup_ui(self):
+        import tkinter as tk
         self.root.geometry("400x200")
         self.status_label = setup_common_bottom_bar(
             self.root, self, 

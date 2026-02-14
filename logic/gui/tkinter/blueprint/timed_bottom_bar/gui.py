@@ -1,4 +1,3 @@
-import tkinter as tk
 import signal
 import sys
 import json
@@ -9,6 +8,16 @@ import subprocess
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
+
+# Lazy import for tkinter to support auto-reexecution with safe python
+tk = None
+
+def _get_tk():
+    global tk
+    if tk is None:
+        import tkinter as _tk
+        tk = _tk
+    return tk
 
 try:
     from logic.gui.tkinter.style import get_label_style, get_button_style, get_status_style, get_gui_colors, get_secondary_label_style
@@ -122,8 +131,9 @@ class BaseGUIWindow:
             try: self.root.after(500, self.check_signals)
             except: pass
 
-    def start_timer(self, status_label: tk.Label):
+    def start_timer(self, status_label: Any):
         """Standardized countdown timer."""
+        import tkinter as tk
         if self.window_closed: return
         
         # Save default color if not already saved
@@ -184,7 +194,7 @@ class BaseGUIWindow:
                 if self.root: self.root.destroy()
             except: pass
 
-    def trigger_add_time(self, increment: int, status_label: Optional[tk.Label] = None):
+    def trigger_add_time(self, increment: int, status_label: Optional[Any] = None):
         """
         Atomically increments remaining time, notifies parent, and updates UI.
         The signal notification happens BEFORE UI updates.
@@ -224,6 +234,7 @@ class BaseGUIWindow:
 
     def run(self, setup_func: Callable, on_show: Optional[Callable] = None, custom_id: Optional[str] = None):
         """Main execution flow."""
+        import tkinter as tk
         try:
             if platform.system() == "Darwin":
                 self.root = tk.Tk(className=self.__class__.__name__)
@@ -292,10 +303,11 @@ class BaseGUIWindow:
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 
                             submit_text: str, submit_cmd: Callable,
-                            add_time_increment: int = 60) -> tk.Label:
+                            add_time_increment: int = 60) -> Any:
     """
     Creates a standardized bottom bar with status, countdown, and buttons.
     """
+    import tkinter as tk
     window_instance.add_time_increment = add_time_increment
     bottom_frame = tk.Frame(parent)
     # Standard padding matching USERINPUT style

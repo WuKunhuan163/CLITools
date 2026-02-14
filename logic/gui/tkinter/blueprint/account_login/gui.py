@@ -1,6 +1,6 @@
-import tkinter as tk
 from pathlib import Path
 import sys
+from typing import Any
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()
@@ -44,6 +44,7 @@ class AccountLoginWindow(BaseGUIWindow):
 
     def setup_ui(self):
         """Builds the Account/Password login interface."""
+        import tkinter as tk
         self.root.geometry("400x300")
         
         # Initialize bottom bar from timed_bottom_bar

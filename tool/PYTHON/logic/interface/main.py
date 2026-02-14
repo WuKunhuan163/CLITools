@@ -9,6 +9,6 @@ def get_python_install_dir():
 
 def get_python_exe_func():
     """Returns a function that finds a Python executable for a given version."""
-    from tool.PYTHON.logic.utils import get_python_executable
-    return get_python_executable
+    from tool.PYTHON.logic.utils import get_python_exec
+    return get_python_exec
 
