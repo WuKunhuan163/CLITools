@@ -81,6 +81,21 @@ def main():
         with open(cookie_file, 'wb') as f:
             pickle.dump(api.session.cookies, f)
 
+    def save_photos_cache(apple_id, all_photos_meta):
+        """Helper to atomically save the grouped photos metadata."""
+        data_dir = tool.get_data_dir() / "scan" / apple_id
+        data_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = data_dir / "photos_cache.json"
+        try:
+            tmp_cache = cache_file.with_suffix(".json.tmp")
+            with open(tmp_cache, 'w', encoding='utf-8') as f:
+                json.dump(all_photos_meta, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(str(tmp_cache), str(cache_file))
+        except Exception:
+            pass
+
     def auth_action(stage=None):
         nonlocal api, final_apple_id
         
@@ -110,8 +125,9 @@ def main():
                     _ = api.account.devices
                     final_apple_id = apple_id
                     if stage: 
-                        stage.success_status = "Successfully"
-                        stage.success_name = f"reused session for {final_apple_id}"
+                        # UI Request: Reused session bold, default color
+                        stage.success_status = f"{BOLD}Reused session{RESET}"
+                        stage.success_name = f"for {final_apple_id}"
                     return True
                 except:
                     pass
@@ -152,8 +168,9 @@ def main():
                 sys.stdout.flush()
                 
                 if stage: 
-                    stage.success_status = "Successfully"
-                    stage.success_name = f"authenticated {final_apple_id}"
+                    # UI Request: iCloud green bold
+                    stage.success_status = f"{BOLD}{GREEN}iCloud{RESET}"
+                    stage.success_name = f"authenticated as {final_apple_id}"
                 return True
             except Exception as e:
                 # Ensure we have a non-empty reason
@@ -190,8 +207,9 @@ def main():
                     api.session.cookies.update(pickle.load(f))
                 final_apple_id = apple_id
                 if stage: 
-                    stage.success_status = "Successfully"
-                    stage.success_name = f"reused session for {final_apple_id}"
+                    # UI Request: Reused session bold
+                    stage.success_status = f"{BOLD}Reused session{RESET}"
+                    stage.success_name = f"for {final_apple_id}"
                 return True
             except Exception as e:
                 # If reuse failed unexpectedly, fallback to full login or error
@@ -232,7 +250,8 @@ def main():
             save_session(apple_id, api)
             final_apple_id = apple_id
             if stage: 
-                stage.success_status = "Successfully"
+                # UI Request: iCloud green bold
+                stage.success_status = f"{BOLD}{GREEN}iCloud{RESET}"
                 stage.success_name = f"authenticated as {final_apple_id}"
             return True
             
@@ -282,6 +301,8 @@ def main():
                             for m in y.values():
                                 for d in m.values():
                                     total += len(d)
+                    # UI Request: Found bold only (default color)
+                    stage.success_status = f"{BOLD}Found{RESET}"
                     stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
                 return True
             except Exception:
@@ -305,6 +326,9 @@ def main():
 
         count = 0
         start_time = time.time()
+        last_save_time = start_time
+        last_seen_date = None # Track date changes for flushing
+        
         from logic.utils import calculate_eta
         from pyicloud.services.photos import DirectionEnum
         
@@ -319,7 +343,6 @@ def main():
             offset = 0
             page_size = 100
             
-            # Temporary storage for assets found in this scan
             while True:
                 try:
                     batch = list(album._get_photos_at(offset, album._direction, page_size))
@@ -330,14 +353,20 @@ def main():
                 if not batch: break
                     
                 num_results = 0
+                batch_dates = set()
+                
                 for photo in batch:
                     created = photo.created
                     if created:
                         year = str(created.year)
                         month = f"{created.month:02d}"
                         day = f"{created.day:02d}"
+                        date_str = f"{year}-{month}-{day}"
                     else:
                         year, month, day = "unknown", "unknown", "unknown"
+                        date_str = "unknown"
+                    
+                    batch_dates.add(date_str)
                         
                     asset = {
                         "id": photo.id,
@@ -349,7 +378,6 @@ def main():
                         "item_type": photo.item_type
                     }
                     
-                    # Group by Year -> Month -> Day
                     if year not in all_photos_meta: all_photos_meta[year] = {}
                     if month not in all_photos_meta[year]: all_photos_meta[year][month] = {}
                     if day not in all_photos_meta[year][month]: all_photos_meta[year][month][day] = []
@@ -362,8 +390,33 @@ def main():
                     count += 1
                     num_results += 1
                 
+                # Logic: If batch has multiple dates, or if current date != last date,
+                # it means previous dates are likely finished. 
+                # We trigger a save if:
+                # 1. More than 1 date in this batch
+                # 2. Latest date in batch != last_seen_date
+                # 3. 30 seconds since last save
+                
+                current_time = time.time()
+                should_save = False
+                
+                if len(batch_dates) > 1:
+                    should_save = True
+                
+                latest_in_batch = sorted(list(batch_dates), reverse=True)[0]
+                if last_seen_date and latest_in_batch != last_seen_date:
+                    should_save = True
+                last_seen_date = latest_in_batch
+                
+                if current_time - last_save_time > 30:
+                    should_save = True
+                
+                if should_save:
+                    save_photos_cache(apple_id, all_photos_meta)
+                    last_save_time = current_time
+
                 # Update progress
-                elapsed = time.time() - start_time
+                elapsed = current_time - start_time
                 elapsed_str, remaining_str = calculate_eta(count, total_count, elapsed)
                 
                 status = f"iCloud photos/videos ({count}/{total_count or '???'}) [{elapsed_str}>{remaining_str}]"
@@ -371,19 +424,11 @@ def main():
                     stage.active_name = status
                     stage.refresh()
                 
-                # Atomic incremental save after each batch
-                try:
-                    tmp_cache = cache_file.with_suffix(".json.tmp")
-                    with open(tmp_cache, 'w', encoding='utf-8') as f:
-                        json.dump(all_photos_meta, f, indent=2)
-                        f.flush()
-                        os.fsync(f.fileno())
-                    os.replace(str(tmp_cache), str(cache_file))
-                except Exception:
-                    pass
-                
                 offset += num_results
             
+        # Final save
+        save_photos_cache(apple_id, all_photos_meta)
+        
         if stage:
             total = 0
             for y in all_photos_meta.values():
@@ -391,6 +436,8 @@ def main():
                     for m in y.values():
                         for d in m.values():
                             total += len(d)
+            # UI Request: Found bold only
+            stage.success_status = f"{BOLD}Found{RESET}"
             stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
         return True
 
@@ -410,7 +457,7 @@ def main():
     if used_cache:
         YELLOW_BOLD = get_color("YELLOW", "\033[33m") + BOLD
         sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. "
-                         f"Run with {BOLD}--force-rescan{RESET} to refresh metadata.\n")
+                         f"Run with {BOLD}--force-rescan{RESET} to refresh metadata (which may take some time).\n")
         sys.stdout.flush()
 
     if args.only_scan:
@@ -524,7 +571,7 @@ def main():
     pm.add_stage(TuringStage(
         "gathering_objects", gather_action,
         active_status="Gathering", active_name="photo/video objects",
-        success_status="", success_name="" # Silent success
+        success_status="\r\033[K", success_name=" " # Silent success
     ))
     if not pm.run():
         sys.exit(1)
