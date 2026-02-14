@@ -118,8 +118,18 @@ class TwoStepLoginWindow(BaseGUIWindow):
         self.set_loading(False)
         self.step = "password"
         self.account_entry.config(state="disabled")
+        
+        # Ensure password frame appears between account and error label
+        # We forget error label, pack password, then repack error label
+        if self.error_label:
+            self.error_label.pack_forget()
+            
         self.password_frame.pack(fill="x", pady=(0, 10))
         self.password_entry.focus_set()
+        
+        if self.error_label:
+            self.error_label.pack(fill=tk.X, pady=(10, 5))
+            
         if self.submit_btn:
             self.submit_btn.config(text=self._("btn_login", "Login"))
         # Show Prev button

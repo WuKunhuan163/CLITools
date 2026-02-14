@@ -52,6 +52,7 @@ def main():
     parser.add_argument("--output", help="Target directory for downloads (default: current)")
     parser.add_argument("--force-rescan", action="store_true", help="Force rescan of iCloud photo library")
     parser.add_argument("--workers", type=int, default=3, help="Number of parallel download workers (default: 3)")
+    parser.add_argument("--no-gui", action="store_true", help="Use CLI-only interaction (no GUI)")
     
     if tool.handle_command_line(parser): return
     
@@ -67,9 +68,67 @@ def main():
     api = None
     final_apple_id = None
     
+    def save_session(apple_id, api):
+        import pickle
+        cookie_dir = tool.get_data_dir() / apple_id
+        cookie_dir.mkdir(parents=True, exist_ok=True)
+        cookie_file = cookie_dir / "session.pkl"
+        with open(cookie_file, 'wb') as f:
+            pickle.dump(api.session.cookies, f)
+
     def auth_action(stage=None):
         nonlocal api, final_apple_id
         
+        # 1. CLI-only mode logic
+        if args.no_gui:
+            import getpass
+            import pickle
+            
+            apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
+            # Try session reuse first
+            cookie_dir = tool.get_data_dir() / apple_id
+            cookie_dir.mkdir(parents=True, exist_ok=True)
+            cookie_file = cookie_dir / "session.pkl"
+            
+            if cookie_file.exists():
+                try:
+                    if stage: stage.active_name = f"reusing session for {apple_id}"
+                    api = PyiCloudService(apple_id, "")
+                    with open(cookie_file, 'rb') as f:
+                        api.session.cookies.update(pickle.load(f))
+                    _ = api.account.devices
+                    final_apple_id = apple_id
+                    if stage: 
+                        stage.success_status = "Successfully"
+                        stage.success_name = f"reused session for {final_apple_id}"
+                    return True
+                except:
+                    pass
+            
+            # Full login via CLI
+            password = getpass.getpass(f"Enter password for {apple_id}: ")
+            try:
+                if stage: stage.active_name = f"authenticating {apple_id}"
+                api = PyiCloudService(apple_id, password)
+                
+                if api.requires_2fa:
+                    print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
+                    code = input("Enter 6-digit 2FA code: ").strip()
+                    if not api.validate_2fa_code(code):
+                        if stage: stage.report_error("2FA Failed", "Invalid code.")
+                        return False
+                
+                save_session(apple_id, api)
+                final_apple_id = apple_id
+                if stage: 
+                    stage.success_status = "Successfully"
+                    stage.success_name = f"authenticated {final_apple_id}"
+                return True
+            except Exception as e:
+                if stage: stage.report_error("Login Failed", str(e))
+                return False
+
+        # 2. GUI mode logic
         # The login GUI now handles retries and validation internally
         login_res = icloud["run_login_gui"](apple_id=args.apple_id)
         
@@ -82,13 +141,35 @@ def main():
             
         creds = login_res["data"]
         apple_id = creds["apple_id"]
-        password = creds["password"]
+        # mode might be 'session_reuse' or 'full_login'
+        mode = creds.get("mode")
         
+        if mode == "session_reuse":
+            # Re-initialize API object from cookies
+            import pickle
+            try:
+                if stage: stage.active_name = f"Finalizing session for {apple_id}"
+                api = PyiCloudService(apple_id, "")
+                cookie_file = tool.get_data_dir() / apple_id / "session.pkl"
+                with open(cookie_file, 'rb') as f:
+                    api.session.cookies.update(pickle.load(f))
+                final_apple_id = apple_id
+                if stage: 
+                    stage.success_status = "Successfully"
+                    stage.success_name = f"reused session for {final_apple_id}"
+                return True
+            except Exception as e:
+                # If reuse failed unexpectedly, fallback to full login or error
+                if stage: stage.report_error("Session Error", f"Failed to restore session: {e}")
+                return False
+
+        # Full login (credentials provided by GUI)
+        password = creds["password"]
         try:
             if stage: stage.active_name = f"Finalizing session for {apple_id}"
             api = PyiCloudService(apple_id, password)
             
-            # Handle 2FA if needed (2FA is still handled by parent, but we could refactor later)
+            # Handle 2FA if needed
             if api.requires_2fa:
                 if stage: stage.active_status = "2FA Required"
                 from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
@@ -112,7 +193,8 @@ def main():
                     if stage: stage.report_error("2FA Cancelled", "Verification interrupted.")
                     return False
             
-            # Success!
+            # Success! save session
+            save_session(apple_id, api)
             final_apple_id = apple_id
             if stage: 
                 stage.success_status = "Successfully"

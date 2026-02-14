@@ -1,0 +1,30 @@
+Stage: auth
+Timestamp: 20260214_225338
+--------------------
+
+
+Traceback:
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/getpass.py", line 69, in unix_getpass
+    old = termios.tcgetattr(fd)     # a copy to save
+          ^^^^^^^^^^^^^^^^^^^^^
+termios.error: (19, 'Operation not supported by device')
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/logic/turing/models/progress.py", line 59, in run
+    success = stage.action(stage)
+              ^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/iCloud/tool/iCloudPD/main.py", line 109, in auth_action
+    password = getpass.getpass(f"Enter password for {apple_id}: ")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/getpass.py", line 91, in unix_getpass
+    passwd = fallback_getpass(prompt, stream)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/getpass.py", line 126, in fallback_getpass
+    return _raw_input(prompt, stream)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/getpass.py", line 148, in _raw_input
+    raise EOFError
+EOFError
