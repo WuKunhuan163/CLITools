@@ -36,7 +36,8 @@ if __name__ == "__main__":
         internal_dir=str(project_root / "logic" / "gui"),
         instruction_text="Demo Login Interface",
         account_label="Username:",
-        password_label="Password:"
+        password_label="Password:",
+        error_msg="This is a demo error message shown on launch."
     )
     
     win.run(win.setup_ui)
