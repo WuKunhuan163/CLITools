@@ -47,9 +47,47 @@ class DemoWindow(BaseGUIWindow):
 
 if __name__ == "__main__":
     from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
+    from logic.tool.base import ToolBase
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+    from logic.config import get_color
     import subprocess
     import os
 
+    # 1. Parent Process Logic (Manager)
+    if os.environ.get("GDS_GUI_MANAGED") != "1":
+        def run_parent():
+            tool = ToolBase("BAR_DEMO")
+            py_exe = sys.executable
+            
+            BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+            final_res = {}
+
+            def demo_action(stage=None):
+                nonlocal final_res
+                # Set environment to indicate managed mode for the child
+                env = os.environ.copy()
+                env["GDS_GUI_MANAGED"] = "1"
+                # Re-run this same script as a managed subprocess
+                final_res = tool.run_gui(py_exe, __file__, timeout=60)
+                return final_res.get("status") == "success"
+
+            pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="DEMO")
+            pm.add_stage(TuringStage(
+                "interaction", demo_action,
+                active_status="Waiting for demo feedback",
+                active_name="via GUI",
+                success_status="Received",
+                success_name="demo feedback"
+            ))
+            
+            if pm.run():
+                print(f"{BOLD}{GREEN}Successfully received{RESET}: {final_res.get('data')}")
+        
+        run_parent()
+        sys.exit(0)
+
+    # 2. Child Process Logic (Actual GUI)
     # Auto-reexecute with safe python if current one lacks tkinter
     try:
         import _tkinter
