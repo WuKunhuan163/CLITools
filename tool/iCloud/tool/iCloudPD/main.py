@@ -278,47 +278,78 @@ def main():
     # We need photo objects for download. 
     # Iterate all libraries to find the ones in scheduled_ids using robust paging.
     to_download_objects = []
-    print(f"{BOLD}{BLUE}Gathering{RESET} photo objects...")
     
-    try:
-        libs = api.photos.libraries
-    except:
-        libs = {"root": api.photos}
+    def gather_action(stage=None):
+        nonlocal to_download_objects
+        total_scheduled = len(scheduled_ids)
+        count = 0
+        start_time = time.time()
         
-    from pyicloud.services.photos import DirectionEnum
-    for lib_name, lib in libs.items():
-        if not hasattr(lib, "all"):
-            continue
+        try:
+            libs = api.photos.libraries
+        except:
+            libs = {"root": api.photos}
             
-        album = lib.all
-        album._direction = DirectionEnum.ASCENDING
-        offset = 0
-        page_size = 100
-        
-        while True:
-            try:
-                batch = list(album._get_photos_at(offset, album._direction, page_size))
-            except:
-                break
+        from pyicloud.services.photos import DirectionEnum
+        for lib_name, lib in libs.items():
+            if not hasattr(lib, "all"):
+                continue
                 
-            if not batch:
-                break
+            album = lib.all
+            album._direction = DirectionEnum.ASCENDING
+            offset = 0
+            page_size = 100
+            
+            while True:
+                try:
+                    batch = list(album._get_photos_at(offset, album._direction, page_size))
+                except:
+                    break
+                    
+                if not batch:
+                    break
+                    
+                for photo in batch:
+                    if photo.id in scheduled_ids:
+                        to_download_objects.append(photo)
+                        count += 1
+                        
+                        # Update progress
+                        if count % 10 == 0 or count == total_scheduled:
+                            now = time.time()
+                            elapsed = now - start_time
+                            elapsed_str = time.strftime("%M:%S", time.gmtime(elapsed))
+                            rate = count / elapsed if elapsed > 0 else 0
+                            remaining = (total_scheduled - count) / rate if rate > 0 else 0
+                            remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
+                            status = f"photo objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
+                            if stage: stage.active_name = status
+                            
+                    if len(to_download_objects) >= total_scheduled:
+                        break
                 
-            for photo in batch:
-                if photo.id in scheduled_ids:
-                    to_download_objects.append(photo)
-                if len(to_download_objects) >= len(scheduled_ids):
+                if len(to_download_objects) >= total_scheduled:
+                    break
+                    
+                offset += len(batch)
+                if len(batch) < page_size:
                     break
             
-            if len(to_download_objects) >= len(scheduled_ids):
+            if len(to_download_objects) >= total_scheduled:
                 break
-                
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        
-        if len(to_download_objects) >= len(scheduled_ids):
-            break
+        return len(to_download_objects) > 0
+
+    pm = ProgressTuringMachine(
+        project_root=tool.project_root, 
+        tool_name="iCloudPD",
+        log_dir=tool.get_log_dir()
+    )
+    pm.add_stage(TuringStage(
+        "gather", gather_action,
+        active_status="Gathering", active_name="photo objects",
+        success_status="Ready", success_name=f"{len(scheduled_ids)} photos"
+    ))
+    pm.run()
 
     def download_worker(stage, photo, target_path):
         try:
