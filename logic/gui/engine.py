@@ -129,17 +129,29 @@ def play_notification_bell(project_root: Path):
                     subprocess.run(["afplay", str(bell_path)], stderr=subprocess.DEVNULL, timeout=5)
                 elif platform.system() == "Linux":
                     subprocess.run(["aplay", str(bell_path)], stderr=subprocess.DEVNULL, timeout=5)
+                elif platform.system() == "Windows":
+                    import winsound
+                    winsound.PlaySound(str(bell_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
             else:
-                # Fallback to system sounds if asset is missing
-                if platform.system() == "Darwin":
-                    # Use a standard macOS system sound
-                    system_sound = "/System/Library/Sounds/Glass.aiff"
-                    if os.path.exists(system_sound):
-                        subprocess.run(["afplay", system_sound], stderr=subprocess.DEVNULL, timeout=5)
-                elif platform.system() == "Linux":
-                    # Try to use pcspkr or a common sound
-                    subprocess.run(["beep"], stderr=subprocess.DEVNULL, timeout=2)
+                play_system_alert()
         except: pass
     threading.Thread(target=run_play, daemon=True).start()
+
+def play_system_alert():
+    """Plays a default system alert sound as a fallback."""
+    import subprocess
+    try:
+        if platform.system() == "Darwin":
+            system_sound = "/System/Library/Sounds/Glass.aiff"
+            if os.path.exists(system_sound):
+                subprocess.run(["afplay", system_sound], stderr=subprocess.DEVNULL, timeout=5)
+        elif platform.system() == "Windows":
+            import winsound
+            # SystemAsterisk is a standard Windows event sound
+            winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        elif platform.system() == "Linux":
+            subprocess.run(["beep"], stderr=subprocess.DEVNULL, timeout=2)
+    except:
+        pass
 
 
