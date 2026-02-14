@@ -516,6 +516,14 @@ def get_tool_module_path(tool_dir: Path, project_root: Path) -> str:
     except ValueError:
         return ""
 
+def get_module_relative_path(module_name: str) -> str:
+    """
+    Translates a module name (e.g. 'logic.tool.base') to its relative path 
+    from the project root (e.g. 'logic/tool/base.py' or 'logic/tool/base/').
+    """
+    path_parts = module_name.split('.')
+    return os.path.join(*path_parts)
+
 def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     """
     Runs a command and parses its stderr for percentage progress.

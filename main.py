@@ -704,20 +704,38 @@ def _dev_create(tool_name):
     # But as per user request, we should allow development on 'dev'.
     is_dev_branch = current_branch in ["dev", "tool"] or current_branch.startswith("feature/")
     
+    from tool.GIT.logic.interface.main import run_git_tool_managed
+    
     if not is_dev_branch:
         # Auto-commit local changes before checkout to avoid errors
         try:
-            status = subprocess.run(["/usr/bin/git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
-            if status.stdout.strip():
-                info_label = _("info_label", "Info")
-                print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
-                subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
-                subprocess.run(["/usr/bin/git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
+            status_res = run_git_tool_managed(["status", "--porcelain"], cwd=str(project_root))
+            if status_res.stdout.strip():
+                # Erasable message
+                msg = f"{BOLD}{BLUE}Auto-committing{RESET} local changes before switching branch..."
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+                
+                run_git_tool_managed(["add", "."], cwd=str(project_root))
+                run_git_tool_managed(["commit", "-m", "Auto-commit before dev create"], cwd=str(project_root))
+                
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
         except: pass
 
         try:
-            subprocess.run(["/usr/bin/git", "checkout", "dev"], cwd=str(project_root), check=True)
+            # Erasable message with specific styling
+            # "Switching to git branch 'dev' for development..."
+            # Only "Switching to git branch" in blue bold
+            msg = f"{BOLD}{BLUE}Switching to git branch{RESET} 'dev' for development..."
+            sys.stdout.write(msg)
+            sys.stdout.flush()
+            
+            run_git_tool_managed(["checkout", "dev"], cwd=str(project_root))
             current_branch = "dev"
+            
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
         except: pass
     
     if tool_dir.exists():
@@ -867,9 +885,7 @@ This tool is part of the `TOOL` ecosystem, which provides:
     
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
-        from tool.GIT.logic.interface.main import run_git_tool_managed
-        
-        # Get current branch
+        # Get current real branch
         res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))
         current_real = res.stdout.strip() if res.returncode == 0 else "dev"
 
@@ -878,7 +894,8 @@ This tool is part of the `TOOL` ecosystem, which provides:
         run_git_tool_managed(["commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root))
         
         # Push to remote with erasable message
-        msg = f"Pushing to remote branch '{current_real}'..."
+        # Styling: Only "Pushing to remote" in blue bold, ellipsis default
+        msg = f"{BOLD}{BLUE}Pushing to remote{RESET} branch '{current_real}'..."
         sys.stdout.write(msg)
         sys.stdout.flush()
         

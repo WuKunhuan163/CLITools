@@ -25,6 +25,7 @@ class AccountLoginWindow(BaseGUIWindow):
         self.password_label = password_label
         self.account_entry = None
         self.password_entry = None
+        self.account_initial = ""
 
     def get_current_state(self):
         """Returns the current input state (account and password)."""
@@ -66,13 +67,22 @@ class AccountLoginWindow(BaseGUIWindow):
         tk.Label(main_frame, text=acc_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
         self.account_entry = tk.Entry(main_frame, font=get_label_style())
         self.account_entry.pack(fill=tk.X, pady=(0, 15))
-        self.account_entry.focus_set()
+        
+        if self.account_initial:
+            self.account_entry.insert(0, self.account_initial)
+            self.password_entry_focus = True
+        else:
+            self.password_entry_focus = False
+            self.account_entry.focus_set()
 
         # Password input (masked)
         pw_lbl_text = self.password_label or self._("label_password", "Password:")
         tk.Label(main_frame, text=pw_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
         self.password_entry = tk.Entry(main_frame, font=get_label_style(), show="*")
         self.password_entry.pack(fill=tk.X, pady=(0, 10))
+        
+        if getattr(self, 'password_entry_focus', False):
+            self.password_entry.focus_set()
 
         # Bindings
         self.root.bind('<Return>', lambda e: self.on_submit())

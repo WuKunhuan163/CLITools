@@ -18,10 +18,25 @@ class DynamicStatusBar:
         self.lock = threading.Lock()
         self.suppressor = KeyboardSuppressor()
         self.is_suppressing = False
+        self.total_count: Optional[int] = None
+        self.completed_count: int = 0
         
         self.BLUE = get_color("BLUE", "\033[34m") if use_bold_blue else ""
         self.BOLD = get_color("BOLD", "\033[1m") if use_bold_blue else ""
         self.RESET = get_color("RESET", "\033[0m") if use_bold_blue else ""
+
+    def set_counts(self, total: int, completed: int = 0):
+        """Set progress counts for the status display."""
+        with self.lock:
+            self.total_count = total
+            self.completed_count = completed
+            self._render()
+
+    def increment_completed(self):
+        """Increment the completed count."""
+        with self.lock:
+            self.completed_count += 1
+            self._render()
 
     def update(self, item_id: str, action: str = "add"):
         """Add or remove an item from the active status."""
@@ -41,7 +56,7 @@ class DynamicStatusBar:
 
     def _render(self):
         """Render the status line."""
-        if not self.active_items:
+        if not self.active_items and self.completed_count == 0:
             return
             
         try:
@@ -50,7 +65,12 @@ class DynamicStatusBar:
             sorted_items = sorted(list(self.active_items))
             
         items_str = ", ".join(map(str, sorted_items))
-        status_msg = f"{self.BOLD}{self.BLUE}{self.label}{self.RESET} {items_str}..."
+        
+        count_info = ""
+        if self.total_count is not None:
+            count_info = f" ({self.completed_count}/{self.total_count})"
+            
+        status_msg = f"{self.BOLD}{self.BLUE}{self.label}{self.RESET} {items_str}...{count_info}"
         
         width = _get_configured_width()
         sys.stdout.write(f"\r\033[K{truncate_to_width(status_msg, width)}")

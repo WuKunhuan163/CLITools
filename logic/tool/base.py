@@ -12,28 +12,28 @@ class ToolBase:
     def __init__(self, tool_name):
         self.tool_name = tool_name
         
-        # Determine script_dir (the actual installation directory of the tool)
+        # Determine tool_dir (the actual installation directory of the tool)
         import inspect
         caller_frame = inspect.stack()[1]
         caller_file = Path(caller_frame.filename).resolve()
         
-        if self.__class__ == ToolBase:
-            # Used as a wrapper: tool = ToolBase("name")
-            self.script_dir = caller_file.parent
+        # If the caller is main.py, tool_dir is its parent
+        if caller_file.name == "main.py":
+            self.tool_dir = caller_file.parent
         else:
-            # Used as a base class: class MyTool(ToolBase)
-            self.script_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
-        
-        self.tool_dir = self.script_dir
+            # Fallback to module-based detection
+            self.tool_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
         
         # Use robust project root detection from utils
         from logic.utils import find_project_root, get_tool_module_path
         self.project_root = find_project_root(self.tool_dir)
         self.tool_module_path = get_tool_module_path(self.tool_dir, self.project_root)
         
-        # Ensure project root is in path for imports
-        if str(self.project_root) not in sys.path:
-            sys.path.insert(0, str(self.project_root))
+        # Ensure project root is in path for imports and it's at the FRONT
+        root_str = str(self.project_root)
+        if root_str in sys.path:
+            sys.path.remove(root_str)
+        sys.path.insert(0, root_str)
             
         self.tool_json_path = self.tool_dir / "tool.json"
         self.dependencies = []

@@ -31,10 +31,12 @@ def main():
     tool = ToolBase("iCloudPD")
     
     parser = argparse.ArgumentParser(description="iCloud Photo Downloader", add_help=False)
+    parser.add_argument("--apple-id", help="Apple ID to use for login")
     parser.add_argument("--since", help="Download photos from this date (YYYY-MM-DD)")
     parser.add_argument("--before", help="Download photos before this date (YYYY-MM-DD)")
     parser.add_argument("--output", help="Target directory for downloads (default: current)")
     parser.add_argument("--force-rescan", action="store_true", help="Force rescan of iCloud photo library")
+    parser.add_argument("--workers", type=int, default=3, help="Number of parallel download workers (default: 3)")
     
     if tool.handle_command_line(parser): return
     
@@ -47,7 +49,8 @@ def main():
     icloud = get_icloud_interface()
     
     print(f"{BOLD}{BLUE}Authenticating{RESET} with iCloud...")
-    login_res = icloud["run_login_gui"]()
+    # Support pre-filled Apple ID
+    login_res = icloud["run_login_gui"](apple_id=args.apple_id)
     
     if login_res.get("status") != "success":
         print(f"{BOLD}{get_color('RED')}Authentication failed{RESET}")
@@ -57,7 +60,7 @@ def main():
     apple_id = creds["apple_id"]
     password = creds["password"]
     
-    # Initialize pyicloud (using standalone python if possible)
+    # Initialize pyicloud
     from pyicloud import PyICloudService
     
     api = PyICloudService(apple_id, password)
@@ -91,13 +94,13 @@ def main():
     data_dir.mkdir(parents=True, exist_ok=True)
     cache_file = data_dir / "photos_cache.json"
     
-    all_photos = []
+    all_photos_meta = []
     
     def scan_action(stage=None):
-        nonlocal all_photos
+        nonlocal all_photos_meta
         if not args.force_rescan and cache_file.exists():
             with open(cache_file, 'r') as f:
-                all_photos = json.load(f)
+                all_photos_meta = json.load(f)
             return True
             
         # Perform scan
@@ -105,7 +108,7 @@ def main():
         count = 0
         for photo in photos:
             # Basic metadata
-            all_photos.append({
+            all_photos_meta.append({
                 "id": photo.id,
                 "filename": photo.filename,
                 "created": photo.created.isoformat() if photo.created else None,
@@ -116,14 +119,14 @@ def main():
             if stage: stage.active_name = f"Scanning {count} photos"
             
         with open(cache_file, 'w') as f:
-            json.dump(all_photos, f, indent=2)
+            json.dump(all_photos_meta, f, indent=2)
         return True
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD")
     pm.add_stage(TuringStage(
         "scan", scan_action, 
         active_status="Scanning", active_name="iCloud photos",
-        success_status="Indexed", success_name=f"{len(all_photos)} photos"
+        success_status="Indexed", success_name=f"{len(all_photos_meta)} photos"
     ))
     pm.run()
     
@@ -131,51 +134,77 @@ def main():
     since_date = datetime.strptime(args.since, "%Y-%m-%d").date() if args.since else None
     before_date = datetime.strptime(args.before, "%Y-%m-%d").date() if args.before else None
     
-    to_download = []
-    for p in all_photos:
+    scheduled_ids = set()
+    for p in all_photos_meta:
         p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
         if since_date and (not p_date or p_date < since_date): continue
         if before_date and (not p_date or p_date >= before_date): continue
-        to_download.append(p)
+        scheduled_ids.add(p["id"])
         
-    print(f"{BOLD}{BLUE}Scheduled{RESET} {len(to_download)} photos for download.")
+    print(f"{BOLD}{BLUE}Scheduled{RESET} {len(scheduled_ids)} photos for download.")
+    if not scheduled_ids:
+        print("No photos found matching the criteria.")
+        return
+
+    # 4. Parallel Downloading
+    from logic.turing.models.worker import ParallelWorkerPool
+    output_root = Path(args.output or ".").resolve()
     
-    # 4. Downloading
-    output_root = Path(args.output).resolve()
-    
-    count = 0
-    scheduled_ids = {p["id"]: p for p in to_download}
-    
-    print(f"{BOLD}{BLUE}Downloading{RESET} photos...")
-    
-    # We iterate api.photos.all once and download those in our schedule
+    # We need photo objects for download. 
+    # Iterate api.photos.all once and find the ones in scheduled_ids.
+    to_download_objects = []
+    print(f"{BOLD}{BLUE}Gathering{RESET} photo objects...")
     for photo in api.photos.all:
         if photo.id in scheduled_ids:
-            p = scheduled_ids[photo.id]
-            p_date_str = photo.created.strftime("%Y-%m-%d") if photo.created else "unknown"
-            target_dir = output_root / p_date_str
-            target_dir.mkdir(parents=True, exist_ok=True)
-            target_file = target_dir / photo.filename
-            
-            if target_file.exists():
-                count += 1
-                continue
-                
-            try:
-                download = photo.download()
-                with open(target_file, 'wb') as f:
-                    for chunk in download.iter_content(chunk_size=1024):
-                        if chunk: f.write(chunk)
-                count += 1
-                sys.stdout.write(f"\r\033[K{BOLD}{BLUE}Downloading{RESET} ({count}/{len(to_download)}): {photo.filename}")
-                sys.stdout.flush()
-            except Exception as e:
-                print(f"\n{BOLD}{get_color('RED')}Failed{RESET} to download {photo.filename}: {e}")
-        
-        if count >= len(to_download):
+            to_download_objects.append(photo)
+        if len(to_download_objects) >= len(scheduled_ids):
             break
 
-    print(f"\n{BOLD}{GREEN}Successfully completed{RESET} download task.")
+    def download_worker(stage, photo, target_path):
+        try:
+            # We don't use stage.active_name here because the DynamicStatusBar handles it
+            download = photo.download()
+            with open(target_path, 'wb') as f:
+                for chunk in download.iter_content(chunk_size=1024):
+                    if chunk: f.write(chunk)
+            return True
+        except Exception as e:
+            if stage: stage.report_error(f"Failed to download {photo.filename}", str(e))
+            return False
+
+    pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
+    pool.status_bar.set_counts(len(to_download_objects))
+    
+    tasks = []
+    for photo in to_download_objects:
+        p_date_str = photo.created.strftime("%Y-%m-%d") if photo.created else "unknown"
+        target_dir = output_root / p_date_str
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_file = target_dir / photo.filename
+        
+        if target_file.exists():
+            pool.status_bar.increment_completed()
+            continue
+            
+        # Task ID will be "yyyy-mm-dd/filename" as requested
+        task_id = f"{p_date_str}/{photo.filename}"
+        tasks.append({
+            "id": task_id,
+            "action": download_worker,
+            "args": (photo, target_file)
+        })
+
+    def on_success(task_id, res):
+        pool.status_bar.increment_completed()
+
+    if tasks:
+        success = pool.run(tasks, success_callback=on_success)
+        if success:
+            print(f"\n{BOLD}{GREEN}Successfully completed{RESET} download task.")
+        else:
+            print(f"\n{BOLD}{get_color('RED')}Completed{RESET} download task with some errors.")
+    else:
+        print(f"\n{BOLD}{GREEN}All photos{RESET} already downloaded.")
 
 if __name__ == "__main__":
     main()

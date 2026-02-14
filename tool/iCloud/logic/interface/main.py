@@ -15,7 +15,7 @@ def get_icloud_interface():
     else:
         project_root = None
 
-    def run_login_gui(timeout=300):
+    def run_login_gui(timeout=300, apple_id=None):
         from tool.iCloud.logic.gui.login import ICloudLoginWindow
         from logic.gui.engine import setup_gui_environment
         
@@ -27,6 +27,11 @@ def get_icloud_interface():
             timeout=timeout,
             internal_dir=internal_dir
         )
+        
+        # Pre-fill Apple ID if provided
+        if apple_id:
+            win.account_initial = apple_id
+            
         # Setup UI and run
         win.run(win.setup_ui)
         return win.result
