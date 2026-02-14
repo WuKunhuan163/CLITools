@@ -1,0 +1,74 @@
+Stage: scan
+Timestamp: 20260214_221823
+--------------------
+Request failed to iCloud
+
+Traceback:
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/urllib3/response.py", line 903, in _error_catcher
+    yield
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/urllib3/response.py", line 1421, in read_chunked
+    chunk = self._handle_chunk(amt)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/urllib3/response.py", line 1354, in _handle_chunk
+    value = self._fp._safe_read(amt)  # type: ignore[union-attr]
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/http/client.py", line 640, in _safe_read
+    raise IncompleteRead(data, amt-len(data))
+http.client.IncompleteRead: IncompleteRead(7491 bytes read, 2749 more expected)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/models.py", line 820, in generate
+    yield from self.raw.stream(chunk_size, decode_content=True)
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/urllib3/response.py", line 1250, in stream
+    yield from self.read_chunked(amt, decode_content=decode_content)
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/urllib3/response.py", line 1397, in read_chunked
+    with self._error_catcher():
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/urllib3/response.py", line 930, in _error_catcher
+    raise ProtocolError(f"Connection broken: {e!r}", e) from e
+urllib3.exceptions.ProtocolError: ('Connection broken: IncompleteRead(7491 bytes read, 2749 more expected)', IncompleteRead(7491 bytes read, 2749 more expected))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 180, in _request
+    response: Response = super().request(
+                         ^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/sessions.py", line 746, in send
+    r.content
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/models.py", line 902, in content
+    self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/models.py", line 822, in generate
+    raise ChunkedEncodingError(e)
+requests.exceptions.ChunkedEncodingError: ('Connection broken: IncompleteRead(7491 bytes read, 2749 more expected)', IncompleteRead(7491 bytes read, 2749 more expected))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/logic/turing/models/progress.py", line 59, in run
+    success = stage.action(stage)
+              ^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/iCloud/tool/iCloudPD/main.py", line 158, in scan_action
+    for photo in photos:
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/services/photos.py", line 819, in photos
+    for photo in self._get_photos_at(offset, self._direction, self.page_size):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/services/photos.py", line 752, in _get_photos_at
+    response: Response = self.service.session.post(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/sessions.py", line 637, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 147, in request
+    return self._request(
+           ^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 220, in _request
+    raise PyiCloudAPIResponseException("Request failed to iCloud") from err
+pyicloud.exceptions.PyiCloudAPIResponseException: Request failed to iCloud

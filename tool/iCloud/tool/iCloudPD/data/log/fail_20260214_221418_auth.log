@@ -1,0 +1,8 @@
+Stage: auth
+Timestamp: 20260214_221418
+--------------------
+{
+  "apple_id": "test.com",
+  "password": "1",
+  "history": "Attempt 1: Invalid email/password combination."
+}

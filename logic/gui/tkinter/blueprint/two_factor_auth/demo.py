@@ -34,7 +34,8 @@ if __name__ == "__main__":
         title="2FA Verification Demo",
         timeout=120,
         internal_dir=str(project_root / "logic" / "gui"),
-        n=6
+        n=6,
+        prompt_msg="Hint: Please enter 123456 to simulate verification."
     )
     
     win.run(win.setup_ui)

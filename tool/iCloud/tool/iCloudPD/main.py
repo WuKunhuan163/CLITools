@@ -152,20 +152,85 @@ def main():
                 all_photos_meta = json.load(f)
             return True
             
-        # Perform scan
-        photos = api.photos.all
+        # Perform scan across all available libraries (Private, Shared, etc.)
+        total_count = 0
+        try:
+            # api.photos.libraries returns a dict of libraries
+            libs = api.photos.libraries
+            for lib in libs.values():
+                try:
+                    total_count += len(lib.all)
+                except:
+                    pass
+        except:
+            # Fallback to single library if libraries property fails
+            try:
+                total_count = len(api.photos.all)
+                libs = {"root": api.photos}
+            except:
+                total_count = 0
+                libs = {}
+
         count = 0
-        for photo in photos:
-            # Basic metadata
-            all_photos_meta.append({
-                "id": photo.id,
-                "filename": photo.filename,
-                "created": photo.created.isoformat() if photo.created else None,
-                "size": photo.size,
-                "dimensions": photo.dimensions
-            })
-            count += 1
-            if stage: stage.active_name = f"Scanning {count} photos"
+        start_time = time.time()
+        
+        # Iterate through each library
+        from pyicloud.services.photos import DirectionEnum
+        
+        for lib_name, lib in libs.items():
+            if stage: stage.active_name = f"Preparing library: {lib_name}"
+            
+            album = lib.all
+            # Use ASCENDING for more robust linear scanning from the beginning
+            album._direction = DirectionEnum.ASCENDING
+            offset = 0
+            page_size = 100
+            
+            while True:
+                num_results = 0
+                # Call _get_photos_at directly to bypass pyicloud's buggy 
+                # 'num_results < page_size // 2' termination condition
+                try:
+                    batch = list(album._get_photos_at(offset, album._direction, page_size))
+                except Exception as e:
+                    if stage: stage.report_error("Scan Error", f"Failed to fetch batch at offset {offset}: {e}")
+                    break
+                    
+                if not batch:
+                    break
+                    
+                for photo in batch:
+                    all_photos_meta.append({
+                        "id": photo.id,
+                        "filename": photo.filename,
+                        "created": photo.created.isoformat() if photo.created else None,
+                        "size": photo.size,
+                        "dimensions": photo.dimensions,
+                        "library": lib_name
+                    })
+                    count += 1
+                    num_results += 1
+                    
+                    # Update progress every 10 photos
+                    if count % 10 == 0 or (total_count > 0 and count == total_count):
+                        now = time.time()
+                        elapsed = now - start_time
+                        elapsed_str = time.strftime("%M:%S", time.gmtime(elapsed))
+                        
+                        if total_count > 0:
+                            rate = count / elapsed if elapsed > 0 else 0
+                            remaining = (total_count - count) / rate if rate > 0 else 0
+                            remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
+                            status = f"iCloud photos ({count}/{total_count}) [{elapsed_str}>{remaining_str}]"
+                        else:
+                            status = f"iCloud photos ({count}/???) [{elapsed_str}>??:??]"
+                        
+                        if stage: stage.active_name = status
+                
+                offset += num_results
+                if num_results < page_size:
+                    # Actually reached the end
+                    break
             
         with open(cache_file, 'w') as f:
             json.dump(all_photos_meta, f, indent=2)
@@ -194,7 +259,8 @@ def main():
         if before_date and (not p_date or p_date >= before_date): continue
         scheduled_ids.add(p["id"])
         
-    print(f"{BOLD}{BLUE}Scheduled{RESET} {len(scheduled_ids)} photos for download.")
+    WHITE = get_color("WHITE", "\033[37m")
+    print(f"{BOLD}{WHITE}Scheduled{RESET} {len(scheduled_ids)} photos for download.")
     if not scheduled_ids:
         print("No photos found matching the criteria.")
         return
@@ -204,12 +270,44 @@ def main():
     output_root = Path(args.output or ".").resolve()
     
     # We need photo objects for download. 
-    # Iterate api.photos.all once and find the ones in scheduled_ids.
+    # Iterate all libraries to find the ones in scheduled_ids using robust paging.
     to_download_objects = []
     print(f"{BOLD}{BLUE}Gathering{RESET} photo objects...")
-    for photo in api.photos.all:
-        if photo.id in scheduled_ids:
-            to_download_objects.append(photo)
+    
+    try:
+        libs = api.photos.libraries
+    except:
+        libs = {"root": api.photos}
+        
+    from pyicloud.services.photos import DirectionEnum
+    for lib_name, lib in libs.items():
+        album = lib.all
+        album._direction = DirectionEnum.ASCENDING
+        offset = 0
+        page_size = 100
+        
+        while True:
+            try:
+                batch = list(album._get_photos_at(offset, album._direction, page_size))
+            except:
+                break
+                
+            if not batch:
+                break
+                
+            for photo in batch:
+                if photo.id in scheduled_ids:
+                    to_download_objects.append(photo)
+                if len(to_download_objects) >= len(scheduled_ids):
+                    break
+            
+            if len(to_download_objects) >= len(scheduled_ids):
+                break
+                
+            offset += len(batch)
+            if len(batch) < page_size:
+                break
+        
         if len(to_download_objects) >= len(scheduled_ids):
             break
 

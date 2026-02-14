@@ -295,20 +295,24 @@ class BaseGUIWindow:
         try:
             if platform.system() == "Darwin":
                 # Suppress IMKClient noise by redirecting stderr temporarily at FD level
+                # Keep it redirected until UI is fully setup to catch late noise
                 fd = os.open(os.devnull, os.O_WRONLY)
                 old_stderr = os.dup(sys.stderr.fileno())
                 os.dup2(fd, sys.stderr.fileno())
                 try:
                     self.root = tk.Tk(className=self.__class__.__name__)
+                    self.root.title(self.title)
+                    setup_func()
                 finally:
+                    # Sync and restore
+                    sys.stderr.flush()
                     os.dup2(old_stderr, sys.stderr.fileno())
                     os.close(fd)
                     os.close(old_stderr)
             else:
                 self.root = tk.Tk()
-            
-            self.root.title(self.title)
-            setup_func()
+                self.root.title(self.title)
+                setup_func()
             
             # Start background pollers
             self.check_signals()
