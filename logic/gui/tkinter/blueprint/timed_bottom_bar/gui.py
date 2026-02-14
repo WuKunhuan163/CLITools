@@ -239,12 +239,30 @@ class BaseGUIWindow:
     def run(self, setup_func: Callable, on_show: Optional[Callable] = None, custom_id: Optional[str] = None):
         """Main execution flow."""
         import tkinter as tk
+        import os
+        import sys
+        
+        # 0. Suppress system/tkinter noise (like IMKClient messages on macOS)
+        # We redirect stderr temporarily during initialization
+        original_stderr = sys.stderr
+        if platform.system() == "Darwin":
+            try:
+                sys.stderr = open(os.devnull, 'w')
+            except: pass
+
         try:
             if platform.system() == "Darwin":
                 self.root = tk.Tk(className=self.__class__.__name__)
             else:
                 self.root = tk.Tk()
             
+            # Restore stderr after Tk initialization
+            if platform.system() == "Darwin":
+                try:
+                    sys.stderr.close()
+                    sys.stderr = original_stderr
+                except: pass
+
             self.root.title(self.title)
             setup_func()
             
@@ -296,15 +314,20 @@ class BaseGUIWindow:
                 except: pass
                 
             # Print final result for parent process to capture
-            print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
+            # Use a unique prefix that's easily filterable
+            print("\nGDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
         except Exception as e:
+            # Restore stderr if it was still redirected
+            if sys.stderr != original_stderr:
+                sys.stderr = original_stderr
+                
             if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists():
                 try: self.instance_file.unlink()
                 except: pass
             import traceback
             traceback.print_exc()
             self.result = {"status": "error", "message": str(e)}
-            print("GDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
+            print("\nGDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 
                             submit_text: str, submit_cmd: Callable,

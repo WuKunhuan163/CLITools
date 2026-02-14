@@ -199,9 +199,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     # Parse JSON result
     res = None
     for line in stdout.splitlines():
-        if line.startswith("GDS_GUI_RESULT_JSON:"):
+        if "GDS_GUI_RESULT_JSON:" in line:
             try:
-                res = json.loads(line[len("GDS_GUI_RESULT_JSON:"):])
+                # Find the start of JSON
+                json_str = line.split("GDS_GUI_RESULT_JSON:")[1].strip()
+                res = json.loads(json_str)
                 break
             except: pass
     
@@ -214,8 +216,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 res["reason"] = "stop" # Default for termination via flag
         return res
     
-    sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
-    if stderr: sys.stderr.write(f"DEBUG: GUI stderr: {stderr}\n")
+    # Hide debug prints unless specifically enabled
+    from logic.config import get_setting
+    if get_setting("gui_manager_debug", False):
+        sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
+        if stderr: sys.stderr.write(f"DEBUG: GUI stderr: {stderr}\n")
     
     # Error fallback for crashes
     if proc.returncode != 0:
