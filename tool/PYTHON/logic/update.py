@@ -397,14 +397,14 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 # Initialize side index with current tool branch tree
                 subprocess.run(["/usr/bin/git", "read-tree", "origin/tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                 
-                # Add files to side index
+                # Add metadata to side index
                 def git_add_file(file_path, repo_path):
                     res = subprocess.run(["/usr/bin/git", "hash-object", "-w", str(file_path)], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
                     sha = res.stdout.strip()
                     subprocess.run(["/usr/bin/git", "update-index", "--add", "--cacheinfo", "100644", sha, repo_path], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
 
                 git_add_file(json_path, f"{res_rel_path}/PYTHON.json")
-                git_add_file(zst_path, f"{res_rel_path}/{asset['name']}")
+                # git_add_file(zst_path, f"{res_rel_path}/{asset['name']}") # Stop pushing binaries to save LFS budget
                 
                 # Write tree
                 res = subprocess.run(["/usr/bin/git", "write-tree"], cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)
