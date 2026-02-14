@@ -15,7 +15,7 @@ def get_icloud_interface():
     else:
         project_root = None
 
-    def run_login_gui(timeout=300, apple_id=None):
+    def run_login_gui(timeout=300, apple_id=None, error_msg=None):
         from tool.iCloud.logic.gui.login import ICloudLoginWindow
         from logic.gui.engine import setup_gui_environment
         
@@ -25,7 +25,8 @@ def get_icloud_interface():
         win = ICloudLoginWindow(
             title="iCloud Login",
             timeout=timeout,
-            internal_dir=internal_dir
+            internal_dir=internal_dir,
+            error_msg=error_msg
         )
         
         # Pre-fill Apple ID if provided

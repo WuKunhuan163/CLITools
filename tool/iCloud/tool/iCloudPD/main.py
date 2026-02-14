@@ -59,50 +59,99 @@ def main():
     
     BOLD, GREEN, BLUE, RESET, YELLOW = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW")
     
-    # 1. Login via iCloud interface
+    # 1. Login and Authentication Flow
     from tool.iCloud.logic.interface.main import get_icloud_interface
-    icloud = get_icloud_interface()
-    
-    print(f"{BOLD}{BLUE}Authenticating{RESET} with iCloud...")
-    # Support pre-filled Apple ID
-    login_res = icloud["run_login_gui"](apple_id=args.apple_id)
-    
-    if login_res.get("status") != "success":
-        print(f"{BOLD}{get_color('RED')}Authentication failed{RESET}")
-        sys.exit(1)
-        
-    creds = login_res["data"]
-    apple_id = creds["apple_id"]
-    password = creds["password"]
-    
-    # Initialize pyicloud
     from pyicloud import PyiCloudService
+    from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
     
-    api = PyiCloudService(apple_id, password)
+    icloud = get_icloud_interface()
+    api = None
+    last_error = None
+    final_apple_id = None
     
-    if api.requires_2fa:
-        print(f"{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
-        from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
-        from logic.gui.engine import setup_gui_environment
-        setup_gui_environment()
+    def auth_action(stage=None):
+        nonlocal api, last_error, final_apple_id
+        from pyicloud import PyiCloudService
+        from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
         
-        # Use our new 2FA blueprint
-        win = TwoFactorAuthWindow(
-            title="iCloud 2FA",
-            timeout=300,
-            internal_dir=str(tool.tool_dir / "logic"),
-            n=6
-        )
-        win.run(win.setup_ui)
+        attempts = 3
+        current_apple_id = args.apple_id
         
-        if win.result.get("status") == "success":
-            code = win.result["data"]
-            if not api.validate_2fa_code(code):
-                print(f"{BOLD}{get_color('RED')}Invalid 2FA code.{RESET}")
-                sys.exit(1)
-        else:
-            print(f"{BOLD}{get_color('RED')}2FA verification cancelled or timed out.{RESET}")
-            sys.exit(1)
+        for i in range(attempts):
+            if i > 0:
+                if stage: stage.active_status = f"Retrying ({i}/{attempts})"
+            
+            # Show login GUI
+            login_res = icloud["run_login_gui"](apple_id=current_apple_id, error_msg=last_error)
+            
+            if login_res.get("status") != "success":
+                if stage: stage.report_error("Cancelled", "Login cancelled or timed out.")
+                return False
+                
+            creds = login_res["data"]
+            current_apple_id = creds["apple_id"]
+            password = creds["password"]
+            
+            try:
+                if stage: stage.active_name = f"Authenticating {current_apple_id}"
+                api = PyiCloudService(current_apple_id, password)
+                
+                # Handle 2FA if needed
+                if api.requires_2fa:
+                    if stage: stage.active_status = "2FA Required"
+                    from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
+                    from logic.gui.engine import setup_gui_environment
+                    setup_gui_environment()
+                    
+                    win = TwoFactorAuthWindow(
+                        title="iCloud 2FA",
+                        timeout=300,
+                        internal_dir=str(tool.tool_dir / "logic"),
+                        n=6
+                    )
+                    win.run(win.setup_ui)
+                    
+                    if win.result.get("status") == "success":
+                        code = win.result["data"]
+                        if not api.validate_2fa_code(code):
+                            last_error = "Invalid 2FA code."
+                            continue
+                    else:
+                        last_error = "2FA cancelled."
+                        continue
+                
+                # Success!
+                final_apple_id = current_apple_id
+                if stage: stage.success_name = f"Authenticated as {final_apple_id}"
+                return True
+                
+            except (PyiCloudFailedLoginException, PyiCloudAPIResponseException) as e:
+                last_error = str(e)
+                if "locked" in last_error.lower() or "-20209" in last_error:
+                    last_error = "Account locked. Visit https://iforgot.apple.com to reset."
+                if i == attempts - 1:
+                    if stage: stage.report_error("Auth Failed", last_error)
+                continue
+            except Exception as e:
+                last_error = f"Error: {str(e)}"
+                if i == attempts - 1:
+                    if stage: stage.report_error("Error", last_error)
+                continue
+                
+        return False
+
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD")
+    pm.add_stage(TuringStage(
+        "auth", auth_action,
+        active_status="Authenticating", active_name="iCloud",
+        success_status="Authenticated",
+        fail_status="Failed",
+    ))
+    
+    if not pm.run():
+        sys.exit(1)
+
+    apple_id = final_apple_id
 
     # 2. Scanning / Caching
     data_dir = tool.get_data_dir() / apple_id

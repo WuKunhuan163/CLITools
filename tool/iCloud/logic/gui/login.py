@@ -15,10 +15,11 @@ class ICloudLoginWindow(AccountLoginWindow):
     """
     Customized login window for iCloud using the account_login blueprint.
     """
-    def __init__(self, title, timeout, internal_dir):
+    def __init__(self, title, timeout, internal_dir, error_msg=None):
         super().__init__(
             title, timeout, internal_dir, 
-            tool_name="iCloud"
+            tool_name="iCloud",
+            error_msg=error_msg
         )
 
     def get_current_state(self):

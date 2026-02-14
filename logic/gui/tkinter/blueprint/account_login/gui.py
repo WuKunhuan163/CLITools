@@ -18,7 +18,8 @@ class AccountLoginWindow(BaseGUIWindow):
     Inherits from the timed_bottom_bar blueprint for standardized behavior.
     """
     def __init__(self, title, timeout, internal_dir, tool_name=None, 
-                 instruction_text=None, account_label=None, password_label=None):
+                 instruction_text=None, account_label=None, password_label=None,
+                 error_msg=None):
         super().__init__(title, timeout, internal_dir, tool_name=tool_name or "LOGIN")
         self.instruction_text = instruction_text
         self.account_label = account_label
@@ -26,6 +27,8 @@ class AccountLoginWindow(BaseGUIWindow):
         self.account_entry = None
         self.password_entry = None
         self.account_initial = ""
+        self.error_msg_initial = error_msg
+        self.error_label = None
 
     def get_current_state(self):
         """Returns the current input state (account and password)."""
@@ -40,7 +43,10 @@ class AccountLoginWindow(BaseGUIWindow):
         # Use values for validation to support subclasses with different keys
         if not all(state.values()):
             error_msg = self._("login_error_empty", "Please enter both credentials.")
-            self.status_label.config(text=error_msg, fg=get_gui_colors()["red"])
+            if self.error_label:
+                self.error_label.config(text=error_msg)
+            else:
+                self.status_label.config(text=error_msg, fg=get_gui_colors()["red"])
             return
         self.finalize("success", state)
 
@@ -81,6 +87,14 @@ class AccountLoginWindow(BaseGUIWindow):
         tk.Label(main_frame, text=pw_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
         self.password_entry = tk.Entry(main_frame, font=get_label_style(), show="*")
         self.password_entry.pack(fill=tk.X, pady=(0, 10))
+        
+        # Error message display (below password)
+        from logic.gui.tkinter.style import get_secondary_label_style
+        self.error_label = tk.Label(main_frame, text="", font=get_secondary_label_style(), 
+                                    fg=get_gui_colors()["red"], wraplength=350, justify="left")
+        self.error_label.pack(fill=tk.X, pady=(0, 5))
+        if self.error_msg_initial:
+            self.error_label.config(text=self.error_msg_initial)
         
         if getattr(self, 'password_entry_focus', False):
             self.password_entry.focus_set()
