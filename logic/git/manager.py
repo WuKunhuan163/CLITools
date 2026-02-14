@@ -53,7 +53,7 @@ class GitIgnoreManager:
 
     def get_tool_rules(self):
         """
-        Scans all tools for their 'tool.json' and extracts 'git_ignore' field.
+        Scans all tools (including nested ones) for their 'tool.json' and extracts 'git_ignore' field.
         Converts relative patterns to project-relative patterns.
         """
         tool_dir = self.project_root / "tool"
@@ -61,41 +61,40 @@ class GitIgnoreManager:
         if not tool_dir.exists():
             return rules
 
-        for tool_path in tool_dir.iterdir():
-            if not tool_path.is_dir():
+        # Recursively find all tool.json files under tool/
+        for tool_json_path in tool_dir.rglob("tool.json"):
+            tool_path = tool_json_path.parent
+            # Get relative path from project root to tool directory
+            # e.g. "tool/iCloud/tool/iCloudPD"
+            try:
+                rel_tool_path = tool_path.relative_to(self.project_root)
+                tool_rel_root = "/" + "/".join(rel_tool_path.parts)
+                tool_display_name = " / ".join(rel_tool_path.parts[1:]) # e.g. "iCloud / iCloudPD"
+            except ValueError:
                 continue
-            
-            tool_name = tool_path.name
-            tool_json_path = tool_path / "tool.json"
-            
-            if tool_json_path.exists():
-                try:
-                    with open(tool_json_path, 'r') as f:
-                        data = json.load(f)
-                        rel_patterns = data.get("git_ignore")
-                        if rel_patterns and isinstance(rel_patterns, list):
-                            # Convert relative tool patterns to project-relative patterns
-                            # e.g. "!" -> "!/tool/TOOL_NAME/"
-                            # e.g. "data/" -> "/tool/TOOL_NAME/data/"
-                            tool_rel_root = f"/tool/{tool_name}"
-                            
-                            processed = []
-                            for p in rel_patterns:
-                                if p == "!":
-                                    processed.append(f"!{tool_rel_root}/")
-                                elif p.startswith("!"):
-                                    # Handle negation like "!src/" -> "!/tool/TOOL_NAME/src/"
-                                    inner = p[1:]
-                                    if not inner.startswith("/"): inner = "/" + inner
-                                    processed.append(f"!{tool_rel_root}{inner}")
-                                else:
-                                    # Handle ignore like "data/" -> "/tool/TOOL_NAME/data/"
-                                    inner = p
-                                    if not inner.startswith("/"): inner = "/" + inner
-                                    processed.append(f"{tool_rel_root}{inner}")
-                            rules[tool_name] = processed
-                except Exception as e:
-                    print(f"Error reading {tool_json_path}: {e}")
+
+            try:
+                with open(tool_json_path, 'r') as f:
+                    data = json.load(f)
+                    rel_patterns = data.get("git_ignore")
+                    if rel_patterns and isinstance(rel_patterns, list):
+                        processed = []
+                        for p in rel_patterns:
+                            if p == "!":
+                                processed.append(f"!{tool_rel_root}/")
+                            elif p.startswith("!"):
+                                # Handle negation like "!src/" -> "!/tool/TOOL_NAME/src/"
+                                inner = p[1:]
+                                if not inner.startswith("/"): inner = "/" + inner
+                                processed.append(f"!{tool_rel_root}{inner}")
+                            else:
+                                # Handle ignore like "data/" -> "/tool/TOOL_NAME/data/"
+                                inner = p
+                                if not inner.startswith("/"): inner = "/" + inner
+                                processed.append(f"{tool_rel_root}{inner}")
+                        rules[tool_display_name] = processed
+            except Exception as e:
+                print(f"Error reading {tool_json_path}: {e}")
         return rules
 
     def generate(self):

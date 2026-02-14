@@ -46,3 +46,6 @@ Thumbs.db
 !/tool/VPN/
 /tool/VPN/data/
 /tool/VPN/logs/
+
+# iCloud / tool / iCloudPD
+/tool/iCloud/tool/iCloudPD/data/
