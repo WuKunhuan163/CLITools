@@ -549,10 +549,10 @@ def main():
         if isinstance(data, list):
             print(f"{BOLD}{GREEN}{selected_label}{RESET} ({len(data)}):")
             for i, p in enumerate(data, 1):
-                display_p = shlex.quote(p) if " " in p else p
+                display_p = shlex.quote(p) if p and " " in p else (p or "")
                 print(f"  {i}. {display_p}")
         else:
-            display_data = shlex.quote(data) if " " in data else data
+            display_data = shlex.quote(data) if data and " " in data else (data or "")
             print(f"{BOLD}{GREEN}{selected_label}{RESET}: {display_data}")
         return 0
     elif result['status'] in ['cancelled', 'terminated']:

@@ -406,13 +406,34 @@ def main():
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
     pool.status_bar.set_counts(len(to_download_objects))
     tasks, failed_tasks = [], []
+    used_paths = set()
+    
     for photo in to_download_objects:
         p_date = getattr(photo, "_cached_date", None)
         p_date_str = p_date.strftime("%Y-%m-%d") if p_date else "unknown"
-        target_file = output_root / p_date_str / photo.filename
-        (output_root / p_date_str).mkdir(parents=True, exist_ok=True)
-        if target_file.exists(): pool.status_bar.increment_completed(); continue
-        tasks.append({"id": f"{p_date_str}/{photo.filename}", "action": download_worker, "args": (photo, target_file)})
+        target_dir = output_root / p_date_str
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Handle filename collisions within the same date folder
+        base_name = photo.filename
+        target_file = target_dir / base_name
+        
+        if str(target_file) in used_paths:
+            name, ext = os.path.splitext(base_name)
+            counter = 1
+            while True:
+                target_file = target_dir / f"{name}_{counter}{ext}"
+                if str(target_file) not in used_paths:
+                    break
+                counter += 1
+        
+        used_paths.add(str(target_file))
+        
+        if target_file.exists():
+            pool.status_bar.increment_completed()
+            continue
+            
+        tasks.append({"id": f"{p_date_str}/{target_file.name}", "action": download_worker, "args": (photo, target_file)})
 
     def on_task_result(task_id, res):
         if isinstance(res, dict) and not res.get("success", True):

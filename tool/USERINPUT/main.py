@@ -306,7 +306,8 @@ class UserInputWindow(BaseGUIWindow):
             from tool.FILEDIALOG.logic.interface.main import get_file_dialog_bin
             fd_bin = get_file_dialog_bin()
             env = os.environ.copy()
-            env["PYTHONPATH"] = f"{PROJECT_ROOT}:{env.get('PYTHONPATH', '')}"
+            project_root = %(project_root)r
+            env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
             cmd = [sys.executable, fd_bin, "--multiple", "--title", self._("select_entities", "Select Entities")]
             res = subprocess.run(cmd, capture_output=True, text=True, env=env)
             
