@@ -54,6 +54,7 @@ class TuringStage:
         self.error_brief: Optional[str] = None 
         self.error_full: Optional[str] = None  
         self.captured_output: Optional[str] = None # NEW: Captured stdout/stderr from commands
+        self.machine: Optional[Any] = None # NEW: Attached machine for refresh
 
     def report_error(self, brief: str, full: Optional[str] = None):
         """Allows the action to report detailed error information."""
@@ -63,4 +64,9 @@ class TuringStage:
     def set_captured_output(self, output: str):
         """Sets captured output from commands to be included in logs."""
         self.captured_output = output
+
+    def refresh(self):
+        """Refreshes the display if a machine is attached."""
+        if self.machine and hasattr(self.machine, "refresh_stage"):
+            self.machine.refresh_stage(self)
 

@@ -346,7 +346,9 @@ def main():
                 else:
                     status = f"iCloud photos/videos ({count}/???) [{elapsed_str}>??:??]"
                 
-                if stage: stage.active_name = status
+                if stage: 
+                    stage.active_name = status
+                    stage.refresh()
                 
                 # Incremental save
                 with open(cache_file, 'w') as f:
@@ -455,7 +457,9 @@ def main():
                             remaining = (total_scheduled - count) / rate if rate > 0 else 0
                             remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
                             status = f"photo/video objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
-                            if stage: stage.active_name = status
+                            if stage: 
+                                stage.active_name = status
+                                stage.refresh()
                             
                     if len(to_download_objects) >= total_scheduled:
                         break
