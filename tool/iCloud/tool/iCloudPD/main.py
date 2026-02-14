@@ -479,7 +479,8 @@ def main():
     format_patterns = args.formats.split("|") if args.formats else None
     regex_pattern = re.compile(args.regex) if args.regex else None
 
-    scheduled_ids = set()
+    # Track ID -> Library mapping for extreme gathering optimization
+    scheduled_id_info = {} # id -> {"lib_name": ..., "created": ...}
     
     # Flatten nested dict (Year -> Month -> Day -> [assets]) for processing
     for y, y_data in all_photos_meta.items():
@@ -510,10 +511,13 @@ def main():
                         if not any(fnmatch.fnmatch(filename, pat) for pat in format_patterns):
                             continue
 
-                    scheduled_ids.add(p["id"])
+                    scheduled_id_info[p["id"]] = {
+                        "lib_name": p.get("library", "root"),
+                        "created": p_date
+                    }
         
-    print(f"{BOLD}Scheduled{RESET} {len(scheduled_ids)} photos/videos for download.")
-    if not scheduled_ids:
+    print(f"{BOLD}Scheduled{RESET} {len(scheduled_id_info)} photos/videos for download.")
+    if not scheduled_id_info:
         print("No photos/videos found matching the criteria.")
         return
 
@@ -526,47 +530,71 @@ def main():
     
     def gather_action(stage=None):
         nonlocal to_download_objects
-        total_scheduled = len(scheduled_ids)
+        total_scheduled = len(scheduled_id_info)
         count = 0
         start_time = time.time()
         
-        try:
-            libs = api.photos.libraries
-        except:
-            libs = {"root": api.photos}
+        # Group by library
+        lib_to_ids = {}
+        for aid, info in scheduled_id_info.items():
+            lib_name = info["lib_name"]
+            if lib_name not in lib_to_ids: lib_to_ids[lib_name] = []
+            lib_to_ids[lib_name].append(aid)
             
-        from pyicloud.services.photos import DirectionEnum
-        from logic.utils import calculate_eta
+        from pyicloud.services.photos import PhotoAsset
         
-        for lib_name, lib in libs.items():
-            if not hasattr(lib, "all"): continue
+        for lib_name, ids in lib_to_ids.items():
+            try:
+                lib_obj = api.photos.libraries[lib_name]
+            except:
+                continue
                 
-            album = lib.all
-            # Use ASCENDING to find recent photos quickly (newest first in pyicloud)
-            album._direction = DirectionEnum.ASCENDING
+            # Extreme Optimization: Use the CloudKit 'lookup' endpoint
+            # Base URL cleanup (remove '/query' and anything after)
+            base_url = lib_obj.url.split("/query")[0]
+            lookup_url = f"{base_url}/lookup"
             
-            # Use iterator for more robust fetching
-            for photo in album:
-                if photo.id in scheduled_ids:
-                    # Check for duplicates
-                    if not any(p.id == photo.id for p in to_download_objects):
-                        to_download_objects.append(photo)
-                        count += 1
-                        
-                        # Update progress
-                        if count % 10 == 0 or count == total_scheduled:
-                            elapsed = time.time() - start_time
-                            elapsed_str, remaining_str = calculate_eta(count, total_scheduled, elapsed)
-                            status = f"photo/video objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
-                            if stage: 
-                                stage.active_name = status
-                                stage.refresh()
+            # Fetch in batches of 100
+            for i in range(0, len(ids), 100):
+                batch_ids = ids[i:i+100]
+                query = {
+                    "records": [{"recordName": rid} for rid in batch_ids],
+                    "zoneID": lib_obj.zone_id
+                }
+                
+                try:
+                    resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"})
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        records = data.get("records", [])
+                        for record in records:
+                            # Reconstruct PhotoAsset. We use the master record for both 
+                            # parameters because we only need it for the download URLs.
+                            # We'll use our cache for metadata like creation date.
+                            asset = PhotoAsset(api.photos, record, record)
+                            # Tag the asset with its cached info to avoid hitting broken properties
+                            aid = record["recordName"]
+                            if aid in scheduled_id_info:
+                                asset._cached_date = scheduled_id_info[aid]["created"]
                             
-                if len(to_download_objects) >= total_scheduled:
-                    break
-            
-            if len(to_download_objects) >= total_scheduled:
-                break
+                            to_download_objects.append(asset)
+                            count += 1
+                            
+                            # Update progress
+                            if count % 10 == 0 or count == total_scheduled:
+                                elapsed = time.time() - start_time
+                                from logic.utils import calculate_eta
+                                elapsed_str, remaining_str = calculate_eta(count, total_scheduled, elapsed)
+                                status = f"photo/video objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
+                                if stage: 
+                                    stage.active_name = status
+                                    stage.refresh()
+                    else:
+                        # Fallback or error report
+                        pass
+                except Exception as e:
+                    if stage: stage.report_error("Gather Error", f"Batch lookup failed: {e}")
+                    
         return len(to_download_objects) > 0
 
     pm = ProgressTuringMachine(
@@ -617,7 +645,13 @@ def main():
     
     tasks = []
     for photo in to_download_objects:
-        p_date_str = photo.created.strftime("%Y-%m-%d") if photo.created else "unknown"
+        # Use cached date if available to avoid hitting broken pyicloud properties
+        p_date = getattr(photo, "_cached_date", None)
+        if not p_date:
+            try: p_date = photo.created.date()
+            except: p_date = None
+            
+        p_date_str = p_date.strftime("%Y-%m-%d") if p_date else "unknown"
         target_dir = output_root / p_date_str
         target_dir.mkdir(parents=True, exist_ok=True)
         target_file = target_dir / photo.filename
@@ -644,8 +678,14 @@ def main():
             # First and Last asset info for success message
             first_asset = to_download_objects[0]
             last_asset = to_download_objects[-1]
-            first_str = f"{first_asset.created.strftime('%Y-%m-%d')}/{first_asset.filename}"
-            last_str = f"{last_asset.created.strftime('%Y-%m-%d')}/{last_asset.filename}"
+            
+            def get_asset_str(asset):
+                d = getattr(asset, "_cached_date", None)
+                d_str = d.strftime("%Y-%m-%d") if d else "unknown"
+                return f"{d_str}/{asset.filename}"
+                
+            first_str = get_asset_str(first_asset)
+            last_str = get_asset_str(last_asset)
             
             print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos "
                   f"from {BOLD}{first_str}{RESET} to {BOLD}{last_str}{RESET}.")
