@@ -56,6 +56,7 @@ def main():
     parser.add_argument("--only-photos", action="store_true", help="Only download photos")
     parser.add_argument("--only-videos", action="store_true", help="Only download videos")
     parser.add_argument("--formats", type=str, help="Filter by extensions, e.g. '*.png|*.jpg'")
+    parser.add_argument("--regex", type=str, help="Regex filter for 'yyyy-mm-dd/filename'")
     parser.add_argument("--only-scan", action="store_true", help="Only scan and cache metadata, do not download")
     
     if tool.handle_command_line(parser): return
@@ -421,17 +422,25 @@ def main():
     before_date = datetime.strptime(args.before, "%Y-%m-%d").date() if args.before else None
     
     import fnmatch
+    import re
     format_patterns = args.formats.split("|") if args.formats else None
+    regex_pattern = re.compile(args.regex) if args.regex else None
 
     scheduled_ids = set()
     
     # Flatten nested dict (Year -> Month -> Day -> [assets]) for processing
-    for y_data in all_photos_meta.values():
+    for y, y_data in all_photos_meta.items():
         if not isinstance(y_data, dict): continue
-        for m_data in y_data.values():
+        for m, m_data in y_data.items():
             if not isinstance(m_data, dict): continue
-            for day_assets in m_data.values():
+            for d, day_assets in m_data.items():
+                date_str = f"{y}-{m}-{d}"
                 for p in day_assets:
+                    # Regex Filter (on 'yyyy-mm-dd/filename')
+                    full_path = f"{date_str}/{p['filename']}"
+                    if regex_pattern and not regex_pattern.search(full_path):
+                        continue
+                        
                     # Date Filter
                     p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
                     if since_date and (not p_date or p_date < since_date): continue
@@ -449,23 +458,6 @@ def main():
                             continue
 
                     scheduled_ids.add(p["id"])
-        # Date Filter
-        p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
-        if since_date and (not p_date or p_date < since_date): continue
-        if before_date and (not p_date or p_date >= before_date): continue
-        
-        # Type Filter
-        item_type = p.get("item_type", "image")
-        if args.only_photos and item_type not in ["photo", "image"]: continue
-        if args.only_videos and item_type != "video": continue
-        
-        # Format Filter
-        if format_patterns:
-            filename = p.get("filename", "")
-            if not any(fnmatch.fnmatch(filename, pat) for pat in format_patterns):
-                continue
-
-        scheduled_ids.add(p["id"])
         
     print(f"{BOLD}Scheduled{RESET} {len(scheduled_ids)} photos/videos for download.")
     if not scheduled_ids:
@@ -477,7 +469,6 @@ def main():
     output_root = Path(args.output or ".").resolve()
     
     # We need photo objects for download. 
-    # Iterate all libraries to find the ones in scheduled_ids using robust paging.
     to_download_objects = []
     
     def gather_action(stage=None):
@@ -492,50 +483,33 @@ def main():
             libs = {"root": api.photos}
             
         from pyicloud.services.photos import DirectionEnum
+        from logic.utils import calculate_eta
+        
         for lib_name, lib in libs.items():
-            if not hasattr(lib, "all"):
-                continue
+            if not hasattr(lib, "all"): continue
                 
             album = lib.all
+            # Use DESCENDING to find recent photos quickly
             album._direction = DirectionEnum.DESCENDING
-            offset = 0
-            page_size = 100
             
-            while True:
-                try:
-                    batch = list(album._get_photos_at(offset, album._direction, page_size))
-                except:
-                    break
-                    
-                if not batch:
-                    break
-                    
-                for photo in batch:
-                    if photo.id in scheduled_ids:
+            # Use iterator for more robust fetching
+            for photo in album:
+                if photo.id in scheduled_ids:
+                    # Check for duplicates
+                    if not any(p.id == photo.id for p in to_download_objects):
                         to_download_objects.append(photo)
                         count += 1
                         
                         # Update progress
                         if count % 10 == 0 or count == total_scheduled:
-                            now = time.time()
-                            elapsed = now - start_time
-                            elapsed_str = time.strftime("%M:%S", time.gmtime(elapsed))
-                            rate = count / elapsed if elapsed > 0 else 0
-                            remaining = (total_scheduled - count) / rate if rate > 0 else 0
-                            remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
+                            elapsed = time.time() - start_time
+                            elapsed_str, remaining_str = calculate_eta(count, total_scheduled, elapsed)
                             status = f"photo/video objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
                             if stage: 
                                 stage.active_name = status
                                 stage.refresh()
                             
-                    if len(to_download_objects) >= total_scheduled:
-                        break
-                
                 if len(to_download_objects) >= total_scheduled:
-                    break
-                
-                offset += len(batch)
-                if len(batch) < page_size:
                     break
             
             if len(to_download_objects) >= total_scheduled:
@@ -548,10 +522,9 @@ def main():
         log_dir=tool.get_log_dir()
     )
     pm.add_stage(TuringStage(
-        "gather", gather_action,
+        "gathering_objects", gather_action,
         active_status="Gathering", active_name="photo/video objects",
-        # Clear the line instead of showing 'Ready'
-        success_status="", success_name=""
+        success_status="", success_name="" # Silent success
     ))
     if not pm.run():
         sys.exit(1)
@@ -581,10 +554,6 @@ def main():
                 if stage: stage.report_error("0-byte file", f"Downloaded file {photo.filename} is empty.")
                 return False
             
-            # Optionally check against metadata size (photo.size)
-            # if photo.size and actual_size != photo.size:
-            #     pass # Some files might be slightly different
-                
             return True
         except Exception as e:
             if stage: stage.report_error(f"Download Error", f"{photo.filename}: {e}")
@@ -619,13 +588,19 @@ def main():
     if tasks:
         download_success = pool.run(tasks, success_callback=on_success)
         if download_success:
-            print(f"\n{BOLD}{GREEN}Successfully completed{RESET} download task.")
+            # First and Last asset info for success message
+            first_asset = to_download_objects[0]
+            last_asset = to_download_objects[-1]
+            first_str = f"{first_asset.created.strftime('%Y-%m-%d')}/{first_asset.filename}"
+            last_str = f"{last_asset.created.strftime('%Y-%m-%d')}/{last_asset.filename}"
+            
+            print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos "
+                  f"from {BOLD}{first_str}{RESET} to {BOLD}{last_str}{RESET}.")
         else:
             print(f"\n{BOLD}{get_color('RED')}Completed{RESET} download task with some errors.")
     else:
         # Only show this if the previous stages were successful
-        # (pm.run() already handled previous stage exits)
-        print(f"\n{BOLD}{GREEN}All photos/videos{RESET} already downloaded.")
+        print(f"{BOLD}{GREEN}All photos/videos{RESET} already downloaded.")
 
 if __name__ == "__main__":
     main()
