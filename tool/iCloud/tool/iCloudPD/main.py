@@ -47,12 +47,15 @@ def main():
     
     parser = argparse.ArgumentParser(description="iCloud Photo Downloader", add_help=False)
     parser.add_argument("--apple-id", help="Apple ID to use for login")
-    parser.add_argument("--since", help="Download photos from this date (YYYY-MM-DD)")
-    parser.add_argument("--before", help="Download photos before this date (YYYY-MM-DD)")
+    parser.add_argument("--since", help="Download photos/videos from this date (YYYY-MM-DD)")
+    parser.add_argument("--before", help="Download photos/videos before this date (YYYY-MM-DD)")
     parser.add_argument("--output", help="Target directory for downloads (default: current)")
-    parser.add_argument("--force-rescan", action="store_true", help="Force rescan of iCloud photo library")
+    parser.add_argument("--force-rescan", action="store_true", help="Force rescan of iCloud photo/video library")
     parser.add_argument("--workers", type=int, default=3, help="Number of parallel download workers (default: 3)")
     parser.add_argument("--no-gui", action="store_true", help="Use CLI-only interaction (no GUI)")
+    parser.add_argument("--only-photos", action="store_true", help="Only download photos")
+    parser.add_argument("--only-videos", action="store_true", help="Only download videos")
+    parser.add_argument("--formats", type=str, help="Filter by extensions, e.g. '*.png|*.jpg'")
     
     if tool.handle_command_line(parser): return
     
@@ -113,6 +116,9 @@ def main():
             
             # Full login via CLI
             try:
+                # Erase current progress line to show getpass prompt cleanly
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
                 password = getpass.getpass(f"Enter password for {apple_id}: ")
             except (EOFError, Exception) as e:
                 # Capture specific EOF or TTY error
@@ -138,6 +144,11 @@ def main():
                 
                 save_session(apple_id, api)
                 final_apple_id = apple_id
+                
+                # Erase the getpass line before showing success
+                sys.stdout.write("\033[F\033[K")
+                sys.stdout.flush()
+                
                 if stage: 
                     stage.success_status = "Successfully"
                     stage.success_name = f"authenticated {final_apple_id}"
@@ -256,6 +267,8 @@ def main():
         if not args.force_rescan and cache_file.exists():
             with open(cache_file, 'r') as f:
                 all_photos_meta = json.load(f)
+            if stage:
+                stage.success_name = f"{len(all_photos_meta)} photos/videos (cached)"
             return True
             
         # Perform scan across all available libraries (Private, Shared, etc.)
@@ -316,12 +329,13 @@ def main():
                         "created": photo.created.isoformat() if photo.created else None,
                         "size": photo.size,
                         "dimensions": photo.dimensions,
-                        "library": lib_name
+                        "library": lib_name,
+                        "item_type": photo.item_type # 'photo' or 'video'
                     })
                     count += 1
                     num_results += 1
                     
-                    # Update progress every 10 photos
+                    # Update progress every 10 items
                     if count % 10 == 0 or (total_count > 0 and count == total_count):
                         now = time.time()
                         elapsed = now - start_time
@@ -331,9 +345,9 @@ def main():
                             rate = count / elapsed if elapsed > 0 else 0
                             remaining = (total_count - count) / rate if rate > 0 else 0
                             remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
-                            status = f"iCloud photos ({count}/{total_count}) [{elapsed_str}>{remaining_str}]"
+                            status = f"iCloud photos/videos ({count}/{total_count}) [{elapsed_str}>{remaining_str}]"
                         else:
-                            status = f"iCloud photos ({count}/???) [{elapsed_str}>??:??]"
+                            status = f"iCloud photos/videos ({count}/???) [{elapsed_str}>??:??]"
                         
                         if stage: stage.active_name = status
                 
@@ -344,6 +358,9 @@ def main():
             
         with open(cache_file, 'w') as f:
             json.dump(all_photos_meta, f, indent=2)
+            
+        if stage:
+            stage.success_name = f"{len(all_photos_meta)} photos/videos"
         return True
 
     pm = ProgressTuringMachine(
@@ -353,8 +370,8 @@ def main():
     )
     pm.add_stage(TuringStage(
         "scan", scan_action, 
-        active_status="Scanning", active_name="iCloud photos",
-        success_status="Indexed", success_name=f"{len(all_photos_meta)} photos"
+        active_status="Scanning", active_name="iCloud photos/videos",
+        success_status="Found", success_name=f"{len(all_photos_meta)} photos/videos"
     ))
     pm.run()
     
@@ -362,17 +379,32 @@ def main():
     since_date = datetime.strptime(args.since, "%Y-%m-%d").date() if args.since else None
     before_date = datetime.strptime(args.before, "%Y-%m-%d").date() if args.before else None
     
+    import fnmatch
+    format_patterns = args.formats.split("|") if args.formats else None
+
     scheduled_ids = set()
     for p in all_photos_meta:
+        # Date Filter
         p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
         if since_date and (not p_date or p_date < since_date): continue
         if before_date and (not p_date or p_date >= before_date): continue
+        
+        # Type Filter
+        item_type = p.get("item_type", "photo")
+        if args.only_photos and item_type != "photo": continue
+        if args.only_videos and item_type != "video": continue
+        
+        # Format Filter
+        if format_patterns:
+            filename = p.get("filename", "")
+            if not any(fnmatch.fnmatch(filename, pat) for pat in format_patterns):
+                continue
+
         scheduled_ids.add(p["id"])
         
-    WHITE = get_color("WHITE", "\033[37m")
-    print(f"{BOLD}{WHITE}Scheduled{RESET} {len(scheduled_ids)} photos for download.")
+    print(f"{BOLD}Scheduled{RESET} {len(scheduled_ids)} photos/videos for download.")
     if not scheduled_ids:
-        print("No photos found matching the criteria.")
+        print("No photos/videos found matching the criteria.")
         return
 
     # 4. Parallel Downloading
@@ -426,7 +458,7 @@ def main():
                             rate = count / elapsed if elapsed > 0 else 0
                             remaining = (total_scheduled - count) / rate if rate > 0 else 0
                             remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
-                            status = f"photo objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
+                            status = f"photo/video objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
                             if stage: stage.active_name = status
                             
                     if len(to_download_objects) >= total_scheduled:
@@ -434,7 +466,7 @@ def main():
                 
                 if len(to_download_objects) >= total_scheduled:
                     break
-                    
+                
                 offset += len(batch)
                 if len(batch) < page_size:
                     break
@@ -450,8 +482,8 @@ def main():
     )
     pm.add_stage(TuringStage(
         "gather", gather_action,
-        active_status="Gathering", active_name="photo objects",
-        success_status="Ready", success_name=f"{len(scheduled_ids)} photos"
+        active_status="Gathering", active_name="photo/video objects",
+        success_status="Ready", success_name=f"{len(scheduled_ids)} photos/videos"
     ))
     pm.run()
 
