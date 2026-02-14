@@ -26,13 +26,8 @@ class ICloudLoginWindow(TwoStepLoginWindow):
         )
 
     def get_current_state(self):
-        """Map generic account field to apple_id for iCloud tool compatibility."""
-        state = super().get_current_state()
-        return {
-            "apple_id": state["account"],
-            "password": state["password"],
-            "step": state["step"]
-        }
+        """Standardize on 'account' field for blueprint compatibility."""
+        return super().get_current_state()
 
     def setup_ui(self):
         """Override labels using iCloud-specific translations before building UI."""
@@ -73,7 +68,7 @@ if __name__ == "__main__":
         from pyicloud import PyiCloudService
         from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
         
-        apple_id = state.get("apple_id")
+        apple_id = state.get("account")
         password = state.get("password")
         step = state.get("step")
         

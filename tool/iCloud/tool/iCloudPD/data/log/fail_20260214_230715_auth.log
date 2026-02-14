@@ -1,0 +1,9 @@
+Stage: auth
+Timestamp: 20260214_230715
+--------------------
+{
+  "account": "dummy@example.com",
+  "password": "123",
+  "step": "password",
+  "history": "Attempt 1: Invalid email/password combination."
+}

@@ -73,8 +73,7 @@ class TwoStepLoginWindow(BaseGUIWindow):
     def on_submit(self):
         """Validates input and processes the next step or login."""
         state = self.get_current_state()
-        # Use account/apple_id interchangeably for compatibility
-        account_val = state.get("account") or state.get("apple_id")
+        account_val = state.get("account")
         password_val = state.get("password")
 
         if self.step == "account":
@@ -92,22 +91,35 @@ class TwoStepLoginWindow(BaseGUIWindow):
         if self.verify_handler:
             # Execute verification handler in a separate thread
             def do_verify():
-                self.attempt_count += 1
+                # Only increment attempt count for password/login attempts
+                # to avoid counting account check/session reuse as a login failure attempt.
+                if self.step == "password":
+                    self.attempt_count += 1
+                
                 try:
                     res = self.verify_handler(state)
                     if res.get("status") == "success":
                         self.callback_queue.put(lambda: self.finalize("success", res.get("data", state)))
                     elif res.get("status") == "need_password":
                         # Transitions to password step on main thread
+                        # Reset loading but don't count as a failed attempt
                         self.callback_queue.put(self.go_to_password_step)
                     else:
                         err = res.get("message", "Unknown error")
-                        self.verify_history.append({"idx": self.attempt_count, "error": err})
-                        self.callback_queue.put(lambda: self.handle_verify_fail(err))
+                        # Only record history for password attempts
+                        if self.step == "password":
+                            self.verify_history.append({"idx": self.attempt_count, "error": err})
+                            self.callback_queue.put(lambda: self.handle_verify_fail(err))
+                        else:
+                            # Account check error (e.g. invalid email format)
+                            self.callback_queue.put(lambda: self.handle_account_fail(err))
                 except Exception as e:
                     err = str(e)
-                    self.verify_history.append({"idx": self.attempt_count, "error": err})
-                    self.callback_queue.put(lambda: self.handle_verify_fail(err))
+                    if self.step == "password":
+                        self.verify_history.append({"idx": self.attempt_count, "error": err})
+                        self.callback_queue.put(lambda: self.handle_verify_fail(err))
+                    else:
+                        self.callback_queue.put(lambda: self.handle_account_fail(err))
 
             threading.Thread(target=do_verify, daemon=True).start()
         else:
@@ -116,6 +128,11 @@ class TwoStepLoginWindow(BaseGUIWindow):
                 self.go_to_password_step()
             else:
                 self.finalize("success", state)
+
+    def handle_account_fail(self, error_msg: str):
+        """Handle failure during account check step."""
+        self.set_loading(False)
+        self.show_error(error_msg)
 
     def go_to_password_step(self):
         """Transition UI to password entry step."""
