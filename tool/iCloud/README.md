@@ -1,6 +1,19 @@
 # iCloud
 
-iCloud tool template.
+Advanced iCloud management tools for the terminal.
+
+## Subtools
+
+### iCloudPD
+A parallelized iCloud photo and video downloader.
+- **Fast**: Concurrent downloads with parameterized workers.
+- **Progressive**: Real-time progress tracking.
+- **Smart**: Local metadata caching for incremental updates.
+
+To install:
+```bash
+iCloud install iCloudPD
+```
 
 ## Ecosystem Support
 

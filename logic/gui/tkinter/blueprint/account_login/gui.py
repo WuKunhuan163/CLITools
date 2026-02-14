@@ -37,7 +37,8 @@ class AccountLoginWindow(BaseGUIWindow):
     def on_submit(self):
         """Validates input and finalizes the window state."""
         state = self.get_current_state()
-        if not state["account"] or not state["password"]:
+        # Use values for validation to support subclasses with different keys
+        if not all(state.values()):
             error_msg = self._("login_error_empty", "Please enter both credentials.")
             self.status_label.config(text=error_msg, fg=get_gui_colors()["red"])
             return

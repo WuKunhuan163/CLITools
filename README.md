@@ -82,16 +82,23 @@ Manage long-running tasks:
 - **Lifecycle Management**: List, stop, and wait for background processes.
 - **Logging**: Automatically capture and view background output logs.
 
+### iCloudPD Tool
+Standardized iCloud photo and video downloader:
+- **Parallel Downloads**: Support for N-worker concurrent downloading (parameterized via `--workers`).
+- **Dynamic Progress**: Single-line real-time progress showing current filenames and total completion.
+- **Date Filtering**: Filter by `--since` and `--before` date ranges (YYYY-MM-DD).
+- **Subtool Integration**: Operates as a subtool under the `iCloud` ecosystem, sharing authentication and 2FA interfaces.
+
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Sets the global display language (e.g., `zh` for Chinese, `en` for English, `ar` for Arabic).
 - `TOOL lang list`: Shows supported languages and their translation coverage.
 - `TOOL lang audit <LANG>`: Deep audit of translation quality, detecting missing keys, duplicate values, shadowed core keys, and unused entries.
 
 ### Developer Workflow
-- `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work. It automatically handles uncommitted changes and cleans up restricted directories.
-- `TOOL dev enter <main|test>`: Safely switches to production or testing branches, automatically cleaning up untracked files.
-- `TOOL dev create <NAME>`: Generates a standardized tool template with logic, translations, and unit tests.
-- `TOOL dev audit-bin`: Ensures that the `bin/` directory only contains pure symlinks (except for the `TOOL` manager itself).
+- `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work.
+- `TOOL dev create <NAME>`: Generates a standardized tool template. Now supports silent Git execution and clean terminal state.
+- `TOOL dev sanity-check <NAME>`: Verifies tool structure and required files.
+- **Nested Tooling**: Native support for subtools (e.g. `tool/PARENT/tool/SUBTOOL`). `ToolBase` robustly resolves paths and namespaces.
 
 ---
 

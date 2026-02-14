@@ -23,38 +23,41 @@ tool/<NAME>/
 ## 3. The Tool Blueprint (`ToolBase`)
 All tools should inherit from `logic.tool.base.ToolBase`. This class provides:
 - **`handle_command_line(parser)`**: Standardizes argument processing. It automatically handles `setup`, `install`, and `rule` commands.
+- **Robust Path Resolution**: Use `self.tool_dir`, `self.get_data_dir()`, and `self.get_log_dir()` to handle nested tools correctly (e.g. `tool/PARENT/tool/SUBTOOL`).
+- **Namespace Awareness**: `self.tool_module_path` provides the standard module path (e.g., `tool.iCloud.tool.iCloudPD`).
 - **System Fallback**: If a command is not recognized by the tool (e.g., `git status` called via the `GIT` tool), it automatically delegates the call to the system equivalent (e.g., `/usr/bin/git`).
 - **Programmatic Interface**: Supports `--tool-quiet` to return results as JSON strings (`TOOL_RESULT_JSON:...`) for parent process consumption.
+- **Unified Success Status**: Use `self.raise_success_status("action statement")` for standardized green-bold success messages.
 
-## 4. The Turing Machine Pattern (Progress Display)
-For multi-stage operations, use `logic.turing.models.progress.ProgressTuringMachine`. It provides a "clean" terminal experience with erasable intermediate states.
+## 4. Progress Display Patterns
 
-### Usage Example:
+### A. The Turing Machine (Sequential)
+For multi-stage sequential operations, use `logic.turing.models.progress.ProgressTuringMachine`. It provides a "clean" terminal experience with erasable intermediate states.
+
+### B. Parallel Worker Pool
+For parallel tasks (e.g. downloads), use `logic.turing.models.worker.ParallelWorkerPool`. It supports N-worker concurrency and a dynamic one-line status bar.
+
+#### Parallel Progress UI Style:
+`Downloading yyyy-mm-dd/a, yyyy-mm-dd/b... (mmm/nnn)`
+
 ```python
-from logic.turing.logic import TuringStage
-from logic.turing.models.progress import ProgressTuringMachine
+from logic.turing.models.worker import ParallelWorkerPool
 
-def my_action():
-    # ... logic ...
-    return True
+pool = ParallelWorkerPool(max_workers=3, status_label="Downloading")
+pool.status_bar.set_counts(total_count)
 
-pm = ProgressTuringMachine([
-    TuringStage("step1", my_action, 
-                active_status="Processing", 
-                success_status="Completed",
-                fail_status="Warning", 
-                fail_color="YELLOW")
-], tool_name="MY_TOOL")
-
-# ephemeral=True allows intermediate statuses to be overwritten/erased
-pm.run(ephemeral=True, final_msg="") 
+# Tasks: [{"id": "yyyy-mm-dd/file", "action": func, "args": (...) }]
+pool.run(tasks, success_callback=lambda id, res: pool.status_bar.increment_completed())
 ```
 
 ## 5. GUI Development
-Inherit from `logic.gui.base.BaseGUIWindow` for a consistent Look & Feel.
-- **Centralized Styling**: Use `logic.gui.style` for labels, buttons, and colors.
-- **Bottom Bar**: Use `setup_common_bottom_bar` to add a status label, countdown timer, and standard buttons (Login/Submit, Add Time, Cancel).
+Inherit from GUI blueprints in `logic/gui/tkinter/blueprint/`:
+- **`timed_bottom_bar`**: Base blueprint with timeout, countdown, and standard buttons.
+- **`account_login`**: Specialized blueprint for Account/Password login (supports `account_initial` pre-fill).
+- **`two_factor_auth`**: Specialized blueprint for N-digit square box verification.
+
 - **Safe Execution**: Always use `logic.gui.engine.get_safe_python_for_gui()` to launch GUIs to ensure compatibility with sandboxed environments (like Cursor terminal).
+- **Undo/Redo Support**: Use `logic.gui.tkinter.widget.text.UndoableText` for text input fields.
 
 ## 6. Localization (i18n)
 - **Strings**: Never hardcode user-facing strings. Use the `_()` helper.

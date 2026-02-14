@@ -13,13 +13,28 @@ def find_root():
     from pathlib import Path
     curr = Path(__file__).resolve().parent
     while curr != curr.parent:
-        if (curr / "tool.json").exists() and (curr / "bin").exists():
+        # Root indicator: tool.json AND bin/TOOL exists
+        if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
             return curr
         curr = curr.parent
     return None
 
 project_root = find_root()
-if project_root and str(project_root) not in sys.path:
+if project_root:
+    # Prioritize project root and remove shadowing local logic
+    root_str = str(project_root)
+    if root_str in sys.path:
+        sys.path.remove(root_str)
+    sys.path.insert(0, root_str)
+    
+    # Remove script dir from path to avoid shadowing
+    script_dir = str(Path(__file__).resolve().parent)
+    if script_dir in sys.path:
+        sys.path.remove(script_dir)
+else:
+    # Manual fallback for debugging (4 levels up from main.py resolved parent)
+    curr = Path(__file__).resolve().parent
+    project_root = curr.parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
 
 from logic.tool.base import ToolBase
@@ -61,9 +76,9 @@ def main():
     password = creds["password"]
     
     # Initialize pyicloud
-    from pyicloud import PyICloudService
+    from pyicloud import PyiCloudService
     
-    api = PyICloudService(apple_id, password)
+    api = PyiCloudService(apple_id, password)
     
     if api.requires_2fa:
         print(f"{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
