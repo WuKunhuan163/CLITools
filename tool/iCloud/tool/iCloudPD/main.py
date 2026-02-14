@@ -56,6 +56,7 @@ def main():
     parser.add_argument("--only-photos", action="store_true", help="Only download photos")
     parser.add_argument("--only-videos", action="store_true", help="Only download videos")
     parser.add_argument("--formats", type=str, help="Filter by extensions, e.g. '*.png|*.jpg'")
+    parser.add_argument("--only-scan", action="store_true", help="Only scan and cache metadata, do not download")
     
     if tool.handle_command_line(parser): return
     
@@ -265,11 +266,23 @@ def main():
     def scan_action(stage=None):
         nonlocal all_photos_meta
         if not args.force_rescan and cache_file.exists():
-            with open(cache_file, 'r') as f:
-                all_photos_meta = json.load(f)
-            if stage:
-                stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos (cached)"
-            return True
+            try:
+                with open(cache_file, 'r') as f:
+                    all_photos_meta = json.load(f)
+                
+                # Show Warning when using cached results
+                YELLOW_BOLD = get_color("YELLOW", "\033[33m") + BOLD
+                # Print on a separate line above the Turing progress
+                sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. "
+                                 f"Run with {BOLD}--force-rescan{RESET} to refresh metadata.\n")
+                sys.stdout.flush()
+                
+                if stage:
+                    stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos (cached)"
+                return True
+            except Exception as e:
+                # If cache is corrupted, we'll proceed to full scan
+                pass
             
         # Perform scan across all available libraries (Private, Shared, etc.)
         total_count = 0
@@ -350,9 +363,16 @@ def main():
                     stage.active_name = status
                     stage.refresh()
                 
-                # Incremental save
-                with open(cache_file, 'w') as f:
-                    json.dump(all_photos_meta, f, indent=2)
+                # Incremental save (Atomic & Safe)
+                try:
+                    tmp_cache = cache_file.with_suffix(".json.tmp")
+                    with open(tmp_cache, 'w', encoding='utf-8') as f:
+                        json.dump(all_photos_meta, f, indent=2)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    os.replace(str(tmp_cache), str(cache_file))
+                except Exception:
+                    pass
                 
                 offset += num_results
                 # Do NOT break if num_results < page_size; only break if batch is empty.
@@ -373,6 +393,10 @@ def main():
     ))
     pm.run()
     
+    if args.only_scan:
+        print(f"\n{BOLD}{GREEN}Scan completed{RESET}. Metadata saved to {cache_file}")
+        return
+    
     # 3. Filtering and Scheduling
     since_date = datetime.strptime(args.since, "%Y-%m-%d").date() if args.since else None
     before_date = datetime.strptime(args.before, "%Y-%m-%d").date() if args.before else None
@@ -381,6 +405,9 @@ def main():
     format_patterns = args.formats.split("|") if args.formats else None
 
     scheduled_ids = set()
+    # Debug print
+    # print(f"DEBUG: Filtering {len(all_photos_meta)} photos. Since: {since_date}, Before: {before_date}")
+    
     for p in all_photos_meta:
         # Date Filter
         p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
@@ -388,8 +415,8 @@ def main():
         if before_date and (not p_date or p_date >= before_date): continue
         
         # Type Filter
-        item_type = p.get("item_type", "photo")
-        if args.only_photos and item_type != "photo": continue
+        item_type = p.get("item_type", "image")
+        if args.only_photos and item_type not in ["photo", "image"]: continue
         if args.only_videos and item_type != "video": continue
         
         # Format Filter
@@ -430,7 +457,7 @@ def main():
                 continue
                 
             album = lib.all
-            album._direction = DirectionEnum.ASCENDING
+            album._direction = DirectionEnum.DESCENDING
             offset = 0
             page_size = 100
             
