@@ -659,13 +659,8 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                         status_text = f"{prefix}... ({t1_str})"
                     else:
                         percent_str = fmt.format(max_percent)
-                        p = max_percent / 100.0
-                        if p > 0:
-                            t2 = t1 / p - t1
-                            t2_str = format_seconds(t2)
-                        else:
-                            t2_str = "unknown"
-                        
+                        # Use centralized calculate_eta helper
+                        t1_str, t2_str = calculate_eta(max_percent, 100.0, t1)
                         time_info = f" [{t1_str}<{t2_str}]"
                         
                         # Speed detection
