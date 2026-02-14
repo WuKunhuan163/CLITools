@@ -243,7 +243,16 @@ class BaseGUIWindow:
         
         try:
             if platform.system() == "Darwin":
-                self.root = tk.Tk(className=self.__class__.__name__)
+                # Suppress IMKClient noise by redirecting stderr temporarily at FD level
+                fd = os.open(os.devnull, os.O_WRONLY)
+                old_stderr = os.dup(sys.stderr.fileno())
+                os.dup2(fd, sys.stderr.fileno())
+                try:
+                    self.root = tk.Tk(className=self.__class__.__name__)
+                finally:
+                    os.dup2(old_stderr, sys.stderr.fileno())
+                    os.close(fd)
+                    os.close(old_stderr)
             else:
                 self.root = tk.Tk()
             
