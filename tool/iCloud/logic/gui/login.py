@@ -73,8 +73,8 @@ if __name__ == "__main__":
         step = state.get("step")
         
         # Determine cookie file path
-        # In this project, iCloudPD data resides in tool/iCloud/tool/iCloudPD/data/<apple_id>/
-        cookie_dir = project_root / "tool" / "iCloud" / "tool" / "iCloudPD" / "data" / apple_id
+        # In this project, iCloudPD data resides in tool/iCloud/tool/iCloudPD/data/session/<apple_id>/
+        cookie_dir = project_root / "tool" / "iCloud" / "tool" / "iCloudPD" / "data" / "session" / apple_id
         cookie_dir.mkdir(parents=True, exist_ok=True)
         cookie_file = cookie_dir / "session.pkl"
 

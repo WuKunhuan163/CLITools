@@ -74,7 +74,7 @@ def main():
     
     def save_session(apple_id, api):
         import pickle
-        cookie_dir = tool.get_data_dir() / apple_id
+        cookie_dir = tool.get_data_dir() / "session" / apple_id
         cookie_dir.mkdir(parents=True, exist_ok=True)
         cookie_file = cookie_dir / "session.pkl"
         with open(cookie_file, 'wb') as f:
@@ -96,7 +96,7 @@ def main():
                 return False
 
             # Try session reuse first
-            cookie_dir = tool.get_data_dir() / apple_id
+            cookie_dir = tool.get_data_dir() / "session" / apple_id
             cookie_dir.mkdir(parents=True, exist_ok=True)
             cookie_file = cookie_dir / "session.pkl"
             
@@ -184,7 +184,7 @@ def main():
             try:
                 if stage: stage.active_name = f"Finalizing session for {apple_id}"
                 api = PyiCloudService(apple_id, "")
-                cookie_file = tool.get_data_dir() / apple_id / "session.pkl"
+                cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
                 with open(cookie_file, 'rb') as f:
                     api.session.cookies.update(pickle.load(f))
                 final_apple_id = apple_id
@@ -261,41 +261,40 @@ def main():
     data_dir.mkdir(parents=True, exist_ok=True)
     cache_file = data_dir / "photos_cache.json"
     
-    all_photos_meta = []
+    # Organized by YYYY-MM-DD -> list of assets
+    all_photos_meta = {}
+    used_cache = False
     
     def scan_action(stage=None):
-        nonlocal all_photos_meta
+        nonlocal all_photos_meta, used_cache
         if not args.force_rescan and cache_file.exists():
             try:
                 with open(cache_file, 'r') as f:
                     all_photos_meta = json.load(f)
                 
-                # Show Warning when using cached results
-                YELLOW_BOLD = get_color("YELLOW", "\033[33m") + BOLD
-                # Print on a separate line above the Turing progress
-                sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. "
-                                 f"Run with {BOLD}--force-rescan{RESET} to refresh metadata.\n")
-                sys.stdout.flush()
-                
+                used_cache = True
                 if stage:
-                    stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos (cached)"
+                    # Flatten nested dict (Year -> Month -> Day -> [assets]) to count total
+                    total = 0
+                    for y in all_photos_meta.values():
+                        if isinstance(y, dict):
+                            for m in y.values():
+                                for d in m.values():
+                                    total += len(d)
+                    stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
                 return True
-            except Exception as e:
-                # If cache is corrupted, we'll proceed to full scan
+            except Exception:
                 pass
             
-        # Perform scan across all available libraries (Private, Shared, etc.)
+        # Perform scan across all available libraries
         total_count = 0
+        libs = {}
         try:
-            # api.photos.libraries returns a dict of libraries
             libs = api.photos.libraries
             for lib in libs.values():
-                try:
-                    total_count += len(lib.all)
-                except:
-                    pass
+                try: total_count += len(lib.all)
+                except: pass
         except:
-            # Fallback to single library if libraries property fails
             try:
                 total_count = len(api.photos.all)
                 libs = {"root": api.photos}
@@ -306,64 +305,72 @@ def main():
         count = 0
         start_time = time.time()
         from logic.utils import calculate_eta
-        
-        # Iterate through each library
         from pyicloud.services.photos import DirectionEnum
         
         for lib_name, lib in libs.items():
-            # Skip shared streams for now as they use a different structure (no .all)
-            if not hasattr(lib, "all"):
-                continue
+            if not hasattr(lib, "all"): continue
                 
             if stage: stage.active_name = f"Preparing library: {lib_name}"
             
             album = lib.all
-            # Use ASCENDING for more robust linear scanning from the beginning
-            album._direction = DirectionEnum.ASCENDING
+            # DESCENDING for newest-to-oldest scanning
+            album._direction = DirectionEnum.DESCENDING
             offset = 0
             page_size = 100
             
+            # Temporary storage for assets found in this scan
             while True:
-                # Call _get_photos_at directly to bypass pyicloud's buggy 
-                # 'num_results < page_size // 2' termination condition
                 try:
                     batch = list(album._get_photos_at(offset, album._direction, page_size))
                 except Exception as e:
                     if stage: stage.report_error("Scan Error", f"Failed to fetch batch at offset {offset}: {e}")
                     break
                     
-                if not batch:
-                    # Actually reached the end
-                    break
+                if not batch: break
                     
                 num_results = 0
                 for photo in batch:
-                    all_photos_meta.append({
+                    created = photo.created
+                    if created:
+                        year = str(created.year)
+                        month = f"{created.month:02d}"
+                        day = f"{created.day:02d}"
+                    else:
+                        year, month, day = "unknown", "unknown", "unknown"
+                        
+                    asset = {
                         "id": photo.id,
                         "filename": photo.filename,
-                        "created": photo.created.isoformat() if photo.created else None,
+                        "created": created.isoformat() if created else None,
                         "size": photo.size,
                         "dimensions": photo.dimensions,
                         "library": lib_name,
-                        "item_type": photo.item_type # 'photo' or 'video'
-                    })
+                        "item_type": photo.item_type
+                    }
+                    
+                    # Group by Year -> Month -> Day
+                    if year not in all_photos_meta: all_photos_meta[year] = {}
+                    if month not in all_photos_meta[year]: all_photos_meta[year][month] = {}
+                    if day not in all_photos_meta[year][month]: all_photos_meta[year][month][day] = []
+                    
+                    # Update or append
+                    existing_ids = {a["id"] for a in all_photos_meta[year][month][day]}
+                    if asset["id"] not in existing_ids:
+                        all_photos_meta[year][month][day].append(asset)
+                    
                     count += 1
                     num_results += 1
                 
-                # Update progress and save incrementally after each batch
+                # Update progress
                 elapsed = time.time() - start_time
                 elapsed_str, remaining_str = calculate_eta(count, total_count, elapsed)
                 
-                if total_count > 0:
-                    status = f"iCloud photos/videos ({count}/{total_count}) [{elapsed_str}>{remaining_str}]"
-                else:
-                    status = f"iCloud photos/videos ({count}/???) [{elapsed_str}>??:??]"
-                
+                status = f"iCloud photos/videos ({count}/{total_count or '???'}) [{elapsed_str}>{remaining_str}]"
                 if stage: 
                     stage.active_name = status
                     stage.refresh()
                 
-                # Incremental save (Atomic & Safe)
+                # Atomic incremental save after each batch
                 try:
                     tmp_cache = cache_file.with_suffix(".json.tmp")
                     with open(tmp_cache, 'w', encoding='utf-8') as f:
@@ -375,10 +382,15 @@ def main():
                     pass
                 
                 offset += num_results
-                # Do NOT break if num_results < page_size; only break if batch is empty.
             
         if stage:
-            stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos"
+            total = 0
+            for y in all_photos_meta.values():
+                if isinstance(y, dict):
+                    for m in y.values():
+                        for d in m.values():
+                            total += len(d)
+            stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
         return True
 
     pm = ProgressTuringMachine(
@@ -393,8 +405,15 @@ def main():
     ))
     pm.run()
     
+    # Show warning if cache was used, AFTER the scan stage but BEFORE "Scan completed"
+    if used_cache:
+        YELLOW_BOLD = get_color("YELLOW", "\033[33m") + BOLD
+        sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. "
+                         f"Run with {BOLD}--force-rescan{RESET} to refresh metadata.\n")
+        sys.stdout.flush()
+
     if args.only_scan:
-        print(f"\n{BOLD}{GREEN}Scan completed{RESET}. Metadata saved to {cache_file}")
+        print(f"{BOLD}{GREEN}Scan completed{RESET}. Metadata saved to {cache_file}")
         return
     
     # 3. Filtering and Scheduling
@@ -405,10 +424,31 @@ def main():
     format_patterns = args.formats.split("|") if args.formats else None
 
     scheduled_ids = set()
-    # Debug print
-    # print(f"DEBUG: Filtering {len(all_photos_meta)} photos. Since: {since_date}, Before: {before_date}")
     
-    for p in all_photos_meta:
+    # Flatten nested dict (Year -> Month -> Day -> [assets]) for processing
+    for y_data in all_photos_meta.values():
+        if not isinstance(y_data, dict): continue
+        for m_data in y_data.values():
+            if not isinstance(m_data, dict): continue
+            for day_assets in m_data.values():
+                for p in day_assets:
+                    # Date Filter
+                    p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
+                    if since_date and (not p_date or p_date < since_date): continue
+                    if before_date and (not p_date or p_date >= before_date): continue
+                    
+                    # Type Filter
+                    item_type = p.get("item_type", "image")
+                    if args.only_photos and item_type not in ["photo", "image"]: continue
+                    if args.only_videos and item_type != "video": continue
+                    
+                    # Format Filter
+                    if format_patterns:
+                        filename = p.get("filename", "")
+                        if not any(fnmatch.fnmatch(filename, pat) for pat in format_patterns):
+                            continue
+
+                    scheduled_ids.add(p["id"])
         # Date Filter
         p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
         if since_date and (not p_date or p_date < since_date): continue
@@ -510,20 +550,32 @@ def main():
     pm.add_stage(TuringStage(
         "gather", gather_action,
         active_status="Gathering", active_name="photo/video objects",
-        success_status="Ready", success_name=f"{len(scheduled_ids)} photos/videos"
+        # Clear the line instead of showing 'Ready'
+        success_status="", success_name=""
     ))
-    pm.run()
+    if not pm.run():
+        sys.exit(1)
 
     def download_worker(stage, photo, target_path):
         try:
-            # We don't use stage.active_name here because the DynamicStatusBar handles it
-            download = photo.download()
+            # photo is a pyicloud PhotoAsset object
+            response = photo.download()
+            if response.status_code != 200:
+                if stage: stage.report_error(f"HTTP {response.status_code}", f"Failed to download {photo.filename}")
+                return False
+                
             with open(target_path, 'wb') as f:
-                for chunk in download.iter_content(chunk_size=1024):
+                for chunk in response.iter_content(chunk_size=8192):
                     if chunk: f.write(chunk)
+            
+            # Verify file size
+            if target_path.stat().st_size == 0:
+                if stage: stage.report_error("0-byte file", f"Downloaded file {photo.filename} is empty.")
+                return False
+                
             return True
         except Exception as e:
-            if stage: stage.report_error(f"Failed to download {photo.filename}", str(e))
+            if stage: stage.report_error(f"Download Error", f"{photo.filename}: {e}")
             return False
 
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
@@ -551,14 +603,17 @@ def main():
     def on_success(task_id, res):
         pool.status_bar.increment_completed()
 
+    download_success = True
     if tasks:
-        success = pool.run(tasks, success_callback=on_success)
-        if success:
+        download_success = pool.run(tasks, success_callback=on_success)
+        if download_success:
             print(f"\n{BOLD}{GREEN}Successfully completed{RESET} download task.")
         else:
             print(f"\n{BOLD}{get_color('RED')}Completed{RESET} download task with some errors.")
     else:
-        print(f"\n{BOLD}{GREEN}All photos{RESET} already downloaded.")
+        # Only show this if the previous stages were successful
+        # (pm.run() already handled previous stage exits)
+        print(f"\n{BOLD}{GREEN}All photos/videos{RESET} already downloaded.")
 
 if __name__ == "__main__":
     main()
