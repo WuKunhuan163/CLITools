@@ -1,7 +1,0 @@
-Stage: auth
-Timestamp: 20260214_220912
---------------------
-{
-  "apple_id": "dummy@example.com",
-  "password": ""
-}

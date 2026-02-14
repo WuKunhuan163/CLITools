@@ -1,8 +1,0 @@
-Stage: auth
-Timestamp: 20260214_231941
---------------------
-{
-  "account": "dummy@example.com",
-  "password": "",
-  "step": "account"
-}

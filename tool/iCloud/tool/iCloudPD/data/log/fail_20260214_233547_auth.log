@@ -1,8 +1,8 @@
 Stage: auth
-Timestamp: 20260214_225516
+Timestamp: 20260214_233547
 --------------------
 {
-  "apple_id": "18876089955@139.com",
+  "account": "18876089955@139.com",
   "password": "",
   "step": "account"
 }

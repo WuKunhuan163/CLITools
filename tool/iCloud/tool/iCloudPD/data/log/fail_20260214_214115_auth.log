@@ -1,8 +1,0 @@
-Stage: auth
-Timestamp: 20260214_214115
---------------------
-Traceback (most recent call last):
-  File "/Applications/AITerminalTools/tool/iCloud/logic/gui/login.py", line 85, in <module>
-    win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir, 
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TypeError: ICloudLoginWindow.__init__() got an unexpected keyword argument 'verify_handler'

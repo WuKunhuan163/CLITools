@@ -256,7 +256,7 @@ def main():
     apple_id = final_apple_id
 
     # 2. Scanning / Caching
-    data_dir = tool.get_data_dir() / apple_id
+    data_dir = tool.get_data_dir() / "scan" / apple_id
     data_dir.mkdir(parents=True, exist_ok=True)
     cache_file = data_dir / "photos_cache.json"
     
@@ -268,7 +268,7 @@ def main():
             with open(cache_file, 'r') as f:
                 all_photos_meta = json.load(f)
             if stage:
-                stage.success_name = f"{len(all_photos_meta)} photos/videos (cached)"
+                stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos (cached)"
             return True
             
         # Perform scan across all available libraries (Private, Shared, etc.)
@@ -310,7 +310,6 @@ def main():
             page_size = 100
             
             while True:
-                num_results = 0
                 # Call _get_photos_at directly to bypass pyicloud's buggy 
                 # 'num_results < page_size // 2' termination condition
                 try:
@@ -320,8 +319,10 @@ def main():
                     break
                     
                 if not batch:
+                    # Actually reached the end
                     break
                     
+                num_results = 0
                 for photo in batch:
                     all_photos_meta.append({
                         "id": photo.id,
@@ -352,15 +353,13 @@ def main():
                         if stage: stage.active_name = status
                 
                 offset += num_results
-                if num_results < page_size:
-                    # Actually reached the end
-                    break
+                # Do NOT break if num_results < page_size; only break if batch is empty.
             
         with open(cache_file, 'w') as f:
             json.dump(all_photos_meta, f, indent=2)
             
         if stage:
-            stage.success_name = f"{len(all_photos_meta)} photos/videos"
+            stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos"
         return True
 
     pm = ProgressTuringMachine(
@@ -371,7 +370,7 @@ def main():
     pm.add_stage(TuringStage(
         "scan", scan_action, 
         active_status="Scanning", active_name="iCloud photos/videos",
-        success_status="Found", success_name=f"{len(all_photos_meta)} photos/videos"
+        success_status=f"{BOLD}Found{RESET}", 
     ))
     pm.run()
     

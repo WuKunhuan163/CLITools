@@ -1,9 +1,0 @@
-Stage: auth
-Timestamp: 20260214_230424
---------------------
-{
-  "apple_id": "dummy@example.com",
-  "password": "123",
-  "step": "password",
-  "history": "Attempt 3: Invalid email/password combination."
-}
