@@ -558,8 +558,15 @@ def main():
 
     def download_worker(stage, photo, target_path):
         try:
-            # photo is a pyicloud PhotoAsset object
-            response = photo.download()
+            # Bypass photo.download() because it returns bytes and can be unstable for large files
+            if 'original' not in photo.versions:
+                if stage: stage.report_error("No original", f"Original version not found for {photo.filename}")
+                return False
+            
+            download_url = photo.versions['original']['url']
+            # Access the underlying session from the service
+            response = photo._service.session.get(download_url, stream=True)
+            
             if response.status_code != 200:
                 if stage: stage.report_error(f"HTTP {response.status_code}", f"Failed to download {photo.filename}")
                 return False
@@ -569,9 +576,14 @@ def main():
                     if chunk: f.write(chunk)
             
             # Verify file size
-            if target_path.stat().st_size == 0:
+            actual_size = target_path.stat().st_size
+            if actual_size == 0:
                 if stage: stage.report_error("0-byte file", f"Downloaded file {photo.filename} is empty.")
                 return False
+            
+            # Optionally check against metadata size (photo.size)
+            # if photo.size and actual_size != photo.size:
+            #     pass # Some files might be slightly different
                 
             return True
         except Exception as e:
