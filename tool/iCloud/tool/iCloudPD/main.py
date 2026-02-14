@@ -63,7 +63,7 @@ def main():
     
     args = parser.parse_args()
     
-    BOLD, GREEN, BLUE, RESET, YELLOW = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW")
+    BOLD, GREEN, BLUE, RESET, YELLOW, RED = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW"), get_color("RED")
     
     # 1. Login and Authentication Flow
     from tool.iCloud.logic.interface.main import get_icloud_interface
@@ -99,23 +99,17 @@ def main():
     def auth_action(stage=None):
         nonlocal api, final_apple_id
         
-        # 1. CLI-only mode logic
         if args.no_gui:
             import getpass
             import pickle
-            
             try:
                 apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
             except (EOFError, KeyboardInterrupt) as e:
-                msg = "Operation not supported by device (Non-interactive terminal)" if isinstance(e, EOFError) else "Cancelled by user"
+                msg = "Operation not supported by device" if isinstance(e, EOFError) else "Cancelled by user"
                 if stage: stage.report_error(f"Input Error: {msg}", msg)
                 return False
 
-            # Try session reuse first
-            cookie_dir = tool.get_data_dir() / "session" / apple_id
-            cookie_dir.mkdir(parents=True, exist_ok=True)
-            cookie_file = cookie_dir / "session.pkl"
-            
+            cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
             if cookie_file.exists():
                 try:
                     if stage: stage.active_name = f"reusing session for {apple_id}"
@@ -125,167 +119,97 @@ def main():
                     _ = api.account.devices
                     final_apple_id = apple_id
                     if stage: 
-                        # UI Request: Reused session bold, default color
                         stage.success_status = "Reused session"
                         stage.success_color = "BOLD"
                         stage.success_name = f"for {final_apple_id}"
                     return True
-                except:
-                    pass
+                except: pass
             
-            # Full login via CLI
             try:
-                # Erase current progress line to show getpass prompt cleanly
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
                 password = getpass.getpass(f"Enter password for {apple_id}: ")
             except (EOFError, Exception) as e:
-                # Capture specific EOF or TTY error
-                msg = str(e) or "Operation not supported by device (Non-interactive terminal)"
+                msg = str(e) or "Non-interactive terminal"
                 if stage: stage.report_error(f"CLI Error: {msg}", msg)
                 return False
 
             try:
                 if stage: stage.active_name = f"authenticating {apple_id}"
                 api = PyiCloudService(apple_id, password)
-                
                 if api.requires_2fa:
                     print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
-                    try:
-                        code = input("Enter 6-digit 2FA code: ").strip()
-                    except EOFError:
-                        if stage: stage.report_error("CLI Error: Input stream closed (EOF)", "Failed to get 2FA code input (EOF).")
-                        return False
-                        
-                    if not api.validate_2fa_code(code):
-                        if stage: stage.report_error("2FA Failed: Invalid code", "The code you entered was incorrect.")
-                        return False
+                    try: code = input("Enter 6-digit 2FA code: ").strip()
+                    except EOFError: return False
+                    if not api.validate_2fa_code(code): return False
                 
                 save_session(apple_id, api)
                 final_apple_id = apple_id
-                
-                # Erase the getpass line before showing success
                 sys.stdout.write("\033[F\033[K")
                 sys.stdout.flush()
-                
                 if stage: 
-                    # UI Request: iCloud green bold
                     stage.success_status = "iCloud"
                     stage.success_color = "GREEN"
                     stage.success_name = f"authenticated as {final_apple_id}"
                 return True
             except Exception as e:
-                # Ensure we have a non-empty reason
-                err_msg = str(e)
-                if not err_msg:
-                    err_msg = f"Unknown internal error ({type(e).__name__})"
-                if stage: stage.report_error(f"Login Failed: {err_msg}", err_msg)
+                if stage: stage.report_error("Login Failed", str(e))
                 return False
 
-        # 2. GUI mode logic
-        # The login GUI now handles retries and validation internally
         login_res = icloud["run_login_gui"](apple_id=args.apple_id)
-        
         if login_res.get("status") != "success":
-            # If status is 'error', 'data' contains the full history log
-            error_detail = login_res.get("data") or login_res.get("message") or "Login cancelled."
-            reason = "Maximum attempts (5) exceeded" if login_res.get("reason") == "max_attempts_exceeded" else "Login cancelled"
-            if stage: stage.report_error(reason, error_detail)
+            if stage: stage.report_error("Login cancelled", "Login cancelled.")
             return False
             
         creds = login_res["data"]
         apple_id = creds["apple_id"]
-        # mode might be 'session_reuse' or 'full_login'
-        mode = creds.get("mode")
-        
-        if mode == "session_reuse":
-            # Re-initialize API object from cookies
+        if creds.get("mode") == "session_reuse":
             import pickle
             try:
-                if stage: stage.active_name = f"Finalizing session for {apple_id}"
                 api = PyiCloudService(apple_id, "")
                 cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
                 with open(cookie_file, 'rb') as f:
                     api.session.cookies.update(pickle.load(f))
                 final_apple_id = apple_id
                 if stage: 
-                    # UI Request: Reused session bold
                     stage.success_status = "Reused session"
                     stage.success_color = "BOLD"
                     stage.success_name = f"for {final_apple_id}"
                 return True
-            except Exception as e:
-                # If reuse failed unexpectedly, fallback to full login or error
-                if stage: stage.report_error("Session Error", f"Failed to restore session: {e}")
-                return False
+            except: return False
 
-        # Full login (credentials provided by GUI)
         password = creds["password"]
         try:
-            if stage: stage.active_name = f"Finalizing session for {apple_id}"
             api = PyiCloudService(apple_id, password)
-            
-            # Handle 2FA if needed
             if api.requires_2fa:
-                if stage: stage.active_status = "2FA Required"
                 from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
                 from logic.gui.engine import setup_gui_environment
                 setup_gui_environment()
-                
-                win = TwoFactorAuthWindow(
-                    title="iCloud 2FA",
-                    timeout=300,
-                    internal_dir=str(tool.tool_dir / "logic"),
-                    n=6
-                )
+                win = TwoFactorAuthWindow(title="iCloud 2FA", timeout=300, internal_dir=str(tool.tool_dir / "logic"), n=6)
                 win.run(win.setup_ui)
-                
                 if win.result.get("status") == "success":
-                    code = win.result["data"]
-                    if not api.validate_2fa_code(code):
-                        if stage: stage.report_error("2FA Failed", "Invalid 2FA code.")
-                        return False
-                else:
-                    if stage: stage.report_error("2FA Cancelled", "Verification interrupted.")
-                    return False
+                    if not api.validate_2fa_code(win.result["data"]): return False
+                else: return False
             
-            # Success! save session
             save_session(apple_id, api)
             final_apple_id = apple_id
             if stage: 
-                # UI Request: iCloud green bold
                 stage.success_status = "iCloud"
                 stage.success_color = "GREEN"
                 stage.success_name = f"authenticated as {final_apple_id}"
             return True
-            
         except Exception as e:
             if stage: stage.report_error("Session Error", str(e))
             return False
 
-    pm = ProgressTuringMachine(
-        project_root=tool.project_root, 
-        tool_name="iCloudPD",
-        log_dir=tool.get_log_dir()
-    )
-    pm.add_stage(TuringStage(
-        "auth", auth_action,
-        active_status="Authenticating", active_name="iCloud",
-        success_status="Authenticated",
-        fail_status="Failed",
-    ))
-    
-    if not pm.run():
-        sys.exit(1)
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
+    pm.add_stage(TuringStage("auth", auth_action, active_status="Authenticating", active_name="iCloud", success_status="Authenticated", fail_status="Failed"))
+    if not pm.run(): sys.exit(1)
 
     apple_id = final_apple_id
 
     # 2. Scanning / Caching
-    data_dir = tool.get_data_dir() / "scan" / apple_id
-    data_dir.mkdir(parents=True, exist_ok=True)
-    cache_file = data_dir / "photos_cache.json"
-    
-    # Organized by YYYY-MM-DD -> list of assets
+    cache_file = tool.get_data_dir() / "scan" / apple_id / "photos_cache.json"
     all_photos_meta = {}
     used_cache = False
     
@@ -293,29 +217,16 @@ def main():
         nonlocal all_photos_meta, used_cache
         if not args.force_rescan and cache_file.exists():
             try:
-                with open(cache_file, 'r') as f:
-                    all_photos_meta = json.load(f)
-                
+                with open(cache_file, 'r') as f: all_photos_meta = json.load(f)
                 used_cache = True
                 if stage:
-                    # Flatten nested dict (Year -> Month -> Day -> [assets]) to count total
-                    total = 0
-                    for y in all_photos_meta.values():
-                        if isinstance(y, dict):
-                            for m in y.values():
-                                for d in m.values():
-                                    total += len(d)
-                    # UI Request: Found bold only (default color)
-                    stage.success_status = "Found"
-                    stage.success_color = "BOLD"
+                    total = sum(len(d) for y in all_photos_meta.values() for m in y.values() for d in m.values() if isinstance(y, dict) and isinstance(m, dict))
+                    stage.success_status, stage.success_color = "Found", "BOLD"
                     stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
                 return True
-            except Exception:
-                pass
+            except: pass
             
-        # Perform scan across all available libraries
         total_count = 0
-        libs = {}
         try:
             libs = api.photos.libraries
             for lib in libs.values():
@@ -326,144 +237,74 @@ def main():
                 total_count = len(api.photos.all)
                 libs = {"root": api.photos}
             except:
-                total_count = 0
-                libs = {}
+                total_count, libs = 0, {}
 
-        count = 0
-        start_time = time.time()
-        last_save_time = start_time
-        last_seen_date = None # Track date changes for flushing
-        
+        count, start_time = 0, time.time()
+        last_save_time, last_seen_date = start_time, None
         from logic.utils import calculate_eta
         from pyicloud.services.photos import DirectionEnum
         
         for lib_name, lib in libs.items():
             if not hasattr(lib, "all"): continue
-                
-            if stage: stage.active_name = f"Preparing library: {lib_name}"
-            
             album = lib.all
-            # Note: In this pyicloud version, ASCENDING returns newest photos first
-            album._direction = DirectionEnum.ASCENDING
-            offset = 0
-            page_size = 100
+            album._direction = DirectionEnum.ASCENDING # Newest first in this version
+            offset, page_size = 0, 100
             
             while True:
-                try:
-                    batch = list(album._get_photos_at(offset, album._direction, page_size))
+                try: batch = list(album._get_photos_at(offset, album._direction, page_size))
                 except Exception as e:
-                    if stage: stage.report_error("Scan Error", f"Failed to fetch batch at offset {offset}: {e}")
+                    if stage: stage.report_error("Scan Error", str(e))
                     break
-                    
                 if not batch: break
                     
-                num_results = 0
                 batch_dates = set()
-                
                 for photo in batch:
                     created = photo.created
                     if created:
-                        year = str(created.year)
-                        month = f"{created.month:02d}"
-                        day = f"{created.day:02d}"
+                        year, month, day = str(created.year), f"{created.month:02d}", f"{created.day:02d}"
                         date_str = f"{year}-{month}-{day}"
-                    else:
-                        year, month, day = "unknown", "unknown", "unknown"
-                        date_str = "unknown"
+                    else: year, month, day, date_str = "unknown", "unknown", "unknown", "unknown"
                     
                     batch_dates.add(date_str)
-                        
-                    asset = {
-                        "id": photo.id,
-                        "filename": photo.filename,
-                        "created": created.isoformat() if created else None,
-                        "size": photo.size,
-                        "dimensions": photo.dimensions,
-                        "library": lib_name,
-                        "item_type": photo.item_type
-                    }
+                    asset = {"id": photo.id, "filename": photo.filename, "created": created.isoformat() if created else None,
+                             "size": photo.size, "dimensions": photo.dimensions, "library": lib_name, "item_type": photo.item_type}
                     
                     if year not in all_photos_meta: all_photos_meta[year] = {}
                     if month not in all_photos_meta[year]: all_photos_meta[year][month] = {}
                     if day not in all_photos_meta[year][month]: all_photos_meta[year][month][day] = []
                     
-                    # Update or append
                     existing_ids = {a["id"] for a in all_photos_meta[year][month][day]}
-                    if asset["id"] not in existing_ids:
-                        all_photos_meta[year][month][day].append(asset)
-                    
+                    if asset["id"] not in existing_ids: all_photos_meta[year][month][day].append(asset)
                     count += 1
-                    num_results += 1
                 
-                # Logic: If batch has multiple dates, or if current date != last date,
-                # it means previous dates are likely finished. 
-                # We trigger a save if:
-                # 1. More than 1 date in this batch
-                # 2. Latest date in batch != last_seen_date
-                # 3. 30 seconds since last save
-                
-                current_time = time.time()
-                should_save = False
-                
-                if len(batch_dates) > 1:
-                    should_save = True
-                
-                latest_in_batch = sorted(list(batch_dates), reverse=True)[0]
-                if last_seen_date and latest_in_batch != last_seen_date:
-                    should_save = True
-                last_seen_date = latest_in_batch
-                
-                if current_time - last_save_time > 30:
-                    should_save = True
-                
+                curr_t = time.time()
+                should_save = len(batch_dates) > 1 or (last_seen_date and sorted(list(batch_dates), reverse=True)[0] != last_seen_date) or (curr_t - last_save_time > 30)
                 if should_save:
                     save_photos_cache(apple_id, all_photos_meta)
-                    last_save_time = current_time
+                    last_save_time = curr_t
+                last_seen_date = sorted(list(batch_dates), reverse=True)[0]
 
-                # Update progress
-                elapsed = current_time - start_time
-                elapsed_str, remaining_str = calculate_eta(count, total_count, elapsed)
-                
-                status = f"iCloud photos/videos ({count}/{total_count or '???'}) [{elapsed_str}>{remaining_str}]"
+                elapsed = curr_t - start_time
+                e_str, r_str = calculate_eta(count, total_count, elapsed)
                 if stage: 
-                    stage.active_name = status
+                    stage.active_name = f"iCloud photos/videos ({count}/{total_count or '???'}) [{e_str}>{r_str}]"
                     stage.refresh()
-                
-                offset += num_results
+                offset += len(batch)
             
-        # Final save
         save_photos_cache(apple_id, all_photos_meta)
-        
         if stage:
-            total = 0
-            for y in all_photos_meta.values():
-                if isinstance(y, dict):
-                    for m in y.values():
-                        for d in m.values():
-                            total += len(d)
-            # UI Request: Found bold only
-            stage.success_status = "Found"
-            stage.success_color = "BOLD"
+            total = sum(len(d) for y in all_photos_meta.values() for m in y.values() for d in m.values() if isinstance(y, dict) and isinstance(m, dict))
+            stage.success_status, stage.success_color = "Found", "BOLD"
             stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
         return True
 
-    pm = ProgressTuringMachine(
-        project_root=tool.project_root, 
-        tool_name="iCloudPD",
-        log_dir=tool.get_log_dir()
-    )
-    pm.add_stage(TuringStage(
-        "scan", scan_action, 
-        active_status="Scanning", active_name="iCloud photos/videos",
-        success_status=f"{BOLD}Found{RESET}", 
-    ))
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
+    pm.add_stage(TuringStage("scan", scan_action, active_status="Scanning", active_name="iCloud photos/videos"))
     pm.run()
     
-    # Show warning if cache was used, AFTER the scan stage but BEFORE "Scan completed"
     if used_cache:
         YELLOW_BOLD = get_color("YELLOW", "\033[33m") + BOLD
-        sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. "
-                         f"Run with {BOLD}--force-rescan{RESET} to refresh metadata (which may take some time).\n")
+        sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. Run with {BOLD}--force-rescan{RESET} to refresh metadata (which may take some time).\n")
         sys.stdout.flush()
 
     if args.only_scan:
@@ -473,16 +314,11 @@ def main():
     # 3. Filtering and Scheduling
     since_date = datetime.strptime(args.since, "%Y-%m-%d").date() if args.since else None
     before_date = datetime.strptime(args.before, "%Y-%m-%d").date() if args.before else None
-    
-    import fnmatch
-    import re
+    import fnmatch, re
     format_patterns = args.formats.split("|") if args.formats else None
     regex_pattern = re.compile(args.regex) if args.regex else None
 
-    # Track ID -> Library mapping for extreme gathering optimization
-    scheduled_id_info = {} # id -> {"lib_name": ..., "created": ...}
-    
-    # Flatten nested dict (Year -> Month -> Day -> [assets]) for processing
+    scheduled_id_info = {}
     for y, y_data in all_photos_meta.items():
         if not isinstance(y_data, dict): continue
         for m, m_data in y_data.items():
@@ -490,51 +326,29 @@ def main():
             for d, day_assets in m_data.items():
                 date_str = f"{y}-{m}-{d}"
                 for p in day_assets:
-                    # Regex Filter (on 'yyyy-mm-dd/filename')
                     full_path = f"{date_str}/{p['filename']}"
-                    if regex_pattern and not regex_pattern.search(full_path):
-                        continue
-                        
-                    # Date Filter
+                    if regex_pattern and not regex_pattern.search(full_path): continue
                     p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
                     if since_date and (not p_date or p_date < since_date): continue
                     if before_date and (not p_date or p_date >= before_date): continue
-                    
-                    # Type Filter
                     item_type = p.get("item_type", "image")
                     if args.only_photos and item_type not in ["photo", "image"]: continue
                     if args.only_videos and item_type != "video": continue
-                    
-                    # Format Filter
-                    if format_patterns:
-                        filename = p.get("filename", "")
-                        if not any(fnmatch.fnmatch(filename, pat) for pat in format_patterns):
-                            continue
-
-                    scheduled_id_info[p["id"]] = {
-                        "lib_name": p.get("library", "root"),
-                        "created": p_date
-                    }
+                    if format_patterns and not any(fnmatch.fnmatch(p.get("filename", ""), pat) for pat in format_patterns): continue
+                    scheduled_id_info[p["id"]] = {"lib_name": p.get("library", "root"), "created": p_date}
         
     print(f"{BOLD}Scheduled{RESET} {len(scheduled_id_info)} photos/videos for download.")
-    if not scheduled_id_info:
-        print("No photos/videos found matching the criteria.")
-        return
+    if not scheduled_id_info: return
 
     # 4. Parallel Downloading
     from logic.turing.models.worker import ParallelWorkerPool
     output_root = Path(args.output or ".").resolve()
-    
-    # We need photo objects for download. 
     to_download_objects = []
     
     def gather_action(stage=None):
         nonlocal to_download_objects
         total_scheduled = len(scheduled_id_info)
-        count = 0
-        start_time = time.time()
-        
-        # Group by library
+        count, start_time = 0, time.time()
         lib_to_ids = {}
         for aid, info in scheduled_id_info.items():
             lib_name = info["lib_name"]
@@ -542,158 +356,82 @@ def main():
             lib_to_ids[lib_name].append(aid)
             
         from pyicloud.services.photos import PhotoAsset
-        
         for lib_name, ids in lib_to_ids.items():
-            try:
-                lib_obj = api.photos.libraries[lib_name]
-            except:
-                continue
-                
-            # Extreme Optimization: Use the CloudKit 'lookup' endpoint
-            # Base URL cleanup (remove '/query' and anything after)
+            try: lib_obj = api.photos.libraries[lib_name]
+            except: continue
             base_url = lib_obj.url.split("/query")[0]
             lookup_url = f"{base_url}/lookup"
-            
-            # Fetch in batches of 100
             for i in range(0, len(ids), 100):
                 batch_ids = ids[i:i+100]
-                query = {
-                    "records": [{"recordName": rid} for rid in batch_ids],
-                    "zoneID": lib_obj.zone_id
-                }
-                
+                query = {"records": [{"recordName": rid} for rid in batch_ids], "zoneID": lib_obj.zone_id}
                 try:
                     resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"})
                     if resp.status_code == 200:
-                        data = resp.json()
-                        records = data.get("records", [])
-                        for record in records:
-                            # Reconstruct PhotoAsset. We use the master record for both 
-                            # parameters because we only need it for the download URLs.
-                            # We'll use our cache for metadata like creation date.
+                        for record in resp.json().get("records", []):
                             asset = PhotoAsset(api.photos, record, record)
-                            # Tag the asset with its cached info to avoid hitting broken properties
                             aid = record["recordName"]
-                            if aid in scheduled_id_info:
-                                asset._cached_date = scheduled_id_info[aid]["created"]
-                            
+                            if aid in scheduled_id_info: asset._cached_date = scheduled_id_info[aid]["created"]
                             to_download_objects.append(asset)
                             count += 1
-                            
-                            # Update progress
                             if count % 10 == 0 or count == total_scheduled:
-                                elapsed = time.time() - start_time
                                 from logic.utils import calculate_eta
-                                elapsed_str, remaining_str = calculate_eta(count, total_scheduled, elapsed)
-                                status = f"photo/video objects ({count}/{total_scheduled}) [{elapsed_str}>{remaining_str}]"
-                                if stage: 
-                                    stage.active_name = status
-                                    stage.refresh()
-                    else:
-                        # Fallback or error report
-                        pass
+                                e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+                                if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
                 except Exception as e:
-                    if stage: stage.report_error("Gather Error", f"Batch lookup failed: {e}")
-                    
+                    if stage: stage.report_error("Gather Error", str(e))
         return len(to_download_objects) > 0
 
-    pm = ProgressTuringMachine(
-        project_root=tool.project_root, 
-        tool_name="iCloudPD",
-        log_dir=tool.get_log_dir()
-    )
-    pm.add_stage(TuringStage(
-        "gathering_objects", gather_action,
-        active_status="Gathering", active_name="photo/video objects",
-        success_status="\r\033[K", success_name=" " # Silent success
-    ))
-    if not pm.run():
-        sys.exit(1)
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
+    pm.add_stage(TuringStage("gathering_objects", gather_action, active_status="Gathering", active_name="photo/video objects", success_status="\r\033[K", success_name=" "))
+    if not pm.run(): sys.exit(1)
 
     def download_worker(stage, photo, target_path):
-        try:
-            # Bypass photo.download() because it returns bytes and can be unstable for large files
-            if 'original' not in photo.versions:
-                if stage: stage.report_error("No original", f"Original version not found for {photo.filename}")
-                return False
-            
-            download_url = photo.versions['original']['url']
-            # Access the underlying session from the service
-            response = photo._service.session.get(download_url, stream=True)
-            
-            if response.status_code != 200:
-                if stage: stage.report_error(f"HTTP {response.status_code}", f"Failed to download {photo.filename}")
-                return False
-                
-            with open(target_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk: f.write(chunk)
-            
-            # Verify file size
-            actual_size = target_path.stat().st_size
-            if actual_size == 0:
-                if stage: stage.report_error("0-byte file", f"Downloaded file {photo.filename} is empty.")
-                return False
-            
-            return True
-        except Exception as e:
-            if stage: stage.report_error(f"Download Error", f"{photo.filename}: {e}")
-            return False
+        max_attempts, last_err = 3, ""
+        for attempt in range(max_attempts):
+            try:
+                if 'original' not in photo.versions: return False
+                resp = photo._service.session.get(photo.versions['original']['url'], stream=True)
+                if resp.status_code != 200: raise Exception(f"HTTP {resp.status_code}")
+                with open(target_path, 'wb') as f:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk: f.write(chunk)
+                if target_path.stat().st_size == 0: raise Exception("0-byte file")
+                return True
+            except Exception as e:
+                last_err = str(e)
+                if attempt < max_attempts - 1: time.sleep(1)
+        if stage: stage.report_error(f"Failed after {max_attempts} retries", last_err)
+        return False
 
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
     pool.status_bar.set_counts(len(to_download_objects))
-    
-    tasks = []
+    tasks, failed_tasks = [], []
     for photo in to_download_objects:
-        # Use cached date if available to avoid hitting broken pyicloud properties
         p_date = getattr(photo, "_cached_date", None)
-        if not p_date:
-            try: p_date = photo.created.date()
-            except: p_date = None
-            
         p_date_str = p_date.strftime("%Y-%m-%d") if p_date else "unknown"
-        target_dir = output_root / p_date_str
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_file = target_dir / photo.filename
-        
-        if target_file.exists():
-            pool.status_bar.increment_completed()
-            continue
-            
-        # Task ID will be "yyyy-mm-dd/filename" as requested
-        task_id = f"{p_date_str}/{photo.filename}"
-        tasks.append({
-            "id": task_id,
-            "action": download_worker,
-            "args": (photo, target_file)
-        })
+        target_file = output_root / p_date_str / photo.filename
+        (output_root / p_date_str).mkdir(parents=True, exist_ok=True)
+        if target_file.exists(): pool.status_bar.increment_completed(); continue
+        tasks.append({"id": f"{p_date_str}/{photo.filename}", "action": download_worker, "args": (photo, target_file)})
 
-    def on_success(task_id, res):
-        pool.status_bar.increment_completed()
+    def on_task_result(task_id, res):
+        if isinstance(res, dict) and not res.get("success", True):
+            failed_tasks.append({"id": task_id, "error": res.get("error_brief", "Unknown error"), "log": res.get("log_path")})
+        else: pool.status_bar.increment_completed()
 
-    download_success = True
-    if tasks:
-        download_success = pool.run(tasks, success_callback=on_success)
-        if download_success:
-            # First and Last asset info for success message
-            first_asset = to_download_objects[0]
-            last_asset = to_download_objects[-1]
-            
-            def get_asset_str(asset):
-                d = getattr(asset, "_cached_date", None)
-                d_str = d.strftime("%Y-%m-%d") if d else "unknown"
-                return f"{d_str}/{asset.filename}"
-                
-            first_str = get_asset_str(first_asset)
-            last_str = get_asset_str(last_asset)
-            
-            print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos "
-                  f"from {BOLD}{first_str}{RESET} to {BOLD}{last_str}{RESET}.")
-        else:
-            print(f"\n{BOLD}{get_color('RED')}Completed{RESET} download task with some errors.")
+    all_success = pool.run(tasks, success_callback=on_task_result)
+    if all_success and not failed_tasks:
+        first, last = to_download_objects[0], to_download_objects[-1]
+        f_d, l_d = getattr(first, "_cached_date", None), getattr(last, "_cached_date", None)
+        f_s, l_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}", f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
+        print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos from {BOLD}{f_s}{RESET} to {BOLD}{l_s}{RESET}.")
     else:
-        # Only show this if the previous stages were successful
-        print(f"{BOLD}{GREEN}All photos/videos{RESET} already downloaded.")
+        print(f"{BOLD}{RED}Failed to download{RESET} {len(failed_tasks)} photos/videos.")
+        if failed_tasks:
+            summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
+            with open(summary_log, 'w') as f:
+                for ft in failed_tasks: f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
+            print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
 
 if __name__ == "__main__":
     main()
