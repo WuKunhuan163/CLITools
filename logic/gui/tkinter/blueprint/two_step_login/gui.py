@@ -39,7 +39,7 @@ class TwoStepLoginWindow(BaseGUIWindow):
         
         # UI Elements
         self.main_frame = None
-        self.account_frame = None
+        self.fields_frame = None
         self.password_frame = None
         self.prev_btn = None
         self.account_entry = None
@@ -119,17 +119,10 @@ class TwoStepLoginWindow(BaseGUIWindow):
         self.step = "password"
         self.account_entry.config(state="disabled")
         
-        # Ensure password frame appears between account and error label
-        # We forget error label, pack password, then repack error label
-        if self.error_label:
-            self.error_label.pack_forget()
-            
+        # Inside fields_frame, so it appears after account but before error_label
         self.password_frame.pack(fill="x", pady=(0, 10))
         self.password_entry.focus_set()
         
-        if self.error_label:
-            self.error_label.pack(fill=tk.X, pady=(10, 5))
-            
         if self.submit_btn:
             self.submit_btn.config(text=self._("btn_login", "Login"))
         # Show Prev button
@@ -231,17 +224,21 @@ class TwoStepLoginWindow(BaseGUIWindow):
         instr = self.instruction_text or self._("login_instruction", "Please sign in")
         tk.Label(self.main_frame, text=instr, font=("Arial", 14, "bold")).pack(pady=(0, 20))
 
-        # Account entry
+        # Fields frame (to contain account and password sections)
+        self.fields_frame = tk.Frame(self.main_frame)
+        self.fields_frame.pack(fill=tk.X)
+
+        # Account Section (packed into fields_frame)
         acc_lbl_text = self.account_label_text or self._("label_account", "Account:")
-        tk.Label(self.main_frame, text=acc_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
-        self.account_entry = tk.Entry(self.main_frame, font=get_label_style())
+        tk.Label(self.fields_frame, text=acc_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
+        self.account_entry = tk.Entry(self.fields_frame, font=get_label_style())
         self.account_entry.pack(fill=tk.X, pady=(0, 15))
         if self.account_initial:
             self.account_entry.insert(0, self.account_initial)
         self.account_entry.focus_set()
 
-        # Password frame (initially hidden)
-        self.password_frame = tk.Frame(self.main_frame)
+        # Password Section (inside fields_frame, initially hidden)
+        self.password_frame = tk.Frame(self.fields_frame)
         pw_lbl_text = self.password_label_text or self._("label_password", "Password:")
         tk.Label(self.password_frame, text=pw_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
         
@@ -259,7 +256,7 @@ class TwoStepLoginWindow(BaseGUIWindow):
                                        font=("Arial", 12), width=3, relief="flat", borderwidth=0)
         self.pw_toggle_btn.pack(side=tk.RIGHT, padx=(5, 0))
 
-        # Error label
+        # Error label (packed into main_frame, AFTER fields_frame)
         from logic.gui.tkinter.style import get_secondary_label_style
         self.error_label = tk.Label(self.main_frame, text="", font=get_secondary_label_style(), 
                                     fg=get_gui_colors()["red"], wraplength=350, justify="left")

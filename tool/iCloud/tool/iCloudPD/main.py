@@ -106,16 +106,28 @@ def main():
                     pass
             
             # Full login via CLI
-            password = getpass.getpass(f"Enter password for {apple_id}: ")
+            try:
+                password = getpass.getpass(f"Enter password for {apple_id}: ")
+            except (EOFError, Exception) as e:
+                # Capture specific EOF or TTY error
+                msg = str(e) or "Operation not supported by device (Non-interactive terminal)"
+                if stage: stage.report_error(f"CLI Error: {msg}", msg)
+                return False
+
             try:
                 if stage: stage.active_name = f"authenticating {apple_id}"
                 api = PyiCloudService(apple_id, password)
                 
                 if api.requires_2fa:
                     print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
-                    code = input("Enter 6-digit 2FA code: ").strip()
+                    try:
+                        code = input("Enter 6-digit 2FA code: ").strip()
+                    except EOFError:
+                        if stage: stage.report_error("CLI Error: Input stream closed (EOF)", "Failed to get 2FA code input (EOF).")
+                        return False
+                        
                     if not api.validate_2fa_code(code):
-                        if stage: stage.report_error("2FA Failed", "Invalid code.")
+                        if stage: stage.report_error("2FA Failed: Invalid code", "The code you entered was incorrect.")
                         return False
                 
                 save_session(apple_id, api)
@@ -125,7 +137,11 @@ def main():
                     stage.success_name = f"authenticated {final_apple_id}"
                 return True
             except Exception as e:
-                if stage: stage.report_error("Login Failed", str(e))
+                # Ensure we have a non-empty reason
+                err_msg = str(e)
+                if not err_msg:
+                    err_msg = f"Unknown internal error ({type(e).__name__})"
+                if stage: stage.report_error(f"Login Failed: {err_msg}", err_msg)
                 return False
 
         # 2. GUI mode logic
