@@ -24,6 +24,9 @@ class ToolBase:
             # Fallback to module-based detection
             self.tool_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
         
+        # Keep script_dir as an alias for backward compatibility
+        self.script_dir = self.tool_dir
+        
         # Use robust project root detection from utils
         from logic.utils import find_project_root, get_tool_module_path
         self.project_root = find_project_root(self.tool_dir)
@@ -360,7 +363,7 @@ class ToolBase:
         from logic.lang.utils import get_translation
         from logic.utils import get_logic_dir
         
-        tool_internal = get_logic_dir(self.script_dir)
+        tool_internal = get_logic_dir(self.tool_dir)
         # 1. Try tool-specific logic directory (e.g., tool/NAME/logic/)
         res = get_translation(str(tool_internal), key, None)
         if res and res != key: return res # Found in tool
@@ -431,7 +434,7 @@ class ToolBase:
         from logic.tool.setup.engine import ToolEngine
         
         # Subtools are stored in tool/PARENT/tool/SUBTOOL
-        subtool_parent_dir = self.script_dir / "tool"
+        subtool_parent_dir = self.tool_dir / "tool"
         engine = ToolEngine(subtool_name, self.project_root, parent_tool_dir=subtool_parent_dir)
         
         if engine.install():
