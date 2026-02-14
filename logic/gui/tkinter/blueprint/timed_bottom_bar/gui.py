@@ -313,9 +313,16 @@ class BaseGUIWindow:
                 try: self.instance_file.unlink()
                 except: pass
                 
-            # Print final result for parent process to capture
-            # Use a unique prefix that's easily filterable
-            print("\nGDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
+            # Print final result for parent process to capture (Interface I)
+            # Only print if stdout is NOT a TTY (i.e., it's being captured by a manager)
+            # to avoid leaking sensitive data like passwords to the terminal.
+            result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
+            if not sys.stdout.isatty():
+                print("\n" + result_line, flush=True)
+            else:
+                # If in a TTY, we might still want to log it to a secure location 
+                # but NOT print it to screen.
+                pass
         except Exception as e:
             # Restore stderr if it was still redirected
             if sys.stderr != original_stderr:
@@ -327,7 +334,9 @@ class BaseGUIWindow:
             import traceback
             traceback.print_exc()
             self.result = {"status": "error", "message": str(e)}
-            print("\nGDS_GUI_RESULT_JSON:" + json.dumps(self.result), flush=True)
+            result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
+            if not sys.stdout.isatty():
+                print("\n" + result_line, flush=True)
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 
                             submit_text: str, submit_cmd: Callable,
