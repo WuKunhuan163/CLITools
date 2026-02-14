@@ -202,24 +202,18 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
 
     sys.stdout.write("\r\033[K"); sys.stdout.flush()
     
-    # DEBUG: See raw output
-    sys.stderr.write(f"\n[DEBUG_MANAGER] Raw stdout length: {len(stdout)}\n")
-    if stdout: sys.stderr.write(f"[DEBUG_MANAGER] Raw stdout lines: {stdout.splitlines()!r}\n")
-    if stderr: sys.stderr.write(f"[DEBUG_MANAGER] Raw stderr: {stderr!r}\n")
-
     # Parse JSON result
     res = None
     for line in stdout.splitlines():
-        if "GDS_GUI_RESULT_JSON:" in line:
-            sys.stderr.write(f"[DEBUG_MANAGER] Found JSON line: {line!r}\n")
+        marker = "GDS_GUI_RESULT_JSON:"
+        idx = line.find(marker)
+        if idx != -1:
             try:
-                # Find the start of JSON
-                json_str = line.split("GDS_GUI_RESULT_JSON:")[1].strip()
+                # Take everything after the marker's FIRST occurrence in this line
+                json_str = line[idx + len(marker):].strip()
                 res = json.loads(json_str)
-                sys.stderr.write(f"[DEBUG_MANAGER] Successfully parsed JSON: {res}\n")
                 break
-            except Exception as e: 
-                sys.stderr.write(f"[DEBUG_MANAGER] JSON parse failed: {e}\n")
+            except: 
                 pass
     
     if res:

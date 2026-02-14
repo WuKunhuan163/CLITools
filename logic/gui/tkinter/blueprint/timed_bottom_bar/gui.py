@@ -301,11 +301,8 @@ class BaseGUIWindow:
             # Use a more explicit check for managed mode
             is_managed = (os.environ.get("GDS_GUI_MANAGED") == "1")
             
-            sys.stderr.write(f"[DEBUG_GUI] Finishing run. is_managed={is_managed}, result={self.result}\n")
-            
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
             if is_managed:
-                sys.stderr.write(f"[DEBUG_GUI] Printing to stdout: {result_line!r}\n")
                 sys.stdout.write("\n" + result_line + "\n")
                 sys.stdout.flush()
         except Exception as e:
@@ -315,10 +312,8 @@ class BaseGUIWindow:
             import traceback
             traceback.print_exc()
             self.result = {"status": "error", "message": str(e)}
-            sys.stderr.write(f"[DEBUG_GUI] Exception in run: {e}\n")
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
             if os.environ.get("GDS_GUI_MANAGED") == "1":
-                sys.stderr.write(f"[DEBUG_GUI] Printing error to stdout: {result_line!r}\n")
                 sys.stdout.write("\n" + result_line + "\n")
                 sys.stdout.flush()
 
