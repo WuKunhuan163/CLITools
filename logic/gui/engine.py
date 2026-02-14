@@ -121,14 +121,25 @@ def play_notification_bell(project_root: Path):
     import subprocess
     import threading
     bell_path = project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
-    if bell_path.exists():
-        def run_play():
-            try:
+    
+    def run_play():
+        try:
+            if bell_path.exists():
                 if platform.system() == "Darwin":
                     subprocess.run(["afplay", str(bell_path)], stderr=subprocess.DEVNULL, timeout=5)
                 elif platform.system() == "Linux":
                     subprocess.run(["aplay", str(bell_path)], stderr=subprocess.DEVNULL, timeout=5)
-            except: pass
-        threading.Thread(target=run_play, daemon=True).start()
+            else:
+                # Fallback to system sounds if asset is missing
+                if platform.system() == "Darwin":
+                    # Use a standard macOS system sound
+                    system_sound = "/System/Library/Sounds/Glass.aiff"
+                    if os.path.exists(system_sound):
+                        subprocess.run(["afplay", system_sound], stderr=subprocess.DEVNULL, timeout=5)
+                elif platform.system() == "Linux":
+                    # Try to use pcspkr or a common sound
+                    subprocess.run(["beep"], stderr=subprocess.DEVNULL, timeout=2)
+        except: pass
+    threading.Thread(target=run_play, daemon=True).start()
 
 

@@ -12,7 +12,7 @@ class ToolBase:
     def __init__(self, tool_name):
         self.tool_name = tool_name
         
-        # Determine script_dir based on caller if used as a wrapper, or module if inherited
+        # Determine script_dir (the actual installation directory of the tool)
         import inspect
         caller_frame = inspect.stack()[1]
         caller_file = Path(caller_frame.filename).resolve()
@@ -24,25 +24,18 @@ class ToolBase:
             # Used as a base class: class MyTool(ToolBase)
             self.script_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
         
-        # Robust project root detection: find the directory containing 'bin/TOOL' or 'tool.json' (root)
-        def find_root(start_path):
-            curr = start_path
-            while curr != curr.parent:
-                if (curr / "bin" / "TOOL").exists() or ((curr / "tool.json").exists() and curr.parent.name != "tool" and curr.name != "tool"):
-                    # Additional check to avoid misidentifying subtool dir as root
-                    if (curr / "tool.json").exists() and (curr / "bin").exists():
-                        return curr
-                curr = curr.parent
-            # Fallback to the old logic if nothing found
-            return start_path.parent.parent
-            
-        self.project_root = find_root(self.script_dir)
+        self.tool_dir = self.script_dir
+        
+        # Use robust project root detection from utils
+        from logic.utils import find_project_root, get_tool_module_path
+        self.project_root = find_project_root(self.tool_dir)
+        self.tool_module_path = get_tool_module_path(self.tool_dir, self.project_root)
         
         # Ensure project root is in path for imports
         if str(self.project_root) not in sys.path:
             sys.path.insert(0, str(self.project_root))
             
-        self.tool_json_path = self.script_dir / "tool.json"
+        self.tool_json_path = self.tool_dir / "tool.json"
         self.dependencies = []
         self._load_metadata()
         
@@ -50,6 +43,14 @@ class ToolBase:
         if "PYTHON" in self.dependencies:
             from logic.utils import check_and_reexecute_with_python
             check_and_reexecute_with_python(self.tool_name)
+
+    def get_data_dir(self):
+        """Returns the data directory for this tool, respecting nesting."""
+        return self.tool_dir / "data"
+
+    def get_log_dir(self):
+        """Returns the log directory for this tool, respecting nesting."""
+        return self.get_data_dir() / "log"
 
     def _load_metadata(self):
         if self.tool_json_path.exists():
@@ -64,6 +65,7 @@ class ToolBase:
         """Check if all required dependencies are installed and operational."""
         missing = []
         for dep in self.dependencies:
+            # Dependencies are ALWAYS searched in the project root's tool/ directory
             dep_dir = self.project_root / "tool" / dep
             if not dep_dir.exists():
                 missing.append(dep)
@@ -85,7 +87,7 @@ class ToolBase:
         return True
 
     def get_tool_path(self, other_tool_name):
-        """Get the directory path of another tool."""
+        """Get the directory path of another tool (at project root level)."""
         return self.project_root / "tool" / other_tool_name
 
     def call_other_tool(self, other_tool_name, args, capture_output=False):
@@ -136,8 +138,8 @@ class ToolBase:
                 self.print_rule()
                 return True
             
-            # 2. Check if it's a subtool
-            subtool_main = self.script_dir / "tool" / cmd / "main.py"
+            # 2. Check if it's a subtool (relative to current tool_dir)
+            subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if subtool_main.exists():
                 # Proxy to subtool
                 cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
@@ -263,7 +265,7 @@ class ToolBase:
         from logic.turing.logic import TuringStage
         from logic.config import get_color
         
-        setup_script = self.script_dir / "setup.py"
+        setup_script = self.tool_dir / "setup.py"
         if not setup_script.exists():
             RED = get_color("RED", "\033[31m")
             BOLD = get_color("BOLD", "\033[1m")
@@ -337,8 +339,8 @@ class ToolBase:
             error_msg = f"{BOLD}{RED}Error{RESET}: {str(e)}"
             print(error_msg, file=sys.stderr, flush=True)
         
-        # Save full traceback to exception log
-        log_dir = self.project_root / "data" / "exception" / self.tool_name
+        # Save full traceback to exception log (residing in the tool's own data directory)
+        log_dir = self.get_log_dir() / "exception"
         am = AuditManager(log_dir, component_name=f"{self.tool_name}_EXCEPTION")
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

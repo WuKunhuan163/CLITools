@@ -238,7 +238,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     BOLD, BLUE, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
     # 2. Setup paths - use tool's data/input directory
-    input_dir = tool_instance.project_root / "tool" / tool_instance.tool_name / "data" / "input"
+    input_dir = tool_instance.get_data_dir() / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     
     ts = time.strftime("%Y%m%d_%H%M%S")

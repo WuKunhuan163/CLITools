@@ -481,6 +481,41 @@ def get_logic_dir(base_dir):
     """Returns the logic directory path for a given base directory."""
     return Path(base_dir) / "logic"
 
+def find_project_root(start_path: Path) -> Path:
+    """
+    Robustly find the project root from any starting path.
+    Look for indicators unique to the root of AITerminalTools.
+    """
+    curr = start_path.resolve()
+    if curr.is_file():
+        curr = curr.parent
+    
+    # Primary indicator: bin/TOOL and tool.json
+    temp_curr = curr
+    while temp_curr != temp_curr.parent:
+        if (temp_curr / "bin" / "TOOL").exists() and (temp_curr / "tool.json").exists():
+            return temp_curr
+        temp_curr = temp_curr.parent
+        
+    # Secondary indicator: tool.json + logic/ + tool/ (for cases where bin/ might be missing or different)
+    temp_curr = curr
+    while temp_curr != temp_curr.parent:
+        if (temp_curr / "tool.json").exists() and (temp_curr / "logic").is_dir() and (temp_curr / "tool").is_dir():
+            # Ensure it's not a subtool dir (which might have tool.json but parent is 'tool')
+            if temp_curr.parent.name != "tool":
+                return temp_curr
+        temp_curr = temp_curr.parent
+        
+    return curr # Fallback
+
+def get_tool_module_path(tool_dir: Path, project_root: Path) -> str:
+    """Returns the python module path for a tool relative to project root."""
+    try:
+        rel = tool_dir.relative_to(project_root)
+        return ".".join(rel.parts)
+    except ValueError:
+        return ""
+
 def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     """
     Runs a command and parses its stderr for percentage progress.

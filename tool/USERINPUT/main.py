@@ -178,14 +178,11 @@ import shlex
 import re
 from pathlib import Path
 
-PROJECT_ROOT = Path(%(project_root)r)
-if PROJECT_ROOT.exists() and str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 try:
     from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
     from logic.gui.engine import setup_gui_environment, play_notification_bell
     from logic.gui.tkinter.style import get_label_style
+    from logic.utils import find_project_root
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
 
@@ -261,7 +258,9 @@ class UserInputWindow(BaseGUIWindow):
 
     def log_debug(self, msg):
         try:
-            log_file = PROJECT_ROOT / "tmp" / "userinput_debug.log"
+            # Detect project root robustly for logging
+            project_root = find_project_root(Path(__file__).resolve())
+            log_file = project_root / "tmp" / "userinput_debug.log"
             ts = time.strftime("%%Y-%%m-%%d %%H:%%M:%%S")
             with open(log_file, "a") as f: f.write(f"[{ts}] {msg}\n")
         except: pass

@@ -6,14 +6,9 @@ import json
 
 def get_git_engine():
     # Robust project root detection for the interface
-    script_path = Path(__file__).resolve()
-    # Try to find root by looking for tool.json
-    curr = script_path.parent
-    while curr != curr.parent:
-        if (curr / "tool.json").exists() and (curr / "bin").exists():
-            return GitEngine(curr)
-        curr = curr.parent
-    return GitEngine(None)
+    from logic.utils import find_project_root
+    project_root = find_project_root(Path(__file__))
+    return GitEngine(project_root)
 
 def run_git(args, cwd=None):
     """

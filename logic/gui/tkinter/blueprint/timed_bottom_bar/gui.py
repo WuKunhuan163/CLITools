@@ -67,8 +67,10 @@ class BaseGUIWindow:
     def handle_external_signal(self, signum, frame):
         """Gracefully close on external signals, capturing current state."""
         if not self.window_closed:
-            # Check if it was a real remote stop or just a random signal
-            project_root = Path(self.internal_dir).parent.parent.parent
+            # Use robust project root detection
+            from logic.utils import find_project_root
+            project_root = find_project_root(Path(self.internal_dir))
+            
             stop_file = project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
             reason = "signal"
             if stop_file.exists():
@@ -86,7 +88,8 @@ class BaseGUIWindow:
         if not self.window_closed and self.root:
             # Check project root for data/run/stops/
             try:
-                project_root = Path(self.internal_dir).parent.parent.parent
+                from logic.utils import find_project_root
+                project_root = find_project_root(Path(self.internal_dir))
                 stops_dir = project_root / "data" / "run" / "stops"
                 
                 # Detect flags for this PID
@@ -160,7 +163,8 @@ class BaseGUIWindow:
             try: self.root.bell()
             except: pass
         
-        project_root = Path(self.internal_dir).parent.parent.parent
+        from logic.utils import find_project_root
+        project_root = find_project_root(Path(self.internal_dir))
         from logic.gui.engine import play_notification_bell
         play_notification_bell(project_root)
 
@@ -200,7 +204,8 @@ class BaseGUIWindow:
         """
         # 1. Signal Parent (via flag file for atomicity and avoiding stdout pollution)
         try:
-            project_root = Path(self.internal_dir).parent.parent.parent
+            from logic.utils import find_project_root
+            project_root = find_project_root(Path(self.internal_dir))
             added_time_dir = project_root / "data" / "run" / "added_time"
             added_time_dir.mkdir(parents=True, exist_ok=True)
             # Use a unique file for each add event to ensure they are all processed
@@ -245,7 +250,8 @@ class BaseGUIWindow:
             
             # 1. Register instance for registry-based stop
             try:
-                project_root = Path(self.internal_dir).parent.parent.parent
+                from logic.utils import find_project_root
+                project_root = find_project_root(Path(self.internal_dir))
                 instance_dir = project_root / "data" / "run" / "instances"
                 instance_dir.mkdir(parents=True, exist_ok=True)
                 self.instance_file = instance_dir / f"gui_{os.getpid()}.json"
@@ -275,7 +281,8 @@ class BaseGUIWindow:
             
             # Cleanup stop files if they exist for this PID
             try:
-                project_root = Path(self.internal_dir).parent.parent.parent
+                from logic.utils import find_project_root
+                project_root = find_project_root(Path(self.internal_dir))
                 stops_dir = project_root / "data" / "run" / "stops"
                 pid = os.getpid()
                 for ext in ["stop", "submit", "cancel", "add_time"]:

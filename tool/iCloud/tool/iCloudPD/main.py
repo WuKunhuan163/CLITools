@@ -9,7 +9,8 @@ from datetime import datetime, date
 import subprocess
 
 # Add project root to sys.path
-def find_project_root():
+def find_root():
+    from pathlib import Path
     curr = Path(__file__).resolve().parent
     while curr != curr.parent:
         if (curr / "tool.json").exists() and (curr / "bin").exists():
@@ -17,8 +18,8 @@ def find_project_root():
         curr = curr.parent
     return None
 
-project_root = find_project_root()
-if project_root:
+project_root = find_root()
+if project_root and str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from logic.tool.base import ToolBase
@@ -32,7 +33,7 @@ def main():
     parser = argparse.ArgumentParser(description="iCloud Photo Downloader", add_help=False)
     parser.add_argument("--since", help="Download photos from this date (YYYY-MM-DD)")
     parser.add_argument("--before", help="Download photos before this date (YYYY-MM-DD)")
-    parser.add_argument("--output", default=".", help="Target directory for downloads")
+    parser.add_argument("--output", help="Target directory for downloads (default: current)")
     parser.add_argument("--force-rescan", action="store_true", help="Force rescan of iCloud photo library")
     
     if tool.handle_command_line(parser): return
@@ -71,7 +72,7 @@ def main():
         win = TwoFactorAuthWindow(
             title="iCloud 2FA",
             timeout=300,
-            internal_dir=str(Path(__file__).resolve().parent / "logic"),
+            internal_dir=str(tool.tool_dir / "logic"),
             n=6
         )
         win.run(win.setup_ui)
@@ -86,7 +87,7 @@ def main():
             sys.exit(1)
 
     # 2. Scanning / Caching
-    data_dir = Path(__file__).resolve().parent / "data" / apple_id
+    data_dir = tool.get_data_dir() / apple_id
     data_dir.mkdir(parents=True, exist_ok=True)
     cache_file = data_dir / "photos_cache.json"
     
