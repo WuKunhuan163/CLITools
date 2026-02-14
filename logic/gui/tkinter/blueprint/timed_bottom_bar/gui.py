@@ -298,11 +298,11 @@ class BaseGUIWindow:
                 except: pass
                 
             # Print final result for parent process to capture (Interface I)
-            # We print only if stdout is not a terminal (i.e. it is a pipe/redirect)
-            # OR if we are explicitly in managed mode.
+            # Use a more explicit check for managed mode
+            is_managed = (os.environ.get("GDS_GUI_MANAGED") == "1")
+            
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
-            if not sys.stdout.isatty() or os.environ.get("GDS_GUI_MANAGED") == "1":
-                # Ensure it's on its own line and flushed
+            if is_managed:
                 sys.stdout.write("\n" + result_line + "\n")
                 sys.stdout.flush()
         except Exception as e:
@@ -313,7 +313,7 @@ class BaseGUIWindow:
             traceback.print_exc()
             self.result = {"status": "error", "message": str(e)}
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
-            if not sys.stdout.isatty() or os.environ.get("GDS_GUI_MANAGED") == "1":
+            if os.environ.get("GDS_GUI_MANAGED") == "1":
                 sys.stdout.write("\n" + result_line + "\n")
                 sys.stdout.flush()
 
