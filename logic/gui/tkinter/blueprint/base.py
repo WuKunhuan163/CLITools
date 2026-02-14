@@ -80,6 +80,7 @@ class BaseGUIWindow:
         self.cancel_btn = None
         self.add_time_btn = None
         self.bottom_bar_frame = None
+        self.timer_frozen = False
         
         # Thread safety: queue for callbacks from background threads
         self.callback_queue = queue.Queue()
@@ -184,7 +185,8 @@ class BaseGUIWindow:
             except: pass
         
         if self.remaining_time > 0:
-            self.remaining_time -= 1
+            if not self.timer_frozen:
+                self.remaining_time -= 1
             if self.root:
                 self.root.after(1000, lambda: self.start_timer(status_label))
         else:

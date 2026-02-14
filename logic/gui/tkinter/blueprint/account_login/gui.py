@@ -95,6 +95,7 @@ class AccountLoginWindow(BaseGUIWindow):
 
     def set_loading(self, is_loading: bool):
         """Toggle loading state in UI."""
+        self.timer_frozen = is_loading
         if is_loading:
             if self.submit_btn:
                 self.submit_btn.config(state="disabled", text=self._("btn_logging_in", "Logging In ..."))
@@ -117,6 +118,8 @@ class AccountLoginWindow(BaseGUIWindow):
         state = "disabled" if locked else "normal"
         if self.account_entry: self.account_entry.config(state=state)
         if self.password_entry: self.password_entry.config(state=state)
+        if hasattr(self, 'pw_toggle_btn') and self.pw_toggle_btn:
+            self.pw_toggle_btn.config(state=state)
 
     def handle_verify_fail(self, error_msg: str):
         """Handle verification failure."""
@@ -169,11 +172,26 @@ class AccountLoginWindow(BaseGUIWindow):
             self.password_entry_focus = False
             self.account_entry.focus_set()
 
-        # Password input (masked)
+        # Password input (masked) with visibility toggle
         pw_lbl_text = self.password_label or self._("label_password", "Password:")
         tk.Label(main_frame, text=pw_lbl_text, font=get_label_style()).pack(anchor='w', pady=(0, 2))
-        self.password_entry = tk.Entry(main_frame, font=get_label_style(), show="*")
-        self.password_entry.pack(fill=tk.X, pady=(0, 10))
+        
+        pw_container = tk.Frame(main_frame)
+        pw_container.pack(fill=tk.X, pady=(0, 10))
+        
+        self.password_entry = tk.Entry(pw_container, font=get_label_style(), show="*")
+        self.password_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Visibility toggle button
+        self.pw_visible = False
+        def toggle_pw():
+            self.pw_visible = not self.pw_visible
+            self.password_entry.config(show="" if self.pw_visible else "*")
+            self.pw_toggle_btn.config(text="👁" if not self.pw_visible else "🙈")
+            
+        self.pw_toggle_btn = tk.Button(pw_container, text="👁", command=toggle_pw, 
+                                       font=("Arial", 12), width=3, relief="flat", borderwidth=0)
+        self.pw_toggle_btn.pack(side=tk.RIGHT, padx=(5, 0))
         
         # Error message display (below password)
         from logic.gui.tkinter.style import get_secondary_label_style
