@@ -28,9 +28,6 @@ class TwoFactorAuthWindow(BaseGUIWindow):
             self.code_vars[index].set(char)
             if index < self.n - 1:
                 self.entries[index + 1].focus_set()
-            else:
-                # Last digit entered, auto-submit or just stay
-                self.on_submit()
             return "break" # Prevent default behavior
         
         if event.keysym == "BackSpace":

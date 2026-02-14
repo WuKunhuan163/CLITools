@@ -416,13 +416,17 @@ def main():
                 subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True)
                 res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True, text=True)
                 if res.returncode != 0:
-                    if stage: stage.error_brief = f"Commit failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
+                    if stage: 
+                        stage.error_brief = f"Commit failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
+                        stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
                 return res.returncode == 0
                 
             def do_backup(stage=None):
                 res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True, text=True)
                 if res.returncode != 0:
-                    if stage: stage.error_brief = f"Push failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
+                    if stage: 
+                        stage.error_brief = f"Push failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
+                        stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
                 return res.returncode == 0
 
             pm = ProgressTuringMachine([

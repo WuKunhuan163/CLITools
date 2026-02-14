@@ -336,7 +336,7 @@ class ToolEngine:
             # Update status message for each package
             # "Installing pip dependency" is bold blue, package name is bold white
             prefix = self._("label_installing_pip_dependency", "Installing pip dependency")
-            msg = f"\r\033[K{self.BOLD}{self.BLUE}{prefix}{RESET}: {self.BOLD}{self.WHITE}{package}{RESET}..."
+            msg = f"\r\033[K{self.BOLD}{self.BLUE}{prefix}{self.RESET}: {self.BOLD}{self.WHITE}{package}{self.RESET}..."
             sys.stdout.write(truncate_to_width(msg, width))
             sys.stdout.flush()
             
