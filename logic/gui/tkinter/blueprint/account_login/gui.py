@@ -52,7 +52,7 @@ class AccountLoginWindow(BaseGUIWindow):
             
         # UI Feedback: Disable button and show logging in state
         if self.submit_btn:
-            self.submit_btn.config(state="disabled", text=self._("btn_logging_in", "Logging in..."))
+            self.submit_btn.config(state="disabled", text="···")
         
         # Give UI time to update before closing
         self.root.after(100, lambda: self.finalize("success", state))

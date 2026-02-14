@@ -1,0 +1,65 @@
+Stage: auth
+Timestamp: 20260214_213436
+--------------------
+TuringStage.report_error() got an unexpected keyword argument 'full_error'
+
+Traceback:
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 302, in _authenticate
+    self._authenticate_with_token()
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 404, in _authenticate_with_token
+    raise PyiCloudFailedLoginException("No session token available")
+pyicloud.exceptions.PyiCloudFailedLoginException: No session token available
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 386, in _srp_authentication
+    self.session.post(
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/requests/sessions.py", line 637, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 147, in request
+    return self._request(
+           ^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 201, in _request
+    return self._handle_request_error(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 244, in _handle_request_error
+    self._raise_error(response, status_code, response.reason)
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/session.py", line 298, in _raise_error
+    raise PyiCloudAPIResponseException(reason, code, response)
+pyicloud.exceptions.PyiCloudAPIResponseException:  (403): {
+  "serviceErrors" : [ {
+    "code" : "-20209",
+    "message" : "This Apple Account has been locked for security reasons. Visit iForgot to reset your account (https://iforgot.apple.com).",
+    "suppressDismissal" : false
+  } ]
+}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/iCloud/tool/iCloudPD/main.py", line 106, in auth_action
+    api = PyiCloudService(current_apple_id, password)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 207, in __init__
+    self.authenticate()
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 244, in authenticate
+    self._authenticate()
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 304, in _authenticate
+    self._srp_authentication()
+  File "/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/lib/python3.11/site-packages/pyicloud/base.py", line 399, in _srp_authentication
+    raise PyiCloudFailedLoginException(msg) from error
+pyicloud.exceptions.PyiCloudFailedLoginException: Invalid email/password combination.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/logic/turing/models/progress.py", line 59, in run
+    success = stage.action(stage)
+              ^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/tool/iCloud/tool/iCloudPD/main.py", line 146, in auth_action
+    if stage: stage.report_error("Auth Failed", last_error, full_error=history_str)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: TuringStage.report_error() got an unexpected keyword argument 'full_error'

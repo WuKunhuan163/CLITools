@@ -76,17 +76,25 @@ def main():
         
         current_apple_id = args.apple_id
         attempt = 0
+        max_attempts = 5
+        auth_history = []
         
-        while True:
+        while attempt < max_attempts:
             attempt += 1
             if attempt > 1:
-                if stage: stage.active_status = f"Retrying (Attempt {attempt})"
+                if stage: stage.active_status = f"Retrying ({attempt}/{max_attempts})"
             
             # Show login GUI
-            login_res = icloud["run_login_gui"](apple_id=current_apple_id, error_msg=last_error)
+            error_msg_with_count = None
+            if last_error:
+                error_msg_with_count = f"{last_error} ({attempt}/{max_attempts})"
+                
+            login_res = icloud["run_login_gui"](apple_id=current_apple_id, error_msg=error_msg_with_count)
             
             if login_res.get("status") != "success":
-                if stage: stage.report_error("Cancelled", "Login cancelled or timed out.")
+                history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in auth_history])
+                full_log = f"Login cancelled or timed out.\n\nHistory:\n{history_str}"
+                if stage: stage.report_error("Cancelled", full_log)
                 return False
                 
             creds = login_res["data"]
@@ -116,9 +124,11 @@ def main():
                         code = win.result["data"]
                         if not api.validate_2fa_code(code):
                             last_error = "Invalid 2FA code."
+                            auth_history.append({"idx": attempt, "error": last_error})
                             continue
                     else:
                         last_error = "2FA cancelled."
+                        auth_history.append({"idx": attempt, "error": last_error})
                         continue
                 
                 # Success!
@@ -130,9 +140,17 @@ def main():
                 last_error = str(e)
                 if "locked" in last_error.lower() or "-20209" in last_error:
                     last_error = "Account locked. Visit https://iforgot.apple.com to reset."
+                auth_history.append({"idx": attempt, "error": last_error})
+                if attempt == max_attempts:
+                    history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in auth_history])
+                    if stage: stage.report_error("Auth Failed", history_str)
                 continue
             except Exception as e:
                 last_error = f"Error: {str(e)}"
+                auth_history.append({"idx": attempt, "error": last_error})
+                if attempt == max_attempts:
+                    history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in auth_history])
+                    if stage: stage.report_error("Error", history_str)
                 continue
                 
         return False
