@@ -228,10 +228,22 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     # Filter stderr
     filtered_stderr = ""
     if stderr:
-        noise_patterns = ["IMKClient subclass", "IMKInputSession subclass", "chose IMKClient_Legacy", "chose IMKInputSession_Legacy"]
+        noise_patterns = [
+            "IMKClient subclass", 
+            "IMKInputSession subclass", 
+            "chose IMKClient_Legacy", 
+            "chose IMKInputSession_Legacy",
+            "invalid command name",
+            "check_signals",
+            "after script",
+            "TK_SILENCE_DEPRECATION",
+            "<lambda>",
+            "destroying",
+            "main_frame"
+        ]
         lines = stderr.splitlines()
         filtered_lines = [l for l in lines if not any(p in l for p in noise_patterns)]
-        filtered_stderr = "\n".join(filtered_lines)
+        filtered_stderr = "\n".join(filtered_lines).strip()
 
     # Hide debug prints unless specifically enabled
     from logic.config import get_setting

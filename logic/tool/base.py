@@ -17,19 +17,25 @@ class ToolBase:
         caller_frame = inspect.stack()[1]
         caller_file = Path(caller_frame.filename).resolve()
         
-        # If the caller is main.py, tool_dir is its parent
-        if caller_file.name == "main.py":
-            self.tool_dir = caller_file.parent
-        else:
-            # Fallback to module-based detection
-            self.tool_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
+        # Robust detection: find the nearest directory containing tool.json 
+        # starting from the caller's directory and going upwards.
+        curr = caller_file.parent
+        self.tool_dir = curr # Default fallback
         
+        # But we stop if we hit project root to avoid jumping to the wrong tool
+        # Wait, we need project root first for the limit.
+        from logic.utils import find_project_root, get_tool_module_path
+        self.project_root = find_project_root(curr)
+        
+        while curr != curr.parent and curr != self.project_root.parent:
+            if (curr / "tool.json").exists():
+                self.tool_dir = curr
+                break
+            curr = curr.parent
+            
         # Keep script_dir as an alias for backward compatibility
         self.script_dir = self.tool_dir
         
-        # Use robust project root detection from utils
-        from logic.utils import find_project_root, get_tool_module_path
-        self.project_root = find_project_root(self.tool_dir)
         self.tool_module_path = get_tool_module_path(self.tool_dir, self.project_root)
         
         # Ensure project root is in path for imports and it's at the FRONT

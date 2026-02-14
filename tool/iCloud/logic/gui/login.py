@@ -62,5 +62,11 @@ if __name__ == "__main__":
 
     setup_gui_environment()
 
-    win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir)
+    # Read from environment variables if set (managed mode)
+    apple_id = os.environ.get("GDS_LOGIN_APPLE_ID")
+    error_msg = os.environ.get("GDS_LOGIN_ERROR")
+
+    win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir, error_msg=error_msg)
+    if apple_id:
+        win.account_initial = apple_id
     win.run(win.setup_ui)

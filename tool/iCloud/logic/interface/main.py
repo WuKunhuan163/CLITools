@@ -16,26 +16,23 @@ def get_icloud_interface():
         project_root = None
 
     def run_login_gui(timeout=300, apple_id=None, error_msg=None):
-        from tool.iCloud.logic.gui.login import ICloudLoginWindow
-        from logic.gui.engine import setup_gui_environment
+        from logic.gui.manager import run_gui_subprocess
+        from logic.tool.base import ToolBase
+        import os
         
-        setup_gui_environment()
+        # We need a tool instance for the manager
+        tool = ToolBase("iCloud")
         
-        internal_dir = str(script_path.parent.parent)
-        win = ICloudLoginWindow(
-            title="iCloud Login",
-            timeout=timeout,
-            internal_dir=internal_dir,
-            error_msg=error_msg
-        )
+        # Path to the login GUI script
+        gui_script = str(script_path.parent.parent / "gui" / "login.py")
         
-        # Pre-fill Apple ID if provided
-        if apple_id:
-            win.account_initial = apple_id
-            
-        # Setup UI and run
-        win.run(win.setup_ui)
-        return win.result
+        # Build arguments for the script if it were run via CLI
+        os.environ["GDS_LOGIN_APPLE_ID"] = apple_id or ""
+        os.environ["GDS_LOGIN_ERROR"] = error_msg or ""
+        
+        # Using sys.executable to ensure same environment
+        res = run_gui_subprocess(tool, sys.executable, gui_script, timeout)
+        return res
 
     return {
         "run_login_gui": run_login_gui

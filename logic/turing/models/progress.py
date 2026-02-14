@@ -4,12 +4,14 @@ from logic.turing.logic import TuringStage
 
 class ProgressTuringMachine:
     """Executes a sequence of TuringStages with erasable progress display."""
-    def __init__(self, stages: List[TuringStage] = None, project_root: Optional[str] = None, tool_name: Optional[str] = None):
+    def __init__(self, stages: List[TuringStage] = None, project_root: Optional[str] = None, 
+                 tool_name: Optional[str] = None, log_dir: Optional[str] = None):
         self.stages = stages or []
         # Support for error logging
         from pathlib import Path
         self.project_root = Path(project_root) if project_root else None
         self.tool_name = tool_name
+        self.log_dir = Path(log_dir) if log_dir else None
 
     def add_stage(self, stage: TuringStage):
         self.stages.append(stage)
@@ -17,7 +19,7 @@ class ProgressTuringMachine:
     def _log_error(self, stage: TuringStage, exception: Optional[Exception] = None):
         """Saves full error information to a log file."""
         from logic.turing.utils import log_turing_error
-        return log_turing_error(stage, self.project_root, self.tool_name, exception)
+        return log_turing_error(stage, self.project_root, self.tool_name, exception, log_dir=self.log_dir)
 
     def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
         from logic.config import get_color

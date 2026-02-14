@@ -331,6 +331,8 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
                             add_time_increment: int = 60) -> Any:
     """
     Creates a standardized bottom bar with status, countdown, and buttons.
+    Returns the status label (for legacy compatibility) but also allows 
+    accessing buttons via window_instance if needed.
     """
     import tkinter as tk
     window_instance.add_time_increment = add_time_increment
@@ -343,8 +345,12 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
     status_label.pack(side=tk.LEFT)
     
     # Primary Button (right)
-    tk.Button(bottom_frame, text=submit_text, command=submit_cmd, 
-              font=get_button_style(primary=True)).pack(side=tk.RIGHT)
+    # Store it in window_instance if it has the attribute
+    submit_btn = tk.Button(bottom_frame, text=submit_text, command=submit_cmd, 
+                           font=get_button_style(primary=True))
+    submit_btn.pack(side=tk.RIGHT)
+    if hasattr(window_instance, "submit_btn"):
+        window_instance.submit_btn = submit_btn
     
     # Add Time Button (right)
     if add_time_increment > 0:

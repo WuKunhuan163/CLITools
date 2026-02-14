@@ -26,6 +26,7 @@ class AccountLoginWindow(BaseGUIWindow):
         self.password_label = password_label
         self.account_entry = None
         self.password_entry = None
+        self.submit_btn = None
         self.account_initial = ""
         self.error_msg_initial = error_msg
         self.error_label = None
@@ -48,7 +49,13 @@ class AccountLoginWindow(BaseGUIWindow):
             else:
                 self.status_label.config(text=error_msg, fg=get_gui_colors()["red"])
             return
-        self.finalize("success", state)
+            
+        # UI Feedback: Disable button and show logging in state
+        if self.submit_btn:
+            self.submit_btn.config(state="disabled", text=self._("btn_logging_in", "Logging in..."))
+        
+        # Give UI time to update before closing
+        self.root.after(100, lambda: self.finalize("success", state))
 
     def setup_ui(self):
         """Builds the Account/Password login interface."""

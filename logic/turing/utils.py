@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
+import sys
 import time
 import traceback
 from typing import Optional
 from pathlib import Path
 from logic.turing.logic import TuringStage
 
-def log_turing_error(stage: TuringStage, project_root: Optional[Path], tool_name: Optional[str], exception: Optional[Exception] = None):
+def log_turing_error(stage: TuringStage, project_root: Optional[Path], 
+                     tool_name: Optional[str], exception: Optional[Exception] = None,
+                     log_dir: Optional[Path] = None):
     """Saves full error information to a log file."""
-    if not project_root or not tool_name: return None
-    
-    # User requested to save log inside the tool's data/log directory
-    if tool_name != "TOOL":
-        log_dir = project_root / "tool" / tool_name / "data" / "log"
-    else:
-        log_dir = project_root / "data" / "log"
+    if not log_dir:
+        if not project_root or not tool_name: return None
+        
+        # Fallback to legacy flat structure if log_dir not provided
+        if tool_name != "TOOL":
+            log_dir = project_root / "tool" / tool_name / "data" / "log"
+        else:
+            log_dir = project_root / "data" / "log"
     
     log_dir.mkdir(parents=True, exist_ok=True)
     

@@ -74,12 +74,13 @@ def main():
         from pyicloud import PyiCloudService
         from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
         
-        attempts = 3
         current_apple_id = args.apple_id
+        attempt = 0
         
-        for i in range(attempts):
-            if i > 0:
-                if stage: stage.active_status = f"Retrying ({i}/{attempts})"
+        while True:
+            attempt += 1
+            if attempt > 1:
+                if stage: stage.active_status = f"Retrying (Attempt {attempt})"
             
             # Show login GUI
             login_res = icloud["run_login_gui"](apple_id=current_apple_id, error_msg=last_error)
@@ -129,18 +130,18 @@ def main():
                 last_error = str(e)
                 if "locked" in last_error.lower() or "-20209" in last_error:
                     last_error = "Account locked. Visit https://iforgot.apple.com to reset."
-                if i == attempts - 1:
-                    if stage: stage.report_error("Auth Failed", last_error)
                 continue
             except Exception as e:
                 last_error = f"Error: {str(e)}"
-                if i == attempts - 1:
-                    if stage: stage.report_error("Error", last_error)
                 continue
                 
         return False
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD")
+    pm = ProgressTuringMachine(
+        project_root=tool.project_root, 
+        tool_name="iCloudPD",
+        log_dir=tool.get_log_dir()
+    )
     pm.add_stage(TuringStage(
         "auth", auth_action,
         active_status="Authenticating", active_name="iCloud",
@@ -186,7 +187,11 @@ def main():
             json.dump(all_photos_meta, f, indent=2)
         return True
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD")
+    pm = ProgressTuringMachine(
+        project_root=tool.project_root, 
+        tool_name="iCloudPD",
+        log_dir=tool.get_log_dir()
+    )
     pm.add_stage(TuringStage(
         "scan", scan_action, 
         active_status="Scanning", active_name="iCloud photos",
