@@ -118,6 +118,8 @@ def main():
     ))
     
     if tm.run(ephemeral=True):
+        from logic.utils import print_success_status
+        print_success_status(f"setup USERINPUT tool")
         return 0
     return 1
 

@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-import os
-import shutil
+import sys
 from pathlib import Path
 
-def main():
-    script_dir = Path(__file__).resolve().parent
-    install_dir = script_dir / "proj" / "install"
-    
-    if install_dir.exists():
-        print(f"Cleaning up Python installations in {install_dir}...")
-        shutil.rmtree(install_dir)
-        print("Installations cleared.")
-    
-    # Ensure the directory exists but is empty
-    install_dir.mkdir(parents=True, exist_ok=True)
+# Add project root to sys.path
+def find_project_root():
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / "tool.json").exists() and (curr / "bin").exists():
+            return curr
+        curr = curr.parent
+    return None
+
+project_root = find_project_root()
+if project_root:
+    sys.path.insert(0, str(project_root))
+
+from logic.tool.setup.engine import ToolEngine
+
+def setup():
+    tool_name = "PYTHON"
+    engine = ToolEngine(tool_name, project_root)
+    return engine.install()
 
 if __name__ == "__main__":
-    main()
-
-
-
-
-
+    setup()

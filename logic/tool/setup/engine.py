@@ -167,13 +167,16 @@ class ToolEngine:
         ))
 
         # Start TM
+        from logic.utils import print_success_status
         success_label = self._("label_successfully_installed", "Successfully installed")
-        final_msg = f"\r\033[K{self.BOLD}{self.GREEN}{success_label}{self.RESET} {self.tool_name}"
         
         # Use ephemeral=True to erase progress lines
-        # Top-level tool prints final_msg and a newline
+        # Top-level tool prints success status via interface
         # Dependencies just return success/failure
-        if tm.run(ephemeral=True, final_msg=final_msg if not is_dependency else "", final_newline=not is_dependency):
+        if tm.run(ephemeral=True, final_msg="", final_newline=False):
+            if not is_dependency:
+                from logic.utils import print_success_status
+                print_success_status(f"setup {self.tool_name} tool")
             return True
         return False
 

@@ -2,13 +2,25 @@
 import sys
 from pathlib import Path
 
-script_dir = Path(__file__).resolve().parent
-project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
+# Add project root to sys.path
+def find_project_root():
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / "tool.json").exists() and (curr / "bin").exists():
+            return curr
+        curr = curr.parent
+    return None
 
-def main():
-    print("--- Running setup for FONT ---")
-    print("Setup complete.")
+project_root = find_project_root()
+if project_root:
+    sys.path.insert(0, str(project_root))
+
+from logic.tool.setup.engine import ToolEngine
+
+def setup():
+    tool_name = "FONT"
+    engine = ToolEngine(tool_name, project_root)
+    return engine.install()
 
 if __name__ == "__main__":
-    main()
+    setup()

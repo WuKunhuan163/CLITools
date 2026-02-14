@@ -11,7 +11,18 @@ class ToolBase:
     
     def __init__(self, tool_name):
         self.tool_name = tool_name
-        self.script_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
+        
+        # Determine script_dir based on caller if used as a wrapper, or module if inherited
+        import inspect
+        caller_frame = inspect.stack()[1]
+        caller_file = Path(caller_frame.filename).resolve()
+        
+        if self.__class__ == ToolBase:
+            # Used as a wrapper: tool = ToolBase("name")
+            self.script_dir = caller_file.parent
+        else:
+            # Used as a base class: class MyTool(ToolBase)
+            self.script_dir = Path(sys.modules[self.__module__].__file__).resolve().parent
         
         # Robust project root detection: find the directory containing 'bin/TOOL' or 'tool.json' (root)
         def find_root(start_path):

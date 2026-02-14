@@ -237,7 +237,15 @@ class UserInputWindow(BaseGUIWindow):
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         scrollbar = tk.Scrollbar(text_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.text_widget = tk.Text(text_frame, wrap=tk.WORD, height=7, font=get_label_style(), bg="#f8f9fa", yscrollcommand=scrollbar.set)
+        from logic.gui.tkinter.widget.text import UndoableText
+        self.text_widget = UndoableText.create(
+            text_frame, 
+            wrap=tk.WORD, 
+            height=7, 
+            font=get_label_style(), 
+            bg="#f8f9fa", 
+            yscrollcommand=scrollbar.set
+        )
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Only bind to Key (press), not KeyRelease, to avoid double trigger

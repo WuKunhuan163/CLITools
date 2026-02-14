@@ -18,7 +18,7 @@ if project_root:
 from logic.tool.setup.engine import ToolEngine
 
 def setup():
-    tool_name = "FITZ"
+    tool_name = "DRAW"
     engine = ToolEngine(tool_name, project_root)
     return engine.install()
 
