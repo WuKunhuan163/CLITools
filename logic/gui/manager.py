@@ -85,9 +85,10 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
     
     # 1. Start subprocess in new session to decouple from parent's process group
-    # Add environment variables to suppress some noise
+    # Add environment variables to suppress some noise and indicate managed mode
     env = os.environ.copy()
     env["TK_SILENCE_DEPRECATION"] = "1"
+    env["GDS_GUI_MANAGED"] = "1"
     
     proc = subprocess.Popen([python_exe, script_path], 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, 

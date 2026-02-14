@@ -300,14 +300,14 @@ class BaseGUIWindow:
                 except: pass
                 
             # Print final result for parent process to capture (Interface I)
-            # Only print if stdout is NOT a TTY (i.e., it's being captured by a manager)
-            # to avoid leaking sensitive data like passwords to the terminal.
+            # Only print if managed by the ecosystem (GDS_GUI_MANAGED env var)
+            # to avoid leaking sensitive data like passwords to the terminal when run directly.
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
-            if not sys.stdout.isatty():
+            if os.environ.get("GDS_GUI_MANAGED") == "1":
                 print("\n" + result_line, flush=True)
             else:
-                # If in a TTY, we might still want to log it to a secure location 
-                # but NOT print it to screen.
+                # When run directly (not managed), we don't print the JSON to terminal.
+                # Demo scripts can still access self.result after win.run() returns.
                 pass
         except Exception as e:
             if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists():
@@ -317,7 +317,7 @@ class BaseGUIWindow:
             traceback.print_exc()
             self.result = {"status": "error", "message": str(e)}
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
-            if not sys.stdout.isatty():
+            if os.environ.get("GDS_GUI_MANAGED") == "1":
                 print("\n" + result_line, flush=True)
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 
