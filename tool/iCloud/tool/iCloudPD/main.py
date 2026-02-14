@@ -343,8 +343,8 @@ def main():
             if stage: stage.active_name = f"Preparing library: {lib_name}"
             
             album = lib.all
-            # DESCENDING for newest-to-oldest scanning
-            album._direction = DirectionEnum.DESCENDING
+            # Note: In this pyicloud version, ASCENDING returns newest photos first
+            album._direction = DirectionEnum.ASCENDING
             offset = 0
             page_size = 100
             
@@ -542,8 +542,8 @@ def main():
             if not hasattr(lib, "all"): continue
                 
             album = lib.all
-            # Use DESCENDING to find recent photos quickly
-            album._direction = DirectionEnum.DESCENDING
+            # Use ASCENDING to find recent photos quickly (newest first in pyicloud)
+            album._direction = DirectionEnum.ASCENDING
             
             # Use iterator for more robust fetching
             for photo in album:
