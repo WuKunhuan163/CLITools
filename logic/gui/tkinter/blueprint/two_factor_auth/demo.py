@@ -30,9 +30,6 @@ if __name__ == "__main__":
 
             def demo_action(stage=None):
                 nonlocal final_res
-                # Set environment to indicate managed mode for the child
-                env = os.environ.copy()
-                env["GDS_GUI_MANAGED"] = "1"
                 # Re-run this same script as a managed subprocess
                 final_res = tool.run_gui(py_exe, __file__, timeout=60)
                 return final_res.get("status") == "success"
@@ -46,9 +43,10 @@ if __name__ == "__main__":
                 success_name="demo feedback"
             ))
             
-            # Use ephemeral=True and an empty final_msg to completely erase the stage line
-            if pm.run(ephemeral=True, final_msg=""):
-                print(f"{BOLD}{GREEN}Successfully received{RESET}: {final_res.get('data')}")
+            # Use ephemeral=True and final_newline=False to completely erase without blank line
+            if pm.run(ephemeral=True, final_msg="", final_newline=False):
+                sys.stdout.write(f"\r\033[K{BOLD}{GREEN}Successfully received{RESET}: {final_res.get('data')}\n")
+                sys.stdout.flush()
         
         run_parent()
         sys.exit(0)
@@ -71,9 +69,9 @@ if __name__ == "__main__":
     def demo_verify_handler(code):
         import time
         time.sleep(1) # Simulate network delay
-        if code == "122222":
-            return {"status": "error", "message": "Invalid 2FA code (Simulated error for 122222)."}
-        return {"status": "success", "data": code}
+        if code == "123456":
+            return {"status": "success", "data": code}
+        return {"status": "error", "message": "Verification failed. Only 123456 is accepted."}
 
     # Showcase 6-digit 2FA
     win = TwoFactorAuthWindow(
@@ -81,7 +79,7 @@ if __name__ == "__main__":
         timeout=120,
         internal_dir=str(project_root / "logic" / "gui"),
         n=6,
-        prompt_msg="Hint: Please enter 123456 to simulate verification. 122222 will fail.",
+        prompt_msg="Hint: Please enter 123456 to simulate verification. Others will fail.",
         verify_handler=demo_verify_handler
     )
     

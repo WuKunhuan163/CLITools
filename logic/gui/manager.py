@@ -118,6 +118,15 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     stdout_content = []
     def read_stdout():
         for line in iter(proc.stdout.readline, ''): 
+            # Real-time status relay from child to terminal
+            if line.startswith("GDS_GUI_LOG:"):
+                log_msg = line[len("GDS_GUI_LOG:"):].strip()
+                # Erase current progress line, print log, and restore progress line
+                sys.stdout.write(f"\r\033[K{log_msg}\n")
+                sys.stdout.write(display_msg)
+                sys.stdout.flush()
+                continue
+                
             stdout_content.append(line)
             if debug_on:
                 sys.stderr.write(f"[GUI STDOUT] {line}")

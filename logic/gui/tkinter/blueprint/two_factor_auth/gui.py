@@ -90,6 +90,8 @@ class TwoFactorAuthWindow(BaseGUIWindow):
             # Execute verification handler in a separate thread to keep UI responsive
             def do_verify():
                 self.attempt_count += 1
+                # Log attempt to terminal via manager relay (Interface I behavior)
+                print(f"GDS_GUI_LOG:Attempt {self.attempt_count}/{self.max_attempts}: User has provided 2FA code {code}.", flush=True)
                 try:
                     res = self.verify_handler(code)
                     if res.get("status") == "success":
