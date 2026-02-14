@@ -19,7 +19,8 @@ def setup():
     print(f"Setting up {tool_name}...")
     if engine.handle_pip_deps():
         if engine.create_shortcut():
-            print(f"Successfully set up {tool_name}")
+            from logic.utils import print_success_status
+            print_success_status(f"set up {tool_name}")
             return True
     return False
 

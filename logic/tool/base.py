@@ -425,3 +425,8 @@ class ToolBase:
             # If successful, sub-tool is now in tool/PARENT/tool/SUBTOOL
             return True
         return False
+
+    def raise_success_status(self, action_msg):
+        """Unified success status reporting for tools."""
+        from logic.utils import print_success_status
+        print_success_status(action_msg)

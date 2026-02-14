@@ -669,3 +669,16 @@ def register_path(bin_dir):
 
     if str(bin_dir) not in os.environ.get("PATH", ""):
         os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
+
+def print_success_status(action_msg):
+    """
+    Unified success status reporting.
+    Prints green bold 'Successfully' followed by action message.
+    """
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RESET = get_color("RESET", "\033[0m")
+    
+    # "Successfully" is the standard prefix
+    print(f"\r\033[K{BOLD}{GREEN}Successfully{RESET} {action_msg}", flush=True)

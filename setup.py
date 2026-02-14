@@ -206,8 +206,10 @@ def setup():
         success_color="BOLD"
     ))
 
-    final_msg = f"\r\033[K{BOLD}{GREEN}Successfully setup{RESET} AITerminalTools"
-    pm.run(ephemeral=True, final_msg=final_msg)
+    final_msg = f"setup AITerminalTools"
+    if pm.run(ephemeral=True, final_msg=""):
+        from logic.utils import print_success_status
+        print_success_status(final_msg)
 
 if __name__ == "__main__":
     setup()
