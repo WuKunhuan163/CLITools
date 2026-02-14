@@ -126,7 +126,8 @@ def main():
                     final_apple_id = apple_id
                     if stage: 
                         # UI Request: Reused session bold, default color
-                        stage.success_status = f"{BOLD}Reused session{RESET}"
+                        stage.success_status = "Reused session"
+                        stage.success_color = "BOLD"
                         stage.success_name = f"for {final_apple_id}"
                     return True
                 except:
@@ -169,7 +170,8 @@ def main():
                 
                 if stage: 
                     # UI Request: iCloud green bold
-                    stage.success_status = f"{BOLD}{GREEN}iCloud{RESET}"
+                    stage.success_status = "iCloud"
+                    stage.success_color = "GREEN"
                     stage.success_name = f"authenticated as {final_apple_id}"
                 return True
             except Exception as e:
@@ -208,7 +210,8 @@ def main():
                 final_apple_id = apple_id
                 if stage: 
                     # UI Request: Reused session bold
-                    stage.success_status = f"{BOLD}Reused session{RESET}"
+                    stage.success_status = "Reused session"
+                    stage.success_color = "BOLD"
                     stage.success_name = f"for {final_apple_id}"
                 return True
             except Exception as e:
@@ -251,7 +254,8 @@ def main():
             final_apple_id = apple_id
             if stage: 
                 # UI Request: iCloud green bold
-                stage.success_status = f"{BOLD}{GREEN}iCloud{RESET}"
+                stage.success_status = "iCloud"
+                stage.success_color = "GREEN"
                 stage.success_name = f"authenticated as {final_apple_id}"
             return True
             
@@ -302,7 +306,8 @@ def main():
                                 for d in m.values():
                                     total += len(d)
                     # UI Request: Found bold only (default color)
-                    stage.success_status = f"{BOLD}Found{RESET}"
+                    stage.success_status = "Found"
+                    stage.success_color = "BOLD"
                     stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
                 return True
             except Exception:
@@ -437,7 +442,8 @@ def main():
                         for d in m.values():
                             total += len(d)
             # UI Request: Found bold only
-            stage.success_status = f"{BOLD}Found{RESET}"
+            stage.success_status = "Found"
+            stage.success_color = "BOLD"
             stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
         return True
 
