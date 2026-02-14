@@ -176,7 +176,6 @@ class BaseGUIWindow:
                         self.root.lift()
                         self.root.attributes("-topmost", True)
                         self.play_bell()
-                        self.root.after(1000, lambda: self.root.attributes("-topmost", False))
                     except: pass
                 self.root.after(self.focus_interval * 1000, refocus)
         
@@ -271,7 +270,6 @@ class BaseGUIWindow:
             # Bring to front (Interface I behavior)
             self.root.lift()
             self.root.attributes("-topmost", True)
-            self.root.after(1000, lambda: self.root.attributes("-topmost", False))
 
             self.root.mainloop()
             

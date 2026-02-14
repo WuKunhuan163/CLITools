@@ -81,5 +81,4 @@ class AccountLoginWindow(BaseGUIWindow):
         self.start_timer(self.status_label)
         self.root.lift()
         self.root.attributes("-topmost", True)
-        self.root.after(1000, lambda: self.root.attributes("-topmost", False))
 

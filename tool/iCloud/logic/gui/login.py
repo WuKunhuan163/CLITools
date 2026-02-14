@@ -4,8 +4,8 @@ import argparse
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()
-# tool/iCloud/logic/gui/login.py -> 4 levels up to project root
-project_root = script_path.parent.parent.parent.parent
+# tool/iCloud/logic/gui/login.py -> 5 levels up to project root
+project_root = script_path.parent.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
@@ -43,7 +43,22 @@ if __name__ == "__main__":
     parser.add_argument("--internal-dir")
     args = parser.parse_args()
 
-    from logic.gui.engine import setup_gui_environment
+    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
+    import subprocess
+    import os
+
+    # Auto-reexecute with safe python if current one lacks tkinter
+    try:
+        import _tkinter
+    except ImportError:
+        py_exe = get_safe_python_for_gui()
+        if py_exe and py_exe != sys.executable:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(project_root)
+            sys.exit(subprocess.call([py_exe, __file__] + sys.argv[1:], env=env))
+        else:
+            sys.exit("Error: Tkinter not found and no safe Python alternative discovered.")
+
     setup_gui_environment()
 
     win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir)
