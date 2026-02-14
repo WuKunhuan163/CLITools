@@ -75,5 +75,10 @@ As an AI agent, you MUST follow these operational rules:
 - `logic.audit`: General-purpose audit logging and caching.
 - `logic.utils`: Shared terminal utilities, path resolvers, and RTL support.
 
+## 9. Testing Conventions
+- **Unit Tests**: Place unit tests in the root `test/` directory.
+- **Naming**: Follow the `test_xx_name.py` pattern, where `xx` is a two-digit ID (starting from `00`).
+- **Temporary Scripts**: Use the root `tmp/` directory for one-off verification scripts or temporary test files.
+
 By following this architecture, you ensure that the project remains robust, maintainable, and "agent-friendly." Good luck!
 
