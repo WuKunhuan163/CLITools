@@ -126,7 +126,8 @@ class BaseGUIWindow:
                     else:
                         # Fallback if no specific callback
                         self.remaining_time += self.add_time_increment
-                        print(f"GDS_GUI_TIME_ADDED:{self.add_time_increment}", flush=True)
+                        if not sys.stdout.isatty():
+                            print(f"GDS_GUI_TIME_ADDED:{self.add_time_increment}", flush=True)
             except Exception:
                 pass
 
