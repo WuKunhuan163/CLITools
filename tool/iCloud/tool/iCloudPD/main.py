@@ -114,7 +114,9 @@ def main():
             
             # Success!
             final_apple_id = apple_id
-            if stage: stage.success_name = f"Authenticated as {final_apple_id}"
+            if stage: 
+                stage.success_status = "Successfully"
+                stage.success_name = f"authenticated as {final_apple_id}"
             return True
             
         except Exception as e:
@@ -178,6 +180,10 @@ def main():
         from pyicloud.services.photos import DirectionEnum
         
         for lib_name, lib in libs.items():
+            # Skip shared streams for now as they use a different structure (no .all)
+            if not hasattr(lib, "all"):
+                continue
+                
             if stage: stage.active_name = f"Preparing library: {lib_name}"
             
             album = lib.all
@@ -281,6 +287,9 @@ def main():
         
     from pyicloud.services.photos import DirectionEnum
     for lib_name, lib in libs.items():
+        if not hasattr(lib, "all"):
+            continue
+            
         album = lib.all
         album._direction = DirectionEnum.ASCENDING
         offset = 0
