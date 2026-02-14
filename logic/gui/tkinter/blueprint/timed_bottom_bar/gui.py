@@ -240,8 +240,6 @@ class BaseGUIWindow:
     def run(self, setup_func: Callable, on_show: Optional[Callable] = None, custom_id: Optional[str] = None):
         """Main execution flow."""
         import tkinter as tk
-        import os
-        import sys
         
         try:
             if platform.system() == "Darwin":
@@ -300,15 +298,13 @@ class BaseGUIWindow:
                 except: pass
                 
             # Print final result for parent process to capture (Interface I)
-            # Only print if managed by the ecosystem (GDS_GUI_MANAGED env var)
-            # to avoid leaking sensitive data like passwords to the terminal when run directly.
+            # We print only if stdout is not a terminal (i.e. it is a pipe/redirect)
+            # OR if we are explicitly in managed mode.
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
-            if os.environ.get("GDS_GUI_MANAGED") == "1":
-                print("\n" + result_line, flush=True)
-            else:
-                # When run directly (not managed), we don't print the JSON to terminal.
-                # Demo scripts can still access self.result after win.run() returns.
-                pass
+            if not sys.stdout.isatty() or os.environ.get("GDS_GUI_MANAGED") == "1":
+                # Ensure it's on its own line and flushed
+                sys.stdout.write("\n" + result_line + "\n")
+                sys.stdout.flush()
         except Exception as e:
             if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists():
                 try: self.instance_file.unlink()
@@ -317,8 +313,9 @@ class BaseGUIWindow:
             traceback.print_exc()
             self.result = {"status": "error", "message": str(e)}
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
-            if os.environ.get("GDS_GUI_MANAGED") == "1":
-                print("\n" + result_line, flush=True)
+            if not sys.stdout.isatty() or os.environ.get("GDS_GUI_MANAGED") == "1":
+                sys.stdout.write("\n" + result_line + "\n")
+                sys.stdout.flush()
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 
                             submit_text: str, submit_cmd: Callable,
