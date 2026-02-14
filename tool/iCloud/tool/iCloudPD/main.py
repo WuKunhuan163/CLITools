@@ -62,98 +62,63 @@ def main():
     # 1. Login and Authentication Flow
     from tool.iCloud.logic.interface.main import get_icloud_interface
     from pyicloud import PyiCloudService
-    from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
     
     icloud = get_icloud_interface()
     api = None
-    last_error = None
     final_apple_id = None
     
     def auth_action(stage=None):
-        nonlocal api, last_error, final_apple_id
-        from pyicloud import PyiCloudService
-        from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
+        nonlocal api, final_apple_id
         
-        current_apple_id = args.apple_id
-        attempt = 0
-        max_attempts = 5
-        auth_history = []
+        # The login GUI now handles retries and validation internally
+        login_res = icloud["run_login_gui"](apple_id=args.apple_id)
         
-        while attempt < max_attempts:
-            attempt += 1
-            if attempt > 1:
-                if stage: stage.active_status = f"Retrying ({attempt}/{max_attempts})"
+        if login_res.get("status") != "success":
+            # If status is 'error', 'data' contains the full history log
+            error_detail = login_res.get("data") or login_res.get("message") or "Login cancelled."
+            if stage: stage.report_error("Failed", error_detail)
+            return False
             
-            # Show login GUI
-            error_msg_with_count = None
-            if last_error:
-                error_msg_with_count = f"{last_error} ({attempt}/{max_attempts})"
-                
-            login_res = icloud["run_login_gui"](apple_id=current_apple_id, error_msg=error_msg_with_count)
+        creds = login_res["data"]
+        apple_id = creds["apple_id"]
+        password = creds["password"]
+        
+        try:
+            if stage: stage.active_name = f"Finalizing session for {apple_id}"
+            api = PyiCloudService(apple_id, password)
             
-            if login_res.get("status") != "success":
-                history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in auth_history])
-                full_log = f"Login cancelled or timed out.\n\nHistory:\n{history_str}"
-                if stage: stage.report_error("Cancelled", full_log)
-                return False
+            # Handle 2FA if needed (2FA is still handled by parent, but we could refactor later)
+            if api.requires_2fa:
+                if stage: stage.active_status = "2FA Required"
+                from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
+                from logic.gui.engine import setup_gui_environment
+                setup_gui_environment()
                 
-            creds = login_res["data"]
-            current_apple_id = creds["apple_id"]
-            password = creds["password"]
+                win = TwoFactorAuthWindow(
+                    title="iCloud 2FA",
+                    timeout=300,
+                    internal_dir=str(tool.tool_dir / "logic"),
+                    n=6
+                )
+                win.run(win.setup_ui)
+                
+                if win.result.get("status") == "success":
+                    code = win.result["data"]
+                    if not api.validate_2fa_code(code):
+                        if stage: stage.report_error("2FA Failed", "Invalid 2FA code.")
+                        return False
+                else:
+                    if stage: stage.report_error("2FA Cancelled", "Verification interrupted.")
+                    return False
             
-            try:
-                if stage: stage.active_name = f"Authenticating {current_apple_id}"
-                api = PyiCloudService(current_apple_id, password)
-                
-                # Handle 2FA if needed
-                if api.requires_2fa:
-                    if stage: stage.active_status = "2FA Required"
-                    from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
-                    from logic.gui.engine import setup_gui_environment
-                    setup_gui_environment()
-                    
-                    win = TwoFactorAuthWindow(
-                        title="iCloud 2FA",
-                        timeout=300,
-                        internal_dir=str(tool.tool_dir / "logic"),
-                        n=6
-                    )
-                    win.run(win.setup_ui)
-                    
-                    if win.result.get("status") == "success":
-                        code = win.result["data"]
-                        if not api.validate_2fa_code(code):
-                            last_error = "Invalid 2FA code."
-                            auth_history.append({"idx": attempt, "error": last_error})
-                            continue
-                    else:
-                        last_error = "2FA cancelled."
-                        auth_history.append({"idx": attempt, "error": last_error})
-                        continue
-                
-                # Success!
-                final_apple_id = current_apple_id
-                if stage: stage.success_name = f"Authenticated as {final_apple_id}"
-                return True
-                
-            except (PyiCloudFailedLoginException, PyiCloudAPIResponseException) as e:
-                last_error = str(e)
-                if "locked" in last_error.lower() or "-20209" in last_error:
-                    last_error = "Account locked. Visit https://iforgot.apple.com to reset."
-                auth_history.append({"idx": attempt, "error": last_error})
-                if attempt == max_attempts:
-                    history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in auth_history])
-                    if stage: stage.report_error("Auth Failed", history_str)
-                continue
-            except Exception as e:
-                last_error = f"Error: {str(e)}"
-                auth_history.append({"idx": attempt, "error": last_error})
-                if attempt == max_attempts:
-                    history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in auth_history])
-                    if stage: stage.report_error("Error", history_str)
-                continue
-                
-        return False
+            # Success!
+            final_apple_id = apple_id
+            if stage: stage.success_name = f"Authenticated as {final_apple_id}"
+            return True
+            
+        except Exception as e:
+            if stage: stage.report_error("Session Error", str(e))
+            return False
 
     pm = ProgressTuringMachine(
         project_root=tool.project_root, 

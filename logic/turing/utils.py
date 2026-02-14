@@ -26,6 +26,7 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
     task_suffix = f"_{stage.name.replace(' ', '_')}" if stage.name else ""
     log_file = log_dir / f"fail_{ts}{task_suffix}.log"
     
+    # Prioritize error_full as it may contain the verification history
     full_info = stage.error_full or (str(exception) if exception else "No detailed error message provided.")
     if exception:
         full_info += "\n\nTraceback:\n" + "".join(traceback.format_exception(type(exception), exception, exception.__traceback__))
@@ -39,6 +40,8 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
             f.write(f"Timestamp: {ts}\n")
             f.write("-" * 20 + "\n")
             f.write(full_info)
+            f.flush()
+            os.fsync(f.fileno())
         
         # Basic cleanup (limit 100 logs)
         from logic.utils import cleanup_old_files

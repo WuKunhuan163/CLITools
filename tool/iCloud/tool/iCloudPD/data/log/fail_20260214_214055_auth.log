@@ -1,0 +1,12 @@
+Stage: auth
+Timestamp: 20260214_214055
+--------------------
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/tool/iCloud/logic/gui/login.py", line 12, in <module>
+    from logic.gui.tkinter.blueprint.account_login.gui import AccountLoginWindow
+  File "/Applications/AITerminalTools/logic/gui/tkinter/blueprint/account_login/gui.py", line 15, in <module>
+    class AccountLoginWindow(BaseGUIWindow):
+  File "/Applications/AITerminalTools/logic/gui/tkinter/blueprint/account_login/gui.py", line 22, in AccountLoginWindow
+    error_msg=None, verify_handler: Optional[Callable[[Dict[str, str]], Dict[str, Any]]] = None):
+                                    ^^^^^^^^
+NameError: name 'Optional' is not defined

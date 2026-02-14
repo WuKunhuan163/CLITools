@@ -111,16 +111,28 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     sys.stdout.write(f"\r\033[K{display_msg}")
     sys.stdout.flush()
 
+    # Hide debug prints unless specifically enabled
+    from logic.config import get_setting
+    debug_on = os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", False)
+
     stdout_content = []
     def read_stdout():
-        for line in iter(proc.stdout.readline, ''): stdout_content.append(line)
+        for line in iter(proc.stdout.readline, ''): 
+            stdout_content.append(line)
+            if debug_on:
+                sys.stderr.write(f"[GUI STDOUT] {line}")
+                sys.stderr.flush()
         proc.stdout.close()
     t_stdout = threading.Thread(target=read_stdout, daemon=True)
     t_stdout.start()
 
     stderr_content = []
     def read_stderr():
-        for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
+        for line in iter(proc.stderr.readline, ''): 
+            stderr_content.append(line)
+            if debug_on:
+                sys.stderr.write(f"[GUI STDERR] {line}")
+                sys.stderr.flush()
         proc.stderr.close()
     t_stderr = threading.Thread(target=read_stderr, daemon=True)
     t_stderr.start()
@@ -233,9 +245,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
 
     # Hide debug prints unless specifically enabled
     from logic.config import get_setting
-    if get_setting("gui_manager_debug", False):
+    # Use environment variable or setting, default to False but allow override
+    if os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", True):
         sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
         if filtered_stderr: sys.stderr.write(f"DEBUG: GUI stderr: {filtered_stderr}\n")
+        if stdout: sys.stderr.write(f"DEBUG: GUI stdout: {stdout}\n")
     
     # Error fallback for crashes
     if proc.returncode != 0:

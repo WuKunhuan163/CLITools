@@ -93,6 +93,10 @@ class ProgressTuringMachine:
                             fail_name = stage.fail_name or stage.name
                             brief_reason = stage.error_brief or "Action returned False"
                             
+                            # If we have a full error log, prioritize it for the brief if it's a string
+                            if stage.error_full and isinstance(stage.error_full, str) and not stage.error_brief:
+                                brief_reason = stage.error_full
+                            
                             fail_color_code = get_color(stage.fail_color, "\033[31m")
                             
                             if stage.bold_part and fail_name.startswith(stage.bold_part):

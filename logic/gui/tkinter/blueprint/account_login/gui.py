@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
-from typing import Any
+import threading
+from typing import Any, Optional, Callable, Dict
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()
@@ -19,7 +20,7 @@ class AccountLoginWindow(BaseGUIWindow):
     """
     def __init__(self, title, timeout, internal_dir, tool_name=None, 
                  instruction_text=None, account_label=None, password_label=None,
-                 error_msg=None):
+                 error_msg=None, verify_handler: Optional[Callable[[Dict[str, str]], Dict[str, Any]]] = None):
         super().__init__(title, timeout, internal_dir, tool_name=tool_name or "LOGIN")
         self.instruction_text = instruction_text
         self.account_label = account_label
@@ -30,6 +31,10 @@ class AccountLoginWindow(BaseGUIWindow):
         self.account_initial = ""
         self.error_msg_initial = error_msg
         self.error_label = None
+        self.verify_handler = verify_handler
+        self.attempt_count = 0
+        self.max_attempts = 5
+        self.verify_history = []
 
     def get_current_state(self):
         """Returns the current input state (account and password)."""
@@ -38,29 +43,103 @@ class AccountLoginWindow(BaseGUIWindow):
             "password": self.password_entry.get() if self.password_entry else ""
         }
 
+    def finalize(self, status: str, data: Any, reason: Optional[str] = None):
+        """Unified closure point (Interface I) with history logging."""
+        if not self.window_closed:
+            # If we have a verification history and this is an error/cancel, include it
+            if self.verify_history and status in ["error", "cancelled"]:
+                history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in self.verify_history])
+                if isinstance(data, str) and data:
+                    data = f"{data}\n\nHistory:\n{history_str}"
+                elif data is None or not data:
+                    data = f"History:\n{history_str}"
+                # If data is a dict (like credentials), we don't want to overwrite it with history string 
+                # unless we add a specific field.
+                elif isinstance(data, dict):
+                    data["history"] = history_str
+            
+            super().finalize(status, data, reason=reason)
+
     def on_submit(self):
-        """Validates input and finalizes the window state."""
+        """Validates input and processes the login."""
         state = self.get_current_state()
-        # Use values for validation to support subclasses with different keys
         if not all(state.values()):
             error_msg = self._("login_error_empty", "Please enter both credentials.")
-            if self.error_label:
-                self.error_label.config(text=error_msg)
-            else:
-                self.status_label.config(text=error_msg, fg=get_gui_colors()["red"])
+            self.show_error(error_msg)
             return
             
         # UI Feedback: Disable button and show logging in state
-        if self.submit_btn:
-            self.submit_btn.config(state="disabled", text="···")
+        self.set_loading(True)
         
-        # Give UI time to update before closing
-        self.root.after(100, lambda: self.finalize("success", state))
+        if self.verify_handler:
+            # Execute verification handler in a separate thread to keep UI responsive
+            def do_verify():
+                self.attempt_count += 1
+                try:
+                    res = self.verify_handler(state)
+                    if res.get("status") == "success":
+                        self.callback_queue.put(lambda: self.finalize("success", res.get("data", state)))
+                    else:
+                        err = res.get("message", "Unknown error")
+                        self.verify_history.append({"idx": self.attempt_count, "error": err})
+                        self.callback_queue.put(lambda: self.handle_verify_fail(err))
+                except Exception as e:
+                    err = str(e)
+                    self.verify_history.append({"idx": self.attempt_count, "error": err})
+                    self.callback_queue.put(lambda: self.handle_verify_fail(err))
+
+            threading.Thread(target=do_verify, daemon=True).start()
+        else:
+            # Legacy mode: close and return to parent for verification
+            self.root.after(100, lambda: self.finalize("success", state))
+
+    def set_loading(self, is_loading: bool):
+        """Toggle loading state in UI."""
+        if is_loading:
+            if self.submit_btn:
+                self.submit_btn.config(state="disabled", text=self._("btn_logging_in", "Logging In ..."))
+            if self.cancel_btn: self.cancel_btn.pack_forget()
+            if self.add_time_btn: self.add_time_btn.pack_forget()
+            self.set_inputs_locked(True)
+        else:
+            if self.submit_btn:
+                self.submit_btn.config(state="normal", text=self._("btn_login", "Login"))
+            # Restore buttons
+            if self.cancel_btn: 
+                self.cancel_btn.pack(side="right", padx=(0, 10))
+            if self.add_time_btn:
+                self.add_time_btn.pack(side="right", padx=(0, 10))
+            self.set_inputs_locked(False)
+
+    def set_inputs_locked(self, locked: bool):
+        """Lock/Unlock input fields."""
+        state = "disabled" if locked else "normal"
+        if self.account_entry: self.account_entry.config(state=state)
+        if self.password_entry: self.password_entry.config(state=state)
+
+    def handle_verify_fail(self, error_msg: str):
+        """Handle verification failure."""
+        self.set_loading(False)
+        full_error = f"Attempt {self.attempt_count}/{self.max_attempts}: {error_msg}"
+        self.show_error(full_error)
+        
+        if self.attempt_count >= self.max_attempts:
+            # Record history and exit
+            history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in self.verify_history])
+            # Ensure final result is set before closing
+            self.finalize("error", history_str, reason="max_attempts_exceeded")
+
+    def show_error(self, message: str):
+        """Display error message in the UI."""
+        if self.error_label:
+            self.error_label.config(text=message)
+        else:
+            self.status_label.config(text=message, fg=get_gui_colors()["red"])
 
     def setup_ui(self):
         """Builds the Account/Password login interface."""
         import tkinter as tk
-        self.root.geometry("400x300")
+        self.root.geometry("700x400")
         
         # Initialize bottom bar from timed_bottom_bar
         self.status_label = setup_common_bottom_bar(
@@ -113,4 +192,3 @@ class AccountLoginWindow(BaseGUIWindow):
         self.start_timer(self.status_label)
         self.root.lift()
         self.root.attributes("-topmost", True)
-

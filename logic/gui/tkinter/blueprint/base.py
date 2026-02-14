@@ -6,6 +6,7 @@ import threading
 import platform
 import subprocess
 import os
+import queue
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable, List
 
@@ -76,6 +77,12 @@ class BaseGUIWindow:
         self.is_triggering_subtool = False
         self.add_time_increment = 60 # Default
         self.submit_btn = None # To be linked in setup_common_bottom_bar
+        self.cancel_btn = None
+        self.add_time_btn = None
+        self.bottom_bar_frame = None
+        
+        # Thread safety: queue for callbacks from background threads
+        self.callback_queue = queue.Queue()
 
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)
@@ -263,10 +270,26 @@ class BaseGUIWindow:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
 
+    def process_callbacks(self):
+        """Process callbacks from other threads (thread-safe UI updates)."""
+        if self.window_closed or not self.root:
+            return
+            
+        try:
+            while True:
+                callback = self.callback_queue.get_nowait()
+                callback()
+        except queue.Empty:
+            pass
+        except Exception:
+            pass
+            
+        if not self.window_closed and self.root:
+            self.root.after(100, self.process_callbacks)
+
     def run(self, setup_func: Callable, on_show: Optional[Callable] = None, custom_id: Optional[str] = None):
         """Main execution flow."""
         import tkinter as tk
-        
         try:
             if platform.system() == "Darwin":
                 # Suppress IMKClient noise by redirecting stderr temporarily at FD level
@@ -284,6 +307,10 @@ class BaseGUIWindow:
             
             self.root.title(self.title)
             setup_func()
+            
+            # Start background pollers
+            self.check_signals()
+            self.process_callbacks()
             
             # 1. Register instance for registry-based stop
             try:
@@ -304,7 +331,6 @@ class BaseGUIWindow:
             except:
                 self.instance_file = None
 
-            self.check_signals()
             self.root.protocol("WM_DELETE_WINDOW", lambda: self.finalize("cancelled", self.get_current_state()))
             
             if on_show is not None:
@@ -357,12 +383,13 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
                             add_time_increment: int = 60) -> Any:
     """
     Creates a standardized bottom bar with status, countdown, and buttons.
-    Returns the status label (for legacy compatibility) but also allows 
-    accessing buttons via window_instance if needed.
+    Returns: status_label
     """
     import tkinter as tk
     window_instance.add_time_increment = add_time_increment
     bottom_frame = tk.Frame(parent)
+    window_instance.bottom_bar_frame = bottom_frame # Store for hiding
+    
     # Standard padding matching USERINPUT style
     bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=15, pady=(5, 15))
     
@@ -387,12 +414,16 @@ def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow,
         # Register for remote trigger
         window_instance.on_remote_add_time = on_add_time
             
-        tk.Button(bottom_frame, text=add_msg, command=on_add_time, 
-                  font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
+        add_btn = tk.Button(bottom_frame, text=add_msg, command=on_add_time, 
+                            font=get_button_style())
+        add_btn.pack(side=tk.RIGHT, padx=(0, 10))
+        window_instance.add_time_btn = add_btn # Store for hiding
     
     # Cancel Button (right)
-    tk.Button(bottom_frame, text=window_instance._("btn_cancel", "Cancel"), 
-              command=lambda: window_instance.finalize("cancelled", window_instance.get_current_state()), 
-              font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
+    cancel_btn = tk.Button(bottom_frame, text=window_instance._("btn_cancel", "Cancel"), 
+                           command=lambda: window_instance.finalize("cancelled", window_instance.get_current_state()), 
+                           font=get_button_style())
+    cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
+    window_instance.cancel_btn = cancel_btn # Store for hiding
     
     return status_label

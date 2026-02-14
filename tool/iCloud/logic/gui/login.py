@@ -15,11 +15,12 @@ class ICloudLoginWindow(AccountLoginWindow):
     """
     Customized login window for iCloud using the account_login blueprint.
     """
-    def __init__(self, title, timeout, internal_dir, error_msg=None):
+    def __init__(self, title, timeout, internal_dir, error_msg=None, verify_handler=None):
         super().__init__(
             title, timeout, internal_dir, 
             tool_name="iCloud",
-            error_msg=error_msg
+            error_msg=error_msg,
+            verify_handler=verify_handler
         )
 
     def get_current_state(self):
@@ -66,7 +67,24 @@ if __name__ == "__main__":
     apple_id = os.environ.get("GDS_LOGIN_APPLE_ID")
     error_msg = os.environ.get("GDS_LOGIN_ERROR")
 
-    win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir, error_msg=error_msg)
+    def icloud_verify_handler(creds):
+        from pyicloud import PyiCloudService
+        from pyicloud.exceptions import PyiCloudFailedLoginException, PyiCloudAPIResponseException
+        try:
+            api = PyiCloudService(creds["apple_id"], creds["password"])
+            # If we reach here, either logged in or 2FA needed
+            # We return success and the credentials so the parent can proceed
+            return {"status": "success", "data": creds}
+        except (PyiCloudFailedLoginException, PyiCloudAPIResponseException) as e:
+            msg = str(e)
+            if "locked" in msg.lower() or "-20209" in msg:
+                msg = "Account locked. Visit https://iforgot.apple.com to reset."
+            return {"status": "error", "message": msg}
+        except Exception as e:
+            return {"status": "error", "message": f"System error: {str(e)}"}
+
+    win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir, 
+                            error_msg=error_msg, verify_handler=icloud_verify_handler)
     if apple_id:
         win.account_initial = apple_id
     win.run(win.setup_ui)
