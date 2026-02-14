@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import sys
 import time
+import os
+import json
 import traceback
 from typing import Optional
 from pathlib import Path
@@ -19,6 +21,7 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
         else:
             log_dir = project_root / "data" / "log"
     
+    # print(f"DEBUG: log_turing_error log_dir={log_dir}", file=sys.stderr)
     log_dir.mkdir(parents=True, exist_ok=True)
     
     ts = time.strftime("%Y%m%d_%H%M%S")
@@ -28,6 +31,11 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
     
     # Prioritize error_full as it may contain the verification history
     full_info = stage.error_full or (str(exception) if exception else "No detailed error message provided.")
+    if isinstance(full_info, dict):
+        full_info = json.dumps(full_info, indent=2)
+    elif not isinstance(full_info, str):
+        full_info = str(full_info)
+        
     if exception:
         full_info += "\n\nTraceback:\n" + "".join(traceback.format_exception(type(exception), exception, exception.__traceback__))
         
@@ -35,17 +43,30 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
         full_info += "\n\nCaptured Command Output:\n" + "=" * 20 + "\n" + stage.captured_output + "\n" + "=" * 20
         
     try:
+        # Check if log_dir exists or can be created
+        if not log_dir.exists():
+            log_dir.mkdir(parents=True, exist_ok=True)
+            
         with open(log_file, 'w', encoding='utf-8') as f:
             f.write(f"Stage: {stage.name}\n")
             f.write(f"Timestamp: {ts}\n")
             f.write("-" * 20 + "\n")
             f.write(full_info)
             f.flush()
-            os.fsync(f.fileno())
+            # Some environments might not support fsync on all FDs
+            try:
+                os.fsync(f.fileno())
+            except:
+                pass
         
         # Basic cleanup (limit 100 logs)
         from logic.utils import cleanup_old_files
-        cleanup_old_files(log_dir, "fail_*.log", limit=100)
+        try:
+            cleanup_old_files(log_dir, "fail_*.log", limit=100)
+        except:
+            pass
+            
         return str(log_file)
-    except: return None
+    except Exception:
+        return None
 

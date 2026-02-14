@@ -104,11 +104,12 @@ class AccountLoginWindow(BaseGUIWindow):
         else:
             if self.submit_btn:
                 self.submit_btn.config(state="normal", text=self._("btn_login", "Login"))
-            # Restore buttons
-            if self.cancel_btn: 
-                self.cancel_btn.pack(side="right", padx=(0, 10))
+            # Restore buttons in original order (packing right-to-left)
+            # Submit is already there. Next should be Add Time, then Cancel.
             if self.add_time_btn:
                 self.add_time_btn.pack(side="right", padx=(0, 10))
+            if self.cancel_btn: 
+                self.cancel_btn.pack(side="right", padx=(0, 10))
             self.set_inputs_locked(False)
 
     def set_inputs_locked(self, locked: bool):

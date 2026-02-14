@@ -76,7 +76,8 @@ def main():
         if login_res.get("status") != "success":
             # If status is 'error', 'data' contains the full history log
             error_detail = login_res.get("data") or login_res.get("message") or "Login cancelled."
-            if stage: stage.report_error("Failed", error_detail)
+            reason = "Maximum attempts (5) exceeded" if login_res.get("reason") == "max_attempts_exceeded" else "Login cancelled"
+            if stage: stage.report_error(reason, error_detail)
             return False
             
         creds = login_res["data"]

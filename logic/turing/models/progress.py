@@ -109,10 +109,10 @@ class ProgressTuringMachine:
                             # Ensure we don't have double periods
                             brief_reason = brief_reason.rstrip(".")
                             full_msg_fail += f". Reason: {brief_reason}."
+                            
                             sys.stdout.write(f"\r\033[K{full_msg_fail}\n")
                             if log_path:
-                                log_msg = f"{BOLD}Traceback saved to:{RESET} {log_path}"
-                                sys.stdout.write(f"{log_msg}\n")
+                                print(f"{BOLD}Traceback saved to:{RESET} {log_path}", flush=True)
                                 
                             sys.stdout.flush()
                             return False
@@ -139,10 +139,9 @@ class ProgressTuringMachine:
                             fail_msg = f"{BOLD}{fail_color_code}{bold_text}{RESET} {rest_text}. Reason: {brief_reason}."
                         else:
                             fail_msg = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}."
-                        sys.stdout.write(f"{fail_msg}\n")
+                        sys.stdout.write(f"\r\033[K{fail_msg}\n")
                         if log_path:
-                            log_msg = f"{BOLD}Traceback saved to:{RESET} {log_path}"
-                            sys.stdout.write(f"{log_msg}\n")
+                            print(f"{BOLD}Traceback saved to:{RESET} {log_path}", flush=True)
                             
                         sys.stdout.flush()
                         return False
