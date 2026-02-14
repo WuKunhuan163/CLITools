@@ -292,6 +292,7 @@ def main():
 
         count = 0
         start_time = time.time()
+        from logic.utils import calculate_eta
         
         # Iterate through each library
         from pyicloud.services.photos import DirectionEnum
@@ -335,28 +336,24 @@ def main():
                     })
                     count += 1
                     num_results += 1
-                    
-                    # Update progress every 10 items
-                    if count % 10 == 0 or (total_count > 0 and count == total_count):
-                        now = time.time()
-                        elapsed = now - start_time
-                        elapsed_str = time.strftime("%M:%S", time.gmtime(elapsed))
-                        
-                        if total_count > 0:
-                            rate = count / elapsed if elapsed > 0 else 0
-                            remaining = (total_count - count) / rate if rate > 0 else 0
-                            remaining_str = time.strftime("%M:%S", time.gmtime(remaining))
-                            status = f"iCloud photos/videos ({count}/{total_count}) [{elapsed_str}>{remaining_str}]"
-                        else:
-                            status = f"iCloud photos/videos ({count}/???) [{elapsed_str}>??:??]"
-                        
-                        if stage: stage.active_name = status
+                
+                # Update progress and save incrementally after each batch
+                elapsed = time.time() - start_time
+                elapsed_str, remaining_str = calculate_eta(count, total_count, elapsed)
+                
+                if total_count > 0:
+                    status = f"iCloud photos/videos ({count}/{total_count}) [{elapsed_str}>{remaining_str}]"
+                else:
+                    status = f"iCloud photos/videos ({count}/???) [{elapsed_str}>??:??]"
+                
+                if stage: stage.active_name = status
+                
+                # Incremental save
+                with open(cache_file, 'w') as f:
+                    json.dump(all_photos_meta, f, indent=2)
                 
                 offset += num_results
                 # Do NOT break if num_results < page_size; only break if batch is empty.
-            
-        with open(cache_file, 'w') as f:
-            json.dump(all_photos_meta, f, indent=2)
             
         if stage:
             stage.success_name = f"{len(all_photos_meta)} photos/videos in {apple_id}'s iCloud Photos"

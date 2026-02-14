@@ -9,6 +9,39 @@ import builtins
 import platform
 from pathlib import Path
 
+def calculate_eta(current, total, elapsed_time):
+    """
+    Calculate estimated remaining time.
+    :param current: Current progress (count)
+    :param total: Total expected (count)
+    :param elapsed_time: Seconds elapsed so far
+    :return: Tuple of (elapsed_str, remaining_str) formatted as MM:SS or HH:MM:SS
+    """
+    import time
+    
+    def format_duration(seconds):
+        if seconds < 0: return "??:??"
+        if seconds >= 3600:
+            return time.strftime("%H:%M:%S", time.gmtime(seconds))
+        return time.strftime("%M:%S", time.gmtime(seconds))
+
+    elapsed_str = format_duration(elapsed_time)
+    
+    if current <= 0 or total <= 0:
+        return elapsed_str, "??:??"
+    
+    if current >= total:
+        return elapsed_str, "00:00"
+        
+    rate = current / elapsed_time if elapsed_time > 0 else 0
+    if rate <= 0:
+        return elapsed_str, "??:??"
+        
+    remaining_seconds = (total - current) / rate
+    remaining_str = format_duration(remaining_seconds)
+    
+    return elapsed_str, remaining_str
+
 def get_system_tag():
     """Detect current system tag for Python downloads."""
     system = sys.platform
