@@ -85,9 +85,14 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
     
     # 1. Start subprocess in new session to decouple from parent's process group
+    # Add environment variables to suppress some noise
+    env = os.environ.copy()
+    env["TK_SILENCE_DEPRECATION"] = "1"
+    
     proc = subprocess.Popen([python_exe, script_path], 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                            text=True, encoding='utf-8', start_new_session=True)
+                            text=True, encoding='utf-8', start_new_session=True,
+                            env=env)
     
     # Display PID for precise termination if needed
     tool_name = tool_instance.tool_name
@@ -216,11 +221,19 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 res["reason"] = "stop" # Default for termination via flag
         return res
     
+    # Filter stderr
+    filtered_stderr = ""
+    if stderr:
+        noise_patterns = ["IMKClient subclass", "IMKInputSession subclass", "chose IMKClient_Legacy", "chose IMKInputSession_Legacy"]
+        lines = stderr.splitlines()
+        filtered_lines = [l for l in lines if not any(p in l for p in noise_patterns)]
+        filtered_stderr = "\n".join(filtered_lines)
+
     # Hide debug prints unless specifically enabled
     from logic.config import get_setting
     if get_setting("gui_manager_debug", False):
         sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
-        if stderr: sys.stderr.write(f"DEBUG: GUI stderr: {stderr}\n")
+        if filtered_stderr: sys.stderr.write(f"DEBUG: GUI stderr: {filtered_stderr}\n")
     
     # Error fallback for crashes
     if proc.returncode != 0:
@@ -228,7 +241,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         if proc.returncode in sig_codes:
             return {"status": "terminated", "data": None, "reason": "signal"}
             
-    return {"status": "error", "message": stderr or "No valid response from GUI"}
+    return {"status": "error", "message": filtered_stderr or stderr or "No valid response from GUI"}
 
 def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Optional[str]:
     """

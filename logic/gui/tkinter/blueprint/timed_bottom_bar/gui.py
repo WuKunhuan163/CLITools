@@ -242,37 +242,12 @@ class BaseGUIWindow:
         import os
         import sys
         
-        # 0. Suppress system/tkinter noise (like IMKClient messages on macOS)
-        # We redirect file descriptor 2 (stderr) temporarily during initialization
-        # to effectively silence native macOS noise.
-        fd_stderr = sys.stderr.fileno()
-        def _redirect_stderr(to):
-            sys.stderr.flush()
-            os.dup2(to.fileno(), fd_stderr)
-
-        original_stderr_fd = os.dup(fd_stderr)
-        t_null = open(os.devnull, 'w')
-        
-        if platform.system() == "Darwin":
-            try:
-                _redirect_stderr(t_null)
-            except: pass
-
         try:
             if platform.system() == "Darwin":
                 self.root = tk.Tk(className=self.__class__.__name__)
             else:
                 self.root = tk.Tk()
             
-            # Restore stderr after Tk initialization
-            if platform.system() == "Darwin":
-                try:
-                    sys.stderr.flush()
-                    os.dup2(original_stderr_fd, fd_stderr)
-                    os.close(original_stderr_fd)
-                    t_null.close()
-                except: pass
-
             self.root.title(self.title)
             setup_func()
             
@@ -334,14 +309,6 @@ class BaseGUIWindow:
                 # but NOT print it to screen.
                 pass
         except Exception as e:
-            # Restore stderr if it was still redirected
-            try:
-                sys.stderr.flush()
-                os.dup2(original_stderr_fd, fd_stderr)
-                os.close(original_stderr_fd)
-                t_null.close()
-            except: pass
-                
             if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists():
                 try: self.instance_file.unlink()
                 except: pass

@@ -146,7 +146,24 @@ def get_cursor_session_title(custom_id=None):
 
 def parse_gui_error(error_output):
     if not error_output: return "Unknown error (empty output)"
-    if "Connection invalid" in error_output or "hiservices-xpcservice" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
+    
+    # Filter out common macOS/Tkinter system noise
+    noise_patterns = [
+        "IMKClient subclass",
+        "IMKInputSession subclass",
+        "chose IMKClient_Legacy",
+        "chose IMKInputSession_Legacy",
+        "NSInternalInconsistencyException",
+        "hiservices-xpcservice"
+    ]
+    
+    lines = error_output.splitlines()
+    filtered_lines = [l for l in lines if not any(p in l for p in noise_patterns)]
+    
+    if not filtered_lines:
+        return "GUI process exited without a specific error message (system noise filtered)."
+
+    if "Connection invalid" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
     if "NSInternalInconsistencyException" in error_output or "aString != nil" in error_output: return get_msg("err_sandbox", "Likely due to sandbox restrictions.")
     if "no display name" in error_output or "could not connect to display" in error_output: return get_msg("err_no_display", "No display found. Cannot start GUI.")
     
@@ -155,7 +172,7 @@ def parse_gui_error(error_output):
         if platform.system() == "Darwin": return get_msg("err_sandbox", "GUI initialization failed. Likely due to sandbox restrictions.")
         return get_msg("err_sandbox_generic", "Sandbox detected: GUI restricted.")
         
-    return "\n".join(error_output.splitlines()[:5])
+    return "\n".join(filtered_lines[:5])
 
 def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=None):
     tool = UserInputTool()
