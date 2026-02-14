@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Callable, Dict
 from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
 from logic.gui.tkinter.style import get_label_style, get_gui_colors
 
@@ -10,7 +10,7 @@ class TwoFactorAuthWindow(BaseGUIWindow):
     Displays N separate boxes for a code.
     """
     def __init__(self, title, timeout, internal_dir, n=6, allowed_chars="0123456789", tool_name=None, 
-                 prompt_msg=None):
+                 prompt_msg=None, verify_handler: Optional[Callable[[str], Dict[str, Any]]] = None):
         super().__init__(title, timeout, internal_dir, tool_name=tool_name or "2FA")
         self.n = n
         self.allowed_chars = allowed_chars
@@ -18,6 +18,10 @@ class TwoFactorAuthWindow(BaseGUIWindow):
         self.code_vars: List[Any] = []
         self.prompt_msg_initial = prompt_msg
         self.error_label = None
+        self.verify_handler = verify_handler
+        self.attempt_count = 0
+        self.max_attempts = 5
+        self.verify_history = []
 
     def get_current_state(self):
         """Returns the current entered code."""
@@ -58,6 +62,21 @@ class TwoFactorAuthWindow(BaseGUIWindow):
             
         return "break" # Block all other keys
 
+    def finalize(self, status: str, data: Any, reason: Optional[str] = None):
+        """Unified closure point (Interface I) with history logging."""
+        if not self.window_closed:
+            # If we have a verification history and this is an error/cancel, include it
+            if self.verify_history and status in ["error", "cancelled"]:
+                history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in self.verify_history])
+                if isinstance(data, str) and data:
+                    data = f"{data}\n\nHistory:\n{history_str}"
+                elif data is None or not data:
+                    data = f"History:\n{history_str}"
+                elif isinstance(data, dict):
+                    data["history"] = history_str
+            
+            super().finalize(status, data, reason=reason)
+
     def on_submit(self):
         code = self.get_current_state()
         if len(code) < self.n:
@@ -66,8 +85,41 @@ class TwoFactorAuthWindow(BaseGUIWindow):
             return
             
         self.set_loading(True)
-        # Give UI time to update
-        self.root.after(100, lambda: self.finalize("success", code))
+        
+        if self.verify_handler:
+            # Execute verification handler in a separate thread to keep UI responsive
+            def do_verify():
+                self.attempt_count += 1
+                try:
+                    res = self.verify_handler(code)
+                    if res.get("status") == "success":
+                        self.callback_queue.put(lambda: self.finalize("success", res.get("data", code)))
+                    else:
+                        err = res.get("message", "Unknown error")
+                        self.verify_history.append({"idx": self.attempt_count, "error": err})
+                        self.callback_queue.put(lambda: self.handle_verify_fail(err))
+                except Exception as e:
+                    err = str(e)
+                    self.verify_history.append({"idx": self.attempt_count, "error": err})
+                    self.callback_queue.put(lambda: self.handle_verify_fail(err))
+
+            import threading
+            threading.Thread(target=do_verify, daemon=True).start()
+        else:
+            # Give UI time to update
+            self.root.after(100, lambda: self.finalize("success", code))
+
+    def handle_verify_fail(self, error_msg: str):
+        """Handle verification failure."""
+        self.set_loading(False)
+        full_error = f"Attempt {self.attempt_count}/{self.max_attempts}: {error_msg}"
+        self.show_error(full_error)
+        
+        if self.attempt_count >= self.max_attempts:
+            # Record history and exit
+            history_str = "\n".join([f"Attempt {h['idx']}: {h['error']}" for h in self.verify_history])
+            # Ensure final result is set before closing
+            self.finalize("error", history_str, reason="max_attempts_exceeded")
 
     def set_loading(self, is_loading: bool):
         """Toggle loading state in UI."""

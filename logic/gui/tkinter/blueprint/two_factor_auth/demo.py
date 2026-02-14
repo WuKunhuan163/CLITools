@@ -46,7 +46,8 @@ if __name__ == "__main__":
                 success_name="demo feedback"
             ))
             
-            if pm.run():
+            # Use ephemeral=True and an empty final_msg to completely erase the stage line
+            if pm.run(ephemeral=True, final_msg=""):
                 print(f"{BOLD}{GREEN}Successfully received{RESET}: {final_res.get('data')}")
         
         run_parent()
@@ -67,14 +68,21 @@ if __name__ == "__main__":
 
     setup_gui_environment()
     
+    def demo_verify_handler(code):
+        import time
+        time.sleep(1) # Simulate network delay
+        if code == "122222":
+            return {"status": "error", "message": "Invalid 2FA code (Simulated error for 122222)."}
+        return {"status": "success", "data": code}
+
     # Showcase 6-digit 2FA
     win = TwoFactorAuthWindow(
         title="2FA Verification Demo",
         timeout=120,
         internal_dir=str(project_root / "logic" / "gui"),
         n=6,
-        prompt_msg="Hint: Please enter 123456 to simulate verification."
+        prompt_msg="Hint: Please enter 123456 to simulate verification. 122222 will fail.",
+        verify_handler=demo_verify_handler
     )
     
     win.run(win.setup_ui)
-

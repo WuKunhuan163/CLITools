@@ -46,7 +46,8 @@ if __name__ == "__main__":
                 success_name="demo feedback"
             ))
             
-            if pm.run():
+            # Use ephemeral=True and an empty final_msg to completely erase the stage line
+            if pm.run(ephemeral=True, final_msg=""):
                 print(f"{BOLD}{GREEN}Successfully received{RESET}: {final_res.get('data')}")
         
         run_parent()
