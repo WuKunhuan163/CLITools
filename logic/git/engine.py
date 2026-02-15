@@ -93,7 +93,7 @@ def auto_push_if_needed(remote="origin", branch=None, interval=3, cwd=None):
             pass
     return False
 
-def push_with_progress(remote="origin", branch=None, cwd=None):
+def push_with_progress(remote="origin", branch=None, cwd=None, silent_success=False):
     """Pushes to remote with blue erasable status and bold results."""
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
@@ -115,19 +115,28 @@ def push_with_progress(remote="origin", branch=None, cwd=None):
     sys.stdout.write("\r\033[K")
     sys.stdout.flush()
     
-    # Use localized labels if available (fallback to project root logic)
-    project_root = Path(__file__).resolve().parent.parent
-    sys.path.append(str(project_root))
-    from logic.lang.utils import get_translation
-    from logic.utils import get_logic_dir
-    _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
-
     if result and result.returncode == 0:
-        success_label = _("label_success", "Successfully")
-        pushed_msg = _("pushed_to", "pushed to {remote}/{branch}", remote=remote, branch=branch)
-        print(f"{BOLD}{GREEN}{success_label}{RESET} {pushed_msg}")
+        if not silent_success:
+            # Use localized labels if available
+            project_root = Path(__file__).resolve().parent.parent
+            sys.path.append(str(project_root))
+            from logic.lang.utils import get_translation
+            from logic.utils import get_logic_dir
+            _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
+            
+            success_label = _("label_success", "Successfully")
+            pushed_msg = _("pushed_to", "pushed to {remote}/{branch}", remote=remote, branch=branch)
+            # Default style bold for Successfully as requested
+            print(f"{BOLD}{success_label}{RESET} {pushed_msg}")
         return True
     else:
+        # Error reporting remains the same
+        project_root = Path(__file__).resolve().parent.parent
+        sys.path.append(str(project_root))
+        from logic.lang.utils import get_translation
+        from logic.utils import get_logic_dir
+        _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
+        
         err = result.stderr.strip() if result and result.stderr else "Unknown error"
         error_label = _("label_error", "Error")
         failed_msg = _("failed_to_push", "failed to push to {remote}/{branch}: {error}", remote=remote, branch=branch, error=err)

@@ -1,0 +1,36 @@
+import unittest
+import subprocess
+import sys
+import re
+from pathlib import Path
+
+class TestPythonVersion(unittest.TestCase):
+    def setUp(self):
+        self.project_root = Path(__file__).resolve().parent.parent.parent.parent
+        self.python_bin = self.project_root / "bin" / "PYTHON"
+
+    def test_python_list(self):
+        """Verify PYTHON --py-list returns supported versions."""
+        res = subprocess.run([str(self.python_bin), "--py-list"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("Supported versions", res.stdout)
+        
+    def test_python_exec_identity(self):
+        """Verify PYTHON proxy uses the correct version."""
+        # Get expected version from tool.json or env
+        expected_version = "3.11.14"
+        
+        # Run proxy command
+        res = subprocess.run([str(self.python_bin), "--version"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn(expected_version, res.stdout)
+
+    def test_python_path_injection(self):
+        """Verify project root is in sys.path when running via PYTHON proxy."""
+        res = subprocess.run([str(self.python_bin), "-c", "import sys; print(sys.path)"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn(str(self.project_root), res.stdout)
+
+if __name__ == "__main__":
+    unittest.main()
+
