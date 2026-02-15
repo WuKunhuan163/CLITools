@@ -25,6 +25,7 @@
 **/resource/
 !/resource/
 !/resource/tool/PYTHON/
+!/resource/tool/PYTHON/**/data/
 !/resource/tool/GDS/
 !/resource/tool/GOOGLE.GCS/
 
