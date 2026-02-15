@@ -86,15 +86,24 @@ class ProgressTuringMachine:
                             success = stage.action()
                             
                         if success:
-                            # ... (success logic) ...
-                            success_name = stage.success_name or stage.name
+                            # Use success_name if provided, else use name. 
+                            # If success_name is explicitly "", use empty string.
+                            if stage.success_name is not None:
+                                success_name = stage.success_name
+                            else:
+                                success_name = stage.name
+                                
                             color_code = get_color(stage.success_color, "\033[32m")
-                            if stage.bold_part and success_name.startswith(stage.bold_part):
+                            if stage.bold_part and success_name and success_name.startswith(stage.bold_part):
                                 bold_text = f"{stage.success_status} {stage.bold_part}"
                                 rest_text = success_name[len(stage.bold_part):].lstrip()
                                 full_msg = f"{BOLD}{color_code}{bold_text}{RESET} {rest_text}"
-                            else:
+                            elif success_name:
                                 full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
+                            else:
+                                # Explicitly empty success_name
+                                full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                                
                             full_msg = truncate_to_width(full_msg, width)
                             
                             if ephemeral:
