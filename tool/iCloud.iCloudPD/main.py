@@ -128,7 +128,9 @@ def main():
             try:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
-                password = getpass.getpass(f"Enter password for {apple_id}: ")
+                # User wants a key icon for security feel in CLI mode
+                prompt = f"🔑 Enter password for {apple_id}: "
+                password = getpass.getpass(prompt)
             except (EOFError, Exception) as e:
                 msg = str(e) or "Non-interactive terminal"
                 if stage: stage.report_error(f"CLI Error: {msg}", msg)

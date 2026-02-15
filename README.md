@@ -36,10 +36,10 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 ## Key Features & Commands
 
 ### Tool Management
-- `TOOL install <NAME>`: Installs a tool, its tool-dependencies, and its pip-dependencies. Generates a managed bootstrap shortcut in `bin/`.
-- `TOOL reinstall <NAME>`: Wipes and fresh-installs a specific tool.
+- `TOOL install <NAME>`: Installs a tool, its tool-dependencies, and its pip-dependencies. Generates a **Managed Bootstrap Shortcut** in `bin/` that automatically uses the correct isolated environment.
+- `TOOL reinstall <NAME>`: Wipes and fresh-install a specific tool.
 - `TOOL uninstall <NAME>`: Safely removes a tool and its shortcuts.
-- `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Every tool includes a mandatory `test_00_help.py` to ensure `--help` support.
+- `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Every tool includes a mandatory `test_00_help.py` to ensure `--help` support is always functional.
 - `TOOL rule`: **Critical for AI Agents.** Generates a comprehensive set of rules and instructions that you can paste into your AI agent's system prompt or context. Use `TOOL <NAME> rule` for tool-specific guidelines.
 - `TOOL clear`: Clears the terminal screen.
 
@@ -96,9 +96,10 @@ Standardized iCloud photo and video downloader:
 
 ### Developer Workflow
 - `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work.
-- `TOOL dev create <NAME>`: Generates a standardized tool template. Now supports silent Git execution and clean terminal state.
+- `TOOL dev create <NAME>`: Generates a standardized tool template with unit tests and translation placeholders.
+- `TOOL dev audit-bin [--fix]`: Validates that all shortcuts in `bin/` are healthy managed bootstrap scripts. Use `--fix` to automatically upgrade legacy symlinks or create missing shortcuts.
 - `TOOL dev sanity-check <NAME>`: Verifies tool structure and required files.
-- **Nested Tooling**: Native support for subtools (e.g. `tool/PARENT/tool/SUBTOOL`). `ToolBase` robustly resolves paths and namespaces.
+- **Nested Tooling**: Native support for subtools (e.g. `tool/PARENT.SUBTOOL/`). `ToolBase` robustly resolves paths and namespaces.
 
 ---
 
