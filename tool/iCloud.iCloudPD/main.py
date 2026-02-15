@@ -335,8 +335,25 @@ def main():
                     if args.only_photos and item_type not in ["photo", "image"]: continue
                     if args.only_videos and item_type != "video": continue
                     if format_patterns and not any(fnmatch.fnmatch(p.get("filename", ""), pat) for pat in format_patterns): continue
-                    scheduled_id_info[p["id"]] = {"lib_name": p.get("library", "root"), "created": p_date}
+                    scheduled_id_info[p["id"]] = {"lib_name": p.get("library", "root"), "created": p_date, "filename": p.get("filename")}
         
+    # Filter out already downloaded files BEFORE gathering
+    final_scheduled_info = {}
+    output_root = Path(args.output or ".").resolve()
+    already_downloaded_count = 0
+    for aid, info in scheduled_id_info.items():
+        p_date_str = info["created"].strftime("%Y-%m-%d") if info["created"] else "unknown"
+        target_file = output_root / p_date_str / info["filename"]
+        # Note: Collision protection might change final filename, but if the original exists, we skip.
+        if target_file.exists():
+            already_downloaded_count += 1
+            continue
+        final_scheduled_info[aid] = info
+    
+    if already_downloaded_count > 0:
+        print(f"{BOLD}Skipped{RESET} {already_downloaded_count} photos/videos already downloaded.")
+    
+    scheduled_id_info = final_scheduled_info
     print(f"{BOLD}Scheduled{RESET} {len(scheduled_id_info)} photos/videos for download.")
     if not scheduled_id_info: return
 
@@ -364,26 +381,44 @@ def main():
             for i in range(0, len(ids), 100):
                 batch_ids = ids[i:i+100]
                 query = {"records": [{"recordName": rid} for rid in batch_ids], "zoneID": lib_obj.zone_id}
-                try:
-                    resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"})
-                    if resp.status_code == 200:
-                        for record in resp.json().get("records", []):
-                            asset = PhotoAsset(api.photos, record, record)
-                            aid = record["recordName"]
-                            if aid in scheduled_id_info: asset._cached_date = scheduled_id_info[aid]["created"]
-                            to_download_objects.append(asset)
-                            count += 1
-                            if count % 10 == 0 or count == total_scheduled:
-                                from logic.utils import calculate_eta
-                                e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
-                                if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
-                except Exception as e:
-                    if stage: stage.report_error("Gather Error", str(e))
+                
+                max_retries = 3
+                last_error_details = ""
+                success_batch = False
+                
+                for attempt in range(max_retries):
+                    try:
+                        resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"}, timeout=30)
+                        if resp.status_code == 200:
+                            for record in resp.json().get("records", []):
+                                asset = PhotoAsset(api.photos, record, record)
+                                aid = record["recordName"]
+                                if aid in scheduled_id_info: asset._cached_date = scheduled_id_info[aid]["created"]
+                                to_download_objects.append(asset)
+                                count += 1
+                                if count % 10 == 0 or count == total_scheduled:
+                                    from logic.utils import calculate_eta
+                                    e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+                                    if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
+                            success_batch = True
+                            break
+                        else:
+                            last_error_details = f"HTTP {resp.status_code}: {resp.text}"
+                    except Exception as e:
+                        last_error_details = str(e)
+                    
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                
+                if not success_batch:
+                    if stage: 
+                        stage.report_error("Gather Error", f"Request failed to iCloud after {max_retries} attempts: {last_error_details}")
+                    return False
         return len(to_download_objects) > 0
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage("gathering_objects", gather_action, active_status="Gathering", active_name="photo/video objects", success_status="\r\033[K", success_name=" "))
-    if not pm.run(): sys.exit(1)
+    if not pm.run(ephemeral=True, final_newline=False): sys.exit(1)
 
     def download_worker(stage, photo, target_path):
         max_attempts, last_err = 3, ""
@@ -441,18 +476,23 @@ def main():
         else: pool.status_bar.increment_completed()
 
     all_success = pool.run(tasks, success_callback=on_task_result)
+    
+    if not tasks and not failed_tasks:
+        if already_downloaded_count > 0:
+            print(f"{BOLD}{GREEN}All scheduled photos/videos are already downloaded.{RESET}")
+        return
+
     if all_success and not failed_tasks:
         first, last = to_download_objects[0], to_download_objects[-1]
         f_d, l_d = getattr(first, "_cached_date", None), getattr(last, "_cached_date", None)
         f_s, l_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}", f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
         print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos from {BOLD}{f_s}{RESET} to {BOLD}{l_s}{RESET}.")
-    else:
+    elif failed_tasks:
         print(f"{BOLD}{RED}Failed to download{RESET} {len(failed_tasks)} photos/videos.")
-        if failed_tasks:
-            summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
-            with open(summary_log, 'w') as f:
-                for ft in failed_tasks: f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
-            print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
+        summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
+        with open(summary_log, 'w') as f:
+            for ft in failed_tasks: f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
+        print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
 
 if __name__ == "__main__":
     main()

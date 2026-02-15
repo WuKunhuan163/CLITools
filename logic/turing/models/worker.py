@@ -20,6 +20,7 @@ class DynamicStatusBar:
         self.is_suppressing = False
         self.total_count: Optional[int] = None
         self.completed_count: int = 0
+        self.start_time: Optional[float] = None
         
         self.BLUE = get_color("BLUE", "\033[34m") if use_bold_blue else ""
         self.BOLD = get_color("BOLD", "\033[1m") if use_bold_blue else ""
@@ -30,6 +31,8 @@ class DynamicStatusBar:
         with self.lock:
             self.total_count = total
             self.completed_count = completed
+            if self.start_time is None:
+                self.start_time = time.time()
             self._render()
 
     def increment_completed(self):
@@ -46,6 +49,8 @@ class DynamicStatusBar:
                     self.suppressor.start()
                     self.is_suppressing = True
                 self.active_items.add(item_id)
+                if self.start_time is None:
+                    self.start_time = time.time()
             elif action == "remove":
                 if item_id in self.active_items:
                     self.active_items.remove(item_id)
@@ -66,11 +71,14 @@ class DynamicStatusBar:
             
         items_str = ", ".join(map(str, sorted_items))
         
-        count_info = ""
+        progress_info = ""
         if self.total_count is not None:
-            count_info = f" ({self.completed_count}/{self.total_count})"
+            from logic.utils import calculate_eta
+            elapsed = time.time() - self.start_time if self.start_time else 0
+            e_str, r_str = calculate_eta(self.completed_count, self.total_count, elapsed)
+            progress_info = f"({self.completed_count}/{self.total_count}) [{e_str}>{r_str}] "
             
-        status_msg = f"{self.BOLD}{self.BLUE}{self.label}{self.RESET} {items_str}...{count_info}"
+        status_msg = f"{self.BOLD}{self.BLUE}{self.label}{self.RESET} {progress_info}{items_str}..."
         
         width = _get_configured_width()
         sys.stdout.write(f"\r\033[K{truncate_to_width(status_msg, width)}")

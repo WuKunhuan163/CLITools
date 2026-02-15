@@ -175,7 +175,17 @@ class ProgressTuringMachine:
                     sys.stdout.write("\n")
                     sys.stdout.flush()
                 return True
-            except (KeyboardInterrupt, Exception):
+            except KeyboardInterrupt:
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
+                # Print cancellation status
+                BOLD = get_color("BOLD", "\033[1m")
+                YELLOW = get_color("YELLOW", "\033[33m")
+                RESET = get_color("RESET", "\033[0m")
+                sys.stdout.write(f"{BOLD}{YELLOW}Cancelled{RESET} Operation cancelled by user.\n")
+                sys.stdout.flush()
+                return False
+            except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
                 raise
