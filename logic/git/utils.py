@@ -51,22 +51,16 @@ def sync_dev_logic(project_root: Path, quiet=False, translation_func: Optional[C
         bold_part="Committing"
     ))
 
-    # Push if on dev
-    if start_branch == "dev":
-        def push_action(stage: TuringStage):
-            # Let push_with_progress handle the final message printing
-            return push_with_progress("origin", "dev", cwd=str(project_root), silent_success=False)
-        
-        tm.add_stage(TuringStage(
-            name="dev to origin",
-            action=push_action,
-            active_status="Pushing",
-            success_status="\r\033[K", # Clear the line on success
-            success_name="",
-            bold_part="Pushing"
-        ))
+    if not tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False):
+        return False
 
-    return tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
+    # Push if on dev (direct call, no Turing stage to avoid redundant line)
+    if start_branch == "dev":
+        from logic.git.engine import push_with_progress
+        if not push_with_progress("origin", "dev", cwd=str(project_root), silent_success=False):
+            return False
+
+    return True
 
 def align_branches_logic(project_root: Path, translation_func: Optional[Callable] = None):
     """
