@@ -105,10 +105,15 @@ class TutorialWindow(BaseGUIWindow):
                           current=self.current_step_idx + 1, total=len(self.steps))
             self.step_indicator.config(text=text)
         
-        # 2. Build Content
+        # 2. Reset submit button state for new step
+        # If the step has no validate_func, it's considered valid by default
+        is_valid = (step.validate_func is None)
+        self.set_step_validated(is_valid)
+        
+        # 3. Build Content
         step.content_func(self.content_frame, self)
         
-        # 3. Update Buttons
+        # 4. Update Buttons
         # Button Order: Cancel (L among buttons), Prev, Add 60s, Next (R)
         # Re-pack R-to-L: Next, Add 60s, Prev, Cancel
         if self.submit_btn:
@@ -135,8 +140,56 @@ class TutorialWindow(BaseGUIWindow):
                 btn_text = self._("btn_next", "Next")
             self.submit_btn.config(text=btn_text)
             
-        # 4. Clear any previous errors
+        # 5. Clear any previous errors
         self.show_error("", is_info=True)
+
+    def add_inline_links(self, frame, text_content):
+        """
+        Creates a tk.Text widget that supports inline clickable links.
+        Format: "Some text [Link Label](https://link.url) and more text."
+        """
+        import webbrowser
+        import re
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=get_label_style(), 
+                              padx=20, pady=10, borderwidth=0, highlightthickness=0,
+                              bg=frame.cget("bg"), height=10) # Height will adjust
+        text_widget.pack(fill=tk.X, expand=True)
+        
+        # Make it look like a label
+        text_widget.config(state=tk.NORMAL)
+        
+        # Regex for [label](url)
+        pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        
+        last_idx = 0
+        for match in re.finditer(pattern, text_content):
+            # Normal text before link
+            text_widget.insert(tk.END, text_content[last_idx:match.start()])
+            
+            # Link label
+            label, url = match.groups()
+            tag_name = f"link_{match.start()}"
+            text_widget.insert(tk.END, label, tag_name)
+            
+            text_widget.tag_config(tag_name, foreground="blue", underline=True)
+            text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
+            text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
+            text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            
+            last_idx = match.end()
+            
+        # Remaining text
+        text_widget.insert(tk.END, text_content[last_idx:])
+        
+        # Disable editing
+        text_widget.config(state=tk.DISABLED)
+        
+        # Adjust height based on content
+        num_lines = int(text_widget.index('end-1c').split('.')[0])
+        text_widget.config(height=num_lines + 1)
+        
+        return text_widget
 
     def setup_ui(self):
         """Builds the shell of the tutorial window."""

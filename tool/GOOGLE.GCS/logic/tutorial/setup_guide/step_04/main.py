@@ -42,10 +42,19 @@ def build_step(frame, win):
     browse_btn = tk.Button(frame, text="Browse and Validate JSON")
     
     def on_browse():
-        browse_btn.config(text="Verifying...", state=tk.DISABLED)
+        browse_btn.config(text="Browsing...", state=tk.DISABLED)
         frame.update_idletasks()
         
-        # We'll run this in a thread to keep UI responsive, although FILEDIALOG is blocking
+        # Pre-import to avoid issues in thread
+        import importlib.util
+        auth_path = Path(__file__).resolve().parent.parent.parent.parent / "auth.py"
+        spec = importlib.util.spec_from_file_location("gcs_auth_step", str(auth_path))
+        auth_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(auth_module)
+        
+        validate_func = auth_module.validate_service_account_json
+        save_func = auth_module.save_console_key
+
         def run_verification():
             project_root = getattr(win, "project_root", None)
             if not project_root:
@@ -58,37 +67,67 @@ def build_step(frame, win):
 
             fd_path = project_root / "bin" / "FILEDIALOG"
             try:
-                res = subprocess.run([str(fd_path)], capture_output=True, text=True)
+                # Use environment to help subtools find their way
+                env = os.environ.copy()
+                env["PYTHONPATH"] = str(project_root)
+                
+                res = subprocess.run([str(fd_path)], capture_output=True, text=True, env=env)
                 selected_path = res.stdout.strip()
                 
-                def update_ui():
-                    if res.returncode != 0 or not selected_path:
-                        status_var.set("Cancelled or failed")
+                if res.returncode != 0 or not selected_path:
+                    def reset_ui():
+                        status_var.set("Cancelled or failed to open file dialog")
                         status_label.config(fg="gray")
+                        browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
                         win.set_step_validated(False)
+                    frame.after(0, reset_ui)
+                    return
+
+                # Now perform validation with timeout
+                start_time = time.time()
+                timeout = 30
+                
+                def update_validating_text():
+                    elapsed = int(time.time() - start_time)
+                    if elapsed > timeout:
+                        status_var.set(f"Validation timed out after {timeout}s")
+                        status_label.config(fg="red")
+                        browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
+                        return
+                    
+                    browse_btn.config(text=f"Validating ({elapsed}s)...")
+                    if not getattr(run_verification, "done", False):
+                        frame.after(1000, update_validating_text)
+
+                frame.after(0, update_validating_text)
+
+                # Validation logic
+                is_valid, err, info = validate_func(selected_path)
+                run_verification.done = True
+                
+                def final_update():
+                    if is_valid:
+                        saved_path = save_func(project_root, info)
+                        status_var.set(f"Validated and saved to: {saved_path.name}")
+                        status_label.config(fg="green")
+                        win.set_step_validated(True)
                     else:
-                        from tool.GOOGLE.GCS.logic.auth import validate_service_account_json, save_console_key
-                        is_valid, err, info = validate_service_account_json(selected_path)
-                        if is_valid:
-                            saved_path = save_console_key(project_root, info)
-                            status_var.set(f"Validated and saved to: {saved_path.name}")
-                            status_label.config(fg="green")
-                            win.set_step_validated(True)
-                        else:
-                            status_var.set(f"Validation Error: {err}")
-                            status_label.config(fg="red")
-                            win.set_step_validated(False)
+                        status_var.set(f"Validation Error: {err}")
+                        status_label.config(fg="red")
+                        win.set_step_validated(False)
                     
                     browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
 
-                frame.after(0, update_ui)
+                frame.after(0, final_update)
             except Exception as e:
+                run_verification.done = True
                 def update_error():
-                    status_var.set(f"Error: {e}")
+                    status_var.set(f"Error launching file dialog: {e}")
                     status_label.config(fg="red")
                     browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
                 frame.after(0, update_error)
 
+        run_verification.done = False
         threading.Thread(target=run_verification, daemon=True).start()
 
     browse_btn.config(command=on_browse)
