@@ -10,8 +10,8 @@ class TestPythonInstall(unittest.TestCase):
         self.python_bin = self.project_root / "bin" / "PYTHON"
         self.install_dir = self.project_root / "tool" / "PYTHON" / "data" / "install"
         # Pick a version that is NOT currently installed and NOT in resource
-        # (Assuming 3.9.25 is not migrated yet)
-        self.test_version = "3.9.25"
+        # (Assuming 3.12.12 is available on GitHub but not migrated yet)
+        self.test_version = "3.12.12"
         self.target_vtag = f"{self.test_version}-macos-arm64"
         
         # Cleanup if exists
