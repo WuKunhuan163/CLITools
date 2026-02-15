@@ -15,6 +15,7 @@
     "google-auth-httplib2",
     "pyjwt",
     "requests",
-    "cryptography"
+    "cryptography",
+    "Pillow"
   ]
 }
