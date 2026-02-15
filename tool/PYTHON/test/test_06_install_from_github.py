@@ -21,6 +21,9 @@ class TestPythonInstall(unittest.TestCase):
 
     def test_install_from_github(self):
         """Verify installation from GitHub for un-migrated versions."""
+        # Ensure cache is populated
+        subprocess.run([str(self.python_bin), "--py-list"], capture_output=True)
+        
         # Note: This requires network access
         res = subprocess.run([str(self.python_bin), "--py-install", self.test_version], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
