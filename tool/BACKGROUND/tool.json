@@ -14,7 +14,8 @@
     "BACKGROUND list",
     "BACKGROUND stop <pid>",
     "BACKGROUND wait <pid>",
-    "BACKGROUND cleanup"
+    "BACKGROUND cleanup",
+    "BACKGROUND test"
   ]
 }
 

@@ -158,11 +158,45 @@ class BackgroundManager(ToolBase):
         self._save_processes({})
         print("Cleanup completed.")
 
+    def run_tests(self):
+        """Finds and runs all test_xx_*.py files in the test/ directory."""
+        test_dir = self.tool_dir / "test"
+        test_files = sorted(list(test_dir.glob("test_*.py")))
+        
+        if not test_files:
+            print("No test files found.")
+            return
+
+        BOLD = get_color("BOLD")
+        BLUE = get_color("BLUE")
+        RESET = get_color("RESET")
+        GREEN = get_color("GREEN")
+        RED = get_color("RED")
+
+        print(f"{BOLD}{BLUE}Running BACKGROUND tests...{RESET}\n")
+        
+        all_passed = True
+        for test_file in test_files:
+            print(f"Executing {BOLD}{test_file.name}{RESET}...", end=" ", flush=True)
+            res = subprocess.run([sys.executable, str(test_file)], capture_output=True, text=True)
+            if res.returncode == 0:
+                print(f"{BOLD}{GREEN}PASSED{RESET}")
+            else:
+                print(f"{BOLD}{RED}FAILED{RESET}")
+                print(f"\n{RED}Error output:{RESET}\n{res.stderr}")
+                all_passed = False
+        
+        if all_passed:
+            print(f"\n{BOLD}{GREEN}All tests passed!{RESET}")
+        else:
+            print(f"\n{BOLD}{RED}Some tests failed.{RESET}")
+            sys.exit(1)
+
 def main():
     manager = BackgroundManager()
     
     parser = argparse.ArgumentParser(description="Background Process Manager", add_help=False)
-    parser.add_argument("command", choices=["run", "list", "stop", "wait", "cleanup"], help="Command to execute")
+    parser.add_argument("command", choices=["run", "list", "stop", "wait", "cleanup", "test"], help="Command to execute")
     parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments for the command")
     
     if manager.handle_command_line(parser): return
@@ -188,6 +222,8 @@ def main():
         manager.wait_proc(int(args.args[0]))
     elif args.command == "cleanup":
         manager.cleanup()
+    elif args.command == "test":
+        manager.run_tests()
 
 if __name__ == "__main__":
     main()
