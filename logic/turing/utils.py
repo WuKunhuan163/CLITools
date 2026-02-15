@@ -70,3 +70,4 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
     except Exception:
         return None
 
+
