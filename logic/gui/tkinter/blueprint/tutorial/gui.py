@@ -193,7 +193,7 @@ class TutorialWindow(BaseGUIWindow):
 
     def setup_ui(self):
         """Builds the shell of the tutorial window."""
-        self.root.geometry("700x550") # Increased height for better visibility
+        self.root.geometry("800x650") # Increased size for better image quality and visibility
         
         # Initialize bottom bar from base.py
         self.status_label = setup_common_bottom_bar(

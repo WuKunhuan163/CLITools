@@ -21,9 +21,9 @@ def build_step(frame, win):
         try:
             img = Image.open(img_path)
             # Resize if too large
-            if img.width > 500:
-                ratio = 500 / img.width
-                img = img.resize((500, int(img.height * ratio)), Image.Resampling.LANCZOS)
+            if img.width > 600:
+                ratio = 600 / img.width
+                img = img.resize((600, int(img.height * ratio)), Image.Resampling.LANCZOS)
             
             photo = ImageTk.PhotoImage(img)
             img_label = tk.Label(frame, image=photo)
