@@ -491,11 +491,15 @@ def get_python_exec():
     """Alias for get_python_tool_exec for backward compatibility."""
     return get_python_tool_exec()
 
-def check_and_reexecute_with_python(tool_name, version="3.11.14"):
+def check_and_reexecute_with_python(tool_name, version=None):
     """
     Ensure the current script is running with the correct PYTHON tool executable.
     If not, re-execute. If PYTHON is missing, print helpful error and exit.
     """
+    if version is None:
+        from logic.config import get_setting
+        version = get_setting("default_python_version", "3.11.14")
+        
     project_root = Path(__file__).resolve().parent.parent
     py_exec = get_python_tool_exec()
     
