@@ -147,27 +147,14 @@ def update_config(key, value):
 
 def _dev_sync(quiet=False):
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""
-    from logic.git.utils import sync_dev_logic
-    project_root = ROOT_PROJECT_ROOT
-    
-    if sync_dev_logic(project_root, quiet=quiet, translation_func=_):
-        if not quiet:
-            success_status = _("label_success_completed", "Successfully completed")
-            msg = f"{BOLD}{GREEN}{success_status}{RESET} sync for 'dev' branch."
-            print(msg)
-        return True
-    return False
-
-def _dev_align():
-    """Align tool, main, and test branches with dev branch."""
     from logic.git.utils import align_branches_logic
     project_root = ROOT_PROJECT_ROOT
     
-    if align_branches_logic(project_root, translation_func=_):
-        success_label = _("alignment_complete", "Alignment complete.")
-        print(f"{BOLD}{GREEN}{success_label}{RESET}")
-        return True
-    return False
+    return align_branches_logic(project_root, translation_func=_)
+
+def _dev_align():
+    """Alias for _dev_sync to align branches."""
+    return _dev_sync()
 
 def _dev_reset():
     """Reset main and test branches to a clean state using templates."""
