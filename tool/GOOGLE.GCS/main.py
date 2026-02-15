@@ -14,8 +14,8 @@ from logic.tool.base import ToolBase
 from logic.config import get_color
 
 def main():
-    # GCS is a subtool of GOOGLE
-    tool = ToolBase("GCS")
+    # GCS is a subtool of GOOGLE, using the flat namespace naming convention.
+    tool = ToolBase("GOOGLE.GCS")
     
     parser = argparse.ArgumentParser(description="Google Drive Remote Controller (GCS)", add_help=False)
     parser.add_argument("command", nargs="?", help="Subcommand (ls, cat, etc.)")

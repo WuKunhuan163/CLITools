@@ -36,7 +36,15 @@ class ToolEngine:
 
     def is_installed(self):
         """Check if the tool is correctly installed and operational."""
-        link_path = self.bin_dir / self.tool_name
+        shortcut_name = self.tool_name
+        if "." in self.tool_name:
+            shortcut_name = self.tool_name.split(".")[-1]
+            
+        link_path = self.bin_dir / shortcut_name
+        # Fallback to full name check for legacy or special cases
+        if not (link_path.exists() or link_path.is_symlink()):
+            link_path = self.bin_dir / self.tool_name
+            
         if not (self.tool_dir.exists() and (link_path.exists() or link_path.is_symlink())):
             return False
         
@@ -248,20 +256,8 @@ class ToolEngine:
         # 1. Determine relative path for checkout
         rel_tool_path = self.tool_dir.relative_to(self.project_root)
         
-        # Determine remote resource path
-        is_subtool = self.tool_parent_dir != (self.project_root / "tool")
-        
-        if is_subtool:
-            # New namespace rule: tool/PARENT/tool/SUBTOOL -> resource/tool/PARENT.SUBTOOL
-            parts = rel_tool_path.parts
-            if len(parts) == 4 and parts[0] == 'tool' and parts[2] == 'tool':
-                parent = parts[1]
-                subtool = parts[3]
-                remote_source_path = Path("resource") / "tool" / f"{parent}.{subtool}"
-            else:
-                remote_source_path = Path("resource") / rel_tool_path
-        else:
-            remote_source_path = rel_tool_path
+        # All tools are now in the top-level tool/ directory (some with PARENT.SUBTOOL names)
+        remote_source_path = rel_tool_path
 
         # 1. Try checkout from known branches
         sources = ["dev", "tool", "origin/tool", "origin/dev"]
@@ -272,21 +268,6 @@ class ToolEngine:
                 cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
                 res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
                 if res.returncode == 0:
-                    # If it's a subtool, we need to move it from resource/ to actual tool/ path
-                    if is_subtool:
-                        local_resource_path = self.project_root / remote_source_path
-                        if local_resource_path.exists():
-                            if self.tool_dir.exists(): shutil.rmtree(self.tool_dir)
-                            self.tool_dir.parent.mkdir(parents=True, exist_ok=True)
-                            shutil.move(str(local_resource_path), str(self.tool_dir))
-                            # Cleanup empty resource parent if needed
-                            try:
-                                # Recursively remove empty parents up to 'resource'
-                                curr = local_resource_path.parent
-                                while curr != self.project_root / "resource" and curr.exists() and not any(curr.iterdir()):
-                                    curr.rmdir()
-                                    curr = curr.parent
-                            except: pass
                     return True
                 else:
                     last_err = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else f"Git checkout from {branch} failed"
@@ -372,7 +353,13 @@ class ToolEngine:
             return False
         
         self.bin_dir.mkdir(exist_ok=True)
-        link_path = self.bin_dir / self.tool_name
+        
+        # Shortcut naming: if tool is PARENT.SUBTOOL, create shortcut for SUBTOOL
+        shortcut_name = self.tool_name
+        if "." in self.tool_name:
+            shortcut_name = self.tool_name.split(".")[-1]
+            
+        link_path = self.bin_dir / shortcut_name
         if link_path.exists() or link_path.is_symlink():
             try: os.remove(link_path)
             except Exception as e:

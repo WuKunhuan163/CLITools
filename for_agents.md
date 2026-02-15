@@ -9,22 +9,25 @@ This project follows a **Symmetrical Design Pattern**. Shared core logic resides
 - **Persistence**: Work is automatically committed and pushed every few commits via git hooks to protect progress.
 
 ## 2. Standard Tool Structure
-Every tool MUST be created using the command: `python3 main.py dev create <NAME>`. This generates the following structure:
+Every tool MUST be created using the command: `python3 main.py dev create <NAME>`. For sub-tools belonging to a specific ecosystem, use the flat namespace naming convention: `<PARENT_NAME>.<SUBTOOL_NAME>`.
+
+### Tool Directory Layout
 ```text
-tool/<NAME>/
-  ├── logic/                # Internal logic
-  │   └── translation/      # Localization (zh.json, ar.json, etc.)
-  ├── main.py               # Entry point (inherits from ToolBase)
-  ├── setup.py              # Installation logic
-  ├── tool.json             # Metadata & dependencies
-  └── README.md             # Documentation
+tool/<NAME>/           # e.g., tool/iCloud/ or tool/iCloud.iCloudPD/
+  ├── logic/           # Internal logic
+  │   └── translation/ # Localization (zh.json, ar.json, etc.)
+  ├── main.py          # Entry point (inherits from ToolBase)
+  ├── setup.py         # Installation logic
+  ├── tool.json        # Metadata & dependencies
+  └── README.md        # Documentation
 ```
 
 ## 3. The Tool Blueprint (`ToolBase`)
 All tools should inherit from `logic.tool.base.ToolBase`. This class provides:
 - **`handle_command_line(parser)`**: Standardizes argument processing. It automatically handles `setup`, `install`, and `rule` commands.
-- **Robust Path Resolution**: Use `self.tool_dir`, `self.get_data_dir()`, and `self.get_log_dir()` to handle nested tools correctly (e.g. `tool/PARENT/tool/SUBTOOL`).
-- **Namespace Awareness**: `self.tool_module_path` provides the standard module path (e.g., `tool.iCloud.tool.iCloudPD`).
+- **Flat Namespace Support**: Sub-tools are identified by the dot notation (e.g., `GOOGLE.GCS`). The parent tool (e.g., `GOOGLE`) automatically delegates the `install` and `uninstall` commands to the correctly named flat sub-tool.
+- **Robust Path Resolution**: Use `self.tool_dir`, `self.get_data_dir()`, and `self.get_log_dir()` to handle tool paths correctly.
+- **Namespace Awareness**: `self.tool_module_path` provides the standard module path (e.g., `tool.iCloud_iCloudPD` or `tool.iCloud`).
 - **System Fallback**: If a command is not recognized by the tool (e.g., `git status` called via the `GIT` tool), it automatically delegates the call to the system equivalent (e.g., `/usr/bin/git`).
 - **Programmatic Interface**: Supports `--tool-quiet` to return results as JSON strings (`TOOL_RESULT_JSON:...`) for parent process consumption.
 - **Unified Success Status**: Use `self.raise_success_status("action statement")` for standardized green-bold success messages.

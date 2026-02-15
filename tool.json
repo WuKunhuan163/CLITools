@@ -19,6 +19,11 @@
     "DRAW",
     "GIT", 
     "FONT",
-    "FITZ"
+    "FITZ",
+    "iCloud",
+    "iCloud.iCloudPD",
+    "GOOGLE",
+    "GOOGLE.GCS",
+    "GOOGLE.DUMMY"
   ]
 }

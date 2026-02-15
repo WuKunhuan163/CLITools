@@ -448,31 +448,32 @@ class ToolBase:
         """Standardized sub-tool installation logic."""
         from logic.tool.setup.engine import ToolEngine
         
-        # Subtools are stored in tool/PARENT/tool/SUBTOOL
-        subtool_parent_dir = self.tool_dir / "tool"
-        engine = ToolEngine(subtool_name, self.project_root, parent_tool_dir=subtool_parent_dir)
+        # Subtools use the naming convention: PARENT.SUBTOOL
+        # and are stored directly in the project root's tool/ directory.
+        subtool_full_name = f"{self.tool_name}.{subtool_name}"
+        engine = ToolEngine(subtool_full_name, self.project_root)
         
         if engine.install():
-            # If successful, sub-tool is now in tool/PARENT/tool/SUBTOOL
             return True
         return False
 
     def run_subtool_uninstall(self, subtool_name, force_yes=False):
         """Standardized sub-tool uninstallation logic."""
-        # Subtools are stored in tool/PARENT/tool/SUBTOOL
-        subtool_dir = self.tool_dir / "tool" / subtool_name
+        subtool_full_name = f"{self.tool_name}.{subtool_name}"
+        subtool_dir = self.project_root / "tool" / subtool_full_name
+        
         if not subtool_dir.exists():
             from logic.config import get_color
             RED = get_color("RED", "\033[31m")
             BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
-            print(f"{BOLD}{RED}Error{RESET}: Sub-tool '{subtool_name}' is not installed.")
+            print(f"{BOLD}{RED}Error{RESET}: Sub-tool '{subtool_name}' ({subtool_full_name}) is not installed.")
             return False
 
         if not force_yes:
             from logic.lang.utils import get_translation
             gui_logic_dir = str(self.project_root / "logic")
-            confirm_msg = get_translation(gui_logic_dir, "confirm_uninstall", "Are you sure you want to uninstall '{name}'? (y/N): ", name=subtool_name)
+            confirm_msg = get_translation(gui_logic_dir, "confirm_uninstall", "Are you sure you want to uninstall '{name}'? (y/N): ", name=subtool_full_name)
             
             confirm = input(confirm_msg)
             # Erase prompt
@@ -484,8 +485,7 @@ class ToolBase:
                 return False
 
         from logic.tool.setup.engine import ToolEngine
-        subtool_parent_dir = self.tool_dir / "tool"
-        engine = ToolEngine(subtool_name, self.project_root, parent_tool_dir=subtool_parent_dir)
+        engine = ToolEngine(subtool_full_name, self.project_root)
         return engine.uninstall()
 
     def raise_success_status(self, action_msg):

@@ -17,6 +17,6 @@
     "GOOGLE search <query>: Search Google",
     "GOOGLE drive <cmd>: Manage Google Drive files",
     "GOOGLE trends: View trending topics",
-    "GOOGLE --install <subtool>: Install sub-tools like GCS"
+    "GOOGLE --install <subtool>: Install sub-tools like GOOGLE.GCS"
   ]
 }

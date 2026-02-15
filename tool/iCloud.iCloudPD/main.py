@@ -43,7 +43,7 @@ from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
 
 def main():
-    tool = ToolBase("iCloudPD")
+    tool = ToolBase("iCloud.iCloudPD")
     
     parser = argparse.ArgumentParser(description="iCloud Photo Downloader", add_help=False)
     parser.add_argument("--apple-id", help="Apple ID to use for login")

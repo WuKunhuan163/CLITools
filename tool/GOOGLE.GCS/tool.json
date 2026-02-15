@@ -1,5 +1,5 @@
 {
-  "name": "GCS",
+  "name": "GOOGLE.GCS",
   "version": "1.0.0",
   "description": "Google Drive Remote Controller (GCS)",
   "purpose": "Provide access to Google Drive files via API and GUI.",
