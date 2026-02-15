@@ -252,7 +252,14 @@ class ToolEngine:
         is_subtool = self.tool_parent_dir != (self.project_root / "tool")
         
         if is_subtool:
-            remote_source_path = Path("resource") / rel_tool_path
+            # New namespace rule: tool/PARENT/tool/SUBTOOL -> resource/tool/PARENT.SUBTOOL
+            parts = rel_tool_path.parts
+            if len(parts) == 4 and parts[0] == 'tool' and parts[2] == 'tool':
+                parent = parts[1]
+                subtool = parts[3]
+                remote_source_path = Path("resource") / "tool" / f"{parent}.{subtool}"
+            else:
+                remote_source_path = Path("resource") / rel_tool_path
         else:
             remote_source_path = rel_tool_path
 
