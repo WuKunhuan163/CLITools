@@ -116,6 +116,7 @@ def main():
     parser.add_argument("--py-uninstall", help="Uninstall a specific Python version (use 'all' for all versions)")
     parser.add_argument("--py-default", help="Set the default Python version for this tool")
     parser.add_argument("--py-update", action="store_true", help="Update Python resources from GitHub releases")
+    parser.add_argument("--py-force", action="store_true", help="Force action (e.g. refresh list cache)")
     parser.add_argument("--py-dir", help="Specify installation directory")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
 
@@ -161,7 +162,7 @@ def main():
     RESET = get_color("RESET")
 
     if args.py_list:
-        _list_versions()
+        _list_versions(force=args.py_force)
         return
 
     if args.py_install:
@@ -251,7 +252,7 @@ def _uninstall_version(version, install_dir=None):
         error_label = _("label_error", "Error")
         print(f"{RED}{BOLD}{error_label}{RESET}: Version {version} is not installed.")
 
-def _list_versions():
+def _list_versions(force=False):
     from tool.PYTHON.logic.config import DATA_DIR, INSTALL_DIR, RESOURCE_ROOT
     installed = []
     if INSTALL_DIR.exists():
@@ -260,6 +261,16 @@ def _list_versions():
     # 1. Get cached remote assets
     cache_path = DATA_DIR / "release_asset.json"
     remote_assets = {}
+    
+    if force or not cache_path.exists():
+        # Trigger an update/scan if cache is missing or force requested
+        print(f"{BOLD}{BLUE}Scanning GitHub releases{RESET}...")
+        update_script = script_dir / "logic" / "update.py"
+        if update_script.exists():
+            # Use --list to populate the cache
+            # We scan more releases for a better list
+            subprocess.run([sys.executable, str(update_script), "--list", "--limit-releases", "10"], capture_output=True)
+            
     if cache_path.exists():
         try:
             with open(cache_path, "r") as f:
@@ -312,42 +323,53 @@ def _list_versions():
             print(f"\n{BOLD}{WHITE}Full result saved to{RESET}: {report_path}")
 
 def _install_version(version, install_dir=None):
+    from tool.PYTHON.logic.config import DATA_DIR, INSTALL_DIR, RESOURCE_ROOT
     remote_versions = _get_remote_versions()
     
+    # Check local cache for all available versions from astral-sh
+    cache_path = DATA_DIR / "release_asset.json"
+    cached_versions = []
+    if cache_path.exists():
+        try:
+            with open(cache_path, "r") as f:
+                cached_versions = list(json.load(f).get("full", {}).keys())
+        except: pass
+    
+    all_available = sorted(list(set(remote_versions + cached_versions)))
+    
     # Compatibility layer: handle 'python' prefix and platform tags
-    from logic.utils import get_system_tag, regularize_version_name
+    from logic.utils import get_system_tag
     tag = get_system_tag()
     
+    final_version = None
+    
     # Try exact match first
-    if version in remote_versions:
+    if version in all_available:
         final_version = version
     else:
-        # Normalize input (removes 'python' prefix)
+        # Normalize input
         v = version
         if v.startswith("python"): v = v[6:]
         
         # Try version-tag
         candidate = f"{v}-{tag}"
-        if candidate in remote_versions:
+        if candidate in all_available:
             final_version = candidate
         else:
-            # Try fuzzy match (e.g., 3.10 -> 3.10.15-macos-arm64)
-            matches = [s for s in remote_versions if s.startswith(v) and s.endswith(tag)]
+            # Try fuzzy match
+            matches = [s for s in all_available if s.startswith(v) and s.endswith(tag)]
             if matches:
                 matches.sort(key=len, reverse=True)
                 final_version = matches[0]
-            else:
-                final_version = None
 
     if not final_version:
         error_label = _("label_error", "Error")
-        if remote_versions:
-            msg = _("python_version_not_supported", "Version {version} is not found in remote 'tool' branch.", version=version)
+        if all_available:
+            msg = _("python_version_not_supported", "Version {version} is not found in remote project or local cache.", version=version)
             print(f"{RED}{BOLD}{error_label}{RESET}: {msg}")
-            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to migrate it from astral-sh builds.", v=version.split('-')[0]))
+            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to scan and migrate it.", v=version.split('-')[0]))
         else:
-            print(f"{RED}{BOLD}{error_label}{RESET}: No versions found on remote 'tool' branch.")
-            print(_("python_update_initial_hint", "Please run 'PYTHON --py-update' first to migrate Python builds."))
+            print(f"{RED}{BOLD}{error_label}{RESET}: No versions found. Please run 'PYTHON --py-list' to scan releases.")
         return False
 
     version = final_version

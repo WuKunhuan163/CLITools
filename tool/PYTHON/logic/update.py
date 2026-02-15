@@ -533,9 +533,69 @@ def main():
         remote_resources = get_remote_resources()
         
         if args.list:
-            # ... (omitted listing logic) ...
-            # ...
-            print(f"\n{BOLD}{WHITE}Full report saved to{RESET}: {report_path}")
+            matrix = {}
+            for i, tag in enumerate(tags):
+                if not args.simple:
+                    elapsed = int(time.time() - start_time)
+                    status = f"{scan_label} from GitHub ({tag}) (found: {len(matrix)})({elapsed}s)..."
+                    scan_manager.update(worker_id, status)
+                assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
+                for a in assets:
+                    v_tag = regularize_version_name(a['version'], a['platform'])
+                    if v_tag not in matrix: matrix[v_tag] = {}
+                    matrix[v_tag][tag] = a["url"]
+            
+            if not args.simple:
+                elapsed = int(time.time() - start_time)
+                scan_manager.update(worker_id, f"{scan_label}: {BOLD}{GREEN}Found {len(matrix)} total versions{RESET} in {elapsed}s", is_final=True)
+            
+            def version_key(v_str):
+                v_num = re.search(r"(\d+\.\d+\.\d+)", v_str)
+                if v_num:
+                    return [int(x) for x in v_num.group(1).split(".")]
+                return [0, 0, 0]
+
+            sorted_versions = sorted(matrix.keys(), key=version_key, reverse=args.reverse)
+            short_latest = []
+            for v in sorted_versions:
+                latest_tag = sorted(list(matrix[v].keys()))[-1]
+                short_latest.append(f"{latest_tag}:{v}")
+            
+            if args.simple:
+                print(", ".join(sorted_versions))
+            else:
+                for v in sorted_versions:
+                    tag_list = sorted(list(matrix[v].keys()))
+                    print(f"{BOLD}{v}{RESET}:{','.join(tag_list)}")
+
+            # Save audit cache
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            by_version = {}
+            by_platform = {}
+            for v_tag in sorted_versions:
+                v_match = re.match(r"(\d+\.\d+)", v_tag)
+                major_minor = v_match.group(1) if v_match else "unknown"
+                platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
+                platform_name = platform_match.group(1) if platform_match else "unknown"
+                if major_minor not in by_version: by_version[major_minor] = []
+                by_version[major_minor].append(v_tag)
+                if platform_name not in by_platform: by_platform[platform_name] = []
+                by_platform[platform_name].append(v_tag)
+                
+            report = {
+                "timestamp": datetime.now().isoformat(),
+                "full": matrix,
+                "short": sorted_versions,
+                "short-latest": short_latest,
+                "by_version": by_version,
+                "by_platform": by_platform
+            }
+            
+            report_path = DATA_DIR / "release_asset.json"
+            with open(report_path, "w") as f:
+                json.dump(report, f, indent=2)
+                
+            print(f"\n{BOLD}{WHITE}Cache updated{RESET}: {report_path}")
             return
 
         # 1. Handle precise targets first
