@@ -381,17 +381,23 @@ def _install_version(version, install_dir=None):
             print_erasable(f"{BLUE}{BOLD}{action}{RESET} {version} from GitHub...")
             install_script = script_dir / "logic" / "install.py"
             if install_script.exists():
-                v_match = re.search(r"([\d\.]+)-(.*)", version)
-                if v_match:
-                    v_num = v_match.group(1)
-                    v_plat = v_match.group(2)
-                    cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
-                    subprocess.run(cmd, capture_output=True)
-                    if (target_parent / version).exists():
-                        sys.stdout.write("\r\033[K")
-                        success_status = _("python_install_success_status", "Successfully installed")
-                        print(f"{GREEN}{BOLD}{success_status}{RESET} {version}")
-                        return True
+                # Extract version and platform from 'version' which is 'X.Y.Z-platform'
+                parts = version.split("-", 1)
+                v_num = parts[0]
+                v_plat = parts[1] if len(parts) > 1 else tag
+                
+                # Use sys.executable to ensure we use the same environment
+                cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
+                # DO NOT capture output so the user sees progress
+                res = subprocess.run(cmd)
+                
+                # Check if it was successfully installed
+                if (target_parent / version).exists():
+                    # Success message already printed by install.py
+                    return True
+                else:
+                    print(f"\n{RED}{BOLD}{error_label}{RESET}: GitHub installation failed for {version}.")
+                    return False
 
         if not zst_files:
             sys.stdout.write("\r\033[K")

@@ -164,7 +164,8 @@ import hashlib
 
 def download_and_verify(asset, target_dir):
     """Downloads an asset to tmp, verifies it, then moves to target_dir."""
-    v_tag = f"python{asset['version']}-{asset['platform']}"
+    # Use consistent naming: X.Y.Z-platform (no 'python' prefix)
+    v_tag = f"{asset['version']}-{asset['platform']}"
     
     # Create a unique hash for the temporary directory to avoid conflicts
     unique_str = f"{asset['tag']}-{asset['name']}"
