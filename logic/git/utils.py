@@ -54,13 +54,15 @@ def sync_dev_logic(project_root: Path, quiet=False, translation_func: Optional[C
     # Push if on dev
     if start_branch == "dev":
         def push_action(stage: TuringStage):
-            return push_with_progress("origin", "dev", cwd=str(project_root))
+            # Let push_with_progress handle the final message printing
+            return push_with_progress("origin", "dev", cwd=str(project_root), silent_success=False)
         
         tm.add_stage(TuringStage(
             name="dev to origin",
             action=push_action,
             active_status="Pushing",
-            success_status="Pushed",
+            success_status="\r\033[K", # Clear the line on success
+            success_name="",
             bold_part="Pushing"
         ))
 
