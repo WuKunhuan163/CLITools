@@ -178,6 +178,8 @@ class ToolBase:
                 for action in parser._actions:
                     if isinstance(action, argparse._SubParsersAction):
                         choices.extend(action.choices.keys())
+                    elif action.choices:
+                        choices.extend(action.choices)
                     if cmd in action.option_strings:
                         is_recognized = True
                 
