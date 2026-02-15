@@ -258,20 +258,20 @@ def _list_versions():
     remote_versions = _get_remote_versions()
     
     label = _("python_supported_versions", "Supported versions")
+    version_strings = []
+    missing = []
+    
     if not remote_versions:
         print(f"{BOLD}{label}{RESET}:")
         print("  (No versions found on remote 'tool' branch. Use 'PYTHON --py-update' to migrate some.)")
     else:
-        version_strings = []
-        missing = []
         for v in remote_versions:
             is_installed = v in installed
             status = f" ({_('label_installed', 'installed')})" if is_installed else ""
             version_strings.append(f"{v}{status}")
             if not is_installed:
                 missing.append(v)
-        
-    print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
+        print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
     
     if missing:
         install_label = _("python_install_missing_label", "To install a missing version")

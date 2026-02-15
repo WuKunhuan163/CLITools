@@ -13,12 +13,20 @@
 !/test/
 !/tool/
 !/report/
+!/resource/
 
 # --- Transient Directories ---
 **/data/
 **/logs/
 **/tmp/
+
+# --- Resource Management ---
+# Global ignore for resource dirs, negated for specific tools
 **/resource/
+!/resource/
+!/resource/tool/PYTHON/
+!/resource/tool/GDS/
+!/resource/tool/GOOGLE.GCS/
 
 # --- Python Patterns ---
 **/__pycache__/
