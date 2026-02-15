@@ -255,30 +255,59 @@ def _list_versions():
     if INSTALL_DIR.exists():
         installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
     
-    remote_versions = _get_remote_versions()
+    # 1. Get cached remote assets
+    cache_path = DATA_DIR / "release_asset.json"
+    remote_assets = {}
+    if cache_path.exists():
+        try:
+            with open(cache_path, "r") as f:
+                remote_assets = json.load(f).get("full", {})
+        except: pass
     
+    # 2. Get local resources (migrated)
+    migrated = []
+    if RESOURCE_ROOT.exists():
+        for d in RESOURCE_ROOT.iterdir():
+            if d.is_dir() and (d / "PYTHON.json").exists():
+                migrated.append(d.name)
+    
+    # 3. Combine and Display
     label = _("python_supported_versions", "Supported versions")
-    version_strings = []
-    missing = []
+    all_versions = sorted(list(remote_assets.keys())) if remote_assets else sorted(installed + migrated)
     
-    if not remote_versions:
+    if not all_versions:
         print(f"{BOLD}{label}{RESET}:")
-        print("  (No versions found on remote 'tool' branch. Use 'PYTHON --py-update' to migrate some.)")
-    else:
-        for v in remote_versions:
-            is_installed = v in installed
-            status = f" ({_('label_installed', 'installed')})" if is_installed else ""
-            version_strings.append(f"{v}{status}")
-            if not is_installed:
-                missing.append(v)
-        print(f"{BOLD}{label}{RESET}: {','.join(version_strings)}")
+        print("  (No versions found. Use 'PYTHON --py-update' to fetch from GitHub.)")
+        return
+
+    # Filter for current platform by default for cleaner list
+    from logic.utils import get_system_tag
+    tag = get_system_tag()
     
-    if missing:
-        install_label = _("python_install_missing_label", "To install a missing version")
-        print(f"\n{BOLD}{install_label}{RESET}: PYTHON --py-install {missing[0]}")
+    display_rows = []
+    for v in all_versions:
+        if tag not in v and "-" in v: continue # Skip other platforms unless requested
+        
+        is_installed = v in installed
+        is_migrated = v in migrated
+        
+        status_parts = []
+        if is_installed: status_parts.append(_("label_installed", "installed"))
+        if is_migrated: status_parts.append(_("label_migrated", "migrated"))
+        
+        status = f" ({', '.join(status_parts)})" if status_parts else ""
+        display_rows.append(f"{v}{status}")
     
-    default_label = _("python_set_default_label", "To set the default version")
-    print(f"\n{BOLD}{default_label}{RESET}: PYTHON --py-default {installed[0] if installed else '3.10.19'}")
+    print(f"{BOLD}{label}{RESET}:")
+    for row in display_rows:
+        print(f"  {row}")
+        
+    # 4. Save Audit Record
+    if display_rows:
+        from logic.utils import save_list_report
+        report_path = save_list_report(display_rows, save_dir="python_list", filename_prefix="python_versions")
+        if report_path:
+            print(f"\n{BOLD}{WHITE}Full result saved to{RESET}: {report_path}")
 
 def _install_version(version, install_dir=None):
     remote_versions = _get_remote_versions()
