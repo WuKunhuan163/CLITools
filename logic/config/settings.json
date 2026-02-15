@@ -1,5 +1,6 @@
 {
   "progress_decimal_places": 1,
+  "default_python_version": "3.11.14",
   "test_max_reports": 1024,
   "test_default_concurrency": 3
 }

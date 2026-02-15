@@ -269,7 +269,10 @@ def _list_versions(force=False):
         if update_script.exists():
             # Use --list to populate the cache
             # We scan more releases for a better list
-            subprocess.run([sys.executable, str(update_script), "--list", "--limit-releases", "10"], capture_output=True)
+            limit = 50 if force else 10
+            cmd = [sys.executable, str(update_script), "--list", "--limit-releases", str(limit)]
+            if force: cmd.append("--force")
+            subprocess.run(cmd, capture_output=True)
             
     if cache_path.exists():
         try:

@@ -572,13 +572,33 @@ def main():
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             by_version = {}
             by_platform = {}
+            by_version_latest = {}
+            by_platform_latest = {}
+            
+            # Use descending order for 'latest' determination
+            sorted_desc = sorted(matrix.keys(), key=version_key, reverse=True)
+            
+            for v_tag in sorted_desc:
+                v_match = re.match(r"(\d+\.\d+)", v_tag)
+                major_minor = v_match.group(1) if v_match else "unknown"
+                platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
+                platform_name = platform_match.group(1) if platform_match else "unknown"
+                
+                if major_minor not in by_version_latest:
+                    by_version_latest[major_minor] = v_tag
+                if platform_name not in by_platform_latest:
+                    by_platform_latest[platform_name] = v_tag
+
+            # Maintain original sorted_versions for by_version/by_platform lists
             for v_tag in sorted_versions:
                 v_match = re.match(r"(\d+\.\d+)", v_tag)
                 major_minor = v_match.group(1) if v_match else "unknown"
                 platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
                 platform_name = platform_match.group(1) if platform_match else "unknown"
+                
                 if major_minor not in by_version: by_version[major_minor] = []
                 by_version[major_minor].append(v_tag)
+                
                 if platform_name not in by_platform: by_platform[platform_name] = []
                 by_platform[platform_name].append(v_tag)
                 
@@ -588,7 +608,9 @@ def main():
                 "short": sorted_versions,
                 "short-latest": short_latest,
                 "by_version": by_version,
-                "by_platform": by_platform
+                "by_version_latest": by_version_latest,
+                "by_platform": by_platform,
+                "by_platform_latest": by_platform_latest
             }
             
             report_path = DATA_DIR / "release_asset.json"

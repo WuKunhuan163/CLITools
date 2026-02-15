@@ -96,8 +96,8 @@ class UserInputTool(ToolBase):
 
     def get_python_exe(self, version=None):
         if not version:
-            config = get_config()
-            version = config.get("python_version", "3.11.14")
+            from logic.config import get_setting
+            version = get_setting("default_python_version", "3.11.14")
 
         # Normalize version name
         v = version

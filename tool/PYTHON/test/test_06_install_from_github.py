@@ -27,7 +27,12 @@ class TestPythonInstall(unittest.TestCase):
         # Note: This requires network access
         res = subprocess.run([str(self.python_bin), "--py-install", self.test_version], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
-        self.assertTrue((self.install_dir / self.target_vtag).exists())
+        
+        # Verify directory structure
+        v_dir = self.install_dir / self.target_vtag
+        self.assertTrue(v_dir.exists())
+        self.assertTrue((v_dir / "install").exists())
+        self.assertTrue((v_dir / "install" / "bin").exists())
         
         # Verify it can run
         res = subprocess.run([str(self.python_bin), "--py-version", self.target_vtag, "--version"], capture_output=True, text=True)
