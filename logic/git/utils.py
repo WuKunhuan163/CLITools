@@ -29,12 +29,15 @@ def get_subtool_resource_path(tool_dir: Path, project_root: Path) -> Optional[Pa
 def mirror_subtools_to_resources(project_root: Path):
     """
     Scans for subtools and mirrors them to the resource directory using namespace rules.
+    Also cleans up stale subtool resources.
     """
     tool_root = project_root / "tool"
+    res_root = project_root / "resource" / "tool"
     if not tool_root.exists():
         return
 
-    # print(f"DEBUG: Scanning for subtools in {tool_root}...")
+    active_resources = set()
+
     for parent_dir in tool_root.iterdir():
         if not parent_dir.is_dir():
             continue
@@ -49,6 +52,7 @@ def mirror_subtools_to_resources(project_root: Path):
                 
             res_path = get_subtool_resource_path(subtool_dir, project_root)
             if res_path:
+                active_resources.add(res_path.name)
                 # Mirroring logic: delete old resource and copy new one
                 if res_path.exists():
                     shutil.rmtree(res_path)
@@ -59,7 +63,15 @@ def mirror_subtools_to_resources(project_root: Path):
                     return ['data', 'logs', '__pycache__', '.DS_Store', 'report']
                 
                 shutil.copytree(subtool_dir, res_path, ignore=ignore_patterns)
-                # print(f"DEBUG: Mirrored subtool {subtool_dir.name} to {res_path.name}")
+
+    # Cleanup stale resources
+    if res_root.exists():
+        for item in res_root.iterdir():
+            if item.is_dir() and item.name not in active_resources:
+                # Check if it follows the PARENT.SUBTOOL pattern to be safe
+                if "." in item.name:
+                    shutil.rmtree(item)
+                    # print(f"DEBUG: Cleaned up stale subtool resource {item.name}")
 
 def run_git(args, project_root: Path, stage: Optional[TuringStage] = None):
     """Helper to run git commands quietly and capture output."""
