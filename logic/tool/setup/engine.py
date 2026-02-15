@@ -72,8 +72,16 @@ class ToolEngine:
             return True
 
         # 3. Check for partial installation/missing deps
-        is_partial = self.tool_dir.exists() or (self.bin_dir / self.tool_name).exists()
+        # A tool is "partial" if it has no bin shortcut but the directory exists,
+        # UNLESS it's a new tool being developed (has main.py).
+        has_shortcut = (self.bin_dir / self.tool_name).exists() or (self.bin_dir / self.tool_name).is_symlink()
+        is_partial = (self.tool_dir.exists() or has_shortcut) and not self.is_installed()
         
+        # If it has main.py but no shortcut, it's not "partial" in a bad way, 
+        # it just needs a shortcut and setup.
+        if self.tool_dir.exists() and (self.tool_dir / "main.py").exists() and not has_shortcut:
+            is_partial = False
+
         tm = ProgressTuringMachine(project_root=self.project_root, tool_name=self.tool_name)
         
         # Add uninstall stage if partial
@@ -233,6 +241,10 @@ class ToolEngine:
         return True
 
     def fetch_source(self, stage=None):
+        # 0. Check if already exists locally
+        if (self.tool_dir / "main.py").exists():
+            return True
+
         # 1. Determine relative path for checkout
         rel_tool_path = self.tool_dir.relative_to(self.project_root)
         
@@ -274,10 +286,6 @@ class ToolEngine:
             except Exception as e:
                 last_err = str(e)
         
-        # 2. If already on a branch that has it, just return True
-        if (self.tool_dir / "main.py").exists():
-            return True
-            
         if stage: stage.error_brief = last_err
         return False
 
