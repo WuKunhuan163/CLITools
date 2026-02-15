@@ -184,7 +184,7 @@ class ToolEngine:
         if tm.run(ephemeral=True, final_msg="", final_newline=False):
             if not is_dependency:
                 from logic.utils import print_success_status
-                print_success_status(f"setup {self.tool_name} tool")
+                print_success_status(f"installed {self.tool_name} tool")
             return True
         return False
 
