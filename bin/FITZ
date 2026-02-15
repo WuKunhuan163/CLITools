@@ -33,7 +33,7 @@ if python_tool_dir.exists():
         except: pass
 
 # Run the actual tool
-main_py = project_root / "tool/BACKGROUND/main.py"
+main_py = project_root / "tool/FITZ/main.py"
 env = os.environ.copy()
 # Add project root and tool logic to PYTHONPATH
 python_path = env.get('PYTHONPATH', '')

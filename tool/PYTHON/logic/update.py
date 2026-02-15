@@ -121,151 +121,23 @@ def print_erasable(msg):
 def _(key, default, **kwargs):
     return get_translation(str(PYTHON_TOOL_DIR / "logic"), key, default).format(**kwargs)
 
+# Use PythonScanner for all remote operations
+from tool.PYTHON.logic.scanner import PythonScanner
+scanner = PythonScanner()
+
 def resolve_platform(asset_name):
-    mappings = {
-        "macos-arm64": ["aarch64-apple-darwin", "macos-aarch64", "macos-arm64"],
-        "macos": ["x86_64-apple-darwin", "macos-x86_64", "macosx", "macos"],
-        "linux64-musl": ["x86_64-unknown-linux-musl", "linux-musl"],
-        "linux64": ["x86_64-unknown-linux-gnu", "linux64", "linux-x86_64"],
-        "windows-amd64": ["x86_64-pc-windows-msvc", "windows-x86_64", "win64"],
-        "windows-x86": ["i686-pc-windows-msvc", "windows-i686", "win32"],
-        "windows-arm64": ["aarch64-pc-windows-msvc", "windows-aarch64"],
-    }
-    if "linux-musl" in asset_name or "unknown-linux-musl" in asset_name:
-        return "linux64-musl"
-    for platform, keys in mappings.items():
-        if any(key in asset_name for key in keys):
-            return platform
-    return None
-
-_warning_printed = False
-
-def print_cache_warning_once():
-    global _warning_printed
-    if not _warning_printed:
-        audit.print_cache_warning()
-        _warning_printed = True
+    return scanner.resolve_platform(asset_name)
 
 def get_release_tags(use_cache=True):
-    if use_cache:
-        cache = audit.load("tags_cache")
-        if cache and "tags" in cache and (datetime.now() - datetime.fromisoformat(cache["timestamp"])).days < 1:
-            print_cache_warning_once()
-            return cache["tags"]
-
-    fetch_label = f"{BOLD}{BLUE}" + _("label_fetching_releases", "Fetching releases") + f"{RESET}"
-    owner_label = f"{BOLD}{PROJECT_OWNER}{RESET}"
-    fetch_msg = f"{fetch_label} from GitHub project {owner_label} ({PROJECT_URL})..."
-    print_erasable(fetch_msg)
-    log_debug(f"Fetching tags from {REPO_URL}...")
-    
-    cmd = ["/usr/bin/git", "ls-remote", "--tags", REPO_URL]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"\n{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Failed to fetch tags.")
-        log_debug(f"Failed to fetch tags: {result.stderr}")
-        sys.exit(1)
-    tags = []
-    for line in result.stdout.strip().split("\n"):
-        match = re.search(r"refs/tags/(\d{8}(?:T\d+)?)$", line)
-        if match: tags.append(match.group(1))
-    
-    tags = sorted(list(set(tags)), reverse=True) # NEWEST FIRST
-    audit.save("tags_cache", {"tags": tags, "timestamp": datetime.now().isoformat()})
-    log_debug(f"Found {len(tags)} tags.")
-    return tags
+    scanner.force = not use_cache
+    return scanner.get_release_tags()
 
 def fetch_assets_for_tag(tag, use_cache=True, status_msg=None, silent=False):
-    asset_cache_dir = AUDIT_DIR / "assets"
-    asset_cache_dir.mkdir(parents=True, exist_ok=True)
-    
-    cache_path = asset_cache_dir / f"assets_{tag}.json"
-    if use_cache and cache_path.exists():
-        try:
-            with open(cache_path, "r") as f:
-                cache = json.load(f)
-            if "assets" in cache:
-                if not silent:
-                    print_cache_warning_once()
-                return cache["assets"]
-        except: pass
-
+    scanner.force = not use_cache
+    scanner.silent = silent
     if not silent and status_msg:
         print_erasable(status_msg)
-
-    log_debug(f"Fetching assets for tag {tag}...")
-    # Use GitHub API for full asset list (avoids 100-asset limit of expanded_assets scraping)
-    api_url = f"https://api.github.com/repos/{PROJECT_OWNER}/{PROJECT_NAME}/releases/tags/{tag}"
-    cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", api_url]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    assets = []
-    try:
-        data = json.loads(result.stdout)
-        if "assets" in data:
-            for item in data["assets"]:
-                name = item["name"]
-                if not name.endswith(".tar.zst") or name.endswith(".sha256"):
-                    continue
-                
-                v_match = re.search(r"(\d+\.\d+\.\d+)", name)
-                if not v_match: continue
-                
-                full_v = v_match.group(1)
-                minor_v = ".".join(full_v.split(".")[:2])
-                patch_str = full_v.split(".")[2]
-                try: patch = int(patch_str)
-                except ValueError: patch = 0
-                
-                platform = resolve_platform(name)
-                if platform:
-                    assets.append({
-                        "name": name,
-                        "url": item["browser_download_url"],
-                        "version": full_v,
-                        "minor": minor_v,
-                        "patch": patch,
-                        "platform": platform,
-                        "tag": tag
-                    })
-        else:
-            # Trigger fallback if assets not in data (e.g. rate limit error)
-            raise ValueError("No assets in API response")
-    except:
-        # Fallback to scraping if API fails or rate limited
-        url = f"{PROJECT_URL}/releases/expanded_assets/{tag}"
-        cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", url]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        matches = re.findall(r'cpython-([\w\+\-\.]+)\.tar\.zst', result.stdout)
-        for name_core in set(matches):
-            name = f"cpython-{name_core}.tar.zst"
-            v_match = re.search(r"(\d+\.\d+\.\d+)", name)
-            if not v_match: continue
-            full_v = v_match.group(1)
-            minor_v = ".".join(full_v.split(".")[:2])
-            patch_str = full_v.split(".")[2]
-            try: patch = int(patch_str)
-            except ValueError: patch = 0
-            platform = resolve_platform(name)
-            if platform:
-                assets.append({
-                    "name": name,
-                    "url": f"{PROJECT_URL}/releases/download/{tag}/{name}",
-                    "version": full_v,
-                    "minor": minor_v,
-                    "patch": patch,
-                    "platform": platform,
-                    "tag": tag
-                })
-            
-    with open(cache_path, "w") as f:
-        json.dump({"assets": assets, "timestamp": datetime.now().isoformat()}, f, indent=2)
-    try:
-        from logic.utils import cleanup_old_files
-        cleanup_old_files(asset_cache_dir, "assets_*.json", limit=1000, batch_size=500)
-    except: pass
-    log_debug(f"Found {len(assets)} compatible assets for tag {tag}.")
-    return assets
+    return scanner.fetch_assets_for_tag(tag)
 
 def get_remote_resources():
     log_debug("Fetching remote resources status from 'tool' branch...")
@@ -522,222 +394,66 @@ def main():
     remote_resources = {}
 
     if target_versions or args.all_latest or args.tag or args.list:
-        # UI Setup for scanning/listing
-        scan_manager = MultiLineManager()
-        worker_id = "SCAN"
-        start_time = time.time()
-        scan_label = f"{BOLD}{BLUE}" + _("label_fetching_assets", "Scanning releases") + f"{RESET}"
-        
-        # 1. Get remote resources status with UI feedback
-        scan_manager.update(worker_id, f"{BOLD}{BLUE}Syncing{RESET} remote status from 'tool' branch...")
         remote_resources = get_remote_resources()
         
         if args.list:
-            matrix = {}
-            for i, tag in enumerate(tags):
-                if not args.simple:
-                    elapsed = int(time.time() - start_time)
-                    status = f"{scan_label} from GitHub ({tag}) (found: {len(matrix)})({elapsed}s)..."
-                    scan_manager.update(worker_id, status)
-                assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
-                for a in assets:
-                    v_tag = regularize_version_name(a['version'], a['platform'])
-                    if v_tag not in matrix: matrix[v_tag] = {}
-                    matrix[v_tag][tag] = a["url"]
-            
-            if not args.simple:
-                elapsed = int(time.time() - start_time)
-                scan_manager.update(worker_id, f"{scan_label}: {BOLD}{GREEN}Found {len(matrix)} total versions{RESET} in {elapsed}s", is_final=True)
+            scanner.force = args.force
+            scanner.silent = args.simple
+            report = scanner.scan_all(limit_releases=args.limit_releases)
+            matrix = report["full"]
             
             def version_key(v_str):
                 v_num = re.search(r"(\d+\.\d+\.\d+)", v_str)
                 if v_num:
                     return [int(x) for x in v_num.group(1).split(".")]
+                v_min = re.search(r"(\d+\.\d+)", v_str)
+                if v_min:
+                    return [int(x) for x in v_min.group(1).split(".")] + [0]
                 return [0, 0, 0]
 
             sorted_versions = sorted(matrix.keys(), key=version_key, reverse=args.reverse)
-            short_latest = []
-            for v in sorted_versions:
-                latest_tag = sorted(list(matrix[v].keys()))[-1]
-                short_latest.append(f"{latest_tag}:{v}")
             
             if args.simple:
                 print(", ".join(sorted_versions))
             else:
                 for v in sorted_versions:
-                    tag_list = sorted(list(matrix[v].keys()))
+                    tag_list = sorted([k for k in matrix[v].keys() if k != "_latest"])
                     print(f"{BOLD}{v}{RESET}:{','.join(tag_list)}")
 
-            # Save audit cache
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            by_version = {}
-            by_platform = {}
-            by_version_latest = {}
-            by_platform_latest = {}
-            
-            # Use descending order for 'latest' determination
-            sorted_desc = sorted(matrix.keys(), key=version_key, reverse=True)
-            
-            for v_tag in sorted_desc:
-                v_match = re.match(r"(\d+\.\d+)", v_tag)
-                major_minor = v_match.group(1) if v_match else "unknown"
-                platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
-                platform_name = platform_match.group(1) if platform_match else "unknown"
-                
-                if major_minor not in by_version_latest:
-                    by_version_latest[major_minor] = v_tag
-                if platform_name not in by_platform_latest:
-                    by_platform_latest[platform_name] = v_tag
-
-            # Maintain original sorted_versions for by_version/by_platform lists
-            for v_tag in sorted_versions:
-                v_match = re.match(r"(\d+\.\d+)", v_tag)
-                major_minor = v_match.group(1) if v_match else "unknown"
-                platform_match = re.search(r"-([a-z0-9\-]+)$", v_tag)
-                platform_name = platform_match.group(1) if platform_match else "unknown"
-                
-                if major_minor not in by_version: by_version[major_minor] = []
-                by_version[major_minor].append(v_tag)
-                
-                if platform_name not in by_platform: by_platform[platform_name] = []
-                by_platform[platform_name].append(v_tag)
-                
-            report = {
-                "timestamp": datetime.now().isoformat(),
-                "full": matrix,
-                "short": sorted_versions,
-                "short-latest": short_latest,
-                "by_version": by_version,
-                "by_version_latest": by_version_latest,
-                "by_platform": by_platform,
-                "by_platform_latest": by_platform_latest
-            }
-            
-            report_path = DATA_DIR / "release_asset.json"
-            with open(report_path, "w") as f:
-                json.dump(report, f, indent=2)
-                
-            print(f"\n{BOLD}{WHITE}Cache updated{RESET}: {report_path}")
+            print(f"\n{BOLD}{WHITE}Cache updated{RESET}: {DATA_DIR / 'release_asset.json'}")
             return
 
-        # 1. Handle precise targets first
-        if precise_targets:
-            tag_to_v = {}
-            for t, v in precise_targets:
-                if t not in tag_to_v: tag_to_v[t] = []
-                tag_to_v[t].append(v)
+        # Unified Filtering using PythonScanner
+        all_matches = []
+        
+        # Handle precise targets
+        for t, v in precise_targets:
+            matches = scanner.get_filtered_assets(tag_filter=t, version_filter=v)
+            all_matches.extend(matches)
             
-            for t, versions in tag_to_v.items():
-                fetch_label = f"{BOLD}{BLUE}" + _("label_fetching_assets", "Fetching assets") + f"{RESET}"
-                date_label = f"{BOLD}{WHITE}{t}{RESET}"
-                fetch_msg = f"{fetch_label} for {date_label}..."
-                assets = fetch_assets_for_tag(t, use_cache=not args.force, status_msg=fetch_msg)
-                
-                for v in versions:
-                    found = False
-                    for a in assets:
-                        v_tag = regularize_version_name(a['version'], a['platform'])
-                        if v_tag == v or a["version"] == v:
-                            if not args.force and v_tag in remote_resources and str(t) <= str(remote_resources[v_tag].get("release", "0")):
-                                already_migrated_total.add(v_tag)
-                            else:
-                                all_to_migrate.append((a, t))
-                            found = True
-                            break
-                    if not found:
-                        error_msg = f"\n{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Asset {v} not found in release {t}."
-                        print(error_msg)
-            sys.stdout.write("\r\033[K")
-            sys.stdout.flush()
-
-        # 2. Handle version prefix / tag filters
+        # Handle version prefixes and tags
         if target_versions or args.all_latest or args.tag:
-            log_debug(f"Scanning {len(tags)} tags for matching versions...")
-            
-            # Optimization: keep track of which versions we've already found to stop scanning tags early
-            remaining_targets = set(target_versions)
-            found_count = 0
+            if args.all_latest and not target_versions:
+                # All latest assets from all compatible tags
+                all_matches.extend(scanner.get_filtered_assets(tag_filter=args.tag, platform_filter=args.platform))
+            else:
+                for v in target_versions:
+                    matches = scanner.get_filtered_assets(tag_filter=args.tag, version_filter=v, platform_filter=args.platform)
+                    all_matches.extend(matches)
 
-            for i, tag in enumerate(tags):
-                # Check if we can stop scanning
-                if target_versions and not args.all_latest and not remaining_targets:
-                    log_debug("All target versions found. Stopping tag scan.")
-                    break
-                
-                elapsed = int(time.time() - start_time)
-                status = f"{scan_label} from GitHub ({tag}) (found: {found_count})({elapsed}s)..."
-                scan_manager.update(worker_id, status)
-                
-                assets = fetch_assets_for_tag(tag, use_cache=not args.force, silent=True)
-                
-                current_filtered = assets
-                if target_versions:
-                    match_in_tag = []
-                    for a in current_filtered:
-                        v_tag = regularize_version_name(a['version'], a['platform'])
-                        match = False
-                        for tv in target_versions:
-                            if "-" in tv:
-                                if v_tag == tv: match = True; break
-                            else:
-                                if a["version"].startswith(tv): match = True; break
-                        if match:
-                            match_in_tag.append(a)
-                    current_filtered = match_in_tag
-                    
-                if args.platform:
-                    current_filtered = [a for a in current_filtered if a["platform"] == args.platform]
-                    
-                if not current_filtered:
-                    continue
-
-                # If we found matches in this tag, mark those versions as satisfied if they are newest
-                found_in_this_tag = 0
-                for a in current_filtered:
-                    v_tag = regularize_version_name(a['version'], a['platform'])
-                    for tv in list(remaining_targets):
-                        if tv == v_tag or a["version"].startswith(tv):
-                            remaining_targets.discard(tv)
-
-                def vp(n):
-                    if "pgo+lto-full" in n: return 0
-                    if "pgo-full" in n: return 1
-                    if "install_only" in n: return 2
-                    return 10
-                current_filtered = sorted(current_filtered, key=lambda x: (x["patch"], -vp(x["name"])), reverse=True)
-                
-                seen_in_tag = set()
-                for a in current_filtered:
-                    v_tag = regularize_version_name(a['version'], a['platform'])
-                    if not args.force and v_tag in remote_resources and str(tag) <= str(remote_resources[v_tag].get("release", "0")):
-                        already_migrated_total.add(v_tag)
-                        continue
-                    
-                    # key should be the full version-platform to allow multiple patches in one tag
-                    key = (a["version"], a["platform"])
-                    if key not in seen_in_tag:
-                        all_to_migrate.append((a, tag))
-                        seen_in_tag.add(key)
-                        found_count += 1
-                        found_in_this_tag += 1
-                        if not args.all_latest and not target_versions: 
-                            # If just looking for "latest" (no filters), stop at first tag with assets
-                            break
-                
-                if found_in_this_tag > 0:
-                    elapsed = int(time.time() - start_time)
-                    status = f"{scan_label} from GitHub ({tag}) (found: {found_count})({elapsed}s)..."
-                    scan_manager.update(worker_id, status)
-
-                # Early exit if enough assets found
-                if args.count and found_count >= args.count:
-                    log_debug(f"Reached count limit ({args.count}). Stopping tag scan.")
-                    break
-
-                if not args.all_latest and not target_versions: break
-
-            elapsed = int(time.time() - start_time)
-            scan_manager.update(worker_id, f"{scan_label}: {BOLD}{GREEN}Found {found_count} new assets{RESET} in {elapsed}s", is_final=True)
+        # Convert scanner results back to asset dicts used by migration logic
+        for a in all_matches:
+            v_tag = a["v_tag"]
+            if not args.force and v_tag in remote_resources and str(a["tag"]) <= str(remote_resources[v_tag].get("release", "0")):
+                already_migrated_total.add(v_tag)
+            else:
+                # Migration logic expects asset dict format
+                all_to_migrate.append(({
+                    "name": a["name"],
+                    "url": a["url"],
+                    "version": a["version"],
+                    "platform": a["platform"]
+                }, a["tag"]))
 
     # 3. Execution
     if already_migrated_total and not all_to_migrate:

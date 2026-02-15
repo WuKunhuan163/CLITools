@@ -116,8 +116,12 @@ def main():
     parser.add_argument("--py-uninstall", help="Uninstall a specific Python version (use 'all' for all versions)")
     parser.add_argument("--py-default", help="Set the default Python version for this tool")
     parser.add_argument("--py-update", action="store_true", help="Update Python resources from GitHub releases")
-    parser.add_argument("--py-force", action="store_true", help="Force action (e.g. refresh list cache)")
+    parser.add_argument("--force", action="store_true", help="Force action (e.g. refresh list cache)")
     parser.add_argument("--py-dir", help="Specify installation directory")
+    parser.add_argument("--tag", help="Filter by release tag (e.g. 20260211)")
+    parser.add_argument("--version", help="Filter by version prefix (e.g. 3.12)")
+    parser.add_argument("--platform", help="Filter by platform")
+    parser.add_argument("--limit-releases", type=int, help="Limit number of releases to scan")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
 
     # Shorthand version detection
@@ -162,11 +166,11 @@ def main():
     RESET = get_color("RESET")
 
     if args.py_list:
-        _list_versions(force=args.py_force)
+        _list_versions(force=args.force, tag_filter=args.tag, version_filter=args.version, platform_filter=args.platform, limit_releases=args.limit_releases)
         return
 
     if args.py_install:
-        success = _install_version(args.py_install, args.py_dir)
+        success = _install_version(args.py_install, args.py_dir, tag_filter=args.tag, platform_filter=args.platform)
         sys.exit(0 if success else 1)
 
     if args.py_uninstall:
@@ -184,6 +188,25 @@ def main():
             sys.exit(0)
         else:
             print(f"{RED}Error{RESET}: Update script not found.")
+            sys.exit(1)
+
+    if len(unknown) > 0 and unknown[0] == "test":
+        # Handle 'PYTHON test'
+        test_dir = project_root / "test"
+        if test_dir.exists():
+            # Run all test_xx_*.py files in the root test/ directory
+            test_files = sorted(list(test_dir.glob("test_*.py")))
+            if not test_files:
+                print(f"{BOLD}{YELLOW}{_('label_warning', 'Warning')}{RESET}: No test files found.")
+                sys.exit(0)
+                
+            for tf in test_files:
+                print(f"\n{BOLD}{BLUE}Running test:{RESET} {tf.name}")
+                # Use current python_exec if possible, otherwise sys.executable
+                subprocess.run([sys.executable, str(tf)])
+            sys.exit(0)
+        else:
+            print(f"{RED}Error{RESET}: Test directory not found.")
             sys.exit(1)
 
     selected_version = args.py_version or shorthand_version or os.environ.get("PY_VERSION") or default_version
@@ -252,33 +275,22 @@ def _uninstall_version(version, install_dir=None):
         error_label = _("label_error", "Error")
         print(f"{RED}{BOLD}{error_label}{RESET}: Version {version} is not installed.")
 
-def _list_versions(force=False):
+def _list_versions(force=False, tag_filter=None, version_filter=None, platform_filter=None, limit_releases=None):
     from tool.PYTHON.logic.config import DATA_DIR, INSTALL_DIR, RESOURCE_ROOT
+    from tool.PYTHON.logic.scanner import PythonScanner
+    
     installed = []
     if INSTALL_DIR.exists():
         installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
     
-    # 1. Get cached remote assets
-    cache_path = DATA_DIR / "release_asset.json"
-    remote_assets = {}
+    scanner = PythonScanner(force=force)
     
-    if force or not cache_path.exists():
-        # Trigger an update/scan if cache is missing or force requested
-        print(f"{BOLD}{BLUE}Scanning GitHub releases{RESET}...")
-        update_script = script_dir / "logic" / "update.py"
-        if update_script.exists():
-            # Use --list to populate the cache
-            # We scan more releases for a better list
-            limit = 50 if force else 10
-            cmd = [sys.executable, str(update_script), "--list", "--limit-releases", str(limit)]
-            if force: cmd.append("--force")
-            subprocess.run(cmd, capture_output=True)
-            
-    if cache_path.exists():
-        try:
-            with open(cache_path, "r") as f:
-                remote_assets = json.load(f).get("full", {})
-        except: pass
+    if force or not (DATA_DIR / "release_asset.json").exists():
+        scanner.scan_all(limit_releases=limit_releases)
+    
+    # Apply filters using the new scanner
+    assets = scanner.get_filtered_assets(tag_filter=tag_filter, version_filter=version_filter, platform_filter=platform_filter)
+    remote_versions = sorted(list(set([a["v_tag"] for a in assets])))
     
     # 2. Get local resources (migrated)
     migrated = []
@@ -289,20 +301,37 @@ def _list_versions(force=False):
     
     # 3. Combine and Display
     label = _("python_supported_versions", "Supported versions")
-    all_versions = sorted(list(set(list(remote_assets.keys()) + installed + migrated)))
+    
+    def version_key(v_str):
+        # Extract X.Y.Z part
+        v_num = re.search(r"(\d+\.\d+\.\d+)", v_str)
+        if v_num:
+            return [int(x) for x in v_num.group(1).split(".")]
+        # Fallback for major.minor
+        v_min = re.search(r"(\d+\.\d+)", v_str)
+        if v_min:
+            return [int(x) for x in v_min.group(1).split(".")] + [0]
+        return [0, 0, 0]
+
+    # If any filter is applied, we only show versions that match the filter
+    if tag_filter or version_filter or platform_filter:
+        all_versions = sorted(list(set(remote_versions)), key=version_key)
+    else:
+        all_versions = sorted(list(set(remote_versions + installed + migrated)), key=version_key)
     
     if not all_versions:
         print(f"{BOLD}{label}{RESET}:")
-        print("  (No versions found. Use 'PYTHON --py-update' to fetch from GitHub.)")
+        print("  (No versions found matching the criteria.)")
         return
 
-    # Filter for current platform by default for cleaner list
+    # Filter for current platform by default for cleaner list if no platform filter specified
     from logic.utils import get_system_tag
     tag = get_system_tag()
     
     display_rows = []
     for v in all_versions:
-        if tag not in v and "-" in v: continue # Skip other platforms unless requested
+        # If platform filter is set, we don't need to auto-filter by current platform
+        if not platform_filter and tag not in v and "-" in v: continue 
         
         is_installed = v in installed
         is_migrated = v in migrated
@@ -325,20 +354,19 @@ def _list_versions(force=False):
         if report_path:
             print(f"\n{BOLD}{WHITE}Full result saved to{RESET}: {report_path}")
 
-def _install_version(version, install_dir=None):
+def _install_version(version, install_dir=None, tag_filter=None, platform_filter=None):
     from tool.PYTHON.logic.config import DATA_DIR, INSTALL_DIR, RESOURCE_ROOT
-    remote_versions = _get_remote_versions()
+    from tool.PYTHON.logic.scanner import PythonScanner
+    
+    scanner = PythonScanner()
     
     # Check local cache for all available versions from astral-sh
     cache_path = DATA_DIR / "release_asset.json"
-    cached_versions = []
-    if cache_path.exists():
-        try:
-            with open(cache_path, "r") as f:
-                cached_versions = list(json.load(f).get("full", {}).keys())
-        except: pass
+    if not cache_path.exists():
+        scanner.scan_all(limit_releases=10)
     
-    all_available = sorted(list(set(remote_versions + cached_versions)))
+    all_assets = scanner.get_filtered_assets(tag_filter=tag_filter, platform_filter=platform_filter)
+    all_available = sorted(list(set([a["v_tag"] for a in all_assets])))
     
     # Compatibility layer: handle 'python' prefix and platform tags
     from logic.utils import get_system_tag
@@ -365,8 +393,8 @@ def _install_version(version, install_dir=None):
                 matches.sort(key=len, reverse=True)
                 final_version = matches[0]
 
+    error_label = _("label_error", "Error")
     if not final_version:
-        error_label = _("label_error", "Error")
         if all_available:
             msg = _("python_version_not_supported", "Version {version} is not found in remote project or local cache.", version=version)
             print(f"{RED}{BOLD}{error_label}{RESET}: {msg}")
@@ -444,6 +472,8 @@ def _install_version(version, install_dir=None):
                 
                 # Use sys.executable to ensure we use the same environment
                 cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
+                if tag_filter: cmd.extend(["--tag", tag_filter])
+                
                 # DO NOT capture output so the user sees progress
                 res = subprocess.run(cmd)
                 

@@ -5,6 +5,7 @@ import subprocess
 import argparse
 import sys
 import shutil
+import hashlib
 from pathlib import Path
 from datetime import datetime
 
@@ -37,8 +38,7 @@ PROJECT_URL = f"https://github.com/{PROJECT_OWNER}/{PROJECT_NAME}"
 REPO_URL = f"{PROJECT_URL}.git"
 
 PYTHON_TOOL_DIR = PROJECT_ROOT / "tool" / "PYTHON"
-CACHE_FILE = DATA_DIR / "release_cache.json"
-TAGS_CACHE_FILE = DATA_DIR / "tags_cache.json"
+RELEASE_ASSET_FILE = DATA_DIR / "release_asset.json"
 # RESOURCE_ROOT, INSTALL_DIR, TMP_INSTALL_DIR are already imported/defined
 
 # Ensure directories exist
@@ -90,77 +90,12 @@ def print_cache_warning():
     warning_msg = _("label_warning_cache", "Using cached data. To force update, clear cache.")
     print(f"{BOLD}{YELLOW}{warning_label}{RESET}: {warning_msg}", flush=True)
 
-def get_release_tags(use_cache=True):
-    if use_cache and TAGS_CACHE_FILE.exists():
-        cache = load_json(TAGS_CACHE_FILE)
-        if "tags" in cache and (datetime.now() - datetime.fromisoformat(cache["timestamp"])).days < 1:
-            return cache["tags"]
+from tool.PYTHON.logic.scanner import PythonScanner
+scanner = PythonScanner()
 
-    fetch_msg = _("python_fetching_releases", "Fetching releases from GitHub project {owner} ({url})...", 
-                  owner=PROJECT_OWNER, url=PROJECT_URL)
-    print(fetch_msg)
-    
-    cmd = ["/usr/bin/git", "ls-remote", "--tags", REPO_URL]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"{BOLD}{RED}{_('label_error', 'Error')}{RESET}: Failed to fetch tags.")
-        sys.exit(1)
-    tags = []
-    for line in result.stdout.strip().split("\n"):
-        match = re.search(r"refs/tags/(\d{8}(?:T\d+)?)$", line)
-        if match: tags.append(match.group(1))
-    
-    tags = sorted(list(set(tags))) # Ascending (Oldest first)
-    save_json(TAGS_CACHE_FILE, {"tags": tags, "timestamp": datetime.now().isoformat()})
-    return tags
-
-def fetch_assets_for_tag(tag, use_cache=True):
-    cache = load_json(CACHE_FILE)
-    if use_cache and tag in cache:
-        return cache[tag]["assets"]
-
-    fetch_msg = _("python_fetching_assets", "Fetching assets for the release {tag}...", tag=tag)
-    print(fetch_msg, end="\r", flush=True)
-
-    url = f"{PROJECT_URL}/releases/expanded_assets/{tag}"
-    cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", url]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    assets = []
-    matches = re.findall(r'cpython-([\w\+\-\.]+)\.tar\.zst', result.stdout)
-    for name_core in set(matches):
-        name = f"cpython-{name_core}.tar.zst"
-        v_match = re.search(r"(\d+\.\d+\.\d+)", name)
-        if not v_match: continue
-        
-        full_v = v_match.group(1)
-        minor_v = ".".join(full_v.split(".")[:2])
-        patch_str = full_v.split(".")[2]
-        try: patch = int(patch_str)
-        except ValueError: patch = 0
-        
-        platform = resolve_platform(name)
-        if platform:
-            assets.append({
-                "name": name,
-                "url": f"{PROJECT_URL}/releases/download/{tag}/{name}",
-                "version": full_v,
-                "minor": minor_v,
-                "patch": patch,
-                "platform": platform,
-                "tag": tag
-            })
-            
-    print("\r" + " " * (len(fetch_msg) + 10) + "\r", end="", flush=True)
-    found_msg = _("python_found_assets", "Found {count} unique compatible assets in the release {tag}.", 
-                  count=len(assets), tag=tag)
-    print(found_msg, flush=True)
-    
-    cache[tag] = {"assets": assets, "timestamp": datetime.now().isoformat()}
-    save_json(CACHE_FILE, cache)
-    return assets
-
-import hashlib
+def get_all_assets_from_cache(tag_filter=None, version_filter=None, platform_filter=None):
+    """Reads all assets from release_asset.json and flattens them."""
+    return scanner.get_filtered_assets(tag_filter=tag_filter, version_filter=version_filter, platform_filter=platform_filter)
 
 def download_and_verify(asset, target_dir):
     """Downloads an asset to tmp, verifies it, then moves to target_dir."""
@@ -250,35 +185,13 @@ def main():
     parser.add_argument("--platform", help="Filter by platform")
     args = parser.parse_args()
 
-    tags = get_release_tags(use_cache=not args.force)
-    if not tags: return
-
-    target_tag = args.tag or tags[-1]
-    all_assets = fetch_assets_for_tag(target_tag, use_cache=not args.force)
-
-    # Filter
-    filtered = all_assets
-    if args.version:
-        filtered = [a for a in filtered if a["version"] == args.version or a["version"].startswith(args.version)]
-    if args.platform:
-        filtered = [a for a in filtered if a["platform"] == args.platform]
-
-    if not filtered:
-        # Search all releases if version specified but not found in latest
-        if args.version:
-            print(f"Version {args.version} not found in {target_tag}, searching all releases...")
-            for t in reversed(tags):
-                assets = fetch_assets_for_tag(t, use_cache=not args.force)
-                filtered = [a for a in assets if a["version"] == args.version]
-                if filtered:
-                    target_tag = t
-                    break
-        
+    # Use the unified cache with filters applied directly
+    filtered = get_all_assets_from_cache(tag_filter=args.tag, version_filter=args.version, platform_filter=args.platform)
     if not filtered:
         print(f"{BOLD}{YELLOW}{_('label_warning', 'Warning')}{RESET}: No matching assets found.")
         return
 
-    # Deduplicate: latest patch for each platform/minor
+    # Deduplicate: latest tag and latest patch for each platform/minor
     to_download = []
     seen = set()
     
@@ -290,7 +203,8 @@ def main():
         if "full" in name and "debug" not in name and "noopt" not in name: return 3
         return 10
 
-    filtered = sorted(filtered, key=lambda x: (x["patch"], -variant_priority(x["name"])), reverse=True)
+    # Sort by tag (descending) then patch (descending) then priority
+    filtered = sorted(filtered, key=lambda x: (x["tag"], x["patch"], -variant_priority(x["name"])), reverse=True)
     for a in filtered:
         key = (a["minor"], a["platform"])
         if key not in seen:

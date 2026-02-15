@@ -319,30 +319,68 @@ def _dev_audit_bin(fix=False):
     tools = []
     if registry_path.exists():
         with open(registry_path, 'r') as f:
-            tools = list(json.load(f).get("tools", {}).keys())
+            data = json.load(f)
+            tools_data = data.get("tools", [])
+            if isinstance(tools_data, dict):
+                tools = list(tools_data.keys())
+            elif isinstance(tools_data, list):
+                tools = tools_data
     
+    # 1. Check existing files in bin/
     violations = []
+    existing_in_bin = [f.name for f in bin_dir.iterdir()]
+    
     for f in bin_dir.iterdir():
         if f.name == "TOOL": continue # TOOL is allowed to be a script
         
-        if not f.is_symlink():
-            # Check if it's a tool name
-            if f.name in tools:
-                violations.append(f)
+        # A shortcut is valid if it's a recognized bootstrap script.
+        # Symlinks are now considered old-style and should be replaced by bootstrap scripts.
+        is_valid_bootstrap = False
+        if f.is_file() and not f.is_symlink():
+            try:
+                with open(f, 'r') as f_in:
+                    content = f_in.read()
+                    if "# Use managed python if available" in content and "subprocess.run" in content:
+                        is_valid_bootstrap = True
+            except: pass
+        
+        # Check if it's a tool name or a subtool shortcut name
+        is_tool = f.name in tools
+        matched_tool_name = f.name if is_tool else None
+        
+        if not is_tool:
+            # Check for subtools: tool/PARENT.SUBTOOL/ -> shortcut SUBTOOL
+            for t in tools:
+                if "." in t and t.split(".")[-1] == f.name:
+                    is_tool = True
+                    matched_tool_name = t
+                    break
+        
+        if is_tool and not is_valid_bootstrap:
+            violations.append((f.name, matched_tool_name, "Unmanaged or old-style"))
+
+    # 2. Check for missing shortcuts for installed tools
+    for t in tools:
+        shortcut_name = t.split(".")[-1] if "." in t else t
+        if shortcut_name == "TOOL": continue
+        
+        tool_dir = project_root / "tool" / t
+        if tool_dir.exists() and shortcut_name not in existing_in_bin:
+            violations.append((shortcut_name, t, "Missing shortcut"))
     
     if not violations:
-        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts in bin/ are pure symlinks.")
+        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts in bin/ are valid managed bootstrap scripts.")
         return True
     
-    print(f"{BOLD}{RED}Found code in bin/ instead of symlinks{RESET}:")
-    for f in violations:
-        print(f"  {f.name} (File size: {f.stat().st_size} bytes)")
+    print(f"{BOLD}{RED}Found shortcut violations in bin/{RESET}:")
+    for shortcut_name, tool_name, reason in violations:
+        print(f"  {shortcut_name} ({reason})")
         if fix:
             # Fix it by re-running shortcut creation
             from logic.tool.setup.engine import ToolEngine
-            engine = ToolEngine(f.name, project_root)
+            engine = ToolEngine(tool_name, project_root)
             if engine.create_shortcut():
-                print(f"    {BOLD}{GREEN}Fixed{RESET}: Replaced with symlink.")
+                print(f"    {BOLD}{GREEN}Fixed{RESET}: Created/Updated managed bootstrap script.")
             else:
                 print(f"    {BOLD}{RED}Failed to fix{RESET}: could not create shortcut.")
                 
