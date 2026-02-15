@@ -1,3 +1,4 @@
 * text eol=lf
 *.png binary
+*.tar.zst binary
 *.tar.zst filter=lfs diff=lfs merge=lfs -text
