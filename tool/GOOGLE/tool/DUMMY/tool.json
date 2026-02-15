@@ -1,7 +1,0 @@
-{
-  "name": "DUMMY",
-  "version": "1.0.0",
-  "description": "Dummy subtool",
-  "purpose": "Testing namespace mirroring",
-  "dependencies": []
-}
