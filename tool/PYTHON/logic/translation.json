@@ -16,7 +16,6 @@
     "python_found_assets": "تم العثور على {count} من الأصول المتوافقة الفريدة في الإصدار {tag}.",
     "python_remote_up_to_date": "البعيد يحتوي بالفعل على الأصول المطلوبة",
     "python_update_hint": "يمكنك استخدام 'PYTHON --py-update --version {v}' لترحيله من إصدارات astral-sh.",
-    "python_update_initial_hint": "يرجى تشغيل 'PYTHON --py-update' أولاً لترحيل إصدارات Python.",
     "python_found_assets_count": "تم العثور على {count} {word}",
     "python_migrated_success_status": "تم الترحيل بنجاح"
   }
