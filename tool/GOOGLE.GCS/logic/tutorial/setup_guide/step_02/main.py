@@ -6,16 +6,19 @@ from PIL import Image, ImageTk
 def build_step(frame, win):
     tk.Label(frame, text="Step 2: Enable Google Drive API", font=("Arial", 16, "bold")).pack(pady=(20, 10))
     
-    content = (
-        "1. In the sidebar, go to 'APIs & Services' > 'Library'.\n"
-        "   (URL: https://console.cloud.google.com/apis/library)\n\n"
-        "2. Search for 'Google Drive API'.\n"
-        "   (URL: https://console.cloud.google.com/apis/library/drive.googleapis.com)\n\n"
+    content_intro = "1. In the sidebar, go to 'APIs & Services' > 'Library'."
+    tk.Label(frame, text=content_intro, font=get_label_style(), justify="left", wraplength=600).pack(pady=(10, 0), padx=20, anchor="w")
+    win.add_clickable_url(frame, "https://console.cloud.google.com/apis/library", "https://console.cloud.google.com/apis/library")
+    
+    content_search = "2. Search for 'Google Drive API'."
+    tk.Label(frame, text=content_search, font=get_label_style(), justify="left", wraplength=600).pack(pady=(10, 0), padx=20, anchor="w")
+    win.add_clickable_url(frame, "https://console.cloud.google.com/apis/library/drive.googleapis.com", "https://console.cloud.google.com/apis/library/drive.googleapis.com")
+    
+    content_enable = (
         "3. Click on it and select 'Enable'.\n\n"
         "This allows your project to communicate with Google Drive."
     )
-    
-    tk.Label(frame, text=content, font=get_label_style(), justify="left", wraplength=600).pack(pady=10, padx=20)
+    tk.Label(frame, text=content_enable, font=get_label_style(), justify="left", wraplength=600).pack(pady=10, padx=20, anchor="w")
 
     # Image support
     img_path = Path(__file__).resolve().parent / "asset" / "image" / "guide_1.png"

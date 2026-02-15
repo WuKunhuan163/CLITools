@@ -109,12 +109,25 @@ class TutorialWindow(BaseGUIWindow):
         step.content_func(self.content_frame, self)
         
         # 3. Update Buttons
+        # Button Order: Cancel (L among buttons), Prev, Add 60s, Next (R)
+        # Re-pack R-to-L: Next, Add 60s, Prev, Cancel
+        if self.submit_btn:
+            self.submit_btn.pack_forget()
+            self.submit_btn.pack(side=tk.RIGHT)
+            
+        if self.add_time_btn:
+            self.add_time_btn.pack_forget()
+            self.add_time_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            
         if self.prev_btn:
+            self.prev_btn.pack_forget()
             if self.current_step_idx > 0:
                 self.prev_btn.pack(side=tk.RIGHT, padx=(0, 10))
-            else:
-                self.prev_btn.pack_forget()
                 
+        if self.cancel_btn:
+            self.cancel_btn.pack_forget()
+            self.cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            
         if self.submit_btn:
             if self.current_step_idx == len(self.steps) - 1:
                 btn_text = self._("btn_complete", "Complete")
@@ -127,7 +140,7 @@ class TutorialWindow(BaseGUIWindow):
 
     def setup_ui(self):
         """Builds the shell of the tutorial window."""
-        self.root.geometry("700x450")
+        self.root.geometry("700x550") # Increased height for better visibility
         
         # Initialize bottom bar from base.py
         self.status_label = setup_common_bottom_bar(
@@ -136,27 +149,82 @@ class TutorialWindow(BaseGUIWindow):
             submit_cmd=self.on_submit
         )
         
-        # Add Prev button to bottom bar (managed by us)
+        # Button Order Adjustment: Cancel, Prev, Add 60s, Next
+        # Currently packed in setup_common_bottom_bar: 
+        # [Status (L)] ... [Cancel (R)] [Add 60s (R)] [Next (R)]
+        # We need to re-pack them in the desired order: Cancel (Leftmost among buttons), Prev, Add 60s, Next (Rightmost)
+        
+        if self.submit_btn:
+            self.submit_btn.pack_forget()
+        if self.add_time_btn:
+            self.add_time_btn.pack_forget()
+        if self.cancel_btn:
+            self.cancel_btn.pack_forget()
+            
+        # Re-pack everything tk.RIGHT in reverse requested order: 
+        # Next (far right), Add 60s, Prev, Cancel
+        if self.submit_btn:
+            self.submit_btn.pack(side=tk.RIGHT)
+        if self.add_time_btn:
+            self.add_time_btn.pack(side=tk.RIGHT, padx=(0, 10))
+            
         bb_frame = self.bottom_bar_frame
         self.prev_btn = tk.Button(bb_frame, text=self._("btn_prev", "Prev"), 
                                   command=self.on_prev, font=get_button_style())
+        # self.prev_btn will be packed/unpacked in update_step_ui
+        
+        if self.cancel_btn:
+            self.cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
         
         # Main shell
         self.main_frame = tk.Frame(self.root, padx=25, pady=10)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Top bar: Step Indicator and Step Title
+        # Top bar: Step Indicator
         top_frame = tk.Frame(self.main_frame)
         top_frame.pack(fill=tk.X, pady=(0, 10))
         
         self.step_indicator = tk.Label(top_frame, text="", font=get_label_style(), fg="#666")
         self.step_indicator.pack(side=tk.LEFT)
         
-        # Content Container
-        self.content_frame = tk.Frame(self.main_frame)
-        self.content_frame.pack(fill=tk.BOTH, expand=True)
+        # Scrollable Content Container
+        container = tk.Frame(self.main_frame)
+        container.pack(fill=tk.BOTH, expand=True)
         
-        # Optional Error Area at the bottom of content
+        self.canvas = tk.Canvas(container, highlightthickness=0)
+        self.scrollbar = tk.Scrollbar(container, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas)
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        # Create a window inside the canvas to hold our scrollable frame
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # Sync width of scrollable_frame to canvas width
+        def on_canvas_configure(event):
+            self.canvas.itemconfig(self.canvas_window, width=event.width)
+        self.canvas.bind("<Configure>", on_canvas_configure)
+        
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Mouse wheel support
+        def _on_mousewheel(event):
+            if platform.system() == "Darwin":
+                self.canvas.yview_scroll(int(-1 * event.delta), "units")
+            else:
+                self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        self.content_frame = self.scrollable_frame
+        
+        # Optional Error Area at the bottom
         from logic.gui.tkinter.style import get_secondary_label_style
         self.error_label = tk.Label(self.main_frame, text="", font=get_secondary_label_style(), 
                                     fg=get_gui_colors()["red"], wraplength=600, justify="center")
@@ -169,4 +237,18 @@ class TutorialWindow(BaseGUIWindow):
         self.start_timer(self.status_label)
         self.root.lift()
         self.root.attributes("-topmost", True)
+
+    def finalize(self, status: str, data: Any, reason: Optional[str] = None):
+        """Override to ensure a reason is set for cancelled."""
+        if status == "cancelled" and not reason:
+            reason = "User closed tutorial"
+        super().finalize(status, data, reason=reason)
+
+    def add_clickable_url(self, frame, text, url):
+        """Utility to add a clickable URL label."""
+        import webbrowser
+        link = tk.Label(frame, text=text, font=get_label_style(), fg="blue", cursor="hand2", wraplength=600)
+        link.pack(pady=2)
+        link.bind("<Button-1>", lambda e: webbrowser.open_new(url))
+        return link
 

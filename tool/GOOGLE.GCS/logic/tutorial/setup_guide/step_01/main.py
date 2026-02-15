@@ -6,14 +6,17 @@ from PIL import Image, ImageTk
 def build_step(frame, win):
     tk.Label(frame, text="Step 1: Create a Google Cloud Project", font=("Arial", 16, "bold")).pack(pady=(20, 10))
     
-    content = (
-        "1. Go to the Google Cloud Console (https://console.cloud.google.com/).\n\n"
+    content_intro = "1. Go to the Google Cloud Console."
+    tk.Label(frame, text=content_intro, font=get_label_style(), justify="left", wraplength=600).pack(pady=(10, 0), padx=20, anchor="w")
+    win.add_clickable_url(frame, "https://console.cloud.google.com/", "https://console.cloud.google.com/")
+    
+    content_rest = (
         "2. Click the project dropdown at the top and select 'New Project'.\n\n"
         "3. Give it a name (e.g., 'My-Drive-Manager') and click 'Create'.\n\n"
         "Once done, click 'Next' to continue."
     )
     
-    tk.Label(frame, text=content, font=get_label_style(), justify="left", wraplength=600).pack(pady=10, padx=20)
+    tk.Label(frame, text=content_rest, font=get_label_style(), justify="left", wraplength=600).pack(pady=10, padx=20, anchor="w")
     
     # Image support
     img_path = Path(__file__).resolve().parent / "asset" / "image" / "guide_1.png"
