@@ -85,9 +85,15 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
     
     # 1. Start subprocess in new session to decouple from parent's process group
+    # Add environment variables to suppress some noise and indicate managed mode
+    env = os.environ.copy()
+    env["TK_SILENCE_DEPRECATION"] = "1"
+    env["GDS_GUI_MANAGED"] = "1"
+    
     proc = subprocess.Popen([python_exe, script_path], 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                            text=True, encoding='utf-8', start_new_session=True)
+                            text=True, encoding='utf-8', start_new_session=True,
+                            env=env)
     
     # Display PID for precise termination if needed
     tool_name = tool_instance.tool_name
@@ -95,12 +101,47 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
     
     label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback via GUI")
-    sys.stdout.write(f"\r\033[K{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})...")
+    display_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})..."
+    
+    from logic.turing.display.manager import truncate_to_width, _get_configured_width
+    width = _get_configured_width()
+    if width > 0:
+        display_msg = truncate_to_width(display_msg, width)
+        
+    sys.stdout.write(f"\r\033[K{display_msg}")
     sys.stdout.flush()
+
+    # Hide debug prints unless specifically enabled
+    from logic.config import get_setting
+    debug_on = os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", False)
+
+    stdout_content = []
+    def read_stdout():
+        for line in iter(proc.stdout.readline, ''): 
+            # Real-time status relay from child to terminal
+            if line.startswith("GDS_GUI_LOG:"):
+                log_msg = line[len("GDS_GUI_LOG:"):].strip()
+                # Erase current progress line, print log, and restore progress line
+                sys.stdout.write(f"\r\033[K{log_msg}\n")
+                sys.stdout.write(display_msg)
+                sys.stdout.flush()
+                continue
+                
+            stdout_content.append(line)
+            if debug_on:
+                sys.stderr.write(f"[GUI STDOUT] {line}")
+                sys.stderr.flush()
+        proc.stdout.close()
+    t_stdout = threading.Thread(target=read_stdout, daemon=True)
+    t_stdout.start()
 
     stderr_content = []
     def read_stderr():
-        for line in iter(proc.stderr.readline, ''): stderr_content.append(line)
+        for line in iter(proc.stderr.readline, ''): 
+            stderr_content.append(line)
+            if debug_on:
+                sys.stderr.write(f"[GUI STDERR] {line}")
+                sys.stderr.flush()
         proc.stderr.close()
     t_stderr = threading.Thread(target=read_stderr, daemon=True)
     t_stderr.start()
@@ -108,17 +149,41 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     parent_timeout = timeout + 300
     start_wait = time.time()
     
-    stdout = ""
+    # Path for add_time events
+    added_time_dir = tool_instance.project_root / "data" / "run" / "added_time"
+    added_time_dir.mkdir(parents=True, exist_ok=True)
+    
     is_interrupted = False
     try:
         while proc.poll() is None:
+            # 1. Check for add_time events
+            try:
+                for f in list(added_time_dir.glob(f"{proc.pid}_*.add")):
+                    # Extract increment from filename
+                    parts = f.stem.split('_')
+                    if len(parts) >= 3:
+                        try:
+                            inc = int(parts[2])
+                            parent_timeout += inc
+                        except: pass
+                    f.unlink() # Consume event
+            except: pass
+
+            # 2. Watchdog check
             if time.time() - start_wait > parent_timeout:
                 proc.kill()
-                sys.stdout.write("\r\033[K"); sys.stdout.flush()
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
+                t_stdout.join(timeout=2)
+                t_stderr.join(timeout=2)
                 return {"status": "timeout", "data": None}
             time.sleep(0.5)
-        stdout, _ = proc.communicate()
+        
+        proc.wait() # Wait for process to exit
+        t_stdout.join(timeout=2)
         t_stderr.join(timeout=2)
+        stdout = "".join(stdout_content)
+        stderr = "".join(stderr_content)
     except (Exception, KeyboardInterrupt) as e:
         if isinstance(e, KeyboardInterrupt):
             is_interrupted = True
@@ -131,11 +196,24 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         
         try:
             # Wait for GUI to detect flag, finalize and print JSON
-            stdout, _ = proc.communicate(timeout=4)
+            # Instead of communicate, we wait for proc and join threads
+            start_grace = time.time()
+            while proc.poll() is None and time.time() - start_grace < 4:
+                time.sleep(0.1)
+            
+            if proc.poll() is None:
+                proc.kill()
+            
+            t_stdout.join(timeout=1)
             t_stderr.join(timeout=1)
+            stdout = "".join(stdout_content)
+            stderr = "".join(stderr_content)
         except:
             proc.kill()
-            stdout = ""
+            t_stdout.join(timeout=1)
+            t_stderr.join(timeout=1)
+            stdout = "".join(stdout_content)
+            stderr = "".join(stderr_content)
         
         if not stdout:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
@@ -144,16 +222,20 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             raise e
 
     sys.stdout.write("\r\033[K"); sys.stdout.flush()
-    stderr = "".join(stderr_content)
     
     # Parse JSON result
     res = None
     for line in stdout.splitlines():
-        if line.startswith("GDS_GUI_RESULT_JSON:"):
+        marker = "GDS_GUI_RESULT_JSON:"
+        idx = line.find(marker)
+        if idx != -1:
             try:
-                res = json.loads(line[len("GDS_GUI_RESULT_JSON:"):])
+                # Take everything after the marker's FIRST occurrence in this line
+                json_str = line[idx + len(marker):].strip()
+                res = json.loads(json_str)
                 break
-            except: pass
+            except: 
+                pass
     
     if res:
         # If it was terminated, refine reason
@@ -164,8 +246,19 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 res["reason"] = "stop" # Default for termination via flag
         return res
     
-    sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
-    if stderr: sys.stderr.write(f"DEBUG: GUI stderr: {stderr}\n")
+    # Filter stderr
+    filtered_stderr = ""
+    if stderr:
+        from logic.gui.tkinter.blueprint.base import filter_tkinter_noise
+        filtered_stderr = filter_tkinter_noise(stderr)
+
+    # Hide debug prints unless specifically enabled
+    from logic.config import get_setting
+    # Use environment variable or setting, default to False but allow override
+    if os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", True):
+        sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
+        if filtered_stderr: sys.stderr.write(f"DEBUG: GUI stderr: {filtered_stderr}\n")
+        if stdout: sys.stderr.write(f"DEBUG: GUI stdout: {stdout}\n")
     
     # Error fallback for crashes
     if proc.returncode != 0:
@@ -173,7 +266,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         if proc.returncode in sig_codes:
             return {"status": "terminated", "data": None, "reason": "signal"}
             
-    return {"status": "error", "message": stderr or "No valid response from GUI"}
+    return {"status": "error", "message": filtered_stderr or stderr or "No valid response from GUI"}
 
 def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Optional[str]:
     """
@@ -188,7 +281,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     BOLD, BLUE, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
     # 2. Setup paths - use tool's data/input directory
-    input_dir = tool_instance.project_root / "tool" / tool_instance.tool_name / "data" / "input"
+    input_dir = tool_instance.get_data_dir() / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     
     ts = time.strftime("%Y%m%d_%H%M%S")
@@ -241,7 +334,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     print(full_msg, flush=True)
     
     # 4. Polling loop
-    bell_path = tool_instance.project_root / "logic" / "gui" / "tkinter_bell.mp3"
+    bell_path = tool_instance.project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
     
     # Try to get focus interval from config
     fi = 90
@@ -258,8 +351,8 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
             now = time.time()
             # Periodic Audio Alert (Focus replacement)
             if fi > 0 and now - last_focus >= fi:
-                if platform.system() == "Darwin" and bell_path.exists():
-                    subprocess.run(["afplay", str(bell_path)], capture_output=True)
+                from logic.gui.engine import play_notification_bell
+                play_notification_bell(tool_instance.project_root)
                 last_focus = now
                 
             if input_file.exists():

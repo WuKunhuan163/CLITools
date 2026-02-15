@@ -8,6 +8,7 @@ import shutil
 import re
 import platform
 from pathlib import Path
+from typing import Optional, List, Dict, Any, Callable
 
 # Import colors and shared utils from logic
 from logic.config import get_color
@@ -76,27 +77,6 @@ def uninstall_tool(tool_name, force_yes=False):
     from logic.tool.setup.engine import ToolEngine
     engine = ToolEngine(tool_name, project_root)
     return engine.uninstall()
-
-def register_path(bin_dir):
-    home = Path.home()
-    shell = os.environ.get("SHELL", "")
-    profiles = []
-    if "zsh" in shell: profiles.append(home / ".zshrc")
-    elif "bash" in shell:
-        profiles.append(home / ".bash_profile")
-        profiles.append(home / ".bashrc")
-    else: profiles.extend([home / ".zshrc", home / ".bash_profile", home / ".bashrc"])
-
-    export_cmd = f'\nexport PATH="{bin_dir}:$PATH"\n'
-    for profile in profiles:
-        if profile.exists():
-            with open(profile, 'r') as f: content = f.read()
-            if str(bin_dir) not in content:
-                with open(profile, 'a') as f: f.write(export_cmd)
-                print(_("updated_path", "Updated {profile} with PATH.", profile=profile))
-
-    if str(bin_dir) not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
 
 def _print_width_check(width, is_auto=False, actual_detected=True):
     """Unified display for terminal width check."""
@@ -167,332 +147,14 @@ def update_config(key, value):
 
 def _dev_sync(quiet=False):
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""
+    from logic.git.utils import align_branches_logic
     project_root = ROOT_PROJECT_ROOT
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
-    from logic.utils import cleanup_project_patterns
-    import shutil
     
-    try:
-        start_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
-    except subprocess.CalledProcessError:
-        if not quiet:
-            print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("not_git_repo", "Not a git repository."))
-        return False
-
-    # Helper to run git commands quietly
-    def run_git(args):
-        try:
-            res = subprocess.run(["/usr/bin/git"] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
-            return True
-        except subprocess.CalledProcessError as e:
-            if not quiet:
-                print(f"\nGit error: {e}")
-                if e.stdout: print(f"STDOUT: {e.stdout}")
-                if e.stderr: print(f"STDERR: {e.stderr}")
-            return False
-
-    tm = ProgressTuringMachine()
-
-    # 1. Commit current branch
-    def auto_commit():
-        status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
-        if status:
-            if not run_git(["add", "-A"]): return False
-            if not run_git(["commit", "-m", f"Auto-commit before sync on '{start_branch}'"]): return False
-        return True
-
-    tm.add_stage(TuringStage(
-        name=_("on_branch", "local changes on '{branch}'", branch=start_branch),
-        action=auto_commit,
-        active_status=_("label_committing", "Committing"),
-        success_status="Successfully committed",
-        success_color="BOLD",
-        fail_status="Failed to commit",
-        bold_part="Committing"
-    ))
-
-    # 2. dev -> tool
-    def align_tool():
-        # Update 'tool' branch to match 'dev'
-        # We use a temporary index to avoid checkouts
-        env = os.environ.copy()
-        side_index = project_root / ".git" / "index_sync_tool"
-        env["GIT_INDEX_FILE"] = str(side_index)
-        
-        try:
-            # 1. Start with dev tree
-            res = subprocess.run(["/usr/bin/git", "write-tree"], cwd=str(project_root), capture_output=True, text=True)
-            tree_sha = res.stdout.strip()
-            
-            # 2. Merge with origin/tool's resource directory
-            # We want to keep 'resource/' from 'tool' branch
-            subprocess.run(["/usr/bin/git", "read-tree", tree_sha], cwd=str(project_root), env=env, check=True)
-            
-            # Fetch origin/tool to get its resource tree
-            subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], cwd=str(project_root), capture_output=True)
-            
-            # Get resource tree from origin/tool
-            res = subprocess.run(["/usr/bin/git", "ls-tree", "origin/tool", "resource"], cwd=str(project_root), capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout:
-                # Add resource directory to our new tree
-                subprocess.run(["/usr/bin/git", "read-tree", "--prefix=resource", "origin/tool:resource"], cwd=str(project_root), env=env, check=True)
-            
-            new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
-            
-            # 3. Create commit on tool branch
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
-            parent = res.stdout.strip() if res.returncode == 0 else None
-            
-            commit_args = ["/usr/bin/git", "commit-tree", new_tree, "-m", "Align 'tool' with 'dev' (preserving resources)"]
-            if parent: commit_args.extend(["-p", parent])
-            
-            commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
-            
-            # 4. Update tool branch ref
-            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/tool", commit_sha], cwd=str(project_root), check=True)
-            return True
-        finally:
-            if side_index.exists(): side_index.unlink()
-
-    tm.add_stage(TuringStage(
-        name="'tool' from 'dev'",
-        action=align_tool,
-        active_status="Aligning",
-        success_status="Successfully aligned",
-        success_color="BOLD",
-        fail_status="Failed to align",
-        bold_part="Aligning"
-    ))
-
-    # 3. tool -> main
-    def align_main():
-        # Update 'main' branch to match 'tool' (framework only)
-        env = os.environ.copy()
-        side_index = project_root / ".git" / "index_sync_main"
-        env["GIT_INDEX_FILE"] = str(side_index)
-        
-        try:
-            # 1. Start with tool tree
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
-            tool_tree = res.stdout.strip()
-            subprocess.run(["/usr/bin/git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True)
-            
-            # 2. Remove restricted folders from index
-            restricted = ["tool", "resource", "data", "tmp", "bin"]
-            for folder in restricted:
-                subprocess.run(["/usr/bin/git", "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
-            
-            new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
-            
-            # 3. Create commit on main branch
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
-            parent = res.stdout.strip() if res.returncode == 0 else None
-            
-            commit_args = ["/usr/bin/git", "commit-tree", new_tree, "-m", "Align 'main' with 'tool' (framework only)"]
-            if parent: commit_args.extend(["-p", parent])
-            
-            commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
-            
-            # 4. Update main branch ref
-            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True)
-            return True
-        finally:
-            if side_index.exists(): side_index.unlink()
-
-    tm.add_stage(TuringStage(
-        name="'main' from 'tool'",
-        action=align_main,
-        active_status="Aligning",
-        success_status="Successfully aligned",
-        success_color="BOLD",
-        fail_status="Failed to align",
-        bold_part="Aligning"
-    ))
-
-    # 4. tool -> test
-    def align_test():
-        # test branch is identical to tool branch
-        res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
-        if res.returncode != 0: return False
-        tool_sha = res.stdout.strip()
-        subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True)
-        return True
-
-    tm.add_stage(TuringStage(
-        name="'test' from 'tool'",
-        action=align_test,
-        active_status="Aligning",
-        success_status="Successfully aligned",
-        success_color="BOLD",
-        fail_status="Failed to align",
-        bold_part="Aligning"
-    ))
-
-    try:
-        # Use final_newline=False to remove empty line before final message
-        success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
-        
-        # End on start branch or dev
-        subprocess.run(["/usr/bin/git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True, check=True)
-        
-        if success and not quiet:
-            success_status = _("label_success_completed", "Successfully completed")
-            msg = f"{BOLD}{GREEN}{success_status}{RESET} sync between 'dev', 'tool', 'main' and 'test' branches."
-            print(msg)
-            
-        return success
-    except Exception as e:
-        if not quiet:
-            print(f"\n{BOLD}{RED}Error{RESET} during sync: {e}")
-        subprocess.run(["/usr/bin/git", "checkout", "-f", "dev"], cwd=str(project_root), capture_output=True)
-        return False
+    return align_branches_logic(project_root, translation_func=_)
 
 def _dev_align():
-    """Align tool, main, and test branches with dev branch."""
-    project_root = ROOT_PROJECT_ROOT
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
-    from logic.utils import cleanup_project_patterns
-    
-    # 0. Detect starting branch
-    try:
-        start_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
-    except:
-        print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: Failed to detect current branch.")
-        return
-
-    # Helper to run git commands quietly
-    def run_git(args, cwd=None):
-        try:
-            # Add --force or other flags if needed
-            subprocess.run(["/usr/bin/git"] + args, check=True, cwd=cwd or str(project_root), capture_output=True)
-            return True
-        except subprocess.CalledProcessError as e:
-            return False
-
-    def sync_dev_action():
-        # 1. Automatically switch to dev if not already there
-        if start_branch != "dev":
-            # First, try to auto-commit any changes on the current branch to avoid data loss
-            try:
-                status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
-                if status:
-                    run_git(["add", "-A"])
-                    run_git(["commit", "-m", f"Auto-commit local changes on '{start_branch}' before alignment"])
-            except: pass
-            
-            if not run_git(["checkout", "-f", "dev"]): return False
-
-        # 2. Auto-commit local changes on dev if any
-        try:
-            status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
-            if status:
-                run_git(["add", "-A"])
-                run_git(["commit", "-m", "Auto-commit before alignment"])
-        except: pass
-
-        # 3. Clean up untracked files on dev
-        run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
-        cleanup_project_patterns(project_root)
-
-        # 4. Push dev to origin
-        return run_git(["push", "origin", "dev", "--force"])
-
-    def align_tool_action():
-        if not run_git(["checkout", "-f", "tool"]): return False
-        if not run_git(["reset", "--hard", "dev"]): return False
-        if not run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"]): return False
-        return run_git(["push", "origin", "tool", "--force"])
-
-    def align_main_action():
-        if not run_git(["checkout", "-f", "main"]): return False
-        if not run_git(["reset", "--hard", "tool"]): return False
-        
-        # Remove restricted folders on main
-        restricted = ["tool", "resource", "data", "tmp", "bin"]
-        subprocess.run(["/usr/bin/git", "rm", "-rf"] + restricted, cwd=str(project_root), capture_output=True)
-        
-        # Ensure they are gone from disk
-        for d in restricted:
-            p = project_root / d
-            if p.exists():
-                try:
-                    if p.is_dir(): shutil.rmtree(p)
-                    else: p.unlink()
-                except: pass
-        
-        # Clean up EVERYTHING untracked
-        run_git(["clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"])
-        
-        # Commit and push
-        run_git(["add", "-A"])
-        run_git(["commit", "--allow-empty", "-m", "Align 'main' with 'tool' (removed restricted folders)"])
-        return run_git(["push", "origin", "main", "--force"])
-
-    def recreate_test_action():
-        if not run_git(["branch", "-D", "test"]): pass # Ignore if doesn't exist
-        if not run_git(["checkout", "-b", "test"]): return False
-        return run_git(["push", "origin", "test", "--force"])
-
-    tm = ProgressTuringMachine()
-    
-    # Using 'bold_part' to bold only the verb+noun part
-    tm.add_stage(TuringStage(
-        name=_("on_branch", "local changes on '{branch}'", branch="dev"),
-        action=sync_dev_action,
-        active_status=_("label_auto_committing", "Auto-committing"),
-        success_status=_("label_auto_committed", "Auto-committed"),
-        fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_auto_committing_local", "local changes"),
-        success_color="BLUE"
-    ))
-    
-    tm.add_stage(TuringStage(
-        name="'tool' branch",
-        action=align_tool_action,
-        active_status=_("aligning_branch", "Aligning '{branch}' branch", branch="tool"),
-        success_status=_("label_success", "Successfully"),
-        fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_success", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="tool"),
-        success_color="BLUE"
-    ))
-    
-    tm.add_stage(TuringStage(
-        name="'main' branch",
-        action=align_main_action,
-        active_status=_("aligning_branch", "Aligning '{branch}' branch", branch="main"),
-        success_status=_("label_success", "Successfully"),
-        fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_success", "Successfully") + " " + _("aligning_branch", "aligned '{branch}' branch", branch="main"),
-        success_color="BLUE"
-    ))
-    
-    tm.add_stage(TuringStage(
-        name="'test' branch",
-        action=recreate_test_action,
-        active_status=_("recreating_test", "Recreating 'test' branch"),
-        success_status=_("label_success", "Successfully"),
-        fail_status=_("label_failed", "Failed"),
-        bold_part=_("label_success", "Successfully") + " " + _("recreating_test", "recreated 'test' branch"),
-        success_color="BLUE"
-    ))
-
-    try:
-        success_label = _("alignment_complete", "Alignment complete.")
-        final_msg = f"{BOLD}{GREEN}{success_label}{RESET}"
-        
-        if tm.run(ephemeral=True, final_msg=final_msg):
-            # Print a single newline after the overwritten status
-            sys.stdout.write("\n")
-            sys.stdout.flush()
-        
-        # Ensure we end up back on 'dev'
-        run_git(["checkout", "-f", "dev"])
-        
-    except Exception as e:
-        print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET} during alignment: {e}")
-        run_git(["checkout", "-f", "dev"])
+    """Alias for _dev_sync to align branches."""
+    return _dev_sync()
 
 def _dev_reset():
     """Reset main and test branches to a clean state using templates."""
@@ -691,25 +353,57 @@ def _dev_create(tool_name):
     project_root = ROOT_PROJECT_ROOT
     tool_dir = project_root / "tool" / tool_name
     
-    # Auto-commit local changes before checkout to avoid errors
+    # Get current branch
     try:
-        status = subprocess.run(["/usr/bin/git", "status", "--porcelain"], cwd=str(project_root), capture_output=True, text=True)
-        if status.stdout.strip():
-            info_label = _("info_label", "Info")
-            print(f"{BOLD}{info_label}{RESET}: " + _("auto_committing_before_switch", "Auto-committing local changes before switching branch..."))
-            subprocess.run(["/usr/bin/git", "add", "."], cwd=str(project_root), check=True)
-            subprocess.run(["/usr/bin/git", "commit", "-m", "Auto-commit before dev create"], cwd=str(project_root), check=True, capture_output=True)
-    except: pass
+        current_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+    except:
+        current_branch = "dev"
 
-    try:
-        subprocess.run(["/usr/bin/git", "checkout", "tool"], cwd=str(project_root), check=True)
-    except: pass
+    # Only auto-commit and switch if we are NOT on a dev/tool branch already
+    # or if we want to enforce tool development on 'tool' branch.
+    # But as per user request, we should allow development on 'dev'.
+    is_dev_branch = current_branch in ["dev", "tool"] or current_branch.startswith("feature/")
+    
+    from tool.GIT.logic.interface.main import run_git_tool_managed
+    
+    if not is_dev_branch:
+        # Auto-commit local changes before checkout to avoid errors
+        try:
+            status_res = run_git_tool_managed(["status", "--porcelain"], cwd=str(project_root))
+            if status_res.stdout.strip():
+                # Erasable message
+                msg = f"{BOLD}{BLUE}Auto-committing{RESET} local changes before switching branch..."
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+                
+                run_git_tool_managed(["add", "."], cwd=str(project_root))
+                run_git_tool_managed(["commit", "-m", "Auto-commit before dev create"], cwd=str(project_root))
+                
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
+        except: pass
+
+        try:
+            # Erasable message with specific styling
+            # "Switching to git branch 'dev' for development..."
+            # Only "Switching to git branch" in blue bold
+            msg = f"{BOLD}{BLUE}Switching to git branch{RESET} 'dev' for development..."
+            sys.stdout.write(msg)
+            sys.stdout.flush()
+            
+            run_git_tool_managed(["checkout", "dev"], cwd=str(project_root))
+            current_branch = "dev"
+            
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+        except: pass
     
     if tool_dir.exists():
         print(f"{BOLD}{RED}Error{RESET}: Tool '{tool_name}' already exists.")
         return
     
     tool_dir.mkdir(parents=True)
+    (tool_dir / "report").mkdir(exist_ok=True)
     tool_internal = get_logic_dir(tool_dir)
     tool_internal.mkdir()
     (tool_internal / "translation").mkdir(parents=True)
@@ -720,20 +414,23 @@ import argparse
 from pathlib import Path
 
 # Add project root to sys.path
-script_dir = Path(__file__).resolve().parent
-project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
+script_path = Path(__file__).resolve()
+project_root = script_path.parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from logic.tool.base import ToolBase
 from logic.config import get_color
 
 def main():
     tool = ToolBase("{tool_name}")
-    if tool.handle_command_line(): return
     
-    parser = argparse.ArgumentParser(description="Tool {tool_name}")
+    parser = argparse.ArgumentParser(description="Tool {tool_name}", add_help=False)
     parser.add_argument("--demo", action="store_true", help="Showcase colors and workers")
-    args, unknown = parser.parse_known_args()
+    
+    if tool.handle_command_line(parser): return
+    
+    args = parser.parse_args()
     
     if args.demo:
         BOLD = get_color("BOLD")
@@ -768,16 +465,24 @@ if __name__ == "__main__":
 import sys
 from pathlib import Path
 
-script_dir = Path(__file__).resolve().parent
-project_root = script_dir.parent.parent
-sys.path.append(str(project_root))
+# Add project root to sys.path
+script_path = Path(__file__).resolve()
+project_root = script_path.parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-def main():
-    print("--- Running setup for {tool_name} ---")
-    print("Setup complete.")
+from logic.tool.setup.engine import ToolEngine
+from logic.utils import print_success_status
+
+def setup():
+    tool_name = "{tool_name}"
+    engine = ToolEngine(tool_name, project_root)
+    
+    # 1. Standard installation (dependencies + shortcut)
+    return engine.install()
 
 if __name__ == "__main__":
-    main()
+    setup()
 '''
     with open(tool_dir / "setup.py", 'w') as f: f.write(setup_content)
     
@@ -823,8 +528,9 @@ This tool is part of the `TOOL` ecosystem, which provides:
     if registry_path.exists():
         try:
             with open(registry_path, 'r') as f: registry = json.load(f)
-            if tool_name not in registry.get("tools", {}):
-                registry.get("tools", {})[tool_name] = {
+            if "tools" not in registry: registry["tools"] = {}
+            if tool_name not in registry["tools"]:
+                registry["tools"][tool_name] = {
                     "description": tool_json["description"],
                     "purpose": tool_json["purpose"]
                 }
@@ -839,11 +545,29 @@ This tool is part of the `TOOL` ecosystem, which provides:
     
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
-        rel_tool_dir = os.path.relpath(tool_dir, project_root)
-        subprocess.run(["/usr/bin/git", "add", rel_tool_dir], cwd=str(project_root), check=True)
-        subprocess.run(["/usr/bin/git", "commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root), check=True)
+        # Get current real branch
+        res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))
+        current_real = res.stdout.strip() if res.returncode == 0 else "dev"
+
+        # Suppress git output using GIT tool's managed execution
+        run_git_tool_managed(["add", "."], cwd=str(project_root))
+        run_git_tool_managed(["commit", "-m", f"Create tool template for {tool_name}"], cwd=str(project_root))
+        
+        # Push to remote with erasable message
+        # Styling: Only "Pushing to remote" in blue bold, ellipsis default
+        msg = f"{BOLD}{BLUE}Pushing to remote{RESET} branch '{current_real}'..."
+        sys.stdout.write(msg)
+        sys.stdout.flush()
+        
+        run_git_tool_managed(["push", "origin", f"HEAD:{current_real}", "--force"], cwd=str(project_root))
+        
+        # Erase the pushing message
+        sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
+        
     except Exception as e:
-        print(f"{BOLD}{YELLOW}Warning{RESET}: Failed to commit new tool: {e}")
+        # Fallback if interface fails
+        pass
 
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
@@ -1025,7 +749,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
                                    "--exclude=logic/config/tool_config_manager.py"], cwd=str(project_root), capture_output=True)
                 return success
 
-    tm_sync = ProgressTuringMachine()
+    tm_sync = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     tm_sync.add_stage(TuringStage(
         name="branches...",
         action=sync_action,
@@ -1039,7 +763,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         return False
 
     # 2. Install and Verify
-    tm_install = ProgressTuringMachine()
+    tm_install = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     def install_test_action():
         error_details = []
         try:
@@ -1181,7 +905,7 @@ def _audit_lang(lang_code, force=False):
     print("\n" + _("audit_full_report", "Full report saved to: {path}", path=str(report_path)))
 
     if cached:
-        AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL audit-lang {lang_code}").print_cache_warning()
+        AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
 
 def _show_current_language():
     """Display the current language and its code."""

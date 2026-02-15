@@ -9,6 +9,39 @@ import builtins
 import platform
 from pathlib import Path
 
+def calculate_eta(current, total, elapsed_time):
+    """
+    Calculate estimated remaining time.
+    :param current: Current progress (count)
+    :param total: Total expected (count)
+    :param elapsed_time: Seconds elapsed so far
+    :return: Tuple of (elapsed_str, remaining_str) formatted as MM:SS or HH:MM:SS
+    """
+    import time
+    
+    def format_duration(seconds):
+        if seconds < 0: return "??:??"
+        if seconds >= 3600:
+            return time.strftime("%H:%M:%S", time.gmtime(seconds))
+        return time.strftime("%M:%S", time.gmtime(seconds))
+
+    elapsed_str = format_duration(elapsed_time)
+    
+    if current <= 0 or total <= 0:
+        return elapsed_str, "??:??"
+    
+    if current >= total:
+        return elapsed_str, "00:00"
+        
+    rate = current / elapsed_time if elapsed_time > 0 else 0
+    if rate <= 0:
+        return elapsed_str, "??:??"
+        
+    remaining_seconds = (total - current) / rate
+    remaining_str = format_duration(remaining_seconds)
+    
+    return elapsed_str, remaining_str
+
 def get_system_tag():
     """Detect current system tag for Python downloads."""
     system = sys.platform
@@ -481,6 +514,49 @@ def get_logic_dir(base_dir):
     """Returns the logic directory path for a given base directory."""
     return Path(base_dir) / "logic"
 
+def find_project_root(start_path: Path) -> Path:
+    """
+    Robustly find the project root from any starting path.
+    Look for indicators unique to the root of AITerminalTools.
+    """
+    curr = start_path.resolve()
+    if curr.is_file():
+        curr = curr.parent
+    
+    # Primary indicator: bin/TOOL and tool.json
+    temp_curr = curr
+    while temp_curr != temp_curr.parent:
+        if (temp_curr / "bin" / "TOOL").exists() and (temp_curr / "tool.json").exists():
+            return temp_curr
+        temp_curr = temp_curr.parent
+        
+    # Secondary indicator: tool.json + logic/ + tool/ (for cases where bin/ might be missing or different)
+    temp_curr = curr
+    while temp_curr != temp_curr.parent:
+        if (temp_curr / "tool.json").exists() and (temp_curr / "logic").is_dir() and (temp_curr / "tool").is_dir():
+            # Ensure it's not a subtool dir (which might have tool.json but parent is 'tool')
+            if temp_curr.parent.name != "tool":
+                return temp_curr
+        temp_curr = temp_curr.parent
+        
+    return curr # Fallback
+
+def get_tool_module_path(tool_dir: Path, project_root: Path) -> str:
+    """Returns the python module path for a tool relative to project root."""
+    try:
+        rel = tool_dir.relative_to(project_root)
+        return ".".join(rel.parts)
+    except ValueError:
+        return ""
+
+def get_module_relative_path(module_name: str) -> str:
+    """
+    Translates a module name (e.g. 'logic.tool.base') to its relative path 
+    from the project root (e.g. 'logic/tool/base.py' or 'logic/tool/base/').
+    """
+    path_parts = module_name.split('.')
+    return os.path.join(*path_parts)
+
 def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     """
     Runs a command and parses its stderr for percentage progress.
@@ -492,19 +568,21 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     from logic.config import get_setting
     from logic.turing.display.manager import _get_configured_width
     
-    decimal_places = get_setting("progress_decimal_places", 1)
+    # Precision changed to 0 by default per user request
+    decimal_places = get_setting("progress_decimal_places", 0)
     fmt = f"{{:.{decimal_places}f}}%"
     full_error_output = []
 
+    is_push = "git" in cmd[0] and "push" in cmd
     if cmd[0] == "curl":
         # Force a simple numeric progress if possible, or just parse default
         cmd = [arg for arg in cmd if arg not in ["-#", "--progress-bar", "-s", "--silent"]]
-    elif "git" in cmd[0] and "push" in cmd:
+    elif is_push:
         if "--progress" not in cmd:
             cmd.append("--progress")
 
     # Initial progress display
-    initial_text = f"{prefix}: " + fmt.format(0.0)
+    initial_text = f"{prefix}: " + (fmt.format(0.0) if not is_push else "...")
     if manager and worker_id:
         manager.update(worker_id, initial_text)
     else:
@@ -548,7 +626,11 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                 full_error_output.append(partial_line) # Capture all output for error reporting
                 partial_line = ""
                 if not line:
-                    continue
+                    # Update anyway if pushing to show time
+                    if is_push:
+                        pass
+                    else:
+                        continue
                 
                 # Parse percentage
                 match = re_percent.search(line)
@@ -568,34 +650,34 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
                 # Update display at intervals
                 curr_time = time.time()
                 if curr_time - last_print >= interval:
-                    percent_str = fmt.format(max_percent)
-                    
                     # Time calculation
                     t1 = curr_time - start_time
-                    p = max_percent / 100.0
-                    if p > 0:
-                        t2 = t1 / p - t1
-                        t2_str = format_seconds(t2)
-                    else:
-                        t2_str = "unknown"
                     t1_str = format_seconds(t1)
-                    
-                    time_info = f" [{t1_str}<{t2_str}]"
-                    
-                    # Speed detection
-                    extra = ""
-                    speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
-                    if speed_match:
-                        extra = f" ({speed_match.group(1)})"
-                    elif cmd[0] == "curl":
-                        parts = line.split()
-                        if len(parts) >= 7:
-                            for p_arg in parts[6:]:
-                                if any(c.isdigit() for c in p_arg) and any(u in p_arg.upper() for u in ['K', 'M', 'G']):
-                                    extra = f" ({p_arg}/s)"
-                                    break
-                    
-                    status_text = f"{prefix}: {percent_str}{extra}{time_info}"
+
+                    if is_push and max_percent == 0:
+                        # Special handling for push: show elapsed time instead of 0%
+                        status_text = f"{prefix}... ({t1_str})"
+                    else:
+                        percent_str = fmt.format(max_percent)
+                        # Use centralized calculate_eta helper
+                        t1_str, t2_str = calculate_eta(max_percent, 100.0, t1)
+                        time_info = f" [{t1_str}<{t2_str}]"
+                        
+                        # Speed detection
+                        extra = ""
+                        speed_match = re.search(r'(\d+\.?\d*\s*[KMG]B/s)', line)
+                        if speed_match:
+                            extra = f" ({speed_match.group(1)})"
+                        elif cmd[0] == "curl":
+                            parts = line.split()
+                            if len(parts) >= 7:
+                                for p_arg in parts[6:]:
+                                    if any(c.isdigit() for c in p_arg) and any(u in p_arg.upper() for u in ['K', 'M', 'G']):
+                                        extra = f" ({p_arg}/s)"
+                                        break
+                        
+                        status_text = f"{prefix}: {percent_str}{extra}{time_info}"
+
                     if manager and worker_id:
                         manager.update(worker_id, status_text)
                     else:
@@ -633,3 +715,41 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
         # Simplify error message
         simplified_error = error_msg.splitlines()[-1] if error_msg.splitlines() else "Unknown error"
         return False, simplified_error
+
+def register_path(bin_dir):
+    """Add bin directory to PATH in shell profiles."""
+    import os
+    from pathlib import Path
+    home = Path.home()
+    shell = os.environ.get("SHELL", "")
+    profiles = []
+    if "zsh" in shell: profiles.append(home / ".zshrc")
+    elif "bash" in shell:
+        profiles.append(home / ".bash_profile")
+        profiles.append(home / ".bashrc")
+    else: profiles.extend([home / ".zshrc", home / ".bash_profile", home / ".bashrc"])
+
+    export_cmd = f'\nexport PATH="{bin_dir}:$PATH"\n'
+    for profile in profiles:
+        if profile.exists():
+            try:
+                with open(profile, 'r') as f: content = f.read()
+                if str(bin_dir) not in content:
+                    with open(profile, 'a') as f: f.write(export_cmd)
+            except: pass
+
+    if str(bin_dir) not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
+
+def print_success_status(action_msg):
+    """
+    Unified success status reporting.
+    Prints green bold 'Successfully' followed by action message.
+    """
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RESET = get_color("RESET", "\033[0m")
+    
+    # "Successfully" is the standard prefix
+    print(f"\r\033[K{BOLD}{GREEN}Successfully{RESET} {action_msg}", flush=True)

@@ -10,11 +10,11 @@ from logic.turing.logic import TuringStage
 from logic.config import get_color
 
 class ToolEngine:
-    def __init__(self, tool_name, project_root):
+    def __init__(self, tool_name, project_root, parent_tool_dir=None):
         from logic.utils import get_logic_dir
         self.tool_name = tool_name
         self.project_root = project_root
-        self.tool_parent_dir = project_root / "tool"
+        self.tool_parent_dir = parent_tool_dir if parent_tool_dir else project_root / "tool"
         self.tool_dir = self.tool_parent_dir / tool_name
         self.tool_internal = get_logic_dir(self.tool_dir)
         self.bin_dir = project_root / "bin"
@@ -36,7 +36,15 @@ class ToolEngine:
 
     def is_installed(self):
         """Check if the tool is correctly installed and operational."""
-        link_path = self.bin_dir / self.tool_name
+        shortcut_name = self.tool_name
+        if "." in self.tool_name:
+            shortcut_name = self.tool_name.split(".")[-1]
+            
+        link_path = self.bin_dir / shortcut_name
+        # Fallback to full name check for legacy or special cases
+        if not (link_path.exists() or link_path.is_symlink()):
+            link_path = self.bin_dir / self.tool_name
+            
         if not (self.tool_dir.exists() and (link_path.exists() or link_path.is_symlink())):
             return False
         
@@ -72,9 +80,17 @@ class ToolEngine:
             return True
 
         # 3. Check for partial installation/missing deps
-        is_partial = self.tool_dir.exists() or (self.bin_dir / self.tool_name).exists()
+        # A tool is "partial" if it has no bin shortcut but the directory exists,
+        # UNLESS it's a new tool being developed (has main.py).
+        has_shortcut = (self.bin_dir / self.tool_name).exists() or (self.bin_dir / self.tool_name).is_symlink()
+        is_partial = (self.tool_dir.exists() or has_shortcut) and not self.is_installed()
         
-        tm = ProgressTuringMachine()
+        # If it has main.py but no shortcut, it's not "partial" in a bad way, 
+        # it just needs a shortcut and setup.
+        if self.tool_dir.exists() and (self.tool_dir / "main.py").exists() and not has_shortcut:
+            is_partial = False
+
+        tm = ProgressTuringMachine(project_root=self.project_root, tool_name=self.tool_name)
         
         # Add uninstall stage if partial
         if is_partial and not is_dependency:
@@ -88,11 +104,12 @@ class ToolEngine:
 
         # 1. Validation
         tm.add_stage(TuringStage(
-            name=self._("label_the_existence_of_tool", "the existence of tool '{name}' in global registry", name=self.tool_name),
+            name=self.tool_name,
             action=self.validate_registry,
             active_status=self._("label_validating", "Validating"),
             success_status=self._("label_validated_existence", "Validated existence") + ":",
             success_name=self._("label_tool_exists_in_registry", "Tool '{name}' exists in the global registry.", name=self.tool_name),
+            fail_status=self._("label_failed_to_validate", "Failed to validate"),
             success_color="BOLD"
         ))
         
@@ -103,13 +120,12 @@ class ToolEngine:
                 action=self.fetch_source,
                 active_status=self._("label_fetching", "Fetching"),
                 success_status=self._("label_retrieved", "Retrieved"),
+                fail_status=self._("label_failed_to_fetch", "Failed to fetch"),
                 success_color="BOLD"
             ))
         
         # 3. Tool Dependencies (Recursive)
-        # We handle dependencies as a separate stage, but we want to avoid 
-        # the nested Turing Machine look.
-        def handle_deps_action():
+        def handle_deps_action(stage=None):
             tool_json_path = self.tool_dir / "tool.json"
             if not tool_json_path.exists(): return True
             try:
@@ -118,17 +134,20 @@ class ToolEngine:
                     deps = data.get("dependencies", [])
                     for dep in deps:
                         sub_engine = ToolEngine(dep, self.project_root)
-                        # Call install with is_dependency=True to keep it quiet-ish
                         if not sub_engine.install(is_dependency=True, visited=visited):
+                            if stage: stage.error_brief = f"Failed to install dependency '{dep}'"
                             return False
                 return True
-            except: return False
+            except Exception as e:
+                if stage: stage.error_brief = str(e)
+                return False
 
         tm.add_stage(TuringStage(
             name=self._("label_dependencies_for", "dependencies for {name}", name=self.tool_name),
             action=handle_deps_action,
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_ready", "Ready"),
+            fail_status=self._("label_failed_to_install", "Failed to install"),
             success_color="BOLD"
         ))
         
@@ -138,6 +157,7 @@ class ToolEngine:
             action=self.handle_pip_deps,
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_installed", "Installed"),
+            fail_status=self._("label_failed_to_install", "Failed to install"),
             success_color="BOLD"
         ))
         
@@ -147,6 +167,7 @@ class ToolEngine:
             action=self.create_shortcut,
             active_status=self._("label_creating_shortcut", "Creating shortcut for"),
             success_status=self._("label_created_shortcut", "Created shortcut for"),
+            fail_status=self._("label_failed_to_create_shortcut", "Failed to create shortcut for"),
             success_color="BOLD"
         ))
         
@@ -162,18 +183,21 @@ class ToolEngine:
         ))
 
         # Start TM
+        from logic.utils import print_success_status
         success_label = self._("label_successfully_installed", "Successfully installed")
-        final_msg = f"\r\033[K{self.BOLD}{self.GREEN}{success_label}{self.RESET} {self.tool_name}"
         
         # Use ephemeral=True to erase progress lines
-        # Top-level tool prints final_msg and a newline
+        # Top-level tool prints success status via interface
         # Dependencies just return success/failure
-        if tm.run(ephemeral=True, final_msg=final_msg if not is_dependency else "", final_newline=not is_dependency):
+        if tm.run(ephemeral=True, final_msg="", final_newline=False):
+            if not is_dependency:
+                from logic.utils import print_success_status
+                print_success_status(f"installed {self.tool_name} tool")
             return True
         return False
 
     def uninstall(self):
-        tm = ProgressTuringMachine()
+        tm = ProgressTuringMachine(project_root=self.project_root, tool_name=self.tool_name)
         success_label = self._("uninstall_success_status", "Successfully uninstalled")
         final_msg = f"\r\033[K{self.BOLD}{self.GREEN}{success_label}{self.RESET} {self.tool_name}"
         
@@ -195,9 +219,16 @@ class ToolEngine:
 
     # --- Actions ---
 
-    def validate_registry(self):
+    def validate_registry(self, stage=None):
+        # If it's a subtool, we skip global registry check for now
+        # or we could check the parent's metadata.
+        if self.tool_parent_dir != (self.project_root / "tool"):
+            return True
+
         if not self.registry_path.exists():
-            print(self._("registry_error", "Global tool.json not found."))
+            msg = self._("registry_error", "Global tool.json not found.")
+            if stage: stage.error_brief = msg
+            else: print(msg)
             return False
         with open(self.registry_path, 'r') as f:
             registry = json.load(f)
@@ -205,28 +236,45 @@ class ToolEngine:
             tools = registry.get("tools", {})
             if isinstance(tools, list):
                 if self.tool_name not in tools:
-                    print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
+                    msg = self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name)
+                    if stage: stage.error_brief = msg
+                    else: print(msg)
                     return False
             elif self.tool_name not in tools:
-                print(self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name))
+                msg = self._("tool_not_in_registry", "Tool '{name}' is not in the global registry.", name=self.tool_name)
+                if stage: stage.error_brief = msg
+                else: print(msg)
                 return False
         
         return True
 
-    def fetch_source(self):
-        # 1. Try checkout from known branches
-        sources = ["dev", "tool", "origin/tool", "origin/dev"]
-        for branch in sources:
-            try:
-                cmd = ["/usr/bin/git", "checkout", branch, "--", f"tool/{self.tool_name}"]
-                if subprocess.run(cmd, capture_output=True, cwd=str(self.project_root)).returncode == 0:
-                    return True
-            except: pass
-        
-        # 2. If already on a branch that has it, just return True
+    def fetch_source(self, stage=None):
+        # 0. Check if already exists locally
         if (self.tool_dir / "main.py").exists():
             return True
-            
+
+        # 1. Determine relative path for checkout
+        rel_tool_path = self.tool_dir.relative_to(self.project_root)
+        
+        # All tools are now in the top-level tool/ directory (some with PARENT.SUBTOOL names)
+        remote_source_path = rel_tool_path
+
+        # 1. Try checkout from known branches
+        sources = ["dev", "tool", "origin/tool", "origin/dev"]
+        last_err = "No source found in any branch"
+        for branch in sources:
+            try:
+                # Use shlex to safely handle paths with spaces if any
+                cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
+                res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
+                if res.returncode == 0:
+                    return True
+                else:
+                    last_err = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else f"Git checkout from {branch} failed"
+            except Exception as e:
+                last_err = str(e)
+        
+        if stage: stage.error_brief = last_err
         return False
 
     def handle_dependencies(self, visited=None):
@@ -244,7 +292,7 @@ class ToolEngine:
             return True
         except: return False
 
-    def handle_pip_deps(self):
+    def handle_pip_deps(self, stage=None):
         # Merge requirements.txt and tool.json pip_dependencies
         pip_deps = []
         tool_json_path = self.tool_dir / "tool.json"
@@ -292,30 +340,45 @@ class ToolEngine:
             sys.stdout.flush()
             
             cmd = [python_exec, "-m", "pip", "install", package]
-            if subprocess.run(cmd, capture_output=True).returncode != 0:
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode != 0:
+                if stage: stage.error_brief = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else f"pip install {package} failed"
                 return False
         return True
 
-    def create_shortcut(self):
+    def create_shortcut(self, stage=None):
         main_py = self.tool_dir / "main.py"
         if not main_py.exists():
+            if stage: stage.error_brief = f"Entry point main.py not found in {self.tool_dir}"
             return False
         
         self.bin_dir.mkdir(exist_ok=True)
-        link_path = self.bin_dir / self.tool_name
+        
+        # Shortcut naming: if tool is PARENT.SUBTOOL, create shortcut for SUBTOOL
+        shortcut_name = self.tool_name
+        if "." in self.tool_name:
+            shortcut_name = self.tool_name.split(".")[-1]
+            
+        link_path = self.bin_dir / shortcut_name
         if link_path.exists() or link_path.is_symlink():
-            os.remove(link_path)
+            try: os.remove(link_path)
+            except Exception as e:
+                if stage: stage.error_brief = f"Failed to remove old shortcut: {e}"
+                return False
         
         try:
             st = os.stat(main_py); os.chmod(main_py, st.st_mode | stat.S_IEXEC)
             
-            # Pure symlink - re-execution logic is now inside ToolBase
-            os.symlink(main_py, link_path)
+            # Pure symlink
+            # We need to make sure the relative path is correct from bin/ to tool/...
+            rel_main_py = os.path.relpath(main_py, self.bin_dir)
+            os.symlink(rel_main_py, link_path)
             
-            from main import register_path
+            from logic.utils import register_path
             register_path(self.bin_dir)
             return True
-        except:
+        except Exception as e:
+            if stage: stage.error_brief = str(e)
             return False
 
     def run_setup(self):

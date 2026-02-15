@@ -120,7 +120,7 @@ def push_with_progress(remote="origin", branch=None, cwd=None):
     sys.path.append(str(project_root))
     from logic.lang.utils import get_translation
     from logic.utils import get_logic_dir
-    _ = lambda k, d: get_translation(str(get_logic_dir(project_root)), k, d)
+    _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
 
     if result and result.returncode == 0:
         success_label = _("label_success", "Successfully")
