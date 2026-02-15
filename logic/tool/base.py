@@ -136,6 +136,12 @@ class ToolBase:
             if cmd == "setup":
                 self.run_setup()
                 return True
+            elif cmd in ["-h", "--help", "help"]:
+                if parser:
+                    parser.print_help()
+                else:
+                    self.print_default_help()
+                return True
             elif cmd == "install":
                 if len(args_to_check) > 1:
                     subtool_name = args_to_check[1]
@@ -489,6 +495,20 @@ class ToolBase:
         from logic.tool.setup.engine import ToolEngine
         engine = ToolEngine(subtool_full_name, self.project_root)
         return engine.uninstall()
+
+    def print_default_help(self):
+        """Print a default help message if no parser is provided."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        RESET = get_color("RESET", "\033[0m")
+        
+        print(f"Usage: {self.tool_name} <command> [options]")
+        print(f"\n{BOLD}Built-in commands:{RESET}")
+        print(f"  setup        Run tool installation/setup")
+        print(f"  install      Install a sub-tool")
+        print(f"  uninstall    Uninstall a sub-tool")
+        print(f"  rule         Show AI rules for this tool")
+        print(f"  -h, --help   Show this help message")
 
     def raise_success_status(self, action_msg):
         """Unified success status reporting for tools."""

@@ -442,6 +442,7 @@ def _dev_create(tool_name):
     
     tool_dir.mkdir(parents=True)
     (tool_dir / "report").mkdir(exist_ok=True)
+    (tool_dir / "test").mkdir(exist_ok=True) # Create test directory
     tool_internal = get_logic_dir(tool_dir)
     tool_internal.mkdir()
     (tool_internal / "translation").mkdir(parents=True)
@@ -581,6 +582,31 @@ This tool is part of the `TOOL` ecosystem, which provides:
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
+    # 0. Add test_00_help.py template
+    test_help_content = f'''import unittest
+import subprocess
+import sys
+from pathlib import Path
+
+class TestHelp(unittest.TestCase):
+    def test_help(self):
+        """Test that the tool supports --help and returns success."""
+        # Find the tool's main script or bin shortcut
+        project_root = Path(__file__).resolve().parent.parent.parent
+        bin_path = project_root / "bin" / "{tool_name.split('.')[-1] if '.' in tool_name else tool_name}"
+        if not bin_path.exists():
+            bin_path = project_root / "tool" / "{tool_name}" / "main.py"
+            
+        cmd = [sys.executable, str(bin_path), "--help"]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"Help command failed with code {{res.returncode}}: {{res.stderr}}")
+        self.assertIn("usage:", res.stdout.lower() or res.stderr.lower())
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+    with open(tool_dir / "test" / "test_00_help.py", 'w') as f: f.write(test_help_content)
+
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
         # Get current real branch

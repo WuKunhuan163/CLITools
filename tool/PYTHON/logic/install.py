@@ -98,11 +98,13 @@ def get_all_assets_from_cache(tag_filter=None, version_filter=None, platform_fil
     return scanner.get_filtered_assets(tag_filter=tag_filter, version_filter=version_filter, platform_filter=platform_filter)
 
 def download_and_verify(asset, target_dir):
-    """Downloads an asset to tmp, verifies it, then moves to target_dir."""
+    """Downloads an asset to tmp, verifies it, then moves to target_dir using a Turing Machine."""
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+    from logic.utils import run_with_progress, extract_resource, print_success_status
+    
     # Use consistent naming: X.Y.Z-platform (no 'python' prefix)
     v_tag = f"{asset['version']}-{asset['platform']}"
-    
-    # Create a unique hash for the temporary directory to avoid conflicts
     unique_str = f"{asset['tag']}-{asset['name']}"
     dir_hash = hashlib.md5(unique_str.encode()).hexdigest()[:8]
     tmp_dir = TMP_INSTALL_DIR / f"{v_tag}_{dir_hash}"
@@ -110,70 +112,77 @@ def download_and_verify(asset, target_dir):
     if tmp_dir.exists(): shutil.rmtree(tmp_dir)
     tmp_dir.mkdir(parents=True)
     
-    try:
-        zst_path = tmp_dir / asset["name"]
-        downloading_label = _("label_downloading", "Downloading")
-        print(f"{BOLD}{BLUE}{downloading_label}{RESET} {asset['name']}...")
-        
-        subprocess.run(["curl", "-L", asset["url"], "-o", str(zst_path)], check=True)
-        
-        # Verify extraction and version
-        extract_dir = tmp_dir / "extract"
-        extract_dir.mkdir()
-        
-        # Clear existing logic modules to avoid conflicts with root logic
-        if 'logic.utils' in sys.modules: del sys.modules['logic.utils']
-        if 'logic' in sys.modules: del sys.modules['logic']
-        
-        from logic.utils import extract_resource
-        if not extract_resource(zst_path, extract_dir):
-            print(f"{RED}Extraction failed for {asset['name']}{RESET}")
+    zst_path = tmp_dir / asset["name"]
+    extract_dir = tmp_dir / "extract"
+    
+    def download_action(stage=None):
+        prefix = f"{BOLD}{BLUE}Installing{RESET} {v_tag} from GitHub"
+        curl_cmd = ["curl", "-L", asset["url"], "-o", str(zst_path)]
+        success, err = run_with_progress(curl_cmd, prefix)
+        if not success:
+            if stage: stage.report_error("Download Error", err)
             return False
-            
+        return True
+
+    def extract_action(stage=None):
+        if stage: stage.active_name = f"{asset['name']}"
+        extract_dir.mkdir(exist_ok=True)
+        # Clear logic from sys.modules to avoid collision
+        for m in list(sys.modules.keys()):
+            if m.startswith("logic.") or m == "logic": del sys.modules[m]
+        
+        if not extract_resource(zst_path, extract_dir, silent=True):
+            if stage: stage.report_error("Extraction Error", f"Failed to extract {asset['name']}")
+            return False
+        return True
+
+    def verify_action(stage=None):
         # Astral builds extract to a 'python' folder, sometimes with an inner 'install' folder
         py_home = extract_dir / "python"
-        if not py_home.exists():
-            py_home = extract_dir # Fallback
-        
-        # Check for inner 'install' folder (common in newer Astral builds)
-        if (py_home / "install").exists():
-            py_home = py_home / "install"
+        if not py_home.exists(): py_home = extract_dir
+        if (py_home / "install").exists(): py_home = py_home / "install"
             
         py_bin = py_home / "bin" / "python3" if sys.platform != "win32" else py_home / "python.exe"
         
-        res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
-        if asset["version"] in res.stdout or asset["version"] in res.stderr:
-            print(f"{GREEN}Verification successful: {res.stdout.strip() or res.stderr.strip()}{RESET}")
-            
-            # Move to final location
-            final_dest = target_dir / v_tag
-            if final_dest.exists(): shutil.rmtree(final_dest)
-            
-            # Re-wrap in 'install' folder for consistency
-            final_install = final_dest / "install"
-            final_install.mkdir(parents=True)
-            for item in list(py_home.iterdir()):
-                shutil.move(str(item), str(final_install / item.name))
-            
-            # Write metadata
-            save_json(final_dest / "PYTHON.json", {
-                "release": asset["tag"],
-                "asset": asset["name"],
-                "version": asset["version"],
-                "platform": asset["platform"]
-            })
-            
-            print(f"{BOLD}{GREEN}{_('label_downloaded', 'Downloaded')}{RESET} {asset['name']}")
+        try:
+            res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
+            if asset["version"] in res.stdout or asset["version"] in res.stderr:
+                # Move to final location
+                final_dest = target_dir / v_tag
+                if final_dest.exists(): shutil.rmtree(final_dest)
+                
+                # Re-wrap in 'install' folder for consistency
+                final_install = final_dest / "install"
+                final_install.mkdir(parents=True)
+                for item in list(py_home.iterdir()):
+                    shutil.move(str(item), str(final_install / item.name))
+                
+                # Write metadata
+                save_json(final_dest / "PYTHON.json", {
+                    "release": asset["tag"],
+                    "asset": asset["name"],
+                    "version": asset["version"],
+                    "platform": asset["platform"]
+                })
+                return True
+            else:
+                if stage: stage.report_error("Version Mismatch", f"Expected {asset['version']}, got {res.stdout or res.stderr}")
+                return False
+        except Exception as e:
+            if stage: stage.report_error("Verification Error", str(e))
+            return False
+
+    tm = ProgressTuringMachine(project_root=PROJECT_ROOT, tool_name="PYTHON")
+    tm.add_stage(TuringStage("download", download_action, active_status="Installing", active_name=f"{v_tag} from GitHub", success_status="Downloaded", success_color="BOLD"))
+    tm.add_stage(TuringStage("extract", extract_action, active_status="Extracting", success_status="Extracted", success_color="BOLD"))
+    tm.add_stage(TuringStage("verify", verify_action, active_status="Verifying", success_status="Verified", success_color="BOLD"))
+    
+    try:
+        if tm.run(ephemeral=True, final_newline=False):
+            print_success_status(f"downloaded {asset['name']}")
             return True
-        else:
-            print(f"{RED}Version mismatch: expected {asset['version']}, got {res.stdout or res.stderr}{RESET}")
-    except Exception as e:
-        print(f"{RED}Verification failed: {e}{RESET}")
     finally:
-        # Cleanup temporary directory
-        if tmp_dir.exists():
-            shutil.rmtree(tmp_dir)
-            
+        if tmp_dir.exists(): shutil.rmtree(tmp_dir)
     return False
 
 def main():
