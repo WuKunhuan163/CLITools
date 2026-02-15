@@ -34,6 +34,7 @@ class TutorialWindow(BaseGUIWindow):
         super().__init__(title, timeout, internal_dir, tool_name=tool_name or "TUTORIAL")
         self.steps = steps
         self.current_step_idx = 0
+        self.project_root = None # Will be set during find_root in subclasses or manually
         
         # UI Elements
         self.step_indicator = None
@@ -41,6 +42,22 @@ class TutorialWindow(BaseGUIWindow):
         self.prev_btn = None
         self.main_frame = None
         self.error_label = None
+
+        # Find project root
+        curr = Path(__file__).resolve().parent
+        while curr != curr.parent:
+            if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
+                self.project_root = curr
+                break
+            curr = curr.parent
+
+    def set_step_validated(self, is_valid: bool):
+        """Enable or disable the submit button based on step validation."""
+        if self.submit_btn:
+            if is_valid:
+                self.submit_btn.config(state=tk.NORMAL)
+            else:
+                self.submit_btn.config(state=tk.DISABLED)
 
     def get_current_state(self):
         """Returns the current progress."""
