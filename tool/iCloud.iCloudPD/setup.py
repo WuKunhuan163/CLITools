@@ -2,19 +2,31 @@
 import sys
 from pathlib import Path
 
-# tool/iCloud.iCloudPD/setup.py -> 2 levels up to project root
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-if str(project_root) not in sys.path:
+# tool/iCloud.iCloudPD/setup.py -> project root
+def find_root():
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
+            return curr
+        curr = curr.parent
+    return None
+
+project_root = find_root()
+if project_root:
+    root_str = str(project_root)
+    if root_str in sys.path:
+        sys.path.remove(root_str)
+    sys.path.insert(0, root_str)
+else:
+    # Fallback
+    project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.utils import print_success_status
+from logic.tool.setup.engine import ToolEngine
 
 def setup():
     # Standard installation (dependencies, shortcut) is handled by ToolEngine.
-    # iCloud.iCloudPD has its main logic in main.py.
     return True
 
 if __name__ == "__main__":
-    if setup():
-        print_success_status("setup iCloud.iCloudPD tool")
+    setup()
