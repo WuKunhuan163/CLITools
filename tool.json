@@ -23,7 +23,6 @@
     "iCloud",
     "iCloud.iCloudPD",
     "GOOGLE",
-    "GOOGLE.GCS",
-    "GOOGLE.DUMMY"
+    "GOOGLE.GCS"
   ]
 }
