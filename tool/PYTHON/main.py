@@ -60,6 +60,7 @@ BOLD = get_color("BOLD", "\033[1m")
 BLUE = get_color("BLUE", "\033[34m")
 YELLOW = get_color("YELLOW", "\033[33m")
 RED = get_color("RED", "\033[31m")
+WHITE = get_color("WHITE", "\033[37m")
 
 def print_erasable(msg):
     # \r: move to start, \033[K: clear from cursor to end
@@ -251,6 +252,7 @@ def _uninstall_version(version, install_dir=None):
         print(f"{RED}{BOLD}{error_label}{RESET}: Version {version} is not installed.")
 
 def _list_versions():
+    from tool.PYTHON.logic.config import DATA_DIR, INSTALL_DIR, RESOURCE_ROOT
     installed = []
     if INSTALL_DIR.exists():
         installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
@@ -273,7 +275,7 @@ def _list_versions():
     
     # 3. Combine and Display
     label = _("python_supported_versions", "Supported versions")
-    all_versions = sorted(list(remote_assets.keys())) if remote_assets else sorted(installed + migrated)
+    all_versions = sorted(list(set(list(remote_assets.keys()) + installed + migrated)))
     
     if not all_versions:
         print(f"{BOLD}{label}{RESET}:")
