@@ -923,7 +923,9 @@ def _run_installation_test(tool_name, stay_on_test=False):
     # 1. Sync branches (quietly)
     def sync_action():
         # Silence all output from _dev_sync
-        with open(os.devnull, 'w') as f:
+        # DEBUG: use a file instead of devnull
+        debug_log = project_root / "tmp" / "sync_debug.log"
+        with open(debug_log, 'w') as f:
             with redirect_stdout(f), redirect_stderr(f):
                 # Ensure we are in a clean state on a test branch after sync
                 success = _dev_sync(quiet=True)
