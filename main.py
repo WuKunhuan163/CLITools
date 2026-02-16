@@ -819,8 +819,20 @@ def _test_tool_with_args(args):
 
     # CPU Load Monitoring and Wait
     from logic.config import get_global_config
-    cpu_limit = get_global_config("test_cpu_limit", 80.0)
+    global_cpu_limit = get_global_config("test_cpu_limit", 80.0)
     cpu_timeout = get_global_config("test_cpu_timeout", 30)
+    
+    # Try to get tool-specific limit
+    cpu_limit = global_cpu_limit
+    if actual_tool_name != "root":
+        try:
+            tool_config_path = tool_dir / "data" / "config.json"
+            if tool_config_path.exists():
+                with open(tool_config_path, 'r') as f:
+                    tool_cpu_limit = json.load(f).get("cpu_limit")
+                    if tool_cpu_limit is not None:
+                        cpu_limit = tool_cpu_limit
+        except: pass
     
     def wait_for_cpu_action(stage: TuringStage):
         import time
