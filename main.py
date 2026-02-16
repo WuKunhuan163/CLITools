@@ -941,7 +941,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
     tm_sync.add_stage(TuringStage(
         name="branches",
         action=sync_action,
-        active_status="Syncing branches",
+        active_status="Syncing",
         success_status="Successfully synced",
         fail_status="Failed to sync",
         bold_part="Syncing branches"
