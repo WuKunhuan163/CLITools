@@ -1,5 +1,6 @@
 import sys
 from typing import List, Optional
+from pathlib import Path
 from logic.turing.logic import TuringStage
 
 class ProgressTuringMachine:
@@ -10,7 +11,6 @@ class ProgressTuringMachine:
         self.stages = stages or []
         self.no_warning = no_warning
         # Support for error logging
-        from pathlib import Path
         self.project_root = Path(project_root) if project_root else None
         self.tool_name = tool_name
         self.log_dir = Path(log_dir) if log_dir else None
@@ -264,7 +264,6 @@ class ProgressTuringMachine:
                 YELLOW = get_color("YELLOW", "\033[33m")
                 RESET = get_color("RESET", "\033[0m")
                 
-                from pathlib import Path
                 from logic.lang.utils import get_translation
                 from logic.utils import get_logic_dir, find_project_root
                 root = find_project_root(Path(__file__))
