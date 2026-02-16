@@ -55,9 +55,17 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
                     if match:
                         # Create the appropriate flag file
                         flag_file = stop_dir / f"{pid}.{command}"
+                        if os.environ.get("GDS_GUI_DEBUG") == "1":
+                            print(f"DEBUG: Found match, creating flag: {flag_file}")
                         flag_file.touch()
                         found += 1
-            except: continue
+            except Exception as e: 
+                if os.environ.get("GDS_GUI_DEBUG") == "1":
+                    print(f"DEBUG: Error reading instance file {f}: {e}")
+                continue
+    else:
+        if os.environ.get("GDS_GUI_DEBUG") == "1":
+            print(f"DEBUG: Instance directory not found: {instance_dir}")
     
     if found > 0:
         if command == "stop":
