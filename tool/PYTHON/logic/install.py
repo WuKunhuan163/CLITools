@@ -187,8 +187,11 @@ def download_and_verify(asset, target_root):
     tm.add_stage(TuringStage("verify", verify_action, active_status="Verifying", active_name="installation", success_status="Successfully verified", success_name="installation", bold_part="Verifying"))
     
     try:
+        # Use ephemeral=True to avoid artifacts, but if silent is set, we can be even more silent
+        is_silent = os.environ.get("TOOL_QUIET") == "1" or silent
         if tm.run(ephemeral=True, final_newline=False):
-            print_success_status(f"installed {v_tag}")
+            if not is_silent:
+                print_success_status(f"installed {v_tag}")
             return True
     finally:
         if tmp_dir.exists(): shutil.rmtree(tmp_dir)
@@ -201,9 +204,11 @@ def main():
     parser.add_argument("--limit", type=int, default=3, help="Max assets to download")
     parser.add_argument("--py-ver", dest="version", help="Download a specific version (e.g. 3.10.19)")
     parser.add_argument("--py-platform", dest="platform", help="Filter by platform")
+    parser.add_argument("--tool-quiet", action="store_true", help="Minimize output for tool-to-tool calls")
     args = parser.parse_args()
 
     # Use the unified cache with filters applied directly
+    scanner = PythonScanner(silent=args.tool_quiet)
     filtered = get_all_assets_from_cache(tag_filter=args.tag, version_filter=args.version, platform_filter=args.platform)
     if not filtered:
         print(f"{BOLD}{YELLOW}{_('label_warning', 'Warning')}{RESET}: No matching assets found.")
@@ -231,7 +236,7 @@ def main():
 
     download_list = to_download[:args.limit]
     for a in download_list:
-        download_and_verify(a, INSTALL_DIR)
+        download_and_verify(a, INSTALL_DIR, silent=args.tool_quiet)
 
 if __name__ == "__main__":
     main()

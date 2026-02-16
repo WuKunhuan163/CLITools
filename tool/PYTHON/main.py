@@ -478,7 +478,7 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
                 v_plat = parts[1] if len(parts) > 1 else tag
                 
                 # Use sys.executable to ensure we use the same environment
-                cmd = [sys.executable, str(install_script), "--py-ver", v_num, "--py-platform", v_plat, "--limit", "1"]
+                cmd = [sys.executable, str(install_script), "--py-ver", v_num, "--py-platform", v_plat, "--limit", "1", "--tool-quiet"]
                 # Also pass --py-tag if available
                 # Note: args.tag is not available here, we should pass it from main() if needed.
                 # For now, install.py will find the latest matching asset.

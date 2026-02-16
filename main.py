@@ -939,11 +939,11 @@ def _run_installation_test(tool_name, stay_on_test=False):
 
     tm_sync = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     tm_sync.add_stage(TuringStage(
-        name="branches",
+        name="",
         action=sync_action,
-        active_status="Syncing",
+        active_status="Syncing branches",
         success_status="Successfully synced",
-        fail_status="Failed to sync",
+        success_name="branches",
         bold_part="Syncing branches"
     ))
     
