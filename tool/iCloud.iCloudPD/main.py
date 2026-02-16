@@ -205,7 +205,7 @@ def main():
             if stage: stage.report_error("Session Error", str(e))
             return False
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
     pm.add_stage(TuringStage("auth", auth_action, active_status="Authenticating", active_name="iCloud", success_status="Authenticated", fail_status="Failed"))
     if not pm.run(): sys.exit(1)
 
@@ -301,7 +301,7 @@ def main():
             stage.success_name = f"{total} photos/videos in {apple_id}'s iCloud Photos"
         return True
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
     pm.add_stage(TuringStage("scan", scan_action, active_status="Scanning", active_name="iCloud photos/videos"))
     pm.run()
     
@@ -333,7 +333,7 @@ def main():
                     if regex_pattern and not regex_pattern.search(full_path): continue
                     p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
                     if since_date and (not p_date or p_date < since_date): continue
-                    if before_date and (not p_date or p_date >= before_date): continue
+                    if before_date and (not p_date or p_date > before_date): continue
                     item_type = p.get("item_type", "image")
                     if args.only_photos and item_type not in ["photo", "image"]: continue
                     if args.only_videos and item_type != "video": continue
@@ -419,7 +419,7 @@ def main():
                     return False
         return len(to_download_objects) > 0
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
     pm.add_stage(TuringStage("gathering_objects", gather_action, active_status="Gathering", active_name="photo/video objects", success_status="\r\033[K", success_name=" "))
     if not pm.run(ephemeral=True, final_newline=False): sys.exit(1)
 
