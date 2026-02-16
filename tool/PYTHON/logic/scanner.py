@@ -184,8 +184,8 @@ class PythonScanner:
                 name="GitHub releases",
                 action=scan_action,
                 active_status="Scanning",
-                success_status="Successfully",
-                success_name="fetched GitHub releases",
+                success_status="Successfully fetched",
+                success_name="GitHub releases",
                 fail_status="Failed to fetch",
                 bold_part="GitHub releases"
             ))

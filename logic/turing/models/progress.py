@@ -123,15 +123,22 @@ class ProgressTuringMachine:
                             if stage.bold_part and success_name and success_name.startswith(stage.bold_part):
                                 bold_text = f"{stage.success_status} {stage.bold_part}"
                                 rest_text = success_name[len(stage.bold_part):].lstrip()
-                                full_msg = f"{BOLD}{color_code}{bold_text}{RESET} {rest_text}"
+                                full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             elif success_name:
                                 full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
                             else:
                                 # Explicitly empty success_name
                                 full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                            
+                            # Ensure completion period for success states
+                            # Strip ANSI escape codes for punctuation check
+                            import re
+                            stripped_msg = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', full_msg)
+                            if stripped_msg and not any(stripped_msg.rstrip().endswith(c) for c in [".", "!", ")", "]", "}", ">"]):
+                                full_msg = full_msg.rstrip() + "."
                                 
                             full_msg = truncate_to_width(full_msg, width)
-                            
+
                             if ephemeral:
                                 if is_last and final_msg is not None:
                                     sys.stdout.write(f"\r\033[K{truncate_to_width(final_msg, width)}")

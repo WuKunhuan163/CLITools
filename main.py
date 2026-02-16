@@ -938,7 +938,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         name="branches",
         action=sync_action,
         active_status="Syncing",
-        success_status="Synced",
+        success_status="Successfully synced",
         fail_status="Failed to sync",
         bold_part="Syncing"
     ))
