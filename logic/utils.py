@@ -749,11 +749,22 @@ def print_success_status(action_msg):
     """
     Unified success status reporting.
     Prints green bold 'Successfully' followed by action message.
+    Modified per user request: 'Successfully [action]' is all green bold.
     """
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     RESET = get_color("RESET", "\033[0m")
     
-    # "Successfully" is the standard prefix
-    print(f"\r\033[K{BOLD}{GREEN}Successfully{RESET} {action_msg}", flush=True)
+    # Split action_msg into first word and rest
+    parts = action_msg.split(" ", 1)
+    if not parts:
+        prefix = "Successfully"
+        rest = ""
+    else:
+        # Check if first word is 'installed' or 'setup' etc.
+        # But user wants 'Successfully installed' all green bold.
+        prefix = f"Successfully {parts[0]}"
+        rest = f" {parts[1]}" if len(parts) > 1 else ""
+        
+    print(f"\r\033[K{BOLD}{GREEN}{prefix}{RESET}{rest}", flush=True)

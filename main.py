@@ -319,30 +319,68 @@ def _dev_audit_bin(fix=False):
     tools = []
     if registry_path.exists():
         with open(registry_path, 'r') as f:
-            tools = list(json.load(f).get("tools", {}).keys())
+            data = json.load(f)
+            tools_data = data.get("tools", [])
+            if isinstance(tools_data, dict):
+                tools = list(tools_data.keys())
+            elif isinstance(tools_data, list):
+                tools = tools_data
     
+    # 1. Check existing files in bin/
     violations = []
+    existing_in_bin = [f.name for f in bin_dir.iterdir()]
+    
     for f in bin_dir.iterdir():
         if f.name == "TOOL": continue # TOOL is allowed to be a script
         
-        if not f.is_symlink():
-            # Check if it's a tool name
-            if f.name in tools:
-                violations.append(f)
+        # A shortcut is valid if it's a recognized bootstrap script.
+        # Symlinks are now considered old-style and should be replaced by bootstrap scripts.
+        is_valid_bootstrap = False
+        if f.is_file() and not f.is_symlink():
+            try:
+                with open(f, 'r') as f_in:
+                    content = f_in.read()
+                    if "# Use managed python if available" in content and "subprocess.run" in content:
+                        is_valid_bootstrap = True
+            except: pass
+        
+        # Check if it's a tool name or a subtool shortcut name
+        is_tool = f.name in tools
+        matched_tool_name = f.name if is_tool else None
+        
+        if not is_tool:
+            # Check for subtools: tool/PARENT.SUBTOOL/ -> shortcut SUBTOOL
+            for t in tools:
+                if "." in t and t.split(".")[-1] == f.name:
+                    is_tool = True
+                    matched_tool_name = t
+                    break
+        
+        if is_tool and not is_valid_bootstrap:
+            violations.append((f.name, matched_tool_name, "Unmanaged or old-style"))
+
+    # 2. Check for missing shortcuts for installed tools
+    for t in tools:
+        shortcut_name = t.split(".")[-1] if "." in t else t
+        if shortcut_name == "TOOL": continue
+        
+        tool_dir = project_root / "tool" / t
+        if tool_dir.exists() and shortcut_name not in existing_in_bin:
+            violations.append((shortcut_name, t, "Missing shortcut"))
     
     if not violations:
-        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts in bin/ are pure symlinks.")
+        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts in bin/ are valid managed bootstrap scripts.")
         return True
     
-    print(f"{BOLD}{RED}Found code in bin/ instead of symlinks{RESET}:")
-    for f in violations:
-        print(f"  {f.name} (File size: {f.stat().st_size} bytes)")
+    print(f"{BOLD}{RED}Found shortcut violations in bin/{RESET}:")
+    for shortcut_name, tool_name, reason in violations:
+        print(f"  {shortcut_name} ({reason})")
         if fix:
             # Fix it by re-running shortcut creation
             from logic.tool.setup.engine import ToolEngine
-            engine = ToolEngine(f.name, project_root)
+            engine = ToolEngine(tool_name, project_root)
             if engine.create_shortcut():
-                print(f"    {BOLD}{GREEN}Fixed{RESET}: Replaced with symlink.")
+                print(f"    {BOLD}{GREEN}Fixed{RESET}: Created/Updated managed bootstrap script.")
             else:
                 print(f"    {BOLD}{RED}Failed to fix{RESET}: could not create shortcut.")
                 
@@ -404,6 +442,7 @@ def _dev_create(tool_name):
     
     tool_dir.mkdir(parents=True)
     (tool_dir / "report").mkdir(exist_ok=True)
+    (tool_dir / "test").mkdir(exist_ok=True) # Create test directory
     tool_internal = get_logic_dir(tool_dir)
     tool_internal.mkdir()
     (tool_internal / "translation").mkdir(parents=True)
@@ -543,6 +582,31 @@ This tool is part of the `TOOL` ecosystem, which provides:
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
+    # 0. Add test_00_help.py template
+    test_help_content = f'''import unittest
+import subprocess
+import sys
+from pathlib import Path
+
+class TestHelp(unittest.TestCase):
+    def test_help(self):
+        """Test that the tool supports --help and returns success."""
+        # Find the tool's main script or bin shortcut
+        project_root = Path(__file__).resolve().parent.parent.parent
+        bin_path = project_root / "bin" / "{tool_name.split('.')[-1] if '.' in tool_name else tool_name}"
+        if not bin_path.exists():
+            bin_path = project_root / "tool" / "{tool_name}" / "main.py"
+            
+        cmd = [sys.executable, str(bin_path), "--help"]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"Help command failed with code {{res.returncode}}: {{res.stderr}}")
+        self.assertIn("usage:", res.stdout.lower() or res.stderr.lower())
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+    with open(tool_dir / "test" / "test_00_help.py", 'w') as f: f.write(test_help_content)
+
     # CRITICAL: Add and commit the new tool so it's not lost during sync/clean
     try:
         # Get current real branch

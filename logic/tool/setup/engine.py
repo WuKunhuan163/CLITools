@@ -192,7 +192,7 @@ class ToolEngine:
         if tm.run(ephemeral=True, final_msg="", final_newline=False):
             if not is_dependency:
                 from logic.utils import print_success_status
-                print_success_status(f"installed {self.tool_name} tool")
+                print_success_status(f"installed {self.tool_name}")
             return True
         return False
 
@@ -359,20 +359,72 @@ class ToolEngine:
         if "." in self.tool_name:
             shortcut_name = self.tool_name.split(".")[-1]
             
-        link_path = self.bin_dir / shortcut_name
-        if link_path.exists() or link_path.is_symlink():
-            try: os.remove(link_path)
+        shortcut_path = self.bin_dir / shortcut_name
+        if shortcut_path.exists() or shortcut_path.is_symlink():
+            try: os.remove(shortcut_path)
             except Exception as e:
                 if stage: stage.error_brief = f"Failed to remove old shortcut: {e}"
                 return False
         
         try:
-            st = os.stat(main_py); os.chmod(main_py, st.st_mode | stat.S_IEXEC)
+            # Create a wrapper script that uses the managed Python
+            # This ensures that tools run with their managed dependencies.
+            # We use double curly braces {{}} for f-string literal braces.
+            wrapper_content = f"""#!/usr/bin/env python3
+import sys
+import subprocess
+import os
+from pathlib import Path
+
+# Resolve project root
+curr = Path(__file__).resolve().parent
+while curr != curr.parent:
+    if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
+        project_root = curr
+        break
+    curr = curr.parent
+else:
+    project_root = Path("{self.project_root}")
+
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Use managed python if available
+python_exec = sys.executable
+python_tool_dir = project_root / "tool" / "PYTHON"
+if python_tool_dir.exists():
+    from logic.utils import get_logic_dir
+    utils_path = get_logic_dir(python_tool_dir) / "utils.py"
+    if utils_path.exists():
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("py_utils", str(utils_path))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            python_exec = mod.get_python_exec()
+        except: pass
+
+# Run the actual tool
+main_py = project_root / "{os.path.relpath(main_py, self.project_root)}"
+env = os.environ.copy()
+# Add project root and tool logic to PYTHONPATH
+python_path = env.get('PYTHONPATH', '')
+new_paths = f"{{project_root}}:{{main_py.parent}}"
+env["PYTHONPATH"] = f"{{new_paths}}:{{python_path}}" if python_path else new_paths
+
+# Execute the tool and preserve exit code
+try:
+    res = subprocess.run([python_exec, str(main_py)] + sys.argv[1:], env=env)
+    sys.exit(res.returncode)
+except KeyboardInterrupt:
+    sys.exit(1)
+"""
+            with open(shortcut_path, 'w') as f:
+                f.write(wrapper_content)
             
-            # Pure symlink
-            # We need to make sure the relative path is correct from bin/ to tool/...
-            rel_main_py = os.path.relpath(main_py, self.bin_dir)
-            os.symlink(rel_main_py, link_path)
+            # Make executable
+            st = os.stat(shortcut_path)
+            os.chmod(shortcut_path, st.st_mode | stat.S_IEXEC)
             
             from logic.utils import register_path
             register_path(self.bin_dir)
