@@ -13,7 +13,8 @@
   ],
   "git_ignore": [
     "!",
-    "data/",
+    "data/*",
+    "!data/install/",
     "logs/"
   ],
   "default_version": "3.11.14-macos-arm64"

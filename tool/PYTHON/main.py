@@ -109,7 +109,7 @@ def main():
     config = get_config()
     default_version = config.get("default_version", "3.10.19")
 
-    parser = argparse.ArgumentParser(description="PYTHON Proxy and Manager", add_help=False)
+    parser = argparse.ArgumentParser(description="PYTHON Proxy and Manager", add_help=False, allow_abbrev=False)
     parser.add_argument("--py-version", help="Specify Python version to use")
     parser.add_argument("--py-list", action="store_true", help="List supported and installed versions")
     parser.add_argument("--py-install", help="Install a specific Python version")
@@ -118,9 +118,9 @@ def main():
     parser.add_argument("--py-update", action="store_true", help="Update Python resources from GitHub releases")
     parser.add_argument("--force", action="store_true", help="Force action (e.g. refresh list cache)")
     parser.add_argument("--py-dir", help="Specify installation directory")
-    parser.add_argument("--tag", help="Filter by release tag (e.g. 20260211)")
-    parser.add_argument("--version", help="Filter by version prefix (e.g. 3.12)")
-    parser.add_argument("--platform", help="Filter by platform")
+    parser.add_argument("--py-tag", dest="tag", help="Filter by release tag (e.g. 20260211)")
+    parser.add_argument("--py-ver", dest="version", help="Filter by version prefix (e.g. 3.12)")
+    parser.add_argument("--py-platform", dest="platform", help="Filter by platform")
     parser.add_argument("--limit-releases", type=int, help="Limit number of releases to scan")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
 
@@ -184,7 +184,12 @@ def main():
     if args.py_update:
         update_script = script_dir / "logic" / "update.py"
         if update_script.exists():
-            subprocess.run([sys.executable, str(update_script)] + unknown)
+            update_cmd = [sys.executable, str(update_script)]
+            if args.tag: update_cmd.extend(["--py-tag", args.tag])
+            if args.version: update_cmd.extend(["--py-ver", args.version])
+            if args.platform: update_cmd.extend(["--py-platform", args.platform])
+            if args.force: update_cmd.append("--force")
+            subprocess.run(update_cmd + unknown)
             sys.exit(0)
         else:
             print(f"{RED}Error{RESET}: Update script not found.")
@@ -398,7 +403,7 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
         if all_available:
             msg = _("python_version_not_supported", "Version {version} is not found in remote project or local cache.", version=version)
             print(f"{RED}{BOLD}{error_label}{RESET}: {msg}")
-            print(_("python_update_hint", "You can use 'PYTHON --py-update --version {v}' to scan and migrate it.", v=version.split('-')[0]))
+            print(_("python_update_hint", "You can use 'PYTHON --py-update --py-ver {v}' to scan and migrate it.", v=version.split('-')[0]))
         else:
             print(f"{RED}{BOLD}{error_label}{RESET}: No versions found. Please run 'PYTHON --py-list' to scan releases.")
         return False
@@ -471,8 +476,8 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
                 v_plat = parts[1] if len(parts) > 1 else tag
                 
                 # Use sys.executable to ensure we use the same environment
-                cmd = [sys.executable, str(install_script), "--version", v_num, "--platform", v_plat, "--limit", "1"]
-                if tag_filter: cmd.extend(["--tag", tag_filter])
+                cmd = [sys.executable, str(install_script), "--py-ver", v_num, "--py-platform", v_plat, "--limit", "1"]
+                if args.tag: cmd.extend(["--py-tag", args.tag])
                 
                 # DO NOT capture output so the user sees progress
                 res = subprocess.run(cmd)

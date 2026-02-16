@@ -27,7 +27,29 @@ from logic.tool.setup.engine import ToolEngine
 def setup():
     tool_name = "PYTHON"
     engine = ToolEngine(tool_name, project_root)
-    return engine.install()
+    if not engine.install():
+        return False
+        
+    # After basic engine install (shortcut etc.), ensure a default version is installed
+    # Use the python tool itself to perform the installation
+    python_bin = project_root / "bin" / "PYTHON"
+    if python_bin.exists():
+        import json
+        config_path = script_dir / "tool.json"
+        default_version = "3.11.14"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    default_version = json.load(f).get("default_version", "3.11.14")
+            except: pass
+            
+        # Check if already installed
+        res = subprocess.run([str(python_bin), "--py-list"], capture_output=True, text=True)
+        if "(installed)" not in res.stdout:
+            print(f"\nInstalling default Python version: {default_version}...")
+            subprocess.run([str(python_bin), "--py-install", default_version])
+            
+    return True
 
 if __name__ == "__main__":
     setup()

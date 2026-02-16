@@ -18,12 +18,14 @@ class KeyboardSuppressor:
     """
     Suppresses keyboard input echoing to the terminal while recording it.
     Useful for protecting erasable status lines from being broken by user input.
+    Uses reference counting to handle nested or concurrent usage.
     """
     def __init__(self):
         self.captured_keys: List[bytes] = []
         self.running = False
         self._thread: Optional[threading.Thread] = None
         self._old_settings = None
+        self._ref_count = 0
         
         # Try to get the terminal FD
         self._fd = None
@@ -45,6 +47,7 @@ class KeyboardSuppressor:
             return
 
         with self._lock:
+            self._ref_count += 1
             if self.running:
                 return
             
@@ -52,17 +55,10 @@ class KeyboardSuppressor:
                 self._old_settings = termios.tcgetattr(self._fd)
                 
                 # Create new settings
-                # 1. Disable ECHO (don't show typed characters)
-                # 2. Disable ICANON (line buffering, get chars immediately)
-                # 3. Keep ISIG enabled if we want Ctrl+C to still send SIGINT, 
-                #    OR disable it to capture \x03 byte. 
-                #    The user asked to suppress Ctrl+C visual effect but record it.
-                #    Echoing '^C' is usually part of ECHO or ECHOCTL.
                 new_settings = termios.tcgetattr(self._fd)
                 new_settings[3] = new_settings[3] & ~termios.ECHO
                 new_settings[3] = new_settings[3] & ~termios.ICANON
                 
-                # Optional: disable ECHOCTL to prevent '^C' showing up when ISIG is on
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
                 
@@ -72,17 +68,21 @@ class KeyboardSuppressor:
                 self._thread = threading.Thread(target=self._capture_loop, daemon=True)
                 self._thread.start()
             except Exception:
-                # If anything fails, don't leave the terminal in a broken state
                 self.running = False
+                self._ref_count -= 1
 
     def stop(self):
         with self._lock:
             if not self.running:
                 return
             
+            self._ref_count -= 1
+            if self._ref_count > 0:
+                return # Still in use elsewhere
+            
             self.running = False
             
-        # Join outside the lock to avoid potential deadlocks
+        # Join outside the lock
         if self._thread:
             self._thread.join(timeout=0.5)
         
@@ -93,8 +93,7 @@ class KeyboardSuppressor:
             except Exception:
                 pass
         
-        # Close /dev/tty if we opened it
-        if hasattr(self, '_tty_f'):
+        if hasattr(self, '_tty_f') and self._tty_f:
             try:
                 self._tty_f.close()
             except:

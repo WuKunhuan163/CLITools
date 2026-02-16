@@ -336,10 +336,10 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
     return logic()
 
 def main():
-    parser = argparse.ArgumentParser(description="PYTHON Resource Update Tool")
-    parser.add_argument("--version", help="Version to migrate")
-    parser.add_argument("--platform", help="Platform to migrate")
-    parser.add_argument("--tag", help="Specific tag")
+    parser = argparse.ArgumentParser(description="PYTHON Resource Update Tool", allow_abbrev=False)
+    parser.add_argument("--py-ver", dest="version", help="Version to migrate")
+    parser.add_argument("--py-platform", dest="platform", help="Platform to migrate")
+    parser.add_argument("--py-tag", dest="tag", help="Specific tag")
     parser.add_argument("--all-latest", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--list", action="store_true", help="List available versions from releases")

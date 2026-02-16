@@ -11,10 +11,23 @@ class TestPythonVersion(unittest.TestCase):
         self.python_bin = self.project_root / "bin" / "PYTHON"
 
     def test_python_list(self):
-        """Verify PYTHON --py-list returns supported versions."""
+        """Verify PYTHON --py-list returns supported versions with two-pass check."""
+        # Pass 1: Remote scan (no timeout)
         res = subprocess.run([str(self.python_bin), "--py-list"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0)
         self.assertIn("Supported versions", res.stdout)
+        
+        # Pass 2: Cached scan (must return within 5 seconds)
+        import time
+        start = time.time()
+        try:
+            res = subprocess.run([str(self.python_bin), "--py-list"], capture_output=True, text=True, timeout=5)
+            duration = time.time() - start
+            self.assertEqual(res.returncode, 0)
+            self.assertIn("Supported versions", res.stdout)
+            self.assertLess(duration, 5.0, f"Cached list took too long: {duration:.2f}s")
+        except subprocess.TimeoutExpired:
+            self.fail("PYTHON --py-list (cached) timed out after 5 seconds")
         
     def test_python_exec_identity(self):
         """Verify PYTHON proxy uses the correct version (or system fallback)."""

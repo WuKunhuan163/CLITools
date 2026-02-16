@@ -186,12 +186,12 @@ def download_and_verify(asset, target_dir):
     return False
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tag", help="Target a specific tag")
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument("--py-tag", dest="tag", help="Target a specific tag")
     parser.add_argument("--force", action="store_true", help="Ignore cache and force scan")
     parser.add_argument("--limit", type=int, default=3, help="Max assets to download")
-    parser.add_argument("--version", help="Download a specific version (e.g. 3.10.19)")
-    parser.add_argument("--platform", help="Filter by platform")
+    parser.add_argument("--py-ver", dest="version", help="Download a specific version (e.g. 3.10.19)")
+    parser.add_argument("--py-platform", dest="platform", help="Filter by platform")
     args = parser.parse_args()
 
     # Use the unified cache with filters applied directly
