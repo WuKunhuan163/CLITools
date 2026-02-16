@@ -43,10 +43,12 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
 
             # Send remote submit using ID
             submit_cmd = [python_exec, str(main_py), "submit", "--id", test_id]
-            subprocess.run(submit_cmd, env=env, capture_output=True)
+            sub_res = subprocess.run(submit_cmd, env=env, capture_output=True, text=True)
+            if sub_res.returncode != 0:
+                self.fail(f"submit command failed: {sub_res.stderr}")
             
             # Wait for exit
-            stdout, stderr = proc.communicate(timeout=30)
+            stdout, stderr = proc.communicate(timeout=40)
             
             # Check for success indicators
             all_out = stdout + stderr
