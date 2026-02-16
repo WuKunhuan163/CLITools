@@ -12,12 +12,16 @@ class TestUserInputRemoteStop(unittest.TestCase):
         """Test remote stop command."""
         project_root = Path(__file__).resolve().parent.parent.parent.parent
         main_py = project_root / "tool" / "USERINPUT" / "main.py"
+        test_id = f"test_08_{int(time.time())}"
         
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
+        import sys
+        python_exec = sys.executable
+        
         # Use -u for unbuffered output
-        proc = subprocess.Popen(["python3", "-u", str(main_py), "--timeout", "60"], 
+        proc = subprocess.Popen([python_exec, "-u", str(main_py), "--timeout", "60", "--id", test_id], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
@@ -31,7 +35,7 @@ class TestUserInputRemoteStop(unittest.TestCase):
                         try:
                             with open(f, 'r') as info_file:
                                 info = json.load(info_file)
-                                if info.get("tool_name") == "USERINPUT":
+                                if info.get("custom_id") == test_id:
                                     gui_pid = info.get("pid")
                                     if gui_pid: break
                         except: pass
@@ -39,11 +43,10 @@ class TestUserInputRemoteStop(unittest.TestCase):
                 time.sleep(1)
             
             if not gui_pid:
-                # Fallback to output parsing if instance file not found
-                self.fail("Could not find USERINPUT instance file or GUI PID.")
+                self.fail("Could not find USERINPUT instance file with correct ID.")
 
-            # Send remote stop
-            stop_cmd = ["python3", str(main_py), "stop", str(gui_pid)]
+            # Send remote stop using ID
+            stop_cmd = [python_exec, str(main_py), "stop", "--id", test_id]
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
             # Wait for exit with generous timeout

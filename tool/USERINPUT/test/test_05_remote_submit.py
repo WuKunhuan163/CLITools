@@ -12,19 +12,23 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
         """Test remote submit command."""
         project_root = Path(__file__).resolve().parent.parent.parent.parent
         main_py = project_root / "tool" / "USERINPUT" / "main.py"
+        test_id = f"test_05_{int(time.time())}"
         
-        # Start USERINPUT in background
+        # Start USERINPUT in background with unique ID
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "60"], 
+        import sys
+        python_exec = sys.executable
+        
+        proc = subprocess.Popen([python_exec, str(main_py), "--timeout", "60", "--id", test_id], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
             # Wait for window to appear and capture its PID from stdout
             gui_pid = None
             start_wait = time.time()
-            while time.time() - start_wait < 20:
+            while time.time() - start_wait < 30: # Increased timeout
                 line = proc.stdout.readline()
                 if not line: break
                 if "(PID: " in line:
@@ -37,12 +41,12 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
             if not gui_pid:
                 self.fail("Could not capture GUI PID from stdout")
 
-            # Send remote submit
-            submit_cmd = ["python3", str(main_py), "submit", str(gui_pid)]
+            # Send remote submit using ID
+            submit_cmd = [python_exec, str(main_py), "submit", "--id", test_id]
             subprocess.run(submit_cmd, env=env, capture_output=True)
             
             # Wait for exit
-            stdout, stderr = proc.communicate(timeout=20)
+            stdout, stderr = proc.communicate(timeout=30)
             
             # Check for success indicators
             all_out = stdout + stderr

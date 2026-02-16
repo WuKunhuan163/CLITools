@@ -862,6 +862,7 @@ def _test_tool_with_args(args):
     if current_cpu_at_start >= 0.6 * test_cpu_limit:
         label = _("test_current_cpu_load_label", "Current CPU load: ")
         max_label = _("label_max", "max")
+        # Ensure only the percent value is bolded as requested
         print(f"{label}{BOLD}{current_cpu_at_start:.1f}%{RESET} ({max_label}: {test_cpu_limit:.1f}%)")
     
     # Add CPU wait stage (stealth)
