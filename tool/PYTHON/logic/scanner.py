@@ -168,6 +168,7 @@ class PythonScanner:
         def scan_action(stage: TuringStage):
             for i, tag in enumerate(tags):
                 elapsed = int(time.time() - start_time)
+                # Ensure the entire status is bolded correctly by Turing machine
                 stage.active_name = f"from GitHub ({tag}) (found: {len(matrix)})({elapsed}s)"
                 stage.refresh()
                 
@@ -187,7 +188,7 @@ class PythonScanner:
                 success_status="Successfully fetched",
                 success_name="GitHub releases",
                 fail_status="Failed to fetch",
-                bold_part="GitHub releases"
+                bold_part="Scanning from GitHub"
             ))
             if not tm.run(ephemeral=True, final_newline=False):
                 sys.exit(1)

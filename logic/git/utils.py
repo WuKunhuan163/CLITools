@@ -41,14 +41,17 @@ def sync_dev_logic(project_root: Path, quiet=False, translation_func: Optional[C
             if not run_git(["commit", "-m", f"Auto-sync changes on {start_branch}"], project_root, stage): return False
         return True
 
+    committing_label = _("label_committing", "Committing")
+    on_branch_label = _("on_branch", "local changes on '{branch}'", branch=start_branch)
+    
     tm.add_stage(TuringStage(
-        name=_("on_branch", "local changes on '{branch}'", branch=start_branch),
+        name=on_branch_label,
         action=auto_commit,
-        active_status=_("label_committing", "Committing"),
-        success_status="Successfully committed",
+        active_status=committing_label,
+        success_status=_("label_success_committed", "Successfully committed"),
         success_color="BOLD",
-        fail_status="Failed to commit",
-        bold_part="Committing"
+        fail_status=_("label_failed_to_commit", "Failed to commit"),
+        bold_part=committing_label + " " + on_branch_label.split("'")[0].strip()
     ))
 
     if not tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False):
@@ -72,9 +75,36 @@ def align_branches_logic(project_root: Path, translation_func: Optional[Callable
     
     start_branch = get_current_branch(project_root)
     
-    # 1. Sync dev
+    # 1. Sync current branch (commit changes)
     if not sync_dev_logic(project_root, quiet=False, translation_func=_):
         return False
+
+    # If we are NOT on dev, merge back to dev first
+    if start_branch != "dev":
+        tm_merge = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
+        
+        def merge_back_action(stage: TuringStage):
+            try:
+                if not run_git(["checkout", "dev"], project_root, stage): return False
+                if not run_git(["merge", start_branch], project_root, stage): return False
+                if not run_git(["push", "origin", "dev"], project_root, stage): return False
+                return True
+            except Exception as e:
+                stage.report_error(f"Merge {start_branch} into dev failed", str(e))
+                return False
+
+        tm_merge.add_stage(TuringStage(
+            name=_("merge_info", "changes on '{branch}' into 'dev'", branch=start_branch),
+            action=merge_back_action,
+            active_status=_("label_merging", "Merging"),
+            success_status=_("label_success_merged", "Successfully merged"),
+            success_color="BOLD",
+            fail_status=_("label_failed_to_merge", "Failed to merge"),
+            bold_part=_("label_merging", "Merging") + " " + _("merge_info", "changes on '{branch}'", branch=start_branch).split("'")[0].strip()
+        ))
+        
+        if not tm_merge.run(ephemeral=True, final_msg="", final_newline=False):
+            return False
 
     tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
 
@@ -132,6 +162,7 @@ def align_branches_logic(project_root: Path, translation_func: Optional[Callable
             return False
         finally:
             if side_index.exists(): side_index.unlink()
+            if git_lock: git_lock.release()
 
     tm.add_stage(TuringStage(
         name="'main' from 'tool'",

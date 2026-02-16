@@ -723,6 +723,7 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
         return True, ""
     else:
         if not manager:
+            # Final line clearing to avoid artifacts
             sys.stdout.write(f"\r\033[K")
             sys.stdout.flush()
         
