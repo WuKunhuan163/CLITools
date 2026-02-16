@@ -238,11 +238,9 @@ class TestRunner:
                         # Proceed with warning
                         break
                     
-                    msg = self._("test_waiting_cpu", "{status}: {file} (Current CPU: {curr:.1f}% > Limit: {limit:.1f}%)", 
-                                 status=self.colors['YELLOW'] + self.colors['BOLD'] + self._("test_waiting_status", "Waiting CPU") + self.colors['RESET'],
-                                 file=f"{self.colors['BOLD']}{test_file.name}{self.colors['RESET']}",
-                                 curr=curr_cpu, limit=test_cpu_limit)
-                    yield StepResult(msg, state=WorkerState.CONTINUE)
+                    # Stealth mode: don't show "Waiting CPU" status line
+                    # Just wait silently
+                    time.sleep(0.5)
                 
                 active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
                 timeout_msg = self._("label_timeout", "timeout")

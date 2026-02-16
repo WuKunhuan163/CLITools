@@ -25,6 +25,8 @@
   "audit_lang_code_help": "要审计的语言代码 (例如: en, zh)",
   "audit_scanning": "正在扫描针对 {lang_name} 的翻译覆盖率...",
   "audit_scanning_done": "针对 {lang_name} 的翻译审计扫描已完成. ",
+  "audit_turing_scanning": "正在扫描 {lang_name} 的图灵机状态信息...",
+  "audit_turing_done": "图灵机状态审计完成.",
   "audit_summary_keys": "{rate} 的词条已经支持 {lang_name} 翻译 ({supported}/{total})",
   "audit_summary_refs": "{rate} 的引用已经支持 {lang_name} 翻译 ({supported}/{total})",
   "tool_FILEDIALOG_desc": "基于 GUI 的文件和目录选择对话框.",
@@ -154,6 +156,8 @@
   "tool_BACKGROUND_purpose": "允许非阻塞执行耗时任务. ",
   "label_already_installed": "已安装",
   "msg_interrupted": "已中断",
+  "msg_operation_cancelled": "操作已取消",
+  "msg_cancelled_by_user": "由用户取消。",
   "python_version_not_supported": "版本 {version} 不受支持. 支持的版本: {supported}",
   "python_install_failed": "安装 {version} 失败: {error}",
   "python_already_installed": "已安装 {version}",
@@ -203,6 +207,9 @@
   "test_cpu_timeout_warn": "CPU 负载 ({current_cpu:.1f}%) 在 {timeout} 秒后仍然很高。继续执行并发出警告。",
   "test_cpu_waiting": "等待 CPU 负载下降 ({current_cpu:.1f}% > {cpu_limit:.1f}%) ({elapsed_wait_time:.0f}s / {timeout}s)",
   "test_current_cpu_load": "当前 CPU 负载：{cpu_percent:.1f}%",
+  "test_current_cpu_load_label": "当前 CPU 负载：",
+  "err_failed_to_sync": "同步失败",
+  "err_sync_installation_test": "在安装测试期间。",
   "test_waiting_for": "正在等待",
   "warn_cpu_load": "警告：当前 CPU 负载 ({current_cpu:.1f}%) 超过了工具建议的限制 ({cpu_limit:.1f}%)。性能可能会受到影响。"
 }

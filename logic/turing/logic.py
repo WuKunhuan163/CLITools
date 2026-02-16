@@ -36,7 +36,8 @@ class TuringStage:
                  active_name: Optional[str] = None,
                  success_name: Optional[str] = None,
                  fail_name: Optional[str] = None,
-                 bold_part: Optional[str] = None):
+                 bold_part: Optional[str] = None,
+                 stealth: bool = False):
         self.name = name
         self.action = action
         self.active_status = active_status
@@ -49,6 +50,7 @@ class TuringStage:
         self.success_name = success_name
         self.fail_name = fail_name
         self.bold_part = bold_part
+        self.stealth = stealth
         
         # Support for failure information and captured output
         self.error_brief: Optional[str] = None 

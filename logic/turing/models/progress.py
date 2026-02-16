@@ -25,6 +25,9 @@ class ProgressTuringMachine:
 
     def refresh_stage(self, stage: TuringStage):
         """Refreshes the current active stage display line."""
+        if stage.stealth:
+            return
+
         # Detect if this stage is a warning
         is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning" or 
                       stage.active_status == "Warning" or stage.fail_color == "YELLOW")
@@ -78,7 +81,7 @@ class ProgressTuringMachine:
                     is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning" or 
                                   stage.active_status == "Warning" or stage.fail_color == "YELLOW")
                     
-                    if not (self.no_warning and is_warning):
+                    if not (self.no_warning and is_warning) and not stage.stealth:
                         if stage.bold_part and active_name.startswith(stage.bold_part):
                             bold_text = f"{stage.active_status} {stage.bold_part}"
                             rest_text = active_name[len(stage.bold_part):].lstrip()
@@ -100,9 +103,9 @@ class ProgressTuringMachine:
                             success = stage.action()
                             
                         if success:
-                            # Skip printing if it's a warning and no_warning is True
+                            # Skip printing if it's a warning and no_warning is True, or if it's stealth
                             is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning")
-                            if self.no_warning and is_warning:
+                            if (self.no_warning and is_warning) or stage.stealth:
                                 # Just clear the active line and continue
                                 if not ephemeral or not is_last:
                                     sys.stdout.write("\r\033[K")
@@ -120,15 +123,22 @@ class ProgressTuringMachine:
                             if stage.bold_part and success_name and success_name.startswith(stage.bold_part):
                                 bold_text = f"{stage.success_status} {stage.bold_part}"
                                 rest_text = success_name[len(stage.bold_part):].lstrip()
-                                full_msg = f"{BOLD}{color_code}{bold_text}{RESET} {rest_text}"
+                                full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             elif success_name:
                                 full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
                             else:
                                 # Explicitly empty success_name
                                 full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                            
+                            # Ensure completion period for success states
+                            # Strip ANSI escape codes for punctuation check
+                            import re
+                            stripped_msg = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', full_msg)
+                            if stripped_msg and not any(stripped_msg.rstrip().endswith(c) for c in [".", "!", ")", "]", "}", ">"]):
+                                full_msg = full_msg.rstrip() + "."
                                 
                             full_msg = truncate_to_width(full_msg, width)
-                            
+
                             if ephemeral:
                                 if is_last and final_msg is not None:
                                     sys.stdout.write(f"\r\033[K{truncate_to_width(final_msg, width)}")
@@ -234,9 +244,21 @@ class ProgressTuringMachine:
                 BOLD = get_color("BOLD", "\033[1m")
                 YELLOW = get_color("YELLOW", "\033[33m")
                 RESET = get_color("RESET", "\033[0m")
-                sys.stdout.write(f"{BOLD}{YELLOW}Cancelled{RESET} Operation cancelled by user.\n")
+                
+                # Format: Operation cancelled (Yellow Bold) by user. (Normal)
+                # Note: We don't have a translation helper directly in this scope easily, 
+                # but we can import it or use hardcoded default for now as it's a critical framework part.
+                from logic.lang.utils import get_translation
+                from logic.utils import get_logic_dir, find_project_root
+                root = find_project_root(Path(__file__))
+                logic_dir = str(get_logic_dir(root))
+                
+                cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
+                by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
+                
+                sys.stdout.write(f"{BOLD}{YELLOW}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                return False
+                raise
             except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
