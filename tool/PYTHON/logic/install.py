@@ -11,16 +11,24 @@ from datetime import datetime
 
 # Import shared utilities for translation and config
 try:
-    # Add tool's parent directory to prioritize tool-specific logic
-    tool_root = Path(__file__).resolve().parent.parent
-    sys.path.insert(0, str(tool_root))
+    # Fix shadowing: Remove script directory from sys.path[0] if present
+    tool_logic_dir = Path(__file__).resolve().parent
+    python_tool_dir = tool_logic_dir.parent
+    project_root = python_tool_dir.parent.parent
     
-    # Add project root to sys.path to find root logic modules
-    sys.path.append(str(tool_root.parent.parent))
+    # Ensure root project is at index 0 to avoid 'logic' shadowing
+    if str(project_root) in sys.path:
+        sys.path.remove(str(project_root))
+    sys.path.insert(0, str(project_root))
+    
+    # Tool-specific logic at index 1
+    if str(python_tool_dir) in sys.path:
+        sys.path.remove(str(python_tool_dir))
+    sys.path.insert(1, str(python_tool_dir))
     
     from logic.lang.utils import get_translation
     from logic.config import get_color
-    from .config import DATA_DIR, RESOURCE_ROOT, INSTALL_DIR, TMP_INSTALL_DIR, PROJECT_ROOT
+    from tool.PYTHON.logic.config import DATA_DIR, RESOURCE_ROOT, INSTALL_DIR, TMP_INSTALL_DIR, PROJECT_ROOT
 except ImportError:
     def get_translation(dir, key, default): return default
     def get_color(name, default="\033[0m"): return default
@@ -67,13 +75,22 @@ def resolve_platform(asset_name):
     }
     if "linux-musl" in asset_name or "unknown-linux-musl" in asset_name:
         return "linux64-musl"
-    for platform, keys in mappings.items():
-        if any(key in asset_name for key in keys):
+    
+    for platform, terms in mappings.items():
+        if any(t in asset_name for t in terms):
             return platform
-    return None
+    return "unknown"
 
 def _(key, default, **kwargs):
     return get_translation(str(PYTHON_TOOL_DIR / "logic"), key, default).format(**kwargs)
+
+def print_erasable(msg):
+    sys.stdout.write(f"\r\033[K{msg}")
+    sys.stdout.flush()
+
+def print_success_status(msg):
+    success_status = _("python_install_success_status", "Successfully")
+    print(f"\r\033[K{BOLD}{GREEN}{success_status}{RESET} {msg}", flush=True)
 
 def load_json(path):
     if path.exists():
@@ -85,11 +102,6 @@ def load_json(path):
 def save_json(path, data):
     with open(path, "w") as f: json.dump(data, f, indent=2)
 
-def print_cache_warning():
-    warning_label = _("label_warning", "Warning")
-    warning_msg = _("label_warning_cache", "Using cached data. To force update, clear cache.")
-    print(f"{BOLD}{YELLOW}{warning_label}{RESET}: {warning_msg}", flush=True)
-
 from tool.PYTHON.logic.scanner import PythonScanner
 scanner = PythonScanner()
 
@@ -97,7 +109,7 @@ def get_all_assets_from_cache(tag_filter=None, version_filter=None, platform_fil
     """Reads all assets from release_asset.json and flattens them."""
     return scanner.get_filtered_assets(tag_filter=tag_filter, version_filter=version_filter, platform_filter=platform_filter)
 
-def download_and_verify(asset, target_dir):
+def download_and_verify(asset, target_root):
     """Downloads an asset to tmp, verifies it, then moves to target_dir using a Turing Machine."""
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
@@ -114,6 +126,7 @@ def download_and_verify(asset, target_dir):
     
     zst_path = tmp_dir / asset["name"]
     extract_dir = tmp_dir / "extract"
+    target_dir = target_root / v_tag
     
     def download_action(stage=None):
         prefix = f"{BOLD}{BLUE}Installing{RESET} {v_tag} from GitHub"
@@ -127,9 +140,6 @@ def download_and_verify(asset, target_dir):
     def extract_action(stage=None):
         if stage: stage.active_name = f"{asset['name']}"
         extract_dir.mkdir(exist_ok=True)
-        # Clear logic from sys.modules to avoid collision
-        for m in list(sys.modules.keys()):
-            if m.startswith("logic.") or m == "logic": del sys.modules[m]
         
         if not extract_resource(zst_path, extract_dir, silent=True):
             if stage: stage.report_error("Extraction Error", f"Failed to extract {asset['name']}")
@@ -148,17 +158,16 @@ def download_and_verify(asset, target_dir):
             res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
             if asset["version"] in res.stdout or asset["version"] in res.stderr:
                 # Move to final location
-                final_dest = target_dir / v_tag
-                if final_dest.exists(): shutil.rmtree(final_dest)
+                if target_dir.exists(): shutil.rmtree(target_dir)
                 
                 # Re-wrap in 'install' folder for consistency
-                final_install = final_dest / "install"
+                final_install = target_dir / "install"
                 final_install.mkdir(parents=True)
                 for item in list(py_home.iterdir()):
                     shutil.move(str(item), str(final_install / item.name))
                 
                 # Write metadata
-                save_json(final_dest / "PYTHON.json", {
+                save_json(target_dir / "PYTHON.json", {
                     "release": asset["tag"],
                     "asset": asset["name"],
                     "version": asset["version"],
@@ -179,7 +188,7 @@ def download_and_verify(asset, target_dir):
     
     try:
         if tm.run(ephemeral=True, final_newline=False):
-            print_success_status(f"downloaded {asset['name']}")
+            print_success_status(f"installed {v_tag}")
             return True
     finally:
         if tmp_dir.exists(): shutil.rmtree(tmp_dir)

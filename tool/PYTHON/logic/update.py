@@ -22,9 +22,9 @@ REPO_URL = f"{PROJECT_URL}.git"
 
 # Import shared utilities for translation and config
 try:
-    # Add project root to sys.path with HIGHEST priority to avoid 'logic' collision
-    tool_core_dir = Path(__file__).resolve().parent
-    python_tool_dir = tool_core_dir.parent
+    # Fix shadowing: Remove script directory from sys.path[0] if present
+    tool_logic_dir = Path(__file__).resolve().parent
+    python_tool_dir = tool_logic_dir.parent
     project_root = python_tool_dir.parent.parent
     
     # Ensure root project is at index 0
