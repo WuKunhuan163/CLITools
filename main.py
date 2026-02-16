@@ -941,10 +941,10 @@ def _run_installation_test(tool_name, stay_on_test=False):
     tm_sync.add_stage(TuringStage(
         name="branches",
         action=sync_action,
-        active_status="Syncing",
+        active_status="Syncing branches",
         success_status="Successfully synced",
         fail_status="Failed to sync",
-        bold_part="Syncing"
+        bold_part="Syncing branches"
     ))
     
     if not tm_sync.run(ephemeral=True, final_msg="", final_newline=False):
@@ -996,9 +996,9 @@ def _run_installation_test(tool_name, stay_on_test=False):
     tm_install.add_stage(TuringStage(
         name="installation",
         action=install_test_action,
-        active_status="Testing",
+        active_status="Testing installation",
         success_status="Successfully tested",
-        bold_part="Testing"
+        bold_part="Testing installation"
     ))
     
     if tm_install.run(ephemeral=True, final_msg="", final_newline=False):
