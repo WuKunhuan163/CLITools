@@ -49,10 +49,60 @@ class ToolBase:
         self.dependencies = []
         self._load_metadata()
         
+        # Load tool-specific config for CPU limits
+        self._cpu_limit = None
+        self._cpu_timeout = None
+        self._load_tool_config()
+        
         # Auto-reexecute with correct python if PYTHON is a dependency
         if "PYTHON" in self.dependencies:
             from logic.utils import check_and_reexecute_with_python
             check_and_reexecute_with_python(self.tool_name)
+
+    def _load_tool_config(self):
+        """Load tool-specific configuration, including CPU limits."""
+        config_path = self.get_data_dir() / "config.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    self._cpu_limit = config.get("cpu_limit")
+                    self._cpu_timeout = config.get("cpu_timeout")
+            except Exception:
+                pass
+
+    def get_cpu_limit(self):
+        """Get the tool's configured CPU limit, falling back to global if not set."""
+        if self._cpu_limit is not None:
+            return self._cpu_limit
+        from logic.config import get_setting
+        return get_setting("test_cpu_limit", 80.0) # Default to 80%
+
+    def get_cpu_timeout(self):
+        """Get the tool's configured CPU timeout, falling back to global if not set."""
+        if self._cpu_timeout is not None:
+            return self._cpu_timeout
+        from logic.config import get_setting
+        return get_setting("test_cpu_timeout", 30) # Default to 30 seconds
+
+    def check_cpu_load_and_warn(self):
+        """Check current CPU load and issue a warning if it exceeds the tool's limit."""
+        if self.no_warning:
+            return
+        
+        from logic.utils import get_cpu_percent
+        from logic.config import get_color
+        
+        current_cpu = get_cpu_percent(interval=0.1)
+        cpu_limit = self.get_cpu_limit()
+        
+        if current_cpu > cpu_limit:
+            YELLOW_BOLD = get_color("YELLOW", "\033[33m") + get_color("BOLD", "\033[1m")
+            RESET = get_color("RESET", "\033[0m")
+            
+            warning_msg = self.get_translation("warn_cpu_load", "Warning: Current CPU load ({current_cpu:.1f}%) exceeds tool's recommended limit ({cpu_limit:.1f}%). Performance may be affected.").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
+            sys.stdout.write(f"\r\033[K{YELLOW_BOLD}{warning_msg}{RESET}\n")
+            sys.stdout.flush()
 
     def get_data_dir(self):
         """Returns the data directory for this tool, respecting nesting."""
@@ -122,6 +172,9 @@ class ToolBase:
         If not recognized, delegates to system fallback.
         Returns True if a command was handled and the tool should exit.
         """
+        # Check CPU load at the start of command execution
+        self.check_cpu_load_and_warn()
+
         if len(sys.argv) > 1:
             # Check for tool-specific quiet flag
             is_quiet = False
@@ -161,6 +214,9 @@ class ToolBase:
                 return True
             elif cmd == "rule":
                 self.print_rule()
+                return True
+            elif cmd == "config": # New config command for tools
+                self._handle_tool_config(args_to_check[1:])
                 return True
             
             # 2. Check if it's a subtool (relative to current tool_dir)
@@ -210,6 +266,46 @@ class ToolBase:
                         return True
                     return True
         return False
+
+    def _handle_tool_config(self, args):
+        """Handle tool-specific configuration settings."""
+        import argparse
+        config_path = self.get_data_dir() / "config.json"
+        config = {}
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f: config = json.load(f)
+            except Exception: pass
+        
+        updated = False
+        
+        # Parse arguments for tool-specific config
+        config_parser = argparse.ArgumentParser(add_help=False)
+        config_parser.add_argument("--cpu-limit", type=float, help="Set CPU limit for this tool (e.g., 70.0)")
+        config_parser.add_argument("--cpu-timeout", type=int, help="Set CPU wait timeout for this tool (seconds)")
+        
+        # Allow unknown args to pass through, but parse known ones
+        known_args, unknown_args = config_parser.parse_known_args(args)
+        
+        if known_args.cpu_limit is not None:
+            config["cpu_limit"] = known_args.cpu_limit
+            updated = True
+        if known_args.cpu_timeout is not None:
+            config["cpu_timeout"] = known_args.cpu_timeout
+            updated = True
+        
+        if updated:
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            from logic.config import get_color
+            BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+            print(f"{BOLD}{GREEN}Successfully updated{RESET} {self.tool_name} configuration:")
+            for k, v in config.items():
+                print(f"  {k}: {v}")
+        else:
+            print(f"Usage: {self.tool_name} config [--cpu-limit <float>] [--cpu-timeout <int>]")
 
     def run_system_fallback(self, capture_output=False, filtered_args=None):
         """Delegate unknown commands to the system equivalent."""
