@@ -88,10 +88,6 @@ def print_erasable(msg):
     sys.stdout.write(f"\r\033[K{msg}")
     sys.stdout.flush()
 
-def print_success_status(msg):
-    success_status = _("python_install_success_status", "Successfully")
-    print(f"\r\033[K{BOLD}{GREEN}{success_status}{RESET} {msg}", flush=True)
-
 def load_json(path):
     if path.exists():
         try:

@@ -513,13 +513,8 @@ def main():
 
     for attempt in range(3):
         try:
-            # Show waiting message with properly styled ellipsis
-            waiting_label = get_msg("label_waiting", "Waiting for USERINPUT feedback")
-            via_gui = get_msg("label_via_gui", "via GUI")
-            waiting_msg = f"{BOLD}{get_color('BLUE')}{waiting_label}{RESET} {via_gui} (PID: {os.getpid()})..."
-            sys.stdout.write(f"\r\033[K{waiting_msg}")
-            sys.stdout.flush()
-            
+            # Note: run_gui_subprocess (called via get_user_input_tkinter) 
+            # will handle displaying the "Waiting for..." message with its own PID.
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
             
             # Load system prompt

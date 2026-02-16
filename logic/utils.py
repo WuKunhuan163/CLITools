@@ -718,7 +718,7 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
         else:
             width = _get_configured_width()
             display_text = truncate_to_display_width(final_text, max(1, width - 1))
-            sys.stdout.write(f"\r\033[K{display_text}\n")
+            sys.stdout.write(f"\r\033[K{display_text}")
             sys.stdout.flush()
         return True, ""
     else:
