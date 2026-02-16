@@ -162,7 +162,6 @@ def align_branches_logic(project_root: Path, translation_func: Optional[Callable
             return False
         finally:
             if side_index.exists(): side_index.unlink()
-            if git_lock: git_lock.release()
 
     tm.add_stage(TuringStage(
         name="'main' from 'tool'",
