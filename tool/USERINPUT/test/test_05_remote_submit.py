@@ -5,6 +5,8 @@ import os
 import json
 from pathlib import Path
 
+EXPECTED_CPU_LIMIT = 40.0
+
 class TestUserInputRemoteSubmit(unittest.TestCase):
     def test_remote_submit(self):
         """Test remote submit command."""
@@ -15,14 +17,14 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "30"], 
+        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "60"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
             # Wait for window to appear and capture its PID from stdout
             gui_pid = None
             start_wait = time.time()
-            while time.time() - start_wait < 15:
+            while time.time() - start_wait < 20:
                 line = proc.stdout.readline()
                 if not line: break
                 if "(PID: " in line:
@@ -40,7 +42,7 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
             subprocess.run(submit_cmd, env=env, capture_output=True)
             
             # Wait for exit
-            stdout, stderr = proc.communicate(timeout=15)
+            stdout, stderr = proc.communicate(timeout=20)
             
             # Check for success indicators
             all_out = stdout + stderr

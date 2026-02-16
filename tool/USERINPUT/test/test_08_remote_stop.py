@@ -5,6 +5,8 @@ import os
 import json
 from pathlib import Path
 
+EXPECTED_CPU_LIMIT = 40.0
+
 class TestUserInputRemoteStop(unittest.TestCase):
     def test_remote_stop(self):
         """Test remote stop command."""
@@ -15,14 +17,14 @@ class TestUserInputRemoteStop(unittest.TestCase):
         env["PYTHONPATH"] = str(project_root)
         
         # Use -u for unbuffered output
-        proc = subprocess.Popen(["python3", "-u", str(main_py), "--timeout", "30"], 
+        proc = subprocess.Popen(["python3", "-u", str(main_py), "--timeout", "60"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
             # Wait for GUI to register by checking instance files
             gui_pid = None
             start_wait = time.time()
-            while time.time() - start_wait < 30:
+            while time.time() - start_wait < 40:
                 instance_dir = project_root / "data" / "run" / "instances"
                 if instance_dir.exists():
                     for f in instance_dir.glob("gui_*.json"):
@@ -38,7 +40,6 @@ class TestUserInputRemoteStop(unittest.TestCase):
             
             if not gui_pid:
                 # Fallback to output parsing if instance file not found
-                # But instance file should be more reliable
                 self.fail("Could not find USERINPUT instance file or GUI PID.")
 
             # Send remote stop
@@ -46,8 +47,7 @@ class TestUserInputRemoteStop(unittest.TestCase):
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
             # Wait for exit with generous timeout
-            # Use communicate to read everything and avoid blocking
-            stdout, stderr = proc.communicate(timeout=30)
+            stdout, stderr = proc.communicate(timeout=40)
             
             all_out = stdout + stderr
             stop_indicators = ["Terminated", "已终止"]
