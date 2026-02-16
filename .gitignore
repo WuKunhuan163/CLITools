@@ -48,7 +48,9 @@ Thumbs.db
 # --- Tool Specific Rules ---
 # PYTHON
 !/tool/PYTHON/
-/tool/PYTHON/data/
+!/tool/PYTHON/data/
+/tool/PYTHON/data/*
+!/tool/PYTHON/data/install/
 /tool/PYTHON/logs/
 
 # VPN

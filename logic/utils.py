@@ -496,6 +496,10 @@ def check_and_reexecute_with_python(tool_name, version=None):
     Ensure the current script is running with the correct PYTHON tool executable.
     If not, re-execute. If PYTHON is missing, print helpful error and exit.
     """
+    # Break infinite recursion
+    if os.environ.get("TOOL_MANAGED_PYTHON_ACTIVE") == "1":
+        return
+
     if version is None:
         from logic.config import get_setting
         version = get_setting("default_python_version", "3.11.14")
@@ -503,11 +507,17 @@ def check_and_reexecute_with_python(tool_name, version=None):
     project_root = Path(__file__).resolve().parent.parent
     py_exec = get_python_tool_exec()
     
-    if py_exec and sys.executable != py_exec:
-        # Re-execute
-        env = os.environ.copy()
-        env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
-        os.execve(py_exec, [py_exec] + sys.argv, env)
+    if py_exec:
+        # Robust comparison: use absolute and resolved paths
+        target_py = str(Path(py_exec).resolve())
+        current_py = str(Path(sys.executable).resolve())
+        
+        if current_py != target_py:
+            # Re-execute
+            env = os.environ.copy()
+            env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
+            env["TOOL_MANAGED_PYTHON_ACTIVE"] = "1"
+            os.execve(py_exec, [py_exec] + sys.argv, env)
     
     if not py_exec:
         # PYTHON tool missing or not operational

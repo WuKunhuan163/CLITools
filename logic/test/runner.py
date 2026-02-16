@@ -68,6 +68,14 @@ class TestRunner:
         old_lang = os.environ.get("TOOL_LANGUAGE")
         os.environ["TOOL_LANGUAGE"] = "en" # Force English for tests
         
+        # Record current branch to restore it later
+        current_branch = None
+        try:
+            res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(self.project_root))
+            if res.returncode == 0:
+                current_branch = res.stdout.strip()
+        except: pass
+
         try:
             all_tests = self._get_test_files()
             if not all_tests:
@@ -95,6 +103,15 @@ class TestRunner:
         finally:
             if old_lang: os.environ["TOOL_LANGUAGE"] = old_lang
             else: os.environ.pop("TOOL_LANGUAGE", None)
+            
+            # Restore branch if it was changed during tests
+            if current_branch:
+                try:
+                    res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(self.project_root))
+                    if res.returncode == 0 and res.stdout.strip() != current_branch:
+                        # Only restore if different
+                        subprocess.run(["/usr/bin/git", "checkout", current_branch], capture_output=True, cwd=str(self.project_root))
+                except: pass
 
     def _get_test_files(self):
         test_dir = self.tool_dir / "test"

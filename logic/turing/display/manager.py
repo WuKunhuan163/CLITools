@@ -114,7 +114,7 @@ class Slot:
 
 class MultiLineManager:
     def __init__(self, width: Optional[int] = None):
-        from logic.terminal.keyboard import KeyboardSuppressor
+        from logic.terminal.keyboard import get_global_suppressor
         self.lock = threading.Lock()
         self.slots = [] # List of Slot objects
         self.worker_to_slot_idx = {} # worker_id -> index in self.slots
@@ -123,7 +123,7 @@ class MultiLineManager:
         self.last_resize_time = 0
         self.total_height_ever_printed = 0 # Safety: never jump up more than this
         self.debug_file = PROJECT_ROOT / "data" / "run" / "manager_debug.json"
-        self.suppressor = KeyboardSuppressor()
+        self.suppressor = get_global_suppressor()
         self.is_suppressing = False
 
     def _get_current_width(self):
@@ -322,5 +322,8 @@ class MultiLineManager:
         sys.stdout.flush()
 
     def finalize(self):
-        """Ensure cursor is at the bottom."""
-        pass
+        """Ensure cursor is at the bottom and stop suppression."""
+        with self.lock:
+            if self.is_suppressing:
+                self.suppressor.stop()
+                self.is_suppressing = False
