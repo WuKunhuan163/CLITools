@@ -44,11 +44,11 @@ class ProgressTuringMachine:
         
         width = _get_configured_width()
         active_name = stage.active_name or stage.name
-        
-        if stage.bold_part and active_name.startswith(stage.bold_part):
-            bold_text = f"{stage.active_status} {stage.bold_part}"
-            rest_text = active_name[len(stage.bold_part):].lstrip()
-            active_msg = f"{BOLD}{BLUE}{bold_text}{RESET} {rest_text}..."
+        full_no_format = f"{stage.active_status} {active_name}".strip()
+        if stage.bold_part and full_no_format.startswith(stage.bold_part):
+            bold_text = stage.bold_part
+            rest_text = full_no_format[len(stage.bold_part):].lstrip()
+            active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
         else:
             active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
         
@@ -82,10 +82,11 @@ class ProgressTuringMachine:
                                   stage.active_status == "Warning" or stage.fail_color == "YELLOW")
                     
                     if not (self.no_warning and is_warning) and not stage.stealth:
-                        if stage.bold_part and active_name.startswith(stage.bold_part):
-                            bold_text = f"{stage.active_status} {stage.bold_part}"
-                            rest_text = active_name[len(stage.bold_part):].lstrip()
-                            active_msg = f"{BOLD}{BLUE}{bold_text}{RESET} {rest_text}..."
+                        full_active_no_format = f"{stage.active_status} {active_name}".strip()
+                        if stage.bold_part and full_active_no_format.startswith(stage.bold_part):
+                            bold_text = stage.bold_part
+                            rest_text = full_active_no_format[len(stage.bold_part):].lstrip()
+                            active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
                         else:
                             active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
                         
@@ -120,9 +121,10 @@ class ProgressTuringMachine:
                                 success_name = stage.name
                                 
                             color_code = get_color(stage.success_color, "\033[32m")
-                            if stage.bold_part and success_name and success_name.startswith(stage.bold_part):
-                                bold_text = f"{stage.success_status} {stage.bold_part}"
-                                rest_text = success_name[len(stage.bold_part):].lstrip()
+                            full_success_no_format = f"{stage.success_status} {success_name}".strip() if success_name else stage.success_status
+                            if stage.bold_part and full_success_no_format.startswith(stage.bold_part):
+                                bold_text = stage.bold_part
+                                rest_text = full_success_no_format[len(stage.bold_part):].lstrip()
                                 full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             elif success_name:
                                 full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
@@ -186,10 +188,11 @@ class ProgressTuringMachine:
                             
                             fail_color_code = get_color(stage.fail_color, "\033[31m")
                             
-                            if stage.bold_part and fail_name.startswith(stage.bold_part):
-                                bold_text = f"{stage.fail_status} {stage.bold_part}"
-                                rest_text = fail_name[len(stage.bold_part):].lstrip()
-                                full_msg_fail = f"{BOLD}{fail_color_code}{bold_text}{RESET} {rest_text}"
+                            full_fail_no_format = f"{stage.fail_status} {fail_name}".strip()
+                            if stage.bold_part and full_fail_no_format.startswith(stage.bold_part):
+                                bold_text = stage.bold_part
+                                rest_text = full_fail_no_format[len(stage.bold_part):].lstrip()
+                                full_msg_fail = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             else:
                                 full_msg_fail = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                             
@@ -220,12 +223,15 @@ class ProgressTuringMachine:
                         
                         fail_color_code = get_color(stage.fail_color, "\033[31m")
                         
-                        if stage.bold_part and fail_name.startswith(stage.bold_part):
-                            bold_text = f"{stage.fail_status} {stage.bold_part}"
-                            rest_text = fail_name[len(stage.bold_part):].lstrip()
-                            fail_msg = f"{BOLD}{fail_color_code}{bold_text}{RESET} {rest_text}. Reason: {brief_reason}."
+                        full_fail_no_format = f"{stage.fail_status} {fail_name}".strip()
+                        if stage.bold_part and full_fail_no_format.startswith(stage.bold_part):
+                            bold_text = stage.bold_part
+                            rest_text = full_fail_no_format[len(stage.bold_part):].lstrip()
+                            fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                         else:
-                            fail_msg = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}. Reason: {brief_reason}."
+                            fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                        
+                        fail_msg = f"{fail_msg_start}. Reason: {brief_reason}."
                         sys.stdout.write(f"\r\033[K{fail_msg}\n")
                         if log_path:
                             print(f"{BOLD}Traceback saved to:{RESET} {log_path}", flush=True)

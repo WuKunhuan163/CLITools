@@ -108,8 +108,9 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     label_waiting_key = "label_waiting_gui"
     if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
     
-    label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback via GUI")
-    display_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} (PID: {proc.pid})..."
+    label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback")
+    via_gui_label = tool_instance.get_translation("label_via_gui", "via GUI")
+    display_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} {via_gui_label} (PID: {proc.pid})..."
     
     from logic.turing.display.manager import truncate_to_width, _get_configured_width
     width = _get_configured_width()
