@@ -768,3 +768,17 @@ def print_success_status(action_msg):
         rest = f" {parts[1]}" if len(parts) > 1 else ""
         
     print(f"\r\033[K{BOLD}{GREEN}{prefix}{RESET}{rest}", flush=True)
+
+# New CPU monitoring function
+def get_cpu_percent(interval=0.1):
+    """
+    Returns the current system-wide CPU utilization as a percentage.
+    Requires psutil.
+    """
+    try:
+        import psutil
+        return psutil.cpu_percent(interval=interval)
+    except ImportError:
+        return 0.0
+    except Exception:
+        return 0.0

@@ -303,7 +303,68 @@ def _dev_sanity_check(tool_name, fix=False):
 
 def _dev_audit_test(tool_name, fix=False):
     """Audit unit test naming conventions."""
-    # ... existing implementation ...
+    project_root = ROOT_PROJECT_ROOT
+    actual_tool_name = "root" if tool_name in ["root", "TOOL"] else tool_name
+    test_dir = project_root / "test" if actual_tool_name == "root" else project_root / "tool" / actual_tool_name / "test"
+    
+    if not test_dir.exists():
+        print(f"No test directory found for {tool_name}")
+        return True
+
+    tests = sorted([f for f in test_dir.glob("test_*.py")])
+    if not tests:
+        print(f"No tests found for {tool_name}")
+        return True
+
+    violations = []
+    seen_indices = {}
+    
+    for test_file in tests:
+        name = test_file.name
+        match = re.match(r"test_(\d+)_", name)
+        if not match:
+            violations.append((test_file, "Missing index (e.g. test_00_...)"))
+            continue
+            
+        index = match.group(1)
+        if index in seen_indices:
+            violations.append((test_file, f"Duplicate index {index} (already used by {seen_indices[index]})"))
+        else:
+            seen_indices[index] = name
+
+    # Check if test_00 is help
+    if "00" in seen_indices and "help" not in seen_indices["00"].lower():
+        violations.append((test_dir / seen_indices["00"], "Index 00 should be reserved for help test"))
+
+    if not violations:
+        print(f"{BOLD}{GREEN}Audit passed{RESET} for {tool_name} tests.")
+        return True
+
+    print(f"{BOLD}{RED}Found violations in {tool_name} tests:{RESET}")
+    for test_file, reason in violations:
+        print(f"  {test_file.name}: {reason}")
+        if fix:
+            if "Index 00 should be reserved" in reason:
+                # Find the next available index
+                idx = 1
+                while f"{idx:02d}" in seen_indices:
+                    idx += 1
+                new_index = f"{idx:02d}"
+                new_name = test_file.name.replace("test_00_", f"test_{new_index}_")
+                new_path = test_file.parent / new_name
+                test_file.rename(new_path)
+                print(f"    {BOLD}{GREEN}Fixed{RESET}: Renamed to {new_name}")
+            elif "Missing index" in reason:
+                # Find the next available index
+                idx = 0
+                while f"{idx:02d}" in seen_indices:
+                    idx += 1
+                new_index = f"{idx:02d}"
+                new_name = f"test_{new_index}_{test_file.name[5:]}"
+                new_path = test_file.parent / new_name
+                test_file.rename(new_path)
+                print(f"    {BOLD}{GREEN}Fixed{RESET}: Renamed to {new_name}")
+    
     return False
 
 def _dev_audit_bin(fix=False):
@@ -582,7 +643,6 @@ This tool is part of the `TOOL` ecosystem, which provides:
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     with open(tool_internal / "translation" / "ar.json", 'w') as f: json.dump(ar_trans, f, indent=2)
     
-    # 0. Add test_00_help.py template
     test_help_content = f'''import unittest
 import subprocess
 import sys
@@ -599,7 +659,7 @@ class TestHelp(unittest.TestCase):
             
         cmd = [sys.executable, str(bin_path), "--help"]
         res = subprocess.run(cmd, capture_output=True, text=True)
-        self.assertEqual(res.returncode, 0, f"Help command failed with code {{res.returncode}}: {{res.stderr}}")
+        self.assertEqual(res.returncode, 0, f"Help command failed with code {res.returncode}: {res.stderr}")
         self.assertIn("usage:", res.stdout.lower() or res.stderr.lower())
 
 if __name__ == "__main__":
@@ -744,6 +804,10 @@ def _test_tool_with_args(args):
         return
     
     from logic.config import get_setting
+    from logic.utils import get_cpu_percent # Import get_cpu_percent
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
     default_concurrency = get_setting("test_default_concurrency", 3)
     max_concurrent = default_concurrency
     
@@ -752,6 +816,45 @@ def _test_tool_with_args(args):
         max_concurrent = args.max
     elif args.max == 3 and default_concurrency != 3:
         max_concurrent = default_concurrency
+
+    # CPU Load Monitoring and Wait
+    cpu_limit = get_setting("test_cpu_limit", 80.0)
+    cpu_timeout = get_setting("test_cpu_timeout", 30)
+    
+    def wait_for_cpu_action(stage: TuringStage):
+        import time
+        start_wait_time = time.time()
+        while True:
+            current_cpu = get_cpu_percent(interval=0.5)
+            elapsed_wait_time = time.time() - start_wait_time
+            
+            if current_cpu <= cpu_limit:
+                stage.success_status = _("test_cpu_ready", "CPU load is {current_cpu:.1f}% (below limit {cpu_limit:.1f}%)").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
+                stage.success_color = "GREEN"
+                return True
+            
+            if elapsed_wait_time > cpu_timeout:
+                stage.fail_status = _("test_cpu_timeout_warn", "CPU load ({current_cpu:.1f}%) still high after {timeout}s. Proceeding with warning.").format(current_cpu=current_cpu, timeout=cpu_timeout)
+                stage.fail_color = "YELLOW"
+                return True # Proceed with warning
+            
+            stage.active_name = _("test_cpu_waiting", "Waiting for CPU load to drop ({current_cpu:.1f}% > {cpu_limit:.1f}%) ({elapsed_wait_time:.0f}s / {timeout}s)").format(current_cpu=current_cpu, cpu_limit=cpu_limit, elapsed_wait_time=elapsed_wait_time, timeout=cpu_timeout)
+            stage.refresh()
+            time.sleep(1)
+
+    # Display current CPU load before starting tests
+    current_cpu_at_start = get_cpu_percent(interval=0.1)
+    print(f"{BOLD}{BLUE}" + _("test_current_cpu_load", "Current CPU load: {cpu_percent:.1f}%", cpu_percent=current_cpu_at_start) + RESET)
+    
+    # Add CPU wait stage
+    cpu_wait_tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL", no_warning=True) # Suppress warnings for this internal stage
+    cpu_wait_tm.add_stage(TuringStage(
+        name="CPU load",
+        action=wait_for_cpu_action,
+        active_status=_("test_waiting_for", "Waiting for"),
+        bold_part="Waiting for"
+    ))
+    cpu_wait_tm.run(ephemeral=True, final_msg="", final_newline=True)
 
     sys.path.append(str(project_root))
     from logic.test.runner import TestRunner
