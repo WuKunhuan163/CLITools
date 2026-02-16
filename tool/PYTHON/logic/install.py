@@ -173,9 +173,9 @@ def download_and_verify(asset, target_dir):
             return False
 
     tm = ProgressTuringMachine(project_root=PROJECT_ROOT, tool_name="PYTHON")
-    tm.add_stage(TuringStage("download", download_action, active_status="Installing", active_name=f"{v_tag} from GitHub", success_status="Downloaded", success_color="BOLD"))
-    tm.add_stage(TuringStage("extract", extract_action, active_status="Extracting", success_status="Extracted", success_color="BOLD"))
-    tm.add_stage(TuringStage("verify", verify_action, active_status="Verifying", success_status="Verified", success_color="BOLD"))
+    tm.add_stage(TuringStage("download", download_action, active_status="Installing", active_name=f"{v_tag} from GitHub", success_status="Downloaded", success_name=f"{v_tag} from GitHub", success_color="BOLD"))
+    tm.add_stage(TuringStage("extract", extract_action, active_status="Extracting", active_name="Python package", success_status="Extracted", success_name="Python package", success_color="BOLD"))
+    tm.add_stage(TuringStage("verify", verify_action, active_status="Verifying", active_name="installation", success_status="Verified", success_name="installation", success_color="BOLD"))
     
     try:
         if tm.run(ephemeral=True, final_newline=False):

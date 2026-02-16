@@ -237,7 +237,19 @@ class ProgressTuringMachine:
                 BOLD = get_color("BOLD", "\033[1m")
                 YELLOW = get_color("YELLOW", "\033[33m")
                 RESET = get_color("RESET", "\033[0m")
-                sys.stdout.write(f"{BOLD}{YELLOW}Cancelled{RESET} Operation cancelled by user.\n")
+                
+                # Format: Operation cancelled (Yellow Bold) by user. (Normal)
+                # Note: We don't have a translation helper directly in this scope easily, 
+                # but we can import it or use hardcoded default for now as it's a critical framework part.
+                from logic.lang.utils import get_translation
+                from logic.utils import get_logic_dir, find_project_root
+                root = find_project_root(Path(__file__))
+                logic_dir = str(get_logic_dir(root))
+                
+                cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
+                by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
+                
+                sys.stdout.write(f"{BOLD}{YELLOW}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
                 raise
             except Exception:

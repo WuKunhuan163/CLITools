@@ -864,9 +864,10 @@ def _test_tool_with_args(args):
     # Add CPU wait stage
     cpu_wait_tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL", no_warning=args.no_warning) 
     cpu_wait_tm.add_stage(TuringStage(
-        name="CPU load",
+        name=_("label_cpu_load", "CPU load"),
         action=wait_for_cpu_action,
         active_status=_("test_waiting_for", "Waiting for"),
+        success_status=_("label_checked", "Checked"),
         bold_part="Waiting for",
         stealth=True
     ))
@@ -934,10 +935,11 @@ def _run_installation_test(tool_name, stay_on_test=False):
 
     tm_sync = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL")
     tm_sync.add_stage(TuringStage(
-        name="branches...",
+        name="branches",
         action=sync_action,
         active_status="Syncing",
         success_status="Synced",
+        fail_status="Failed to sync",
         bold_part="Syncing"
     ))
     
@@ -991,8 +993,8 @@ def _run_installation_test(tool_name, stay_on_test=False):
         name="installation",
         action=install_test_action,
         active_status="Testing",
-        success_status="Success",
-        bold_part="Success"
+        success_status="Successfully tested",
+        bold_part="Testing"
     ))
     
     if tm_install.run(ephemeral=True, final_msg="", final_newline=False):
@@ -1027,9 +1029,9 @@ def _run_installation_test(tool_name, stay_on_test=False):
         subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
         return False
 
-def _audit_lang(lang_code, force=False):
+def _audit_lang(lang_code, force=False, turing=False):
     project_root = ROOT_PROJECT_ROOT
-    if lang_code == "en":
+    if lang_code == "en" and not turing:
         print(_("audit_en_default", "English is the default language and does not require an audit scan."))
         return
 
@@ -1041,6 +1043,16 @@ def _audit_lang(lang_code, force=False):
     sys.path.append(str(project_root))
     from logic.lang.audit import LangAuditor
     from logic.utils import get_rate_color
+    
+    if turing:
+        auditor = LangAuditor(project_root, lang_code)
+        msg = _("audit_turing_scanning", "Scanning Turing Machine states for {lang} ({lang_name})...", lang=lang_code, lang_name=lang_name)
+        print(f"{BLUE}{msg}{RESET}", end="", flush=True)
+        results, report_path = auditor.audit_turing()
+        sys.stdout.write(f"\r\033[K" + _("audit_turing_done", "Turing Machine state audit complete.") + "\n")
+        print(_("audit_full_report", "Full report saved to: {path}", path=report_path))
+        return
+
     if force:
         p = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
         if p.exists(): p.unlink()
@@ -1254,6 +1266,7 @@ def main():
     audit_parser = lang_subparsers.add_parser("audit", help=_("audit_help", "Audit language translation coverage"))
     audit_parser.add_argument("lang_code", help=_("audit_lang_code_help", "Language code to audit (e.g. en, zh)"))
     audit_parser.add_argument("--force", action="store_true", help=_("audit_force_help", "Force refresh cache"))
+    audit_parser.add_argument("--turing", action="store_true", help="Capture and save all Turing Machine states")
     
     dev_parser = subparsers.add_parser("dev", help="Developer commands")
     dev_subparsers = dev_parser.add_subparsers(dest="dev_command")
@@ -1311,7 +1324,7 @@ def main():
     elif args.command == "lang":
         if args.lang_command == "set": update_config("language", args.code)
         elif args.lang_command == "list": _list_languages()
-        elif args.lang_command == "audit": _audit_lang(args.lang_code, force=args.force)
+        elif args.lang_command == "audit": _audit_lang(args.lang_code, force=args.force, turing=args.turing)
         else: _show_current_language()
     elif args.command == "config":
         if args.terminal_width is not None:

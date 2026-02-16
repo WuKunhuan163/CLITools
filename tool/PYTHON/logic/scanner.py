@@ -184,7 +184,9 @@ class PythonScanner:
                 name="GitHub releases",
                 action=scan_action,
                 active_status="Scanning",
-                success_status="\r\033[K", # Erase on success
+                success_status="Successfully",
+                success_name="fetched GitHub releases",
+                fail_status="Failed to fetch",
                 bold_part="GitHub releases"
             ))
             if not tm.run(ephemeral=True, final_newline=False):

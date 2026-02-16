@@ -213,7 +213,7 @@ def main():
             return False
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
-    pm.add_stage(TuringStage("auth", auth_action, active_status="Authenticating", active_name="iCloud", success_status="Authenticated", fail_status="Failed"))
+    pm.add_stage(TuringStage("iCloud account", auth_action, active_status="Authenticating", active_name="iCloud", success_status="Authenticated", success_name="iCloud", fail_status="Failed to authenticate"))
     if not pm.run(): sys.exit(1)
 
     apple_id = final_apple_id
@@ -427,7 +427,7 @@ def main():
         return len(to_download_objects) > 0
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
-    pm.add_stage(TuringStage("gathering_objects", gather_action, active_status="Gathering", active_name="photo/video objects", success_status="\r\033[K", success_name=" "))
+    pm.add_stage(TuringStage("photo/video objects", gather_action, active_status="Gathering", success_status="Successfully", success_name="gathered photo/video objects", fail_status="Failed to gather"))
     if not pm.run(ephemeral=True, final_newline=False): sys.exit(1)
 
     def download_worker(stage, photo, target_path):
