@@ -406,7 +406,7 @@ if __name__ == "__main__":
 
 def main():
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
-    parser.add_argument('command', nargs='?', help="Command to run (e.g. setup)")
+    parser.add_argument('command', nargs='?', choices=['setup', 'stop', 'submit', 'cancel', 'add_time', 'config', 'rule'], help="Command to run")
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
