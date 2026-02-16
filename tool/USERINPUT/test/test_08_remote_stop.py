@@ -2,6 +2,7 @@ import unittest
 import subprocess
 import time
 import os
+import json
 from pathlib import Path
 
 class TestUserInputRemoteStop(unittest.TestCase):
@@ -13,16 +14,21 @@ class TestUserInputRemoteStop(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        proc = subprocess.Popen(["python3", str(main_py), "--timeout", "30"], 
+        # Use -u for unbuffered output to ensure we capture PID from stdout immediately
+        proc = subprocess.Popen(["python3", "-u", str(main_py), "--timeout", "30"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
             # Wait for window to appear and capture its PID from stdout
             gui_pid = None
             start_wait = time.time()
-            while time.time() - start_wait < 15:
+            output_captured = []
+            while time.time() - start_wait < 30:
                 line = proc.stdout.readline()
-                if not line: break
+                if not line:
+                    time.sleep(0.5)
+                    continue
+                output_captured.append(line)
                 if "(PID: " in line:
                     import re
                     match = re.search(r"\(PID: (\d+)\)", line)
@@ -31,18 +37,21 @@ class TestUserInputRemoteStop(unittest.TestCase):
                         break
             
             if not gui_pid:
-                self.fail("Could not capture GUI PID from stdout")
+                # Capture remaining output for debugging
+                stdout_remaining, stderr = proc.communicate(timeout=5)
+                full_out = "".join(output_captured) + stdout_remaining + stderr
+                self.fail(f"Could not capture GUI PID from stdout. Output: {full_out}")
 
             # Send remote stop
             stop_cmd = ["python3", str(main_py), "stop", str(gui_pid)]
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
-            # Wait for exit
-            stdout, stderr = proc.communicate(timeout=15)
+            # Wait for exit with generous timeout
+            stdout_rest, stderr = proc.communicate(timeout=30)
             
-            all_out = stdout + stderr
+            all_out = "".join(output_captured) + stdout_rest + stderr
             stop_indicators = ["Terminated", "已终止"]
-            self.assertTrue(any(ind in all_out for ind in stop_indicators))
+            self.assertTrue(any(ind in all_out for ind in stop_indicators), f"Expected stop indicator in output: {all_out}")
             self.assertEqual(proc.returncode, 0)
             
         finally:
@@ -51,4 +60,3 @@ class TestUserInputRemoteStop(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
