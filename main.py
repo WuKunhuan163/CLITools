@@ -944,7 +944,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         active_status="Syncing",
         success_status="Successfully synced",
         fail_status="Failed to sync",
-        bold_part="Syncing"
+        bold_part="Syncing branches"
     ))
     
     if not tm_sync.run(ephemeral=True, final_msg="", final_newline=False):
@@ -998,7 +998,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
         action=install_test_action,
         active_status="Testing",
         success_status="Successfully tested",
-        bold_part="Testing"
+        bold_part="Testing installation"
     ))
     
     if tm_install.run(ephemeral=True, final_msg="", final_newline=False):
