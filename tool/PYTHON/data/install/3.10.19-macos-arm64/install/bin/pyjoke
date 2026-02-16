@@ -1,0 +1,6 @@
+#!/Applications/AITerminalTools/tool/PYTHON/data/install/3.10.19-macos-arm64/install/bin/python3
+import sys
+from pyjokes import cli
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(cli.main())
