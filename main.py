@@ -829,16 +829,16 @@ def _test_tool_with_args(args):
             elapsed_wait_time = time.time() - start_wait_time
             
             if current_cpu <= cpu_limit:
-                stage.success_status = _("test_cpu_ready", "CPU load is {current_cpu:.1f}% (below limit {cpu_limit:.1f}%)").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
+                stage.success_status = _("test_cpu_ready", "CPU load is {current_cpu:.1f}% (below limit {cpu_limit:.1f}%)", current_cpu=current_cpu, cpu_limit=cpu_limit)
                 stage.success_color = "GREEN"
                 return True
             
             if elapsed_wait_time > cpu_timeout:
-                stage.fail_status = _("test_cpu_timeout_warn", "CPU load ({current_cpu:.1f}%) still high after {timeout}s. Proceeding with warning.").format(current_cpu=current_cpu, timeout=cpu_timeout)
+                stage.fail_status = _("test_cpu_timeout_warn", "CPU load ({current_cpu:.1f}%) still high after {timeout}s. Proceeding with warning.", current_cpu=current_cpu, timeout=cpu_timeout)
                 stage.fail_color = "YELLOW"
                 return True # Proceed with warning
             
-            stage.active_name = _("test_cpu_waiting", "Waiting for CPU load to drop ({current_cpu:.1f}% > {cpu_limit:.1f}%) ({elapsed_wait_time:.0f}s / {timeout}s)").format(current_cpu=current_cpu, cpu_limit=cpu_limit, elapsed_wait_time=elapsed_wait_time, timeout=cpu_timeout)
+            stage.active_name = _("test_cpu_waiting", "Waiting for CPU load to drop ({current_cpu:.1f}% > {cpu_limit:.1f}%) ({elapsed_wait_time:.0f}s / {timeout}s)", current_cpu=current_cpu, cpu_limit=cpu_limit, elapsed_wait_time=elapsed_wait_time, timeout=cpu_timeout)
             stage.refresh()
             time.sleep(1)
 
