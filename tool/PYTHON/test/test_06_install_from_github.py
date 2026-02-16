@@ -49,7 +49,12 @@ class TestPythonInstall(unittest.TestCase):
         subprocess.run([str(self.python_bin), "--py-list"], capture_output=True)
         
         # Note: This requires network access
+        print(f"DEBUG: Trying to install {self.test_version} (tag: {self.target_vtag})")
         res = subprocess.run([str(self.python_bin), "--py-install", self.test_version], capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"DEBUG: Installation failed with code {res.returncode}")
+            print(f"DEBUG: STDOUT: {res.stdout}")
+            print(f"DEBUG: STDERR: {res.stderr}")
         self.assertEqual(res.returncode, 0)
         
         # Verify directory structure
