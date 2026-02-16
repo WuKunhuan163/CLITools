@@ -782,3 +782,18 @@ def get_cpu_percent(interval=0.1):
         return 0.0
     except Exception:
         return 0.0
+
+def get_variable_from_file(file_path, var_name, default=None):
+    """Extract a top-level variable value from a Python file using AST."""
+    import ast
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read())
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == var_name:
+                        return ast.literal_eval(node.value)
+    except Exception:
+        pass
+    return default

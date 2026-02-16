@@ -216,6 +216,34 @@ class TestRunner:
             def logic():
                 if stop_event.is_set(): return
                 
+                # Load test-specific CPU limit
+                from logic.utils import get_variable_from_file, get_cpu_percent
+                test_cpu_limit = get_variable_from_file(test_file, "EXPECTED_CPU_LIMIT", None)
+                if test_cpu_limit is None:
+                    from logic.config import get_setting
+                    test_cpu_limit = get_setting("test_cpu_limit", 80.0)
+                
+                # Waiting for CPU load if needed
+                start_wait = time.time()
+                while True:
+                    if stop_event.is_set(): return
+                    curr_cpu = get_cpu_percent(interval=0.5)
+                    if curr_cpu <= test_cpu_limit:
+                        break
+                    
+                    elapsed_wait = time.time() - start_wait
+                    from logic.config import get_setting
+                    test_cpu_timeout = get_setting("test_cpu_timeout", 30)
+                    if elapsed_wait > test_cpu_timeout:
+                        # Proceed with warning
+                        break
+                    
+                    msg = self._("test_waiting_cpu", "{status}: {file} (Current CPU: {curr:.1f}% > Limit: {limit:.1f}%)", 
+                                 status=self.colors['YELLOW'] + self.colors['BOLD'] + self._("test_waiting_status", "Waiting CPU") + self.colors['RESET'],
+                                 file=f"{self.colors['BOLD']}{test_file.name}{self.colors['RESET']}",
+                                 curr=curr_cpu, limit=test_cpu_limit)
+                    yield StepResult(msg, state=WorkerState.CONTINUE)
+                
                 active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
                 timeout_msg = self._("label_timeout", "timeout")
                 
