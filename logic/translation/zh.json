@@ -113,9 +113,10 @@
   "audit_unused_translations_label": "发现未使用的翻译",
   "audit_shadowed_label": "发现被工具遮蔽的框架键",
   "audit_en_violations_label": "发现单独的 'en' 部分或文件",
-  "audit_en_default": "英语是默认语言, 不需要进行审计扫描. ",
-  "audit_full_report": "完整报告已保存至：{path}",
-  "audit_cat_missing_name": "缺失翻译",
+    "audit_en_default": "英语是默认语言, 不需要进行审计扫描. ",
+    "audit_full_report": "完整报告已保存至：{path}",
+    "audit_full_report_label": "完整报告已保存至",
+    "audit_cat_missing_name": "缺失翻译",
   "audit_cat_missing_def": "这些键在代码中被调用, 但在翻译文件中不存在. ",
   "audit_cat_missing_advice": "请在相应的 JSON 文件中添加这些键. ",
   "audit_cat_duplicate_values_name": "重复翻译值",
@@ -210,6 +211,7 @@
   "test_current_cpu_load_label": "当前 CPU 负载：",
   "err_failed_to_sync": "同步失败",
   "err_sync_installation_test": "在安装测试期间。",
-  "test_waiting_for": "正在等待",
-  "warn_cpu_load": "警告：当前 CPU 负载 ({current_cpu:.1f}%) 超过了工具建议的限制 ({cpu_limit:.1f}%)。性能可能会受到影响。"
+    "test_waiting_for": "正在等待",
+    "label_max": "上限",
+    "warn_cpu_load": "警告：当前 CPU 负载 ({current_cpu:.1f}%) 超过了工具建议的限制 ({cpu_limit:.1f}%)。性能可能会受到影响。"
 }

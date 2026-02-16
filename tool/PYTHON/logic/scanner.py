@@ -54,9 +54,9 @@ class PythonScanner:
         self.asset_cache_dir.mkdir(parents=True, exist_ok=True)
         self._warning_printed = False
 
-    def print_cache_warning_once(self):
+    def print_cache_warning_once(self, data_type="release assets"):
         if not self._warning_printed and not self.silent:
-            self.audit.print_cache_warning()
+            self.audit.print_cache_warning(data_type=data_type)
             self._warning_printed = True
 
     def resolve_platform(self, asset_name: str) -> Optional[str]:

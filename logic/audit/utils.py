@@ -37,7 +37,7 @@ class AuditManager:
         except Exception:
             return False
 
-    def print_cache_warning(self, custom_command=None, silent=False):
+    def print_cache_warning(self, data_type=None, custom_command=None, silent=False):
         """Prints a standardized warning when cache is used."""
         if silent:
             return
@@ -48,6 +48,7 @@ class AuditManager:
         RESET = get_color("RESET", "\033[0m")
         
         warning_label = f"{BOLD}{YELLOW}Warning{RESET}"
+        type_str = f" {data_type}" if data_type else ""
         
         # Build the cleanup command
         cmd = custom_command or self.audit_command
@@ -58,7 +59,7 @@ class AuditManager:
         else:
             refresh_msg = f" To force refresh, clear the cache directory: {self.audit_dir}"
             
-        print(f"{warning_label}: Using cached data.{refresh_msg}")
+        print(f"{warning_label}: Using cached{type_str} data.{refresh_msg}")
 
 class AuditBase:
     """

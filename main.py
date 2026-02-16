@@ -855,13 +855,16 @@ def _test_tool_with_args(args):
             stage.refresh()
             time.sleep(1)
 
-    # Display current CPU load before starting tests
+    # Display current CPU load before starting tests if above threshold (60% of limit)
+    from logic.config import get_setting
+    test_cpu_limit = get_setting("test_cpu_limit", 80.0)
     current_cpu_at_start = get_cpu_percent(interval=0.1)
-    label = _("test_current_cpu_load_label", "Current CPU load: ")
-    percent_str = f"{current_cpu_at_start:.1f}%"
-    print(f"{label}{BOLD}{percent_str}{RESET}")
+    if current_cpu_at_start >= 0.6 * test_cpu_limit:
+        label = _("test_current_cpu_load_label", "Current CPU load: ")
+        max_label = _("label_max", "max")
+        print(f"{label}{BOLD}{current_cpu_at_start:.1f}%{RESET} ({max_label}: {test_cpu_limit:.1f}%)")
     
-    # Add CPU wait stage
+    # Add CPU wait stage (stealth)
     cpu_wait_tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL", no_warning=args.no_warning) 
     cpu_wait_tm.add_stage(TuringStage(
         name=_("label_cpu_load", "CPU load"),
@@ -871,7 +874,7 @@ def _test_tool_with_args(args):
         bold_part="Waiting for",
         stealth=True
     ))
-    cpu_wait_tm.run(ephemeral=True, final_msg="", final_newline=True)
+    cpu_wait_tm.run(ephemeral=True, final_msg="", final_newline=False)
 
     sys.path.append(str(project_root))
     from logic.test.runner import TestRunner
@@ -1050,7 +1053,9 @@ def _audit_lang(lang_code, force=False, turing=False):
         print(f"{BLUE}{msg}{RESET}", end="", flush=True)
         results, report_path = auditor.audit_turing()
         sys.stdout.write(f"\r\033[K" + _("audit_turing_done", "Turing Machine state audit complete.") + "\n")
-        print(_("audit_full_report", "Full report saved to: {path}", path=report_path))
+        
+        report_label = _("audit_full_report_label", "Full report saved to")
+        print(f"{BOLD}{BLUE}{report_label}{RESET}: {report_path}")
         return
 
     if force:
@@ -1098,7 +1103,8 @@ def _audit_lang(lang_code, force=False, turing=False):
 
     # Display report path
     report_path = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
-    print("\n" + _("audit_full_report", "Full report saved to: {path}", path=str(report_path)))
+    report_label = _("audit_full_report_label", "Full report saved to")
+    print("\n" + f"{BOLD}{BLUE}{report_label}{RESET}: {report_path}")
 
     if cached:
         AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
