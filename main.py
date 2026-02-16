@@ -818,14 +818,15 @@ def _test_tool_with_args(args):
         max_concurrent = default_concurrency
 
     # CPU Load Monitoring and Wait
-    cpu_limit = get_setting("test_cpu_limit", 80.0)
-    cpu_timeout = get_setting("test_cpu_timeout", 30)
+    from logic.config import get_global_config
+    cpu_limit = get_global_config("test_cpu_limit", 80.0)
+    cpu_timeout = get_global_config("test_cpu_timeout", 30)
     
     def wait_for_cpu_action(stage: TuringStage):
         import time
         start_wait_time = time.time()
         while True:
-            current_cpu = get_cpu_percent(interval=0.5)
+            current_cpu = get_cpu_percent(interval=1.0)
             elapsed_wait_time = time.time() - start_wait_time
             
             if current_cpu <= cpu_limit:
@@ -847,7 +848,7 @@ def _test_tool_with_args(args):
     print(f"{BOLD}{BLUE}" + _("test_current_cpu_load", "Current CPU load: {cpu_percent:.1f}%", cpu_percent=current_cpu_at_start) + RESET)
     
     # Add CPU wait stage
-    cpu_wait_tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL", no_warning=True) # Suppress warnings for this internal stage
+    cpu_wait_tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL", no_warning=args.no_warning) 
     cpu_wait_tm.add_stage(TuringStage(
         name="CPU load",
         action=wait_for_cpu_action,
@@ -1205,6 +1206,7 @@ def _list_tools(force=False):
 def main():
     import argparse
     parser = argparse.ArgumentParser(prog="TOOL", description="AITerminalTools manager.")
+    parser.add_argument("--no-warning", action="store_true", help="Suppress all system warnings")
     subparsers = parser.add_subparsers(dest="command")
     
     list_parser = subparsers.add_parser("list", help="List all available tools")
@@ -1225,6 +1227,7 @@ def main():
     test_parser.add_argument("--range", nargs=2, type=int)
     test_parser.add_argument("--max", type=int, default=3)
     test_parser.add_argument("--timeout", type=int, default=60)
+    test_parser.add_argument("--no-warning", action="store_true", help="Suppress all system warnings")
     lang_parser = subparsers.add_parser("lang", help=_("lang_help", "Manage display language"))
     lang_subparsers = lang_parser.add_subparsers(dest="lang_command", help=_("lang_subcommand_help", "Language subcommands"))
     
