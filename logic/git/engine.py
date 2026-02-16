@@ -124,7 +124,7 @@ def push_with_progress(remote="origin", branch=None, cwd=None, silent_success=Fa
             from logic.utils import get_logic_dir
             _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
             
-            pushed_msg = _("pushed_to", "pushed to {remote}/{branch}", remote=remote, branch=branch)
+            pushed_msg = _("pushed_to", "to {remote}/{branch}", remote=remote, branch=branch)
             # Default style bold for Successfully pushed
             label = _("label_success_pushed", "Successfully pushed")
             print(f"{BOLD}{label}{RESET} {pushed_msg}")
