@@ -14,42 +14,42 @@ class TestUserInputRemoteStop(unittest.TestCase):
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         
-        # Use -u for unbuffered output to ensure we capture PID from stdout immediately
+        # Use -u for unbuffered output
         proc = subprocess.Popen(["python3", "-u", str(main_py), "--timeout", "30"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         
         try:
-            # Wait for window to appear and capture its PID from stdout
+            # Wait for GUI to register by checking instance files
             gui_pid = None
             start_wait = time.time()
-            output_captured = []
             while time.time() - start_wait < 30:
-                line = proc.stdout.readline()
-                if not line:
-                    time.sleep(0.5)
-                    continue
-                output_captured.append(line)
-                if "(PID: " in line:
-                    import re
-                    match = re.search(r"\(PID: (\d+)\)", line)
-                    if match:
-                        gui_pid = int(match.group(1))
-                        break
+                instance_dir = project_root / "data" / "run" / "instances"
+                if instance_dir.exists():
+                    for f in instance_dir.glob("gui_*.json"):
+                        try:
+                            with open(f, 'r') as info_file:
+                                info = json.load(info_file)
+                                if info.get("tool_name") == "USERINPUT":
+                                    gui_pid = info.get("pid")
+                                    if gui_pid: break
+                        except: pass
+                if gui_pid: break
+                time.sleep(1)
             
             if not gui_pid:
-                # Capture remaining output for debugging
-                stdout_remaining, stderr = proc.communicate(timeout=5)
-                full_out = "".join(output_captured) + stdout_remaining + stderr
-                self.fail(f"Could not capture GUI PID from stdout. Output: {full_out}")
+                # Fallback to output parsing if instance file not found
+                # But instance file should be more reliable
+                self.fail("Could not find USERINPUT instance file or GUI PID.")
 
             # Send remote stop
             stop_cmd = ["python3", str(main_py), "stop", str(gui_pid)]
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
             # Wait for exit with generous timeout
-            stdout_rest, stderr = proc.communicate(timeout=30)
+            # Use communicate to read everything and avoid blocking
+            stdout, stderr = proc.communicate(timeout=30)
             
-            all_out = "".join(output_captured) + stdout_rest + stderr
+            all_out = stdout + stderr
             stop_indicators = ["Terminated", "已终止"]
             self.assertTrue(any(ind in all_out for ind in stop_indicators), f"Expected stop indicator in output: {all_out}")
             self.assertEqual(proc.returncode, 0)
