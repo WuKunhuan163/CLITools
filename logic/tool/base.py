@@ -212,14 +212,23 @@ class ToolBase:
                 else:
                     print(f"Usage: {self.tool_name} uninstall <SUBTOOL_NAME> [-y]")
                 return True
-            elif cmd == "rule":
-                self.print_rule()
-                return True
-            elif cmd == "config": # New config command for tools
-                self._handle_tool_config(args_to_check[1:])
-                return True
-            
-            # 2. Check if it's a subtool (relative to current tool_dir)
+                elif cmd == "rule":
+                    self.print_rule()
+                    return True
+                elif cmd == "config": # New config command for tools
+                    # Only handle config if NOT already explicitly handled by the tool's parser
+                    is_custom_config = False
+                    if parser:
+                        for action in parser._actions:
+                            if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
+                                is_custom_config = True
+                                break
+                    
+                    if not is_custom_config:
+                        self._handle_tool_config(args_to_check[1:])
+                        return True
+                
+                # 2. Check if it's a subtool (relative to current tool_dir)
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if subtool_main.exists():
                 # Proxy to subtool

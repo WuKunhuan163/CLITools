@@ -426,6 +426,8 @@ def main():
         config_parser = argparse.ArgumentParser(add_help=False)
         config_parser.add_argument("--focus-interval", type=int)
         config_parser.add_argument("--time-increment", type=int)
+        config_parser.add_argument("--cpu-limit", type=float)
+        config_parser.add_argument("--cpu-timeout", type=int)
         c_args, _ = config_parser.parse_known_args(unknown)
         
         if c_args.focus_interval is not None:
@@ -433,6 +435,12 @@ def main():
             updated = True
         if c_args.time_increment is not None:
             config["time_increment"] = c_args.time_increment
+            updated = True
+        if c_args.cpu_limit is not None:
+            config["cpu_limit"] = c_args.cpu_limit
+            updated = True
+        if c_args.cpu_timeout is not None:
+            config["cpu_timeout"] = c_args.cpu_timeout
             updated = True
             
         if updated:
@@ -447,7 +455,7 @@ def main():
                 print(f"  {k}: {v}")
             return 0
         else:
-            print("Usage: USERINPUT config --focus-interval <sec> --time-increment <sec>")
+            print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>] [--cpu-limit <float>] [--cpu-timeout <int>]")
             return 1
 
     from logic.config import get_color
