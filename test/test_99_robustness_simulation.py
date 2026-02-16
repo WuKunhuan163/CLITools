@@ -41,11 +41,11 @@ class TestRobustnessSimulation(unittest.TestCase):
         self.assertTrue(install_dir.exists(), f"Install dir {install_dir} should be preserved after sync")
         
         # 4. Verify it's usable
-        py_exec = install_dir / "bin" / "python3"
-        if not py_exec.exists(): py_exec = install_dir / "python.exe" # Windows fallback
+        py_exec = install_dir / "install" / "bin" / "python3"
+        if not py_exec.exists(): py_exec = install_dir / "install" / "python.exe" # Windows fallback
         
         res = subprocess.run([str(py_exec), "--version"], capture_output=True, text=True)
-        self.assertEqual(res.returncode, 0)
+        self.assertEqual(res.returncode, 0, f"Python executable failed: {res.stderr}")
         self.assertIn(version, res.stdout)
 
     def test_02_userinput_availability(self):
