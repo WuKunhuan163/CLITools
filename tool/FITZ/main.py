@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+# Fix shadowing: Remove script directory from sys.path[0] if present
+import sys
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+if sys.path and sys.path[0] == str(script_dir):
+    del sys.path[0]
 import sys
 import argparse
 import os

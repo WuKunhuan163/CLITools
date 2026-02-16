@@ -39,7 +39,7 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 - `TOOL install <NAME>`: Installs a tool, its tool-dependencies, and its pip-dependencies. Generates a **Managed Bootstrap Shortcut** in `bin/` that automatically uses the correct isolated environment.
 - `TOOL reinstall <NAME>`: Wipes and fresh-install a specific tool.
 - `TOOL uninstall <NAME>`: Safely removes a tool and its shortcuts.
-- `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Every tool includes a mandatory `test_00_help.py` to ensure `--help` support is always functional. The manager includes a **CPU Wait Stage** to ensure stable results on overloaded systems.
+- `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Every tool includes a mandatory `test_00_help.py` to ensure `--help` support is always functional. The manager includes a **CPU Wait Stage** to ensure stable results on overloaded systems. Tests can define an `EXPECTED_CPU_LIMIT` for individual stability.
 - `TOOL config`: Manages global configuration, including `--test-cpu-limit` and `--test-cpu-timeout`.
 - `TOOL rule`: **Critical for AI Agents.** Generates a comprehensive set of rules and instructions that you can paste into your AI agent's system prompt or context. Use `TOOL <NAME> rule` for tool-specific guidelines.
 - `TOOL clear`: Clears the terminal screen.

@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+# Fix shadowing: Remove script directory from sys.path[0] if present
+import sys
+from pathlib import Path
+script_dir = Path(__file__).resolve().parent
+if sys.path and sys.path[0] == str(script_dir):
+    del sys.path[0]
 import sys
 import argparse
 import subprocess
@@ -12,6 +19,14 @@ script_path = Path(__file__).resolve()
 project_root = script_path.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+# Debugging imports
+try:
+    import logic
+    # print(f"DEBUG: logic location: {logic.__file__}")
+except ImportError:
+    # print("DEBUG: logic not found in sys.path")
+    pass
 
 from logic.tool.base import ToolBase
 from logic.config import get_color

@@ -1,20 +1,17 @@
-# CPU Monitoring Mechanism
+# CPU Load Monitoring Report
 
-## Implementation Detail
-The CPU utilization monitoring is implemented using the `psutil` library. 
+## Mechanism
+The CPU load monitoring is implemented using the `psutil` library, specifically the `psutil.cpu_percent(interval=...)` function.
 
-### Method
-We use `psutil.cpu_percent(interval=0.1)` for instant checks at tool startup and `psutil.cpu_percent(interval=0.5)` for monitoring during the test wait stage.
+- **Initialization**: `ToolBase` and `TOOL test` check the current system-wide CPU utilization.
+- **Per-Test Limits**: Individual unit tests can define an `EXPECTED_CPU_LIMIT` (e.g., `40.0` for 40%) at the top of the file. The `TestRunner` uses `ast` to parse this value without executing the file.
+- **Wait Logic**: If the current CPU load exceeds the configured limit, the system enters a "Waiting for CPU load" stage using the `ProgressTuringMachine`. It polls the CPU load every 0.5-1.0 seconds until it drops below the limit or a timeout is reached.
+- **Global Config**: Global defaults are managed via `TOOL config --test-cpu-limit <float>` and `--test-cpu-timeout <int>`.
 
-### Performance Impact
-- **Time Complexity**: The `interval` parameter determines the blocking time for sampling. At tool startup, we use a minimal `0.1s` interval, which is negligible for human interaction but provides a reasonably accurate snapshot of system load. During the test wait stage, the `0.5s` interval allows for more accurate sampling without spinning the CPU.
-- **Space Complexity**: The memory footprint of `psutil` is minimal and constant. It reads from system files (like `/proc/stat` on Linux or via Mach system calls on macOS), which does not involve significant allocations.
-- **Overhead**: The resource consumption of the monitoring itself is strictly negligible compared to the tasks being performed (like Python installations or GUI rendering).
+## Performance Impact
+- **Time Overhead**: `psutil.cpu_percent(interval=0.1)` takes approximately 100ms. In the `TestRunner` loop, we use `interval=0.5`. This overhead is negligible compared to the total duration of most unit tests.
+- **Space Overhead**: `psutil` is a lightweight C-extension with minimal memory footprint. The `ast` parsing for `EXPECTED_CPU_LIMIT` is extremely fast and only happens once per test file discovery.
+- **Overall**: The performance impact is negligible and can be considered "zero-cost" in the context of terminal tool execution and testing.
 
-## Usage
-- **Tool Startup**: `ToolBase` checks the load and issues a `Warning` (yellow bold) if it exceeds the tool's `cpu_limit`.
-- **Unit Testing**: `TOOL test` waits for the load to drop below the global `test_cpu_limit` (default 80%) before starting parallel test execution.
-- **Configuration**:
-    - Global: `TOOL config --test-cpu-limit 70.0`
-    - Tool-specific: `TOOL_NAME config --cpu-limit 50.0`
-
+## Conclusion
+The mechanism provides a robust way to prevent flaky test results on overloaded systems with minimal impact on performance.

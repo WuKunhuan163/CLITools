@@ -1,3 +1,4 @@
+EXPECTED_CPU_LIMIT = 40.0
 import unittest
 import subprocess
 import sys
