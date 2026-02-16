@@ -60,12 +60,12 @@ def sync_dev_logic(project_root: Path, quiet=False, translation_func: Optional[C
     # Push if on dev (direct call, no Turing stage to avoid redundant line)
     if start_branch == "dev":
         from logic.git.engine import push_with_progress
-        if not push_with_progress("origin", "dev", cwd=str(project_root), silent_success=False):
+        if not push_with_progress("origin", "dev", cwd=str(project_root), silent_success=quiet):
             return False
 
     return True
 
-def align_branches_logic(project_root: Path, translation_func: Optional[Callable] = None):
+def align_branches_logic(project_root: Path, quiet=False, translation_func: Optional[Callable] = None):
     """
     Abstracted logic for dev -> tool -> main -> test alignment.
     """
@@ -76,7 +76,7 @@ def align_branches_logic(project_root: Path, translation_func: Optional[Callable
     start_branch = get_current_branch(project_root)
     
     # 1. Sync current branch (commit changes)
-    if not sync_dev_logic(project_root, quiet=False, translation_func=_):
+    if not sync_dev_logic(project_root, quiet=quiet, translation_func=_):
         return False
 
     # If we are NOT on dev, merge back to dev first
@@ -103,7 +103,7 @@ def align_branches_logic(project_root: Path, translation_func: Optional[Callable
             bold_part=_("label_merging", "Merging") + " " + _("merge_info", "changes on '{branch}'", branch=start_branch).split("'")[0].strip()
         ))
         
-        if not tm_merge.run(ephemeral=True, final_msg="", final_newline=False):
+        if not tm_merge.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False):
             return False
 
     tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
@@ -195,7 +195,7 @@ def align_branches_logic(project_root: Path, translation_func: Optional[Callable
         bold_part="Aligning"
     ))
 
-    success = tm.run(ephemeral=False, final_newline=False)
+    success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
     
     # Return to starting branch
     subprocess.run(["/usr/bin/git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)

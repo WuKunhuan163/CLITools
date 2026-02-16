@@ -52,6 +52,14 @@ A core tool for human-in-the-loop AI workflows:
 - **Timed Interaction**: Default 300s timeout with automatic refocus and periodic bell (90s interval) to prevent missed feedback.
 - **Sandbox Fallback**: Automatically switches to file-based input if GUI fails due to environment restrictions (e.g., macOS Seatbelt in Cursor, Docker).
 - **Isolated Runtime**: Automatically uses the `PYTHON` tool to ensure a consistent execution environment.
+- **Auto-Commit**: Automatically commits and pushes local changes before waiting for feedback to protect work progress.
+
+### GIT Tool
+Standardized Git operations with progress display:
+- **Managed Execution**: `GIT <args>` runs git commands with blue erasable status and bold results.
+- **Progress Tracking**: Real-time percentage display for push/pull operations.
+- **Branch Management**: Refined branch alignment logic used by `TOOL dev sync`.
+- **Dependency Management**: Automatically handles Python and library dependencies for complex Git workflows.
 
 ### FILEDIALOG Tool
 Standardized file and directory selection:
