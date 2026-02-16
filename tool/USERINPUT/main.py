@@ -110,13 +110,8 @@ class UserInputTool(ToolBase):
         except ImportError:
             install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
 
-        system_tag = "macos"
-        machine = platform.machine().lower()
-        if sys.platform == "darwin":
-            if "arm" in machine or "aarch64" in machine: system_tag = "macos-arm64"
-            else: system_tag = "macos"
-        elif sys.platform == "linux": system_tag = "linux64"
-        elif sys.platform == "win32": system_tag = "windows-amd64"
+        from logic.utils import get_system_tag
+        system_tag = get_system_tag()
 
         possible_dirs = [v, f"{v}-{system_tag}", f"python{v}-{system_tag}", f"python3{v}-{system_tag}"]
         for d in possible_dirs:
@@ -275,9 +270,7 @@ class UserInputWindow(BaseGUIWindow):
 
     def log_debug(self, msg):
         try:
-            # Detect project root robustly for logging
-            project_root = find_project_root(Path(__file__).resolve())
-            log_file = project_root / "tmp" / "userinput_debug.log"
+            log_file = self.project_root / "tmp" / "userinput_debug.log"
             ts = time.strftime("%%Y-%%m-%%d %%H:%%M:%%S")
             with open(log_file, "a") as f: f.write(f"[{ts}] {msg}\n")
         except: pass
@@ -303,12 +296,15 @@ class UserInputWindow(BaseGUIWindow):
             self.is_triggering_subtool = True
             self.log_debug("Opening FILEDIALOG...")
             
-            from tool.FILEDIALOG.logic.interface.main import get_file_dialog_bin
-            fd_bin = get_file_dialog_bin()
-            env = os.environ.copy()
             project_root = %(project_root)r
+            fd_bin = Path(project_root) / "bin" / "FILEDIALOG"
+            if not fd_bin.exists():
+                self.log_debug(f"FILEDIALOG bin not found at {fd_bin}")
+                return
+                
+            env = os.environ.copy()
             env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
-            cmd = [sys.executable, fd_bin, "--multiple", "--title", self._("select_entities", "Select Entities")]
+            cmd = [sys.executable, str(fd_bin), "--multiple", "--title", self._("select_entities", "Select Entities")]
             res = subprocess.run(cmd, capture_output=True, text=True, env=env)
             
             if res.returncode == 0:

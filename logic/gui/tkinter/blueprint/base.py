@@ -84,6 +84,10 @@ class BaseGUIWindow:
         
         # Thread safety: queue for callbacks from background threads
         self.callback_queue = queue.Queue()
+        
+        # Robust project root detection for flags and audio
+        from logic.utils import find_project_root
+        self.project_root = find_project_root(Path(self.internal_dir))
 
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)
@@ -94,18 +98,13 @@ class BaseGUIWindow:
         val = get_translation(self.internal_dir, key, None)
         if val is None:
             # 2. Try shared GUI component translation (from logic/gui/translation)
-            gui_logic_dir = str(Path(__file__).resolve().parent.parent.parent.parent)
-            val = get_translation(gui_logic_dir, key, default)
+            val = get_translation(str(self.project_root / "logic"), key, default)
         return val.format(**kwargs)
 
     def handle_external_signal(self, signum, frame):
         """Gracefully close on external signals, capturing current state."""
         if not self.window_closed:
-            # Use robust project root detection
-            from logic.utils import find_project_root
-            project_root = find_project_root(Path(self.internal_dir))
-            
-            stop_file = project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
+            stop_file = self.project_root / "data" / "run" / "stops" / f"{os.getpid()}.stop"
             reason = "signal"
             if stop_file.exists():
                 reason = "stop"
@@ -122,9 +121,7 @@ class BaseGUIWindow:
         if not self.window_closed and self.root:
             # Check project root for data/run/stops/
             try:
-                from logic.utils import find_project_root
-                project_root = find_project_root(Path(self.internal_dir))
-                stops_dir = project_root / "data" / "run" / "stops"
+                stops_dir = self.project_root / "data" / "run" / "stops"
                 
                 # Detect flags for this PID
                 pid = os.getpid()
