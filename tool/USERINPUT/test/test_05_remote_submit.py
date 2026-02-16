@@ -21,11 +21,24 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
         
         try:
             # Wait for GUI to register
-            time.sleep(2)
+            time.sleep(5)
             
+            # Debug: check instances
+            instance_dir = project_root / "data" / "run" / "instances"
+            print(f"DEBUG: Checking instance dir: {instance_dir}")
+            if instance_dir.exists():
+                for f in instance_dir.glob("gui_*.json"):
+                    with open(f, "r") as info_file:
+                        print(f"DEBUG: Found instance file: {f.name} -> {info_file.read()}")
+            else:
+                print("DEBUG: Instance dir does not exist")
+
             # Send remote submit
             submit_cmd = ["python3", str(main_py), "submit", "--id", test_id]
-            subprocess.run(submit_cmd, env=env, capture_output=True)
+            print(f"DEBUG: Running submit command: {' '.join(submit_cmd)}")
+            res = subprocess.run(submit_cmd, env=env, capture_output=True, text=True)
+            print(f"DEBUG: Submit stdout: {res.stdout}")
+            print(f"DEBUG: Submit stderr: {res.stderr}")
             
             # Wait for exit
             stdout, stderr = proc.communicate(timeout=10)
