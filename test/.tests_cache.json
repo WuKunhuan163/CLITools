@@ -1,5 +1,5 @@
 [
-  "test_00_short_table.py",
+  "test_00_help.py",
   "test_01_long_table.py",
   "test_02_arabic_table.py",
   "test_03_lang_show.py",
@@ -8,5 +8,6 @@
   "test_06_audit_lang.py",
   "test_07_arabic_all_features.py",
   "test_08_terminal_permission.py",
-  "test_09_path_resolution.py"
+  "test_09_path_resolution.py",
+  "test_10_short_table.py"
 ]
