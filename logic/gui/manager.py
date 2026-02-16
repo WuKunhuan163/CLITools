@@ -210,7 +210,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 time.sleep(0.1)
             
             if proc.poll() is None:
-                proc.kill()
+                if platform.system() != "Windows":
+                    try: os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                    except: proc.kill()
+                else:
+                    proc.kill()
             
             t_stdout.join(timeout=1)
             t_stderr.join(timeout=1)

@@ -56,7 +56,15 @@ class TestUserInputRemoteStop(unittest.TestCase):
             
         finally:
             if proc.poll() is None:
-                proc.kill()
+                try:
+                    import psutil
+                    parent = psutil.Process(proc.pid)
+                    for child in parent.children(recursive=True):
+                        try: child.kill()
+                        except: pass
+                    proc.kill()
+                except:
+                    proc.kill()
 
 if __name__ == '__main__':
     unittest.main()

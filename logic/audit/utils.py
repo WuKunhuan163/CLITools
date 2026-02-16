@@ -59,6 +59,9 @@ class AuditManager:
         else:
             refresh_msg = f" To force refresh, clear the cache directory: {self.audit_dir}"
             
+        import sys
+        # Clear current erasable line if any
+        sys.stdout.write("\r\033[K")
         print(f"{warning_label}: Using cached{type_str} data.{refresh_msg}")
 
 class AuditBase:
