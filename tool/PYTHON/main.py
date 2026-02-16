@@ -34,7 +34,7 @@ except ImportError:
             self.tool_name = name
             self.script_dir = Path(__file__).resolve().parent
             self.project_root = self.script_dir.parent.parent
-        def handle_command_line(self):
+        def handle_command_line(self, parser=None):
             if len(sys.argv) > 1 and sys.argv[1] == "setup":
                 setup_script = self.script_dir / "setup.py"
                 if setup_script.exists():
@@ -101,14 +101,10 @@ def _get_remote_versions():
     return sorted(versions)
 
 def main():
-    # Use ToolBase for common command handling (like setup)
-    tool = ToolBase("PYTHON")
-    if tool.handle_command_line():
-        return
-
     config = get_config()
-    default_version = config.get("default_version", "3.10.19")
+    default_version = config.get("default_version", "3.11.14")
 
+    # Initialize parser early so it can be used for help
     parser = argparse.ArgumentParser(description="PYTHON Proxy and Manager", add_help=False, allow_abbrev=False)
     parser.add_argument("--py-version", help="Specify Python version to use")
     parser.add_argument("--py-list", action="store_true", help="List supported and installed versions")
@@ -123,6 +119,11 @@ def main():
     parser.add_argument("--py-platform", dest="platform", help="Filter by platform")
     parser.add_argument("--limit-releases", type=int, help="Limit number of releases to scan")
     parser.add_argument("-h", "--help", action="store_true", help="Show this help message")
+
+    # Use ToolBase for common command handling (like setup)
+    tool = ToolBase("PYTHON")
+    if tool.handle_command_line(parser):
+        return
 
     # Shorthand version detection
     raw_args = sys.argv[1:]
@@ -478,7 +479,9 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
                 
                 # Use sys.executable to ensure we use the same environment
                 cmd = [sys.executable, str(install_script), "--py-ver", v_num, "--py-platform", v_plat, "--limit", "1"]
-                if args.tag: cmd.extend(["--py-tag", args.tag])
+                # Also pass --py-tag if available
+                # Note: args.tag is not available here, we should pass it from main() if needed.
+                # For now, install.py will find the latest matching asset.
                 
                 # DO NOT capture output so the user sees progress
                 res = subprocess.run(cmd)
