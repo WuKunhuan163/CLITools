@@ -13,10 +13,12 @@ class TestPythonPipUsage(unittest.TestCase):
         cls.project_root = Path(__file__).resolve().parent.parent.parent.parent
         cls.python_tool = cls.project_root / "bin" / "PYTHON"
         
-        # Find a supported version
+        # Find a supported version, favoring installed ones
+        import re
         result = subprocess.run([str(cls.python_tool), "--py-list"], capture_output=True, text=True)
         cls.version = None
         capture = False
+        supported_versions = []
         for line in result.stdout.splitlines():
             # Strip ANSI escape codes
             clean_line = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', line).strip()
@@ -25,8 +27,15 @@ class TestPythonPipUsage(unittest.TestCase):
                 continue
             if capture:
                 if clean_line and not clean_line.startswith("Full result"):
-                    cls.version = clean_line.split()[0]
-                    break
+                    v = clean_line.split()[0]
+                    # More robust check for installed status
+                    if "installed" in clean_line.lower():
+                        cls.version = v
+                        break
+                    supported_versions.append(v)
+        
+        if not cls.version and supported_versions:
+            cls.version = supported_versions[0]
         
         if not cls.version:
             raise unittest.SkipTest("No supported versions found.")
@@ -40,7 +49,13 @@ class TestPythonPipUsage(unittest.TestCase):
             # Try without --py-version if it's the default
             res = subprocess.run([str(cls.python_tool), "-c", "import sys; print(sys.executable)"], capture_output=True, text=True)
             if "tool/PYTHON/data/install" not in res.stdout:
-                raise unittest.SkipTest(f"PYTHON tool is falling back to system python: {res.stdout.strip()}")
+                # If we're testing the default version and it's installed, it should work
+                pass
+            else:
+                cls.version = None # Force re-selection or fail
+        
+        if not cls.version:
+             raise unittest.SkipTest(f"PYTHON tool is falling back to system python for {cls.version}")
 
     def test_pip_install_and_import(self):
         """Verify that we can pip install a package and then import it."""
@@ -82,14 +97,19 @@ class TestPythonPipUsage(unittest.TestCase):
         
         # 2. Check if the executable is found when running via our proxy
         # We use a trick: run python and check shutil.which
-        code = f"import shutil; import os; print(shutil.which('{package}'))"
+        code = f"import shutil; import os; print(f'PATH: {{os.environ.get(\"PATH\")}}'); print(shutil.which('{package}'))"
         res = subprocess.run([str(self.python_tool), "--py-version", self.version, "-c", code], capture_output=True, text=True)
         
         self.assertEqual(res.returncode, 0)
-        exe_path = res.stdout.strip()
+        output_lines = res.stdout.strip().splitlines()
+        exe_path = output_lines[-1]
+        
+        if "tool/PYTHON/data/install" not in exe_path:
+            print(f"\nDEBUG INFO for {self.id()}:")
+            print(f"Version: {self.version}")
+            print(f"Output:\n{res.stdout}")
+            
         self.assertIsNotNone(exe_path)
-        # On some systems it might be a absolute path or relative
-        # But it should be inside our install dir
         self.assertIn("tool/PYTHON/data/install", exe_path)
         self.assertTrue(os.access(exe_path, os.X_OK))
 
