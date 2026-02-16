@@ -5,7 +5,7 @@ from logic.gui.tkinter.style import get_label_style
 def build_step(frame, win):
     # Title Block
     title_block = win.add_block(frame, pady=(20, 10))
-    tk.Label(title_block, text="Step 1: Create a Google Cloud Project", font=("Arial", 16, "bold"), bg=title_block.cget("bg")).pack()
+    win.setup_label(title_block, "Step 1: Create a Google Cloud Project", is_title=True)
     
     # Content Block
     content_block = win.add_block(frame)

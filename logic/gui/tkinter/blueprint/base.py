@@ -305,23 +305,29 @@ class BaseGUIWindow:
             
             # Initial size calculation
             orig_w, orig_h = img.size
-            w, h = orig_w, orig_h
             
-            # Use parent's current width if available and no max_width
-            current_parent_w = parent.winfo_width()
-            if current_parent_w > 1 and not max_width:
-                # Leave some padding (e.g. 40px)
-                w = current_parent_w - 40
-                h = int(orig_h * (w / orig_w))
-            else:
-                if max_width and w > max_width:
-                    h = int(h * (max_width / w))
-                    w = max_width
-                if max_height and h > max_height:
-                    w = int(w * (max_height / h))
-                    h = max_height
+            # Get parent width (use a reasonable default if not yet rendered)
+            parent_w = parent.winfo_width()
+            if parent_w <= 1:
+                # Try to get root window width or use a fallback
+                parent_w = self.root.winfo_width() if self.root else 800
+            
+            target_w = parent_w - 60 # Default padding
+            if max_width:
+                target_w = min(target_w, max_width)
+            
+            # Ensure it doesn't exceed original size unless upscaling
+            if target_w > orig_w:
+                target_w = orig_w
                 
-            render_w, render_h = int(w * upscale), int(h * upscale)
+            if target_w < 50: target_w = 50
+            
+            target_h = int(orig_h * (target_w / orig_w))
+            if max_height and target_h > max_height:
+                target_h = max_height
+                target_w = int(orig_w * (target_h / orig_h))
+                
+            render_w, render_h = int(target_w * upscale), int(target_h * upscale)
             resized_img = img.resize((render_w, render_h), Image.Resampling.LANCZOS)
             
             photo = ImageTk.PhotoImage(resized_img)
@@ -340,8 +346,6 @@ class BaseGUIWindow:
                     "parent": parent
                 })
                 
-                # Bind resize event to parent if not already bound
-                # We use a custom debounce or just regular check
                 if not hasattr(parent, "_resize_bound"):
                     parent.bind("<Configure>", self.on_container_resize, add="+")
                     parent._resize_bound = True
@@ -352,6 +356,87 @@ class BaseGUIWindow:
             err_label = tk.Label(parent, text=f"Error loading image: {os.path.basename(str(image_path))}", fg="red")
             err_label.pack(pady=5)
             return err_label
+
+    def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
+        """Standardized label creation with automatic wrapping."""
+        import tkinter as tk
+        if "[" in text and "]" in text and "(" in text and ")" in text:
+            # Contains links, use inline link logic
+            return self.add_inline_links(parent, text)
+
+        if font is None:
+            from logic.gui.tkinter.style import get_label_style
+            font = ("Arial", 16, "bold") if is_title else get_label_style()
+            
+        # Initial wraplength based on parent width
+        w = parent.winfo_width()
+        if w <= 1: w = 600
+        
+        label = tk.Label(parent, text=text, font=font, bg=parent.cget("bg"), 
+                         justify=justify, wraplength=w-40)
+        label.pack(pady=pady, padx=padx, fill=tk.X)
+        
+        # Ensure parent has resize binding
+        if not hasattr(parent, "_resize_bound"):
+            parent.bind("<Configure>", self.on_container_resize, add="+")
+            parent._resize_bound = True
+            
+        return label
+
+    def add_inline_links(self, frame, text_content):
+        """
+        Creates a tk.Text widget that supports inline clickable links.
+        Format: "Some text [Link Label](https://link.url) and more text."
+        """
+        import webbrowser
+        import re
+        import tkinter as tk
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=get_label_style(), 
+                              padx=20, pady=10, borderwidth=0, highlightthickness=0,
+                              bg=frame.cget("bg"), height=1) 
+        text_widget.pack(fill=tk.X, expand=True)
+        
+        # Make it look like a label
+        text_widget.config(state=tk.NORMAL)
+        
+        # Regex for [label](url)
+        pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        
+        last_idx = 0
+        for match in re.finditer(pattern, text_content):
+            # Normal text before link
+            text_widget.insert(tk.END, text_content[last_idx:match.start()])
+            
+            # Link label
+            label, url = match.groups()
+            tag_name = f"link_{match.start()}"
+            text_widget.insert(tk.END, label, tag_name)
+            
+            text_widget.tag_config(tag_name, foreground="blue", underline=True)
+            text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
+            text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
+            text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            
+            last_idx = match.end()
+            
+        # Remaining text
+        text_widget.insert(tk.END, text_content[last_idx:])
+        
+        # Disable editing
+        text_widget.config(state=tk.DISABLED)
+        
+        def _update_height(event=None):
+            # Adjust height based on content
+            try:
+                num_lines = int(text_widget.index('end-1c').split('.')[0])
+                text_widget.config(height=num_lines)
+            except: pass
+
+        frame.bind("<Configure>", _update_height, add="+")
+        _update_height()
+        
+        return text_widget
 
     def on_container_resize(self, event):
         """Callback for container <Configure> events to handle dynamic image and text wrapping."""

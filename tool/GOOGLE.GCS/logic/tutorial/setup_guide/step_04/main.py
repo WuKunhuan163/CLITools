@@ -12,7 +12,7 @@ from logic.gui.tkinter.style import get_label_style, get_gui_colors
 def build_step(frame, win):
     # Title Block
     title_block = win.add_block(frame, pady=(20, 10))
-    tk.Label(title_block, text="Step 4: Generate JSON Key", font=("Arial", 16, "bold"), bg=title_block.cget("bg")).pack()
+    win.setup_label(title_block, "Step 4: Generate JSON Key", is_title=True)
     
     # Content Block
     content_block = win.add_block(frame)
@@ -23,7 +23,7 @@ def build_step(frame, win):
         "4. Select 'JSON' and click 'Create'.\n\n"
         "5. A JSON file will be downloaded. Click 'Browse' below to select it, then click 'Validate'."
     )
-    tk.Label(content_block, text=content, font=get_label_style(), justify="left", wraplength=600, bg=content_block.cget("bg")).pack(pady=10, padx=20)
+    win.setup_label(content_block, content)
 
     # Image Block
     img_path = Path(__file__).resolve().parent / "asset" / "image" / "guide_1.png"
@@ -68,17 +68,37 @@ def build_step(frame, win):
         frame.update_idletasks()
         
         project_root = getattr(win, "project_root", None)
-        fd_path = project_root / "bin" / "FILEDIALOG"
+        # Use main.py directly to avoid bootstrap overhead and potential shadowing
+        fd_main = project_root / "tool" / "FILEDIALOG" / "main.py"
         
         def run_fd():
             try:
+                # We use --tool-quiet to minimize noise and get JSON output
                 env = os.environ.copy()
                 env["PYTHONPATH"] = str(project_root)
-                res = subprocess.run([str(fd_path)], capture_output=True, text=True, env=env)
-                path = res.stdout.strip()
+                # Pass --tool-quiet to ensure it prints only the final path or JSON
+                # Actually FILEDIALOG handles --tool-quiet by printing JSON
+                cmd = [sys.executable, str(fd_main), "--tool-quiet", "--title", "Select Service Account JSON", "--types", "json"]
+                
+                # We use Popen to avoid capturing everything at once and blocking
+                # but we still need the result.
+                res = subprocess.run(cmd, capture_output=True, text=True, env=env)
+                
+                output = res.stdout.strip()
+                path = None
+                
+                if output.startswith("TOOL_RESULT_JSON:"):
+                    try:
+                        data = json.loads(output[len("TOOL_RESULT_JSON:"):])
+                        if data.get("returncode") == 0:
+                            path = data.get("stdout", "").strip()
+                    except: pass
+                else:
+                    # Fallback to direct stdout
+                    path = output
                 
                 def update_ui():
-                    if res.returncode == 0 and path:
+                    if path and os.path.exists(path):
                         # Cache the file with hash
                         try:
                             cache_dir = _get_cache_dir()
@@ -98,7 +118,7 @@ def build_step(frame, win):
                             status_var.set(f"Cache Error: {e}")
                             status_label.config(fg="red")
                     else:
-                        status_var.set("No file selected")
+                        status_var.set("No file selected or invalid path")
                         status_label.config(fg="gray")
                         validate_btn.config(state=tk.DISABLED)
                     
@@ -113,6 +133,38 @@ def build_step(frame, win):
                 frame.after(0, on_err)
 
         threading.Thread(target=run_fd, daemon=True).start()
+
+    def on_validate():
+        path = selected_file_path.get()
+        if not path or not os.path.exists(path):
+            return
+            
+        validate_btn.config(state=tk.DISABLED)
+        status_var.set("Validating...")
+        frame.update_idletasks()
+        
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            
+            required = ["type", "project_id", "private_key", "client_email"]
+            missing = [k for k in required if k not in data]
+            
+            if not missing:
+                status_var.set("Validation Successful!")
+                status_label.config(fg="green")
+                win.set_step_validated(True)
+            else:
+                status_var.set(f"Invalid JSON: missing {', '.join(missing)}")
+                status_label.config(fg="red")
+        except Exception as e:
+            status_var.set(f"Error: {e}")
+            status_label.config(fg="red")
+        
+        validate_btn.config(state=tk.NORMAL)
+
+    browse_btn.config(command=on_browse)
+    validate_btn.config(command=on_validate)
 
     def on_validate():
         path = selected_file_path.get()

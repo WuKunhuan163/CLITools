@@ -5,7 +5,7 @@ from logic.gui.tkinter.style import get_label_style
 def build_step(frame, win):
     # Title Block
     title_block = win.add_block(frame, pady=(20, 10))
-    tk.Label(title_block, text="Step 3: Create a Service Account", font=("Arial", 16, "bold"), bg=title_block.cget("bg")).pack()
+    win.setup_label(title_block, "Step 3: Create a Service Account", is_title=True)
     
     # Content Block
     content_block = win.add_block(frame)
@@ -16,7 +16,7 @@ def build_step(frame, win):
         "4. (Important) At the 'Grant access' step, you can skip role selection or choose 'Project Editor' for ease of development.\n\n"
         "5. Copy the Service Account Email (e.g., xxx@your-project.iam.gserviceaccount.com)."
     )
-    tk.Label(content_block, text=content, font=get_label_style(), justify="left", wraplength=600, bg=content_block.cget("bg")).pack(pady=10, padx=20)
+    win.setup_label(content_block, content)
 
     # Image Blocks
     for i in range(1, 3):
