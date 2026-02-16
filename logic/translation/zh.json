@@ -203,6 +203,9 @@
   "test_cpu_timeout_warn": "CPU 负载 ({current_cpu:.1f}%) 在 {timeout} 秒后仍然很高。继续执行并发出警告。",
   "test_cpu_waiting": "等待 CPU 负载下降 ({current_cpu:.1f}% > {cpu_limit:.1f}%) ({elapsed_wait_time:.0f}s / {timeout}s)",
   "test_current_cpu_load": "当前 CPU 负载：{cpu_percent:.1f}%",
+  "test_current_cpu_load_label": "当前 CPU 负载：",
+  "err_failed_to_sync": "同步失败",
+  "err_sync_installation_test": "在安装测试期间。",
   "test_waiting_for": "正在等待",
   "warn_cpu_load": "警告：当前 CPU 负载 ({current_cpu:.1f}%) 超过了工具建议的限制 ({cpu_limit:.1f}%)。性能可能会受到影响。"
 }

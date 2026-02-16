@@ -25,6 +25,9 @@ class ProgressTuringMachine:
 
     def refresh_stage(self, stage: TuringStage):
         """Refreshes the current active stage display line."""
+        if stage.stealth:
+            return
+
         # Detect if this stage is a warning
         is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning" or 
                       stage.active_status == "Warning" or stage.fail_color == "YELLOW")
@@ -78,7 +81,7 @@ class ProgressTuringMachine:
                     is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning" or 
                                   stage.active_status == "Warning" or stage.fail_color == "YELLOW")
                     
-                    if not (self.no_warning and is_warning):
+                    if not (self.no_warning and is_warning) and not stage.stealth:
                         if stage.bold_part and active_name.startswith(stage.bold_part):
                             bold_text = f"{stage.active_status} {stage.bold_part}"
                             rest_text = active_name[len(stage.bold_part):].lstrip()
@@ -100,9 +103,9 @@ class ProgressTuringMachine:
                             success = stage.action()
                             
                         if success:
-                            # Skip printing if it's a warning and no_warning is True
+                            # Skip printing if it's a warning and no_warning is True, or if it's stealth
                             is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning")
-                            if self.no_warning and is_warning:
+                            if (self.no_warning and is_warning) or stage.stealth:
                                 # Just clear the active line and continue
                                 if not ephemeral or not is_last:
                                     sys.stdout.write("\r\033[K")
@@ -236,7 +239,7 @@ class ProgressTuringMachine:
                 RESET = get_color("RESET", "\033[0m")
                 sys.stdout.write(f"{BOLD}{YELLOW}Cancelled{RESET} Operation cancelled by user.\n")
                 sys.stdout.flush()
-                return False
+                raise
             except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()

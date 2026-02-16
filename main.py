@@ -857,7 +857,9 @@ def _test_tool_with_args(args):
 
     # Display current CPU load before starting tests
     current_cpu_at_start = get_cpu_percent(interval=0.1)
-    print(f"{BOLD}{BLUE}" + _("test_current_cpu_load", "Current CPU load: {cpu_percent:.1f}%", cpu_percent=current_cpu_at_start) + RESET)
+    label = _("test_current_cpu_load_label", "Current CPU load: ")
+    percent_str = f"{current_cpu_at_start:.1f}%"
+    print(f"{label}{BOLD}{percent_str}{RESET}")
     
     # Add CPU wait stage
     cpu_wait_tm = ProgressTuringMachine(project_root=ROOT_PROJECT_ROOT, tool_name="TOOL", no_warning=args.no_warning) 
@@ -865,7 +867,8 @@ def _test_tool_with_args(args):
         name="CPU load",
         action=wait_for_cpu_action,
         active_status=_("test_waiting_for", "Waiting for"),
-        bold_part="Waiting for"
+        bold_part="Waiting for",
+        stealth=True
     ))
     cpu_wait_tm.run(ephemeral=True, final_msg="", final_newline=True)
 
@@ -939,7 +942,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
     ))
     
     if not tm_sync.run(ephemeral=True, final_msg="", final_newline=False):
-        print(f"\n{BOLD}{RED}Sync failed during installation test.{RESET}")
+        print(f"\n{BOLD}{RED}" + _("err_failed_to_sync", "Failed to sync") + f"{RESET} " + _("err_sync_installation_test", "during installation test."))
         return False
 
     # 2. Install and Verify
