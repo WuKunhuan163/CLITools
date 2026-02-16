@@ -241,7 +241,8 @@ def main():
 
     cmd = [python_exec] + unknown
     try:
-        subprocess.run(cmd, env=env)
+        res = subprocess.run(cmd, env=env)
+        sys.exit(res.returncode)
     except KeyboardInterrupt:
         sys.exit(1)
 

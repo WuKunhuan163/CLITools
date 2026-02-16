@@ -4,6 +4,7 @@ import subprocess
 import os
 import sys
 import shutil
+import re
 from pathlib import Path
 
 class TestPythonPipUsage(unittest.TestCase):
@@ -13,11 +14,11 @@ class TestPythonPipUsage(unittest.TestCase):
         cls.python_tool = cls.project_root / "bin" / "PYTHON"
         
         # Find a supported version
-        import re
         result = subprocess.run([str(cls.python_tool), "--py-list"], capture_output=True, text=True)
         cls.version = None
         capture = False
         for line in result.stdout.splitlines():
+            # Strip ANSI escape codes
             clean_line = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', line).strip()
             if "Supported versions" in clean_line:
                 capture = True
@@ -36,13 +37,16 @@ class TestPythonPipUsage(unittest.TestCase):
         # VERIFY that we are using the managed python
         res = subprocess.run([str(cls.python_tool), "--py-version", cls.version, "-c", "import sys; print(sys.executable)"], capture_output=True, text=True)
         if "tool/PYTHON/data/install" not in res.stdout:
-            raise unittest.SkipTest(f"PYTHON tool is falling back to system python: {res.stdout.strip()}")
+            # Try without --py-version if it's the default
+            res = subprocess.run([str(cls.python_tool), "-c", "import sys; print(sys.executable)"], capture_output=True, text=True)
+            if "tool/PYTHON/data/install" not in res.stdout:
+                raise unittest.SkipTest(f"PYTHON tool is falling back to system python: {res.stdout.strip()}")
 
     def test_pip_install_and_import(self):
         """Verify that we can pip install a package and then import it."""
-        package = "pyjokes" # Small, no dependencies, fun
+        package = "pyjokes"
         
-        # 1. Uninstall if already there to ensure clean test
+        # 1. Uninstall if already there
         subprocess.run([str(self.python_tool), "--py-version", self.version, "-m", "pip", "uninstall", "-y", package], capture_output=True)
         
         # 2. Verify it's NOT importable
@@ -59,11 +63,9 @@ class TestPythonPipUsage(unittest.TestCase):
         self.assertTrue(len(res.stdout.strip()) > 10)
 
     def test_requests_availability(self):
-        """Specifically verify requests can be installed and used, as reported by user."""
-        package = "requests"
-        
+        """Specifically verify requests can be used in managed environment."""
         # Ensure it's installed
-        res = subprocess.run([str(self.python_tool), "--py-version", self.version, "-m", "pip", "install", package], capture_output=True, text=True)
+        res = subprocess.run([str(self.python_tool), "--py-version", self.version, "-m", "pip", "install", "requests"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"pip install requests failed: {res.stderr}")
         
         # Verify usage
@@ -86,9 +88,10 @@ class TestPythonPipUsage(unittest.TestCase):
         self.assertEqual(res.returncode, 0)
         exe_path = res.stdout.strip()
         self.assertIsNotNone(exe_path)
+        # On some systems it might be a absolute path or relative
+        # But it should be inside our install dir
         self.assertIn("tool/PYTHON/data/install", exe_path)
         self.assertTrue(os.access(exe_path, os.X_OK))
 
 if __name__ == "__main__":
     unittest.main()
-
