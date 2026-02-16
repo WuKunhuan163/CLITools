@@ -508,6 +508,7 @@ class ToolBase:
         print(f"  setup        Run tool installation/setup")
         print(f"  install      Install a sub-tool")
         print(f"  uninstall    Uninstall a sub-tool")
+        print(f"  config       Manage tool configuration")
         print(f"  rule         Show AI rules for this tool")
         print(f"  -h, --help   Show this help message")
 
