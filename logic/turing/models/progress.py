@@ -233,7 +233,20 @@ class ProgressTuringMachine:
                         sys.stdout.flush()
                         return False
                 
-                if ephemeral and final_newline:
+                if ephemeral:
+                    if final_msg is not None:
+                        sys.stdout.write(f"\r\033[K{truncate_to_width(final_msg, _get_configured_width())}")
+                        if final_newline:
+                            sys.stdout.write("\n")
+                    else:
+                        # Erase everything
+                        sys.stdout.write("\r\033[K")
+                        if final_newline:
+                            # Actually if we erase everything, maybe we don't want a final newline?
+                            # But if the user requested it, we do it.
+                            sys.stdout.write("") 
+                    sys.stdout.flush()
+                elif final_newline:
                     sys.stdout.write("\n")
                     sys.stdout.flush()
                 return True

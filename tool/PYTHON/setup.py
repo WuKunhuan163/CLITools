@@ -22,6 +22,7 @@ project_root = find_project_root()
 if project_root:
     sys.path.insert(0, str(project_root))
 
+import subprocess
 from logic.tool.setup.engine import ToolEngine
 
 def setup():
@@ -46,6 +47,7 @@ def setup():
         # Check if already installed
         res = subprocess.run([str(python_bin), "--py-list"], capture_output=True, text=True)
         if "(installed)" not in res.stdout:
+            # Only print if we are actually going to install something
             print(f"\nInstalling default Python version: {default_version}...")
             subprocess.run([str(python_bin), "--py-install", default_version])
             
