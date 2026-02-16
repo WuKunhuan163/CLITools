@@ -11,6 +11,7 @@ class ToolBase:
     
     def __init__(self, tool_name):
         self.tool_name = tool_name
+        self.no_warning = "--no-warning" in sys.argv
         
         # Determine tool_dir (the actual installation directory of the tool)
         import inspect
@@ -329,7 +330,7 @@ class ToolBase:
                 self.handle_exception(e)
                 return False
 
-        tm = ProgressTuringMachine(project_root=self.project_root, tool_name=self.tool_name)
+        tm = ProgressTuringMachine(project_root=self.project_root, tool_name=self.tool_name, no_warning=self.no_warning)
         # "Running setup" should be blue and bold. 
         # In ProgressTuringMachine, active_status is colored and bolded.
         tm.add_stage(TuringStage(

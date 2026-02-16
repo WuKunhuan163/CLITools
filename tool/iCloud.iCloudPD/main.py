@@ -58,6 +58,7 @@ def main():
     parser.add_argument("--formats", type=str, help="Filter by extensions, e.g. '*.png|*.jpg'")
     parser.add_argument("--regex", type=str, help="Regex filter for 'yyyy-mm-dd/filename'")
     parser.add_argument("--only-scan", action="store_true", help="Only scan and cache metadata, do not download")
+    parser.add_argument("--no-warning", action="store_true", help="Suppress warning messages in progress display")
     
     if tool.handle_command_line(parser): return
     
