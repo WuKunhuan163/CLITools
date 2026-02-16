@@ -74,9 +74,12 @@ class ToolEngine:
 
         # 2. Check if already installed
         if self.is_installed():
-            if not is_dependency:
+            # Only print if not a dependency and NOT running via another process that might have its own display
+            if not is_dependency and os.environ.get("TOOL_QUIET") != "1":
                 status = self._("label_already_installed", "Already installed")
-                print(f"{self.BOLD}{self.WHITE}{status}{self.RESET} {self.tool_name}")
+                # Use \r\033[K to avoid breaking parent TM if any, though ToolEngine usually is top-level
+                sys.stdout.write(f"\r\033[K{self.BOLD}{self.WHITE}{status}{self.RESET} {self.tool_name}\n")
+                sys.stdout.flush()
             return True
 
         # 3. Check for partial installation/missing deps
