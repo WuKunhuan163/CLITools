@@ -1164,6 +1164,8 @@ def main():
     config_parser.add_argument("--terminal-width", type=str, help="Manually set terminal width (integer or 'auto')")
     config_parser.add_argument("--terminal-width-fallback", type=int, help="Set fallback terminal width if dynamic detection fails (default: 60)")
     config_parser.add_argument("--manager-debug", type=int, choices=[0, 1], help="Enable or disable terminal manager debugging")
+    config_parser.add_argument("--test-cpu-limit", type=float, help="Default CPU limit for tests")
+    config_parser.add_argument("--test-cpu-timeout", type=int, help="Timeout in seconds to wait for CPU to drop")
     
     subparsers.add_parser("clear", help="Clear the terminal screen")
     
@@ -1212,6 +1214,12 @@ def main():
                 
         if args.manager_debug is not None:
             update_config("manager_debug", bool(args.manager_debug))
+            
+        if args.test_cpu_limit is not None:
+            update_config("test_cpu_limit", args.test_cpu_limit)
+            
+        if args.test_cpu_timeout is not None:
+            update_config("test_cpu_timeout", args.test_cpu_timeout)
     elif args.command == "clear":
         if platform.system() == "Windows":
             os.system("cls")
