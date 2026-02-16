@@ -202,7 +202,17 @@ def resolve_python_version(version_str=None):
         INSTALL_DIR.mkdir(parents=True, exist_ok=True)
     
     if not version_str:
-        # Pick latest installed
+        # 1. Try to get default from tool.json
+        tool_json = script_dir.parent / "tool.json"
+        if tool_json.exists():
+            try:
+                with open(tool_json, 'r') as f:
+                    default = json.load(f).get("default_version")
+                    if default and (INSTALL_DIR / default).exists():
+                        return default
+            except: pass
+
+        # 2. Pick latest installed as fallback
         installed = [d.name for d in INSTALL_DIR.iterdir() if d.is_dir()]
         matching = [v for v in installed if tag in v]
         if matching: return sorted(matching, reverse=True)[0]
