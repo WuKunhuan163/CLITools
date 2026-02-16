@@ -85,6 +85,10 @@ class BaseGUIWindow:
         # Image management for dynamic resizing
         self.resizable_images: List[Dict[str, Any]] = [] # {label, path, max_width, upscale, original_img}
         
+        # Block management
+        self.blocks: List[tk.Frame] = []
+        self.debug_blocks = False # If True, blocks will have visible backgrounds
+        
         # Thread safety: queue for callbacks from background threads
         self.callback_queue = queue.Queue()
         
@@ -272,6 +276,20 @@ class BaseGUIWindow:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
 
+    def add_block(self, parent, pady=10, padx=20, bg=None):
+        """Adds a new layout block (tk.Frame) that fills the width."""
+        import tkinter as tk
+        if bg is None and self.debug_blocks:
+            # Use a semi-random light color for debugging
+            colors = ["#f0f0f0", "#e8f0fe", "#fdf7e3", "#f6f6f6"]
+            bg = colors[len(self.blocks) % len(colors)]
+            
+        # padx/pady should be passed to pack(), not Frame constructor
+        block = tk.Frame(parent, bg=bg or parent.cget("bg"))
+        block.pack(fill=tk.X, side=tk.TOP, padx=padx, pady=pady)
+        self.blocks.append(block)
+        return block
+
     def setup_image(self, parent, image_path: Union[str, Path], max_width: int = None, max_height: int = None, upscale: int = 1, dynamic: bool = True):
         """
         Loads and displays an image in a tkinter Label with quality control.
@@ -336,23 +354,26 @@ class BaseGUIWindow:
             return err_label
 
     def on_container_resize(self, event):
-        """Callback for container <Configure> events to handle dynamic image resizing."""
+        """Callback for container <Configure> events to handle dynamic image and text wrapping."""
         # Use a small delay to avoid excessive resizing during active drag
         if hasattr(self, "_resize_timer"):
             self.root.after_cancel(self._resize_timer)
-        self._resize_timer = self.root.after(100, self.perform_image_resizing)
+        self._resize_timer = self.root.after(100, self.perform_ui_updates)
+
+    def perform_ui_updates(self):
+        """Actual resizing logic for images and text wrapping."""
+        if self.window_closed or not self.root:
+            return
+        self.perform_image_resizing()
+        self.perform_text_wrapping_updates()
 
     def perform_image_resizing(self):
         """Actual resizing logic for all registered dynamic images."""
         from PIL import ImageTk, Image
         import tkinter as tk
         
-        if self.window_closed or not self.root:
-            return
-            
         for item in list(self.resizable_images):
             label = item["label"]
-            # If label is destroyed, remove from list
             try:
                 if not label.winfo_exists():
                     self.resizable_images.remove(item)
@@ -366,16 +387,14 @@ class BaseGUIWindow:
             upscale = item["upscale"]
             
             parent_w = parent.winfo_width()
-            if parent_w <= 1: continue # Not mapped yet
+            if parent_w <= 1: continue 
             
-            # Calculate target width (parent width minus padding)
-            target_w = parent_w - 50 # 25px padding on each side
+            target_w = parent_w - 50 
             if item["max_width"]:
                 target_w = min(target_w, item["max_width"])
             
-            if target_w < 50: target_w = 50 # Minimum width
+            if target_w < 50: target_w = 50 
             
-            # Maintain aspect ratio
             orig_w, orig_h = original_img.size
             target_h = int(orig_h * (target_w / orig_w))
             
@@ -383,7 +402,6 @@ class BaseGUIWindow:
                 target_h = item["max_height"]
                 target_w = int(orig_w * (target_h / orig_h))
             
-            # Only resize if meaningful change (prevent infinite loops or jitter)
             current_w = label.winfo_width()
             if abs(current_w - target_w) < 10:
                 continue
@@ -393,9 +411,37 @@ class BaseGUIWindow:
                 resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
                 photo = ImageTk.PhotoImage(resized_img)
                 label.config(image=photo)
-                label.image = photo # Keep reference
+                label.image = photo 
             except Exception as e:
                 print(f"Resize error for {item['path']}: {e}")
+
+    def perform_text_wrapping_updates(self):
+        """Updates wraplength for all Labels within blocks to match current width."""
+        import tkinter as tk
+        if self.window_closed or not self.root: return
+        
+        # Traverse all widgets and find Labels with wraplength
+        def update_labels(container):
+            for child in container.winfo_children():
+                if isinstance(child, tk.Label):
+                    try:
+                        # Only update if it already has a non-zero wraplength (meaning it's intended to wrap)
+                        curr_wrap = child.cget("wraplength")
+                        if curr_wrap and int(curr_wrap) > 0:
+                            # Set wraplength to parent width minus padding
+                            parent_w = container.winfo_width()
+                            if parent_w > 40:
+                                child.config(wraplength=parent_w - 40)
+                    except: pass
+                elif isinstance(child, tk.Frame):
+                    update_labels(child)
+        
+        # Start from blocks or main frame
+        for block in self.blocks:
+            try:
+                if block.winfo_exists():
+                    update_labels(block)
+            except: pass
 
     def process_callbacks(self):
         """Process callbacks from other threads (thread-safe UI updates)."""

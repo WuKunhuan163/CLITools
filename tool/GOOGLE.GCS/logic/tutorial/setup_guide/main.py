@@ -44,6 +44,7 @@ def run_setup_tutorial():
     ]
     
     win = TutorialWindow(title="GCS Setup Guide", timeout=600, steps=steps, internal_dir=str(Path(__file__).resolve().parent))
+    win.debug_blocks = True # Enable debug background for blocks
     win.run(win.setup_ui)
     return win.result
 

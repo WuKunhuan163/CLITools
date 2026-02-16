@@ -10,8 +10,12 @@ from pathlib import Path
 from logic.gui.tkinter.style import get_label_style, get_gui_colors
 
 def build_step(frame, win):
-    tk.Label(frame, text="Step 4: Generate JSON Key", font=("Arial", 16, "bold")).pack(pady=(20, 10))
+    # Title Block
+    title_block = win.add_block(frame, pady=(20, 10))
+    tk.Label(title_block, text="Step 4: Generate JSON Key", font=("Arial", 16, "bold"), bg=title_block.cget("bg")).pack()
     
+    # Content Block
+    content_block = win.add_block(frame)
     content = (
         "1. Click on the newly created Service Account from the list.\n\n"
         "2. Go to the 'Keys' tab.\n\n"
@@ -19,22 +23,23 @@ def build_step(frame, win):
         "4. Select 'JSON' and click 'Create'.\n\n"
         "5. A JSON file will be downloaded. Click 'Browse' below to select it, then click 'Validate'."
     )
-    
-    tk.Label(frame, text=content, font=get_label_style(), justify="left", wraplength=600).pack(pady=10, padx=20)
+    tk.Label(content_block, text=content, font=get_label_style(), justify="left", wraplength=600, bg=content_block.cget("bg")).pack(pady=10, padx=20)
 
-    # 1. Image with improved quality (using integrated interface)
+    # Image Block
     img_path = Path(__file__).resolve().parent / "asset" / "image" / "guide_1.png"
     if img_path.exists():
-        win.setup_image(frame, img_path, max_width=600, upscale=2) # 2x clearer
+        img_block = win.add_block(frame)
+        win.setup_image(img_block, img_path, max_width=600, upscale=2)
 
-    # 2. State management for Browse/Validate
+    # Action Block
+    action_block = win.add_block(frame)
     selected_file_path = tk.StringVar(value="")
     status_var = tk.StringVar(value="No file selected")
     
-    status_label = tk.Label(frame, textvariable=status_var, font=get_label_style(), fg="gray")
+    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=action_block.cget("bg"))
     status_label.pack(pady=5)
 
-    btn_frame = tk.Frame(frame)
+    btn_frame = tk.Frame(action_block, bg=action_block.cget("bg"))
     btn_frame.pack(pady=10)
 
     browse_btn = tk.Button(btn_frame, text="Browse JSON")

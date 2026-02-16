@@ -96,6 +96,10 @@ class TutorialWindow(BaseGUIWindow):
         if self.content_frame:
             for widget in self.content_frame.winfo_children():
                 widget.destroy()
+        
+        # Reset block and image management for the new step
+        self.blocks = []
+        self.resizable_images = []
             
         step = self.steps[self.current_step_idx]
         
@@ -188,6 +192,13 @@ class TutorialWindow(BaseGUIWindow):
         # Adjust height based on content
         num_lines = int(text_widget.index('end-1c').split('.')[0])
         text_widget.config(height=num_lines + 1)
+        
+        # Ensure it responds to resize if it's inside a block
+        # (Though tk.Text handles wrapping natively, we might need to refresh height)
+        def refresh_height(event):
+            num_lines = int(text_widget.index('end-1c').split('.')[0])
+            text_widget.config(height=num_lines + 1)
+        text_widget.bind("<Configure>", refresh_height)
         
         return text_widget
 
