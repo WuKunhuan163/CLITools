@@ -26,6 +26,11 @@ class TestUserInputKill(unittest.TestCase):
             
             # Find the actual Tkinter process (usually a child of the wrapper or main.py)
             children = parent.children(recursive=True)
+            print(f"DEBUG: Initial children: {[c.pid for c in children]}")
+            for c in children:
+                try: print(f"DEBUG: Child {c.pid} cmdline: {c.cmdline()}")
+                except: pass
+
             target_child = None
             for child in children:
                 try:
@@ -48,6 +53,7 @@ class TestUserInputKill(unittest.TestCase):
                 
             if target_child:
                 child_pid = target_child.pid
+                print(f"DEBUG: Killing target child PID {child_pid}")
                 # Kill the child gracefully first
                 try:
                     os.kill(child_pid, signal.SIGTERM)
@@ -55,8 +61,23 @@ class TestUserInputKill(unittest.TestCase):
                     pass
                 
                 # Wait for retry mechanism to spawn new process
-                time.sleep(8)
-                new_children = parent.children(recursive=True)
+                # retry loop has 1s sleep
+                print("DEBUG: Waiting for retry...")
+                for i in range(10):
+                    time.sleep(1)
+                    new_children = parent.children(recursive=True)
+                    print(f"DEBUG: Attempt {i+1}, new children: {[c.pid for c in new_children]}")
+                    if len(new_children) > 0:
+                        # Check if any new child is a python process
+                        for c in new_children:
+                            try:
+                                if "python" in c.name().lower() and c.pid != child_pid:
+                                    target_child = c
+                                    break
+                            except: continue
+                        if target_child.pid != child_pid:
+                            break
+                
                 if len(new_children) == 0:
                     stdout, stderr = proc.communicate(timeout=1)
                     print(f"STDOUT: {stdout}")
