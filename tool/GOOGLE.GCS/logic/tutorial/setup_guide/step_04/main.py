@@ -3,9 +3,11 @@ import subprocess
 import json
 import os
 import threading
+import time
+import hashlib
+import shutil
 from pathlib import Path
-from logic.gui.tkinter.style import get_label_style
-from PIL import Image, ImageTk
+from logic.gui.tkinter.style import get_label_style, get_gui_colors
 
 def build_step(frame, win):
     tk.Label(frame, text="Step 4: Generate JSON Key", font=("Arial", 16, "bold")).pack(pady=(20, 10))
@@ -15,100 +17,122 @@ def build_step(frame, win):
         "2. Go to the 'Keys' tab.\n\n"
         "3. Click 'Add Key' > 'Create New Key'.\n\n"
         "4. Select 'JSON' and click 'Create'.\n\n"
-        "5. A JSON file will be downloaded. Click 'Browse' below to select and validate it."
+        "5. A JSON file will be downloaded. Click 'Browse' below to select it, then click 'Validate'."
     )
     
     tk.Label(frame, text=content, font=get_label_style(), justify="left", wraplength=600).pack(pady=10, padx=20)
 
-    # Image support
+    # 1. Image with improved quality (using integrated interface)
     img_path = Path(__file__).resolve().parent / "asset" / "image" / "guide_1.png"
     if img_path.exists():
-        try:
-            img = Image.open(img_path)
-            if img.width > 600:
-                ratio = 600 / img.width
-                img = img.resize((600, int(img.height * ratio)), Image.Resampling.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
-            img_label = tk.Label(frame, image=photo)
-            img_label.image = photo
-            img_label.pack(pady=5)
-        except Exception as e:
-            print(f"Error loading image: {e}")
+        win.setup_image(frame, img_path, max_width=600, upscale=2) # 2x clearer
 
+    # 2. State management for Browse/Validate
+    selected_file_path = tk.StringVar(value="")
     status_var = tk.StringVar(value="No file selected")
+    
     status_label = tk.Label(frame, textvariable=status_var, font=get_label_style(), fg="gray")
     status_label.pack(pady=5)
 
-    browse_btn = tk.Button(frame, text="Browse and Validate JSON")
+    btn_frame = tk.Frame(frame)
+    btn_frame.pack(pady=10)
+
+    browse_btn = tk.Button(btn_frame, text="Browse JSON")
+    validate_btn = tk.Button(btn_frame, text="Validate", state=tk.DISABLED)
     
+    browse_btn.pack(side=tk.LEFT, padx=5)
+    validate_btn.pack(side=tk.LEFT, padx=5)
+
+    def _get_cache_dir():
+        project_root = getattr(win, "project_root", None)
+        cache_dir = project_root / "data" / "tutorial" / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir
+
+    def _cleanup_cache(cache_dir, limit=10):
+        """Maintains cache limit."""
+        files = sorted(list(cache_dir.glob("*.json")), key=os.path.getmtime)
+        if len(files) >= limit:
+            for i in range(len(files) // 2):
+                try: files[i].unlink()
+                except: pass
+
     def on_browse():
-        browse_btn.config(text="Browsing...", state=tk.DISABLED)
+        browse_btn.config(state=tk.DISABLED)
+        status_var.set("Browsing...")
         frame.update_idletasks()
         
-        # Pre-import to avoid issues in thread
-        import importlib.util
-        auth_path = Path(__file__).resolve().parent.parent.parent.parent / "auth.py"
-        spec = importlib.util.spec_from_file_location("gcs_auth_step", str(auth_path))
-        auth_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(auth_module)
+        project_root = getattr(win, "project_root", None)
+        fd_path = project_root / "bin" / "FILEDIALOG"
         
-        validate_func = auth_module.validate_service_account_json
-        save_func = auth_module.save_console_key
-
-        def run_verification():
-            project_root = getattr(win, "project_root", None)
-            if not project_root:
-                curr = Path(__file__).resolve().parent
-                while curr != curr.parent:
-                    if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
-                        project_root = curr
-                        break
-                    curr = curr.parent
-
-            fd_path = project_root / "bin" / "FILEDIALOG"
+        def run_fd():
             try:
-                # Use environment to help subtools find their way
                 env = os.environ.copy()
                 env["PYTHONPATH"] = str(project_root)
-                
                 res = subprocess.run([str(fd_path)], capture_output=True, text=True, env=env)
-                selected_path = res.stdout.strip()
+                path = res.stdout.strip()
                 
-                if res.returncode != 0 or not selected_path:
-                    def reset_ui():
-                        status_var.set("Cancelled or failed to open file dialog")
+                def update_ui():
+                    if res.returncode == 0 and path:
+                        # Cache the file with hash
+                        try:
+                            cache_dir = _get_cache_dir()
+                            _cleanup_cache(cache_dir)
+                            with open(path, 'rb') as f:
+                                file_content = f.read()
+                            h = hashlib.md5(file_content).hexdigest()[:12]
+                            cached_path = cache_dir / f"key_{h}.json"
+                            with open(cached_path, 'wb') as f:
+                                f.write(file_content)
+                            
+                            selected_file_path.set(str(cached_path))
+                            status_var.set(f"Selected: {os.path.basename(path)}")
+                            status_label.config(fg="black")
+                            validate_btn.config(state=tk.NORMAL)
+                        except Exception as e:
+                            status_var.set(f"Cache Error: {e}")
+                            status_label.config(fg="red")
+                    else:
+                        status_var.set("No file selected")
                         status_label.config(fg="gray")
-                        browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
-                        win.set_step_validated(False)
-                    frame.after(0, reset_ui)
-                    return
-
-                # Now perform validation with timeout
-                start_time = time.time()
-                timeout = 30
-                
-                def update_validating_text():
-                    elapsed = int(time.time() - start_time)
-                    if elapsed > timeout:
-                        status_var.set(f"Validation timed out after {timeout}s")
-                        status_label.config(fg="red")
-                        browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
-                        return
+                        validate_btn.config(state=tk.DISABLED)
                     
-                    browse_btn.config(text=f"Validating ({elapsed}s)...")
-                    if not getattr(run_verification, "done", False):
-                        frame.after(1000, update_validating_text)
+                    browse_btn.config(state=tk.NORMAL)
+                
+                frame.after(0, update_ui)
+            except Exception as e:
+                def on_err():
+                    status_var.set(f"Error: {e}")
+                    status_label.config(fg="red")
+                    browse_btn.config(state=tk.NORMAL)
+                frame.after(0, on_err)
 
-                frame.after(0, update_validating_text)
+        threading.Thread(target=run_fd, daemon=True).start()
 
-                # Validation logic
-                is_valid, err, info = validate_func(selected_path)
-                run_verification.done = True
+    def on_validate():
+        path = selected_file_path.get()
+        if not path: return
+        
+        validate_btn.config(state=tk.DISABLED, text="Validating...")
+        status_var.set("Validating credentials...")
+        frame.update_idletasks()
+
+        def run_val():
+            try:
+                # Import auth module
+                import importlib.util
+                auth_path = Path(__file__).resolve().parent.parent.parent.parent / "auth.py"
+                spec = importlib.util.spec_from_file_location("gcs_auth_step", str(auth_path))
+                auth_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(auth_module)
+                
+                is_valid, err, info = auth_module.validate_service_account_json(path)
+                project_root = getattr(win, "project_root", None)
                 
                 def final_update():
                     if is_valid:
-                        saved_path = save_func(project_root, info)
-                        status_var.set(f"Validated and saved to: {saved_path.name}")
+                        saved_path = auth_module.save_console_key(project_root, info)
+                        status_var.set(f"Successfully validated and saved!")
                         status_label.config(fg="green")
                         win.set_step_validated(True)
                     else:
@@ -116,23 +140,20 @@ def build_step(frame, win):
                         status_label.config(fg="red")
                         win.set_step_validated(False)
                     
-                    browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
-
+                    validate_btn.config(state=tk.NORMAL, text="Validate")
+                
                 frame.after(0, final_update)
             except Exception as e:
-                run_verification.done = True
-                def update_error():
-                    status_var.set(f"Error launching file dialog: {e}")
+                def on_err():
+                    status_var.set(f"Validation Logic Error: {e}")
                     status_label.config(fg="red")
-                    browse_btn.config(text="Browse and Validate JSON", state=tk.NORMAL)
-                frame.after(0, update_error)
+                    validate_btn.config(state=tk.NORMAL, text="Validate")
+                frame.after(0, on_err)
 
-        run_verification.done = False
-        threading.Thread(target=run_verification, daemon=True).start()
+        threading.Thread(target=run_val, daemon=True).start()
 
     browse_btn.config(command=on_browse)
-    browse_btn.pack(pady=10)
+    validate_btn.config(command=on_validate)
     
     # Mark as initially not validated
     win.set_step_validated(False)
-

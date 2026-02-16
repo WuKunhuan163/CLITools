@@ -8,7 +8,7 @@ import subprocess
 import os
 import queue
 from pathlib import Path
-from typing import Optional, Dict, Any, Callable, List
+from typing import Optional, Dict, Any, Callable, List, Union
 
 # Lazy import for tkinter to support auto-reexecution with safe python
 tk = None
@@ -268,6 +268,44 @@ class BaseGUIWindow:
     def get_current_state(self) -> Any:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
+
+    def setup_image(self, parent, image_path: Union[str, Path], max_width: int = None, max_height: int = None, upscale: int = 1):
+        """
+        Loads and displays an image in a tkinter Label with quality control.
+        upscale: Multiplier for internal rendering resolution (clearer images).
+        """
+        from PIL import Image, ImageTk
+        import tkinter as tk
+        
+        try:
+            img = Image.open(str(image_path))
+            
+            # Calculate resize
+            orig_w, orig_h = img.size
+            w, h = orig_w, orig_h
+            
+            if max_width and w > max_width:
+                h = int(h * (max_width / w))
+                w = max_width
+            if max_height and h > max_height:
+                w = int(w * (max_height / h))
+                h = max_height
+                
+            # Use LANCZOS for high-quality resampling
+            # If upscale > 1, we render at a higher resolution
+            render_w, render_h = w * upscale, h * upscale
+            img = img.resize((render_w, render_h), Image.Resampling.LANCZOS)
+            
+            photo = ImageTk.PhotoImage(img)
+            label = tk.Label(parent, image=photo, bg=parent.cget("bg"))
+            label.image = photo # Keep reference
+            label.pack(pady=10)
+            return label
+        except Exception as e:
+            print(f"Error loading image {image_path}: {e}")
+            err_label = tk.Label(parent, text=f"Error loading image: {os.path.basename(str(image_path))}", fg="red")
+            err_label.pack(pady=5)
+            return err_label
 
     def process_callbacks(self):
         """Process callbacks from other threads (thread-safe UI updates)."""
