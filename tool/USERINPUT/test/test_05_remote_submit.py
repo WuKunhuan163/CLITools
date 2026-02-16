@@ -41,6 +41,26 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
             if not gui_pid:
                 self.fail("Could not capture GUI PID from stdout")
 
+            # Wait for GUI to register in instances directory
+            instance_found = False
+            start_reg_wait = time.time()
+            while time.time() - start_reg_wait < 15:
+                instance_dir = project_root / "data" / "run" / "instances"
+                if instance_dir.exists():
+                    for f in instance_dir.glob("gui_*.json"):
+                        try:
+                            with open(f, 'r') as info_file:
+                                info = json.load(info_file)
+                                if info.get("custom_id") == test_id:
+                                    instance_found = True
+                                    break
+                        except: pass
+                if instance_found: break
+                time.sleep(1)
+            
+            if not instance_found:
+                self.fail(f"GUI instance with ID {test_id} not found in registry")
+
             # Send remote submit using ID
             submit_cmd = [python_exec, str(main_py), "submit", "--id", test_id]
             sub_res = subprocess.run(submit_cmd, env=env, capture_output=True, text=True)
