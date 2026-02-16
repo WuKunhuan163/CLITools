@@ -19,72 +19,51 @@ class TestUserInputKill(unittest.TestCase):
         # Start USERINPUT
         proc = subprocess.Popen([tool_cmd, "--timeout", "30"], 
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        gui_pid = None
         try:
-            # Wait for window to appear
-            time.sleep(5)
-            parent = psutil.Process(proc.pid)
-            
-            # Find the actual Tkinter process (usually a child of the wrapper or main.py)
-            children = parent.children(recursive=True)
-            print(f"DEBUG: Initial children: {[c.pid for c in children]}")
-            for c in children:
-                try: print(f"DEBUG: Child {c.pid} cmdline: {c.cmdline()}")
-                except: pass
-
-            target_child = None
-            for child in children:
-                try:
-                    # Look for python process running the USERINPUT_gui_ script
-                    cmdline = " ".join(child.cmdline())
-                    if "USERINPUT_gui_" in cmdline:
-                        target_child = child
+            # Wait for window to appear and capture its PID from stdout
+            print("DEBUG: Waiting for GUI PID from stdout...")
+            start_wait = time.time()
+            while time.time() - start_wait < 10:
+                line = proc.stdout.readline()
+                if not line: break
+                print(f"DEBUG: USERINPUT line: {line.strip()}")
+                if "(PID: " in line:
+                    import re
+                    match = re.search(r"\(PID: (\d+)\)", line)
+                    if match:
+                        gui_pid = int(match.group(1))
+                        print(f"DEBUG: Found GUI PID: {gui_pid}")
                         break
-                except (psutil.NoSuchProcess, psutil.AccessDenied): continue
             
-            if not target_child and children:
-                # Fallback: look for any child that is a python process
-                for child in children:
-                    try:
-                        name = child.name().lower()
-                        if "python" in name:
-                            target_child = child
-                            break
-                    except (psutil.NoSuchProcess, psutil.AccessDenied): continue
-                
-            if target_child:
-                child_pid = target_child.pid
-                print(f"DEBUG: Killing target child PID {child_pid}")
-                # Kill the child gracefully first
+            if gui_pid:
+                print(f"DEBUG: Killing GUI process PID {gui_pid}")
                 try:
-                    os.kill(child_pid, signal.SIGTERM)
+                    os.kill(gui_pid, signal.SIGTERM)
                 except ProcessLookupError:
                     pass
                 
                 # Wait for retry mechanism to spawn new process
-                # retry loop has 1s sleep
                 print("DEBUG: Waiting for retry...")
-                for i in range(10):
-                    time.sleep(1)
-                    new_children = parent.children(recursive=True)
-                    print(f"DEBUG: Attempt {i+1}, new children: {[c.pid for c in new_children]}")
-                    if len(new_children) > 0:
-                        # Check if any new child is a python process
-                        for c in new_children:
-                            try:
-                                if "python" in c.name().lower() and c.pid != child_pid:
-                                    target_child = c
-                                    break
-                            except: continue
-                        if target_child.pid != child_pid:
-                            break
+                new_gui_pid = None
+                start_retry = time.time()
+                while time.time() - start_retry < 15:
+                    line = proc.stdout.readline()
+                    if not line: break
+                    print(f"DEBUG: USERINPUT retry line: {line.strip()}")
+                    if "(PID: " in line:
+                        match = re.search(r"\(PID: (\d+)\)", line)
+                        if match:
+                            new_gui_pid = int(match.group(1))
+                            if new_gui_pid != gui_pid:
+                                print(f"DEBUG: Found NEW GUI PID: {new_gui_pid}")
+                                break
                 
-                if len(new_children) == 0:
-                    stdout, stderr = proc.communicate(timeout=1)
-                    print(f"STDOUT: {stdout}")
-                    print(f"STDERR: {stderr}")
-                self.assertTrue(len(new_children) > 0, "New subprocess was not spawned after kill")
+                self.assertIsNotNone(new_gui_pid, "New GUI process was not spawned after kill")
+                self.assertNotEqual(new_gui_pid, gui_pid, "New GUI process has the same PID")
             else:
-                self.fail("Could not find Tkinter child process")
+                self.fail("Could not capture GUI PID from stdout")
         finally:
             # Full cleanup
             try:
