@@ -385,11 +385,13 @@ if __name__ == "__main__":
                 return f"{res['data']} {status_hint}"
             
             reason = res.get("reason", "interrupted")
-            if reason == "interrupted":
+            if reason == "interrupted" or reason == "stop":
                 raise UserInputFatalError(get_msg("msg_interrupted", "Interrupted by user"))
+            elif reason == "signal":
+                # External signal (e.g. kill) - allow retry
+                raise UserInputRetryableError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
             else:
-                msg = get_msg("msg_terminated_external", "Instance terminated from external signal")
-                raise UserInputFatalError(msg)
+                raise UserInputFatalError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
         elif res.get("status") == "timeout":
             data = res.get('data', '')
             if data and data.strip():
