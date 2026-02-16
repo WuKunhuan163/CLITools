@@ -516,6 +516,7 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
                 if item.name != "install":
                     shutil.move(str(item), str(install_wrapper / item.name))
             sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
             success_status = _("python_install_success_status", "Successfully installed")
             print(f"{GREEN}{BOLD}{success_status}{RESET} {version}")
             return True

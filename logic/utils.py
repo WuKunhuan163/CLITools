@@ -724,7 +724,8 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     else:
         if not manager:
             # Final line clearing to avoid artifacts
-            sys.stdout.write(f"\r\033[K")
+            # Ensure we are at the beginning of the line and clear everything
+            sys.stdout.write("\r\033[K")
             sys.stdout.flush()
         
         # Simplify error message

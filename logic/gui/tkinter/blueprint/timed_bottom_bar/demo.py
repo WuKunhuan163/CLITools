@@ -35,7 +35,7 @@ class DemoWindow(BaseGUIWindow):
         main_frame = tk.Frame(self.root, padx=20, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Centered text box as requested
+        # Centered text box
         text_widget = tk.Text(main_frame, height=3, font=get_label_style(), bg="#f0f0f0", relief=tk.FLAT)
         text_widget.pack(fill=tk.BOTH, expand=True)
         text_widget.insert(tk.END, "This window will automatically close in 10 seconds.")

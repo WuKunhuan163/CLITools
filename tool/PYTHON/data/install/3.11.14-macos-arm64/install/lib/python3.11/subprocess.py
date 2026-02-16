@@ -249,7 +249,7 @@ if _mswindows:
     # On Windows we just need to close `Popen._handle` when we no longer need
     # it, so that the kernel can free it. `Popen._handle` gets closed
     # implicitly when the `Popen` instance is finalized (see `Handle.__del__`,
-    # which is calling `CloseHandle` as requested in [1]), so there is nothing
+    # which is calling `CloseHandle` in [1]), so there is nothing
     # for `_cleanup` to do.
     #
     # [1] https://docs.microsoft.com/en-us/windows/desktop/ProcThread/

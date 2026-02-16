@@ -514,8 +514,9 @@ def main():
     for attempt in range(3):
         try:
             # Show waiting message with properly styled ellipsis
-            waiting_label = get_msg("label_waiting", "Waiting for USERINPUT feedback via GUI")
-            waiting_msg = f"{BOLD}{get_color('BLUE')}{waiting_label}{RESET} (PID: {os.getpid()})..."
+            waiting_label = get_msg("label_waiting", "Waiting for USERINPUT feedback")
+            via_gui = get_msg("label_via_gui", "via GUI")
+            waiting_msg = f"{BOLD}{get_color('BLUE')}{waiting_label}{RESET} {via_gui} (PID: {os.getpid()})..."
             sys.stdout.write(f"\r\033[K{waiting_msg}")
             sys.stdout.flush()
             

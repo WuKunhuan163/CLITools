@@ -862,7 +862,7 @@ def _test_tool_with_args(args):
     if current_cpu_at_start >= 0.6 * test_cpu_limit:
         label = _("test_current_cpu_load_label", "Current CPU load: ")
         max_label = _("label_max", "max")
-        # Ensure only the percent value is bolded as requested
+        # Ensure only the percent value is bolded
         print(f"{label}{BOLD}{current_cpu_at_start:.1f}%{RESET} ({max_label}: {test_cpu_limit:.1f}%)")
     
     # Add CPU wait stage (stealth)
@@ -1227,7 +1227,7 @@ def _list_tools(force=False):
     # Display
     for name, info in sorted(cache.items()):
         status = "[installed]" if info.get("installed") else "[available]"
-        # Do NOT make [installed] green as requested
+        # Do NOT make [installed] green
         print(f"{BOLD}{name}{RESET} {status}")
         print(f"  {info.get('description', 'No description')}")
         purpose_label = _("tool_list_purpose_label", "Purpose:")

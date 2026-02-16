@@ -337,7 +337,7 @@ class TestRunner:
                                  status=status_label, file=bold_file, duration_label=duration_label, duration=duration)
                 
                 if report_path:
-                    # Use | instead of \n to keep it single-line as requested
+                    # Use | instead of \n to keep it single-line
                     report_label = self._("test_full_report", "Full report: {path}", path=report_path)
                     msg += f" | {report_label}"
 
