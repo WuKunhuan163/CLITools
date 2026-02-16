@@ -996,7 +996,7 @@ def _run_installation_test(tool_name, stay_on_test=False):
     tm_install.add_stage(TuringStage(
         name="installation",
         action=install_test_action,
-        active_status="Testing installation",
+        active_status="Testing",
         success_status="Successfully tested",
         bold_part="Testing installation"
     ))

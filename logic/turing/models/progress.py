@@ -258,9 +258,7 @@ class ProgressTuringMachine:
                 YELLOW = get_color("YELLOW", "\033[33m")
                 RESET = get_color("RESET", "\033[0m")
                 
-                # Format: Operation cancelled (Yellow Bold) by user. (Normal)
-                # Note: We don't have a translation helper directly in this scope easily, 
-                # but we can import it or use hardcoded default for now as it's a critical framework part.
+                from pathlib import Path
                 from logic.lang.utils import get_translation
                 from logic.utils import get_logic_dir, find_project_root
                 root = find_project_root(Path(__file__))
