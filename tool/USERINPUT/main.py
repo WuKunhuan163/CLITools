@@ -419,6 +419,39 @@ def main():
         from logic.gui.manager import handle_gui_remote_command
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, sys.argv[2:], tool.get_translation)
 
+    if args.command == "config":
+        # Handle config command
+        config = get_config()
+        updated = False
+        
+        # We need to parse unknown args for config options
+        config_parser = argparse.ArgumentParser(add_help=False)
+        config_parser.add_argument("--focus-interval", type=int)
+        config_parser.add_argument("--time-increment", type=int)
+        c_args, _ = config_parser.parse_known_args(unknown)
+        
+        if c_args.focus_interval is not None:
+            config["focus_interval"] = c_args.focus_interval
+            updated = True
+        if c_args.time_increment is not None:
+            config["time_increment"] = c_args.time_increment
+            updated = True
+            
+        if updated:
+            with open(TOOL_INTERNAL / "config.json", 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            # Print current config
+            from logic.config import get_color
+            BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+            print(f"{BOLD}{GREEN}Successfully updated{RESET} USERINPUT configuration:")
+            for k, v in config.items():
+                print(f"  {k}: {v}")
+            return 0
+        else:
+            print("Usage: USERINPUT config --focus-interval <sec> --time-increment <sec>")
+            return 1
+
     from logic.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 

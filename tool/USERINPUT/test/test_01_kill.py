@@ -29,15 +29,22 @@ class TestUserInputKill(unittest.TestCase):
             target_child = None
             for child in children:
                 try:
-                    # Look for python process running with -c (the injected tkinter script)
+                    # Look for python process running the USERINPUT_gui_ script
                     cmdline = " ".join(child.cmdline())
-                    if "-c" in cmdline and "import tkinter" in cmdline:
+                    if "USERINPUT_gui_" in cmdline:
                         target_child = child
                         break
                 except (psutil.NoSuchProcess, psutil.AccessDenied): continue
             
             if not target_child and children:
-                target_child = children[-1]
+                # Fallback: look for any child that is a python process
+                for child in children:
+                    try:
+                        name = child.name().lower()
+                        if "python" in name:
+                            target_child = child
+                            break
+                    except (psutil.NoSuchProcess, psutil.AccessDenied): continue
                 
             if target_child:
                 child_pid = target_child.pid
