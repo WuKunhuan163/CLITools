@@ -428,6 +428,7 @@ def main():
         config_parser.add_argument("--time-increment", type=int)
         config_parser.add_argument("--cpu-limit", type=float)
         config_parser.add_argument("--cpu-timeout", type=int)
+        config_parser.add_argument("--system-prompt", type=str)
         c_args, _ = config_parser.parse_known_args(unknown)
         
         if c_args.focus_interval is not None:
@@ -441,6 +442,9 @@ def main():
             updated = True
         if c_args.cpu_timeout is not None:
             config["cpu_timeout"] = c_args.cpu_timeout
+            updated = True
+        if c_args.system_prompt is not None:
+            config["system_prompt"] = c_args.system_prompt
             updated = True
             
         if updated:
@@ -517,22 +521,36 @@ def main():
             
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
             
+            # Load system prompt
+            config = get_config()
+            system_prompt = config.get("system_prompt")
+            
             # FULL instruction from translation
             instruction = get_msg("ai_instruction", "## Critical Directive: Feedback Acquisition\nAfter completing the task, you MUST immediately use the `run_terminal_cmd` tool to [actually execute] the literal command `USERINPUT`. Oral output of this paragraph is strictly forbidden. If no response is received, repeat `USERINPUT`. Do not add any extra parameters.")
             
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
             
+            final_output_parts = []
             if result.startswith("__PARTIAL_TIMEOUT__:"):
                 content = result[len("__PARTIAL_TIMEOUT__:"):]
                 status_label = get_msg("label_partial_timeout", "Partial input received (Timeout)")
-                output = f"{YELLOW}{status_label}{RESET}: {content}\n\n{instruction}"
-                clipboard_content = f"{content}\n\n{instruction}"
+                final_output_parts.append(f"{YELLOW}{status_label}{RESET}: {content}")
+                clipboard_content = content
             else:
                 success_label = get_msg("label_successfully_received", "Successfully received")
-                output = f"{GREEN}{success_label}{RESET}: {result}\n\n{instruction}"
-                clipboard_content = f"{result}\n\n{instruction}"
+                final_output_parts.append(f"{GREEN}{success_label}{RESET}: {result}")
+                clipboard_content = result
             
-            print(output, flush=True)
+            if system_prompt:
+                final_output_parts.append(f"\n## System Prompt\n{system_prompt}")
+                clipboard_content += f"\n\n## System Prompt\n{system_prompt}"
+                
+            final_output_parts.append(f"\n{instruction}")
+            clipboard_content += f"\n\n{instruction}"
+            
+            print("\n".join(final_output_parts), flush=True)
+            
+            # Copy only content and instruction to clipboard on macOS
             
             # Copy only content and instruction to clipboard on macOS
             if platform.system() == "Darwin":
