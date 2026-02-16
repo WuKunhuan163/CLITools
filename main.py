@@ -859,7 +859,7 @@ def _test_tool_with_args(args):
     from logic.config import get_setting
     test_cpu_limit = get_setting("test_cpu_limit", 80.0)
     current_cpu_at_start = get_cpu_percent(interval=0.1)
-    if current_cpu_at_start >= 0.6 * test_cpu_limit:
+    if True: # FORCE DISPLAY FOR DEBUGGING
         label = _("test_current_cpu_load_label", "Current CPU load: ")
         max_label = _("label_max", "max")
         # Ensure only the percent value is bolded
