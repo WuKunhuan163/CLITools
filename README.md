@@ -39,9 +39,11 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 - `TOOL install <NAME>`: Installs a tool, its tool-dependencies, and its pip-dependencies. Generates a **Managed Bootstrap Shortcut** in `bin/` that automatically uses the correct isolated environment.
 - `TOOL reinstall <NAME>`: Wipes and fresh-install a specific tool.
 - `TOOL uninstall <NAME>`: Safely removes a tool and its shortcuts.
-- `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Every tool includes a mandatory `test_00_help.py` to ensure `--help` support is always functional.
+- `TOOL test <NAME>`: Runs a suite of unit tests in parallel. Every tool includes a mandatory `test_00_help.py` to ensure `--help` support is always functional. The manager includes a **CPU Wait Stage** to ensure stable results on overloaded systems.
+- `TOOL config`: Manages global configuration, including `--test-cpu-limit` and `--test-cpu-timeout`.
 - `TOOL rule`: **Critical for AI Agents.** Generates a comprehensive set of rules and instructions that you can paste into your AI agent's system prompt or context. Use `TOOL <NAME> rule` for tool-specific guidelines.
 - `TOOL clear`: Clears the terminal screen.
+- `--no-warning`: Global flag to suppress non-critical system warnings (e.g., high CPU load).
 
 ### USERINPUT Tool
 A core tool for human-in-the-loop AI workflows:
@@ -97,8 +99,10 @@ Standardized iCloud photo and video downloader:
 ### Developer Workflow
 - `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work.
 - `TOOL dev create <NAME>`: Generates a standardized tool template with unit tests and translation placeholders.
+- `TOOL dev audit-test <NAME> [--fix]`: Audits unit test naming conventions. Every tool must have a `test_00_help.py`.
 - `TOOL dev audit-bin [--fix]`: Validates that all shortcuts in `bin/` are healthy managed bootstrap scripts. Use `--fix` to automatically upgrade legacy symlinks or create missing shortcuts.
 - `TOOL dev sanity-check <NAME>`: Verifies tool structure and required files.
+- **Tool Config**: Use `TOOL_NAME config --cpu-limit <float>` to set per-tool resource constraints.
 - **Nested Tooling**: Native support for subtools (e.g. `tool/PARENT.SUBTOOL/`). `ToolBase` robustly resolves paths and namespaces.
 
 ---
