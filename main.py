@@ -150,7 +150,7 @@ def _dev_sync(quiet=False):
     from logic.git.utils import align_branches_logic
     project_root = ROOT_PROJECT_ROOT
     
-    return align_branches_logic(project_root, translation_func=_)
+    return align_branches_logic(project_root, quiet=quiet, translation_func=_)
 
 def _dev_align():
     """Alias for _dev_sync to align branches."""

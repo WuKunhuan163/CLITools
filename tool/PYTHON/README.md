@@ -10,8 +10,8 @@ This tool provides a managed, standalone Python environment to ensure compatibil
   - **Command flag**: Use `--py-version <version>`.
   - **Environment variable**: Set `PY_VERSION` (e.g., `PY_VERSION=python3.7.3-macos PYTHON ...`).
 - **Management**:
-  - `PYTHON --py-list`: List supported and installed versions.
-  - `PYTHON --py-install <version>`: Install a specific version from the project's remote `tool` branch.
+  - `PYTHON --py-list`: List supported and installed versions. Performs a two-pass check: remote GitHub scan (cached) and local verification.
+  - `PYTHON --py-install <version>`: Install a specific version. It first attempts to fetch from the project's remote `tool` branch (migrated resources), and falls back to a direct GitHub download from `astral-sh/python-build-standalone` if not found.
   - `PYTHON --py-update`: Advanced resource migration and maintenance (for developers).
     - `--list`: Scan GitHub releases (`astral-sh/python-build-standalone`) and generate audit reports.
     - `--version <v>`: Migrate specific versions (supports comma-separated lists and `TAG:VERSION` syntax).
