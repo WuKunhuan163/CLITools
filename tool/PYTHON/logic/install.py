@@ -105,7 +105,7 @@ def get_all_assets_from_cache(tag_filter=None, version_filter=None, platform_fil
     """Reads all assets from release_asset.json and flattens them."""
     return scanner.get_filtered_assets(tag_filter=tag_filter, version_filter=version_filter, platform_filter=platform_filter)
 
-def download_and_verify(asset, target_root):
+def download_and_verify(asset, target_root, silent=False):
     """Downloads an asset to tmp, verifies it, then moves to target_dir using a Turing Machine."""
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
