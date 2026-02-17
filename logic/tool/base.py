@@ -97,12 +97,13 @@ class ToolBase:
         cpu_limit = self.get_cpu_limit()
         
         if current_cpu > cpu_limit:
-            YELLOW_BOLD = get_color("YELLOW", "\033[33m") + get_color("BOLD", "\033[1m")
+            YELLOW = get_color("YELLOW", "\033[33m")
+            BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
             
             warning_label = self.get_translation("label_warning", "Warning")
-            msg_rest = self.get_translation("warn_cpu_load_rest", ": Current CPU load ({current_cpu:.1f}%) exceeds tool's recommended limit ({cpu_limit:.1f}%). Performance may be affected.").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
-            sys.stdout.write(f"\r\033[K{YELLOW_BOLD}{warning_label}{RESET}{msg_rest}\n")
+            msg_rest = self.get_translation("warn_cpu_load_rest", "Current CPU load ({current_cpu:.1f}%) exceeds tool's recommended limit ({cpu_limit:.1f}%). Performance may be affected.").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
+            sys.stdout.write(f"\r\033[K{BOLD}{YELLOW}{warning_label}{RESET}: {msg_rest}\n")
             sys.stdout.flush()
 
     def get_data_dir(self):

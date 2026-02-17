@@ -40,9 +40,25 @@ python_path = env.get('PYTHONPATH', '')
 new_paths = f"{project_root}:{main_py.parent}"
 env["PYTHONPATH"] = f"{new_paths}:{python_path}" if python_path else new_paths
 
+# On macOS (case-insensitive), we handle 'python' vs 'PYTHON' in the same script
+invoked_name = os.path.basename(sys.argv[0])
+is_python_exec = invoked_name.lower() in ["python", "python3", "pip", "pip3"]
+
+if is_python_exec and "iCloud.iCloudPD".upper() == "PYTHON":
+    if "pip" in invoked_name.lower():
+        # Find pip associated with the managed python
+        pip_path = Path(python_exec).parent / invoked_name.lower()
+        if not pip_path.exists():
+            pip_path = Path(python_exec).parent / "pip"
+        cmd = [str(pip_path)] + sys.argv[1:]
+    else:
+        cmd = [python_exec] + sys.argv[1:]
+else:
+    cmd = [python_exec, str(main_py)] + sys.argv[1:]
+
 # Execute the tool and preserve exit code
 try:
-    res = subprocess.run([python_exec, str(main_py)] + sys.argv[1:], env=env)
+    res = subprocess.run(cmd, env=env)
     sys.exit(res.returncode)
 except KeyboardInterrupt:
     sys.exit(1)

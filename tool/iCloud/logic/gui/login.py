@@ -110,7 +110,12 @@ if __name__ == "__main__":
             except Exception as e:
                 return {"status": "error", "message": f"System error: {str(e)}"}
 
-    win = ICloudLoginWindow(args.title, args.timeout, args.internal_dir, 
+    # If internal_dir is not provided, use the script's directory
+    internal_dir = args.internal_dir
+    if not internal_dir:
+        internal_dir = str(Path(__file__).resolve().parent)
+
+    win = ICloudLoginWindow(args.title, args.timeout, internal_dir, 
                             error_msg=error_msg, verify_handler=icloud_verify_handler)
     if apple_id:
         win.account_initial = apple_id

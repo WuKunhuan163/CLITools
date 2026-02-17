@@ -18,7 +18,8 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
         print(_("audit_en_default", "English is the default language and does not require an audit scan."))
         return
 
-    lang_name = get_translation(str(get_logic_dir(project_root)), f"lang_name_{lang_code}", lang_code, lang_code=lang_code)
+    native_names = {"zh": "中文", "en": "English", "ar": "العربية"}
+    lang_name = native_names.get(lang_code, get_translation(str(get_logic_dir(project_root)), f"lang_name_{lang_code}", lang_code, lang_code=lang_code))
     
     from logic.lang.audit import LangAuditor
     

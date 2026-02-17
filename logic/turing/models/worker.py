@@ -116,7 +116,7 @@ class ParallelWorkerPool:
         
         def wrapper(task_id, func, *args, **kwargs):
             self.status_bar.update(task_id, "add")
-            stage = TuringStage(name=f"Task {task_id}", action=func)
+            stage = TuringStage(name=f"Task {task_id}", action=func, bold_part="Running Task")
             try:
                 # Support passing stage to func if it accepts it
                 import inspect

@@ -132,8 +132,9 @@ class LangAuditor:
             else:
                 return f"{BOLD}{color_code}{status}{RESET}"
 
-        green_code = "\033[32m" 
-        red_code = "\033[31m"
+        from logic.config import get_color
+        green_code = get_color(success_color, "\033[32m") 
+        red_code = get_color(fail_color, "\033[31m")
         
         expected_active = format_state(active_status, active_name, BLUE, bold_part) + "..."
         expected_success = format_state(success_status, success_name, green_code, bold_part)

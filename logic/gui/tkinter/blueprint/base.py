@@ -94,7 +94,7 @@ class BaseGUIWindow:
         
         # Robust project root detection for flags and audio
         from logic.utils import find_project_root
-        if self.internal_dir:
+        if self.internal_dir and isinstance(self.internal_dir, (str, Path)):
             self.project_root = find_project_root(Path(self.internal_dir))
         else:
             # Fallback to current working directory
