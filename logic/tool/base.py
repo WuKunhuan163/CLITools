@@ -166,24 +166,15 @@ class ToolBase:
     def handle_command_line(self, parser=None):
         """
         Process command line arguments. 
-        If 'setup' is the first argument, run the tool's setup.py.
-        If 'install' is the first argument, handle sub-tool installation.
-        If a parser is provided, attempts to determine if the command is recognized.
-        If not recognized, delegates to system fallback.
         Returns True if a command was handled and the tool should exit.
         """
-        # Check CPU load at the start of command execution
         self.check_cpu_load_and_warn()
 
+        # Check for quiet flag globally
+        self.is_quiet = "--tool-quiet" in sys.argv
+        
         if len(sys.argv) > 1:
-            # Check for tool-specific quiet flag
-            is_quiet = False
-            args_to_check = sys.argv[1:]
-            if "--tool-quiet" in args_to_check:
-                is_quiet = True
-                # Create a copy of args without the flag for further processing
-                args_to_check = [a for p, a in enumerate(sys.argv[1:]) if a != "--tool-quiet"]
-
+            args_to_check = [a for a in sys.argv[1:] if a != "--tool-quiet"]
             cmd = args_to_check[0] if args_to_check else None
             if not cmd: return False
 
@@ -206,7 +197,6 @@ class ToolBase:
             elif cmd == "uninstall":
                 if len(args_to_check) > 1:
                     subtool_name = args_to_check[1]
-                    # Check for -y/--yes flag
                     force_yes = "-y" in args_to_check or "--yes" in args_to_check
                     self.run_subtool_uninstall(subtool_name, force_yes=force_yes)
                 else:
@@ -215,23 +205,19 @@ class ToolBase:
             elif cmd == "rule":
                 self.print_rule()
                 return True
-            elif cmd == "config": # New config command for tools
-                # Only handle config if NOT already explicitly handled by the tool's parser
+            elif cmd == "config":
                 is_custom_config = False
                 if parser:
                     for action in parser._actions:
                         if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
                             is_custom_config = True
                             break
-                
                 if not is_custom_config:
                     self._handle_tool_config(args_to_check[1:])
                     return True
                 
-                # 2. Check if it's a subtool (relative to current tool_dir)
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if subtool_main.exists():
-                # Proxy to subtool
                 cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
                 try:
                     res = subprocess.run(cmd_args)
@@ -240,11 +226,8 @@ class ToolBase:
                     print(f"Error executing subtool {cmd}: {e}")
                     sys.exit(1)
 
-            # 3. Check against parser if provided
             if parser:
                 import argparse
-                
-                # Check if it's a known sub-command or flag
                 is_recognized = False
                 choices = []
                 for action in parser._actions:
@@ -254,19 +237,12 @@ class ToolBase:
                         choices.extend(action.choices)
                     if cmd in action.option_strings:
                         is_recognized = True
-                
-                if cmd in choices:
-                    is_recognized = True
-                
-                # Special cases for help
-                if cmd in ["-h", "--help"]:
-                    is_recognized = True
+                if cmd in choices: is_recognized = True
+                if cmd in ["-h", "--help"]: is_recognized = True
 
                 if not is_recognized:
-                    # Not a recognized tool command, delegate to system
-                    res = self.run_system_fallback(capture_output=is_quiet, filtered_args=args_to_check)
-                    if is_quiet:
-                        # Print JSON result for interface use
+                    res = self.run_system_fallback(capture_output=self.is_quiet, filtered_args=args_to_check)
+                    if self.is_quiet:
                         print("TOOL_RESULT_JSON:" + json.dumps({
                             "returncode": res.returncode,
                             "stdout": res.stdout,
@@ -621,3 +597,12 @@ class ToolBase:
         """Unified success status reporting for tools."""
         from logic.utils import print_success_status
         print_success_status(action_msg)
+
+    def print_result_if_quiet(self, returncode, stdout="", stderr=""):
+        """Print JSON result if quiet mode is active."""
+        if getattr(self, "is_quiet", False):
+            print("TOOL_RESULT_JSON:" + json.dumps({
+                "returncode": returncode,
+                "stdout": stdout,
+                "stderr": stderr
+            }))

@@ -86,7 +86,7 @@ class BaseGUIWindow:
         self.resizable_images: List[Dict[str, Any]] = [] # {label, path, max_width, upscale, original_img}
         
         # Block management
-        self.blocks: List[tk.Frame] = []
+        self.blocks: List[Any] = []
         self.debug_blocks = False # If True, blocks will have visible backgrounds
         
         # Thread safety: queue for callbacks from background threads
@@ -284,7 +284,7 @@ class BaseGUIWindow:
             colors = ["#f0f0f0", "#e8f0fe", "#fdf7e3", "#f6f6f6"]
             bg = colors[len(self.blocks) % len(colors)]
             
-        # padx/pady should be passed to pack(), not Frame constructor
+        # block should fill the width of its parent
         block = tk.Frame(parent, bg=bg or parent.cget("bg"))
         block.pack(fill=tk.X, side=tk.TOP, padx=padx, pady=pady)
         self.blocks.append(block)
@@ -303,59 +303,86 @@ class BaseGUIWindow:
             img_path_str = str(image_path)
             img = Image.open(img_path_str)
             
-            # Initial size calculation
-            orig_w, orig_h = img.size
+            # Create label first, we'll configure it in resize
+            label = tk.Label(parent, bg=parent.cget("bg"))
+            label.pack(pady=10, fill=tk.X)
             
-            # Get parent width (use a reasonable default if not yet rendered)
-            parent_w = parent.winfo_width()
-            if parent_w <= 1:
-                # Try to get root window width or use a fallback
-                parent_w = self.root.winfo_width() if self.root else 800
-            
-            target_w = parent_w - 60 # Default padding
-            if max_width:
-                target_w = min(target_w, max_width)
-            
-            # Ensure it doesn't exceed original size unless upscaling
-            if target_w > orig_w:
-                target_w = orig_w
-                
-            if target_w < 50: target_w = 50
-            
-            target_h = int(orig_h * (target_w / orig_w))
-            if max_height and target_h > max_height:
-                target_h = max_height
-                target_w = int(orig_w * (target_h / orig_h))
-                
-            render_w, render_h = int(target_w * upscale), int(target_h * upscale)
-            resized_img = img.resize((render_w, render_h), Image.Resampling.LANCZOS)
-            
-            photo = ImageTk.PhotoImage(resized_img)
-            label = tk.Label(parent, image=photo, bg=parent.cget("bg"))
-            label.image = photo # Keep reference
-            label.pack(pady=10)
+            item = {
+                "label": label,
+                "path": img_path_str,
+                "max_width": max_width,
+                "max_height": max_height,
+                "upscale": upscale,
+                "original_img": img,
+                "parent": parent
+            }
             
             if dynamic:
-                self.resizable_images.append({
-                    "label": label,
-                    "path": img_path_str,
-                    "max_width": max_width,
-                    "max_height": max_height,
-                    "upscale": upscale,
-                    "original_img": img,
-                    "parent": parent
-                })
-                
+                self.resizable_images.append(item)
+                # Bind to the block's resize event
                 if not hasattr(parent, "_resize_bound"):
                     parent.bind("<Configure>", self.on_container_resize, add="+")
                     parent._resize_bound = True
-                    
+            
+            # Initial resize call
+            self.root.after(10, lambda: self._resize_single_image(item))
             return label
         except Exception as e:
+            import tkinter as tk
             print(f"Error loading image {image_path}: {e}")
             err_label = tk.Label(parent, text=f"Error loading image: {os.path.basename(str(image_path))}", fg="red")
             err_label.pack(pady=5)
             return err_label
+
+    def _resize_single_image(self, item):
+        """Internal logic for a single image resize."""
+        from PIL import ImageTk, Image
+        import tkinter as tk
+        
+        label = item["label"]
+        try:
+            if not label.winfo_exists(): return
+        except tk.TclError: return
+            
+        parent = item["parent"]
+        original_img = item["original_img"]
+        upscale = item["upscale"]
+        
+        # Get actual available width in the block
+        parent_w = parent.winfo_width()
+        if parent_w <= 1:
+            parent_w = self.root.winfo_width() - 60 if self.root else 740
+        
+        # Target width is the full parent width
+        target_w = parent_w
+        if item["max_width"]:
+            target_w = min(target_w, item["max_width"])
+        
+        if target_w < 50: target_w = 50 
+        
+        orig_w, orig_h = original_img.size
+        # Calculate aspect ratio
+        aspect = orig_h / orig_w
+        target_h = int(target_w * aspect)
+        
+        if item["max_height"] and target_h > item["max_height"]:
+            target_h = item["max_height"]
+            target_w = int(target_h / aspect)
+        
+        if self.debug_blocks:
+            print(f"DEBUG: Resizing image {os.path.basename(item['path'])}")
+            print(f"  Parent width: {parent_w}, Target width: {target_w}, Target height: {target_h}")
+
+        try:
+            render_w, render_h = int(target_w * upscale), int(target_h * upscale)
+            # Use Resampling.LANCZOS for best quality as requested
+            resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(resized_img)
+            label.config(image=photo)
+            label.image = photo 
+        except Exception as e:
+            if self.debug_blocks:
+                print(f"DEBUG: Resize error for {item['path']}: {e}")
 
     def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
         """Standardized label creation with automatic wrapping."""
@@ -373,9 +400,13 @@ class BaseGUIWindow:
         if w <= 1: w = 600
         
         label = tk.Label(parent, text=text, font=font, bg=parent.cget("bg"), 
-                         justify=justify, wraplength=w-40)
+                         justify=tk.CENTER if is_title else justify, 
+                         wraplength=w-40)
         label.pack(pady=pady, padx=padx, fill=tk.X)
         
+        if self.debug_blocks:
+            label.config(bg="#f0f0f0")
+
         # Ensure parent has resize binding
         if not hasattr(parent, "_resize_bound"):
             parent.bind("<Configure>", self.on_container_resize, add="+")
@@ -454,51 +485,8 @@ class BaseGUIWindow:
 
     def perform_image_resizing(self):
         """Actual resizing logic for all registered dynamic images."""
-        from PIL import ImageTk, Image
-        import tkinter as tk
-        
         for item in list(self.resizable_images):
-            label = item["label"]
-            try:
-                if not label.winfo_exists():
-                    self.resizable_images.remove(item)
-                    continue
-            except tk.TclError:
-                self.resizable_images.remove(item)
-                continue
-                
-            parent = item["parent"]
-            original_img = item["original_img"]
-            upscale = item["upscale"]
-            
-            parent_w = parent.winfo_width()
-            if parent_w <= 1: continue 
-            
-            target_w = parent_w - 50 
-            if item["max_width"]:
-                target_w = min(target_w, item["max_width"])
-            
-            if target_w < 50: target_w = 50 
-            
-            orig_w, orig_h = original_img.size
-            target_h = int(orig_h * (target_w / orig_w))
-            
-            if item["max_height"] and target_h > item["max_height"]:
-                target_h = item["max_height"]
-                target_w = int(orig_w * (target_h / orig_h))
-            
-            current_w = label.winfo_width()
-            if abs(current_w - target_w) < 10:
-                continue
-                
-            try:
-                render_w, render_h = int(target_w * upscale), int(target_h * upscale)
-                resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
-                photo = ImageTk.PhotoImage(resized_img)
-                label.config(image=photo)
-                label.image = photo 
-            except Exception as e:
-                print(f"Resize error for {item['path']}: {e}")
+            self._resize_single_image(item)
 
     def perform_text_wrapping_updates(self):
         """Updates wraplength for all Labels within blocks to match current width."""

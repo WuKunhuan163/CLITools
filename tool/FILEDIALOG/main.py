@@ -547,13 +547,13 @@ def main():
         data = result['data']
         import shlex
         if isinstance(data, list):
-            print(f"{BOLD}{GREEN}{selected_label}{RESET} ({len(data)}):")
-            for i, p in enumerate(data, 1):
-                display_p = shlex.quote(p) if p and " " in p else (p or "")
-                print(f"  {i}. {display_p}")
+            output = f"({len(data)}):\n" + "\n".join([f"  {i}. {shlex.quote(p) if p and ' ' in p else (p or '')}" for i, p in enumerate(data, 1)])
+            print(f"{BOLD}{GREEN}{selected_label}{RESET} {output}")
+            tool.print_result_if_quiet(0, stdout="\n".join(data))
         else:
             display_data = shlex.quote(data) if data and " " in data else (data or "")
             print(f"{BOLD}{GREEN}{selected_label}{RESET}: {display_data}")
+            tool.print_result_if_quiet(0, stdout=str(data))
         return 0
     elif result['status'] in ['cancelled', 'terminated']:
         label = get_msg('label_terminated', 'Terminated')
@@ -563,13 +563,17 @@ def main():
             reason_map = {"stop": get_msg("msg_terminated_external", "Instance terminated from external signal"), "interrupted": get_msg("msg_interrupted", "Interrupted by user"), "signal": get_msg("msg_terminated_external", "Instance terminated from external signal")}
             msg = reason_map.get(reason, reason)
         print(f"{BOLD}{RED}{label}{RESET}: {msg}")
+        tool.print_result_if_quiet(1, stderr=msg)
         return 1
     elif result['status'] == 'timeout':
         label, msg = get_msg('label_error', 'Error'), get_msg('msg_timeout', 'Input Timeout')
         print(f"{BOLD}{RED}{label}{RESET}: {msg}")
+        tool.print_result_if_quiet(1, stderr=msg)
         return 1
     else:
-        print(f"Error: {result.get('message', 'Unknown error')}", file=sys.stderr)
+        err_msg = result.get('message', 'Unknown error')
+        print(f"Error: {err_msg}", file=sys.stderr)
+        tool.print_result_if_quiet(1, stderr=err_msg)
         return 1
 
 if __name__ == "__main__":
