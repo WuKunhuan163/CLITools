@@ -238,7 +238,9 @@ class BaseGUIWindow:
             if reason:
                 self.result["reason"] = reason
             try:
-                if self.root: self.root.destroy()
+                if self.root:
+                    self.root.update_idletasks()
+                    self.root.destroy()
             except: pass
 
     def trigger_add_time(self, increment: int, status_label: Optional[Any] = None):
@@ -616,7 +618,20 @@ class BaseGUIWindow:
             self.root.lift()
             self.root.attributes("-topmost", True)
 
-            self.root.mainloop()
+            if platform.system() == "Darwin":
+                # Suppress IMKClient noise during mainloop too
+                fd = os.open(os.devnull, os.O_WRONLY)
+                old_stderr = os.dup(sys.stderr.fileno())
+                os.dup2(fd, sys.stderr.fileno())
+                try:
+                    self.root.mainloop()
+                finally:
+                    sys.stderr.flush()
+                    os.dup2(old_stderr, sys.stderr.fileno())
+                    os.close(fd)
+                    os.close(old_stderr)
+            else:
+                self.root.mainloop()
             
             # Cleanup stop files if they exist for this PID
             try:

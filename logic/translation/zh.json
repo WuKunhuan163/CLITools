@@ -236,5 +236,6 @@
   "err_sync_installation_test": "在安装测试期间。",
     "test_waiting_for": "正在等待",
     "label_max": "上限",
-    "warn_cpu_load": "警告：当前 CPU 负载 ({current_cpu:.1f}%) 超过了工具建议的限制 ({cpu_limit:.1f}%)。性能可能会受到影响。"
+    "label_waiting_for_cpu_load": "正在等待 CPU 负载",
+    "warn_cpu_load_rest": "当前 CPU 负载 ({current_cpu:.1f}%) 超过了工具建议的限制 ({cpu_limit:.1f}%)。性能可能会受到影响。"
 }

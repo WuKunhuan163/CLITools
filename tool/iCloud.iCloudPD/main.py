@@ -195,11 +195,17 @@ def main():
                 from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
                 from logic.gui.engine import setup_gui_environment
                 setup_gui_environment()
-                win = TwoFactorAuthWindow(title="iCloud 2FA", timeout=300, internal_dir=str(tool.tool_dir / "logic"), n=6)
+                
+                def v_handler(code):
+                    if api.validate_2fa_code(code):
+                        return {"status": "success", "data": code}
+                    else:
+                        return {"status": "error", "message": "Invalid 2FA code."}
+
+                win = TwoFactorAuthWindow(title="iCloud 2FA", timeout=300, internal_dir=str(tool.tool_dir / "logic"), n=6, verify_handler=v_handler)
                 win.run(win.setup_ui)
-                if win.result.get("status") == "success":
-                    if not api.validate_2fa_code(win.result["data"]): return False
-                else: return False
+                if win.result.get("status") != "success":
+                    return False
             
             save_session(apple_id, api)
             final_apple_id = apple_id

@@ -186,7 +186,7 @@ class PythonScanner:
             tm.add_stage(TuringStage(
                 name="GitHub releases",
                 action=scan_action,
-                active_status="Scanning",
+                active_status="Scanning from GitHub",
                 success_status="Successfully fetched",
                 success_name="GitHub releases",
                 fail_status="Failed to fetch",
