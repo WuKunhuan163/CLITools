@@ -279,13 +279,18 @@ class BaseGUIWindow:
     def add_block(self, parent, pady=10, padx=20, bg=None):
         """Adds a new layout block (tk.Frame) that fills the width."""
         import tkinter as tk
-        if bg is None and self.debug_blocks:
-            # Use specific light colors for debugging "alpha" blocks
-            colors = ["#e8f0fe", "#fdf7e3", "#f6f6f6", "#e6fffa"]
-            bg = colors[len(self.blocks) % len(colors)]
-            
+        block_bg = bg
+        if not block_bg:
+            if getattr(self, "debug_blocks", False):
+                # Light alpha-like colors for visual debugging
+                colors = ["#e8f0fe", "#fdf7e3", "#f6f6f6", "#e6fffa", "#fff5f5"]
+                idx = len(self.blocks) % len(colors)
+                block_bg = colors[idx]
+            else:
+                block_bg = parent.cget("bg")
+                
         # block should fill the width of its parent
-        block = tk.Frame(parent, bg=bg or parent.cget("bg"))
+        block = tk.Frame(parent, bg=block_bg)
         block.pack(fill=tk.X, side=tk.TOP, padx=padx, pady=pady)
         self.blocks.append(block)
         return block

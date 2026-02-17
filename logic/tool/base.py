@@ -173,9 +173,13 @@ class ToolBase:
         # Check for quiet flag globally
         self.is_quiet = "--tool-quiet" in sys.argv
         
+        # Clean sys.argv for the provided parser
+        orig_argv = sys.argv[:]
+        sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
+        
         if len(sys.argv) > 1:
-            args_to_check = [a for a in sys.argv[1:] if a != "--tool-quiet"]
-            cmd = args_to_check[0] if args_to_check else None
+            args_to_check = sys.argv[1:]
+            cmd = args_to_check[0]
             if not cmd: return False
 
             if cmd == "setup":

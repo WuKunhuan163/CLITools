@@ -62,7 +62,7 @@ class KeyboardSuppressor:
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
                 
-                termios.tcsetattr(self._fd, termios.TCSADRAIN, new_settings)
+                termios.tcsetattr(self._fd, termios.TCSANOW, new_settings)
                 
                 self.running = True
                 self._thread = threading.Thread(target=self._capture_loop, daemon=True)
@@ -92,7 +92,7 @@ class KeyboardSuppressor:
         # Restore settings
         if self._old_settings and self._fd is not None:
             try:
-                termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+                termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
             except Exception:
                 pass
         

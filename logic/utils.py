@@ -517,7 +517,15 @@ def check_and_reexecute_with_python(tool_name, version=None):
             env = os.environ.copy()
             env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
             env["TOOL_MANAGED_PYTHON_ACTIVE"] = "1"
-            os.execve(py_exec, [py_exec] + sys.argv, env)
+            
+            # Strip --no-warning and --tool-quiet from sys.argv for the real python
+            # because these are handled by ToolBase before re-execution
+            filtered_argv = [sys.argv[0]]
+            for arg in sys.argv[1:]:
+                if arg not in ["--no-warning", "--tool-quiet"]:
+                    filtered_argv.append(arg)
+            
+            os.execve(py_exec, [py_exec] + filtered_argv[1:], env)
     
     if not py_exec:
         # PYTHON tool missing or not operational

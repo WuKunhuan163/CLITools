@@ -137,7 +137,7 @@ def main():
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
                 # User wants a key icon for security feel in CLI mode
-                prompt = f"🔑 Enter password for {apple_id}: "
+                prompt = f"Enter password for {apple_id}: "
                 password = getpass.getpass(prompt)
             except (EOFError, Exception) as e:
                 msg = str(e) or "Non-interactive terminal"
