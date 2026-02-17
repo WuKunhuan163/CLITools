@@ -14,7 +14,8 @@ class TestUserInputKill(unittest.TestCase):
             self.skipTest("psutil module not found, skipping kill test")
 
         # Use command directly
-        tool_cmd = "USERINPUT"
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        tool_cmd = str(project_root / "bin" / "USERINPUT")
         
         # Start USERINPUT
         proc = subprocess.Popen([tool_cmd, "--timeout", "30"], 
