@@ -94,7 +94,11 @@ class BaseGUIWindow:
         
         # Robust project root detection for flags and audio
         from logic.utils import find_project_root
-        self.project_root = find_project_root(Path(self.internal_dir))
+        if self.internal_dir:
+            self.project_root = find_project_root(Path(self.internal_dir))
+        else:
+            # Fallback to current working directory
+            self.project_root = find_project_root(Path.cwd())
 
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)

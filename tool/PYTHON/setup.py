@@ -51,6 +51,9 @@ def setup():
             print(f"\nInstalling default Python version: {default_version}...")
             subprocess.run([str(python_bin), "--py-install", default_version])
             
+        # Automatically enable managed python (creates symlinks in bin/)
+        subprocess.run([str(python_bin), "--enable"])
+            
     return True
 
 if __name__ == "__main__":

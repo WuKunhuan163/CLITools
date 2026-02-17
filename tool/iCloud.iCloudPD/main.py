@@ -213,7 +213,13 @@ def main():
             return False
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
-    pm.add_stage(TuringStage("iCloud account", auth_action, active_status="Authenticating", active_name="iCloud", success_status="Successfully authenticated", success_name="iCloud", fail_status="Failed to authenticate"))
+    pm.add_stage(TuringStage(
+        "iCloud account", auth_action, 
+        active_status="Authenticating", active_name="iCloud", 
+        success_status="Successfully authenticated", success_name="iCloud", 
+        fail_status="Failed to authenticate",
+        bold_part="Authenticating iCloud"
+    ))
     if not pm.run(): sys.exit(1)
 
     apple_id = final_apple_id
@@ -309,7 +315,11 @@ def main():
         return True
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
-    pm.add_stage(TuringStage("iCloud photos/videos", scan_action, active_status="Scanning", success_status="Successfully scanned", fail_status="Failed to scan"))
+    pm.add_stage(TuringStage(
+        "iCloud photos/videos", scan_action, 
+        active_status="Scanning", success_status="Successfully scanned", fail_status="Failed to scan",
+        bold_part="Scanning iCloud photos/videos"
+    ))
     pm.run()
     
     if used_cache:
@@ -427,7 +437,11 @@ def main():
         return len(to_download_objects) > 0
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
-    pm.add_stage(TuringStage("photo/video objects", gather_action, active_status="Gathering", success_status="Successfully gathered", fail_status="Failed to gather"))
+    pm.add_stage(TuringStage(
+        "photo/video objects", gather_action, 
+        active_status="Gathering", success_status="Successfully gathered", fail_status="Failed to gather",
+        bold_part="Gathering photo/video objects"
+    ))
     if not pm.run(ephemeral=True, final_newline=False): sys.exit(1)
 
     def download_worker(stage, photo, target_path):
