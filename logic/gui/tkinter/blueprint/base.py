@@ -8,7 +8,7 @@ import subprocess
 import os
 import queue
 from pathlib import Path
-from typing import Optional, Dict, Any, Callable, List
+from typing import Optional, Dict, Any, Callable, List, Union
 
 # Lazy import for tkinter to support auto-reexecution with safe python
 tk = None
@@ -81,6 +81,13 @@ class BaseGUIWindow:
         self.add_time_btn = None
         self.bottom_bar_frame = None
         self.timer_frozen = False
+        
+        # Image management for dynamic resizing
+        self.resizable_images: List[Dict[str, Any]] = [] # {label, path, max_width, upscale, original_img}
+        
+        # Block management
+        self.blocks: List[Any] = []
+        self.debug_blocks = False # If True, blocks will have visible backgrounds
         
         # Thread safety: queue for callbacks from background threads
         self.callback_queue = queue.Queue()
@@ -268,6 +275,246 @@ class BaseGUIWindow:
     def get_current_state(self) -> Any:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
+
+    def add_block(self, parent, pady=10, padx=20, bg=None):
+        """Adds a new layout block (tk.Frame) that fills the width."""
+        import tkinter as tk
+        if bg is None and self.debug_blocks:
+            # Use a semi-random light color for debugging
+            colors = ["#f0f0f0", "#e8f0fe", "#fdf7e3", "#f6f6f6"]
+            bg = colors[len(self.blocks) % len(colors)]
+            
+        # block should fill the width of its parent
+        block = tk.Frame(parent, bg=bg or parent.cget("bg"))
+        block.pack(fill=tk.X, side=tk.TOP, padx=padx, pady=pady)
+        self.blocks.append(block)
+        return block
+
+    def setup_image(self, parent, image_path: Union[str, Path], max_width: int = None, max_height: int = None, upscale: int = 1, dynamic: bool = True):
+        """
+        Loads and displays an image in a tkinter Label with quality control.
+        upscale: Multiplier for internal rendering resolution (clearer images).
+        dynamic: If True, the image will resize when its parent container resizes.
+        """
+        from PIL import Image, ImageTk
+        import tkinter as tk
+        
+        try:
+            img_path_str = str(image_path)
+            img = Image.open(img_path_str)
+            
+            # Create label first, we'll configure it in resize
+            label = tk.Label(parent, bg=parent.cget("bg"))
+            label.pack(pady=10, fill=tk.X)
+            
+            item = {
+                "label": label,
+                "path": img_path_str,
+                "max_width": max_width,
+                "max_height": max_height,
+                "upscale": upscale,
+                "original_img": img,
+                "parent": parent
+            }
+            
+            if dynamic:
+                self.resizable_images.append(item)
+                # Bind to the block's resize event
+                if not hasattr(parent, "_resize_bound"):
+                    parent.bind("<Configure>", self.on_container_resize, add="+")
+                    parent._resize_bound = True
+            
+            # Initial resize call
+            self.root.after(10, lambda: self._resize_single_image(item))
+            return label
+        except Exception as e:
+            import tkinter as tk
+            print(f"Error loading image {image_path}: {e}")
+            err_label = tk.Label(parent, text=f"Error loading image: {os.path.basename(str(image_path))}", fg="red")
+            err_label.pack(pady=5)
+            return err_label
+
+    def _resize_single_image(self, item):
+        """Internal logic for a single image resize."""
+        from PIL import ImageTk, Image
+        import tkinter as tk
+        
+        label = item["label"]
+        try:
+            if not label.winfo_exists(): return
+        except tk.TclError: return
+            
+        parent = item["parent"]
+        original_img = item["original_img"]
+        upscale = item["upscale"]
+        
+        # Get actual available width in the block
+        parent_w = parent.winfo_width()
+        if parent_w <= 1:
+            parent_w = self.root.winfo_width() - 60 if self.root else 740
+        
+        # Target width is the full parent width
+        target_w = parent_w
+        if item["max_width"]:
+            target_w = min(target_w, item["max_width"])
+        
+        if target_w < 50: target_w = 50 
+        
+        orig_w, orig_h = original_img.size
+        # Calculate aspect ratio
+        aspect = orig_h / orig_w
+        target_h = int(target_w * aspect)
+        
+        if item["max_height"] and target_h > item["max_height"]:
+            target_h = item["max_height"]
+            target_w = int(target_h / aspect)
+        
+        if self.debug_blocks:
+            print(f"DEBUG: Resizing image {os.path.basename(item['path'])}")
+            print(f"  Parent width: {parent_w}, Target width: {target_w}, Target height: {target_h}")
+
+        try:
+            render_w, render_h = int(target_w * upscale), int(target_h * upscale)
+            # Use Resampling.LANCZOS for best quality as requested
+            resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(resized_img)
+            label.config(image=photo)
+            label.image = photo 
+        except Exception as e:
+            if self.debug_blocks:
+                print(f"DEBUG: Resize error for {item['path']}: {e}")
+
+    def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
+        """Standardized label creation with automatic wrapping."""
+        import tkinter as tk
+        if "[" in text and "]" in text and "(" in text and ")" in text:
+            # Contains links, use inline link logic
+            return self.add_inline_links(parent, text)
+
+        if font is None:
+            from logic.gui.tkinter.style import get_label_style
+            font = ("Arial", 16, "bold") if is_title else get_label_style()
+            
+        # Initial wraplength based on parent width
+        w = parent.winfo_width()
+        if w <= 1: w = 600
+        
+        label = tk.Label(parent, text=text, font=font, bg=parent.cget("bg"), 
+                         justify=tk.CENTER if is_title else justify, 
+                         wraplength=w-40)
+        label.pack(pady=pady, padx=padx, fill=tk.X)
+        
+        if self.debug_blocks:
+            label.config(bg="#f0f0f0")
+
+        # Ensure parent has resize binding
+        if not hasattr(parent, "_resize_bound"):
+            parent.bind("<Configure>", self.on_container_resize, add="+")
+            parent._resize_bound = True
+            
+        return label
+
+    def add_inline_links(self, frame, text_content):
+        """
+        Creates a tk.Text widget that supports inline clickable links.
+        Format: "Some text [Link Label](https://link.url) and more text."
+        """
+        import webbrowser
+        import re
+        import tkinter as tk
+        
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=get_label_style(), 
+                              padx=20, pady=10, borderwidth=0, highlightthickness=0,
+                              bg=frame.cget("bg"), height=1) 
+        text_widget.pack(fill=tk.X, expand=True)
+        
+        # Make it look like a label
+        text_widget.config(state=tk.NORMAL)
+        
+        # Regex for [label](url)
+        pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        
+        last_idx = 0
+        for match in re.finditer(pattern, text_content):
+            # Normal text before link
+            text_widget.insert(tk.END, text_content[last_idx:match.start()])
+            
+            # Link label
+            label, url = match.groups()
+            tag_name = f"link_{match.start()}"
+            text_widget.insert(tk.END, label, tag_name)
+            
+            text_widget.tag_config(tag_name, foreground="blue", underline=True)
+            text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
+            text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
+            text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            
+            last_idx = match.end()
+            
+        # Remaining text
+        text_widget.insert(tk.END, text_content[last_idx:])
+        
+        # Disable editing
+        text_widget.config(state=tk.DISABLED)
+        
+        def _update_height(event=None):
+            # Adjust height based on content
+            try:
+                num_lines = int(text_widget.index('end-1c').split('.')[0])
+                text_widget.config(height=num_lines)
+            except: pass
+
+        frame.bind("<Configure>", _update_height, add="+")
+        _update_height()
+        
+        return text_widget
+
+    def on_container_resize(self, event):
+        """Callback for container <Configure> events to handle dynamic image and text wrapping."""
+        # Use a small delay to avoid excessive resizing during active drag
+        if hasattr(self, "_resize_timer"):
+            self.root.after_cancel(self._resize_timer)
+        self._resize_timer = self.root.after(100, self.perform_ui_updates)
+
+    def perform_ui_updates(self):
+        """Actual resizing logic for images and text wrapping."""
+        if self.window_closed or not self.root:
+            return
+        self.perform_image_resizing()
+        self.perform_text_wrapping_updates()
+
+    def perform_image_resizing(self):
+        """Actual resizing logic for all registered dynamic images."""
+        for item in list(self.resizable_images):
+            self._resize_single_image(item)
+
+    def perform_text_wrapping_updates(self):
+        """Updates wraplength for all Labels within blocks to match current width."""
+        import tkinter as tk
+        if self.window_closed or not self.root: return
+        
+        # Traverse all widgets and find Labels with wraplength
+        def update_labels(container):
+            for child in container.winfo_children():
+                if isinstance(child, tk.Label):
+                    try:
+                        # Only update if it already has a non-zero wraplength (meaning it's intended to wrap)
+                        curr_wrap = child.cget("wraplength")
+                        if curr_wrap and int(curr_wrap) > 0:
+                            # Set wraplength to parent width minus padding
+                            parent_w = container.winfo_width()
+                            if parent_w > 40:
+                                child.config(wraplength=parent_w - 40)
+                    except: pass
+                elif isinstance(child, tk.Frame):
+                    update_labels(child)
+        
+        # Start from blocks or main frame
+        for block in self.blocks:
+            try:
+                if block.winfo_exists():
+                    update_labels(block)
+            except: pass
 
     def process_callbacks(self):
         """Process callbacks from other threads (thread-safe UI updates)."""
