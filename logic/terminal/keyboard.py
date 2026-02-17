@@ -71,15 +71,21 @@ class KeyboardSuppressor:
                 self.running = False
                 self._ref_count -= 1
 
-    def stop(self):
+    def stop(self, force: bool = False):
         thread_to_join = None
         with self._lock:
             if not self.running:
+                # Still decrement ref count if we are not running but ref count > 0
+                if not force and self._ref_count > 0:
+                    self._ref_count -= 1
                 return
             
-            self._ref_count -= 1
-            if self._ref_count > 0:
-                return # Still in use elsewhere
+            if not force:
+                self._ref_count -= 1
+                if self._ref_count > 0:
+                    return # Still in use elsewhere
+            else:
+                self._ref_count = 0
             
             self.running = False
             thread_to_join = self._thread
@@ -87,63 +93,33 @@ class KeyboardSuppressor:
             
         # Join outside the lock to avoid deadlock with _capture_loop
         if thread_to_join:
-            thread_to_join.join(timeout=0.5)
+            try:
+                thread_to_join.join(timeout=0.2)
+            except:
+                pass
         
         # Restore settings
         if self._old_settings and self._fd is not None:
             try:
+                import termios
                 termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
-            except Exception:
-                pass
-        
-        if hasattr(self, '_tty_f') and self._tty_f:
-            try:
-                self._tty_f.close()
             except:
                 pass
-                
+        
+        # We don't close self._tty_f here if it's the global instance 
+        # to avoid FD issues on subsequent starts.
+        # But we clear old_settings to indicate we are done.
         self._old_settings = None
-
-    def _capture_loop(self):
-        """Background thread to read from stdin or /dev/tty."""
-        if self._fd is None:
-            return
-
-        while self.running:
-            try:
-                # Use select to avoid blocking forever, allowing thread to exit
-                r, _, _ = select.select([self._fd], [], [], 0.1)
-                if r:
-                    # Read available bytes. We use os.read for raw bytes.
-                    data = os.read(self._fd, 1024)
-                    if data:
-                        with self._lock:
-                            self.captured_keys.append(data)
-            except (IOError, EOFError):
-                break
-            except Exception:
-                break
-
-    def get_captured_raw(self) -> List[bytes]:
-        with self._lock:
-            return list(self.captured_keys)
-
-    def get_captured_text(self) -> str:
-        """Joins captured bytes into a single string if possible."""
-        with self._lock:
-            parts = []
-            for b in self.captured_keys:
-                try:
-                    parts.append(b.decode('utf-8', errors='replace'))
-                except:
-                    parts.append(repr(b))
-            return "".join(parts)
 
     def __enter__(self):
         self.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        # If an exception occurred (like KeyboardInterrupt), we might want to force stop
+        # depending on whether we expect the process to exit.
+        # However, to be safe and respect ref counting, we just call stop().
+        # The atexit handler will take care of final restoration.
         self.stop()
 
 # Global instance for easy access if needed, but per-instance usage preferred
@@ -153,5 +129,11 @@ def get_global_suppressor() -> KeyboardSuppressor:
     global _global_suppressor
     if _global_suppressor is None:
         _global_suppressor = KeyboardSuppressor()
+        # Register atexit handler for the global suppressor
+        import atexit
+        def _cleanup():
+            if _global_suppressor:
+                _global_suppressor.stop(force=True)
+        atexit.register(_cleanup)
     return _global_suppressor
 

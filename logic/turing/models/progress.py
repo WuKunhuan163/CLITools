@@ -52,16 +52,16 @@ class ProgressTuringMachine:
             if full_active_no_format.startswith(bold_p):
                 bold_text = bold_p
                 rest_text = full_active_no_format[len(bold_p):].lstrip()
-                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
             elif active_name and active_name.strip().startswith(bold_p):
                 # User wants to bold status + prefix of the name
                 bold_text = f"{stage.active_status} {bold_p}".strip()
                 rest_text = active_name.strip()[len(bold_p):].lstrip()
-                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
             else:
-                active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
         else:
-            active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+            active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
         
         sys.stdout.write(f"\r\033[K{truncate_to_width(active_msg, width)}")
         sys.stdout.flush()
@@ -101,16 +101,16 @@ class ProgressTuringMachine:
                             if full_active_no_format.startswith(bold_p):
                                 bold_text = bold_p
                                 rest_text = full_active_no_format[len(bold_p):].lstrip()
-                                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
                             elif active_name and active_name.strip().startswith(bold_p):
                                 # User wants to bold status + prefix of the name
                                 bold_text = f"{stage.active_status} {bold_p}".strip()
                                 rest_text = active_name.strip()[len(bold_p):].lstrip()
-                                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
                             else:
-                                active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                                active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
                         else:
-                            active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                            active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
                         
                         sys.stdout.write(f"\r\033[K{truncate_to_width(active_msg, width)}")
                         sys.stdout.flush()
@@ -150,20 +150,20 @@ class ProgressTuringMachine:
                                 if full_success_no_format.startswith(bold_p):
                                     bold_text = bold_p
                                     rest_text = full_success_no_format[len(bold_p):].lstrip()
-                                    full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    full_msg = f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 elif success_name and success_name.strip().startswith(bold_p):
                                     bold_text = f"{stage.success_status} {bold_p}".strip()
                                     rest_text = success_name.strip()[len(bold_p):].lstrip()
-                                    full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    full_msg = f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 elif success_name:
-                                    full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
+                                    full_msg = f"{color_code}{stage.success_status}{RESET} {success_name}"
                                 else:
-                                    full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                                    full_msg = f"{color_code}{stage.success_status}{RESET}"
                             elif success_name:
-                                full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
+                                full_msg = f"{color_code}{stage.success_status}{RESET} {success_name}"
                             else:
                                 # Explicitly empty success_name
-                                full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                                full_msg = f"{color_code}{stage.success_status}{RESET}"
                             
                             # Ensure completion period for success states
                             # Strip ANSI escape codes for punctuation check
@@ -230,15 +230,15 @@ class ProgressTuringMachine:
                                 if full_fail_no_format.startswith(bold_p):
                                     bold_text = bold_p
                                     rest_text = full_fail_no_format[len(bold_p):].lstrip()
-                                    fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 elif fail_name and fail_name.strip().startswith(bold_p):
                                     bold_text = f"{stage.fail_status} {bold_p}".strip()
                                     rest_text = fail_name.strip()[len(bold_p):].lstrip()
-                                    fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 else:
-                                    fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                    fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                             else:
-                                fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                             
                             # Ensure we don't have double periods
                             brief_reason = brief_reason.rstrip(".")
@@ -273,15 +273,15 @@ class ProgressTuringMachine:
                             if full_fail_no_format.startswith(bold_p):
                                 bold_text = bold_p
                                 rest_text = full_fail_no_format[len(bold_p):].lstrip()
-                                fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             elif fail_name and fail_name.strip().startswith(bold_p):
                                 bold_text = f"{stage.fail_status} {bold_p}".strip()
                                 rest_text = fail_name.strip()[len(bold_p):].lstrip()
-                                fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             else:
-                                fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                         else:
-                            fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                            fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                         
                         fail_msg = f"{fail_msg_start}. Reason: {brief_reason}."
                         sys.stdout.write(f"\r\033[K{fail_msg}\n")

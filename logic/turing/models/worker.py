@@ -78,7 +78,7 @@ class DynamicStatusBar:
             e_str, r_str = calculate_eta(self.completed_count, self.total_count, elapsed)
             progress_info = f"({self.completed_count}/{self.total_count}) [{e_str}>{r_str}] "
             
-        status_msg = f"{self.BOLD}{self.BLUE}{self.label}{self.RESET} {progress_info}{items_str}..."
+        status_msg = f"{self.BLUE}{self.label}{self.RESET} {progress_info}{items_str}..."
         
         width = _get_configured_width()
         sys.stdout.write(f"\r\033[K{truncate_to_width(status_msg, width)}")

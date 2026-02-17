@@ -116,14 +116,14 @@ class LangAuditor:
         bold_part = get_val(11, "bold_part", None)
 
         # Simulation Logic (simplified ProgressTuringMachine.run formatting)
-        BLUE = "\033[34m"
-        BOLD = "\033[1m"
-        RESET = "\033[0m"
+        from logic.config import get_color
+        BLUE = get_color("BLUE", "\033[34m")
+        BOLD = get_color("BOLD", "\033[1m")
+        RESET = get_color("RESET", "\033[0m")
         
         def format_state(status, n, color_code, bold_p):
             actual_n = n if n is not None else name
             full_no_format = f"{status} {actual_n}".strip() if actual_n else status
-            # color_code from colors.json already includes BOLD
             if bold_p and full_no_format.startswith(bold_p):
                 bold_text = bold_p
                 rest_text = full_no_format[len(bold_p):].lstrip()
@@ -133,7 +133,6 @@ class LangAuditor:
             else:
                 return f"{color_code}{status}{RESET}"
 
-        from logic.config import get_color
         green_code = get_color(success_color, "\033[32m") 
         red_code = get_color(fail_color, "\033[31m")
         

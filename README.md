@@ -78,6 +78,7 @@ Local LaTeX compilation and template manager (formerly `OVERLEAF`):
 The foundation for tool isolation:
 - **Version Management**: `PYTHON --py-install 3.11.14` to deploy specific Python versions.
 - **Environment Integration**: `PYTHON --enable` creates symlinks for `python` and `pip` in `bin/` pointing to the managed Python installation. These symlinks automatically resolve to the isolated environment, ensuring global `which python` and `which pip` commands work correctly across the project.
+- **Terminal Reliability**: Automatically restores terminal echoing via `atexit` handlers even during `KeyboardInterrupt` or unexpected exits.
 - **Dependency Isolation**: Ensures tools run with their own dedicated interpreters and pip environments.
 - **Automatic Discovery**: Used by the `TOOL` ecosystem to resolve the correct runtime for each tool.
 
