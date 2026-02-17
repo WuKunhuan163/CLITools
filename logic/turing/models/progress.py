@@ -299,14 +299,9 @@ class ProgressTuringMachine:
                     else:
                         # Erase everything
                         sys.stdout.write("\r\033[K")
-                        if final_newline:
-                            # Actually if we erase everything, maybe we don't want a final newline?
-                            # But if the user requested it, we do it.
-                            sys.stdout.write("") 
+                        # No newline if everything is erased unless explicitly requested
                     sys.stdout.flush()
-                elif final_newline:
-                    sys.stdout.write("\n")
-                    sys.stdout.flush()
+                # If non-ephemeral, the last stage already printed a newline
                 return True
             except KeyboardInterrupt:
                 sys.stdout.write("\r\033[K")
