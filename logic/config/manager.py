@@ -3,7 +3,22 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
-class ToolConfigManager:
+def print_width_check(width, is_auto=False, actual_detected=True, project_root=None, translation_func=None):
+    """Unified display for terminal width check."""
+    _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
+    if is_auto:
+        if not actual_detected:
+            status = f"{_('config_width_unknown', 'unknown')} ({_('config_using_fallback', 'using fallback')}: {width}. Use TOOL config --terminal-width-fallback xx to change the fallback value.)"
+        else:
+            status = str(width)
+        print(_("config_updated_dynamic", "Global configuration updated: {key} will be calculated dynamically.", key="terminal_width") + " Current detected width: " + status)
+    else:
+        print(_("config_updated", "Global configuration updated: {key} = {value}", key="terminal_width", value=width))
+    
+    print("\n" + _("config_check_row", "Please check whether the below line of '=' ({width}) exactly expands one terminal row:", width=width))
+    from logic.utils import print_terminal_width_separator
+    print_terminal_width_separator(width)
+    print("")
     """Manages tool-specific configuration."""
     def __init__(self, tool_name: str, tool_script_dir: Path):
         self.tool_name = tool_name

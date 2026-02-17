@@ -30,8 +30,7 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
         sys.stdout.write(f"\r\033[K" + _("audit_turing_done", "Turing Machine state audit complete.") + "\n")
         
         report_label = _("audit_full_report_label", "Full report saved to")
-        # Use WHITE (which is bold white) for the report label to make it stand out
-        print(f"{BOLD}{WHITE}{report_label}{RESET}: {report_path}")
+        print(f"{BOLD}{report_label}{RESET}: {report_path}")
         return
 
     if force:
@@ -61,8 +60,7 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
         else:
             bold_part, rest_part = label[:2], label[2:]
         
-        c = color if color else "\033[37m" # WHITE
-        print(f"{BOLD}{c}{bold_part}{RESET}{c}{rest_part}{RESET} ({count})")
+        print(f"{BOLD}{bold_part}{RESET}{rest_part}{RESET} ({count})")
 
     print_metric("audit_duplicate_values_label", summary.get("duplicate_values_count", 0))
     print_metric("audit_duplicate_keys_label", summary.get("duplicate_keys_count", 0))

@@ -62,7 +62,7 @@ class KeyboardSuppressor:
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
                 
-                termios.tcsetattr(self._fd, termios.TCSADRAIN, new_settings)
+                termios.tcsetattr(self._fd, termios.TCSANOW, new_settings)
                 
                 self.running = True
                 self._thread = threading.Thread(target=self._capture_loop, daemon=True)
@@ -72,6 +72,7 @@ class KeyboardSuppressor:
                 self._ref_count -= 1
 
     def stop(self):
+        thread_to_join = None
         with self._lock:
             if not self.running:
                 return
@@ -81,15 +82,17 @@ class KeyboardSuppressor:
                 return # Still in use elsewhere
             
             self.running = False
+            thread_to_join = self._thread
+            self._thread = None
             
-        # Join outside the lock
-        if self._thread:
-            self._thread.join(timeout=0.5)
+        # Join outside the lock to avoid deadlock with _capture_loop
+        if thread_to_join:
+            thread_to_join.join(timeout=0.5)
         
         # Restore settings
         if self._old_settings and self._fd is not None:
             try:
-                termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+                termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
             except Exception:
                 pass
         

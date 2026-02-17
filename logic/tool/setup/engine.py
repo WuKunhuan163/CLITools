@@ -102,7 +102,8 @@ class ToolEngine:
                 action=self.uninstall_action,
                 active_status=self._("label_uninstalling", "Uninstalling partial"),
                 success_status=self._("label_ready", "Ready for reinstall"),
-                success_color="BOLD"
+                success_color="BOLD",
+                bold_part=self._("label_uninstalling", "Uninstalling partial")
             ))
 
         # 1. Validation
@@ -113,7 +114,8 @@ class ToolEngine:
             success_status=self._("label_validated_existence", "Validated existence") + ":",
             success_name=self._("label_tool_exists_in_registry", "Tool '{name}' exists in the global registry.", name=self.tool_name),
             fail_status=self._("label_failed_to_validate", "Failed to validate"),
-            success_color="BOLD"
+            success_color="BOLD",
+            bold_part=self._("label_validating", "Validating")
         ))
         
         # 2. Fetching Source
@@ -124,7 +126,8 @@ class ToolEngine:
                 active_status=self._("label_fetching", "Fetching"),
                 success_status=self._("label_retrieved", "Retrieved"),
                 fail_status=self._("label_failed_to_fetch", "Failed to fetch"),
-                success_color="BOLD"
+                success_color="BOLD",
+                bold_part=self._("label_fetching", "Fetching")
             ))
         
         # 3. Tool Dependencies (Recursive)
@@ -151,7 +154,8 @@ class ToolEngine:
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_ready", "Ready"),
             fail_status=self._("label_failed_to_install", "Failed to install"),
-            success_color="BOLD"
+            success_color="BOLD",
+            bold_part=self._("label_installing", "Installing")
         ))
         
         # 4. Pip Dependencies
@@ -161,7 +165,8 @@ class ToolEngine:
             active_status=self._("label_installing", "Installing"),
             success_status=self._("label_installed", "Installed"),
             fail_status=self._("label_failed_to_install", "Failed to install"),
-            success_color="BOLD"
+            success_color="BOLD",
+            bold_part=self._("label_installing", "Installing")
         ))
         
         # 5. Entry Point
@@ -171,7 +176,8 @@ class ToolEngine:
             active_status=self._("label_creating_shortcut", "Creating shortcut for"),
             success_status=self._("label_created_shortcut", "Created shortcut for"),
             fail_status=self._("label_failed_to_create_shortcut", "Failed to create shortcut for"),
-            success_color="BOLD"
+            success_color="BOLD",
+            bold_part=self._("label_creating_shortcut", "Creating shortcut for")
         ))
         
         # 6. Setup
@@ -415,9 +421,25 @@ python_path = env.get('PYTHONPATH', '')
 new_paths = f"{{project_root}}:{{main_py.parent}}"
 env["PYTHONPATH"] = f"{{new_paths}}:{{python_path}}" if python_path else new_paths
 
+# On macOS (case-insensitive), we handle 'python' vs 'PYTHON' in the same script
+invoked_name = os.path.basename(sys.argv[0])
+is_python_exec = invoked_name.lower() in ["python", "python3", "pip", "pip3"]
+
+if is_python_exec and "{self.tool_name}".upper() == "PYTHON":
+    if "pip" in invoked_name.lower():
+        # Find pip associated with the managed python
+        pip_path = Path(python_exec).parent / invoked_name.lower()
+        if not pip_path.exists():
+            pip_path = Path(python_exec).parent / "pip"
+        cmd = [str(pip_path)] + sys.argv[1:]
+    else:
+        cmd = [python_exec] + sys.argv[1:]
+else:
+    cmd = [python_exec, str(main_py)] + sys.argv[1:]
+
 # Execute the tool and preserve exit code
 try:
-    res = subprocess.run([python_exec, str(main_py)] + sys.argv[1:], env=env)
+    res = subprocess.run(cmd, env=env)
     sys.exit(res.returncode)
 except KeyboardInterrupt:
     sys.exit(1)

@@ -94,7 +94,11 @@ class BaseGUIWindow:
         
         # Robust project root detection for flags and audio
         from logic.utils import find_project_root
-        self.project_root = find_project_root(Path(self.internal_dir))
+        if self.internal_dir:
+            self.project_root = find_project_root(Path(self.internal_dir))
+        else:
+            # Fallback to current working directory
+            self.project_root = find_project_root(Path.cwd())
 
         # Signal registration
         signal.signal(signal.SIGINT, self.handle_external_signal)
@@ -279,21 +283,26 @@ class BaseGUIWindow:
     def add_block(self, parent, pady=10, padx=20, bg=None):
         """Adds a new layout block (tk.Frame) that fills the width."""
         import tkinter as tk
-        if bg is None and self.debug_blocks:
-            # Use a semi-random light color for debugging
-            colors = ["#f0f0f0", "#e8f0fe", "#fdf7e3", "#f6f6f6"]
-            bg = colors[len(self.blocks) % len(colors)]
-            
+        block_bg = bg
+        if not block_bg:
+            if getattr(self, "debug_blocks", False):
+                # Light alpha-like colors for visual debugging
+                colors = ["#e8f0fe", "#fdf7e3", "#f6f6f6", "#e6fffa", "#fff5f5"]
+                idx = len(self.blocks) % len(colors)
+                block_bg = colors[idx]
+            else:
+                block_bg = parent.cget("bg")
+                
         # block should fill the width of its parent
-        block = tk.Frame(parent, bg=bg or parent.cget("bg"))
+        block = tk.Frame(parent, bg=block_bg)
         block.pack(fill=tk.X, side=tk.TOP, padx=padx, pady=pady)
         self.blocks.append(block)
         return block
 
-    def setup_image(self, parent, image_path: Union[str, Path], max_width: int = None, max_height: int = None, upscale: int = 1, dynamic: bool = True):
+    def setup_image(self, parent, image_path: Union[str, Path], max_width: int = None, max_height: int = None, upscale: int = 2, dynamic: bool = True):
         """
         Loads and displays an image in a tkinter Label with quality control.
-        upscale: Multiplier for internal rendering resolution (clearer images).
+        upscale: Multiplier for internal rendering resolution (clearer images). Default to 2 for 1x clearer.
         dynamic: If True, the image will resize when its parent container resizes.
         """
         from PIL import Image, ImageTk
@@ -324,8 +333,8 @@ class BaseGUIWindow:
                     parent.bind("<Configure>", self.on_container_resize, add="+")
                     parent._resize_bound = True
             
-            # Initial resize call
-            self.root.after(10, lambda: self._resize_single_image(item))
+            # Initial resize call with a bit more delay to ensure layout is ready
+            self.root.after(100, lambda: self._resize_single_image(item))
             return label
         except Exception as e:
             import tkinter as tk
@@ -335,7 +344,7 @@ class BaseGUIWindow:
             return err_label
 
     def _resize_single_image(self, item):
-        """Internal logic for a single image resize."""
+        """Internal logic for a single image resize. Target width = Block width."""
         from PIL import ImageTk, Image
         import tkinter as tk
         
@@ -348,34 +357,43 @@ class BaseGUIWindow:
         original_img = item["original_img"]
         upscale = item["upscale"]
         
-        # Get actual available width in the block
+        # 1. Get actual available width in the block
         parent_w = parent.winfo_width()
-        if parent_w <= 1:
-            parent_w = self.root.winfo_width() - 60 if self.root else 740
         
-        # Target width is the full parent width
-        target_w = parent_w
+        # 2. If parent_w is 1 (not rendered yet), try to get from window width
+        if parent_w <= 1:
+            if self.root:
+                self.root.update_idletasks()
+                parent_w = parent.winfo_width()
+            
+            if parent_w <= 1:
+                parent_w = self.root.winfo_width() - 80 if self.root else 720
+        
+        # 3. Account for block padding (padx=20 on both sides = 40)
+        target_w = parent_w - 40
+        if target_w < 50: target_w = 50
+        
+        # 4. Apply max_width if provided
         if item["max_width"]:
             target_w = min(target_w, item["max_width"])
-        
-        if target_w < 50: target_w = 50 
         
         orig_w, orig_h = original_img.size
         # Calculate aspect ratio
         aspect = orig_h / orig_w
         target_h = int(target_w * aspect)
         
+        # 5. Apply max_height if provided
         if item["max_height"] and target_h > item["max_height"]:
             target_h = item["max_height"]
             target_w = int(target_h / aspect)
         
         if self.debug_blocks:
             print(f"DEBUG: Resizing image {os.path.basename(item['path'])}")
-            print(f"  Parent width: {parent_w}, Target width: {target_w}, Target height: {target_h}")
+            print(f"  Parent width: {parent_w}, Calculated target_w: {target_w}, Target height: {target_h}")
 
         try:
+            # Render at upscale resolution for clarity
             render_w, render_h = int(target_w * upscale), int(target_h * upscale)
-            # Use Resampling.LANCZOS for best quality as requested
             resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(resized_img)
             label.config(image=photo)
@@ -393,19 +411,27 @@ class BaseGUIWindow:
 
         if font is None:
             from logic.gui.tkinter.style import get_label_style
-            font = ("Arial", 16, "bold") if is_title else get_label_style()
+            if is_title:
+                font = ("Arial", 22, "bold")
+            else:
+                font = get_label_style()
             
         # Initial wraplength based on parent width
         w = parent.winfo_width()
-        if w <= 1: w = 600
+        if w <= 1: 
+            if self.root:
+                self.root.update_idletasks()
+                w = parent.winfo_width()
+            if w <= 1: w = 700
         
+        # Labels are centered if they are titles, otherwise left-justified
         label = tk.Label(parent, text=text, font=font, bg=parent.cget("bg"), 
                          justify=tk.CENTER if is_title else justify, 
-                         wraplength=w-40)
+                         wraplength=max(50, w-40))
         label.pack(pady=pady, padx=padx, fill=tk.X)
         
         if self.debug_blocks:
-            label.config(bg="#f0f0f0")
+            label.config(highlightthickness=1, highlightbackground="#ccc")
 
         # Ensure parent has resize binding
         if not hasattr(parent, "_resize_bound"):

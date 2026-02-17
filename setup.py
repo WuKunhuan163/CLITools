@@ -171,7 +171,8 @@ def setup():
         action=check_structure_action,
         active_status="Checking",
         success_status="Successfully validated",
-        success_color="BOLD"
+        success_color="BOLD",
+        bold_part="Checking structure"
     ))
     
     pm.add_stage(TuringStage(
@@ -179,7 +180,8 @@ def setup():
         action=install_deps_action,
         active_status="Installing",
         success_status="Successfully installed",
-        success_color="BOLD"
+        success_color="BOLD",
+        bold_part="Installing dependencies"
     ))
 
     pm.add_stage(TuringStage(
@@ -187,7 +189,8 @@ def setup():
         action=install_core_tools_action,
         active_status="Setting up",
         success_status="Successfully setup",
-        success_color="BOLD"
+        success_color="BOLD",
+        bold_part="Setting up core tools"
     ))
 
     pm.add_stage(TuringStage(
@@ -195,7 +198,8 @@ def setup():
         action=setup_gui_python_action,
         active_status="Ensuring",
         success_status="Successfully setup",
-        success_color="BOLD"
+        success_color="BOLD",
+        bold_part="Ensuring standalone python"
     ))
 
     pm.add_stage(TuringStage(
@@ -203,7 +207,8 @@ def setup():
         action=shell_integration_action,
         active_status="Configuring",
         success_status="Successfully configured",
-        success_color="BOLD"
+        success_color="BOLD",
+        bold_part="Configuring shell integration"
     ))
 
     final_msg = f"setup AITerminalTools"
