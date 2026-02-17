@@ -133,7 +133,8 @@ def parse_file_types(file_types_str: str):
 
 def get_user_selection(title, initial_dir, file_types, multiple, directory_only, custom_id=None):
     tool = FileDialogTool()
-    python_exe = tool.get_python_exe()
+    from logic.gui.engine import get_safe_python_for_gui
+    python_exe = get_safe_python_for_gui()
     
     tkinter_script = r'''
 import os

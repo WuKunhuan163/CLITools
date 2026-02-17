@@ -56,7 +56,9 @@ class PythonScanner:
 
     def print_cache_warning_once(self, data_type="release assets"):
         if not self._warning_printed and not self.silent:
-            self.audit.print_cache_warning(data_type=data_type)
+            # Be more specific about the directory
+            hint = f"run: rm -rf {self.asset_cache_dir}"
+            self.audit.print_cache_warning(data_type=data_type, clear_hint=hint)
             self._warning_printed = True
 
     def resolve_platform(self, asset_name: str) -> Optional[str]:

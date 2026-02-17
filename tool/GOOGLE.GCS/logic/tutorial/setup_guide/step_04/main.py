@@ -29,7 +29,8 @@ def build_step(frame, win):
     img_path = Path(__file__).resolve().parent / "asset" / "image" / "guide_1.png"
     if img_path.exists():
         img_block = win.add_block(frame)
-        win.setup_image(img_block, img_path, max_width=600, upscale=2)
+        # max_width=None means use full block width
+        win.setup_image(img_block, img_path, upscale=2)
 
     # Action Block
     action_block = win.add_block(frame)
@@ -77,11 +78,8 @@ def build_step(frame, win):
                 env = os.environ.copy()
                 env["PYTHONPATH"] = str(project_root)
                 # Pass --tool-quiet to ensure it prints only the final path or JSON
-                # Actually FILEDIALOG handles --tool-quiet by printing JSON
                 cmd = [sys.executable, str(fd_main), "--tool-quiet", "--title", "Select Service Account JSON", "--types", "json"]
                 
-                # We use Popen to avoid capturing everything at once and blocking
-                # but we still need the result.
                 res = subprocess.run(cmd, capture_output=True, text=True, env=env)
                 
                 output = res.stdout.strip()
@@ -91,6 +89,7 @@ def build_step(frame, win):
                     try:
                         data = json.loads(output[len("TOOL_RESULT_JSON:"):])
                         if data.get("returncode") == 0:
+                            # stdout might be the path directly in TOOL_RESULT_JSON
                             path = data.get("stdout", "").strip()
                     except: pass
                 else:
@@ -133,38 +132,6 @@ def build_step(frame, win):
                 frame.after(0, on_err)
 
         threading.Thread(target=run_fd, daemon=True).start()
-
-    def on_validate():
-        path = selected_file_path.get()
-        if not path or not os.path.exists(path):
-            return
-            
-        validate_btn.config(state=tk.DISABLED)
-        status_var.set("Validating...")
-        frame.update_idletasks()
-        
-        try:
-            with open(path, 'r') as f:
-                data = json.load(f)
-            
-            required = ["type", "project_id", "private_key", "client_email"]
-            missing = [k for k in required if k not in data]
-            
-            if not missing:
-                status_var.set("Validation Successful!")
-                status_label.config(fg="green")
-                win.set_step_validated(True)
-            else:
-                status_var.set(f"Invalid JSON: missing {', '.join(missing)}")
-                status_label.config(fg="red")
-        except Exception as e:
-            status_var.set(f"Error: {e}")
-            status_label.config(fg="red")
-        
-        validate_btn.config(state=tk.NORMAL)
-
-    browse_btn.config(command=on_browse)
-    validate_btn.config(command=on_validate)
 
     def on_validate():
         path = selected_file_path.get()

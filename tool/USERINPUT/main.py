@@ -474,28 +474,41 @@ def main():
         git_engine = GitEngine(tool.project_root)
         current_branch = git_engine.get_current_branch()
         
-        # Check for changes
-        status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(tool.project_root)).strip()
+        # Check for changes with timeout
+        try:
+            status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(tool.project_root), timeout=10).strip()
+        except subprocess.TimeoutExpired:
+            # If git status hangs, just skip auto-commit
+            status = ""
+        
         if status:
             ts = time.strftime("%H:%M:%S")
             commit_msg = f"USERINPUT auto-commit at {ts}"
             
             def do_save(stage=None):
-                subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True)
-                res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True, text=True)
-                if res.returncode != 0:
-                    if stage: 
-                        stage.error_brief = f"Commit failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
-                        stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
-                return res.returncode == 0
+                try:
+                    subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True, timeout=15)
+                    res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True, text=True, timeout=15)
+                    if res.returncode != 0:
+                        if stage: 
+                            stage.error_brief = f"Commit failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
+                            stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
+                    return res.returncode == 0
+                except subprocess.TimeoutExpired:
+                    if stage: stage.error_brief = "Commit timed out (15s)"
+                    return False
                 
             def do_backup(stage=None):
-                res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True, text=True)
-                if res.returncode != 0:
-                    if stage: 
-                        stage.error_brief = f"Push failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
-                        stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
-                return res.returncode == 0
+                try:
+                    res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True, text=True, timeout=30)
+                    if res.returncode != 0:
+                        if stage: 
+                            stage.error_brief = f"Push failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
+                            stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
+                    return res.returncode == 0
+                except subprocess.TimeoutExpired:
+                    if stage: stage.error_brief = "Push timed out (30s)"
+                    return False
 
             pm = ProgressTuringMachine([
                 TuringStage("progress", do_save, active_status="Saving", success_status="Successfully saved", fail_status="Failed to save", bold_part="Saving progress"),

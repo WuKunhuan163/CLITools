@@ -69,7 +69,7 @@ class ProgressTuringMachine:
     def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
         from logic.config import get_color
         from logic.turing.display.manager import truncate_to_width, _get_configured_width
-        from logic.terminal.keyboard import KeyboardSuppressor
+        from logic.terminal.keyboard import get_global_suppressor
         import traceback
         
         BLUE = get_color("BLUE", "\033[34m")
@@ -78,7 +78,9 @@ class ProgressTuringMachine:
         RESET = get_color("RESET", "\033[0m")
         GREEN = get_color("GREEN", "\033[32m")
         
-        with KeyboardSuppressor():
+        # Use global suppressor to avoid conflicts and potential deadlocks
+        suppressor = get_global_suppressor()
+        with suppressor:
             try:
                 for i, stage in enumerate(self.stages):
                     # Attach machine to stage so action can refresh

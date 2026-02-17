@@ -30,6 +30,22 @@ def get_global_config(key=None, default=None):
         pass
     return default if key else {}
 
+def set_global_config(key, value):
+    """Update a configuration value in data/config.json."""
+    try:
+        config_path = PROJECT_ROOT / "data" / "config.json"
+        config_path.parent.mkdir(exist_ok=True)
+        config = {}
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        config[key] = value
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except Exception:
+        return False
+
 def get_color(color_name, default="\033[0m"):
     """Retrieve an ANSI color code from colors.json."""
     try:

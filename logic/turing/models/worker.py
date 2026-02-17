@@ -12,11 +12,11 @@ class DynamicStatusBar:
     Used for parallel tasks where status updates frequently.
     """
     def __init__(self, label: str = "Processing", use_bold_blue: bool = True):
-        from logic.terminal.keyboard import KeyboardSuppressor
+        from logic.terminal.keyboard import get_global_suppressor
         self.label = label
         self.active_items: Set[str] = set()
         self.lock = threading.Lock()
-        self.suppressor = KeyboardSuppressor()
+        self.suppressor = get_global_suppressor()
         self.is_suppressing = False
         self.total_count: Optional[int] = None
         self.completed_count: int = 0
@@ -156,7 +156,8 @@ class ParallelWorkerPool:
             finally:
                 self.status_bar.update(task_id, "remove")
 
-        with KeyboardSuppressor():
+        from logic.terminal.keyboard import get_global_suppressor
+        with get_global_suppressor():
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 futures = {
                     executor.submit(wrapper, t["id"], t["action"], *t.get("args", ()), **t.get("kwargs", {})): t 

@@ -37,7 +37,7 @@ class AuditManager:
         except Exception:
             return False
 
-    def print_cache_warning(self, data_type=None, custom_command=None, silent=False):
+    def print_cache_warning(self, data_type=None, custom_command=None, silent=False, clear_hint=None):
         """Prints a standardized warning when cache is used."""
         if silent:
             return
@@ -53,7 +53,10 @@ class AuditManager:
         # Build the cleanup command
         cmd = custom_command or self.audit_command
         refresh_msg = ""
-        if cmd:
+        
+        if clear_hint:
+            refresh_msg = f" To force refresh, {clear_hint}."
+        elif cmd:
             # Check if cmd already starts with PYTHON or TOOL, if not assume it's a relative script
             refresh_msg = f" To force refresh, run: rm -rf {self.audit_dir} && {cmd}"
         else:
@@ -62,6 +65,7 @@ class AuditManager:
         import sys
         # Clear current erasable line if any
         sys.stdout.write("\r\033[K")
+        sys.stdout.flush()
         print(f"{warning_label}: Using cached{type_str} data.{refresh_msg}")
 
 class AuditBase:

@@ -12,6 +12,7 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
     BOLD = get_color("BOLD", "\033[1m")
     BLUE = get_color("BLUE", "\033[34m")
     RED = get_color("RED", "\033[31m")
+    WHITE = get_color("WHITE", "\033[37m")
     RESET = get_color("RESET", "\033[0m")
 
     if lang_code == "en" and not turing:

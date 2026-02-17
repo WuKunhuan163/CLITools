@@ -77,6 +77,7 @@ Local LaTeX compilation and template manager (formerly `OVERLEAF`):
 ### PYTHON Tool
 The foundation for tool isolation:
 - **Version Management**: `PYTHON --py-install 3.11.14` to deploy specific Python versions.
+- **Environment Integration**: `PYTHON --enable` creates symlinks for `python` and `pip` in `bin/` pointing to the managed Python, ensuring global `which python` and `which pip` resolve to the isolated environment.
 - **Dependency Isolation**: Ensures tools run with their own dedicated interpreters and pip environments.
 - **Automatic Discovery**: Used by the `TOOL` ecosystem to resolve the correct runtime for each tool.
 
@@ -102,10 +103,11 @@ Standardized iCloud photo and video downloader:
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Sets the global display language (e.g., `zh` for Chinese, `en` for English, `ar` for Arabic).
 - `TOOL lang list`: Shows supported languages and their translation coverage.
-- `TOOL lang audit <LANG>`: Deep audit of translation quality, detecting missing keys, duplicate values, shadowed core keys, and unused entries.
+- `TOOL lang audit <LANG> [--turing]`: Deep audit of translation quality. Use `--turing` to also audit Turing Machine states across the codebase.
+- `TOOL config`: Manages global configuration, including `--terminal-width` (use `auto` for dynamic detection), `--language`, and `--test-cpu-limit`.
 
 ### Developer Workflow
-- `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work.
+- `TOOL dev align`: One-click alignment of `tool`, `main`, and `test` branches with your current `dev` work. Includes a **Persistence Manager** that automatically saves and restores non-Git-tracked directories (like Python installations) across branch switches.
 - `TOOL dev create <NAME>`: Generates a standardized tool template with unit tests and translation placeholders.
 - `TOOL dev audit-test <NAME> [--fix]`: Audits unit test naming conventions. Every tool must have a `test_00_help.py`.
 - `TOOL dev audit-bin [--fix]`: Validates that all shortcuts in `bin/` are healthy managed bootstrap scripts. Use `--fix` to automatically upgrade legacy symlinks or create missing shortcuts.
