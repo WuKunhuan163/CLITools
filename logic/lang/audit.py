@@ -122,9 +122,10 @@ class LangAuditor:
         
         def format_state(status, n, color_code, bold_p):
             actual_n = n if n is not None else name
-            if bold_p and actual_n and str(actual_n).startswith(bold_p):
-                bold_text = f"{status} {bold_p}"
-                rest_text = str(actual_n)[len(bold_p):].lstrip()
+            full_no_format = f"{status} {actual_n}".strip() if actual_n else status
+            if bold_p and full_no_format.startswith(bold_p):
+                bold_text = bold_p
+                rest_text = full_no_format[len(bold_p):].lstrip()
                 return f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
             elif actual_n:
                 return f"{BOLD}{color_code}{status}{RESET} {actual_n}"

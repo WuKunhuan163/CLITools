@@ -498,11 +498,11 @@ def main():
                 return res.returncode == 0
 
             pm = ProgressTuringMachine([
-                TuringStage("progress", do_save, active_status="Saving", success_status="Successfully saved", fail_status="Failed to save", bold_part="progress"),
+                TuringStage("progress", do_save, active_status="Saving", success_status="Successfully saved", fail_status="Failed to save", bold_part="Saving progress"),
                 TuringStage("to remote", do_backup, active_status="Backing up", 
                             success_status="Successfully backed up", success_name="to remote", 
                             fail_status="Warning", fail_name="backup to remote", fail_color="YELLOW",
-                            bold_part="to remote")
+                            bold_part="Backing up to remote")
             ], project_root=tool.project_root, tool_name=tool.tool_name)
             # Use ephemeral=True and final_msg="" to suppress final success status
             pm.run(ephemeral=True, final_newline=False, final_msg="")

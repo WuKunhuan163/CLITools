@@ -30,7 +30,8 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
         sys.stdout.write(f"\r\033[K" + _("audit_turing_done", "Turing Machine state audit complete.") + "\n")
         
         report_label = _("audit_full_report_label", "Full report saved to")
-        print(f"{BOLD}{BLUE}{report_label}{RESET}: {report_path}")
+        # Use WHITE (which is bold white) for the report label to make it stand out
+        print(f"{BOLD}{WHITE}{report_label}{RESET}: {report_path}")
         return
 
     if force:

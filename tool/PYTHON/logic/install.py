@@ -120,7 +120,7 @@ def download_and_verify(asset, target_root, silent=False):
     if tmp_dir.exists(): shutil.rmtree(tmp_dir)
     tmp_dir.mkdir(parents=True)
     
-    zst_path = tmp_dir / asset["name"]
+        zst_path = tmp_dir / asset["name"]
     extract_dir = tmp_dir / "extract"
     target_dir = target_root / v_tag
     
@@ -141,7 +141,7 @@ def download_and_verify(asset, target_root, silent=False):
             if stage: stage.report_error("Extraction Error", f"Failed to extract {asset['name']}")
             return False
         return True
-
+            
     def verify_action(stage=None):
         # Astral builds extract to a 'python' folder, sometimes with an inner 'install' folder
         py_home = extract_dir / "python"
@@ -151,24 +151,24 @@ def download_and_verify(asset, target_root, silent=False):
         py_bin = py_home / "bin" / "python3" if sys.platform != "win32" else py_home / "python.exe"
         
         try:
-            res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
-            if asset["version"] in res.stdout or asset["version"] in res.stderr:
-                # Move to final location
+        res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
+        if asset["version"] in res.stdout or asset["version"] in res.stderr:
+            # Move to final location
                 if target_dir.exists(): shutil.rmtree(target_dir)
-                
-                # Re-wrap in 'install' folder for consistency
+            
+            # Re-wrap in 'install' folder for consistency
                 final_install = target_dir / "install"
-                final_install.mkdir(parents=True)
-                for item in list(py_home.iterdir()):
-                    shutil.move(str(item), str(final_install / item.name))
-                
-                # Write metadata
+            final_install.mkdir(parents=True)
+            for item in list(py_home.iterdir()):
+                shutil.move(str(item), str(final_install / item.name))
+            
+            # Write metadata
                 save_json(target_dir / "PYTHON.json", {
-                    "release": asset["tag"],
-                    "asset": asset["name"],
-                    "version": asset["version"],
-                    "platform": asset["platform"]
-                })
+                "release": asset["tag"],
+                "asset": asset["name"],
+                "version": asset["version"],
+                "platform": asset["platform"]
+            })
                 return True
             else:
                 if stage: stage.report_error("Version Mismatch", f"Expected {asset['version']}, got {res.stdout or res.stderr}")
@@ -187,6 +187,9 @@ def download_and_verify(asset, target_root, silent=False):
         is_silent = os.environ.get("TOOL_QUIET") == "1" or silent
         if tm.run(ephemeral=True, final_newline=False):
             if not is_silent:
+                # Explicitly erase the last line from run_with_progress
+                sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
                 print_success_status(f"installed {v_tag}")
             return True
     finally:

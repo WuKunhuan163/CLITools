@@ -71,12 +71,13 @@ def test_tool_with_args(args, project_root: Path, translation_func: Optional[Cal
                 stage.refresh()
                 time.sleep(1)
 
-        test_cpu_limit = get_setting("test_cpu_limit", 80.0)
         current_cpu_at_start = get_cpu_percent(interval=0.1)
-        if current_cpu_at_start >= 0.6 * test_cpu_limit:
+        if current_cpu_at_start >= 0.6 * cpu_limit:
             label = _("test_current_cpu_load_label", "Current CPU load: ")
             max_label = _("label_max", "max")
-            print(f"{label}{BOLD}{current_cpu_at_start:.1f}%{RESET} ({max_label}: {test_cpu_limit:.1f}%)")
+            # Ensure only xx% is bolded, and no extra newline here
+            sys.stdout.write(f"{label}{BOLD}{current_cpu_at_start:.1f}%{RESET} ({max_label}: {cpu_limit:.1f}%)\n")
+            sys.stdout.flush()
         
         cpu_wait_tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL", no_warning=args.no_warning) 
         cpu_wait_tm.add_stage(TuringStage(
@@ -87,6 +88,7 @@ def test_tool_with_args(args, project_root: Path, translation_func: Optional[Cal
             bold_part="Waiting for",
             stealth=True
         ))
+        # Use final_newline=False to avoid extra blank line if it's stealthy
         cpu_wait_tm.run(ephemeral=True, final_msg=None, final_newline=False)
 
         from logic.test.runner import TestRunner
@@ -140,8 +142,11 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
 
         tm_sync = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
         tm_sync.add_stage(TuringStage(
-            name="", action=sync_action, active_status="Syncing branches",
-            success_status="Successfully synced", success_name="branches", bold_part="Syncing branches"
+            name="", action=sync_action, 
+            active_status=_("label_syncing_branches", "Syncing branches"),
+            success_status=_("label_successfully_synced", "Successfully synced"), 
+            success_name=_("label_branches", "branches"), 
+            bold_part=_("label_syncing_branches", "Syncing branches")
         ))
         
         if not tm_sync.run(ephemeral=True, final_msg=None, final_newline=False):
@@ -180,8 +185,11 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
                 return False
 
         tm_install.add_stage(TuringStage(
-            name="installation", action=install_test_action, active_status="Testing",
-            success_status="Successfully tested", bold_part="Testing installation"
+            name=_("label_installation", "installation"), 
+            action=install_test_action, 
+            active_status=_("label_testing", "Testing"),
+            success_status=_("label_successfully_tested", "Successfully tested"), 
+            bold_part=_("label_testing_installation", "Testing installation")
         ))
         
         if tm_install.run(ephemeral=True, final_msg=None, final_newline=False):

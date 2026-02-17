@@ -6,6 +6,7 @@ import json
 import argparse
 import shutil
 import re
+import platform
 from pathlib import Path
 
 # Fix shadowing: Remove script directory from sys.path[0] if present
@@ -112,6 +113,7 @@ def main():
     parser.add_argument("--py-uninstall", help="Uninstall a specific Python version (use 'all' for all versions)")
     parser.add_argument("--py-default", help="Set the default Python version for this tool")
     parser.add_argument("--py-update", action="store_true", help="Update Python resources from GitHub releases")
+    parser.add_argument("--enable", action="store_true", help="Enable managed Python by creating symlinks in bin/")
     parser.add_argument("--force", action="store_true", help="Force action (e.g. refresh list cache)")
     parser.add_argument("--py-dir", help="Specify installation directory")
     parser.add_argument("--py-tag", dest="tag", help="Filter by release tag (e.g. 20260211)")
@@ -196,6 +198,10 @@ def main():
             print(f"{RED}Error{RESET}: Update script not found.")
             sys.exit(1)
 
+    if args.enable:
+        _enable_managed_python()
+        sys.exit(0)
+
     if len(unknown) > 0 and unknown[0] == "test":
         # Handle 'PYTHON test'
         test_dir = project_root / "test"
@@ -255,6 +261,73 @@ def _set_default_version(version):
         json.dump(config, f, indent=2)
     success_status = _("python_install_success_status", "Successfully updated")
     print(f"{GREEN}{BOLD}{success_status}{RESET} default version to {version}")
+
+def _enable_managed_python():
+    """Enable managed Python by creating symlinks in bin/ for the default version."""
+    config = get_config()
+    default_version = config.get("default_version")
+    if not default_version:
+        print(f"{RED}{BOLD}Error{RESET}: No default version configured. Please run 'PYTHON --py-default <version>' first.")
+        return
+
+    from tool.PYTHON.logic.utils import get_python_exec as get_py_exec
+    python_exec = get_py_exec(default_version)
+    if not os.path.exists(python_exec) and python_exec != "python3":
+        print(f"{RED}{BOLD}Error{RESET}: Default version {default_version} is not installed. Please run 'PYTHON --py-install {default_version}' first.")
+        return
+
+    # Find pip
+    exec_path = Path(python_exec)
+    if exec_path.name == "python.exe":
+        pip_exec = exec_path.parent / "Scripts" / "pip.exe"
+    else:
+        # Standard layout: install/bin/python3, install/bin/pip
+        pip_exec = exec_path.parent / "pip"
+    
+    if not pip_exec.exists():
+        # Try pip3
+        if exec_path.name != "python.exe":
+            pip_exec = exec_path.parent / "pip3"
+
+    bin_dir = project_root / "bin"
+    bin_dir.mkdir(exist_ok=True)
+
+    def create_link(target, name):
+        link_path = bin_dir / name
+        # Case-insensitive check for macOS
+        if platform.system() == "Darwin":
+            # Check if name conflicts with existing tool names in bin (excluding symlinks we might have created)
+            if any(f.name.lower() == name.lower() for f in bin_dir.iterdir() if f.is_file() and not f.is_symlink()):
+                # It's a conflict with a tool script (like PYTHON), don't overwrite it
+                return False
+        
+        if link_path.exists() or link_path.is_symlink():
+            try: os.remove(link_path)
+            except: pass
+        try:
+            os.symlink(target, link_path)
+            return True
+        except: return False
+
+    success_count = 0
+    # On macOS, 'python' conflicts with 'PYTHON' tool script
+    if create_link(python_exec, "python"): success_count += 1
+    if create_link(python_exec, "python3"): success_count += 1
+    
+    if pip_exec.exists():
+        if create_link(str(pip_exec), "pip"): success_count += 1
+        if create_link(str(pip_exec), "pip3"): success_count += 1
+
+    if success_count > 0:
+        from logic.utils import register_path
+        register_path(bin_dir)
+        success_label = _("python_install_success_status", "Successfully enabled")
+        print(f"{GREEN}{BOLD}{success_label}{RESET} managed Python ({default_version}) with {success_count} symlinks in bin/.")
+    else:
+        # On macOS, if only python failed but pip succeeded, success_count > 0
+        # If nothing succeeded, then it's an error
+        if success_count == 0:
+            print(f"{RED}{BOLD}Error{RESET}: Failed to create symlinks.")
 
 def _uninstall_version(version, install_dir=None):
     install_root = Path(install_dir) if install_dir else INSTALL_DIR

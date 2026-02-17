@@ -1,4 +1,4 @@
-#!/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/bin/python3
+#!/Applications/AITerminalTools/tool/PYTHON/data/install/3.11.14-macos-arm64/install/bin/python3.11
 import sys
 from pyjokes import cli
 if __name__ == '__main__':
