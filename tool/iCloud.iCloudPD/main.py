@@ -434,6 +434,14 @@ def main():
     output_root = Path(args.output or ".").resolve()
     to_download_objects = []
 
+    class LocalAssetStub:
+        def __init__(self, asset_id, filename, created):
+            self.id = asset_id
+            self.filename = filename
+            self.created = created
+            self.versions = {} # Prevent AttributeError in fallback
+            self._service = None
+
     def substitute_tags(template, date_obj, asset_id, filename):
         if not template: return ""
         res = template
@@ -452,14 +460,38 @@ def main():
         nonlocal to_download_objects
         total_scheduled = len(scheduled_id_info)
         count, start_time = 0, time.time()
-        lib_to_ids = {}
+        
+        # Split IDs into local-resolvable and needs-iCloud-lookup
+        needs_lookup_ids = {} # lib_name -> [ids]
+        
         for aid, info in scheduled_id_info.items():
             lib_name = info["lib_name"]
-            if lib_name not in lib_to_ids: lib_to_ids[lib_name] = []
-            lib_to_ids[lib_name].append(aid)
+            
+            # Check local library first if available
+            is_local = False
+            if local_library:
+                local_res = local_library.find_photo(aid)
+                if local_res:
+                    _, local_dt = local_res
+                    to_download_objects.append(LocalAssetStub(aid, info["filename"], local_dt))
+                    count += 1
+                    is_local = True
+            
+            if not is_local:
+                if lib_name not in needs_lookup_ids: needs_lookup_ids[lib_name] = []
+                needs_lookup_ids[lib_name].append(aid)
+        
+        if count > 0 and stage:
+            from logic.utils import calculate_eta
+            e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+            stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"
+            stage.refresh()
+
+        if not needs_lookup_ids:
+            return len(to_download_objects) > 0
             
         from pyicloud.services.photos import PhotoAsset
-        for lib_name, ids in lib_to_ids.items():
+        for lib_name, ids in needs_lookup_ids.items():
             try: lib_obj = api.photos.libraries[lib_name]
             except: continue
             base_url = lib_obj.url.split("/query")[0]

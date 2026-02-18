@@ -56,6 +56,8 @@ class KeyboardSuppressor:
                 
                 # Create new settings
                 new_settings = termios.tcgetattr(self._fd)
+                # ~ECHO: Turn off echoing
+                # ~ICANON: Turn off canonical mode (line buffering)
                 new_settings[3] = new_settings[3] & ~termios.ECHO
                 new_settings[3] = new_settings[3] & ~termios.ICANON
                 
@@ -70,6 +72,23 @@ class KeyboardSuppressor:
             except Exception:
                 self.running = False
                 self._ref_count -= 1
+
+    def _capture_loop(self):
+        """Internal loop to read and discard input."""
+        while self.running and self._fd is not None:
+            try:
+                # Use select to wait for data with a timeout
+                r, _, _ = select.select([self._fd], [], [], 0.1)
+                if r:
+                    # Read available bytes and store them
+                    data = os.read(self._fd, 1024)
+                    if data:
+                        with self._lock:
+                            self.captured_keys.append(data)
+            except (OSError, ValueError):
+                break
+            except Exception:
+                break
 
     def stop(self, force: bool = False):
         thread_to_join = None
@@ -106,9 +125,7 @@ class KeyboardSuppressor:
             except:
                 pass
         
-        # We don't close self._tty_f here if it's the global instance 
-        # to avoid FD issues on subsequent starts.
-        # But we clear old_settings to indicate we are done.
+        # Clear old settings to indicate we are done
         self._old_settings = None
 
     def __enter__(self):
@@ -116,10 +133,7 @@ class KeyboardSuppressor:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # If an exception occurred (like KeyboardInterrupt), we might want to force stop
-        # depending on whether we expect the process to exit.
-        # However, to be safe and respect ref counting, we just call stop().
-        # The atexit handler will take care of final restoration.
+        # Always call stop on exit. Reference counting handles nesting.
         self.stop()
 
 # Global instance for easy access if needed, but per-instance usage preferred
@@ -136,4 +150,3 @@ def get_global_suppressor() -> KeyboardSuppressor:
                 _global_suppressor.stop(force=True)
         atexit.register(_cleanup)
     return _global_suppressor
-
