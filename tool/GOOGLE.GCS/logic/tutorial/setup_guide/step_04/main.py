@@ -44,8 +44,8 @@ def build_step(frame, win):
     btn_frame = tk.Frame(action_block, bg=action_block.cget("bg"))
     btn_frame.pack(pady=10)
 
-    browse_btn = tk.Button(btn_frame, text="Browse JSON")
-    validate_btn = tk.Button(btn_frame, text="Validate", state=tk.DISABLED)
+    browse_btn = tk.Button(btn_frame, text="Browse JSON", bg="white", activebackground="#eee")
+    validate_btn = tk.Button(btn_frame, text="Validate", state=tk.DISABLED, bg="white", activebackground="#eee")
     
     browse_btn.pack(side=tk.LEFT, padx=5)
     validate_btn.pack(side=tk.LEFT, padx=5)
@@ -67,6 +67,7 @@ def build_step(frame, win):
     def on_browse():
         browse_btn.config(state=tk.DISABLED)
         status_var.set("Browsing...")
+        status_label.config(fg="gray")
         frame.update_idletasks()
         
         project_root = getattr(win, "project_root", None) or Path("/Applications/AITerminalTools")
