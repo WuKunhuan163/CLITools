@@ -114,7 +114,7 @@ def main():
                 print(f"{BOLD}{YELLOW}Warning{RESET}: '{library_path}' does not appear to be a valid Photos Library (missing 'originals' folder).")
                 local_library = None
             else:
-                print(f"{BOLD}{BLUE}Using local library{RESET}: {library_path}")
+                print(f"{BOLD}Using local library{RESET}: {library_path}")
         else:
             print(f"{BOLD}{RED}Error{RESET}: Local photos library path '{library_path}' does not exist.")
             sys.exit(1)
@@ -545,11 +545,21 @@ def main():
     for photo in to_download_objects:
         # Resolve creation date
         created_time = photo.created # Default to UTC from iCloud
+        
+        # If photo.created is None or epoch (common fallback for failed parsing), use cached date
+        if not created_time or created_time.year <= 1970:
+            created_time = getattr(photo, "_cached_date", None)
+            
         if local_library:
             res = local_library.find_photo(photo.id)
             if res:
                 _, local_dt = res
-                created_time = local_dt # Use local time if found
+                if local_dt and local_dt.year > 1970:
+                    created_time = local_dt # Use local time if found
+        
+        # If still None, use a safe default (today)
+        if not created_time:
+            created_time = datetime.now()
         
         # Calculate target directory based on grouping rule
         dir_name = substitute_tags(args.grouping, created_time, photo.id, photo.filename)
