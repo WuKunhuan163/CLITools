@@ -6,6 +6,9 @@
   "dependencies": [
     "PYTHON"
   ],
+  "pip_dependencies": [
+    "Pillow"
+  ],
   "python_version": "3.11.14"
 }
 

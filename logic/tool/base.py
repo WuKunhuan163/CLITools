@@ -223,7 +223,7 @@ class ToolBase:
                     return True
                 
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
-            if subtool_main.exists():
+            if not cmd.startswith("-") and subtool_main.exists():
                 cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
                 try:
                     res = subprocess.run(cmd_args)
@@ -236,18 +236,24 @@ class ToolBase:
                 import argparse
                 is_recognized = False
                 choices = []
-                for action in parser._actions:
-                    if isinstance(action, argparse._SubParsersAction):
-                        choices.extend(action.choices.keys())
-                    elif action.choices:
-                        choices.extend(action.choices)
-                    if cmd in action.option_strings:
-                        is_recognized = True
-                if cmd in choices: is_recognized = True
-                if cmd in ["-h", "--help"]: is_recognized = True
+                # If it's an option, it's recognized by the parser later
+                if cmd.startswith("-"):
+                    is_recognized = True
+                else:
+                    for action in parser._actions:
+                        if isinstance(action, argparse._SubParsersAction):
+                            choices.extend(action.choices.keys())
+                        elif action.choices:
+                            choices.extend(action.choices)
+                        if cmd in action.option_strings:
+                            is_recognized = True
+                    if cmd in choices: is_recognized = True
+                    if cmd in ["-h", "--help"]: is_recognized = True
 
                 if not is_recognized:
                     res = self.run_system_fallback(capture_output=self.is_quiet, filtered_args=args_to_check)
+                    if res is None:
+                        return True # Already printed error
                     if self.is_quiet:
                         print("TOOL_RESULT_JSON:" + json.dumps({
                             "returncode": res.returncode,

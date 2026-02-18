@@ -109,6 +109,8 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     
     # Display PID for precise termination if needed
     tool_name = tool_instance.tool_name
+    is_quiet = getattr(tool_instance, "is_quiet", False)
+    
     label_waiting_key = "label_waiting_gui"
     if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
     
@@ -116,13 +118,14 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     via_gui_label = tool_instance.get_translation("label_via_gui", "via GUI")
     display_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} {via_gui_label} (PID: {proc.pid})..."
     
-    from logic.turing.display.manager import truncate_to_width, _get_configured_width
-    width = _get_configured_width()
-    if width > 0:
-        display_msg = truncate_to_width(display_msg, width)
-        
-    sys.stdout.write(f"\r\033[K{display_msg}")
-    sys.stdout.flush()
+    if not is_quiet:
+        from logic.turing.display.manager import truncate_to_width, _get_configured_width
+        width = _get_configured_width()
+        if width > 0:
+            display_msg = truncate_to_width(display_msg, width)
+            
+        sys.stdout.write(f"\r\033[K{display_msg}")
+        sys.stdout.flush()
 
     # Hide debug prints unless specifically enabled
     from logic.config import get_setting
@@ -238,7 +241,8 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 return {"status": "terminated", "data": None, "reason": "interrupted"}
             raise e
 
-    sys.stdout.write("\r\033[K"); sys.stdout.flush()
+    if not is_quiet:
+        sys.stdout.write("\r\033[K"); sys.stdout.flush()
     
     # Parse JSON result
     res = None

@@ -288,10 +288,8 @@ class BaseGUIWindow:
         block_bg = bg
         if not block_bg:
             if getattr(self, "debug_blocks", False):
-                # Light alpha-like colors for visual debugging
-                colors = ["#e8f0fe", "#fdf7e3", "#f6f6f6", "#e6fffa", "#fff5f5"]
-                idx = len(self.blocks) % len(colors)
-                block_bg = colors[idx]
+                # Light grayish-white for all blocks in debug mode
+                block_bg = "#f9f9f9"
             else:
                 block_bg = parent.cget("bg")
                 

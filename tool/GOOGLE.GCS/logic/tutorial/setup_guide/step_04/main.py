@@ -77,24 +77,34 @@ def build_step(frame, win):
                 # We use --tool-quiet to minimize noise and get JSON output
                 env = os.environ.copy()
                 env["PYTHONPATH"] = str(project_root)
-                # Pass --tool-quiet to ensure it prints only the final path or JSON
-                cmd = [sys.executable, str(fd_main), "--tool-quiet", "--title", "Select Service Account JSON", "--types", "json"]
+                # Ensure we use the main.py correctly
+                cmd = [sys.executable, str(fd_main), "--title", "Select Service Account JSON", "--types", "json", "--tool-quiet"]
                 
                 res = subprocess.run(cmd, capture_output=True, text=True, env=env)
                 
-                output = res.stdout.strip()
+                # Combine stdout and stderr for robust search
+                output = res.stdout + "\n" + res.stderr
                 path = None
                 
-                if output.startswith("TOOL_RESULT_JSON:"):
-                    try:
-                        data = json.loads(output[len("TOOL_RESULT_JSON:"):])
-                        if data.get("returncode") == 0:
-                            # stdout might be the path directly in TOOL_RESULT_JSON
-                            path = data.get("stdout", "").strip()
-                    except: pass
-                else:
-                    # Fallback to direct stdout
-                    path = output
+                # Robust marker search
+                marker = "TOOL_RESULT_JSON:"
+                for line in output.splitlines():
+                    if marker in line:
+                        try:
+                            json_str = line[line.find(marker) + len(marker):].strip()
+                            data = json.loads(json_str)
+                            if data.get("returncode") == 0:
+                                # Result from FILEDIALOG tool is in its stdout
+                                inner_stdout = data.get("stdout", "").strip()
+                                if inner_stdout:
+                                    path = inner_stdout
+                            break
+                        except: pass
+                
+                if not path:
+                    # Fallback to direct stdout if marker not found but process exited successfully
+                    if res.returncode == 0:
+                        path = res.stdout.strip()
                 
                 def update_ui():
                     if path and os.path.exists(path):
