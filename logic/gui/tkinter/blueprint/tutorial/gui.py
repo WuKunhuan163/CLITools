@@ -200,9 +200,9 @@ class TutorialWindow(BaseGUIWindow):
         container = tk.Frame(self.main_frame)
         container.pack(fill=tk.BOTH, expand=True)
         
-        self.canvas = tk.Canvas(container, highlightthickness=0)
+        self.canvas = tk.Canvas(container, highlightthickness=0, borderwidth=0)
         self.scrollbar = tk.Scrollbar(container, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas)
+        self.scrollable_frame = tk.Frame(self.canvas, borderwidth=0, highlightthickness=0)
         
         self.scrollable_frame.bind(
             "<Configure>",

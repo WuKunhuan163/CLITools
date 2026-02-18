@@ -663,7 +663,7 @@ class BaseGUIWindow:
             
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
             if is_managed:
-                sys.stdout.write("\n" + result_line + "\n")
+                sys.stdout.write(result_line + "\n")
                 sys.stdout.flush()
         except Exception as e:
             if hasattr(self, 'instance_file') and self.instance_file and self.instance_file.exists():
@@ -674,7 +674,7 @@ class BaseGUIWindow:
             self.result = {"status": "error", "message": str(e)}
             result_line = "GDS_GUI_RESULT_JSON:" + json.dumps(self.result)
             if os.environ.get("GDS_GUI_MANAGED") == "1":
-                sys.stdout.write("\n" + result_line + "\n")
+                sys.stdout.write(result_line + "\n")
                 sys.stdout.flush()
 
 def setup_common_bottom_bar(parent, window_instance: BaseGUIWindow, 

@@ -210,11 +210,21 @@ class ProgressTuringMachine:
                             sys.stdout.flush()
                             
                             fail_name = stage.fail_name or stage.name
-                            brief_reason = stage.error_brief or "Action returned False"
+                            brief_reason = stage.error_brief
                             
-                            # If we have a full error log, prioritize it for the brief if it's a string
-                            if stage.error_full and isinstance(stage.error_full, str) and not stage.error_brief:
-                                brief_reason = stage.error_full
+                            if not brief_reason:
+                                if stage.error_full and isinstance(stage.error_full, str):
+                                    # Try to extract the first line or a specific "error:" pattern from error_full
+                                    lines = stage.error_full.splitlines()
+                                    error_line = next((l for l in lines if "error:" in l.lower()), None)
+                                    if error_line:
+                                        brief_reason = error_line.strip()
+                                    elif lines:
+                                        brief_reason = lines[0].strip()
+                                    else:
+                                        brief_reason = "Action returned False"
+                                else:
+                                    brief_reason = "Action returned False"
                             
                             if self.no_warning and is_warning:
                                 # Just clear the active line and continue
