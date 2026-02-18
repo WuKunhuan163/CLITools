@@ -114,7 +114,7 @@ def main():
                 print(f"{BOLD}{YELLOW}Warning{RESET}: '{library_path}' does not appear to be a valid Photos Library (missing 'originals' folder).")
                 local_library = None
             else:
-                print(f"{BOLD}Using local library{RESET}: {library_path}")
+                pass # Local library confirmed
         else:
             print(f"{BOLD}{RED}Error{RESET}: Local photos library path '{library_path}' does not exist.")
             sys.exit(1)
@@ -454,6 +454,10 @@ def main():
     print(f"{BOLD}Scheduled{RESET} {len(scheduled_id_info)} photos/videos for download.")
     if not scheduled_id_info: return
 
+    # Display local library usage just before gathering
+    if local_library:
+        print(f"{BOLD}Using local library{RESET}: {local_library.library_path}")
+
     # 4. Parallel Downloading
     from logic.turing.models.worker import ParallelWorkerPool
     output_root = Path(args.output or ".").resolve()
@@ -505,9 +509,11 @@ def main():
         # Warning if local matches are incomplete
         missing_count = sum(len(ids) for ids in needs_lookup_ids.values())
         if local_library and missing_count > 0:
-            if stage: stage.active_status = "Warning"
-            print(f"\n{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not found in local library. Gathering metadata from iCloud...")
-            if stage: stage.active_status = "Gathering"
+            # Erase current line
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            print(f"{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not found in local library. Gathering metadata from iCloud...")
+            if stage: stage.refresh() # Restore active line below warning
 
         if not needs_lookup_ids:
             return len(to_download_objects) > 0
@@ -568,11 +574,18 @@ def main():
         # First try local library if available
         if local_library:
             try:
-                # fetch_photo returns local creation date if found and copied
-                if local_library.fetch_photo(photo.id, target_path):
+                # Pass filename and date for robust fetch
+                filename = getattr(photo, "filename", None)
+                created_dt = getattr(photo, "created", None)
+                if local_library.fetch_photo(photo.id, target_path, filename=filename, created_dt=created_dt):
                     return True
             except Exception:
                 pass # Fallback to iCloud
+        
+        # If it was a LocalAssetStub and local fetch failed, we can't fallback to iCloud
+        if isinstance(photo, LocalAssetStub):
+            if stage: stage.report_error("Local Fetch Failed", f"Could not find {photo.filename} in local library originals.")
+            return False
                 
         max_attempts, last_err = 3, ""
         for attempt in range(max_attempts):
@@ -592,7 +605,13 @@ def main():
         return False
 
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
-    pool.status_bar.set_counts(len(to_download_objects))
+    # Identify how many are already completed (local matches)
+    local_done_count = 0
+    for photo in to_download_objects:
+        if isinstance(photo, LocalAssetStub):
+            local_done_count += 1
+            
+    pool.status_bar.set_counts(len(to_download_objects), completed=local_done_count, is_remote=(local_done_count > 0))
     tasks, failed_tasks = [], []
     used_paths = set()
     

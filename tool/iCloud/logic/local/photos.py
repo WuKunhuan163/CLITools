@@ -181,9 +181,9 @@ class LocalPhotosLibrary:
         local_dt = apple_epoch + timedelta(seconds=apple_ts)
         return uuid, ext, local_dt
 
-    def fetch_photo(self, icloud_id: str, target_path: Path) -> Optional[datetime]:
+    def fetch_photo(self, icloud_id: str, target_path: Path, filename: Optional[str] = None, created_dt: Optional[datetime] = None) -> Optional[datetime]:
         """Copies the photo and returns the local creation date if found."""
-        res = self.find_photo(icloud_id)
+        res = self.find_photo(icloud_id, filename=filename, created_dt=created_dt)
         if res:
             local_path, local_dt = res
             try:

@@ -22,23 +22,38 @@ class DynamicStatusBar:
         self.completed_count: int = 0
         self.start_time: Optional[float] = None
         
+        # New: Support for ignoring local/pre-completed tasks in ETA
+        self.baseline_completed = 0
+        self.baseline_time = 0.0
+        
         self.BLUE = get_color("BLUE", "\033[34m") if use_bold_blue else ""
         self.BOLD = get_color("BOLD", "\033[1m") if use_bold_blue else ""
         self.RESET = get_color("RESET", "\033[0m") if use_bold_blue else ""
 
-    def set_counts(self, total: int, completed: int = 0):
-        """Set progress counts for the status display."""
+    def set_counts(self, total: int, completed: int = 0, is_remote: bool = False):
+        """
+        Set progress counts for the status display.
+        If is_remote=True, the current completed count is treated as a baseline 
+        (local copies) and ignored for speed/ETA calculation.
+        """
         with self.lock:
             self.total_count = total
             self.completed_count = completed
-            if self.start_time is None:
-                self.start_time = time.time()
+            self.start_time = time.time()
+            if is_remote:
+                self.baseline_completed = completed
+                self.baseline_time = 0.0 # Will be updated on first remote completion
+            else:
+                self.baseline_completed = 0
+                self.baseline_time = 0.0
             self._render()
 
     def increment_completed(self):
         """Increment the completed count."""
         with self.lock:
             self.completed_count += 1
+            # If we just finished the first remote task, we might want to adjust baseline_time
+            # but calculate_eta handles elapsed_time=0.
             self._render()
 
     def update(self, item_id: str, action: str = "add"):
@@ -74,8 +89,29 @@ class DynamicStatusBar:
         progress_info = ""
         if self.total_count is not None:
             from logic.utils import calculate_eta
-            elapsed = time.time() - self.start_time if self.start_time else 0
-            e_str, r_str = calculate_eta(self.completed_count, self.total_count, elapsed)
+            
+            # ETA logic for remote tasks
+            if self.baseline_completed > 0:
+                remote_count = self.completed_count - self.baseline_completed
+                remote_total = self.total_count - self.baseline_completed
+                elapsed = time.time() - self.start_time if self.start_time else 0
+                
+                if remote_count <= 0:
+                    # Not yet started any remote task, or all local
+                    e_str = "00:00"
+                    r_str = "??:??"
+                else:
+                    # Calculate ETA based ONLY on remote progress
+                    _, r_str = calculate_eta(remote_count, remote_total, elapsed)
+                    # For elapsed, we show the total elapsed time for the whole stage? 
+                    # Or just the remote elapsed? User said "ETA only estimates remaining remote time".
+                    # Usually elapsed means total time since the stage started.
+                    from logic.utils import format_seconds
+                    e_str = format_seconds(elapsed)
+            else:
+                elapsed = time.time() - self.start_time if self.start_time else 0
+                e_str, r_str = calculate_eta(self.completed_count, self.total_count, elapsed)
+                
             progress_info = f"({self.completed_count}/{self.total_count}) [{e_str}>{r_str}] "
             
         status_msg = f"{self.BLUE}{self.label}{self.RESET} {progress_info}{items_str}..."
