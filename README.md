@@ -99,7 +99,7 @@ Standardized iCloud photo and video downloader:
 - **Parallel Downloads**: Support for N-worker concurrent downloading (parameterized via `--workers`).
 - **Dynamic Progress**: Single-line real-time progress showing current filenames and total completion.
 - **Date Filtering**: Filter by `--since` and `--before` date ranges (YYYY-MM-DD).
-- **Local Library Support**: Use `--local-photos [PATH]` to check a local Apple Photos Library (.photoslibrary) before downloading from iCloud. It maps iCloud IDs to local files using the database and resolves local creation times including timezone offsets.
+- **Local Library Support**: Use `--local-photos [PATH]` to check a local Apple Photos Library (.photoslibrary) before downloading from iCloud. It maps iCloud IDs to local files using the database and resolves local creation times including timezone offsets. Supports offline gathering for locally-matched assets.
 - **Custom Formatting**: Customize filenames and directories via `--prefix`, `--suffix`, and `--grouping`. Use placeholders like `<YYYY>`, `<MM>`, `<DD>`, `<hh>`, `<mm>`, `<ss>`, `<ID>`, and `<FILENAME>`.
 - **Subtool Integration**: Operates as a subtool under the `iCloud` ecosystem, sharing authentication and 2FA interfaces.
 

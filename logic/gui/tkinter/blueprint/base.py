@@ -371,12 +371,13 @@ class BaseGUIWindow:
             if parent_w <= 1:
                 parent_w = self.root.winfo_width() - 80 if self.root else 720
         
-        # 3. Account for block padding (padx=20 on both sides = 40)
-        target_w = parent_w - 40
+        # 3. Target width is the parent width (container width)
+        # We don't subtract 40 here because the block itself already has padding
+        target_w = parent_w
         if target_w < 50: target_w = 50
         
         # 4. Apply max_width if provided
-        if item["max_width"]:
+        if item.get("max_width"):
             target_w = min(target_w, item["max_width"])
         
         orig_w, orig_h = original_img.size

@@ -23,4 +23,4 @@ def build_step(frame, win):
         img_path = Path(__file__).resolve().parent / "asset" / "image" / f"guide_{i}.png"
         if img_path.exists():
             img_block = win.add_block(frame)
-            win.setup_image(img_block, img_path, max_width=600, upscale=2)
+            win.setup_image(img_block, img_path, upscale=2)
