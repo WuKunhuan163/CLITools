@@ -81,7 +81,6 @@ def main():
         if args.local_photos == 'default':
             if not args.no_gui:
                 from logic.gui.manager import run_gui_subprocess
-                from logic.tool.base import ToolBase
                 fd_tool = ToolBase("FILEDIALOG")
                 fd_script = str(project_root / "tool" / "FILEDIALOG" / "main.py")
                 
