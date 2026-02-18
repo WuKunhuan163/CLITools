@@ -304,6 +304,10 @@ class ProgressTuringMachine:
                 # If non-ephemeral, the last stage already printed a newline
                 return True
             except KeyboardInterrupt:
+                if suppressor:
+                    try: suppressor.stop(force=True)
+                    except: pass
+                
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
                 # Print cancellation status

@@ -250,7 +250,11 @@ def main():
 
                 win = TwoFactorAuthWindow(title="iCloud 2FA", timeout=300, internal_dir=str(tool.tool_dir / "logic"), n=6, verify_handler=v_handler)
                 win.run(win.setup_ui)
-                if win.result.get("status") != "success":
+                res = win.result
+                if win.root:
+                    try: win.root.destroy()
+                    except: pass
+                if res.get("status") != "success":
                     return False
             
             save_session(apple_id, api)
@@ -464,28 +468,39 @@ def main():
         # Split IDs into local-resolvable and needs-iCloud-lookup
         needs_lookup_ids = {} # lib_name -> [ids]
         
+        # Preload mappings if using local library
+        if local_library:
+            local_library.preload_mappings(list(scheduled_id_info.keys()))
+            
         for aid, info in scheduled_id_info.items():
             lib_name = info["lib_name"]
             
             # Check local library first if available
             is_local = False
             if local_library:
-                local_res = local_library.find_photo(aid)
+                # Pass filename and created_dt for robust fallback lookup
+                local_res = local_library.find_photo(aid, filename=info["filename"], created_dt=info["created"])
                 if local_res:
                     _, local_dt = local_res
                     to_download_objects.append(LocalAssetStub(aid, info["filename"], local_dt))
                     count += 1
                     is_local = True
+                    # Update progress for local matches periodically
+                    if count % 100 == 0 or count == total_scheduled:
+                        from logic.utils import calculate_eta
+                        e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+                        if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
             
             if not is_local:
                 if lib_name not in needs_lookup_ids: needs_lookup_ids[lib_name] = []
                 needs_lookup_ids[lib_name].append(aid)
         
-        if count > 0 and stage:
-            from logic.utils import calculate_eta
-            e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
-            stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"
-            stage.refresh()
+        # Warning if local matches are incomplete
+        missing_count = sum(len(ids) for ids in needs_lookup_ids.values())
+        if local_library and missing_count > 0:
+            if stage: stage.active_status = "Warning"
+            print(f"\n{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not found in local library. Gathering metadata from iCloud...")
+            if stage: stage.active_status = "Gathering"
 
         if not needs_lookup_ids:
             return len(to_download_objects) > 0

@@ -113,7 +113,8 @@ class KeyboardSuppressor:
         # Join outside the lock to avoid deadlock with _capture_loop
         if thread_to_join:
             try:
-                thread_to_join.join(timeout=0.2)
+                # Use a small timeout to avoid hanging the main thread on exit
+                thread_to_join.join(timeout=0.1)
             except:
                 pass
         
@@ -121,8 +122,9 @@ class KeyboardSuppressor:
         if self._old_settings and self._fd is not None:
             try:
                 import termios
+                # Ensure original settings are restored to the FD
                 termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
-            except:
+            except Exception:
                 pass
         
         # Clear old settings to indicate we are done

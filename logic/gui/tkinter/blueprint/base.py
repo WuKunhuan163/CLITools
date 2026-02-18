@@ -373,20 +373,19 @@ class BaseGUIWindow:
                 parent_w = self.root.winfo_width() - 80 if self.root else 720
         
         # 3. Check if we actually need to resize to avoid jitter
-        last_w = item.get("last_w", 0)
-        # Only resize if the width change is significant (> 5px) or it's the first time
-        if last_w > 0 and abs(parent_w - last_w) < 5:
-            return
-
-        # 4. Target width is the parent width (container width)
-        target_w = parent_w
+        prev_target_w = item.get("last_target_w", 0)
+        # 4. Target width is slightly less than parent width for padding
+        target_w = parent_w - 40
         if target_w < 50: target_w = 50
         
+        if prev_target_w > 0 and abs(target_w - prev_target_w) < 5:
+            return
+
         # 5. Apply max_width if provided
         if item.get("max_width"):
             target_w = min(target_w, item["max_width"])
         
-        item["last_w"] = parent_w
+        item["last_target_w"] = target_w
         
         orig_w, orig_h = original_img.size
         # Calculate aspect ratio
@@ -403,9 +402,10 @@ class BaseGUIWindow:
             print(f"  Parent width: {parent_w}, Calculated target_w: {target_w}, Target height: {target_h}")
 
         try:
-            # Render at upscale resolution for clarity
-            render_w, render_h = int(target_w * upscale), int(target_h * upscale)
-            resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
+            # We resize exactly to target_w/target_h for display.
+            # Sharpness (upscale) is handled by the initial resize quality, 
+            # but the dimensions must match the container.
+            resized_img = original_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(resized_img)
             label.config(image=photo)
             label.image = photo 

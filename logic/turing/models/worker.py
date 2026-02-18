@@ -157,15 +157,21 @@ class ParallelWorkerPool:
                 self.status_bar.update(task_id, "remove")
 
         from logic.terminal.keyboard import get_global_suppressor
-        with get_global_suppressor():
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {
-                    executor.submit(wrapper, t["id"], t["action"], *t.get("args", ()), **t.get("kwargs", {})): t 
-                    for t in tasks
-                }
-                for future in as_completed(futures):
-                    if not future.result():
-                        all_success = False
+        suppressor = get_global_suppressor()
+        with suppressor:
+            try:
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = {
+                        executor.submit(wrapper, t["id"], t["action"], *t.get("args", ()), **t.get("kwargs", {})): t 
+                        for t in tasks
+                    }
+                    for future in as_completed(futures):
+                        if not future.result():
+                            all_success = False
+            except (KeyboardInterrupt, Exception):
+                try: suppressor.stop(force=True)
+                except: pass
+                raise
         
         self.status_bar.clear()
         return all_success
