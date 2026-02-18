@@ -282,6 +282,16 @@ class FileDialogWindow(BaseGUIWindow):
         
         self.start_timer(self.status_label)
         self.start_periodic_focus(90)
+        
+        # Force topmost with multiple attempts and a small delay to override parent windows (Interface I focus priority)
+        def force_focus(attempt=0):
+            if not self.window_closed and self.root:
+                self.root.lift()
+                self.root.attributes("-topmost", True)
+                self.root.focus_force()
+                if attempt < 5: # Try a few times to win against other topmost windows
+                    self.root.after(100, lambda: force_focus(attempt + 1))
+        self.root.after(150, force_focus)
 
     def on_breadcrumb_configure(self, event):
         if hasattr(self, "_breadcrumb_timer"):
