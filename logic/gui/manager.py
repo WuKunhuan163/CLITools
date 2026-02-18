@@ -107,12 +107,9 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                             text=True, encoding='utf-8', start_new_session=True,
                             env=env)
     
+    # Display PID for precise termination if needed
     tool_name = tool_instance.tool_name
     is_quiet = getattr(tool_instance, "is_quiet", False)
-    
-    if is_quiet:
-        sys.stderr.write(f"DEBUG: GUI Subprocess started. PID: {proc.pid}\n")
-        sys.stderr.flush()
     
     label_waiting_key = "label_waiting_gui"
     if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
@@ -176,9 +173,6 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     try:
         while proc.poll() is None:
             # 1. Check for add_time events
-            if is_quiet and random.random() < 0.05: # Occasional debug print
-                sys.stderr.write(f"DEBUG: GUI Subprocess {proc.pid} still running...\n")
-                sys.stderr.flush()
             try:
                 for f in list(added_time_dir.glob(f"{proc.pid}_*.add")):
                     # Extract increment from filename

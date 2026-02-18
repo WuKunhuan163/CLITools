@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 import subprocess
 import json
@@ -73,14 +74,6 @@ def build_step(frame, win):
         fd_main = project_root / "tool" / "FILEDIALOG" / "main.py"
         
         def run_fd():
-            debug_log = getattr(win, "project_root", Path.cwd()) / "tool" / "GOOGLE.GCS" / "data" / "debug_step4.log"
-            debug_log.parent.mkdir(parents=True, exist_ok=True)
-            
-            def log(msg):
-                with open(debug_log, "a") as f:
-                    f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
-                print(f"DEBUG: {msg}", file=sys.stderr)
-
             try:
                 # We use --tool-quiet to minimize noise and get JSON output
                 env = os.environ.copy()
@@ -88,24 +81,32 @@ def build_step(frame, win):
                 # Ensure we use the main.py correctly
                 cmd = [sys.executable, str(fd_main), "--title", "Select Service Account JSON", "--types", "json", "--tool-quiet"]
                 
-                log(f"Starting FILEDIALOG via subprocess. cmd: {cmd}")
+                # Use Popen to capture output in real-time
+                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
                 
-                # Add a reasonable timeout to avoid permanent hang
+                stdout_lines = []
+                stderr_lines = []
+                
+                def read_out():
+                    for line in iter(proc.stdout.readline, ''):
+                        stdout_lines.append(line)
+                def read_err():
+                    for line in iter(proc.stderr.readline, ''):
+                        stderr_lines.append(line)
+                
+                t1 = threading.Thread(target=read_out, daemon=True)
+                t2 = threading.Thread(target=read_err, daemon=True)
+                t1.start(); t2.start()
+                
+                # Wait with timeout
                 try:
-                    res = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=300)
-                    log(f"FILEDIALOG subprocess finished. Return code: {res.returncode}")
-                    
-                    if res.stderr:
-                        log(f"FILEDIALOG subprocess stderr: {res.stderr}")
-                    if res.stdout:
-                        log(f"FILEDIALOG subprocess stdout: {res.stdout[:500]}...")
-                    
-                    # Combine stdout and stderr for robust search
-                    output = res.stdout + "\n" + res.stderr
+                    ret = proc.wait(timeout=300)
                 except subprocess.TimeoutExpired:
-                    log("FILEDIALOG subprocess TIMED OUT (300s)")
-                    output = ""
-                    res = None
+                    proc.kill()
+                    ret = -1
+                
+                t1.join(timeout=2); t2.join(timeout=2)
+                output = "".join(stdout_lines) + "\n" + "".join(stderr_lines)
                 
                 path = None
                 
@@ -116,25 +117,20 @@ def build_step(frame, win):
                         try:
                             json_str = line[line.find(marker) + len(marker):].strip()
                             data = json.loads(json_str)
-                            log(f"Found JSON result: {data}")
                             if data.get("returncode") == 0:
                                 # Result from FILEDIALOG tool is in its stdout
                                 inner_stdout = data.get("stdout", "").strip()
                                 if inner_stdout:
                                     path = inner_stdout
-                                    log(f"Extracted path: {path}")
                             break
-                        except Exception as e:
-                            log(f"Failed to parse JSON: {e}")
+                        except: pass
                 
-                if not path and res and res.returncode == 0:
+                if not path and ret == 0:
                     # Fallback to direct stdout if marker not found but process exited successfully
-                    path = res.stdout.strip()
-                    log(f"Fallback path from stdout: {path}")
+                    path = "".join(stdout_lines).strip()
                 
                 def update_ui():
                     if path and os.path.exists(path):
-                        log(f"Valid path selected: {path}")
                         # Cache the file with hash
                         try:
                             cache_dir = _get_cache_dir()
@@ -151,11 +147,9 @@ def build_step(frame, win):
                             status_label.config(fg="black")
                             validate_btn.config(state=tk.NORMAL)
                         except Exception as e:
-                            log(f"Cache Error: {e}")
                             status_var.set(f"Cache Error: {e}")
                             status_label.config(fg="red")
                     else:
-                        log(f"No valid path selected or path doesn't exist: {path}")
                         status_var.set("No file selected or invalid path")
                         status_label.config(fg="gray")
                         validate_btn.config(state=tk.DISABLED)
@@ -164,7 +158,6 @@ def build_step(frame, win):
                 
                 frame.after(0, update_ui)
             except Exception as e:
-                log(f"Exception in run_fd: {e}")
                 def on_err():
                     status_var.set(f"Error: {e}")
                     status_label.config(fg="red")

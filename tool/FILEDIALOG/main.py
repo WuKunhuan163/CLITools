@@ -131,13 +131,15 @@ def parse_file_types(file_types_str: str):
         types.append(('All files', '*.*'))
     return types
 
-def get_user_selection(title, initial_dir, file_types, multiple, directory_only, custom_id=None):
-    tool = FileDialogTool()
+def get_user_selection(title, initial_dir, file_types, multiple, directory_only, custom_id=None, tool=None):
+    if tool is None:
+        tool = FileDialogTool()
+        # Initialize quiet mode if needed
+        tool.is_quiet = "--tool-quiet" in sys.argv
+    
     from logic.gui.engine import get_safe_python_for_gui
     python_exe = get_safe_python_for_gui()
     
-    if getattr(tool, "is_quiet", False):
-        print(f"DEBUG: FILEDIALOG get_user_selection starting. Python: {python_exe}", file=sys.stderr)
     tkinter_script = r'''
 import os
 import sys
@@ -511,11 +513,7 @@ if __name__ == "__main__":
         tmp_path = tmp.name
 
     try:
-        if getattr(tool, "is_quiet", False):
-            print(f"DEBUG: Launching GUI script via run_gui_with_fallback. Path: {tmp_path}", file=sys.stderr)
         res = tool.run_gui_with_fallback(python_exe, tmp_path, 300, custom_id)
-        if getattr(tool, "is_quiet", False):
-            print(f"DEBUG: GUI script finished. Result status: {res.get('status')}", file=sys.stderr)
         if res.get("status") == "success" and isinstance(res.get("data"), list):
             if not multiple: res["data"] = res["data"][0]
         return res
@@ -544,7 +542,7 @@ def main():
     initial_dir = args.dir or os.getcwd()
     file_types = parse_file_types(args.types)
     
-    result = get_user_selection(args.title, initial_dir, file_types, args.multiple, args.directory, custom_id=args.id)
+    result = get_user_selection(args.title, initial_dir, file_types, args.multiple, args.directory, custom_id=args.id, tool=tool)
     
     from logic.config import get_color
     BOLD, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
