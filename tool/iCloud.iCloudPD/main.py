@@ -394,6 +394,20 @@ def main():
     format_patterns = args.formats.split("|") if args.formats else None
     regex_pattern = re.compile(args.regex) if args.regex else None
 
+    def substitute_tags(template, date_obj, asset_id, filename):
+        if not template: return ""
+        res = template
+        if date_obj:
+            res = res.replace("<YYYY>", date_obj.strftime("%Y"))
+            res = res.replace("<MM>", date_obj.strftime("%m"))
+            res = res.replace("<DD>", date_obj.strftime("%d"))
+            res = res.replace("<hh>", date_obj.strftime("%H"))
+            res = res.replace("<mm>", date_obj.strftime("%M"))
+            res = res.replace("<ss>", date_obj.strftime("%S"))
+        res = res.replace("<ID>", asset_id)
+        res = res.replace("<FILENAME>", filename)
+        return res
+
     scheduled_id_info = {}
     for y, y_data in all_photos_meta.items():
         if not isinstance(y_data, dict): continue
@@ -418,9 +432,16 @@ def main():
     output_root = Path(args.output or ".").resolve()
     already_downloaded_count = 0
     for aid, info in scheduled_id_info.items():
-        p_date_str = info["created"].strftime("%Y-%m-%d") if info["created"] else "unknown"
-        target_file = output_root / p_date_str / info["filename"]
-        # Note: Collision protection might change final filename, but if the original exists, we skip.
+        # Correctly resolve the target path using the same logic as the download loop
+        p_date = info["created"]
+        dir_name = substitute_tags(args.grouping, p_date, aid, info["filename"])
+        prefix = substitute_tags(args.prefix, p_date, aid, info["filename"])
+        suffix = substitute_tags(args.suffix, p_date, aid, info["filename"])
+        
+        name, ext = os.path.splitext(info["filename"])
+        base_name = f"{prefix}{name}{suffix}{ext}"
+        target_file = output_root / dir_name / base_name
+        
         if target_file.exists():
             already_downloaded_count += 1
             continue
@@ -445,20 +466,6 @@ def main():
             self.created = created
             self.versions = {} # Prevent AttributeError in fallback
             self._service = None
-
-    def substitute_tags(template, date_obj, asset_id, filename):
-        if not template: return ""
-        res = template
-        if date_obj:
-            res = res.replace("<YYYY>", date_obj.strftime("%Y"))
-            res = res.replace("<MM>", date_obj.strftime("%m"))
-            res = res.replace("<DD>", date_obj.strftime("%d"))
-            res = res.replace("<hh>", date_obj.strftime("%H"))
-            res = res.replace("<mm>", date_obj.strftime("%M"))
-            res = res.replace("<ss>", date_obj.strftime("%S"))
-        res = res.replace("<ID>", asset_id)
-        res = res.replace("<FILENAME>", filename)
-        return res
     
     def gather_action(stage=None):
         nonlocal to_download_objects
@@ -663,4 +670,8 @@ def main():
         print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
 
 if __name__ == "__main__":
+    from logic.terminal.keyboard import get_global_suppressor
+    try:
+        get_global_suppressor().stop(force=True)
+    except: pass
     main()

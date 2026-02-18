@@ -139,28 +139,47 @@ class LocalPhotosLibrary:
             
             # Apple timestamps are in seconds since 2001-01-01
             apple_epoch = datetime(2001, 1, 1)
-            # We don't know the exact timezone offset used in DB for this asset yet,
-            # but usually ZDATECREATED is UTC.
-            # iCloud created_dt is also UTC.
             target_ts = (created_dt - apple_epoch).total_seconds()
             
-            # Search within 10 seconds window and matching filename
+            # 1. Strict search: filename + date (drift 60s)
             query = """
-                SELECT ZUUID, ZFILENAME, ZDATECREATED
-                FROM ZASSET 
-                WHERE ZFILENAME = ? AND ZDATECREATED >= ? AND ZDATECREATED <= ?
+                SELECT a.ZUUID, a.ZFILENAME, a.ZDATECREATED
+                FROM ZASSET a
+                LEFT JOIN ZADDITIONALASSETATTRIBUTES aa ON a.Z_PK = aa.ZASSET
+                WHERE (a.ZFILENAME = ? OR aa.ZORIGINALFILENAME = ?) 
+                  AND a.ZDATECREATED >= ? AND a.ZDATECREATED <= ?
             """
-            cursor.execute(query, (filename, target_ts - 5, target_ts + 5))
+            cursor.execute(query, (filename, filename, target_ts - 30, target_ts + 30))
             result = cursor.fetchone()
             if result:
-                uuid, fname, apple_ts = result
-                ext = os.path.splitext(fname)[1] if fname else os.path.splitext(filename)[1]
-                # For fallback, we just return the UTC date
-                local_dt = apple_epoch + timedelta(seconds=apple_ts)
-                return uuid, ext, local_dt
+                return self._format_result(result, filename)
+
+            # 2. Lenient search: filename without extension + date (drift 60s)
+            # Useful if one is .JPG and other is .HEIC
+            base_name = os.path.splitext(filename)[0]
+            query2 = """
+                SELECT a.ZUUID, a.ZFILENAME, a.ZDATECREATED
+                FROM ZASSET a
+                LEFT JOIN ZADDITIONALASSETATTRIBUTES aa ON a.Z_PK = aa.ZASSET
+                WHERE (a.ZFILENAME LIKE ? OR aa.ZORIGINALFILENAME LIKE ?) 
+                  AND a.ZDATECREATED >= ? AND a.ZDATECREATED <= ?
+            """
+            pattern = f"{base_name}%"
+            cursor.execute(query2, (pattern, pattern, target_ts - 30, target_ts + 30))
+            result = cursor.fetchone()
+            if result:
+                return self._format_result(result, filename)
+
         except Exception:
             self.close()
         return None
+
+    def _format_result(self, row, original_filename) -> tuple:
+        uuid, fname, apple_ts = row
+        ext = os.path.splitext(fname)[1] if fname else os.path.splitext(original_filename)[1]
+        apple_epoch = datetime(2001, 1, 1)
+        local_dt = apple_epoch + timedelta(seconds=apple_ts)
+        return uuid, ext, local_dt
 
     def fetch_photo(self, icloud_id: str, target_path: Path) -> Optional[datetime]:
         """Copies the photo and returns the local creation date if found."""
