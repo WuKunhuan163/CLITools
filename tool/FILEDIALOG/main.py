@@ -136,6 +136,8 @@ def get_user_selection(title, initial_dir, file_types, multiple, directory_only,
     from logic.gui.engine import get_safe_python_for_gui
     python_exe = get_safe_python_for_gui()
     
+    if getattr(tool, "is_quiet", False):
+        print(f"DEBUG: FILEDIALOG get_user_selection starting. Python: {python_exe}", file=sys.stderr)
     tkinter_script = r'''
 import os
 import sys
@@ -509,7 +511,11 @@ if __name__ == "__main__":
         tmp_path = tmp.name
 
     try:
+        if getattr(tool, "is_quiet", False):
+            print(f"DEBUG: Launching GUI script via run_gui_with_fallback. Path: {tmp_path}", file=sys.stderr)
         res = tool.run_gui_with_fallback(python_exe, tmp_path, 300, custom_id)
+        if getattr(tool, "is_quiet", False):
+            print(f"DEBUG: GUI script finished. Result status: {res.get('status')}", file=sys.stderr)
         if res.get("status") == "success" and isinstance(res.get("data"), list):
             if not multiple: res["data"] = res["data"][0]
         return res

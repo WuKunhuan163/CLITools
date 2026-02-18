@@ -294,7 +294,7 @@ class BaseGUIWindow:
                 block_bg = parent.cget("bg")
                 
         # block should fill the width of its parent
-        block = tk.Frame(parent, bg=block_bg)
+        block = tk.Frame(parent, bg=block_bg, borderwidth=0, highlightthickness=0)
         block.pack(fill=tk.X, side=tk.TOP, padx=padx, pady=pady)
         self.blocks.append(block)
         return block
@@ -435,9 +435,6 @@ class BaseGUIWindow:
                          wraplength=max(50, w-10))
         label.pack(pady=pady, padx=padx, fill=tk.X)
         
-        if self.debug_blocks:
-            label.config(highlightthickness=1, highlightbackground="#ccc")
-
         # Ensure parent has resize binding
         if not hasattr(parent, "_resize_bound"):
             parent.bind("<Configure>", self.on_container_resize, add="+")

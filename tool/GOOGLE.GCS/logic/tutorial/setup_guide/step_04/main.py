@@ -80,10 +80,14 @@ def build_step(frame, win):
                 # Ensure we use the main.py correctly
                 cmd = [sys.executable, str(fd_main), "--title", "Select Service Account JSON", "--types", "json", "--tool-quiet"]
                 
+                print(f"DEBUG: Starting FILEDIALOG via subprocess. cmd: {cmd}", file=sys.stderr)
                 res = subprocess.run(cmd, capture_output=True, text=True, env=env)
+                print(f"DEBUG: FILEDIALOG subprocess finished. Return code: {res.returncode}", file=sys.stderr)
                 
                 # Combine stdout and stderr for robust search
                 output = res.stdout + "\n" + res.stderr
+                if res.stderr:
+                    print(f"DEBUG: FILEDIALOG subprocess stderr: {res.stderr}", file=sys.stderr)
                 path = None
                 
                 # Robust marker search
