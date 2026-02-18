@@ -84,7 +84,7 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(msg)
     return 0
 
-def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None) -> Dict[str, Any]:
+def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None, args: List[str] = None) -> Dict[str, Any]:
     """
     Unified launcher for GUI subprocesses with signal redirection and result capture.
     Used by parent processes (e.g. tool/NAME/main.py).
@@ -98,7 +98,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     env["TK_SILENCE_DEPRECATION"] = "1"
     env["GDS_GUI_MANAGED"] = "1"
     
-    proc = subprocess.Popen([python_exe, script_path], 
+    cmd = [python_exe, script_path]
+    if args:
+        cmd.extend(args)
+    
+    proc = subprocess.Popen(cmd, 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                             text=True, encoding='utf-8', start_new_session=True,
                             env=env)

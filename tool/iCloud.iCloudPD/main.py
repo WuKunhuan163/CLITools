@@ -66,6 +66,7 @@ def main():
     parser.add_argument("--regex", type=str, help="Regex filter for 'yyyy-mm-dd/filename'")
     parser.add_argument("--only-scan", action="store_true", help="Only scan and cache metadata, do not download")
     parser.add_argument("--no-warning", action="store_true", help="Suppress warning messages in progress display")
+    parser.add_argument("--local-photos", nargs='?', const='default', help="Check local Photos Library before downloading from iCloud. If path is omitted, the default ~/Pictures/Photos Library.photoslibrary is used.")
     
     if tool.handle_command_line(parser): return
     
@@ -73,6 +74,49 @@ def main():
     
     BOLD, GREEN, BLUE, RESET, YELLOW, RED = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW"), get_color("RED")
     
+    # 0. Local Photos Library Setup
+    local_library = None
+    if args.local_photos:
+        library_path = None
+        if args.local_photos == 'default':
+            if not args.no_gui:
+                from logic.gui.manager import run_gui_subprocess
+                from logic.tool.base import ToolBase
+                fd_tool = ToolBase("FILEDIALOG")
+                fd_script = str(project_root / "tool" / "FILEDIALOG" / "main.py")
+                
+                # Default path
+                default_lib = Path.home() / "Pictures" / "Photos Library.photoslibrary"
+                
+                # Build arguments for FILEDIALOG
+                fd_args = [
+                    "--title", "Select Apple Photos Library (.photoslibrary)",
+                    "--dir", str(default_lib.parent),
+                    "--directory"
+                ]
+                
+                res = run_gui_subprocess(fd_tool, sys.executable, fd_script, 300, args=fd_args)
+                if res.get("status") == "success":
+                    library_path = Path(res["data"])
+            
+            if not library_path:
+                # Fallback to default if no GUI or cancelled
+                library_path = Path.home() / "Pictures" / "Photos Library.photoslibrary"
+        else:
+            library_path = Path(args.local_photos)
+            
+        if library_path and library_path.exists():
+            from tool.iCloud.logic.local.photos import LocalPhotosLibrary # Moved to shared logic
+            local_library = LocalPhotosLibrary(library_path)
+            if not local_library.is_valid():
+                print(f"{BOLD}{YELLOW}Warning{RESET}: '{library_path}' does not appear to be a valid Photos Library (missing 'originals' folder).")
+                local_library = None
+            else:
+                print(f"{BOLD}{BLUE}Using local library{RESET}: {library_path}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: Local photos library path '{library_path}' does not exist.")
+            sys.exit(1)
+
     # 1. Login and Authentication Flow
     from tool.iCloud.logic.interface.main import get_icloud_interface
     from pyicloud import PyiCloudService
@@ -450,7 +494,15 @@ def main():
     ))
     if not pm.run(ephemeral=True, final_newline=False): sys.exit(1)
 
-    def download_worker(stage, photo, target_path):
+    def download_worker(stage, photo, target_path, local_library=None):
+        # First try local library if available
+        if local_library:
+            try:
+                if local_library.fetch_photo(photo.id, target_path):
+                    return True
+            except Exception:
+                pass # Fallback to iCloud
+                
         max_attempts, last_err = 3, ""
         for attempt in range(max_attempts):
             try:
@@ -498,7 +550,7 @@ def main():
             pool.status_bar.increment_completed()
             continue
             
-        tasks.append({"id": f"{p_date_str}/{target_file.name}", "action": download_worker, "args": (photo, target_file)})
+        tasks.append({"id": f"{p_date_str}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
 
     def on_task_result(task_id, res):
         if isinstance(res, dict) and not res.get("success", True):
