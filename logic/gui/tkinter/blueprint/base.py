@@ -395,10 +395,6 @@ class BaseGUIWindow:
             target_h = item["max_height"]
             target_w = int(target_h / aspect)
         
-        if self.debug_blocks:
-            print(f"DEBUG: Resizing image {os.path.basename(item['path'])}")
-            print(f"  Parent width: {parent_w}, Calculated target_w: {target_w}, Target height: {target_h}")
-
         try:
             # We resize exactly to target_w/target_h for display.
             # Sharpness (upscale) is handled by the initial resize quality, 
@@ -407,9 +403,8 @@ class BaseGUIWindow:
             photo = ImageTk.PhotoImage(resized_img)
             label.config(image=photo)
             label.image = photo 
-        except Exception as e:
-            if self.debug_blocks:
-                print(f"DEBUG: Resize error for {item['path']}: {e}")
+        except Exception:
+            pass
 
     def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
         """Standardized label creation with automatic wrapping."""
