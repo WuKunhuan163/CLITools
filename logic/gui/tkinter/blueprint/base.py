@@ -282,7 +282,7 @@ class BaseGUIWindow:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
 
-    def add_block(self, parent, pady=10, padx=20, bg=None):
+    def add_block(self, parent, pady=10, padx=0, bg=None):
         """Adds a new layout block (tk.Frame) that fills the width."""
         import tkinter as tk
         block_bg = bg
@@ -365,20 +365,28 @@ class BaseGUIWindow:
         # 2. If parent_w is 1 (not rendered yet), try to get from window width
         if parent_w <= 1:
             if self.root:
-                self.root.update_idletasks()
+                # Use update_idletasks sparingly to avoid recursion
+                # self.root.update_idletasks()
                 parent_w = parent.winfo_width()
             
             if parent_w <= 1:
                 parent_w = self.root.winfo_width() - 80 if self.root else 720
         
-        # 3. Target width is the parent width (container width)
-        # We don't subtract 40 here because the block itself already has padding
+        # 3. Check if we actually need to resize to avoid jitter
+        last_w = item.get("last_w", 0)
+        # Only resize if the width change is significant (> 5px) or it's the first time
+        if last_w > 0 and abs(parent_w - last_w) < 5:
+            return
+
+        # 4. Target width is the parent width (container width)
         target_w = parent_w
         if target_w < 50: target_w = 50
         
-        # 4. Apply max_width if provided
+        # 5. Apply max_width if provided
         if item.get("max_width"):
             target_w = min(target_w, item["max_width"])
+        
+        item["last_w"] = parent_w
         
         orig_w, orig_h = original_img.size
         # Calculate aspect ratio
@@ -423,14 +431,15 @@ class BaseGUIWindow:
         w = parent.winfo_width()
         if w <= 1: 
             if self.root:
-                self.root.update_idletasks()
+                # self.root.update_idletasks() # Use sparingly
                 w = parent.winfo_width()
             if w <= 1: w = 700
         
-        # Labels are centered if they are titles, otherwise left-justified
+        # Labels should fill the width of the block
+        # We use a small margin of 10 to avoid clipping
         label = tk.Label(parent, text=text, font=font, bg=parent.cget("bg"), 
                          justify=tk.CENTER if is_title else justify, 
-                         wraplength=max(50, w-40))
+                         wraplength=max(50, w-10))
         label.pack(pady=pady, padx=padx, fill=tk.X)
         
         if self.debug_blocks:
@@ -500,6 +509,14 @@ class BaseGUIWindow:
 
     def on_container_resize(self, event):
         """Callback for container <Configure> events to handle dynamic image and text wrapping."""
+        # Only trigger updates if width changed significantly to avoid jitter from height-only changes
+        # (e.g. from image/text wrapping itself changing height)
+        # We store the last width on the parent object
+        prev_w = getattr(event.widget, "_last_config_w", 0)
+        if prev_w > 0 and abs(event.width - prev_w) < 5:
+            return
+        event.widget._last_config_w = event.width
+
         # Use a small delay to avoid excessive resizing during active drag
         if hasattr(self, "_resize_timer"):
             self.root.after_cancel(self._resize_timer)
@@ -530,10 +547,10 @@ class BaseGUIWindow:
                         # Only update if it already has a non-zero wraplength (meaning it's intended to wrap)
                         curr_wrap = child.cget("wraplength")
                         if curr_wrap and int(curr_wrap) > 0:
-                            # Set wraplength to parent width minus padding
+                            # Set wraplength to parent width minus a small margin of 10
                             parent_w = container.winfo_width()
-                            if parent_w > 40:
-                                child.config(wraplength=parent_w - 40)
+                            if parent_w > 10:
+                                child.config(wraplength=parent_w - 10)
                     except: pass
                 elif isinstance(child, tk.Frame):
                     update_labels(child)
