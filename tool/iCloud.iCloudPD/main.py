@@ -67,6 +67,9 @@ def main():
     parser.add_argument("--only-scan", action="store_true", help="Only scan and cache metadata, do not download")
     parser.add_argument("--no-warning", action="store_true", help="Suppress warning messages in progress display")
     parser.add_argument("--local-photos", nargs='?', const='default', help="Check local Photos Library before downloading from iCloud. If path is omitted, the default ~/Pictures/Photos Library.photoslibrary is used.")
+    parser.add_argument("--prefix", type=str, default="", help="Prefix for the photo filename (supports placeholders: <YYYY>, <MM>, <DD>, <hh>, <mm>, <ss>, <ID>, <FILENAME>)")
+    parser.add_argument("--suffix", type=str, default="", help="Suffix for the photo filename (supports placeholders)")
+    parser.add_argument("--grouping", type=str, default="<YYYY>-<MM>-<DD>", help="Directory grouping rule (default: <YYYY>-<MM>-<DD>)")
     
     if tool.handle_command_line(parser): return
     
@@ -430,6 +433,20 @@ def main():
     from logic.turing.models.worker import ParallelWorkerPool
     output_root = Path(args.output or ".").resolve()
     to_download_objects = []
+
+    def substitute_tags(template, date_obj, asset_id, filename):
+        if not template: return ""
+        res = template
+        if date_obj:
+            res = res.replace("<YYYY>", date_obj.strftime("%Y"))
+            res = res.replace("<MM>", date_obj.strftime("%m"))
+            res = res.replace("<DD>", date_obj.strftime("%d"))
+            res = res.replace("<hh>", date_obj.strftime("%H"))
+            res = res.replace("<mm>", date_obj.strftime("%M"))
+            res = res.replace("<ss>", date_obj.strftime("%S"))
+        res = res.replace("<ID>", asset_id)
+        res = res.replace("<FILENAME>", filename)
+        return res
     
     def gather_action(stage=None):
         nonlocal to_download_objects
@@ -497,6 +514,7 @@ def main():
         # First try local library if available
         if local_library:
             try:
+                # fetch_photo returns local creation date if found and copied
                 if local_library.fetch_photo(photo.id, target_path):
                     return True
             except Exception:
@@ -525,20 +543,32 @@ def main():
     used_paths = set()
     
     for photo in to_download_objects:
-        p_date = getattr(photo, "_cached_date", None)
-        p_date_str = p_date.strftime("%Y-%m-%d") if p_date else "unknown"
-        target_dir = output_root / p_date_str
+        # Resolve creation date
+        created_time = photo.created # Default to UTC from iCloud
+        if local_library:
+            res = local_library.find_photo(photo.id)
+            if res:
+                _, local_dt = res
+                created_time = local_dt # Use local time if found
+        
+        # Calculate target directory based on grouping rule
+        dir_name = substitute_tags(args.grouping, created_time, photo.id, photo.filename)
+        target_dir = output_root / dir_name
         target_dir.mkdir(parents=True, exist_ok=True)
         
-        # Handle filename collisions within the same date folder
-        base_name = photo.filename
+        # Calculate filename based on prefix and suffix
+        prefix = substitute_tags(args.prefix, created_time, photo.id, photo.filename)
+        suffix = substitute_tags(args.suffix, created_time, photo.id, photo.filename)
+        
+        name, ext = os.path.splitext(photo.filename)
+        base_name = f"{prefix}{name}{suffix}{ext}"
         target_file = target_dir / base_name
         
         if str(target_file) in used_paths:
-            name, ext = os.path.splitext(base_name)
+            name_part, ext_part = os.path.splitext(base_name)
             counter = 1
             while True:
-                target_file = target_dir / f"{name}_{counter}{ext}"
+                target_file = target_dir / f"{name_part}_{counter}{ext_part}"
                 if str(target_file) not in used_paths:
                     break
                 counter += 1
@@ -549,7 +579,7 @@ def main():
             pool.status_bar.increment_completed()
             continue
             
-        tasks.append({"id": f"{p_date_str}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
+        tasks.append({"id": f"{dir_name}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
 
     def on_task_result(task_id, res):
         if isinstance(res, dict) and not res.get("success", True):

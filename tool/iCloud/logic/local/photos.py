@@ -1,27 +1,68 @@
 import os
 import shutil
-import time
+import sqlite3
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 
 class LocalPhotosLibrary:
     def __init__(self, library_path: Path):
         self.library_path = Path(library_path)
-        # MacOS Photos Library stores originals here
+        self.db_path = self.library_path / "database" / "Photos.sqlite"
         self.originals_dir = self.library_path / "originals"
-        self._uuid_cache = {} # UUID -> Full Path
+        self._mapping_cache = {} # iCloudID -> (LocalUUID, Extension, LocalCreationDate)
 
     def is_valid(self) -> bool:
         """Returns True if it's a valid macOS .photoslibrary package."""
-        return self.originals_dir.exists()
+        return self.db_path.exists() and self.originals_dir.exists()
 
-    def find_photo(self, uuid: str) -> Optional[Path]:
-        """Finds the original photo path for a given UUID."""
-        if uuid in self._uuid_cache:
-            return self._uuid_cache[uuid]
-            
-        if not self.originals_dir.exists():
+    def _load_info_from_db(self, icloud_id: str) -> Optional[tuple]:
+        """Queries the sqlite database for photo info."""
+        if not self.db_path.exists():
             return None
+            
+        try:
+            # Connect in read-only mode
+            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
+            cursor = conn.cursor()
+            
+            # Fetch UUID, Filename (for extension), Created Date and Timezone Offset
+            query = """
+                SELECT a.ZUUID, a.ZFILENAME, a.ZDATECREATED, aa.ZTIMEZONEOFFSET
+                FROM ZASSET a
+                JOIN ZADDITIONALASSETATTRIBUTES aa ON a.Z_PK = aa.ZASSET
+                WHERE aa.ZORIGINALSTABLEHASH = ?
+            """
+            cursor.execute(query, (icloud_id,))
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                uuid, filename, apple_ts, tz_offset = result
+                ext = os.path.splitext(filename)[1] if filename else ".jpeg"
+                
+                # Apple epoch is Jan 1, 2001
+                dt_utc = datetime(2001, 1, 1) + timedelta(seconds=apple_ts)
+                
+                local_dt = dt_utc
+                if tz_offset is not None:
+                    local_dt = dt_utc + timedelta(seconds=tz_offset)
+                
+                return uuid, ext, local_dt
+        except Exception:
+            pass
+        return None
+
+    def find_photo(self, icloud_id: str) -> Optional[tuple]:
+        """Finds the original photo path and local creation date for an iCloud ID."""
+        if icloud_id in self._mapping_cache:
+            uuid, ext, local_dt = self._mapping_cache[icloud_id]
+        else:
+            res = self._load_info_from_db(icloud_id)
+            if not res:
+                return None
+            uuid, ext, local_dt = res
+            self._mapping_cache[icloud_id] = (uuid, ext, local_dt)
             
         # Structure: originals/X/UUID.EXT
         first_char = uuid[0].upper()
@@ -29,24 +70,25 @@ class LocalPhotosLibrary:
         if not search_dir.exists():
             return None
             
-        # Glob for the UUID. Extensions can vary (JPG, PNG, MOV, etc.)
-        matches = list(search_dir.glob(f"{uuid}.*"))
-        if matches:
-            self._uuid_cache[uuid] = matches[0]
-            return matches[0]
-            
-        return None
+        local_path = search_dir / f"{uuid}{ext}"
+        if not local_path.exists():
+            matches = list(search_dir.glob(f"{uuid}.*"))
+            if matches:
+                local_path = matches[0]
+            else:
+                return None
+                
+        return local_path, local_dt
 
-    def fetch_photo(self, photo_id: str, target_path: Path) -> bool:
-        """Copies the photo from the local library to the target path."""
-        local_path = self.find_photo(photo_id)
-        if local_path and local_path.exists():
+    def fetch_photo(self, icloud_id: str, target_path: Path) -> Optional[datetime]:
+        """Copies the photo and returns the local creation date if found."""
+        res = self.find_photo(icloud_id)
+        if res:
+            local_path, local_dt = res
             try:
-                # Ensure target directory exists
                 target_path.parent.mkdir(parents=True, exist_ok=True)
-                # Copy with metadata preserved
                 shutil.copy2(local_path, target_path)
-                return True
+                return local_dt
             except Exception:
-                return False
-        return False
+                return None
+        return None
