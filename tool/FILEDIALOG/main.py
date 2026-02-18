@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-FILEDIALOG Tool (v2)
+FILEDIALOG Tool (v3)
 - Advanced file and directory selection via custom Tkinter GUI.
 - Inherits from ToolBase for dependency management.
 - Supports batch selection (Shift/Cmd/Ctrl) and remote kill/submit.
 - Integrated with project's shared GUI logic and styling.
+- ENHANCED: Added Staging Area (shopping cart) with resizable PanedWindow.
+- ENHANCED: Results combine currently selected items + staged items.
 """
 
 import os
@@ -173,6 +175,8 @@ class FileDialogWindow(BaseGUIWindow):
         self.multiple = multiple
         self.directory_only = directory_only
         self.tree = None
+        self.staging_tree = None
+        self.staged_items = set()
         self.breadcrumb_frame = None
         self.history = [self.current_dir]
         self.history_index = 0
@@ -185,15 +189,19 @@ class FileDialogWindow(BaseGUIWindow):
 
     def get_current_state(self):
         if not self.tree: return None
+        
+        # Combine staged items and current selection
+        final_paths = list(self.staged_items)
+        
         selected = self.tree.selection()
-        if not selected: return None
-        
-        paths = []
         for item in selected:
-            paths.append(item)
+            if item not in self.staged_items:
+                final_paths.append(item)
         
-        if self.multiple: return paths
-        return paths[0] if paths else None
+        if not final_paths: return None
+        
+        if self.multiple: return final_paths
+        return final_paths[0] if final_paths else None
 
     def on_submit(self):
         state = self.get_current_state()
@@ -214,7 +222,7 @@ class FileDialogWindow(BaseGUIWindow):
 
     def setup_ui(self):
         setup_gui_environment()
-        self.root.geometry("600x450")
+        self.root.geometry("900x550") # Wider for staging area
         
         self.status_label = setup_common_bottom_bar(
             self.root, self, 
@@ -247,8 +255,16 @@ class FileDialogWindow(BaseGUIWindow):
         # Initial render after delay
         self.root.after(100, self.update_breadcrumbs)
 
+        # PanedWindow for resizable split
+        paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+
+        # Left side: File Browser
+        browser_container = tk.Frame(paned)
+        paned.add(browser_container, weight=60)
+
         # File list with Treeview
-        tree_frame = tk.Frame(main_frame)
+        tree_frame = tk.Frame(browser_container)
         tree_frame.pack(fill=tk.BOTH, expand=True)
         
         scrollbar = tk.Scrollbar(tree_frame)
@@ -263,9 +279,9 @@ class FileDialogWindow(BaseGUIWindow):
             self.tree.heading(col, text=self._(f"col_{col}", col.capitalize()), 
                               command=lambda c=col: self.on_header_click(c))
         
-        self.tree.column("name", width=350)
-        self.tree.column("size", width=100, anchor="e")
-        self.tree.column("type", width=100)
+        self.tree.column("name", width=250)
+        self.tree.column("size", width=80, anchor="e")
+        self.tree.column("type", width=80)
         
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.tree.yview)
@@ -276,7 +292,39 @@ class FileDialogWindow(BaseGUIWindow):
         self.tree.bind("<Control-Button-1>", self.on_ctrl_click)
         if platform.system() == "Darwin":
             self.tree.bind("<Command-Button-1>", self.on_ctrl_click)
-            
+
+        # Staging Area Buttons
+        stage_btn_frame = tk.Frame(browser_container)
+        stage_btn_frame.pack(fill=tk.X, pady=5)
+        
+        add_to_stage_btn = tk.Button(stage_btn_frame, text=self._("btn_add_to_staging", "Add to Staging"), 
+                                     command=self.add_selected_to_staging, font=get_button_style())
+        add_to_stage_btn.pack(side=tk.RIGHT)
+
+        # Right side: Staging Area
+        staging_container = tk.Frame(paned)
+        paned.add(staging_container, weight=40)
+
+        tk.Label(staging_container, text=self._("label_staging_area", "Staging Area"), font=get_label_style()).pack(anchor="w")
+        
+        staging_frame = tk.Frame(staging_container)
+        staging_frame.pack(fill=tk.BOTH, expand=True)
+        
+        s_scrollbar = tk.Scrollbar(staging_frame)
+        s_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.staging_tree = ttk.Treeview(staging_frame, columns=("path",), show="headings",
+                                         selectmode="extended", yscrollcommand=s_scrollbar.set)
+        self.staging_tree.heading("path", text=self._("col_path", "Staged Path"))
+        self.staging_tree.column("path", width=200)
+        self.staging_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        s_scrollbar.config(command=self.staging_tree.yview)
+        
+        # Remove from staging logic
+        remove_from_stage_btn = tk.Button(staging_container, text=self._("btn_remove_from_staging", "Remove Selected"), 
+                                          command=self.remove_selected_from_staging, font=get_button_style())
+        remove_from_stage_btn.pack(side=tk.RIGHT, pady=5)
+
         self.refresh_list()
         self.update_header_text()
         
@@ -292,6 +340,30 @@ class FileDialogWindow(BaseGUIWindow):
                 if attempt < 5: # Try a few times to win against other topmost windows
                     self.root.after(100, lambda: force_focus(attempt + 1))
         self.root.after(150, force_focus)
+
+    def add_selected_to_staging(self):
+        selected = self.tree.selection()
+        for item in selected:
+            if item not in self.staged_items:
+                self.staged_items.add(item)
+                self.staging_tree.insert("", tk.END, iid=item, values=(item,))
+        self.update_staging_count()
+
+    def remove_selected_from_staging(self):
+        selected = self.staging_tree.selection()
+        for item in selected:
+            if item in self.staged_items:
+                self.staged_items.remove(item)
+                self.staging_tree.delete(item)
+        self.update_staging_count()
+
+    def update_staging_count(self):
+        count = len(self.staged_items)
+        if hasattr(self, "status_label"):
+            # Update status message temporarily
+            # rem_msg = self._('time_remaining', 'Remaining:')
+            # self.status_label.config(text=f"Staged: {count} items | {rem_msg} {self.remaining_time}s")
+            pass
 
     def on_breadcrumb_configure(self, event):
         if hasattr(self, "_breadcrumb_timer"):

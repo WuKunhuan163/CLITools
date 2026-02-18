@@ -4,6 +4,17 @@ import threading
 from pathlib import Path
 from logic.gui.tkinter.style import get_label_style, get_gui_colors, get_button_style
 
+def extract_folder_id(input_str):
+    """Extracts Google Drive Folder ID from a URL if necessary."""
+    input_str = input_str.strip()
+    if "drive.google.com" in input_str and "/folders/" in input_str:
+        # Extract everything after /folders/ up to next / or ?
+        parts = input_str.split("/folders/")
+        if len(parts) > 1:
+            folder_id = parts[1].split("?")[0].split("/")[0]
+            return folder_id
+    return input_str
+
 def build_step(frame, win):
     # Title Block
     title_block = win.add_block(frame, pady=(20, 10))
@@ -12,7 +23,7 @@ def build_step(frame, win):
     # Content Block
     content_block = win.add_block(frame)
     content = (
-        "1. Enter the Google Drive Folder IDs for your Root and Env folders.\n\n"
+        "1. Enter the Google Drive URL or Folder ID for your Root and Env folders.\n\n"
         "2. The 'Root Folder' will store your remote file tree structure.\n\n"
         "3. The 'Env Folder' will store your remote environment settings.\n\n"
         "4. Click 'Validate' to ensure the service account has access to both."
@@ -21,40 +32,48 @@ def build_step(frame, win):
 
     # Action Block
     action_block = win.add_block(frame)
+    block_bg = "#f9f9f9" if getattr(win, "debug_blocks", False) else action_block.cget("bg")
     
     # Grid for inputs
-    input_frame = tk.Frame(action_block, bg=action_block.cget("bg"))
+    input_frame = tk.Frame(action_block, bg=block_bg)
     input_frame.pack(pady=10)
 
-    tk.Label(input_frame, text="Root Folder ID:", font=get_label_style(), bg=action_block.cget("bg")).grid(row=0, column=0, sticky="e", padx=5, pady=5)
+    tk.Label(input_frame, text="Root Folder URL/ID:", font=get_label_style(), bg=block_bg).grid(row=0, column=0, sticky="e", padx=5, pady=5)
     root_id_var = tk.StringVar()
     root_entry = tk.Entry(input_frame, textvariable=root_id_var, width=40, font=get_label_style())
     root_entry.grid(row=0, column=1, padx=5, pady=5)
 
-    tk.Label(input_frame, text="Env Folder ID:", font=get_label_style(), bg=action_block.cget("bg")).grid(row=1, column=0, sticky="e", padx=5, pady=5)
+    tk.Label(input_frame, text="Env Folder URL/ID:", font=get_label_style(), bg=block_bg).grid(row=1, column=0, sticky="e", padx=5, pady=5)
     env_id_var = tk.StringVar()
     env_entry = tk.Entry(input_frame, textvariable=env_id_var, width=40, font=get_label_style())
     env_entry.grid(row=1, column=1, padx=5, pady=5)
 
-    status_var = tk.StringVar(value="Enter IDs and click Validate")
-    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=action_block.cget("bg"))
+    status_var = tk.StringVar(value="Enter URL/IDs and click Validate")
+    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg)
     status_label.pack(pady=5)
 
-    btn_frame = tk.Frame(action_block, bg=action_block.cget("bg"))
+    btn_frame = tk.Frame(action_block, bg=block_bg)
     btn_frame.pack(pady=10)
 
-    validate_btn = tk.Button(btn_frame, text="Validate Access", bg="white", activebackground="#eee")
+    validate_btn = tk.Button(btn_frame, text="Validate Access", bg="white", activebackground="#eee", highlightbackground=block_bg)
     validate_btn.pack()
 
     def on_validate():
-        root_id = root_id_var.get().strip()
-        env_id = env_id_var.get().strip()
+        root_input = root_id_var.get().strip()
+        env_input = env_id_var.get().strip()
         
-        if not root_id or not env_id:
-            status_var.set("Please enter both Folder IDs.")
+        if not root_input or not env_input:
+            status_var.set("Please enter both Folder URLs or IDs.")
             status_label.config(fg="red")
             return
             
+        root_id = extract_folder_id(root_input)
+        env_id = extract_folder_id(env_input)
+        
+        # Update entry fields with extracted IDs
+        root_id_var.set(root_id)
+        env_id_var.set(env_id)
+        
         validate_btn.config(state=tk.DISABLED, text="Validating...")
         status_var.set("Testing access to Drive folders...")
         status_label.config(fg="gray")
@@ -64,7 +83,7 @@ def build_step(frame, win):
             try:
                 # Import auth module
                 import importlib.util
-                auth_path = Path(__file__).resolve().parent.parent.parent.parent / "auth.py"
+                auth_path = Path(__file__).resolve().parent.parent.parent.parent / "logic" / "auth.py"
                 spec = importlib.util.spec_from_file_location("gcs_auth_step5", str(auth_path))
                 auth_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(auth_module)

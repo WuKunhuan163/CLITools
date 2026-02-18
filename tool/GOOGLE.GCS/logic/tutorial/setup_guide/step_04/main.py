@@ -34,18 +34,20 @@ def build_step(frame, win):
         win.setup_image(img_block, img_path, upscale=2)
 
     # Action Block
-    action_block = win.add_block(frame)
+    # Use a consistent background if debug_blocks is True
+    block_bg = "#f9f9f9" if getattr(win, "debug_blocks", False) else action_block.cget("bg")
+    
     selected_file_path = tk.StringVar(value="")
     status_var = tk.StringVar(value="No file selected")
     
-    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=action_block.cget("bg"))
+    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg)
     status_label.pack(pady=5)
 
-    btn_frame = tk.Frame(action_block, bg=action_block.cget("bg"))
+    btn_frame = tk.Frame(action_block, bg=block_bg)
     btn_frame.pack(pady=10)
 
-    browse_btn = tk.Button(btn_frame, text="Browse JSON", bg="white", activebackground="#eee")
-    validate_btn = tk.Button(btn_frame, text="Validate", state=tk.DISABLED, bg="white", activebackground="#eee")
+    browse_btn = tk.Button(btn_frame, text="Browse JSON", bg="white", activebackground="#eee", highlightbackground=block_bg)
+    validate_btn = tk.Button(btn_frame, text="Validate", state=tk.DISABLED, bg="white", activebackground="#eee", highlightbackground=block_bg)
     
     browse_btn.pack(side=tk.LEFT, padx=5)
     validate_btn.pack(side=tk.LEFT, padx=5)
