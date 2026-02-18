@@ -51,7 +51,7 @@ def build_step(frame, win):
     validate_btn.pack(side=tk.LEFT, padx=5)
 
     def _get_cache_dir():
-        project_root = getattr(win, "project_root", None)
+        project_root = getattr(win, "project_root", None) or Path("/Applications/AITerminalTools")
         cache_dir = project_root / "data" / "tutorial" / "cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
         return cache_dir
@@ -69,122 +69,124 @@ def build_step(frame, win):
         status_var.set("Browsing...")
         frame.update_idletasks()
         
-        project_root = getattr(win, "project_root", None)
+        project_root = getattr(win, "project_root", None) or Path("/Applications/AITerminalTools")
         # Use main.py directly to avoid bootstrap overhead and potential shadowing
         fd_main = project_root / "tool" / "FILEDIALOG" / "main.py"
         
-    def run_fd():
-        try:
-            # Log for debugging
-            debug_log = getattr(win, "project_root", Path.cwd()) / "tool" / "GOOGLE.GCS" / "data" / "debug_step4.log"
-            debug_log.parent.mkdir(parents=True, exist_ok=True)
-            def log(msg):
-                with open(debug_log, "a") as f: f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
-                print(f"DEBUG: {msg}", file=sys.stderr)
-            
-            log("run_fd thread started")
-            # We use --tool-quiet to minimize noise and get JSON output
-            env = os.environ.copy()
-            env["PYTHONPATH"] = str(getattr(win, "project_root", ""))
-            # Ensure we use the main.py correctly
-            cmd = [sys.executable, str(fd_main), "--title", "Select Service Account JSON", "--types", "json", "--tool-quiet"]
-            log(f"Starting FILEDIALOG via Popen. cmd: {cmd}")
-            
-            # Use Popen to capture output in real-time
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
-            
-            stdout_lines = []
-            stderr_lines = []
-            
-            def read_out():
-                for line in iter(proc.stdout.readline, ''):
-                    stdout_lines.append(line)
-            def read_err():
-                for line in iter(proc.stderr.readline, ''):
-                    stderr_lines.append(line)
-            
-            t1 = threading.Thread(target=read_out, daemon=True)
-            t2 = threading.Thread(target=read_err, daemon=True)
-            t1.start(); t2.start()
-            
-            # Wait with timeout
+        def run_fd():
             try:
-                ret = proc.wait(timeout=300)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                ret = -1
-            
-            t1.join(timeout=2); t2.join(timeout=2)
-            output = "".join(stdout_lines) + "\n" + "".join(stderr_lines)
-            log(f"FILEDIALOG finished. Return code: {ret}")
-            
-            path = None
-            
-            # Robust marker search
-            marker = "TOOL_RESULT_JSON:"
-            for line in output.splitlines():
-                if marker in line:
-                    try:
-                        json_str = line[line.find(marker) + len(marker):].strip()
-                        data = json.loads(json_str)
-                        log(f"Found JSON result: {data}")
-                        if data.get("returncode") == 0:
-                            # Result from FILEDIALOG tool is in its stdout
-                            inner_stdout = data.get("stdout", "").strip()
-                            if inner_stdout:
-                                path = inner_stdout
-                        break
-                    except: pass
-            
-            if not path and ret == 0:
-                log("Marker not found, using direct stdout as fallback")
-                # Fallback to direct stdout if marker not found but process exited successfully
-                path = "".join(stdout_lines).strip()
-            
-            log(f"Extracted path: {path}")
-
-            def update_ui():
-                log("update_ui callback executing")
-                if path and os.path.exists(path):
-                    # Cache the file with hash
-                    try:
-                        cache_dir = _get_cache_dir()
-                        _cleanup_cache(cache_dir)
-                        with open(path, 'rb') as f:
-                            file_content = f.read()
-                        h = hashlib.md5(file_content).hexdigest()[:12]
-                        cached_path = cache_dir / f"key_{h}.json"
-                        with open(cached_path, 'wb') as f:
-                            f.write(file_content)
-                        
-                        selected_file_path.set(str(cached_path))
-                        status_var.set(f"Selected: {os.path.basename(path)}")
-                        status_label.config(fg="black")
-                        validate_btn.config(state=tk.NORMAL)
-                        log(f"UI Updated: validated=True, cache={cached_path}")
-                    except Exception as e:
-                        log(f"Cache Error: {e}")
-                        status_var.set(f"Cache Error: {e}")
-                        status_label.config(fg="red")
-                else:
-                    log("No valid path found, resetting UI")
-                    status_var.set("No file selected or invalid path")
-                    status_label.config(fg="gray")
-                    validate_btn.config(state=tk.DISABLED)
+                # Absolute log path to ensure it is found
+                debug_log = project_root / "tool" / "GOOGLE.GCS" / "data" / "debug_step4.log"
+                debug_log.parent.mkdir(parents=True, exist_ok=True)
+                def log(msg):
+                    with open(debug_log, "a") as f: f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+                    # Also print to stderr for immediate feedback if run in foreground
+                    sys.stderr.write(f"DEBUG_LOG: {msg}\n")
+                    sys.stderr.flush()
                 
-                browse_btn.config(state=tk.NORMAL)
-                log("update_ui callback finished")
-            
-            # Use callback_queue for thread-safe UI update
-            win.callback_queue.put(update_ui)
-            log("update_ui scheduled via callback_queue")
-        except Exception as e:
-            log(f"Exception in run_fd: {e}")
-            def on_err():
-                status_var.set(f"Error: {e}")
-                status_label.config(fg="red")
-                browse_btn.config(state=tk.NORMAL)
-            win.callback_queue.put(on_err)
+                log("run_fd thread started")
+                # We use --tool-quiet to minimize noise and get JSON output
+                env = os.environ.copy()
+                env["PYTHONPATH"] = str(project_root)
+                # Ensure we use the main.py correctly
+                cmd = [sys.executable, str(fd_main), "--title", "Select Service Account JSON", "--types", "json", "--tool-quiet"]
+                log(f"Starting FILEDIALOG via Popen. cmd: {cmd}")
+                
+                # Use Popen to capture output in real-time
+                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+                
+                stdout_lines = []
+                stderr_lines = []
+                
+                def read_out():
+                    for line in iter(proc.stdout.readline, ''):
+                        stdout_lines.append(line)
+                def read_err():
+                    for line in iter(proc.stderr.readline, ''):
+                        stderr_lines.append(line)
+                
+                t1 = threading.Thread(target=read_out, daemon=True)
+                t2 = threading.Thread(target=read_err, daemon=True)
+                t1.start(); t2.start()
+                
+                # Wait with timeout
+                try:
+                    ret = proc.wait(timeout=300)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    ret = -1
+                
+                t1.join(timeout=2); t2.join(timeout=2)
+                output = "".join(stdout_lines) + "\n" + "".join(stderr_lines)
+                log(f"FILEDIALOG finished. Return code: {ret}")
+                
+                path = None
+                
+                # Robust marker search
+                marker = "TOOL_RESULT_JSON:"
+                for line in output.splitlines():
+                    if marker in line:
+                        try:
+                            json_str = line[line.find(marker) + len(marker):].strip()
+                            data = json.loads(json_str)
+                            log(f"Found JSON result: {data}")
+                            if data.get("returncode") == 0:
+                                # Result from FILEDIALOG tool is in its stdout
+                                inner_stdout = data.get("stdout", "").strip()
+                                if inner_stdout:
+                                    path = inner_stdout
+                            break
+                        except: pass
+                
+                if not path and ret == 0:
+                    log("Marker not found, using direct stdout as fallback")
+                    # Fallback to direct stdout if marker not found but process exited successfully
+                    path = "".join(stdout_lines).strip()
+                
+                log(f"Extracted path: {path}")
+
+                def update_ui():
+                    log("update_ui callback executing")
+                    if path and os.path.exists(path):
+                        # Cache the file with hash
+                        try:
+                            cache_dir = _get_cache_dir()
+                            _cleanup_cache(cache_dir)
+                            with open(path, 'rb') as f:
+                                file_content = f.read()
+                            h = hashlib.md5(file_content).hexdigest()[:12]
+                            cached_path = cache_dir / f"key_{h}.json"
+                            with open(cached_path, 'wb') as f:
+                                f.write(file_content)
+                            
+                            selected_file_path.set(str(cached_path))
+                            status_var.set(f"Selected: {os.path.basename(path)}")
+                            status_label.config(fg="black")
+                            validate_btn.config(state=tk.NORMAL)
+                            log(f"UI Updated: validated=True, cache={cached_path}")
+                        except Exception as e:
+                            log(f"Cache Error: {e}")
+                            status_var.set(f"Cache Error: {e}")
+                            status_label.config(fg="red")
+                    else:
+                        log(f"No valid path found (path={path}), resetting UI")
+                        status_var.set("No file selected or invalid path")
+                        status_label.config(fg="gray")
+                        validate_btn.config(state=tk.DISABLED)
+                    
+                    browse_btn.config(state=tk.NORMAL)
+                    log("update_ui callback finished")
+                
+                # Use callback_queue for thread-safe UI update
+                win.callback_queue.put(update_ui)
+                log("update_ui scheduled via callback_queue")
+            except Exception as e:
+                log(f"Exception in run_fd: {e}")
+                def on_err():
+                    status_var.set(f"Error: {e}")
+                    status_label.config(fg="red")
+                    browse_btn.config(state=tk.NORMAL)
+                win.callback_queue.put(on_err)
 
         threading.Thread(target=run_fd, daemon=True).start()
 
@@ -206,7 +208,7 @@ def build_step(frame, win):
                 spec.loader.exec_module(auth_module)
                 
                 is_valid, err, info = auth_module.validate_service_account_json(path)
-                project_root = getattr(win, "project_root", None)
+                project_root = getattr(win, "project_root", None) or Path("/Applications/AITerminalTools")
                 
                 def final_update():
                     if is_valid:
@@ -221,13 +223,13 @@ def build_step(frame, win):
                     
                     validate_btn.config(state=tk.NORMAL, text="Validate")
                 
-                frame.after(0, final_update)
+                win.callback_queue.put(final_update)
             except Exception as e:
                 def on_err():
                     status_var.set(f"Validation Logic Error: {e}")
                     status_label.config(fg="red")
                     validate_btn.config(state=tk.NORMAL, text="Validate")
-                frame.after(0, on_err)
+                win.callback_queue.put(on_err)
 
         threading.Thread(target=run_val, daemon=True).start()
 
