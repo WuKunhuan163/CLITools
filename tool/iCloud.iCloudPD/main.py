@@ -648,15 +648,13 @@ def main():
         return False
 
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
-    # Identify how many are already completed (local matches)
-    local_done_count = 0
-    for photo in to_download_objects:
-        if isinstance(photo, LocalAssetStub):
-            local_done_count += 1
-            
-    pool.status_bar.set_counts(len(to_download_objects), completed=local_done_count, is_remote=(local_done_count > 0))
+    
+    # Identify how many are local assets (don't need remote time for ETA)
+    local_asset_count = sum(1 for p in to_download_objects if isinstance(p, LocalAssetStub))
+    
     tasks, failed_tasks = [], []
     used_paths = set()
+    already_on_disk_count = 0
     
     for photo in to_download_objects:
         # Resolve creation date
@@ -702,10 +700,13 @@ def main():
         used_paths.add(str(target_file))
         
         if target_file.exists():
-            pool.status_bar.increment_completed()
+            already_on_disk_count += 1
             continue
             
         tasks.append({"id": f"{dir_name}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
+
+    # Initialize status bar with correct counts
+    pool.status_bar.set_counts(len(to_download_objects), completed=already_on_disk_count, baseline=local_asset_count)
 
     def on_task_result(task_id, res):
         # res should now always be a dict if wrapper is used correctly
