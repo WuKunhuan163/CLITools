@@ -146,7 +146,7 @@ def main():
         else:
             print(f"{BOLD}{RED}Error{RESET}: Local photos library path '{library_path}' does not exist.")
             sys.exit(1)
-
+    
     # 1. Login and Authentication Flow
     from tool.iCloud.logic.interface.main import get_icloud_interface
     from pyicloud import PyiCloudService
@@ -180,17 +180,26 @@ def main():
 
     def auth_action(stage=None):
         nonlocal api, final_apple_id
+        from logic.terminal.keyboard import get_global_suppressor
+        suppressor = get_global_suppressor()
         
         if args.no_gui:
             import getpass
             import pickle
             try:
+                # Temporarily stop suppression for input
+                was_suppressed = suppressor.is_suppressed()
+                if was_suppressed: suppressor.stop()
+            try:
                 apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
+                finally:
+                    if was_suppressed: suppressor.start()
             except (EOFError, KeyboardInterrupt):
                 raise KeyboardInterrupt
 
             cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
             if cookie_file.exists():
+                # ... session reuse logic ...
                 try:
                     if stage: stage.active_name = f"reusing session for {apple_id}"
                     api = PyiCloudService(apple_id, "")
@@ -608,11 +617,11 @@ def main():
                 for attempt in range(max_retries):
                     try:
                         resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"}, timeout=30)
-                        if resp.status_code == 200:
+                    if resp.status_code == 200:
                             log_debug(f"Batch success, parsing {len(resp.json().get('records', []))} records")
-                            for record in resp.json().get("records", []):
-                                asset = PhotoAsset(api.photos, record, record)
-                                aid = record["recordName"]
+                        for record in resp.json().get("records", []):
+                            asset = PhotoAsset(api.photos, record, record)
+                            aid = record["recordName"]
                                 if aid in scheduled_id_info:
                                     dt = scheduled_id_info[aid]["created"]
                                     asset._cached_date = dt
@@ -627,12 +636,12 @@ def main():
                                             ca["full_record"] = record # Store record for future runs
                                             break
                                                 
-                                to_download_objects.append(asset)
-                                count += 1
-                                if count % 10 == 0 or count == total_scheduled:
-                                    from logic.utils import calculate_eta
-                                    e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
-                                    if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
+                            to_download_objects.append(asset)
+                            count += 1
+                            if count % 10 == 0 or count == total_scheduled:
+                                from logic.utils import calculate_eta
+                                e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+                                if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
                                     
                             # Save cache after each batch of 100 (as requested by user)
                             save_photos_cache(apple_id, all_photos_meta)
@@ -642,7 +651,7 @@ def main():
                             break
                         else:
                             last_error_details = f"HTTP {resp.status_code}: {resp.text}"
-                    except Exception as e:
+                except Exception as e:
                         last_error_details = str(e)
                     
                     if attempt < max_retries - 1:
@@ -802,11 +811,11 @@ def main():
         print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos from {BOLD}{f_s}{RESET} to {BOLD}{l_s}{RESET}.")
     elif failed_tasks:
         print(f"{BOLD}{RED}Failed to download{RESET} {len(failed_tasks)} photos/videos.")
-        summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
+            summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
         with open(summary_log, 'w', encoding='utf-8') as f:
             for ft in failed_tasks:
                 f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
-        print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
+            print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
 
 if __name__ == "__main__":
     from logic.terminal.keyboard import get_global_suppressor
@@ -818,7 +827,7 @@ if __name__ == "__main__":
         pass
     
     try:
-        main()
+    main()
     except KeyboardInterrupt:
         # Standard quiet exit for Ctrl+C.
         # Turing machines/workers already print the "Operation cancelled" message.
