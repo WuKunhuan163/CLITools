@@ -3,7 +3,11 @@
   "time_increment": 60,
   "python_version": "3.11.14",
   "system_prompt": [
-    "Development Rules:\n1. Use minimal coloring for status prompts (bold status label only).\n2. End in-progress messages with '...'.\n3. End completed/reference states with a period '.'.\n4. Grammatical pattern: Adverb + Verb or Verb + Noun.\n5. Frequently refine README.md and for_agent.md.\n6. Use absolute paths for tool call arguments.",
-    "Test prompt 2"
+    "Use minimal coloring for status prompts (bold status label only).",
+    "End in-progress messages with '...'.",
+    "End completed/reference states with a period '.'",
+    "Grammatical pattern: Adverb + Verb or Verb + Noun.",
+    "Frequently refine README.md and for_agent.md.",
+    "Use absolute paths for tool call arguments."
   ]
 }

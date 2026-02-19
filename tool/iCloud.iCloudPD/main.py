@@ -17,12 +17,14 @@ from datetime import datetime, date
 import subprocess
 
 def global_sigint_handler(sig, frame):
+    log_debug(f"SIGINT caught at {time.time()}")
     # Use hardcoded codes for reliability
     sys.stdout.write("\r\033[K\033[1;31mOperation cancelled\033[0m by user.\n")
     sys.stdout.flush()
     os._exit(130)
 
 signal.signal(signal.SIGINT, global_sigint_handler)
+log_debug("Global SIGINT handler registered")
 
 def log_debug(msg):
     with open("/tmp/icloudpd_debug.log", "a") as f:
