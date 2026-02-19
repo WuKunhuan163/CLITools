@@ -57,6 +57,7 @@ class KeyboardSuppressor:
                 # Keep ICANON ON and ISIG ON for standard Ctrl+C handling.
                 # Just turn off ECHO and ECHOCTL to hide user input.
                 new_settings[3] = new_settings[3] & ~termios.ECHO
+                new_settings[3] = new_settings[3] | termios.ISIG
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
                 

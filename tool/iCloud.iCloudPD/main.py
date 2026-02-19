@@ -178,21 +178,21 @@ def main():
                 if stage: stage.report_error(f"Input Error: {msg}", msg)
                 return False
 
-            cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
-            if cookie_file.exists():
-                try:
-                    if stage: stage.active_name = f"reusing session for {apple_id}"
-                    api = PyiCloudService(apple_id, "")
-                    with open(cookie_file, 'rb') as f:
-                        api.session.cookies.update(pickle.load(f))
-                    _ = api.account.devices
-                    final_apple_id = apple_id
-                    if stage: 
-                        stage.success_status = "Reused session"
-                        stage.success_color = "BOLD"
-                        stage.success_name = f"for {final_apple_id}"
-                    return True
-                except: pass
+            try:
+                if stage: stage.active_name = f"reusing session for {apple_id}"
+                api = PyiCloudService(apple_id, "")
+                with open(cookie_file, 'rb') as f:
+                    api.session.cookies.update(pickle.load(f))
+                _ = api.account.devices
+                final_apple_id = apple_id
+                if stage: 
+                    stage.success_status = "Reused session"
+                    stage.success_color = "BOLD"
+                    stage.success_name = f"for {final_apple_id}"
+                return True
+            except KeyboardInterrupt:
+                raise
+            except Exception: pass
             
             try:
                 sys.stdout.write("\r\033[K")
@@ -493,6 +493,7 @@ def main():
             self._service = None
     
     def gather_action(stage=None):
+        log_debug("Starting gather_action")
         nonlocal to_download_objects, all_photos_meta
         total_scheduled = len(scheduled_id_info)
         count, start_time = 0, time.time()
@@ -501,6 +502,7 @@ def main():
         # Build a fast lookup map for already gathered records in cache
         gathering_lookup = {}
         if not args.ignore_gather_cache:
+            log_debug(f"Building gathering lookup from all_photos_meta (years: {list(all_photos_meta.keys())})")
             for y, y_data in all_photos_meta.items():
                 if not isinstance(y_data, dict): continue
                 for m, m_data in y_data.items():
@@ -509,15 +511,18 @@ def main():
                         for ca in day_assets:
                             if "full_record" in ca:
                                 gathering_lookup[ca["id"]] = ca["full_record"]
+            log_debug(f"Lookup built: {len(gathering_lookup)} items")
         
         # Split IDs into resolved (local or gathering-cache) and needs-iCloud-lookup
         needs_lookup_ids = {} # lib_name -> [ids]
         
         # Preload mappings if using local library
         if local_library:
+            log_debug("Preloading local library mappings")
             local_library.preload_mappings(list(scheduled_id_info.keys()))
             
         from pyicloud.services.photos import PhotoAsset
+        log_debug(f"Iterating through {total_scheduled} scheduled IDs")
         for aid, info in scheduled_id_info.items():
             lib_name = info["lib_name"]
             is_resolved = False
@@ -553,6 +558,7 @@ def main():
         
         # Warning if resolved count is incomplete
         missing_count = sum(len(ids) for ids in needs_lookup_ids.values())
+        log_debug(f"Resolved {count} items, {missing_count} items need iCloud lookup")
         if missing_count > 0:
             # Erase current line
             sys.stdout.write("\r\033[K")
@@ -564,13 +570,17 @@ def main():
             if stage: stage.refresh() # Restore active line below warning
 
         if not needs_lookup_ids:
+            log_debug("All items resolved, finishing gather_action")
             return len(to_download_objects) > 0
             
         for lib_name, ids in needs_lookup_ids.items():
             try: lib_obj = api.photos.libraries[lib_name]
-            except: continue
+            except: 
+                log_debug(f"Library {lib_name} not found")
+                continue
             base_url = lib_obj.url.split("/query")[0]
             lookup_url = f"{base_url}/lookup"
+            log_debug(f"Starting iCloud lookup for {len(ids)} items from {lib_name}")
             for i in range(0, len(ids), 100):
                 batch_ids = ids[i:i+100]
                 query = {"records": [{"recordName": rid} for rid in batch_ids], "zoneID": lib_obj.zone_id}
@@ -579,10 +589,12 @@ def main():
                 last_error_details = ""
                 success_batch = False
                 
+                log_debug(f"Requesting batch {i//100 + 1}/{(len(ids)-1)//100 + 1} ({len(batch_ids)} items)")
                 for attempt in range(max_retries):
                     try:
                         resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"}, timeout=30)
                         if resp.status_code == 200:
+                            log_debug(f"Batch success, parsing {len(resp.json().get('records', []))} records")
                             for record in resp.json().get("records", []):
                                 asset = PhotoAsset(api.photos, record, record)
                                 aid = record["recordName"]
@@ -619,13 +631,16 @@ def main():
                         last_error_details = str(e)
                     
                     if attempt < max_retries - 1:
+                        log_debug(f"Batch retry {attempt+1} due to {last_error_details}")
                         time.sleep(1)
                 
                 if not success_batch:
+                    log_debug(f"Batch FAILED after {max_retries} attempts: {last_error_details}")
                     if stage: 
                         stage.report_error("Gather Error", f"Request failed to iCloud after {max_retries} attempts: {last_error_details}")
                     return False
         
+        log_debug("Gathering finished, saving final cache")
         save_photos_cache(apple_id, all_photos_meta)
         
         # Final safety: Ensure uniqueness in to_download_objects by asset ID
@@ -636,6 +651,7 @@ def main():
                 unique_objs.append(obj)
                 seen_ids.add(obj.id)
         to_download_objects = unique_objs
+        log_debug(f"Final to_download_objects count: {len(to_download_objects)}")
         
         return len(to_download_objects) > 0
 

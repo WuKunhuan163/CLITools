@@ -429,6 +429,8 @@ def main():
         config_parser.add_argument("--cpu-limit", type=float)
         config_parser.add_argument("--cpu-timeout", type=int)
         config_parser.add_argument("--system-prompt", type=str)
+        config_parser.add_argument("--add-prompt", type=str)
+        config_parser.add_argument("--remove-prompt", type=int)
         c_args, _ = config_parser.parse_known_args(unknown)
         
         if c_args.focus_interval is not None:
@@ -444,8 +446,22 @@ def main():
             config["cpu_timeout"] = c_args.cpu_timeout
             updated = True
         if c_args.system_prompt is not None:
-            config["system_prompt"] = c_args.system_prompt
+            # Migration: if old prompt was a string, convert to list with one item
+            config["system_prompt"] = [c_args.system_prompt]
             updated = True
+        if c_args.add_prompt is not None:
+            prompts = config.get("system_prompt", [])
+            if isinstance(prompts, str): prompts = [prompts]
+            prompts.append(c_args.add_prompt)
+            config["system_prompt"] = prompts
+            updated = True
+        if c_args.remove_prompt is not None:
+            prompts = config.get("system_prompt", [])
+            if isinstance(prompts, str): prompts = [prompts]
+            if 0 <= c_args.remove_prompt < len(prompts):
+                prompts.pop(c_args.remove_prompt)
+                config["system_prompt"] = prompts
+                updated = True
             
         if updated:
             with open(TOOL_INTERNAL / "config.json", 'w') as f:
@@ -456,10 +472,15 @@ def main():
             BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
             print(f"{BOLD}{GREEN}Successfully updated{RESET} USERINPUT configuration:")
             for k, v in config.items():
-                print(f"  {k}: {v}")
+                if k == "system_prompt" and isinstance(v, list):
+                    print(f"  {k}:")
+                    for i, p in enumerate(v):
+                        print(f"    {i}. {p}")
+                else:
+                    print(f"  {k}: {v}")
             return 0
         else:
-            print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>] [--cpu-limit <float>] [--cpu-timeout <int>]")
+            print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>] [--cpu-limit <float>] [--cpu-timeout <int>] [--add-prompt <str>] [--remove-prompt <id>]")
             return 1
 
     from logic.config import get_color
@@ -551,8 +572,12 @@ def main():
                 clipboard_content = result
             
             if system_prompt:
-                final_output_parts.append(f"\n## System Prompt\n{system_prompt}")
-                clipboard_content += f"\n\n## System Prompt\n{system_prompt}"
+                if isinstance(system_prompt, list):
+                    prompt_str = "\n".join([f"{i}. {p}" for i, p in enumerate(system_prompt)])
+                else:
+                    prompt_str = system_prompt
+                final_output_parts.append(f"\n## System Prompt\n{prompt_str}")
+                clipboard_content += f"\n\n## System Prompt\n{prompt_str}"
                 
             final_output_parts.append(f"\n{instruction}")
             clipboard_content += f"\n\n{instruction}"
