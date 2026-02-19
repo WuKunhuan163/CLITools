@@ -244,7 +244,7 @@ class ParallelWorkerPool:
                 
                 sys.stdout.write(f"\r\033[K{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                sys.exit(130)
+                raise KeyboardInterrupt
             except Exception:
                 try: suppressor.stop(force=True)
                 except: pass

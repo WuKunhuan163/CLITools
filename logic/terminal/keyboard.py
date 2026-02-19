@@ -92,9 +92,10 @@ class KeyboardSuppressor:
 
     def stop(self, force: bool = False):
         thread_to_join = None
+        old_settings = None
+        
         with self._lock:
             if not self.running:
-                # Still decrement ref count if we are not running but ref count > 0
                 if not force and self._ref_count > 0:
                     self._ref_count -= 1
                 return
@@ -110,26 +111,26 @@ class KeyboardSuppressor:
             thread_to_join = self._thread
             self._thread = None
             
-        # Join outside the lock to avoid deadlock with _capture_loop
-        if thread_to_join:
+            # Take the settings out so we only restore once
+            old_settings = self._old_settings
+            self._old_settings = None
+            
+        # Restore settings immediately to unlock the terminal
+        if old_settings and self._fd is not None:
             try:
-                # Use a small timeout to avoid hanging the main thread on exit
-                thread_to_join.join(timeout=0.1)
+                import termios
+                # Use TCSAFLUSH to discard any unread input buffered during suppression
+                termios.tcsetattr(self._fd, termios.TCSAFLUSH, old_settings)
             except:
                 pass
         
-        # Restore settings
-        if self._old_settings and self._fd is not None:
+        # Join thread afterwards
+        if thread_to_join:
             try:
-                import termios
-                # Ensure original settings are restored to the FD
-                # Use TCSAFLUSH to discard any unread input buffered during suppression
-                termios.tcsetattr(self._fd, termios.TCSAFLUSH, self._old_settings)
-            except Exception:
+                # Use a larger timeout for force stop, but still don't block forever
+                thread_to_join.join(timeout=0.5 if force else 0.1)
+            except:
                 pass
-        
-        # Clear old settings to indicate we are done
-        self._old_settings = None
 
     def __enter__(self):
         self.start()

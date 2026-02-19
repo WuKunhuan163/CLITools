@@ -771,7 +771,8 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        # Standard exit for Ctrl+C, terminal handled by suppressor/atexit
+        # Standard quiet exit for Ctrl+C.
+        # Turing machines/workers already print the "Operation cancelled" message.
         sys.exit(130)
     except Exception:
         # Unexpected crash cleanup

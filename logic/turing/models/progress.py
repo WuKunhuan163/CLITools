@@ -335,8 +335,8 @@ class ProgressTuringMachine:
                 
                 sys.stdout.write(f"{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                # Use exit code 130 for SIGINT to avoid traceback
-                sys.exit(130)
+                # Re-raise so callers can handle it, but we already printed the message
+                raise KeyboardInterrupt
             except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
