@@ -318,9 +318,9 @@ class ProgressTuringMachine:
                     try: suppressor.stop(force=True)
                     except: pass
                 
+                # Erase current line and print cancellation status in Red
                 sys.stdout.write("\r\033[K")
-                sys.stdout.flush()
-                # Print cancellation status
+                
                 BOLD = get_color("BOLD", "\033[1m")
                 RED = get_color("RED", "\033[31m")
                 RESET = get_color("RESET", "\033[0m")
@@ -335,7 +335,7 @@ class ProgressTuringMachine:
                 
                 sys.stdout.write(f"{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                # Re-raise so callers can handle it, but we already printed the message
+                # Re-raise so callers can handle it
                 raise KeyboardInterrupt
             except Exception:
                 sys.stdout.write("\r\033[K")

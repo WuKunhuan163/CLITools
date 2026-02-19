@@ -31,11 +31,15 @@ class KeyboardSuppressor:
         self._fd = None
         self._tty_f = None
         try:
-            if sys.stdin.isatty():
+            if sys.stdin and sys.stdin.isatty():
                 self._fd = sys.stdin.fileno()
+            elif sys.stdout and sys.stdout.isatty():
+                self._fd = sys.stdout.fileno()
+            elif sys.stderr and sys.stderr.isatty():
+                self._fd = sys.stderr.fileno()
             else:
                 # Try opening /dev/tty directly
-                self._tty_f = open('/dev/tty', 'rb', buffering=0)
+                self._tty_f = open('/dev/tty', 'rb+', buffering=0)
                 self._fd = self._tty_f.fileno()
         except:
             self._fd = None
@@ -56,8 +60,6 @@ class KeyboardSuppressor:
                 
                 # Create new settings
                 new_settings = termios.tcgetattr(self._fd)
-                # ~ECHO: Turn off echoing
-                # ~ICANON: Turn off canonical mode (line buffering)
                 new_settings[3] = new_settings[3] & ~termios.ECHO
                 new_settings[3] = new_settings[3] & ~termios.ICANON
                 
