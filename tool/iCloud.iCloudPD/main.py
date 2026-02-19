@@ -429,20 +429,25 @@ def main():
                     if format_patterns and not any(fnmatch.fnmatch(p.get("filename", ""), pat) for pat in format_patterns): continue
                     scheduled_id_info[p["id"]] = {"lib_name": p.get("library", "root"), "created": p_datetime, "filename": p.get("filename")}
         
+    def get_target_path(photo_id, filename, created_time):
+        """Helper to consistently resolve target path for a photo."""
+        dir_name = substitute_tags(args.grouping, created_time, photo_id, filename)
+        target_dir = output_root / dir_name
+        
+        prefix = substitute_tags(args.prefix, created_time, photo_id, filename)
+        suffix = substitute_tags(args.suffix, created_time, photo_id, filename)
+        
+        name, ext = os.path.splitext(filename)
+        base_name = f"{prefix}{name}{suffix}{ext}"
+        return target_dir / base_name
+
     # Filter out already downloaded files BEFORE gathering
     final_scheduled_info = {}
     output_root = Path(args.output or ".").resolve()
     already_downloaded_count = 0
     for aid, info in scheduled_id_info.items():
-        # Correctly resolve the target path using the same logic as the download loop
-        p_date = info["created"]
-        dir_name = substitute_tags(args.grouping, p_date, aid, info["filename"])
-        prefix = substitute_tags(args.prefix, p_date, aid, info["filename"])
-        suffix = substitute_tags(args.suffix, p_date, aid, info["filename"])
-        
-        name, ext = os.path.splitext(info["filename"])
-        base_name = f"{prefix}{name}{suffix}{ext}"
-        target_file = output_root / dir_name / base_name
+        # Correctly resolve the target path
+        target_file = get_target_path(aid, info["filename"], info["created"])
         
         if target_file.exists():
             already_downloaded_count += 1
@@ -608,6 +613,16 @@ def main():
                     return False
         
         save_photos_cache(apple_id, all_photos_meta)
+        
+        # Final safety: Ensure uniqueness in to_download_objects by asset ID
+        seen_ids = set()
+        unique_objs = []
+        for obj in to_download_objects:
+            if obj.id not in seen_ids:
+                unique_objs.append(obj)
+                seen_ids.add(obj.id)
+        to_download_objects = unique_objs
+        
         return len(to_download_objects) > 0
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
@@ -654,12 +669,10 @@ def main():
 
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
     
-    # Identify how many are local assets (don't need remote time for ETA)
-    local_asset_count = sum(1 for p in to_download_objects if isinstance(p, LocalAssetStub))
-    
     tasks, failed_tasks = [], []
     used_paths = set()
     already_on_disk_count = 0
+    baseline_count = 0 # Items that don't need remote time (local or already on disk)
     
     for photo in to_download_objects:
         # Resolve creation date
@@ -680,19 +693,12 @@ def main():
         if not created_time:
             created_time = datetime.now()
         
-        # Calculate target directory based on grouping rule
-        dir_name = substitute_tags(args.grouping, created_time, photo.id, photo.filename)
-        target_dir = output_root / dir_name
+        # Consistently resolve target_file using helper
+        target_file = get_target_path(photo.id, photo.filename, created_time)
+        target_dir = target_file.parent
         target_dir.mkdir(parents=True, exist_ok=True)
         
-        # Calculate filename based on prefix and suffix
-        prefix = substitute_tags(args.prefix, created_time, photo.id, photo.filename)
-        suffix = substitute_tags(args.suffix, created_time, photo.id, photo.filename)
-        
-        name, ext = os.path.splitext(photo.filename)
-        base_name = f"{prefix}{name}{suffix}{ext}"
-        target_file = target_dir / base_name
-        
+        base_name = target_file.name
         if str(target_file) in used_paths:
             name_part, ext_part = os.path.splitext(base_name)
             counter = 1
@@ -704,14 +710,22 @@ def main():
         
         used_paths.add(str(target_file))
         
-        if target_file.exists():
+        is_local = isinstance(photo, LocalAssetStub)
+        exists_on_disk = target_file.exists()
+        
+        if exists_on_disk:
             already_on_disk_count += 1
+            
+        if is_local or exists_on_disk:
+            baseline_count += 1
+            
+        if exists_on_disk:
             continue
             
-        tasks.append({"id": f"{dir_name}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
+        tasks.append({"id": f"{target_dir.name}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
 
     # Initialize status bar with correct counts
-    pool.status_bar.set_counts(len(to_download_objects), completed=already_on_disk_count, baseline=local_asset_count)
+    pool.status_bar.set_counts(len(to_download_objects), completed=already_on_disk_count, baseline=baseline_count)
 
     def on_task_result(task_id, res):
         # res should now always be a dict if wrapper is used correctly
