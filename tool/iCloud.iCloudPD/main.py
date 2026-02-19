@@ -25,6 +25,15 @@ def log_debug(msg):
 
 def global_sigint_handler(sig, frame):
     log_debug(f"SIGINT caught at {time.time()}")
+    
+    # Release keyboard suppression BEFORE exiting
+    from logic.terminal.keyboard import get_global_suppressor
+    try:
+        get_global_suppressor().stop(force=True)
+        log_debug("Keyboard suppressor stopped in signal handler.")
+    except Exception as e:
+        log_debug(f"Error stopping suppressor in SIGINT handler: {e}")
+        
     # Use hardcoded codes for reliability
     sys.stdout.write("\r\033[K\033[1;31mOperation cancelled\033[0m by user.\n")
     sys.stdout.flush()

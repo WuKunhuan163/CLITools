@@ -92,6 +92,25 @@ class KeyboardSuppressor:
             except Exception:
                 pass
 
+    def is_suppressed(self) -> bool:
+        """Checks if the terminal is currently in a suppressed state."""
+        with self._lock:
+            # If our state says running, it's suppressed by us
+            if self.running:
+                return True
+        
+        # Also check the actual terminal attributes as a final truth
+        if self._fd is None or termios is None:
+            return False
+        try:
+            attrs = termios.tcgetattr(self._fd)
+            # ECHO is bit 3 of the lflag (index 3)
+            res = not (attrs[3] & termios.ECHO)
+            print(f"DEBUG: fd={self._fd} attrs[3]={attrs[3]} ECHO={termios.ECHO} res={res}")
+            return res
+        except Exception:
+            return False
+
     def __enter__(self):
         self.start()
         return self
@@ -105,29 +124,6 @@ def get_global_suppressor() -> KeyboardSuppressor:
     global _global_suppressor
     if _global_suppressor is None:
         _global_suppressor = KeyboardSuppressor()
-        import atexit
-        def _cleanup():
-            if _global_suppressor:
-                _global_suppressor.stop(force=True)
-        atexit.register(_cleanup)
-    return _global_suppressor
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Always call stop on exit. Reference counting handles nesting.
-        self.stop()
-
-# Global instance for easy access if needed, but per-instance usage preferred
-_global_suppressor = None
-
-def get_global_suppressor() -> KeyboardSuppressor:
-    global _global_suppressor
-    if _global_suppressor is None:
-        _global_suppressor = KeyboardSuppressor()
-        # Register atexit handler for the global suppressor
         import atexit
         def _cleanup():
             if _global_suppressor:
