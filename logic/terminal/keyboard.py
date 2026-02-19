@@ -123,7 +123,8 @@ class KeyboardSuppressor:
             try:
                 import termios
                 # Ensure original settings are restored to the FD
-                termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
+                # Use TCSAFLUSH to discard any unread input buffered during suppression
+                termios.tcsetattr(self._fd, termios.TCSAFLUSH, self._old_settings)
             except Exception:
                 pass
         

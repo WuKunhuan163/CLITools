@@ -418,14 +418,15 @@ def main():
                 for p in day_assets:
                     full_path = f"{date_str}/{p['filename']}"
                     if regex_pattern and not regex_pattern.search(full_path): continue
-                    p_date = datetime.fromisoformat(p["created"]).date() if p["created"] else None
+                    p_datetime = datetime.fromisoformat(p["created"]) if p["created"] else None
+                    p_date = p_datetime.date() if p_datetime else None
                     if since_date and (not p_date or p_date < since_date): continue
                     if before_date and (not p_date or p_date > before_date): continue
                     item_type = p.get("item_type", "image")
                     if args.only_photos and item_type not in ["photo", "image"]: continue
                     if args.only_videos and item_type != "video": continue
                     if format_patterns and not any(fnmatch.fnmatch(p.get("filename", ""), pat) for pat in format_patterns): continue
-                    scheduled_id_info[p["id"]] = {"lib_name": p.get("library", "root"), "created": p_date, "filename": p.get("filename")}
+                    scheduled_id_info[p["id"]] = {"lib_name": p.get("library", "root"), "created": p_datetime, "filename": p.get("filename")}
         
     # Filter out already downloaded files BEFORE gathering
     final_scheduled_info = {}
@@ -665,18 +666,25 @@ def main():
         tasks.append({"id": f"{dir_name}/{target_file.name}", "action": download_worker, "args": (photo, target_file, local_library)})
 
     def on_task_result(task_id, res):
-        if isinstance(res, dict) and not res.get("success", True):
-            failed_tasks.append({"id": task_id, "error": res.get("error_brief", "Unknown error"), "log": res.get("log_path")})
-        else: pool.status_bar.increment_completed()
+        # res should now always be a dict if wrapper is used correctly
+        if (isinstance(res, dict) and not res.get("success", True)) or res is False:
+            error_msg = res.get("error_brief", "Unknown error") if isinstance(res, dict) else "Download failed"
+            log_path = res.get("log_path") if isinstance(res, dict) else None
+            failed_tasks.append({"id": task_id, "error": error_msg, "log": log_path})
+            
+            # Print failure warning above status bar
+            pool.status_bar.print_above(f"{BOLD}{RED}Failed{RESET} to download {BOLD}{task_id}{RESET}: {error_msg}")
+        else:
+            pool.status_bar.increment_completed()
 
     all_success = pool.run(tasks, success_callback=on_task_result)
     
-    if not tasks and not failed_tasks:
-        if already_downloaded_count > 0:
-            print(f"{BOLD}{GREEN}All scheduled photos/videos are already downloaded.{RESET}")
+    # Handle the case where the pool finished but we need to check final counts
+    if not tasks and not failed_tasks and not already_downloaded_count:
+        # No work was scheduled
         return
-
-    if all_success and not failed_tasks:
+    
+    if all_success and not failed_tasks and tasks:
         first, last = to_download_objects[0], to_download_objects[-1]
         f_d, l_d = getattr(first, "_cached_date", None), getattr(last, "_cached_date", None)
         f_s, l_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}", f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
@@ -691,6 +699,21 @@ def main():
 if __name__ == "__main__":
     from logic.terminal.keyboard import get_global_suppressor
     try:
+        # Try to restore terminal in case it was left in a bad state by a previous run
         get_global_suppressor().stop(force=True)
     except: pass
-    main()
+    
+    try:
+        main()
+    except KeyboardInterrupt:
+        # Ensure terminal settings are restored on Ctrl+C
+        try:
+            get_global_suppressor().stop(force=True)
+        except: pass
+        sys.exit(1)
+    except Exception as e:
+        # Try to restore terminal even on unexpected crash
+        try:
+            get_global_suppressor().stop(force=True)
+        except: pass
+        raise

@@ -129,6 +129,17 @@ class DynamicStatusBar:
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
 
+    def print_above(self, msg: str):
+        """Print a message above the current status bar."""
+        with self.lock:
+            # Erase current line
+            sys.stdout.write("\r\033[K")
+            sys.stdout.flush()
+            # Print the message followed by newline
+            print(msg)
+            # Re-render status bar on the new current line
+            self._render()
+
 class ParallelWorkerPool:
     """
     Separated logic for managing parallel workers with integrated status display.
@@ -162,10 +173,16 @@ class ParallelWorkerPool:
                 else:
                     res = func(*args, **kwargs)
                 
-                if isinstance(res, dict) and not res.get("success", True):
+                # Check for failure (False or dict with success=False)
+                if res is False or (isinstance(res, dict) and not res.get("success", True)):
+                    if not isinstance(res, dict):
+                        res = {"success": False, "error": "Action returned False"}
+                    
+                    # Log error details
                     log_path = log_turing_error(stage, self.project_root, self.tool_name)
                     res["log_path"] = log_path
                     res["error_brief"] = stage.error_brief or res.get("error", "Unknown error").split('\n')[0]
+                    
                     if success_callback:
                         success_callback(task_id, res)
                     return False
@@ -202,12 +219,16 @@ class ParallelWorkerPool:
                         for t in tasks
                     }
                     for future in as_completed(futures):
-                        if not future.result():
+                        try:
+                            if not future.result():
+                                all_success = False
+                        except:
                             all_success = False
             except (KeyboardInterrupt, Exception):
                 try: suppressor.stop(force=True)
                 except: pass
                 raise
+            finally:
+                self.status_bar.clear()
         
-        self.status_bar.clear()
         return all_success
