@@ -70,6 +70,7 @@ def main():
     parser.add_argument("--prefix", type=str, default="", help="Prefix for the photo filename (supports placeholders: <YYYY>, <MM>, <DD>, <hh>, <mm>, <ss>, <ID>, <FILENAME>)")
     parser.add_argument("--suffix", type=str, default="", help="Suffix for the photo filename (supports placeholders)")
     parser.add_argument("--grouping", type=str, default="<YYYY>-<MM>-<DD>", help="Directory grouping rule (default: <YYYY>-<MM>-<DD>)")
+    parser.add_argument("--ignore-gather-cache", action="store_true", help="Ignore gathered metadata fields in cache and force fresh gathering from iCloud")
     
     if tool.handle_command_line(parser): return
     
@@ -473,9 +474,10 @@ def main():
             self._service = None
     
     def gather_action(stage=None):
-        nonlocal to_download_objects
+        nonlocal to_download_objects, all_photos_meta
         total_scheduled = len(scheduled_id_info)
         count, start_time = 0, time.time()
+        last_cache_save = start_time
         
         # Split IDs into local-resolvable and needs-iCloud-lookup
         needs_lookup_ids = {} # lib_name -> [ids]
@@ -540,13 +542,32 @@ def main():
                             for record in resp.json().get("records", []):
                                 asset = PhotoAsset(api.photos, record, record)
                                 aid = record["recordName"]
-                                if aid in scheduled_id_info: asset._cached_date = scheduled_id_info[aid]["created"]
+                                if aid in scheduled_id_info:
+                                    dt = scheduled_id_info[aid]["created"]
+                                    asset._cached_date = dt
+                                    
+                                    # Update cache with better metadata if available
+                                    if not args.ignore_gather_cache:
+                                        y, m, d = str(dt.year), f"{dt.month:02d}", f"{dt.day:02d}"
+                                        for ca in all_photos_meta.get(y, {}).get(m, {}).get(d, []):
+                                            if ca["id"] == aid:
+                                                ca["item_type"] = asset.item_type
+                                                ca["size"] = asset.size
+                                                ca["dimensions"] = asset.dimensions
+                                                break
+                                                
                                 to_download_objects.append(asset)
                                 count += 1
                                 if count % 10 == 0 or count == total_scheduled:
                                     from logic.utils import calculate_eta
                                     e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
                                     if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
+                                    
+                                # Periodically save cache
+                                if time.time() - last_cache_save > 60:
+                                    save_photos_cache(apple_id, all_photos_meta)
+                                    last_cache_save = time.time()
+                                    
                             success_batch = True
                             break
                         else:
@@ -561,6 +582,8 @@ def main():
                     if stage: 
                         stage.report_error("Gather Error", f"Request failed to iCloud after {max_retries} attempts: {last_error_details}")
                     return False
+        
+        save_photos_cache(apple_id, all_photos_meta)
         return len(to_download_objects) > 0
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="iCloudPD", log_dir=tool.get_log_dir(), no_warning=args.no_warning)
@@ -692,28 +715,29 @@ def main():
     elif failed_tasks:
         print(f"{BOLD}{RED}Failed to download{RESET} {len(failed_tasks)} photos/videos.")
         summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
-        with open(summary_log, 'w') as f:
-            for ft in failed_tasks: f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
+        with open(summary_log, 'w', encoding='utf-8') as f:
+            for ft in failed_tasks:
+                f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
         print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
 
 if __name__ == "__main__":
     from logic.terminal.keyboard import get_global_suppressor
+    
+    # Try to restore terminal in case it was left in a bad state by a previous run
     try:
-        # Try to restore terminal in case it was left in a bad state by a previous run
         get_global_suppressor().stop(force=True)
-    except: pass
+    except:
+        pass
     
     try:
         main()
     except KeyboardInterrupt:
-        # Ensure terminal settings are restored on Ctrl+C
+        # Standard exit for Ctrl+C, terminal handled by suppressor/atexit
+        sys.exit(130)
+    except Exception:
+        # Unexpected crash cleanup
         try:
             get_global_suppressor().stop(force=True)
-        except: pass
-        sys.exit(1)
-    except Exception as e:
-        # Try to restore terminal even on unexpected crash
-        try:
-            get_global_suppressor().stop(force=True)
-        except: pass
+        except:
+            pass
         raise

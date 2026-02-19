@@ -224,7 +224,32 @@ class ParallelWorkerPool:
                                 all_success = False
                         except:
                             all_success = False
-            except (KeyboardInterrupt, Exception):
+            except KeyboardInterrupt:
+                try: suppressor.stop(force=True)
+                except: pass
+                
+                # Print cancellation status in Red
+                BOLD = get_color("BOLD", "\033[1m")
+                RED = get_color("RED", "\033[31m")
+                RESET = get_color("RESET", "\033[0m")
+                
+                # Try to get translations if available, otherwise fallback
+                try:
+                    from logic.lang.utils import get_translation
+                    from logic.utils import get_logic_dir, find_project_root
+                    root = find_project_root(self.project_root) if self.project_root else None
+                    if root:
+                        logic_dir = str(get_logic_dir(root))
+                        cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
+                        by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
+                    else: raise Exception()
+                except:
+                    cancelled_label, by_user_label = "Operation cancelled", "by user."
+                
+                sys.stdout.write(f"\r\033[K{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
+                sys.stdout.flush()
+                sys.exit(130)
+            except Exception:
                 try: suppressor.stop(force=True)
                 except: pass
                 raise

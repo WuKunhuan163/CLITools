@@ -322,7 +322,7 @@ class ProgressTuringMachine:
                 sys.stdout.flush()
                 # Print cancellation status
                 BOLD = get_color("BOLD", "\033[1m")
-                YELLOW = get_color("YELLOW", "\033[33m")
+                RED = get_color("RED", "\033[31m")
                 RESET = get_color("RESET", "\033[0m")
                 
                 from logic.lang.utils import get_translation
@@ -333,9 +333,10 @@ class ProgressTuringMachine:
                 cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
                 by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
                 
-                sys.stdout.write(f"{BOLD}{YELLOW}{cancelled_label}{RESET} {by_user_label}\n")
+                sys.stdout.write(f"{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                raise
+                # Use exit code 130 for SIGINT to avoid traceback
+                sys.exit(130)
             except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
