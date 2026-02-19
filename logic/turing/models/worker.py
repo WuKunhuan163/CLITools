@@ -224,10 +224,11 @@ class ParallelWorkerPool:
                 try: suppressor.stop(force=True)
                 except: pass
                 
-                # Print cancellation status in Red
-                BOLD = get_color("BOLD", "\033[1m")
-                RED = get_color("RED", "\033[31m")
-                RESET = get_color("RESET", "\033[0m")
+                # Use hardcoded escape codes for reliability
+                BOLD_RED = "\033[1;31m"
+                RESET = "\033[0m"
+                
+                sys.stdout.write("\r\033[K")
                 
                 try:
                     root = find_project_root(self.project_root) if self.project_root else None
@@ -239,9 +240,9 @@ class ParallelWorkerPool:
                 except:
                     cancelled_label, by_user_label = "Operation cancelled", "by user."
                 
-                sys.stdout.write(f"\r\033[K{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
+                sys.stdout.write(f"{BOLD_RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                raise KeyboardInterrupt
+                os._exit(130)
             except Exception:
                 try: suppressor.stop(force=True)
                 except: pass

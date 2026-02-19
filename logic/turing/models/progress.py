@@ -307,31 +307,33 @@ class ProgressTuringMachine:
                 # If non-ephemeral, the last stage already printed a newline
                 return True
             except KeyboardInterrupt:
-                with open("/tmp/suppressor.log", "a") as f:
-                    f.write(f"[{time.time()}] PTM.run CAUGHT KeyboardInterrupt\n")
-                    f.flush()
-                    
                 if suppressor:
                     try: suppressor.stop(force=True)
-                    except Exception as e:
-                        with open("/tmp/suppressor.log", "a") as f:
-                            f.write(f"[{time.time()}] PTM suppressor stop error: {str(e)}\n")
-                            f.flush()
+                    except: pass
                 
-                # Erase current line and print cancellation status in Red
+                # Use hardcoded escape codes if get_color fails for some reason
+                BOLD_RED = "\033[1;31m"
+                RESET = "\033[0m"
+                
+                # Erase current line
                 sys.stdout.write("\r\033[K")
+                
+                # Try to get translation, but have a solid fallback
+                try:
+                    from logic.utils import find_project_root, get_logic_dir
+                    from logic.lang.utils import get_translation
+                    root = find_project_root(Path(__file__))
+                    logic_dir = str(get_logic_dir(root))
+                    cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
+                    by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
+                except:
+                    cancelled_label, by_user_label = "Operation cancelled", "by user."
+                
+                sys.stdout.write(f"{BOLD_RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
                 
-                root = find_project_root(Path(__file__))
-                logic_dir = str(get_logic_dir(root))
-                
-                cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
-                by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
-                
-                sys.stdout.write(f"{BOLD}{RED}{cancelled_label}{RESET} {by_user_label}\n")
-                sys.stdout.flush()
-                # Re-raise so callers can handle it
-                raise KeyboardInterrupt
+                # Force exit to prevent being caught and ignored by other loops
+                os._exit(130)
             except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
