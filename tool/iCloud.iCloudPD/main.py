@@ -748,7 +748,11 @@ def main():
     
     if all_success and not failed_tasks and tasks:
         first, last = to_download_objects[0], to_download_objects[-1]
-        f_d, l_d = getattr(first, "_cached_date", None), getattr(last, "_cached_date", None)
+        
+        def get_best_date(photo):
+            return getattr(photo, "_cached_date", None) or getattr(photo, "created", None)
+            
+        f_d, l_d = get_best_date(first), get_best_date(last)
         f_s, l_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}", f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
         print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos from {BOLD}{f_s}{RESET} to {BOLD}{l_s}{RESET}.")
     elif failed_tasks:
