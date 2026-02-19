@@ -479,6 +479,18 @@ def main():
         count, start_time = 0, time.time()
         last_cache_save = start_time
         
+        # Build a fast lookup map for already gathered records in cache
+        gathering_lookup = {}
+        if not args.ignore_gather_cache:
+            for y, y_data in all_photos_meta.items():
+                if not isinstance(y_data, dict): continue
+                for m, m_data in y_data.items():
+                    if not isinstance(m_data, dict): continue
+                    for d, day_assets in m_data.items():
+                        for ca in day_assets:
+                            if "full_record" in ca:
+                                gathering_lookup[ca["id"]] = ca["full_record"]
+        
         # Split IDs into resolved (local or gathering-cache) and needs-iCloud-lookup
         needs_lookup_ids = {} # lib_name -> [ids]
         
@@ -493,7 +505,6 @@ def main():
             
             # 1. Check local library first if available
             if local_library:
-                # Pass filename and created_dt for robust fallback lookup
                 local_res = local_library.find_photo(aid, filename=info["filename"], created_dt=info["created"])
                 if local_res:
                     _, local_dt = local_res
@@ -501,21 +512,15 @@ def main():
                     count += 1
                     is_resolved = True
             
-            # 2. Check gathering cache (full_record in photos_cache.json)
-            if not is_resolved and not args.ignore_gather_cache:
-                dt = info["created"]
-                y, m, d = str(dt.year), f"{dt.month:02d}", f"{dt.day:02d}"
-                ca_list = all_photos_meta.get(y, {}).get(m, {}).get(d, [])
-                for ca in ca_list:
-                    if ca["id"] == aid and "full_record" in ca:
-                        try:
-                            asset = PhotoAsset(api.photos, ca["full_record"], ca["full_record"])
-                            asset._cached_date = dt
-                            to_download_objects.append(asset)
-                            count += 1
-                            is_resolved = True
-                        except: pass
-                        break
+            # 2. Check gathering cache (lookup map built from photos_cache.json)
+            if not is_resolved and aid in gathering_lookup:
+                try:
+                    asset = PhotoAsset(api.photos, gathering_lookup[aid], gathering_lookup[aid])
+                    asset._cached_date = info["created"]
+                    to_download_objects.append(asset)
+                    count += 1
+                    is_resolved = True
+                except: pass
             
             if is_resolved:
                 # Update progress for resolved items periodically
