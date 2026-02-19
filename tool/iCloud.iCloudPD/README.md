@@ -8,6 +8,9 @@ A powerful, parallelized iCloud photo and video downloader. This tool is designe
 - **Parallel Downloads**: Utilizes multiple workers (default 3) to download assets concurrently, significantly speeding up the process.
 - **Automatic Retries**: Each download task includes 3 internal retries to handle network flakiness.
 - **Robust Caching**: Scans and caches your entire iCloud library metadata locally in a date-grouped structure (`YYYY-MM-DD`).
+- **Incremental Progress**: Incremental saving of metadata during the gathering phase ensures progress is saved even if interrupted.
+- **Safe Interrupts**: Full support for `Ctrl+C` (SIGINT) at any stage (authentication, gathering, downloading). The tool ensures a clean exit, restores terminal settings, and provides a colored status message.
+- **Interactive Authentication**: Seamlessly handles password and 2FA prompts in both GUI and CLI modes, with keyboard suppression to protect your input.
 - **Incremental Scanning**: Atomically saves metadata after each batch and periodically (every 30s) to prevent data loss.
 - **Smart Collision Protection**: Automatically renames files with numeric suffixes (e.g., `IMG_0001_1.JPG`) if multiple photos have the same name on the same day.
 - **Flexible Filtering**: 
