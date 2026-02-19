@@ -30,22 +30,18 @@ class DynamicStatusBar:
         self.BOLD = get_color("BOLD", "\033[1m") if use_bold_blue else ""
         self.RESET = get_color("RESET", "\033[0m") if use_bold_blue else ""
 
-    def set_counts(self, total: int, completed: int = 0, is_remote: bool = False):
+    def set_counts(self, total: int, completed: int = 0, baseline: int = 0):
         """
         Set progress counts for the status display.
-        If is_remote=True, the current completed count is treated as a baseline 
-        (local copies) and ignored for speed/ETA calculation.
+        - total: Total number of items to process.
+        - completed: Number of items already finished (on disk).
+        - baseline: Number of items to ignore for speed/ETA calculation (e.g. local copies).
         """
         with self.lock:
             self.total_count = total
             self.completed_count = completed
+            self.baseline_completed = baseline
             self.start_time = time.time()
-            if is_remote:
-                self.baseline_completed = completed
-                self.baseline_time = 0.0 # Will be updated on first remote completion
-            else:
-                self.baseline_completed = 0
-                self.baseline_time = 0.0
             self._render()
 
     def increment_completed(self):
