@@ -186,16 +186,15 @@ def main():
         if args.no_gui:
             import getpass
             import pickle
+            
+            was_suppressed = suppressor.is_suppressed()
             try:
-                # Temporarily stop suppression for input
-                was_suppressed = suppressor.is_suppressed()
                 if was_suppressed: suppressor.stop()
-            try:
                 apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
-                finally:
-                    if was_suppressed: suppressor.start()
             except (EOFError, KeyboardInterrupt):
                 raise KeyboardInterrupt
+            finally:
+                if was_suppressed: suppressor.start()
 
             cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
             if cookie_file.exists():
@@ -221,7 +220,13 @@ def main():
                 sys.stdout.flush()
                 # User wants a key icon for security feel in CLI mode
                 prompt = f"Enter password for {apple_id}: "
-                password = getpass.getpass(prompt)
+                
+                was_suppressed = suppressor.is_suppressed()
+                if was_suppressed: suppressor.stop()
+                try:
+                    password = getpass.getpass(prompt)
+                finally:
+                    if was_suppressed: suppressor.start()
             except KeyboardInterrupt:
                 raise
             except (EOFError, Exception) as e:
@@ -234,8 +239,14 @@ def main():
                 api = PyiCloudService(apple_id, password)
                 if api.requires_2fa:
                     print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
-                    try: code = input("Enter 6-digit 2FA code: ").strip()
-                    except (EOFError, KeyboardInterrupt): raise KeyboardInterrupt
+                    
+                    was_suppressed = suppressor.is_suppressed()
+                    if was_suppressed: suppressor.stop()
+                    try:
+                        code = input("Enter 6-digit 2FA code: ").strip()
+                    finally:
+                        if was_suppressed: suppressor.start()
+                    
                     if not api.validate_2fa_code(code): return False
                 
                 save_session(apple_id, api)
@@ -617,31 +628,32 @@ def main():
                 for attempt in range(max_retries):
                     try:
                         resp = api.photos.session.post(lookup_url, json=query, headers={"Content-Type": "text/plain"}, timeout=30)
-                    if resp.status_code == 200:
+                        if resp.status_code == 200:
                             log_debug(f"Batch success, parsing {len(resp.json().get('records', []))} records")
-                        for record in resp.json().get("records", []):
-                            asset = PhotoAsset(api.photos, record, record)
-                            aid = record["recordName"]
+                            for record in resp.json().get("records", []):
+                                asset = PhotoAsset(api.photos, record, record)
+                                aid = record["recordName"]
                                 if aid in scheduled_id_info:
                                     dt = scheduled_id_info[aid]["created"]
                                     asset._cached_date = dt
                                     
                                     # Update cache with full_record and better metadata
                                     y, m, d = str(dt.year), f"{dt.month:02d}", f"{dt.day:02d}"
-                                    for ca in all_photos_meta.get(y, {}).get(m, {}).get(d, []):
-                                        if ca["id"] == aid:
-                                            ca["item_type"] = asset.item_type
-                                            ca["size"] = asset.size
-                                            ca["dimensions"] = asset.dimensions
-                                            ca["full_record"] = record # Store record for future runs
-                                            break
+                                    if y in all_photos_meta and m in all_photos_meta[y] and d in all_photos_meta[y][m]:
+                                        for ca in all_photos_meta[y][m][d]:
+                                            if ca["id"] == aid:
+                                                ca["item_type"] = asset.item_type
+                                                ca["size"] = asset.size
+                                                ca["dimensions"] = asset.dimensions
+                                                ca["full_record"] = record # Store record for future runs
+                                                break
                                                 
-                            to_download_objects.append(asset)
-                            count += 1
-                            if count % 10 == 0 or count == total_scheduled:
-                                from logic.utils import calculate_eta
-                                e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
-                                if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
+                                to_download_objects.append(asset)
+                                count += 1
+                                if count % 10 == 0 or count == total_scheduled:
+                                    from logic.utils import calculate_eta
+                                    e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+                                    if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
                                     
                             # Save cache after each batch of 100 (as requested by user)
                             save_photos_cache(apple_id, all_photos_meta)
@@ -651,7 +663,7 @@ def main():
                             break
                         else:
                             last_error_details = f"HTTP {resp.status_code}: {resp.text}"
-                except Exception as e:
+                    except Exception as e:
                         last_error_details = str(e)
                     
                     if attempt < max_retries - 1:
@@ -811,11 +823,11 @@ def main():
         print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos from {BOLD}{f_s}{RESET} to {BOLD}{l_s}{RESET}.")
     elif failed_tasks:
         print(f"{BOLD}{RED}Failed to download{RESET} {len(failed_tasks)} photos/videos.")
-            summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
+        summary_log = tool.get_log_dir() / f"fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}_download_summary.log"
         with open(summary_log, 'w', encoding='utf-8') as f:
             for ft in failed_tasks:
                 f.write(f"ID: {ft['id']} | Error: {ft['error']} | Detail: {ft['log']}\n")
-            print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
+        print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {summary_log}")
 
 if __name__ == "__main__":
     from logic.terminal.keyboard import get_global_suppressor
@@ -827,7 +839,7 @@ if __name__ == "__main__":
         pass
     
     try:
-    main()
+        main()
     except KeyboardInterrupt:
         # Standard quiet exit for Ctrl+C.
         # Turing machines/workers already print the "Operation cancelled" message.
