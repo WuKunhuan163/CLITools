@@ -216,11 +216,17 @@ def main():
                 except Exception: pass
             
             try:
+                # Update Turing machine status for password prompt
+                if stage: 
+                    stage.active_status = "Authenticating"
+                    stage.active_name = f"iCloud (password required for {apple_id})"
+                    stage.refresh()
+                
+                # Clear current line for the prompt
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
-                # User wants a key icon for security feel in CLI mode
-                prompt = f"Enter password for {apple_id}: "
                 
+                prompt = f"Enter password for {apple_id}: "
                 was_suppressed = suppressor.is_suppressed()
                 if was_suppressed: suppressor.stop()
                 try:
@@ -235,19 +241,28 @@ def main():
                 return False
 
             try:
-                if stage: stage.active_name = f"authenticating {apple_id}"
+                if stage: stage.active_name = f"authenticating {apple_id}"; stage.refresh()
                 api = PyiCloudService(apple_id, password)
                 if api.requires_2fa:
-                    print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
+                    # Update Turing machine status instead of printing warning
+                    if stage: 
+                        stage.active_status = "Authenticating"
+                        stage.active_name = f"iCloud (2FA required for {apple_id})"
+                        stage.refresh()
                     
                     was_suppressed = suppressor.is_suppressed()
                     if was_suppressed: suppressor.stop()
                     try:
-                        code = input("Enter 6-digit 2FA code: ").strip()
+                        # Clear line for the input prompt to be clean
+                        sys.stdout.write("\r\033[K")
+                        sys.stdout.flush()
+                        code = input(f"Enter 6-digit 2FA code for {apple_id}: ").strip()
                     finally:
                         if was_suppressed: suppressor.start()
                     
-                    if not api.validate_2fa_code(code): return False
+                    if not api.validate_2fa_code(code): 
+                        if stage: stage.report_error("2FA Failed", "Invalid 2FA code.")
+                        return False
                 
                 save_session(apple_id, api)
                 final_apple_id = apple_id
