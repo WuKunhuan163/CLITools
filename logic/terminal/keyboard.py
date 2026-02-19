@@ -77,10 +77,9 @@ class KeyboardSuppressor:
                 new_settings = termios.tcgetattr(self._fd)
                 # ~ECHO: Turn off echoing
                 # ~ICANON: Turn off canonical mode (line buffering)
-                # ~ISIG: Turn off signal generation (Ctrl+C becomes a normal byte 0x03)
+                # Keep ISIG enabled so Ctrl+C still works normally as a signal
                 new_settings[3] = new_settings[3] & ~termios.ECHO
                 new_settings[3] = new_settings[3] & ~termios.ICANON
-                new_settings[3] = new_settings[3] & ~termios.ISIG
                 
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
@@ -102,7 +101,6 @@ class KeyboardSuppressor:
 
     def _capture_loop(self):
         """Internal loop to read and discard input."""
-        import signal
         while self.running and self._fd is not None:
             try:
                 # Use select to wait for data with a timeout
@@ -111,14 +109,6 @@ class KeyboardSuppressor:
                     # Read available bytes and store them
                     data = os.read(self._fd, 1024)
                     if data:
-                        # If ISIG is off, we must manually detect Ctrl+C (0x03)
-                        if b'\x03' in data:
-                            with open("/tmp/suppressor.log", "a") as f:
-                                f.write(f"[{time.time()}] MANUAL Ctrl+C DETECTED in capture loop\n")
-                                f.flush()
-                            # Trigger SIGINT in the main thread
-                            os.kill(os.getpid(), signal.SIGINT)
-                            
                         with self._lock:
                             self.captured_keys.append(data)
             except (OSError, ValueError):

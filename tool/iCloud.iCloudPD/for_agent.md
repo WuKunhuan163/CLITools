@@ -1,42 +1,32 @@
-# Developer Guidelines: iCloudPD
+# iCloudPD Tool Enhancement
 
-## 1. Architecture Overview
-`iCloudPD` is a high-performance downloader built on top of `pyicloud`. It uses a 4-stage pipeline:
-1. **Auth**: Session-aware authentication (GUI or CLI).
-2. **Scan**: Incremental metadata harvesting into `photos_cache.json`.
-3. **Filter**: Local ID selection based on user criteria.
-4. **Gather**: Object reconstruction using CloudKit `lookup`.
-5. **Download**: Parallel streaming downloads with internal retries.
+## Current Status
+- [x] Support local MacBook Photos Library (`.photoslibrary`).
+- [x] Custom filename and directory grouping using placeholders.
+- [x] Performance optimization for gathering stage using persistent cache (`full_record` in `photos_cache.json`).
+- [x] Robust Ctrl+C (KeyboardInterrupt) handling with terminal restoration.
+- [x] Download failure reporting above the status bar.
+- [x] Fixed double-counting bug in download progress.
 
-## 2. Key Optimizations
+## Test Instructions
+To test Ctrl+C handling:
+1. Run `python3 /Applications/AITerminalTools/tmp/test_ptm_interrupt.py`
+2. Press `Ctrl+C` during the sleep loop.
+3. Verify that the "Operation cancelled by user." message appears in RED and the script exits to the shell immediately.
 
-### CloudKit Lookup
-Never use the library iterator (`album.all`) to find specific photo objects if you already have their IDs. Instead, use the `/lookup` POST endpoint:
-```python
-# batches of 100
-query = {"records": [{"recordName": rid} for rid in batch], "zoneID": zone_id}
-resp = session.post(f"{base_url}/lookup", json=query)
+To test iCloudPD with the new preferences:
+```bash
+iCloudPD --apple-id 18876089955@139.com --local-photos ~/Desktop/Photos\ Library.photoslibrary --prefix "<YYYY><MM><DD>_<hh><mm><ss> · " --since 2024-10-01 --before 2024-10-31 --output /Applications/AITerminalTools/tmp/tmp_iCloudPD_photos/ --no-gui
 ```
-This is **60x faster** than scanning for 100k+ assets.
 
-### Direction Enum
-In the current `pyicloud` environment:
-- `DirectionEnum.ASCENDING`: Returns **NEWEST** assets first (chronologically descending).
-- `DirectionEnum.DESCENDING`: Returns **OLDEST** assets first (chronologically ascending).
-Ensure `ASCENDING` is used for "incremental from latest" scanning.
+## Logic Principle: Gathering Cache
+The "Gathering" stage fetches full metadata (like download URLs) for assets not found locally.
+- **Cache**: results are saved in `tool/iCloud.iCloudPD/data/scan/<id>/photos_cache.json` under `full_record`.
+- **Fast Mode**: Subsequent runs skip iCloud lookups for any asset that has a `full_record` in the cache.
+- **Override**: Use `--ignore-gather-cache` to force a refresh from iCloud.
 
-### Path Resolution
-The tool automatically handles filename collisions by checking the `used_paths` set during task generation. If a collision is detected, a numeric suffix is appended.
-
-## 3. Data Structure
-- **Cache**: `data/scan/<apple_id>/photos_cache.json` uses a nested structure: `{"Year": {"Month": {"Day": [assets]}}}`.
-- **Session**: `data/session/<apple_id>/session.pkl` stores the raw requests cookie jar.
-
-## 4. UI Conventions
-- **Progress**: Always use `ProgressTuringMachine` for sequential stages and `ParallelWorkerPool` for the download phase.
-- **Silent Success**: Use `success_status="\r\033[K", success_name=" "` for stages that should be erased on completion (e.g., Gathering).
-- **Styling**: `Reused session` and `Found` should be **BOLD DEFAULT**. `iCloud` during auth should be **BOLD GREEN**.
-
-## 5. Testing
-Temporary scripts should be placed in the project-root `tmp/`. Unit tests go in `test/` or `tool/iCloud/tool/iCloudPD/test/` following the `test_xx_name.py` pattern.
-
+## Keyboard Suppressor
+- Uses `termios` to suppress echoing and line buffering during erasable status lines.
+- **Reference Counted**: Safe for nested usage (e.g., PTM and WorkerPool).
+- **SIGINT**: `ISIG` is kept enabled so `Ctrl+C` still triggers a `KeyboardInterrupt` signal naturally.
+- **Cleanup**: Restores settings on exit, exception, or interrupt.

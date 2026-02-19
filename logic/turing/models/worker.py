@@ -1,10 +1,16 @@
-#!/usr/bin/env python3
 import threading
 import sys
 import time
 from typing import List, Dict, Optional, Any, Set, Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.config import get_color
+from logic.terminal.keyboard import get_global_suppressor
+from logic.turing.logic import TuringStage, TuringError
+from logic.turing.utils import log_turing_error
+from logic.lang.utils import get_translation
+from logic.utils import get_logic_dir, find_project_root, format_seconds
+from pathlib import Path
 
 class DynamicStatusBar:
     """
@@ -151,10 +157,6 @@ class ParallelWorkerPool:
         """
         Run a list of tasks: [{"id": str, "action": callable, "args": tuple, "kwargs": dict}]
         """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        from logic.terminal.keyboard import KeyboardSuppressor
-        from logic.turing.logic import TuringStage, TuringError
-        from logic.turing.utils import log_turing_error
         all_success = True
         
         def wrapper(task_id, func, *args, **kwargs):
@@ -162,7 +164,6 @@ class ParallelWorkerPool:
             stage = TuringStage(name=f"Task {task_id}", action=func, bold_part="Running Task")
             try:
                 # Support passing stage to func if it accepts it
-                import inspect
                 sig = inspect.signature(func)
                 if len(sig.parameters) > 0:
                     res = func(stage, *args, **kwargs)
@@ -205,7 +206,6 @@ class ParallelWorkerPool:
             finally:
                 self.status_bar.update(task_id, "remove")
 
-        from logic.terminal.keyboard import get_global_suppressor
         suppressor = get_global_suppressor()
         with suppressor:
             try:
@@ -229,10 +229,7 @@ class ParallelWorkerPool:
                 RED = get_color("RED", "\033[31m")
                 RESET = get_color("RESET", "\033[0m")
                 
-                # Try to get translations if available, otherwise fallback
                 try:
-                    from logic.lang.utils import get_translation
-                    from logic.utils import get_logic_dir, find_project_root
                     root = find_project_root(self.project_root) if self.project_root else None
                     if root:
                         logic_dir = str(get_logic_dir(root))

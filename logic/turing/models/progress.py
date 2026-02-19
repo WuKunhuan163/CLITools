@@ -1,7 +1,15 @@
 import sys
+import time
+import re
+import inspect
 from typing import List, Optional
 from pathlib import Path
 from logic.turing.logic import TuringStage
+from logic.config import get_color
+from logic.turing.display.manager import truncate_to_width, _get_configured_width
+from logic.terminal.keyboard import get_global_suppressor
+from logic.lang.utils import get_translation
+from logic.utils import get_logic_dir, find_project_root
 
 class ProgressTuringMachine:
     """Executes a sequence of TuringStages with erasable progress display."""
@@ -67,10 +75,8 @@ class ProgressTuringMachine:
         sys.stdout.flush()
 
     def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
-        from logic.config import get_color
-        from logic.turing.display.manager import truncate_to_width, _get_configured_width
-        from logic.terminal.keyboard import get_global_suppressor
-        import traceback
+        # Use global suppressor to avoid conflicts and potential deadlocks
+        suppressor = get_global_suppressor()
         
         BLUE = get_color("BLUE", "\033[34m")
         BOLD = get_color("BOLD", "\033[1m")
@@ -78,8 +84,6 @@ class ProgressTuringMachine:
         RESET = get_color("RESET", "\033[0m")
         GREEN = get_color("GREEN", "\033[32m")
         
-        # Use global suppressor to avoid conflicts and potential deadlocks
-        suppressor = get_global_suppressor()
         with suppressor:
             try:
                 for i, stage in enumerate(self.stages):
@@ -118,7 +122,6 @@ class ProgressTuringMachine:
                     try:
                         # Pass the stage itself to the action so it can report errors/output
                         # Support both Callable[[], bool] and Callable[[TuringStage], bool]
-                        import inspect
                         sig = inspect.signature(stage.action)
                         if len(sig.parameters) > 0:
                             success = stage.action(stage)
@@ -167,7 +170,6 @@ class ProgressTuringMachine:
                             
                             # Ensure completion period for success states
                             # Strip ANSI escape codes for punctuation check
-                            import re
                             stripped_msg = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', full_msg)
                             if stripped_msg and not any(stripped_msg.rstrip().endswith(c) for c in [".", "!", ")", "]", "}", ">"]):
                                 full_msg = full_msg.rstrip() + "."
@@ -194,16 +196,7 @@ class ProgressTuringMachine:
                                 # Just clear the active line and continue
                                 sys.stdout.write("\r\033[K")
                                 sys.stdout.flush()
-                                return True # Continue the pipeline if it was just a warning? No, usually action returning False means stop. But for warning, maybe we want to continue?
-                                # Actually, for warning, if it fails, it might still mean something went wrong. 
-                                # But the user wants to filter out WARNING information.
-                                # I'll return True to allow the sequence to continue if it was just a warning failure.
-                                # Wait, if it was a failure, maybe we should still stop but just not print it?
-                                # Re-reading: "过滤掉图灵机输出所有的Warning信息"
-                                # I'll return success=True if it was a warning failure and no_warning is active.
-                                # Wait, if it was a failure, maybe we should still stop but just not print it?
-                                # Re-reading: "过滤掉图灵机输出所有的Warning信息"
-                                # I'll return success=True if it was a warning failure and no_warning is active.
+                                return True 
                             
                             log_path = self._log_error(stage)
                             sys.stdout.write("\r\033[K")
@@ -329,12 +322,6 @@ class ProgressTuringMachine:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()
                 
-                BOLD = get_color("BOLD", "\033[1m")
-                RED = get_color("RED", "\033[31m")
-                RESET = get_color("RESET", "\033[0m")
-                
-                from logic.lang.utils import get_translation
-                from logic.utils import get_logic_dir, find_project_root
                 root = find_project_root(Path(__file__))
                 logic_dir = str(get_logic_dir(root))
                 
