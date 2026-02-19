@@ -765,6 +765,21 @@ def main():
 
 if __name__ == "__main__":
     from logic.terminal.keyboard import get_global_suppressor
+    import signal
+    
+    def signal_handler(sig, frame):
+        with open("/tmp/suppressor.log", "a") as f:
+            f.write(f"[{time.time()}] EXPLICIT SIGNAL HANDLER: {sig}\n")
+            f.flush()
+        # Ensure suppressor is stopped
+        try:
+            get_global_suppressor().stop(force=True)
+        except:
+            pass
+        print("\nOperation cancelled by user.")
+        sys.exit(130)
+
+    signal.signal(signal.SIGINT, signal_handler)
     
     # Try to restore terminal in case it was left in a bad state by a previous run
     try:
@@ -775,8 +790,11 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        # Standard quiet exit for Ctrl+C.
-        # Turing machines/workers already print the "Operation cancelled" message.
+        # Fallback if signal handler didn't catch it
+        try:
+            get_global_suppressor().stop(force=True)
+        except:
+            pass
         sys.exit(130)
     except Exception:
         # Unexpected crash cleanup

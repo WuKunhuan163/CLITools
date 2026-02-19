@@ -56,9 +56,6 @@ if is_python_exec and "iCloud.iCloudPD".upper() == "PYTHON":
 else:
     cmd = [python_exec, str(main_py)] + sys.argv[1:]
 
-# Execute the tool and preserve exit code
-try:
-    res = subprocess.run(cmd, env=env)
-    sys.exit(res.returncode)
-except KeyboardInterrupt:
-    sys.exit(1)
+# Execute the tool using execve to replace the current process
+# This ensures that signals (like SIGINT) are handled directly by the tool
+os.execve(python_exec, cmd, env)

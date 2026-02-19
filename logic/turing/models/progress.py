@@ -314,12 +314,20 @@ class ProgressTuringMachine:
                 # If non-ephemeral, the last stage already printed a newline
                 return True
             except KeyboardInterrupt:
+                with open("/tmp/suppressor.log", "a") as f:
+                    f.write(f"[{time.time()}] PTM.run CAUGHT KeyboardInterrupt\n")
+                    f.flush()
+                    
                 if suppressor:
                     try: suppressor.stop(force=True)
-                    except: pass
+                    except Exception as e:
+                        with open("/tmp/suppressor.log", "a") as f:
+                            f.write(f"[{time.time()}] PTM suppressor stop error: {str(e)}\n")
+                            f.flush()
                 
                 # Erase current line and print cancellation status in Red
                 sys.stdout.write("\r\033[K")
+                sys.stdout.flush()
                 
                 BOLD = get_color("BOLD", "\033[1m")
                 RED = get_color("RED", "\033[31m")

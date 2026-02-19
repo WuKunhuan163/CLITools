@@ -30,28 +30,43 @@ class KeyboardSuppressor:
         # Try to get the terminal FD
         self._fd = None
         self._tty_f = None
+        
+        # Priority list for finding a TTY
+        sources = []
         try:
-            if sys.stdin and sys.stdin.isatty():
-                self._fd = sys.stdin.fileno()
-            elif sys.stdout and sys.stdout.isatty():
-                self._fd = sys.stdout.fileno()
-            elif sys.stderr and sys.stderr.isatty():
-                self._fd = sys.stderr.fileno()
-            else:
-                # Try opening /dev/tty directly
-                self._tty_f = open('/dev/tty', 'rb+', buffering=0)
-                self._fd = self._tty_f.fileno()
-        except:
-            self._fd = None
+            if sys.stdin and sys.stdin.isatty(): sources.append(sys.stdin.fileno())
+            if sys.stdout and sys.stdout.isatty(): sources.append(sys.stdout.fileno())
+            if sys.stderr and sys.stderr.isatty(): sources.append(sys.stderr.fileno())
+        except: pass
+        
+        for fd in sources:
+            if fd is not None:
+                self._fd = fd
+                break
+        
+        if self._fd is None:
+            for name in ['/dev/tty', '/dev/console']:
+                try:
+                    self._tty_f = open(name, 'rb+', buffering=0)
+                    self._fd = self._tty_f.fileno()
+                    break
+                except: continue
             
         self._lock = threading.Lock()
 
     def start(self):
         if self._fd is None or termios is None:
+            with open("/tmp/suppressor.log", "a") as f:
+                f.write(f"[{time.time()}] START early return: fd={self._fd}, termios={termios is not None}, stdin_isatty={sys.stdin.isatty() if sys.stdin else 'N/A'}\n")
+                f.flush()
             return
 
         with self._lock:
             self._ref_count += 1
+            with open("/tmp/suppressor.log", "a") as f:
+                f.write(f"[{time.time()}] START call. ref_count={self._ref_count}, running={self.running}\n")
+                f.flush()
+                
             if self.running:
                 return
             
@@ -60,8 +75,12 @@ class KeyboardSuppressor:
                 
                 # Create new settings
                 new_settings = termios.tcgetattr(self._fd)
+                # ~ECHO: Turn off echoing
+                # ~ICANON: Turn off canonical mode (line buffering)
+                # ~ISIG: Turn off signal generation (Ctrl+C becomes a normal byte 0x03)
                 new_settings[3] = new_settings[3] & ~termios.ECHO
                 new_settings[3] = new_settings[3] & ~termios.ICANON
+                new_settings[3] = new_settings[3] & ~termios.ISIG
                 
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
@@ -71,12 +90,19 @@ class KeyboardSuppressor:
                 self.running = True
                 self._thread = threading.Thread(target=self._capture_loop, daemon=True)
                 self._thread.start()
-            except Exception:
+                with open("/tmp/suppressor.log", "a") as f:
+                    f.write(f"[{time.time()}] Suppressor actually STARTED on fd {self._fd}\n")
+                    f.flush()
+            except Exception as e:
+                with open("/tmp/suppressor.log", "a") as f:
+                    f.write(f"[{time.time()}] START ERROR: {str(e)}\n")
+                    f.flush()
                 self.running = False
                 self._ref_count -= 1
 
     def _capture_loop(self):
         """Internal loop to read and discard input."""
+        import signal
         while self.running and self._fd is not None:
             try:
                 # Use select to wait for data with a timeout
@@ -85,6 +111,14 @@ class KeyboardSuppressor:
                     # Read available bytes and store them
                     data = os.read(self._fd, 1024)
                     if data:
+                        # If ISIG is off, we must manually detect Ctrl+C (0x03)
+                        if b'\x03' in data:
+                            with open("/tmp/suppressor.log", "a") as f:
+                                f.write(f"[{time.time()}] MANUAL Ctrl+C DETECTED in capture loop\n")
+                                f.flush()
+                            # Trigger SIGINT in the main thread
+                            os.kill(os.getpid(), signal.SIGINT)
+                            
                         with self._lock:
                             self.captured_keys.append(data)
             except (OSError, ValueError):
@@ -97,6 +131,10 @@ class KeyboardSuppressor:
         old_settings = None
         
         with self._lock:
+            with open("/tmp/suppressor.log", "a") as f:
+                f.write(f"[{time.time()}] STOP call. force={force}, ref_count={self._ref_count}, running={self.running}\n")
+                f.flush()
+                
             if not self.running:
                 if not force and self._ref_count > 0:
                     self._ref_count -= 1
@@ -123,8 +161,18 @@ class KeyboardSuppressor:
                 import termios
                 # Use TCSAFLUSH to discard any unread input buffered during suppression
                 termios.tcsetattr(self._fd, termios.TCSAFLUSH, old_settings)
-            except:
+                with open("/tmp/suppressor.log", "a") as f:
+                    f.write(f"[{time.time()}] Suppressor actually RESTORED settings on fd {self._fd}\n")
+                    f.flush()
+            except Exception as e:
+                with open("/tmp/suppressor.log", "a") as f:
+                    f.write(f"[{time.time()}] RESTORE ERROR: {str(e)}\n")
+                    f.flush()
                 pass
+        else:
+            with open("/tmp/suppressor.log", "a") as f:
+                f.write(f"[{time.time()}] STOP skip restore: settings={old_settings is not None}, fd={self._fd}\n")
+                f.flush()
         
         # Join thread afterwards
         if thread_to_join:
