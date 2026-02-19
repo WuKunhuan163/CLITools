@@ -16,6 +16,13 @@ from pathlib import Path
 from datetime import datetime, date
 import subprocess
 
+def log_debug(msg):
+    try:
+        with open("/tmp/icloudpd_debug.log", "a") as f:
+            f.write(f"[{time.time()}] {msg}\n")
+            f.flush()
+    except: pass
+
 def global_sigint_handler(sig, frame):
     log_debug(f"SIGINT caught at {time.time()}")
     # Use hardcoded codes for reliability
@@ -25,11 +32,6 @@ def global_sigint_handler(sig, frame):
 
 signal.signal(signal.SIGINT, global_sigint_handler)
 log_debug("Global SIGINT handler registered")
-
-def log_debug(msg):
-    with open("/tmp/icloudpd_debug.log", "a") as f:
-        f.write(f"[{time.time()}] {msg}\n")
-        f.flush()
 
 # Add project root to sys.path
 def find_root():
@@ -175,26 +177,26 @@ def main():
             import pickle
             try:
                 apple_id = args.apple_id or input("\nEnter Apple ID: ").strip()
-            except (EOFError, KeyboardInterrupt) as e:
-                msg = "Operation not supported by device" if isinstance(e, EOFError) else "Cancelled by user"
-                if stage: stage.report_error(f"Input Error: {msg}", msg)
-                return False
+            except (EOFError, KeyboardInterrupt):
+                raise KeyboardInterrupt
 
-            try:
-                if stage: stage.active_name = f"reusing session for {apple_id}"
-                api = PyiCloudService(apple_id, "")
-                with open(cookie_file, 'rb') as f:
-                    api.session.cookies.update(pickle.load(f))
-                _ = api.account.devices
-                final_apple_id = apple_id
-                if stage: 
-                    stage.success_status = "Reused session"
-                    stage.success_color = "BOLD"
-                    stage.success_name = f"for {final_apple_id}"
-                return True
-            except KeyboardInterrupt:
-                raise
-            except Exception: pass
+            cookie_file = tool.get_data_dir() / "session" / apple_id / "session.pkl"
+            if cookie_file.exists():
+                try:
+                    if stage: stage.active_name = f"reusing session for {apple_id}"
+                    api = PyiCloudService(apple_id, "")
+                    with open(cookie_file, 'rb') as f:
+                        api.session.cookies.update(pickle.load(f))
+                    _ = api.account.devices
+                    final_apple_id = apple_id
+                    if stage: 
+                        stage.success_status = "Reused session"
+                        stage.success_color = "BOLD"
+                        stage.success_name = f"for {final_apple_id}"
+                    return True
+                except KeyboardInterrupt:
+                    raise
+                except Exception: pass
             
             try:
                 sys.stdout.write("\r\033[K")
@@ -202,6 +204,8 @@ def main():
                 # User wants a key icon for security feel in CLI mode
                 prompt = f"Enter password for {apple_id}: "
                 password = getpass.getpass(prompt)
+            except KeyboardInterrupt:
+                raise
             except (EOFError, Exception) as e:
                 msg = str(e) or "Non-interactive terminal"
                 if stage: stage.report_error(f"CLI Error: {msg}", msg)
@@ -213,7 +217,7 @@ def main():
                 if api.requires_2fa:
                     print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
                     try: code = input("Enter 6-digit 2FA code: ").strip()
-                    except EOFError: return False
+                    except (EOFError, KeyboardInterrupt): raise KeyboardInterrupt
                     if not api.validate_2fa_code(code): return False
                 
                 save_session(apple_id, api)

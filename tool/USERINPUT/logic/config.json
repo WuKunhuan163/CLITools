@@ -8,6 +8,7 @@
     "End completed/reference states with a period '.'",
     "Grammatical pattern: Adverb + Verb or Verb + Noun.",
     "Frequently refine README.md and for_agent.md.",
-    "Use absolute paths for tool call arguments."
+    "Use absolute paths for tool call arguments.",
+    "If a problem occurs, try to fix it yourself first. The preferred debug method is to create a log file in a temporary tmp folder, requiring the code logic chain to be written to that log, and checking the code logic's breakpoints/places that do not meet expectations."
   ]
 }
