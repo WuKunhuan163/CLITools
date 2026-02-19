@@ -479,18 +479,19 @@ def main():
         count, start_time = 0, time.time()
         last_cache_save = start_time
         
-        # Split IDs into local-resolvable and needs-iCloud-lookup
+        # Split IDs into resolved (local or gathering-cache) and needs-iCloud-lookup
         needs_lookup_ids = {} # lib_name -> [ids]
         
         # Preload mappings if using local library
         if local_library:
             local_library.preload_mappings(list(scheduled_id_info.keys()))
             
+        from pyicloud.services.photos import PhotoAsset
         for aid, info in scheduled_id_info.items():
             lib_name = info["lib_name"]
+            is_resolved = False
             
-            # Check local library first if available
-            is_local = False
+            # 1. Check local library first if available
             if local_library:
                 # Pass filename and created_dt for robust fallback lookup
                 local_res = local_library.find_photo(aid, filename=info["filename"], created_dt=info["created"])
@@ -498,30 +499,49 @@ def main():
                     _, local_dt = local_res
                     to_download_objects.append(LocalAssetStub(aid, info["filename"], local_dt))
                     count += 1
-                    is_local = True
-                    # Update progress for local matches periodically
-                    if count % 100 == 0 or count == total_scheduled:
-                        from logic.utils import calculate_eta
-                        e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
-                        if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
+                    is_resolved = True
             
-            if not is_local:
+            # 2. Check gathering cache (full_record in photos_cache.json)
+            if not is_resolved and not args.ignore_gather_cache:
+                dt = info["created"]
+                y, m, d = str(dt.year), f"{dt.month:02d}", f"{dt.day:02d}"
+                ca_list = all_photos_meta.get(y, {}).get(m, {}).get(d, [])
+                for ca in ca_list:
+                    if ca["id"] == aid and "full_record" in ca:
+                        try:
+                            asset = PhotoAsset(api.photos, ca["full_record"], ca["full_record"])
+                            asset._cached_date = dt
+                            to_download_objects.append(asset)
+                            count += 1
+                            is_resolved = True
+                        except: pass
+                        break
+            
+            if is_resolved:
+                # Update progress for resolved items periodically
+                if count % 100 == 0 or count == total_scheduled:
+                    from logic.utils import calculate_eta
+                    e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
+                    if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
+            else:
                 if lib_name not in needs_lookup_ids: needs_lookup_ids[lib_name] = []
                 needs_lookup_ids[lib_name].append(aid)
         
-        # Warning if local matches are incomplete
+        # Warning if resolved count is incomplete
         missing_count = sum(len(ids) for ids in needs_lookup_ids.values())
-        if local_library and missing_count > 0:
+        if missing_count > 0:
             # Erase current line
             sys.stdout.write("\r\033[K")
             sys.stdout.flush()
-            print(f"{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not found in local library. Gathering metadata from iCloud...")
+            if local_library:
+                print(f"{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not found in local library (and not in gather cache). Gathering metadata from iCloud...")
+            else:
+                print(f"{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not in gather cache. Gathering metadata from iCloud...")
             if stage: stage.refresh() # Restore active line below warning
 
         if not needs_lookup_ids:
             return len(to_download_objects) > 0
             
-        from pyicloud.services.photos import PhotoAsset
         for lib_name, ids in needs_lookup_ids.items():
             try: lib_obj = api.photos.libraries[lib_name]
             except: continue
@@ -546,15 +566,15 @@ def main():
                                     dt = scheduled_id_info[aid]["created"]
                                     asset._cached_date = dt
                                     
-                                    # Update cache with better metadata if available
-                                    if not args.ignore_gather_cache:
-                                        y, m, d = str(dt.year), f"{dt.month:02d}", f"{dt.day:02d}"
-                                        for ca in all_photos_meta.get(y, {}).get(m, {}).get(d, []):
-                                            if ca["id"] == aid:
-                                                ca["item_type"] = asset.item_type
-                                                ca["size"] = asset.size
-                                                ca["dimensions"] = asset.dimensions
-                                                break
+                                    # Update cache with full_record and better metadata
+                                    y, m, d = str(dt.year), f"{dt.month:02d}", f"{dt.day:02d}"
+                                    for ca in all_photos_meta.get(y, {}).get(m, {}).get(d, []):
+                                        if ca["id"] == aid:
+                                            ca["item_type"] = asset.item_type
+                                            ca["size"] = asset.size
+                                            ca["dimensions"] = asset.dimensions
+                                            ca["full_record"] = record # Store record for future runs
+                                            break
                                                 
                                 to_download_objects.append(asset)
                                 count += 1
@@ -563,10 +583,9 @@ def main():
                                     e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
                                     if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
                                     
-                                # Periodically save cache
-                                if time.time() - last_cache_save > 60:
-                                    save_photos_cache(apple_id, all_photos_meta)
-                                    last_cache_save = time.time()
+                            # Save cache after each batch of 100 (as requested by user)
+                            save_photos_cache(apple_id, all_photos_meta)
+                            last_cache_save = time.time()
                                     
                             success_batch = True
                             break
