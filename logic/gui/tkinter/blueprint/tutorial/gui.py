@@ -313,22 +313,39 @@ class TutorialWindow(BaseGUIWindow):
         # Determine direction and magnitude
         delta = 0
         import platform
-        if event.num == 4: delta = -5 # Faster scroll
-        elif event.num == 5: delta = 5
-        elif platform.system() == "Darwin":
+        p = platform.system()
+        
+        # Raw data logging for deep debugging
+        # log_tutorial(f"GLOBAL scroll: widget={event.widget}, delta={event.delta}, num={event.num}")
+
+        if event.num == 4: # Linux scroll up
+            delta = -5 
+        elif event.num == 5: # Linux scroll down
+            delta = 5
+        elif p == "Darwin":
+            # macOS delta can be small (1, -1) or large (120, -120)
             d = event.delta
-            if abs(d) >= 120: d = d // 120
-            delta = -5 * d
+            if abs(d) >= 120:
+                # 120-based delta (legacy/some devices)
+                delta = -5 * (d // 120)
+            elif d != 0:
+                # Typical macOS trackpad/magic mouse delta
+                # Ensure we don't end up with 0
+                delta = -5 * d
         else:
-            delta = -1 * (event.delta // 120) * 5
+            # Windows/other
+            if event.delta != 0:
+                delta = -1 * (event.delta // 120) * 5
         
         if delta != 0:
             try:
                 # Log for debugging
-                log_tutorial(f"SCROLL: {event.widget} delta={delta}")
+                # log_tutorial(f"SCROLLING: delta={delta}")
                 self.canvas.yview_scroll(delta, "units")
             except: pass
         
+        # Returning "break" from a bind_all handler stops propagation 
+        # to widgets that might have their own scroll logic.
         return "break"
 
     def finalize(self, status: str, data: Any, reason: Optional[str] = None):
