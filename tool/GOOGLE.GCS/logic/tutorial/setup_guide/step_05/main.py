@@ -59,8 +59,10 @@ def build_step(frame, win):
     validate_btn.pack()
 
     def on_validate():
+        from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
         root_input = root_id_var.get().strip()
         env_input = env_id_var.get().strip()
+        log_tutorial(f"Step 5: Validate clicked. Root: {root_input}, Env: {env_input}")
         
         if not root_input or not env_input:
             status_var.set("Please enter both Folder URLs or IDs.")
@@ -126,6 +128,3 @@ def build_step(frame, win):
                 win.callback_queue.put(on_err)
 
     validate_btn.config(command=on_validate)
-    
-    # Mark as initially not validated
-    win.set_step_validated(False)

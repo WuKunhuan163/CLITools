@@ -34,6 +34,7 @@ def build_step(frame, win):
         win.setup_image(img_block, img_path, upscale=2)
 
     # Action Block
+    action_block = win.add_block(frame)
     # Use a consistent background if debug_blocks is True
     block_bg = "#f9f9f9" if getattr(win, "debug_blocks", False) else action_block.cget("bg")
     
@@ -67,6 +68,8 @@ def build_step(frame, win):
                 except: pass
 
     def on_browse():
+        from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
+        log_tutorial("Step 4: Browse JSON clicked")
         browse_btn.config(state=tk.DISABLED)
         status_var.set("Browsing...")
         status_label.config(fg="gray")
@@ -194,7 +197,9 @@ def build_step(frame, win):
         threading.Thread(target=run_fd, daemon=True).start()
 
     def on_validate():
+        from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
         path = selected_file_path.get()
+        log_tutorial(f"Step 4: Validate clicked. Path: {path}")
         if not path: return
         
         validate_btn.config(state=tk.DISABLED, text="Validating...")
@@ -238,6 +243,3 @@ def build_step(frame, win):
 
     browse_btn.config(command=on_browse)
     validate_btn.config(command=on_validate)
-    
-    # Mark as initially not validated
-    win.set_step_validated(False)

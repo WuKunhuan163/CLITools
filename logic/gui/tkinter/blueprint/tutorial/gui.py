@@ -1,27 +1,34 @@
 import sys
 import os
 import tkinter as tk
+import time
 from pathlib import Path
 from typing import Any, List, Optional, Callable, Dict, Union
 
-# Add project root to sys.path
-script_path = Path(__file__).resolve()
-# logic/gui/tkinter/blueprint/tutorial/gui.py -> 5 levels up to project root
-project_root = script_path.parent.parent.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
+# ... (other imports)
 from logic.gui.tkinter.blueprint.base import BaseGUIWindow, setup_common_bottom_bar
 from logic.gui.tkinter.style import get_label_style, get_gui_colors, get_button_style
+
+def log_tutorial(msg: str):
+    """Utility to log tutorial operations for debugging."""
+    try:
+        log_path = Path("/Applications/AITerminalTools/tmp/tutorial_debug.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a") as f:
+            f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+    except:
+        pass
 
 class TutorialStep:
     """Defines a single step in the tutorial."""
     def __init__(self, title: str, 
                  content_func: Callable[[tk.Frame, 'TutorialWindow'], None], 
-                 validate_func: Optional[Callable[[], bool]] = None):
+                 validate_func: Optional[Callable[[], bool]] = None,
+                 is_manual: bool = False):
         self.title = title
         self.content_func = content_func # function(frame, window) to build UI
         self.validate_func = validate_func # returns True if step is complete
+        self.is_manual = is_manual
 
 class TutorialWindow(BaseGUIWindow):
     """
@@ -35,6 +42,9 @@ class TutorialWindow(BaseGUIWindow):
         self.steps = steps
         self.current_step_idx = 0
         self.project_root = None # Will be set during find_root in subclasses or manually
+        
+        # Validation state tracking
+        self.step_validated_states = [False] * len(self.steps)
         
         # UI Elements
         self.step_indicator = None
@@ -53,6 +63,8 @@ class TutorialWindow(BaseGUIWindow):
 
     def set_step_validated(self, is_valid: bool):
         """Enable or disable the submit button based on step validation."""
+        log_tutorial(f"Setting step {self.current_step_idx} validated: {is_valid}")
+        self.step_validated_states[self.current_step_idx] = is_valid
         if self.submit_btn:
             if is_valid:
                 self.submit_btn.config(state=tk.NORMAL)
@@ -64,23 +76,29 @@ class TutorialWindow(BaseGUIWindow):
         return {"current_step": self.current_step_idx, "total_steps": len(self.steps)}
 
     def on_prev(self):
+        log_tutorial(f"Prev clicked. Current index: {self.current_step_idx}")
         if self.current_step_idx > 0:
             self.current_step_idx -= 1
+            log_tutorial(f"New index after prev: {self.current_step_idx}")
             self.update_step_ui()
 
     def on_submit(self):
         """Handles 'Next' or 'Complete' button click."""
+        log_tutorial(f"Submit clicked. Current index: {self.current_step_idx}")
         step = self.steps[self.current_step_idx]
         if step.validate_func:
+            log_tutorial("Running step.validate_func")
             if not step.validate_func():
-                # Validation failed - step content should show its own error, 
-                # but we can provide a generic fallback if needed.
+                log_tutorial("Validation failed")
                 return
+            log_tutorial("Validation success")
 
         if self.current_step_idx < len(self.steps) - 1:
             self.current_step_idx += 1
+            log_tutorial(f"New index after submit (Next): {self.current_step_idx}")
             self.update_step_ui()
         else:
+            log_tutorial("Finalizing tutorial (Complete)")
             self.finalize("success", self.get_current_state())
 
     def show_error(self, message: str, is_info: bool = False):
@@ -93,6 +111,7 @@ class TutorialWindow(BaseGUIWindow):
 
     def update_step_ui(self):
         """Clears and rebuilds the central content area for the current step."""
+        log_tutorial(f"Updating Step UI. Index: {self.current_step_idx}, Total: {len(self.steps)}")
         if self.content_frame:
             for widget in self.content_frame.winfo_children():
                 widget.destroy()
@@ -102,16 +121,28 @@ class TutorialWindow(BaseGUIWindow):
         self.resizable_images = []
             
         step = self.steps[self.current_step_idx]
+        log_tutorial(f"Building step: {step.title}")
         
         # 1. Update Step Indicator
         if self.step_indicator:
             text = self._("tutorial_step_count", "Step {current}/{total}", 
                           current=self.current_step_idx + 1, total=len(self.steps))
             self.step_indicator.config(text=text)
+            log_tutorial(f"Indicator updated: {text}")
         
         # 2. Reset submit button state for new step
-        # If the step has no validate_func, it's considered valid by default
-        is_valid = (step.validate_func is None)
+        # If the step has a validate_func, it must be validated by that function.
+        # Otherwise, if it's manual, it must be validated via set_step_validated(True).
+        # Otherwise (informational), it's validated by default.
+        if step.validate_func is not None:
+            is_valid = step.validate_func()
+        elif step.is_manual:
+            is_valid = self.step_validated_states[self.current_step_idx]
+        else:
+            # Informational steps are valid by default
+            is_valid = True
+            
+        log_tutorial(f"Initial state for step {self.current_step_idx} (manual={step.is_manual}): {is_valid}")
         self.set_step_validated(is_valid)
         
         # 3. Build Content
@@ -138,14 +169,18 @@ class TutorialWindow(BaseGUIWindow):
             self.cancel_btn.pack(side=tk.RIGHT, padx=(0, 10))
             
         if self.submit_btn:
-            if self.current_step_idx == len(self.steps) - 1:
+            is_last = (self.current_step_idx == len(self.steps) - 1)
+            log_tutorial(f"Setting submit button text. Is last: {is_last} (idx={self.current_step_idx}, len={len(self.steps)})")
+            if is_last:
                 btn_text = self._("btn_complete", "Complete")
             else:
                 btn_text = self._("btn_next", "Next")
             self.submit_btn.config(text=btn_text)
+            log_tutorial(f"Submit button text updated to: {btn_text}")
             
         # 5. Clear any previous errors
         self.show_error("", is_info=True)
+        log_tutorial("Step UI update finished.")
 
     def setup_ui(self):
         """Builds the shell of the tutorial window."""

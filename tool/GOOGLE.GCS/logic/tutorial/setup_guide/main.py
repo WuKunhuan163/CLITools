@@ -39,8 +39,8 @@ def run_setup_tutorial():
         TutorialStep("Project Creation", load_step_build_func("step_01")),
         TutorialStep("Enable API", load_step_build_func("step_02")),
         TutorialStep("Service Account", load_step_build_func("step_03")),
-        TutorialStep("JSON Key", load_step_build_func("step_04")),
-        TutorialStep("Sharing", load_step_build_func("step_05"))
+        TutorialStep("JSON Key", load_step_build_func("step_04"), is_manual=True),
+        TutorialStep("Sharing", load_step_build_func("step_05"), is_manual=True)
     ]
     
     win = TutorialWindow(title="GCS Setup Guide", timeout=600, steps=steps, internal_dir=str(Path(__file__).resolve().parent))
