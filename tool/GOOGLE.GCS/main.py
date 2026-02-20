@@ -79,7 +79,8 @@ def main():
         if res.get("status") == "success":
             print(f"{get_color('BOLD')}{get_color('GREEN')}Successfully{get_color('RESET')} completed GCS setup tutorial.")
         else:
-            print(f"{get_color('BOLD')}{get_color('RED')}Tutorial exited{get_color('RESET')}: {res.get('reason', 'Unknown')}")
+            reason = res.get('reason') or res.get('status') or 'Unknown'
+            print(f"{get_color('BOLD')}{get_color('RED')}Tutorial exited{get_color('RESET')}: {reason}")
         return
 
     if args.command in ["ls", "cat"]:

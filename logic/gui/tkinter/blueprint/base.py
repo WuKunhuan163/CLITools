@@ -199,7 +199,7 @@ class BaseGUIWindow:
                 self.root.after(1000, lambda: self.start_timer(status_label))
         else:
             # Capture State A and return via Interface I
-            self.finalize("timeout", self.get_current_state())
+            self.finalize("timeout", self.get_current_state(), reason="timeout")
 
     def play_bell(self):
         """Standard bell notification logic using unified interface."""
