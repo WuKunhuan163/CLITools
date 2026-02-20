@@ -60,6 +60,10 @@ def save_console_key(project_root, info):
 
 def get_access_token(info, scope="https://www.googleapis.com/auth/drive.readonly"):
     """Generates an access token using JWT for the service account."""
+    from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
+    log_tutorial(f"AUTH: get_access_token started for {info.get('client_email')}")
+    
+    t0 = time.time()
     now = int(time.time())
     payload = {
         "iss": info["client_email"],
@@ -69,11 +73,19 @@ def get_access_token(info, scope="https://www.googleapis.com/auth/drive.readonly
         "iat": now
     }
     token = jwt.encode(payload, info["private_key"], algorithm="RS256")
+    t1 = time.time()
+    log_tutorial(f"AUTH: JWT encoding took {t1-t0:.2f}s")
+    
+    log_tutorial(f"AUTH: POSTing token request to {info['token_uri']}")
     res = requests.post(info["token_uri"], data={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": token
     }, timeout=20) # Increased timeout
+    t2 = time.time()
+    log_tutorial(f"AUTH: Token response received in {t2-t1:.2f}s. Status: {res.status_code}")
+    
     if res.status_code != 200:
+        log_tutorial(f"AUTH: Token error response: {res.text}")
         raise Exception(f"Auth Error: {res.text}")
     return res.json()["access_token"]
 
@@ -101,9 +113,10 @@ def validate_folder_access(project_root, folder_id):
         url = f"https://www.googleapis.com/drive/v3/files/{folder_id}"
         params = {"fields": "id, name, mimeType"}
         log_tutorial(f"AUTH: Requesting metadata from {url}")
+        t_req = time.time()
         res = requests.get(url, headers=headers, params=params, timeout=20) # Increased timeout
-        
-        log_tutorial(f"AUTH: API response status: {res.status_code}")
+        t_res = time.time()
+        log_tutorial(f"AUTH: API response status: {res.status_code}, time: {t_res-t_req:.2f}s")
         if res.status_code == 200:
             data = res.json()
             log_tutorial(f"AUTH: Success. Folder name: {data.get('name')}")

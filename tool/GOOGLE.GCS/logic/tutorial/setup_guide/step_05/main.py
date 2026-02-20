@@ -25,7 +25,7 @@ def build_step(frame, win):
     content_block = win.add_block(frame)
     content = (
         "1. Open [Google Drive](https://drive.google.com/).\n\n"
-        f"2. Select your 'Root' and 'Env' folders and **SHARE** them with: `{service_email}` (give 'Viewer' or 'Editor' access).\n\n"
+        f"2. Select your 'Root' and 'Env' folders and **SHARE** them with: '{service_email}' (give 'Viewer' or 'Editor' access).\n\n"
         "3. Enter the Folder URLs or IDs below.\n\n"
         "4. Click 'Validate' to ensure access is correctly configured."
     )
