@@ -503,18 +503,38 @@ def main():
             status = ""
         
         if status:
+            # Rolling Tag logic
+            tag_file = tool.project_root / "data" / "git" / "tag_counter.txt"
+            tag_file.parent.mkdir(parents=True, exist_ok=True)
+            curr_tag = 0
+            if tag_file.exists():
+                try:
+                    with open(tag_file, 'r') as f: curr_tag = int(f.read().strip())
+                except: pass
+            
+            next_tag = (curr_tag + 1) % 10000
+            with open(tag_file, 'w') as f: f.write(str(next_tag))
+            tag_str = f"#{curr_tag:04d}"
+            
             ts = time.strftime("%H:%M:%S")
-            commit_msg = f"USERINPUT auto-commit at {ts}"
+            commit_msg = f"USERINPUT auto-commit {tag_str} at {ts}"
             
             def do_save(stage=None):
                 try:
                     subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True, timeout=15)
                     res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True, text=True, timeout=15)
-                    if res.returncode != 0:
+                    if res.returncode == 0:
+                        # Success: Trigger history maintenance check
+                        try:
+                            # Use base=50 for maintenance
+                            git_engine.maintain_history(base=50)
+                        except: pass
+                        return True
+                    else:
                         if stage: 
                             stage.error_brief = f"Commit failed: {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
                             stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
-                    return res.returncode == 0
+                        return False
                 except subprocess.TimeoutExpired:
                     if stage: stage.error_brief = "Commit timed out (15s)"
                     return False
