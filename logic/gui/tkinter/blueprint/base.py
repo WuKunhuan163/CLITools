@@ -458,8 +458,37 @@ class BaseGUIWindow:
         
         text_widget = tk.Text(frame, wrap=tk.WORD, font=get_label_style(), 
                               padx=20, pady=10, borderwidth=0, highlightthickness=0,
-                              bg=frame.cget("bg"), height=1) 
+                              bg=frame.cget("bg")) 
         text_widget.pack(fill=tk.X, expand=True)
+        
+        # ... (rest of configuration) ...
+        
+        # Auto-adjust height based on content
+        def update_height(event=None):
+            try:
+                # Update layout first
+                text_widget.update_idletasks()
+                # Use dlineinfo to find the bounding box of the last line
+                # text_widget.index('end-1c') gives the last character index
+                # dlineinfo returns (x, y, width, height, baseline)
+                last_line_idx = text_widget.index('end-1c')
+                line_info = text_widget.dlineinfo(last_line_idx)
+                if line_info:
+                    y, height = line_info[1], line_info[3]
+                    total_pixels = y + height + 10 # padding
+                    # Convert pixels to lines (rough estimate)
+                    # or just set the height property if possible
+                    # Text widget height is in lines, not pixels.
+                    # We can use font height to estimate.
+                    from tkinter import font as tkfont
+                    f = tkfont.Font(font=text_widget.cget("font"))
+                    line_height = f.metrics("linespace")
+                    num_lines = max(1, int(total_pixels / line_height) + 1)
+                    text_widget.config(height=num_lines)
+            except: pass
+
+        text_widget.bind("<Configure>", update_height, add="+")
+        frame.after(50, update_height)
         
         # Configure tags
         from tkinter import font as tkfont
