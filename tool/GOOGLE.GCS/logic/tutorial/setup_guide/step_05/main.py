@@ -30,6 +30,19 @@ def build_step(frame, win):
         "4. Click 'Validate' to ensure access is correctly configured."
     )
     win.setup_label(content_block, content)
+    
+    # Image Block (NEW)
+    img_dir = Path(__file__).resolve().parent / "asset"
+    img1 = img_dir / "guide_1.png"
+    img2 = img_dir / "guide_2.png"
+    
+    if img1.exists():
+        img_block1 = win.add_block(frame)
+        win.setup_image(img_block1, img1, upscale=2)
+        
+    if img2.exists():
+        img_block2 = win.add_block(frame)
+        win.setup_image(img_block2, img2, upscale=2)
 
     # Action Block
     action_block = win.add_block(frame)
