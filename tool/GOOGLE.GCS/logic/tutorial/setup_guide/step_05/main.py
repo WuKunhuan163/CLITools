@@ -25,7 +25,7 @@ def build_step(frame, win):
     content_block = win.add_block(frame)
     content = (
         "1. Open [Google Drive](https://drive.google.com/).\n\n"
-        f"2. (CRITICAL) Select your 'Root' and 'Env' folders and **SHARE** them with: `{service_email}` (give 'Viewer' or 'Editor' access).\n\n"
+        f"2. Select your 'Root' and 'Env' folders and **SHARE** them with: `{service_email}` (give 'Viewer' or 'Editor' access).\n\n"
         "3. Enter the Folder URLs or IDs below.\n\n"
         "4. Click 'Validate' to ensure access is correctly configured."
     )
@@ -43,11 +43,17 @@ def build_step(frame, win):
     root_id_var = tk.StringVar()
     root_entry = tk.Entry(input_frame, textvariable=root_id_var, width=40, font=get_label_style())
     root_entry.grid(row=0, column=1, padx=5, pady=5)
+    root_name_var = tk.StringVar(value="")
+    root_name_label = tk.Label(input_frame, textvariable=root_name_var, font=get_label_style(), fg="green", bg=block_bg)
+    root_name_label.grid(row=0, column=2, sticky="w", padx=5, pady=5)
 
     tk.Label(input_frame, text="Env Folder URL/ID:", font=get_label_style(), bg=block_bg).grid(row=1, column=0, sticky="e", padx=5, pady=5)
     env_id_var = tk.StringVar()
     env_entry = tk.Entry(input_frame, textvariable=env_id_var, width=40, font=get_label_style())
     env_entry.grid(row=1, column=1, padx=5, pady=5)
+    env_name_var = tk.StringVar(value="")
+    env_name_label = tk.Label(input_frame, textvariable=env_name_var, font=get_label_style(), fg="green", bg=block_bg)
+    env_name_label.grid(row=1, column=2, sticky="w", padx=5, pady=5)
 
     status_var = tk.StringVar(value="Enter URL/IDs and click Validate")
     status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg)
@@ -122,7 +128,9 @@ def build_step(frame, win):
 
                 def final_update():
                     auth_module.save_gcs_config(project_root, root_id, env_id)
-                    status_var.set(f"Validated! Root: '{res_root}', Env: '{res_env}'")
+                    root_name_var.set(f"({res_root})")
+                    env_name_var.set(f"({res_env})")
+                    status_var.set(f"Validated! Folders ready.")
                     status_label.config(fg="green")
                     win.set_step_validated(True)
                     validate_btn.config(state=tk.NORMAL, text="Validate Access")

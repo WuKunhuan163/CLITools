@@ -409,8 +409,11 @@ class BaseGUIWindow:
     def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
         """Standardized label creation with automatic wrapping."""
         import tkinter as tk
-        if "[" in text and "]" in text and "(" in text and ")" in text:
-            # Contains links, use inline link logic
+        # Detect if text needs advanced rendering (links or bold)
+        has_links = "[" in text and "]" in text and "(" in text and ")" in text
+        has_bold = "**" in text
+        
+        if has_links or has_bold:
             return self.add_inline_links(parent, text)
 
         if font is None:
@@ -444,8 +447,9 @@ class BaseGUIWindow:
 
     def add_inline_links(self, frame, text_content):
         """
-        Creates a tk.Text widget that supports inline clickable links.
-        Format: "Some text [Link Label](https://link.url) and more text."
+        Creates a tk.Text widget that supports inline clickable links and bold text.
+        Links: "Some text [Link Label](https://link.url)"
+        Bold: "Some **bold text** here"
         """
         import webbrowser
         import re
@@ -456,26 +460,37 @@ class BaseGUIWindow:
                               bg=frame.cget("bg"), height=1) 
         text_widget.pack(fill=tk.X, expand=True)
         
-        # Make it look like a label
-        text_widget.config(state=tk.NORMAL)
+        # Configure tags
+        from tkinter import font as tkfont
+        base_font = tkfont.Font(font=get_label_style())
+        bold_font = base_font.copy()
+        bold_font.configure(weight="bold")
         
-        # Regex for [label](url)
-        pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        text_widget.tag_config("bold", font=bold_font)
+        
+        # Combined regex for links and bold
+        # Pattern 1: [[label](url)] (Link)
+        # Pattern 2: \*\*(text)\*\* (Bold)
+        combined_pattern = r'\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*'
         
         last_idx = 0
-        for match in re.finditer(pattern, text_content):
-            # Normal text before link
+        text_widget.config(state=tk.NORMAL)
+        
+        for match in re.finditer(combined_pattern, text_content):
+            # Normal text before match
             text_widget.insert(tk.END, text_content[last_idx:match.start()])
             
-            # Link label
-            label, url = match.groups()
-            tag_name = f"link_{match.start()}"
-            text_widget.insert(tk.END, label, tag_name)
-            
-            text_widget.tag_config(tag_name, foreground="blue", underline=True)
-            text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
-            text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
-            text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            if match.group(1): # Link
+                label, url = match.group(1), match.group(2)
+                tag_name = f"link_{match.start()}"
+                text_widget.insert(tk.END, label, tag_name)
+                text_widget.tag_config(tag_name, foreground="blue", underline=True)
+                text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
+                text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
+                text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            elif match.group(3): # Bold
+                label = match.group(3)
+                text_widget.insert(tk.END, label, "bold")
             
             last_idx = match.end()
             
@@ -484,6 +499,32 @@ class BaseGUIWindow:
         
         # Disable editing
         text_widget.config(state=tk.DISABLED)
+        
+        # Ensure scroll events are passed to the parent canvas if this is in a TutorialWindow
+        def scroll_parent(event):
+            # Try to find the canvas in the hierarchy
+            curr = frame
+            while curr:
+                if isinstance(curr, tk.Canvas):
+                    # Trigger the canvas scroll
+                    delta = 0
+                    if event.num == 4: delta = -3
+                    elif event.num == 5: delta = 3
+                    elif platform.system() == "Darwin":
+                        d = event.delta
+                        if abs(d) >= 120: d = d // 120
+                        delta = -3 * d
+                    else:
+                        delta = -1 * (event.delta // 120) * 3
+                    if delta != 0:
+                        curr.yview_scroll(delta, "units")
+                    return "break"
+                curr = curr.master if hasattr(curr, "master") else None
+            return None
+
+        text_widget.bind("<MouseWheel>", scroll_parent)
+        text_widget.bind("<Button-4>", scroll_parent)
+        text_widget.bind("<Button-5>", scroll_parent)
         
         def _update_height(event=None):
             # Adjust height based on content
@@ -550,6 +591,14 @@ class BaseGUIWindow:
             try:
                 if block.winfo_exists():
                     update_labels(block)
+            except: pass
+            
+        # Also update global error label if it exists
+        if hasattr(self, "error_label") and self.error_label and self.error_label.winfo_exists():
+            try:
+                main_w = self.main_frame.winfo_width()
+                if main_w > 50:
+                    self.error_label.config(wraplength=main_w - 50)
             except: pass
 
     def process_callbacks(self):

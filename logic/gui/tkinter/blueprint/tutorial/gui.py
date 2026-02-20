@@ -184,8 +184,15 @@ class TutorialWindow(BaseGUIWindow):
         # 5. Clear any previous errors
         self.show_error("", is_info=True)
         
-        # 6. Reset scroll position to top
+        # 6. Final UI updates and scroll reset
+        # Important: update_idletasks AFTER adding all content to ensure bbox is accurate
         self.root.update_idletasks()
+        try:
+            bbox = self.canvas.bbox("all")
+            self.canvas.configure(scrollregion=bbox)
+            log_tutorial(f"Scrollregion updated: {bbox}")
+        except: pass
+        
         self.canvas.yview_moveto(0)
         
         log_tutorial("Step UI update finished.")
@@ -267,22 +274,34 @@ class TutorialWindow(BaseGUIWindow):
         
         # Mouse wheel support with robust binding
         def _on_mousewheel(event):
-            if not self.root: return
+            if not self.root or self.window_closed: return
+            
+            # Determine direction and magnitude
             delta = 0
-            if event.num == 4: delta = -1 # Linux scroll up
-            elif event.num == 5: delta = 1 # Linux scroll down
+            if event.num == 4: delta = -3 # Linux scroll up
+            elif event.num == 5: delta = 3 # Linux scroll down
             elif platform.system() == "Darwin":
-                delta = -1 * event.delta
+                # macOS delta is usually small (1, 2, ...) but depends on version
+                # If it's very large, it might be the 120-based delta
+                d = event.delta
+                if abs(d) >= 120: d = d // 120
+                delta = -3 * d
             else:
-                delta = -1 * (event.delta // 120)
+                # Windows/other
+                delta = -1 * (event.delta // 120) * 3
             
             if delta != 0:
-                self.canvas.yview_scroll(delta, "units")
+                try:
+                    self.canvas.yview_scroll(delta, "units")
+                except: pass
 
-        # Use bind_all for global capture
+        # Use bind_all for global capture to avoid widget-swallowing issues
         self.root.bind_all("<MouseWheel>", _on_mousewheel)
         self.root.bind_all("<Button-4>", _on_mousewheel)
         self.root.bind_all("<Button-5>", _on_mousewheel)
+        
+        # Ensure focus for scroll events
+        self.canvas.bind("<Enter>", lambda e: self.canvas.focus_set())
         
         self.content_frame = self.scrollable_frame
         
