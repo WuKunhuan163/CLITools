@@ -187,53 +187,29 @@ class TutorialWindow(BaseGUIWindow):
         # 6. Final UI updates and scroll reset
         # Important: update_idletasks AFTER adding all content to ensure bbox is accurate
         self.root.update_idletasks()
-        try:
-            # Re-calculate scroll region based on actual content size
-            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-            log_tutorial(f"Scrollregion updated: {self.canvas.bbox('all')}")
-        except: pass
+        
+        def update_scroll_region():
+            try:
+                # Force another layout update for inner widgets
+                self.scrollable_frame.update_idletasks()
+                bbox = self.canvas.bbox("all")
+                if bbox:
+                    # Pad the bottom for better experience
+                    bbox = (bbox[0], bbox[1], bbox[2], bbox[3] + 40)
+                    self.canvas.configure(scrollregion=bbox)
+                    canvas_h = self.canvas.winfo_height()
+                    log_tutorial(f"Final Scrollregion: {bbox}, Canvas H: {canvas_h}")
+            except Exception as e:
+                log_tutorial(f"Scrollregion update error: {e}")
+
+        # Multiple updates to catch all dynamic content
+        update_scroll_region()
+        self.root.after(100, update_scroll_region)
+        self.root.after(500, update_scroll_region)
         
         self.canvas.yview_moveto(0)
         
         log_tutorial("Step UI update finished.")
-
-    def bind_scroll_recursive(self, widget):
-        """Recursively binds mousewheel to widgets to ensure they don't swallow events."""
-        # Use our standard _on_mousewheel handler
-        widget.bind("<MouseWheel>", self._on_mousewheel_event, add="+")
-        widget.bind("<Button-4>", self._on_mousewheel_event, add="+")
-        widget.bind("<Button-5>", self._on_mousewheel_event, add="+")
-        
-        for child in widget.winfo_children():
-            self.bind_scroll_recursive(child)
-
-    def _on_mousewheel_event(self, event):
-        """Unified mousewheel handler for the tutorial window."""
-        if not self.root or self.window_closed: return
-        
-        # Determine direction and magnitude
-        delta = 0
-        import platform
-        if event.num == 4: delta = -3 # Linux scroll up
-        elif event.num == 5: delta = 3 # Linux scroll down
-        elif platform.system() == "Darwin":
-            d = event.delta
-            if abs(d) >= 120: d = d // 120
-            delta = -3 * d
-        else:
-            delta = -1 * (event.delta // 120) * 3
-        
-        if delta != 0:
-            try:
-                log_tutorial(f"Scroll event captured from {event.widget} (delta={event.delta}, result={delta})")
-                self.canvas.yview_scroll(delta, "units")
-            except: pass
-        
-        # Returning "break" would stop propagation, but we might want it to propagate?
-        # Actually, if we use bind_all, we don't need this recursive binding.
-        # But if bind_all is failing, recursive binding is a fallback.
-        # If we use both, we might get double scroll.
-        # Let's try recursive binding ONLY for now and remove bind_all.
 
     def setup_ui(self):
         """Builds the shell of the tutorial window."""
@@ -307,28 +283,9 @@ class TutorialWindow(BaseGUIWindow):
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Robust mouse wheel support via bind_all
-        def _on_mousewheel(event):
-            if not self.root or self.window_closed: return
-            delta = 0
-            import platform
-            if event.num == 4: delta = -3
-            elif event.num == 5: delta = 3
-            elif platform.system() == "Darwin":
-                d = event.delta
-                if abs(d) >= 120: d = d // 120
-                delta = -3 * d
-            else:
-                delta = -1 * (event.delta // 120) * 3
-            
-            if delta != 0:
-                log_tutorial(f"GLOBAL scroll event: {event.widget} delta={delta}")
-                self.canvas.yview_scroll(delta, "units")
-            return "break" # Prevent double scroll
-
-        # Bind to everything
-        self.root.bind_all("<MouseWheel>", _on_mousewheel)
-        self.root.bind_all("<Button-4>", _on_mousewheel)
-        self.root.bind_all("<Button-5>", _on_mousewheel)
+        self.root.bind_all("<MouseWheel>", self._on_global_mousewheel)
+        self.root.bind_all("<Button-4>", self._on_global_mousewheel)
+        self.root.bind_all("<Button-5>", self._on_global_mousewheel)
         
         # Ensure focus for scroll events
         self.canvas.bind("<Enter>", lambda e: self.canvas.focus_set())
@@ -348,6 +305,31 @@ class TutorialWindow(BaseGUIWindow):
         self.start_timer(self.status_label)
         self.root.lift()
         self.root.attributes("-topmost", True)
+
+    def _on_global_mousewheel(self, event):
+        """Unified mousewheel handler for the tutorial window using bind_all."""
+        if not self.root or self.window_closed: return
+        
+        # Determine direction and magnitude
+        delta = 0
+        import platform
+        if event.num == 4: delta = -5 # Faster scroll
+        elif event.num == 5: delta = 5
+        elif platform.system() == "Darwin":
+            d = event.delta
+            if abs(d) >= 120: d = d // 120
+            delta = -5 * d
+        else:
+            delta = -1 * (event.delta // 120) * 5
+        
+        if delta != 0:
+            try:
+                # Log for debugging
+                log_tutorial(f"SCROLL: {event.widget} delta={delta}")
+                self.canvas.yview_scroll(delta, "units")
+            except: pass
+        
+        return "break"
 
     def finalize(self, status: str, data: Any, reason: Optional[str] = None):
         """Override to ensure a reason is set for cancelled."""

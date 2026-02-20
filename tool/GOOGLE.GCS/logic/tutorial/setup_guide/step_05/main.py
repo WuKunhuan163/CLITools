@@ -155,4 +155,6 @@ def build_step(frame, win):
                     env_entry.config(state=tk.NORMAL)
                 win.callback_queue.put(on_err)
 
+        threading.Thread(target=run_val, daemon=True).start()
+
     validate_btn.config(command=on_validate)
