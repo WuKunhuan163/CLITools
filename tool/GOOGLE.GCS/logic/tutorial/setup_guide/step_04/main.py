@@ -216,6 +216,15 @@ def build_step(frame, win):
                 spec.loader.exec_module(auth_module)
                 
                 is_valid, err, info = auth_module.validate_service_account_json(path)
+                
+                # Check if it matches the email from Step 3
+                expected_email = win.tutorial_data.get("service_email")
+                if is_valid and expected_email:
+                    actual_email = info.get("client_email")
+                    if actual_email != expected_email:
+                        is_valid = False
+                        err = f"Email mismatch! Expected: {expected_email}, Found: {actual_email}"
+                
                 project_root = getattr(win, "project_root", None) or Path("/Applications/AITerminalTools")
                 
                 def final_update():

@@ -46,6 +46,9 @@ class TutorialWindow(BaseGUIWindow):
         # Validation state tracking
         self.step_validated_states = [False] * len(self.steps)
         
+        # Persistent tutorial data (e.g. captured inputs)
+        self.tutorial_data = {}
+        
         # UI Elements
         self.step_indicator = None
         self.content_frame = None
@@ -180,6 +183,11 @@ class TutorialWindow(BaseGUIWindow):
             
         # 5. Clear any previous errors
         self.show_error("", is_info=True)
+        
+        # 6. Reset scroll position to top
+        self.root.update_idletasks()
+        self.canvas.yview_moveto(0)
+        
         log_tutorial("Step UI update finished.")
 
     def setup_ui(self):
@@ -257,15 +265,25 @@ class TutorialWindow(BaseGUIWindow):
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Mouse wheel support
+        # Mouse wheel support with robust binding
         def _on_mousewheel(event):
-            if platform.system() == "Darwin":
-                self.canvas.yview_scroll(int(-1 * event.delta), "units")
+            if not self.root: return
+            delta = 0
+            if event.num == 4: delta = -1 # Linux scroll up
+            elif event.num == 5: delta = 1 # Linux scroll down
+            elif platform.system() == "Darwin":
+                delta = -1 * event.delta
             else:
-                self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        
-        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+                delta = -1 * (event.delta // 120)
+            
+            if delta != 0:
+                self.canvas.yview_scroll(delta, "units")
 
+        # Use bind_all for global capture
+        self.root.bind_all("<MouseWheel>", _on_mousewheel)
+        self.root.bind_all("<Button-4>", _on_mousewheel)
+        self.root.bind_all("<Button-5>", _on_mousewheel)
+        
         self.content_frame = self.scrollable_frame
         
         # Optional Error Area at the bottom

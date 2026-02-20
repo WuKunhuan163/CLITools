@@ -21,12 +21,13 @@ def build_step(frame, win):
     win.setup_label(title_block, "Step 5: Configure Remote Folders", is_title=True)
     
     # Content Block
+    service_email = win.tutorial_data.get("service_email", "your service account email")
     content_block = win.add_block(frame)
     content = (
-        "1. Enter the Google Drive URL or Folder ID for your Root and Env folders.\n\n"
-        "2. The 'Root Folder' will store your remote file tree structure.\n\n"
-        "3. The 'Env Folder' will store your remote environment settings.\n\n"
-        "4. Click 'Validate' to ensure the service account has access to both."
+        "1. Open [Google Drive](https://drive.google.com/).\n\n"
+        f"2. (CRITICAL) Select your 'Root' and 'Env' folders and **SHARE** them with: `{service_email}` (give 'Viewer' or 'Editor' access).\n\n"
+        "3. Enter the Folder URLs or IDs below.\n\n"
+        "4. Click 'Validate' to ensure access is correctly configured."
     )
     win.setup_label(content_block, content)
 
@@ -76,6 +77,9 @@ def build_step(frame, win):
         root_id_var.set(root_id)
         env_id_var.set(env_id)
         
+        # Lock inputs
+        root_entry.config(state=tk.DISABLED)
+        env_entry.config(state=tk.DISABLED)
         validate_btn.config(state=tk.DISABLED, text="Validating...")
         status_var.set("Testing access to Drive folders...")
         status_label.config(fg="gray")
@@ -99,6 +103,8 @@ def build_step(frame, win):
                         status_var.set(f"Root Folder Error: {res_root}")
                         status_label.config(fg="red")
                         validate_btn.config(state=tk.NORMAL, text="Validate Access")
+                        root_entry.config(state=tk.NORMAL)
+                        env_entry.config(state=tk.NORMAL)
                     win.callback_queue.put(err_root)
                     return
 
@@ -109,6 +115,8 @@ def build_step(frame, win):
                         status_var.set(f"Env Folder Error: {res_env}")
                         status_label.config(fg="red")
                         validate_btn.config(state=tk.NORMAL, text="Validate Access")
+                        root_entry.config(state=tk.NORMAL)
+                        env_entry.config(state=tk.NORMAL)
                     win.callback_queue.put(err_env)
                     return
 
@@ -118,6 +126,8 @@ def build_step(frame, win):
                     status_label.config(fg="green")
                     win.set_step_validated(True)
                     validate_btn.config(state=tk.NORMAL, text="Validate Access")
+                    root_entry.config(state=tk.NORMAL)
+                    env_entry.config(state=tk.NORMAL)
                 
                 win.callback_queue.put(final_update)
             except Exception as e:
@@ -125,6 +135,8 @@ def build_step(frame, win):
                     status_var.set(f"Validation Logic Error: {e}")
                     status_label.config(fg="red")
                     validate_btn.config(state=tk.NORMAL, text="Validate Access")
+                    root_entry.config(state=tk.NORMAL)
+                    env_entry.config(state=tk.NORMAL)
                 win.callback_queue.put(on_err)
 
     validate_btn.config(command=on_validate)

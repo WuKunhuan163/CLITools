@@ -38,7 +38,7 @@ def run_setup_tutorial():
     steps = [
         TutorialStep("Project Creation", load_step_build_func("step_01")),
         TutorialStep("Enable API", load_step_build_func("step_02")),
-        TutorialStep("Service Account", load_step_build_func("step_03")),
+        TutorialStep("Service Account", load_step_build_func("step_03"), is_manual=True),
         TutorialStep("JSON Key", load_step_build_func("step_04"), is_manual=True),
         TutorialStep("Sharing", load_step_build_func("step_05"), is_manual=True)
     ]
