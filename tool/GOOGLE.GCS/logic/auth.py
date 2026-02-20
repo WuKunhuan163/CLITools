@@ -2,7 +2,19 @@ import json
 import jwt
 import time
 import requests
+import socket
 from pathlib import Path
+
+# PERFORMANCE OPTIMIZATION: Force IPv4 for Google API requests.
+# On some macOS environments, IPv6 connection attempts to googleapis.com 
+# can hang for up to 60 seconds before falling back to IPv4.
+try:
+    import urllib3.util.connection as urllib3_cn
+    def allowed_gai_family():
+        return socket.AF_INET # Force IPv4
+    urllib3_cn.allowed_gai_family = allowed_gai_family
+except:
+    pass # Fallback if urllib3 structure differs
 
 def validate_service_account_json(file_path):
     """
@@ -60,7 +72,7 @@ def get_access_token(info, scope="https://www.googleapis.com/auth/drive.readonly
     res = requests.post(info["token_uri"], data={
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "assertion": token
-    }, timeout=10)
+    }, timeout=20) # Increased timeout
     if res.status_code != 200:
         raise Exception(f"Auth Error: {res.text}")
     return res.json()["access_token"]
@@ -89,7 +101,7 @@ def validate_folder_access(project_root, folder_id):
         url = f"https://www.googleapis.com/drive/v3/files/{folder_id}"
         params = {"fields": "id, name, mimeType"}
         log_tutorial(f"AUTH: Requesting metadata from {url}")
-        res = requests.get(url, headers=headers, params=params, timeout=10)
+        res = requests.get(url, headers=headers, params=params, timeout=20) # Increased timeout
         
         log_tutorial(f"AUTH: API response status: {res.status_code}")
         if res.status_code == 200:

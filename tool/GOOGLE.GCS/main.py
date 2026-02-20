@@ -42,6 +42,17 @@ from logic.config import get_color
 
 def main():
     # GCS is a subtool of GOOGLE, using the flat namespace naming convention.
+    
+    # PERFORMANCE OPTIMIZATION: Force IPv4 for Google API requests.
+    import socket
+    try:
+        import urllib3.util.connection as urllib3_cn
+        def allowed_gai_family():
+            return socket.AF_INET # Force IPv4
+        urllib3_cn.allowed_gai_family = allowed_gai_family
+    except:
+        pass
+
     tool = ToolBase("GOOGLE.GCS")
     
     parser = argparse.ArgumentParser(description="Google Drive Remote Controller (GCS)", add_help=False)
@@ -97,7 +108,7 @@ def main():
             res = requests.post(info["token_uri"], data={
                 "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
                 "assertion": token
-            }, timeout=10)
+            }, timeout=20)
             if res.status_code != 200:
                 raise Exception(f"Auth Error: {res.text}")
             return res.json()["access_token"]
@@ -116,7 +127,7 @@ def main():
                     "q": f"'{folder_id}' in parents and trashed = false",
                     "fields": "files(id, name, mimeType)"
                 }
-                res = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params, timeout=10)
+                res = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params, timeout=20)
                 if res.status_code == 200:
                     files = res.json().get("files", [])
                     print(f"\n{get_color('BOLD')}Contents of folder {folder_id}:{get_color('RESET')}")
