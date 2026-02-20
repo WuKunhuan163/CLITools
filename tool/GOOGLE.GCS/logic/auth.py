@@ -67,33 +67,46 @@ def get_access_token(info, scope="https://www.googleapis.com/auth/drive.readonly
 
 def validate_folder_access(project_root, folder_id):
     """Checks if a folder ID is accessible using the saved console key."""
+    from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
+    log_tutorial(f"AUTH: validate_folder_access started for {folder_id}")
+    
     key_path = Path(project_root) / "data" / "google_cloud_console" / "console_key.json"
     if not key_path.exists():
+        log_tutorial("AUTH: Console key not found")
         return False, "Console key not found. Please complete Step 4."
     
     try:
         with open(key_path, 'r') as f:
             info = json.load(f)
         
+        log_tutorial(f"AUTH: Fetching token for {info.get('client_email')}")
         token = get_access_token(info)
+        log_tutorial("AUTH: Token acquired")
+        
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test access by getting metadata
         url = f"https://www.googleapis.com/drive/v3/files/{folder_id}"
         params = {"fields": "id, name, mimeType"}
+        log_tutorial(f"AUTH: Requesting metadata from {url}")
         res = requests.get(url, headers=headers, params=params, timeout=10)
         
+        log_tutorial(f"AUTH: API response status: {res.status_code}")
         if res.status_code == 200:
             data = res.json()
+            log_tutorial(f"AUTH: Success. Folder name: {data.get('name')}")
             if data.get("mimeType") != "application/vnd.google-apps.folder":
                 return False, f"ID refers to a file, not a folder (type: {data.get('mimeType')})"
             return True, data.get("name")
         elif res.status_code == 404:
+            log_tutorial("AUTH: Folder not found (404)")
             return False, "Folder not found or not shared with this service account."
         else:
+            log_tutorial(f"AUTH: API Error: {res.text}")
             return False, f"API Error ({res.status_code}): {res.text}"
             
     except Exception as e:
+        log_tutorial(f"AUTH: Unexpected error: {e}")
         return False, str(e)
 
 def save_gcs_config(project_root, root_folder_id, env_folder_id):

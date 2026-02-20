@@ -56,8 +56,8 @@ def build_step(frame, win):
     env_name_label.grid(row=1, column=2, sticky="w", padx=5, pady=5)
 
     status_var = tk.StringVar(value="Enter URL/IDs and click Validate")
-    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg)
-    status_label.pack(pady=5)
+    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg, wraplength=600)
+    status_label.pack(pady=5, fill=tk.X)
 
     btn_frame = tk.Frame(action_block, bg=block_bg)
     btn_frame.pack(pady=10)
@@ -92,7 +92,9 @@ def build_step(frame, win):
         frame.update_idletasks()
 
         def run_val():
+            from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
             try:
+                log_tutorial("Step 5: Background validation thread started")
                 # Import auth module
                 import importlib.util
                 auth_path = Path(__file__).resolve().parent.parent.parent.parent / "logic" / "auth.py"
@@ -103,8 +105,10 @@ def build_step(frame, win):
                 project_root = getattr(win, "project_root", None) or Path("/Applications/AITerminalTools")
                 
                 # Validate Root Folder
+                log_tutorial(f"Step 5: Validating Root ID: {root_id}")
                 ok_root, res_root = auth_module.validate_folder_access(project_root, root_id)
                 if not ok_root:
+                    log_tutorial(f"Step 5: Root validation FAILED: {res_root}")
                     def err_root():
                         status_var.set(f"Root Folder Error: {res_root}")
                         status_label.config(fg="red")
@@ -115,8 +119,10 @@ def build_step(frame, win):
                     return
 
                 # Validate Env Folder
+                log_tutorial(f"Step 5: Validating Env ID: {env_id}")
                 ok_env, res_env = auth_module.validate_folder_access(project_root, env_id)
                 if not ok_env:
+                    log_tutorial(f"Step 5: Env validation FAILED: {res_env}")
                     def err_env():
                         status_var.set(f"Env Folder Error: {res_env}")
                         status_label.config(fg="red")
@@ -127,6 +133,7 @@ def build_step(frame, win):
                     return
 
                 def final_update():
+                    log_tutorial(f"Step 5: Validation SUCCESS. Root: {res_root}, Env: {res_env}")
                     auth_module.save_gcs_config(project_root, root_id, env_id)
                     root_name_var.set(f"({res_root})")
                     env_name_var.set(f"({res_env})")
@@ -139,6 +146,7 @@ def build_step(frame, win):
                 
                 win.callback_queue.put(final_update)
             except Exception as e:
+                log_tutorial(f"Step 5: Unexpected validation error: {e}")
                 def on_err():
                     status_var.set(f"Validation Logic Error: {e}")
                     status_label.config(fg="red")

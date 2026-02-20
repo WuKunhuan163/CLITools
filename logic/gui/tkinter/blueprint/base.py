@@ -454,6 +454,7 @@ class BaseGUIWindow:
         import webbrowser
         import re
         import tkinter as tk
+        import platform
         
         text_widget = tk.Text(frame, wrap=tk.WORD, font=get_label_style(), 
                               padx=20, pady=10, borderwidth=0, highlightthickness=0,
@@ -502,6 +503,12 @@ class BaseGUIWindow:
         
         # Ensure scroll events are passed to the parent canvas if this is in a TutorialWindow
         def scroll_parent(event):
+            # Log for debugging
+            try:
+                from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
+                log_tutorial(f"TEXT WIDGET scroll event captured: {event.widget}")
+            except: pass
+
             # Try to find the canvas in the hierarchy
             curr = frame
             while curr:
@@ -517,7 +524,9 @@ class BaseGUIWindow:
                     else:
                         delta = -1 * (event.delta // 120) * 3
                     if delta != 0:
-                        curr.yview_scroll(delta, "units")
+                        try:
+                            curr.yview_scroll(delta, "units")
+                        except: pass
                     return "break"
                 curr = curr.master if hasattr(curr, "master") else None
             return None
@@ -525,6 +534,8 @@ class BaseGUIWindow:
         text_widget.bind("<MouseWheel>", scroll_parent)
         text_widget.bind("<Button-4>", scroll_parent)
         text_widget.bind("<Button-5>", scroll_parent)
+        
+        return text_widget
         
         def _update_height(event=None):
             # Adjust height based on content

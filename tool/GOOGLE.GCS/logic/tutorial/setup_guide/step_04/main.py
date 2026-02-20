@@ -41,8 +41,8 @@ def build_step(frame, win):
     selected_file_path = tk.StringVar(value="")
     status_var = tk.StringVar(value="No file selected")
     
-    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg)
-    status_label.pack(pady=5)
+    status_label = tk.Label(action_block, textvariable=status_var, font=get_label_style(), fg="gray", bg=block_bg, wraplength=600)
+    status_label.pack(pady=5, fill=tk.X)
 
     btn_frame = tk.Frame(action_block, bg=block_bg)
     btn_frame.pack(pady=10)
