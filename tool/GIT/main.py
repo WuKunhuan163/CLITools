@@ -45,6 +45,11 @@ def main():
     commit_parser.add_argument("-m", "--message", required=True, help="Commit message")
     commit_parser.add_argument("--force", action="store_true", help="Force commit even if not on development branch")
     commit_parser.add_argument("--merge", action="store_true", help="Merge current changes into development branch and commit")
+    commit_parser.add_argument("--no-maintain", action="store_true", help="Skip history maintenance after commit")
+
+    # maintain
+    maintain_parser = subparsers.add_parser("maintain", help="Manually trigger GIT history maintenance (squashing early commits)", add_help=False)
+    maintain_parser.add_argument("--base", type=int, default=50, help="Base number of commits to keep intact (default 50)")
 
     if tool.handle_command_line(parser): return
     
@@ -84,17 +89,26 @@ def main():
                 sys.exit(1)
         
         # Perform commit
-        res = engine.run_git(["add", "."])
+        engine.run_git(["add", "."])
         res = engine.run_git(["commit", "-m", args.message])
         if res.returncode == 0:
             print(f"{get_color('GREEN')}Successfully committed{get_color('RESET')}: {args.message}")
+            
+            # 4. History Maintenance
+            if not args.no_maintain:
+                engine.maintain_history()
+            
             # Trigger auto-push if needed (via post-commit hook or manually)
-            from logic.git.engine import auto_push_if_needed
-            auto_push_if_needed()
+            try:
+                from logic.git.engine import auto_push_if_needed
+                auto_push_if_needed()
+            except ImportError: pass
         else:
             reason = res.stderr.strip() or res.stdout.strip() or "Unknown reason"
             print(f"{get_color('RED')}Commit failed{get_color('RESET')}: {reason}")
             sys.exit(1)
+    elif args.command == "maintain":
+        engine.maintain_history(base=args.base)
 
 if __name__ == "__main__":
     main()
