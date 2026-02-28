@@ -101,13 +101,14 @@ Google Drive Remote Controller for Google Colab:
 - **Interactive Shell**: `GCS --shell` enters an interactive REPL where commands are automatically prefixed with `GCS`. Type `help` for available commands, `exit` to quit.
 - **Path Management**: Virtual filesystem with `~` (remote root) and `@` (remote env). Use `GCS cd`, `GCS pwd`, and `GCS ls` to navigate Google Drive folders directly via the API.
 - **Bash-like Exit Codes**: Commands return non-zero exit codes on failure (e.g., `ls` on nonexistent path prints `ls: cannot access '~/path': No such file or directory` to stderr and exits 1).
+- **File Upload**: `GCS upload <local_path> [remote_path]` uploads local files to Google Drive via the Colab pipeline. Files are base64-encoded and written through the mounted Drive (2MB limit per file; use tar/zip for larger transfers).
 - **Non-Interactive API**: All file operations (`ls`, `cd`, `cat`) execute via isolated tmp scripts with IPv4-forced connections and automatic retry on transient errors.
 - **GUI Queue**: GUI interaction windows are serialized via file-based FIFO locking, ensuring ordered execution when multiple commands require user interaction (e.g., `cd` then `echo >>`).
 - **Remounting**: `GCS --remount` to quickly remount Google Drive in Colab with GUI and API-based verification.
 - **Shell Management**: `GCS --shell list|switch|create|info` for stateful logical remote sessions.
 - **Setup**: `GCS --setup-tutorial` for guided initial configuration of service account credentials and remote folders.
 - **GUI Cancel**: Closing or cancelling a GCS GUI window exits the Turing Machine cleanly with a yellow "Cancelled." message.
-- **Modular Architecture**: Command implementations are separated into `logic/command/` modules (ls, cd, pwd, cat, shell, remote, remount, tutorial). Core utilities in `logic/utils.py`.
+- **Modular Architecture**: Command implementations are separated into `logic/command/` modules (ls, cd, pwd, cat, upload, shell, remote, remount, tutorial, gui_queue). Core utilities in `logic/utils.py`.
 
 ### iCloudPD Tool
 Standardized iCloud photo and video downloader:
