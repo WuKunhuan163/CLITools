@@ -23,6 +23,7 @@
     "iCloud",
     "iCloud.iCloudPD",
     "GOOGLE",
-    "GOOGLE.GCS"
+    "GOOGLE.GCS",
+    "SKILLS"
   ]
 }

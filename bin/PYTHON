@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+import sys
+import subprocess
+import os
+from pathlib import Path
+
+# Resolve project root
+curr = Path(__file__).resolve().parent
+while curr != curr.parent:
+    if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
+        project_root = curr
+        break
+    curr = curr.parent
+else:
+    project_root = Path("/Applications/AITerminalTools")
+
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Use managed python if available
+python_exec = sys.executable
+python_tool_dir = project_root / "tool" / "PYTHON"
+if python_tool_dir.exists():
+    from logic.utils import get_logic_dir
+    utils_path = get_logic_dir(python_tool_dir) / "utils.py"
+    if utils_path.exists():
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("py_utils", str(utils_path))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            python_exec = mod.get_python_exec()
+        except: pass
+
+# Run the actual tool
+main_py = project_root / "tool/PYTHON/main.py"
+env = os.environ.copy()
+# Add project root and tool logic to PYTHONPATH
+python_path = env.get('PYTHONPATH', '')
+new_paths = f"{project_root}:{main_py.parent}"
+env["PYTHONPATH"] = f"{new_paths}:{python_path}" if python_path else new_paths
+
+# On macOS (case-insensitive), we handle 'python' vs 'PYTHON' in the same script
+invoked_name = os.path.basename(sys.argv[0])
+is_python_exec = invoked_name.lower() in ["python", "python3", "pip", "pip3"]
+
+if is_python_exec and "PYTHON".upper() == "PYTHON":
+    if "pip" in invoked_name.lower():
+        # Find pip associated with the managed python
+        pip_path = Path(python_exec).parent / invoked_name.lower()
+        if not pip_path.exists():
+            pip_path = Path(python_exec).parent / "pip"
+        cmd = [str(pip_path)] + sys.argv[1:]
+    else:
+        cmd = [python_exec] + sys.argv[1:]
+else:
+    cmd = [python_exec, str(main_py)] + sys.argv[1:]
+
+# Execute the tool and preserve exit code
+try:
+    res = subprocess.run(cmd, env=env)
+    sys.exit(res.returncode)
+except KeyboardInterrupt:
+    sys.exit(1)
