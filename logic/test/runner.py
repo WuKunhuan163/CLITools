@@ -253,17 +253,29 @@ class TestRunner:
                     # Just wait silently
                     time.sleep(0.5)
                 
+                # Per-test timeout: read EXPECTED_TIMEOUT from the test file
+                test_timeout = timeout
+                try:
+                    with open(test_file, 'r') as _tf:
+                        for _line in _tf:
+                            _line = _line.strip()
+                            if _line.startswith("EXPECTED_TIMEOUT"):
+                                _val = _line.split("=", 1)[1].strip()
+                                test_timeout = int(float(_val))
+                                break
+                            if _line.startswith("import ") or _line.startswith("class "):
+                                break
+                except Exception:
+                    pass
+
                 active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
                 timeout_msg = self._("label_timeout", "timeout")
                 
-                def get_running_msg(elapsed):
-                    # Localizable running status message
-                    # Default (en): "Running: file.py (10s / timeout: 60s)"
-                    # Arabic (ar): "(10s / timeout: 60s) file.py :Running"
+                def get_running_msg(elapsed, _timeout=test_timeout):
                     bold_file = f"{self.colors['BOLD']}{test_file.name}{self.colors['RESET']}"
                     return self._("test_running_line", "{status}: {file} ({elapsed}s / {timeout_label}: {timeout}s)", 
                                  status=active_label, file=bold_file, elapsed=int(elapsed), 
-                                 timeout_label=timeout_msg, timeout=timeout)
+                                 timeout_label=timeout_msg, timeout=_timeout)
 
                 # Initial update
                 yield StepResult(get_running_msg(0), state=WorkerState.CONTINUE)
@@ -288,7 +300,7 @@ class TestRunner:
                             break
                         
                         elapsed = time.time() - start_time
-                        if elapsed > timeout:
+                        if elapsed > test_timeout:
                             proc.kill()
                             status_raw, duration, error_msg, report_path = "Timeout", elapsed, None, None
                             break
