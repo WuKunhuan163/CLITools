@@ -17,7 +17,7 @@
   "label_success": "成功",
   "label_failed": "失败",
   "test_status_unknown": "未知",
-  "test_running_line": "{status}: {file} ({elapsed}s / {label_timeout}: {timeout}s)",
+  "test_running_line": "{status}: {file} ({elapsed}s / {timeout_label}: {timeout}s)",
   "label_syncing_branches": "正在同步分支",
   "label_successfully_synced": "成功同步",
   "label_branches": "分支",
