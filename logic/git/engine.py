@@ -203,13 +203,15 @@ def auto_squash_if_needed(cwd=None, config=None):
         if group:
             build_plan.append({"type": "squash", "commits": list(group)})
         
-        # Promote single-commit squash groups to "keep" (pointless to squash 1 commit)
-        for entry in build_plan:
-            if entry["type"] == "squash" and len(entry["commits"]) == 1:
-                entry["type"] = "keep"
-                entry["commit"] = entry.pop("commits")[0]
+        # Drop single-commit squash groups: their state is already captured
+        # in the adjacent kept commit's tree (trees are cumulative snapshots).
+        # Multi-commit groups are kept as real squash operations.
+        build_plan = [
+            entry for entry in build_plan
+            if not (entry["type"] == "squash" and len(entry["commits"]) == 1)
+        ]
         
-        if not any(p["type"] == "squash" for p in build_plan):
+        if len(build_plan) >= total:
             return False
         
         # Rebuild history using commit-tree: safe, no working-tree or index changes.

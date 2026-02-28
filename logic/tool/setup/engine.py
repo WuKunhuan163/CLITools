@@ -102,6 +102,7 @@ class ToolEngine:
                 action=self.uninstall_action,
                 active_status=self._("label_uninstalling", "Uninstalling partial"),
                 success_status=self._("label_ready", "Ready for reinstall"),
+                fail_status=self._("label_failed_to_uninstall", "Failed to uninstall"),
                 success_color="BOLD",
                 bold_part=self._("label_uninstalling", "Uninstalling partial")
             ))
@@ -215,6 +216,7 @@ class ToolEngine:
             action=self.uninstall_action,
             active_status=self._("label_uninstalling", "Uninstalling"),
             success_status=success_label,
+            fail_status=self._("label_failed_to_uninstall", "Failed to uninstall"),
             success_color="GREEN"
         ))
         if tm.run(ephemeral=True, final_msg=final_msg):

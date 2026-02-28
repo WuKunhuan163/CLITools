@@ -171,6 +171,7 @@ def setup():
         action=check_structure_action,
         active_status="Checking",
         success_status="Successfully validated",
+        fail_status="Failed to validate",
         success_color="BOLD",
         bold_part="Checking structure"
     ))
@@ -180,6 +181,7 @@ def setup():
         action=install_deps_action,
         active_status="Installing",
         success_status="Successfully installed",
+        fail_status="Failed to install",
         success_color="BOLD",
         bold_part="Installing dependencies"
     ))
@@ -188,7 +190,8 @@ def setup():
         name="core tools",
         action=install_core_tools_action,
         active_status="Setting up",
-        success_status="Successfully setup",
+        success_status="Successfully set up",
+        fail_status="Failed to set up",
         success_color="BOLD",
         bold_part="Setting up core tools"
     ))
@@ -197,7 +200,8 @@ def setup():
         name="standalone python",
         action=setup_gui_python_action,
         active_status="Ensuring",
-        success_status="Successfully setup",
+        success_status="Successfully set up",
+        fail_status="Failed to set up",
         success_color="BOLD",
         bold_part="Ensuring standalone python"
     ))
@@ -207,6 +211,7 @@ def setup():
         action=shell_integration_action,
         active_status="Configuring",
         success_status="Successfully configured",
+        fail_status="Failed to configure",
         success_color="BOLD",
         bold_part="Configuring shell integration"
     ))

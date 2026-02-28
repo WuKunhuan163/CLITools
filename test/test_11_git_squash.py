@@ -83,18 +83,20 @@ class TestGitSquash(unittest.TestCase):
         self.assertFalse(result)
         self.assertEqual(get_tree_sha(self.tmp_dir), tree_before)
 
-    def test_03_squash_20_commits_no_op(self):
-        """With 20 commits and base=10, all squash groups have 1 commit -> no-op."""
+    def test_03_squash_20_commits_reduces(self):
+        """With 20 commits and base=10, freq=0.5 zone drops every other old commit."""
         create_test_repo(20, self.tmp_dir)
         tree_before = get_tree_sha(self.tmp_dir)
         count_before = get_commit_count(self.tmp_dir)
 
         result = auto_squash_if_needed(cwd=self.tmp_dir)
 
-        # With default config, 20 commits only create squash groups of 1 = pointless
-        self.assertFalse(result)
-        self.assertEqual(get_tree_sha(self.tmp_dir), tree_before)
-        self.assertEqual(get_commit_count(self.tmp_dir), count_before)
+        self.assertTrue(result)
+        self.assertEqual(get_tree_sha(self.tmp_dir), tree_before,
+                         "Tree hash mismatch: squash altered file content!")
+        new_count = get_commit_count(self.tmp_dir)
+        self.assertLess(new_count, count_before)
+        self.assertEqual(new_count, 15)
 
     def test_04_squash_60_commits_preserves_tree(self):
         """Squashing 60 commits must preserve the exact file tree."""

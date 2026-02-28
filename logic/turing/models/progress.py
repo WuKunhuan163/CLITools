@@ -232,7 +232,7 @@ class ProgressTuringMachine:
                             if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
                                 self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                             
-                            fail_name = stage.fail_name or stage.name
+                            fail_name = stage.fail_name if stage.fail_name is not None else stage.name
                             brief_reason = stage.error_brief
                             
                             if not brief_reason:
@@ -266,16 +266,18 @@ class ProgressTuringMachine:
                                     rest_text = fail_name.strip()[len(bold_p):].lstrip()
                                     fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 else:
-                                    fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                    fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
                             else:
-                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
                             
-                            # Ensure we don't have double periods
                             brief_reason = brief_reason.rstrip(".")
                             
-                            logic_dir = str(find_project_root(Path(__file__)) / "logic")
-                            reason_label = get_translation(logic_dir, "label_reason", "Reason")
-                            full_msg_fail = f"{fail_msg_start} . {reason_label}: {brief_reason}."
+                            if fail_name == "":
+                                full_msg_fail = f"{fail_msg_start}."
+                            else:
+                                logic_dir = str(find_project_root(Path(__file__)) / "logic")
+                                reason_label = get_translation(logic_dir, "label_reason", "Reason")
+                                full_msg_fail = f"{fail_msg_start} . {reason_label}: {brief_reason}."
                             
                             self.manager.update(f"stage_{stage.name}", full_msg_fail, is_final=True, truncate=False)
                             if log_path:
@@ -294,7 +296,7 @@ class ProgressTuringMachine:
                         if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
                             self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                         
-                        fail_name = stage.fail_name or stage.name
+                        fail_name = stage.fail_name if stage.fail_name is not None else stage.name
                         brief_reason = stage.error_brief or str(e).split('\n')[0]
                         brief_reason = brief_reason.rstrip(".")
                         
@@ -312,13 +314,16 @@ class ProgressTuringMachine:
                                 rest_text = fail_name.strip()[len(bold_p):].lstrip()
                                 fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             else:
-                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
                         else:
-                            fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                            fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
                         
-                        logic_dir = str(find_project_root(Path(__file__)) / "logic")
-                        reason_label = get_translation(logic_dir, "label_reason", "Reason")
-                        fail_msg = f"{fail_msg_start} . {reason_label}: {brief_reason}."
+                        if fail_name == "":
+                            fail_msg = f"{fail_msg_start}."
+                        else:
+                            logic_dir = str(find_project_root(Path(__file__)) / "logic")
+                            reason_label = get_translation(logic_dir, "label_reason", "Reason")
+                            fail_msg = f"{fail_msg_start} . {reason_label}: {brief_reason}."
                         self.manager.update(f"stage_{stage.name}", fail_msg, is_final=True, truncate=False)
                         if log_path:
                             traceback_label = get_translation(logic_dir, "label_traceback_saved_to", "Traceback saved to")
@@ -327,20 +332,10 @@ class ProgressTuringMachine:
                         return False
                 
                 if ephemeral:
-                    if final_msg is not None:
-                        if final_msg == "":
-                            # Remove all stages from manager
-                            for stage in self.stages:
-                                self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
-                        else:
-                            # Print final message in a new slot or replace?
-                            # For simplicity, let's just use direct print if manager is empty,
-                            # or update a specific slot.
-                            self.manager.update("final_msg", final_msg, is_final=True, truncate=False)
-                    else:
-                        # Erase everything managed by this TM
-                        for stage in self.stages:
-                            self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
+                    for stage in self.stages:
+                        key = f"stage_{stage.name}"
+                        if key in self.manager.worker_to_slot_idx:
+                            self.manager.update(key, "remove", is_final=True)
                 
                 # If non-ephemeral, the last stage already printed a newline
                 return True

@@ -94,6 +94,15 @@ Manage long-running tasks:
 - **Lifecycle Management**: List, stop, and wait for background processes.
 - **Logging**: Automatically capture and view background output logs.
 
+### GOOGLE.GCS Tool
+Google Drive Remote Controller for Google Colab:
+- **Remote Commands**: `GCS <command>` executes arbitrary commands remotely on Google Colab. Default generates bash scripts; use `--python` for Python cell scripts.
+- **Path Management**: Virtual filesystem with `~` (remote root) and `@` (remote env). Use `GCS cd`, `GCS pwd`, and `GCS ls` to navigate Google Drive folders directly via the API.
+- **Non-Interactive API**: All file operations (`ls`, `cd`, `cat`) execute via isolated tmp scripts with timeout — no user interaction required.
+- **Remounting**: `GCS --remount` to quickly remount Google Drive in Colab with GUI and API-based verification.
+- **Shell Management**: `GCS --shell list|switch|create|info` for stateful logical remote sessions.
+- **Setup**: `GCS --setup-tutorial` for guided initial configuration of service account credentials and remote folders.
+
 ### iCloudPD Tool
 Standardized iCloud photo and video downloader:
 - **Parallel Downloads**: Support for N-worker concurrent downloading (parameterized via `--workers`).
@@ -102,6 +111,13 @@ Standardized iCloud photo and video downloader:
 - **Local Library Support**: Use `--local-photos [PATH]` to check a local Apple Photos Library (.photoslibrary) before downloading from iCloud. It maps iCloud IDs to local files using the database and resolves local creation times including timezone offsets. Supports offline gathering for locally-matched assets.
 - **Custom Formatting**: Customize filenames and directories via `--prefix`, `--suffix`, and `--grouping`. Use placeholders like `<YYYY>`, `<MM>`, `<DD>`, `<hh>`, `<mm>`, `<ss>`, `<ID>`, and `<FILENAME>`.
 - **Subtool Integration**: Operates as a subtool under the `iCloud` ecosystem, sharing authentication and 2FA interfaces.
+
+### SKILLS Tool
+Agent skill management for Cursor IDE:
+- **Skill Library**: Manages a library of reusable AI agent skills in `tool/SKILLS/data/library/`.
+- **Sync**: `SKILLS sync` creates symlinks from the library to `~/.cursor/skills/` for Cursor to discover.
+- **Browse**: `SKILLS list` to see all available skills, `SKILLS show <name>` to view a skill's content.
+- **Path**: `SKILLS path` to show the library directory path.
 
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Sets the global display language (e.g., `zh` for Chinese, `en` for English, `ar` for Arabic).

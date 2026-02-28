@@ -147,6 +147,8 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
             active_status=_("label_syncing_branches", "Syncing branches"),
             success_status=_("label_successfully_synced", "Successfully synced"), 
             success_name=_("label_branches", "branches"), 
+            fail_status=_("err_failed_to_sync", "Failed to sync"),
+            fail_name=_("label_branches", "branches"),
             bold_part=_("label_syncing_branches", "Syncing branches")
         ))
         
@@ -190,6 +192,7 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
             action=install_test_action, 
             active_status=_("label_testing", "Testing"),
             success_status=_("label_successfully_tested", "Successfully tested"), 
+            fail_status=_("label_failed_to_test", "Failed to test"),
             bold_part=_("label_testing_installation", "Testing installation")
         ))
         

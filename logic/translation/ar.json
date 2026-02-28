@@ -215,5 +215,22 @@
   "tool_not_found_locally": "لم يتم العثور عليها محلياً (شغل \"TOOL install\" للحصول عليها)",
   "tool_list_purpose_label": "الغرض:",
   "tool_list_cache_warning": "تحذير: جارٍ عرض البيانات المخزنة مؤقتاً. استخدم --force للتحديث.",
-  "label_warning": "تحذير"
+  "label_warning": "تحذير",
+  "label_failed_to_uninstall": "فشل إلغاء التثبيت",
+  "label_failed_to_test": "فشل الاختبار",
+  "err_failed_to_sync": "فشل المزامنة",
+  "err_sync_installation_test": "أثناء اختبار التثبيت.",
+  "label_failed_to_install": "فشل التثبيت",
+  "label_failed_to_validate": "فشل التحقق",
+  "label_failed_to_fetch": "فشل الجلب",
+  "label_failed_to_create_shortcut": "فشل إنشاء الاختصار",
+  "label_uninstalling": "جارٍ إلغاء التثبيت",
+  "label_dependencies_for": "تبعيات {name}",
+  "label_pip_for": "تبعيات pip لـ {name}",
+  "label_installation": "التثبيت",
+  "label_successfully_tested": "تم الاختبار بنجاح",
+  "label_reason": "السبب",
+  "label_traceback_saved_to": "تم حفظ التتبع في",
+  "uninstall_success_status": "تم إلغاء التثبيت بنجاح",
+  "msg_interruption_hint": "\nملاحظة: إذا تم مقاطعة أو إلغاء أو إيقاف تنفيذ الأمر (مثل Error: Command failed to spawn: Aborted)، يجب عليك تشغيل USERINPUT فوراً للتحقق من ملاحظات المستخدم قبل الخروج أو المتابعة."
 }

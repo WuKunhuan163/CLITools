@@ -15,6 +15,23 @@ if str(project_root) not in sys.path:
 from logic.gui.tkinter.blueprint.base import BaseGUIWindow, setup_common_bottom_bar
 from logic.gui.tkinter.style import get_label_style, get_gui_colors, get_button_style
 
+_tutorial_log_path = None
+
+def log_tutorial(msg: str):
+    """Writes debug messages to a tutorial session log file."""
+    global _tutorial_log_path
+    import datetime
+    if _tutorial_log_path is None:
+        log_dir = project_root / "tmp"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        _tutorial_log_path = log_dir / "tutorial_debug.log"
+    try:
+        with open(_tutorial_log_path, "a", encoding="utf-8") as f:
+            ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
+
 class TutorialStep:
     """Defines a single step in the tutorial."""
     def __init__(self, title: str, 

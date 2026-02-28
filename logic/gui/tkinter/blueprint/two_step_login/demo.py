@@ -40,7 +40,9 @@ if __name__ == "__main__":
                 active_status="Waiting for demo feedback",
                 active_name="via GUI",
                 success_status="",
-                success_name=""
+                success_name="",
+                fail_status="Failed to receive",
+                fail_name="demo feedback"
             ))
             
             # Use ephemeral=True and final_newline=False to completely erase without blank line
