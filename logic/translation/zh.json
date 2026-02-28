@@ -184,6 +184,7 @@
   "test_list_header": "可用测试:",
   "test_no_selected": "未选择任何测试。",
   "test_running_status": "正在运行",
+  "test_install_success": "成功安装",
   "label_duration": "耗时",
   "test_interrupted_label": "测试已中断",
   "rule_header_main": "这是为您准备的工具指南和 AI 指令：",

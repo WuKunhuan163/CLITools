@@ -198,7 +198,9 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
         
         if tm_install.run(ephemeral=True, final_msg=None, final_newline=False):
             duration = time.time() - start_time
-            print(f"{BOLD}{GREEN}Success{RESET}: {BOLD}installation{RESET} (Duration: {duration:.2f}s)")
+            success_label = _("test_install_success", "Successfully installed")
+            duration_label = _("label_duration", "Duration")
+            print(f"{BOLD}{GREEN}{success_label}{RESET} ({duration_label}: {duration:.2f}s)")
             if not stay_on_test:
                 subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
             return True

@@ -97,11 +97,13 @@ Manage long-running tasks:
 ### GOOGLE.GCS Tool
 Google Drive Remote Controller for Google Colab:
 - **Remote Commands**: `GCS <command>` executes arbitrary commands remotely on Google Colab. Default generates bash scripts; use `--python` for Python cell scripts.
-- **Path Management**: Virtual filesystem with `~` (remote root) and `@` (remote env). Use `GCS cd`, `GCS pwd`, and `GCS ls` to navigate Google Drive folders directly via the API.
-- **Non-Interactive API**: All file operations (`ls`, `cd`, `cat`) execute via isolated tmp scripts with timeout — no user interaction required.
+- **Interactive Shell**: `GCS --shell` enters an interactive REPL where commands are automatically prefixed with `GCS`. Type `help` for available commands, `exit` to quit.
+- **Path Management**: Virtual filesystem with `~` (remote root) and `@` (remote env). Use `GCS cd`, `GCS pwd`, and `GCS ls` to navigate Google Drive folders directly via the API with real-time Turing Machine progress.
+- **Non-Interactive API**: All file operations (`ls`, `cd`, `cat`) execute via isolated tmp scripts with IPv4-forced connections and automatic retry on transient errors.
 - **Remounting**: `GCS --remount` to quickly remount Google Drive in Colab with GUI and API-based verification.
 - **Shell Management**: `GCS --shell list|switch|create|info` for stateful logical remote sessions.
 - **Setup**: `GCS --setup-tutorial` for guided initial configuration of service account credentials and remote folders.
+- **GUI Cancel**: Closing or cancelling a GCS GUI window exits the Turing Machine cleanly with a yellow "Cancelled." message.
 
 ### iCloudPD Tool
 Standardized iCloud photo and video downloader:
