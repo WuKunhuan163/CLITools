@@ -97,13 +97,17 @@ Manage long-running tasks:
 ### GOOGLE.GCS Tool
 Google Drive Remote Controller for Google Colab:
 - **Remote Commands**: `GCS <command>` executes arbitrary commands remotely on Google Colab. Default generates bash scripts; use `--python` for Python cell scripts.
+- **Path Expansion**: Unquoted `~` and `@` in commands are expanded to remote mount paths, respecting bash quoting rules. `GCS echo "~ is not '~'"` expands only unquoted occurrences.
 - **Interactive Shell**: `GCS --shell` enters an interactive REPL where commands are automatically prefixed with `GCS`. Type `help` for available commands, `exit` to quit.
-- **Path Management**: Virtual filesystem with `~` (remote root) and `@` (remote env). Use `GCS cd`, `GCS pwd`, and `GCS ls` to navigate Google Drive folders directly via the API with real-time Turing Machine progress.
+- **Path Management**: Virtual filesystem with `~` (remote root) and `@` (remote env). Use `GCS cd`, `GCS pwd`, and `GCS ls` to navigate Google Drive folders directly via the API.
+- **Bash-like Exit Codes**: Commands return non-zero exit codes on failure (e.g., `ls` on nonexistent path prints `ls: cannot access '~/path': No such file or directory` to stderr and exits 1).
 - **Non-Interactive API**: All file operations (`ls`, `cd`, `cat`) execute via isolated tmp scripts with IPv4-forced connections and automatic retry on transient errors.
+- **GUI Queue**: GUI interaction windows are serialized via file-based FIFO locking, ensuring ordered execution when multiple commands require user interaction (e.g., `cd` then `echo >>`).
 - **Remounting**: `GCS --remount` to quickly remount Google Drive in Colab with GUI and API-based verification.
 - **Shell Management**: `GCS --shell list|switch|create|info` for stateful logical remote sessions.
 - **Setup**: `GCS --setup-tutorial` for guided initial configuration of service account credentials and remote folders.
 - **GUI Cancel**: Closing or cancelling a GCS GUI window exits the Turing Machine cleanly with a yellow "Cancelled." message.
+- **Modular Architecture**: Command implementations are separated into `logic/command/` modules (ls, cd, pwd, cat, shell, remote, remount, tutorial). Core utilities in `logic/utils.py`.
 
 ### iCloudPD Tool
 Standardized iCloud photo and video downloader:
