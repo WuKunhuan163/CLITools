@@ -223,10 +223,14 @@ class ProgressTuringMachine:
                             # Skip printing if it's a warning and no_warning is True
                             is_warning = (stage.fail_color == "YELLOW" or stage.fail_status == "Warning")
                             if self.no_warning and is_warning:
-                                # Just clear the active line and continue
                                 if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
                                     self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
-                                return True 
+                                return True
+
+                            if stage.stealth:
+                                if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
+                                    self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
+                                return False
                             
                             log_path = self._log_error(stage)
                             if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
@@ -272,10 +276,10 @@ class ProgressTuringMachine:
                             
                             brief_reason = brief_reason.rstrip(".")
                             
+                            logic_dir = str(find_project_root(Path(__file__)) / "logic")
                             if fail_name == "":
                                 full_msg_fail = f"{fail_msg_start}."
                             else:
-                                logic_dir = str(find_project_root(Path(__file__)) / "logic")
                                 reason_label = get_translation(logic_dir, "label_reason", "Reason")
                                 full_msg_fail = f"{fail_msg_start} . {reason_label}: {brief_reason}."
                             
@@ -318,10 +322,10 @@ class ProgressTuringMachine:
                         else:
                             fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
                         
+                        logic_dir = str(find_project_root(Path(__file__)) / "logic")
                         if fail_name == "":
                             fail_msg = f"{fail_msg_start}."
                         else:
-                            logic_dir = str(find_project_root(Path(__file__)) / "logic")
                             reason_label = get_translation(logic_dir, "label_reason", "Reason")
                             fail_msg = f"{fail_msg_start} . {reason_label}: {brief_reason}."
                         self.manager.update(f"stage_{stage.name}", fail_msg, is_final=True, truncate=False)
