@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 import tkinter as tk
 from pathlib import Path
 from typing import Any, List, Optional, Callable, Dict, Union

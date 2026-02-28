@@ -51,6 +51,7 @@ class TuringStage:
         self.fail_name = fail_name
         self.bold_part = bold_part
         self.stealth = stealth
+        self.finished = False
         
         # Support for failure information and captured output
         self.error_brief: Optional[str] = None 

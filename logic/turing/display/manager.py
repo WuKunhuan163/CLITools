@@ -19,16 +19,17 @@ def truncate_to_width(text, max_width):
     if max_width <= 0:
         return text
     
-    # Use a safe minimum for truncation to avoid issues with very small values
-    # Increased buffer to -5 for better stability in narrow/wrapped terminals
-    safe_width = max(1, max_width - 5)
+    # Use a minimal buffer to allow more content in standard terminals
+    # Reduced buffer to -1 since modern terminals handle width more predictably
+    safe_width = max(1, max_width - 1)
     if get_visible_len(text) <= safe_width:
         return text
     # Reset color BEFORE the ellipsis to ensure ellipsis is default color
     # and to stop any active styles from the truncated text.
     from logic.config import get_color
     RESET = get_color("RESET", "\033[0m")
-    return truncate_to_display_width(text, safe_width - 3) + f"{RESET}..."
+    # Use horizontal ellipsis (…) which is common in modern terminals
+    return truncate_to_display_width(text, safe_width - 2) + f"{RESET}…"
 
 def _get_configured_width():
     """Get the configured terminal width or the actual terminal size."""
@@ -112,8 +113,20 @@ class Slot:
         wrapped = wrap_text(self.text, width)
         return len(wrapped)
 
+_GLOBAL_MANAGER_INSTANCE = None
+
 class MultiLineManager:
+    def __new__(cls, *args, **kwargs):
+        global _GLOBAL_MANAGER_INSTANCE
+        if _GLOBAL_MANAGER_INSTANCE is None:
+            _GLOBAL_MANAGER_INSTANCE = super(MultiLineManager, cls).__new__(cls)
+            _GLOBAL_MANAGER_INSTANCE._initialized = False
+        return _GLOBAL_MANAGER_INSTANCE
+
     def __init__(self, width: Optional[int] = None):
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
         from logic.terminal.keyboard import get_global_suppressor
         self.lock = threading.Lock()
         self.slots = [] # List of Slot objects
@@ -156,7 +169,10 @@ class MultiLineManager:
                 f.write(json.dumps(state) + "\n")
         except: pass
 
-    def update(self, worker_id: str, text: str, is_final: bool = False, callback: Optional[Callable] = None):
+    def update(self, worker_id: str, text: str, is_final: bool = False, callback: Optional[Callable] = None, truncate: Optional[bool] = None):
+        # Default: truncate active (non-final) slots, don't truncate finalized slots
+        if truncate is None:
+            truncate = not is_final
         # Enforce single-line for active workers, allow multi-line for finalized
         processed_text = " | ".join([line.strip() for line in text.splitlines() if line.strip()])
         
@@ -172,35 +188,40 @@ class MultiLineManager:
             
             # 1. Handle resize
             if curr_width != self.last_width and now - self.last_resize_time > 1.0:
-                from logic.utils import print_terminal_width_separator
-                print_terminal_width_separator(curr_width)
                 self._reflow(curr_width)
                 self.last_width = curr_width
                 self.last_resize_time = now
 
             # 2. Get or create slot
             if worker_id not in self.worker_to_slot_idx:
+                if text == "remove":
+                    return # Nothing to remove
+                if is_final and not processed_text:
+                    return # Don't create a blank finalized slot
                 slot_idx = len(self.slots)
                 self.worker_to_slot_idx[worker_id] = slot_idx
                 new_slot = Slot(worker_id, processed_text, is_final)
-                new_slot.height = new_slot.calculate_height(curr_width)
+                new_slot.height = new_slot.calculate_height(curr_width) if not truncate else 1
                 self.slots.append(new_slot)
                 self.total_height_ever_printed += new_slot.height
                 
                 # Print new slot at bottom
                 if not is_final:
-                    display_text = truncate_to_width(processed_text, curr_width)
+                    display_text = truncate_to_width(processed_text, curr_width) if truncate else processed_text
                     if is_rtl:
                         v_len = get_visible_len(display_text)
                         if v_len < curr_width:
                             # Pad on LEFT for LTR terminal right-alignment
                             display_text = " " * (curr_width - v_len - 1) + display_text
                 else:
-                    wrapped = wrap_text(processed_text, curr_width)
-                    if is_rtl:
-                        # Pad on LEFT for each line
-                        wrapped = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in wrapped]
-                    display_text = "\n".join(wrapped)
+                    if truncate:
+                        display_text = truncate_to_width(processed_text, curr_width)
+                    else:
+                        wrapped = wrap_text(processed_text, curr_width)
+                        if is_rtl:
+                            # Pad on LEFT for each line
+                            wrapped = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in wrapped]
+                        display_text = "\n".join(wrapped)
                 
                 sys.stdout.write(f"\r\033[K{display_text}\n")
                 if is_final:
@@ -217,6 +238,54 @@ class MultiLineManager:
             slot_idx = self.worker_to_slot_idx[worker_id]
             slot = self.slots[slot_idx]
             
+            if text == "remove":
+                # Distance from logical bottom to the START of this slot
+                dist_to_start = sum(s.height for s in self.slots[slot_idx+1:])
+                total_up = dist_to_start + slot.height
+                
+                # Safety: don't jump up more than what we've printed
+                current_total_height = sum(s.height for s in self.slots)
+                total_up = min(total_up, current_total_height)
+                
+                if total_up > 0:
+                    sys.stdout.write(f"\033[{total_up}A\r")
+                
+                # Remove slot and update index mapping
+                self.slots.pop(slot_idx)
+                # Re-index remaining active workers
+                self.worker_to_slot_idx = {
+                    wid: (idx if idx < slot_idx else idx - 1) 
+                    for wid, idx in self.worker_to_slot_idx.items() 
+                    if wid != worker_id
+                }
+                
+                # Clear and redraw everything below the removed slot
+                sys.stdout.write("\033[J")
+                for i in range(slot_idx, len(self.slots)):
+                    s = self.slots[i]
+                    if not s.is_final:
+                        d_text = truncate_to_width(s.text, curr_width) if truncate else s.text
+                        if is_rtl:
+                            v_len = get_visible_len(d_text)
+                            if v_len < curr_width:
+                                d_text = " " * (curr_width - v_len - 1) + d_text
+                    else:
+                        if truncate:
+                            d_text = truncate_to_width(s.text, curr_width)
+                        else:
+                            w_lines = wrap_text(s.text, curr_width)
+                            if is_rtl:
+                                w_lines = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in w_lines]
+                            d_text = "\n".join(w_lines)
+                    sys.stdout.write(f"{d_text}\n")
+                
+                if not self.worker_to_slot_idx and self.is_suppressing:
+                    self.suppressor.stop()
+                    self.is_suppressing = False
+                
+                sys.stdout.flush()
+                return
+
             old_height = slot.height
             slot.text = processed_text
             slot.is_final = is_final
@@ -227,15 +296,15 @@ class MultiLineManager:
             total_up = dist_to_start + old_height
             
             # Now update the height
-            slot.height = new_height
+            slot.height = new_height if not truncate else 1
             
             # Safety: don't jump up more than what we've printed
             current_total_height = sum(s.height for s in self.slots)
-            old_total_height = current_total_height - new_height + old_height
+            old_total_height = current_total_height - slot.height + old_height
             total_up = min(total_up, old_total_height)
 
             # If height changed or finalized, we might need to redraw everything below
-            if new_height != old_height or is_final:
+            if slot.height != old_height or is_final:
                 if total_up > 0:
                     sys.stdout.write(f"\033[{total_up}A\r")
                 
@@ -245,24 +314,27 @@ class MultiLineManager:
                     sys.stdout.write("\033[J") # Clear everything below
                     
                     if not s.is_final:
-                        d_text = truncate_to_width(s.text, curr_width)
+                        d_text = truncate_to_width(s.text, curr_width) if truncate else s.text
                         if is_rtl:
                             v_len = get_visible_len(d_text)
                             if v_len < curr_width:
                                 # Left-padding
                                 d_text = " " * (curr_width - v_len - 1) + d_text
                     else:
-                        w_lines = wrap_text(s.text, curr_width)
-                        if is_rtl:
-                            w_lines = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in w_lines]
-                        d_text = "\n".join(w_lines)
+                        if truncate:
+                            d_text = truncate_to_width(s.text, curr_width)
+                        else:
+                            w_lines = wrap_text(s.text, curr_width)
+                            if is_rtl:
+                                w_lines = [(" " * (curr_width - get_visible_len(line) - 1) + line) if get_visible_len(line) < curr_width else line for line in w_lines]
+                            d_text = "\n".join(w_lines)
                     
                     sys.stdout.write(f"{d_text}\n")
                 
                 self.total_height_ever_printed = max(self.total_height_ever_printed, sum(s.height for s in self.slots))
             else:
                 # Simple jump and overwrite
-                display_text = truncate_to_width(processed_text, curr_width)
+                display_text = truncate_to_width(processed_text, curr_width) if truncate else processed_text
                 if is_rtl:
                     v_len = get_visible_len(display_text)
                     if v_len < curr_width:
@@ -288,11 +360,24 @@ class MultiLineManager:
             sys.stdout.flush()
 
     def _reflow(self, new_width):
-        """Recalculate all heights and redraw from the first changed line."""
+        """Handle terminal resize: drop finalized slots (already in scrollback)
+        and re-render only active slots at current cursor position."""
         if not self.slots: return
+        active_slots = [s for s in self.slots if not s.is_final]
+        self.slots = active_slots
+        self.worker_to_slot_idx = {s.worker_id: i for i, s in enumerate(self.slots)}
+        
+        if not self.slots:
+            self.total_height_ever_printed = 0
+            return
+        
+        self.total_height_ever_printed = 0
         for slot in self.slots:
-            slot.height = slot.calculate_height(new_width)
-        self._redraw_from(0, new_width)
+            slot.height = 1
+            display_text = truncate_to_width(slot.text, new_width)
+            sys.stdout.write(f"\r\033[K{display_text}\n")
+            self.total_height_ever_printed += 1
+        sys.stdout.flush()
 
     def _redraw_from(self, start_idx, width):
         """Redraw all slots from start_idx to bottom."""
@@ -313,6 +398,7 @@ class MultiLineManager:
                     if v_len < width:
                         display_text = " " * (width - v_len - 1) + display_text
             else:
+                # Use same logic as update() for finalized slots during redraw
                 wrapped = wrap_text(slot.text, width)
                 if is_rtl:
                     wrapped = [(" " * (width - get_visible_len(line) - 1) + line) if get_visible_len(line) < width else line for line in wrapped]

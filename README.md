@@ -77,7 +77,8 @@ Local LaTeX compilation and template manager (formerly `OVERLEAF`):
 ### PYTHON Tool
 The foundation for tool isolation:
 - **Version Management**: `PYTHON --py-install 3.11.14` to deploy specific Python versions.
-- **Environment Integration**: `PYTHON --enable` creates symlinks for `python` and `pip` in `bin/` pointing to the managed Python, ensuring global `which python` and `which pip` resolve to the isolated environment.
+- **Environment Integration**: `PYTHON --enable` creates symlinks for `python` and `pip` in `bin/` pointing to the managed Python installation. These symlinks automatically resolve to the isolated environment, ensuring global `which python` and `which pip` commands work correctly across the project.
+- **Terminal Reliability**: Automatically restores terminal echoing via `atexit` handlers even during `KeyboardInterrupt` or unexpected exits.
 - **Dependency Isolation**: Ensures tools run with their own dedicated interpreters and pip environments.
 - **Automatic Discovery**: Used by the `TOOL` ecosystem to resolve the correct runtime for each tool.
 
@@ -98,6 +99,8 @@ Standardized iCloud photo and video downloader:
 - **Parallel Downloads**: Support for N-worker concurrent downloading (parameterized via `--workers`).
 - **Dynamic Progress**: Single-line real-time progress showing current filenames and total completion.
 - **Date Filtering**: Filter by `--since` and `--before` date ranges (YYYY-MM-DD).
+- **Local Library Support**: Use `--local-photos [PATH]` to check a local Apple Photos Library (.photoslibrary) before downloading from iCloud. It maps iCloud IDs to local files using the database and resolves local creation times including timezone offsets. Supports offline gathering for locally-matched assets.
+- **Custom Formatting**: Customize filenames and directories via `--prefix`, `--suffix`, and `--grouping`. Use placeholders like `<YYYY>`, `<MM>`, `<DD>`, `<hh>`, `<mm>`, `<ss>`, `<ID>`, and `<FILENAME>`.
 - **Subtool Integration**: Operates as a subtool under the `iCloud` ecosystem, sharing authentication and 2FA interfaces.
 
 ### Internationalization (i18n)
@@ -130,6 +133,9 @@ AITerminalTools follows a **Symmetrical Design Pattern**:
 - `bin/`: Executable symlinks for installed tools.
 - `resource/`: Large files and binaries (managed via Git LFS).
 - `data/`: User settings, logs, and GUI instance registry.
+
+### Unified Logging
+Every tool has a built-in session logger accessible via `tool.log(message)`. Each invocation creates a single log file (`log_YYYYMMDD_HHMMSS_PID.log`) in the tool's `data/log/` directory. Log entries include timestamps, brief call stacks, and optional detail strings. Unhandled exceptions are automatically written to the same session log via `handle_exception()`. Log files are auto-cleaned when the count exceeds 64 (oldest half deleted).
 
 ---
 

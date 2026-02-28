@@ -85,6 +85,7 @@ def test_tool_with_args(args, project_root: Path, translation_func: Optional[Cal
             action=wait_for_cpu_action,
             active_status=_("test_waiting_for", "Waiting for"),
             success_status=_("label_checked", "Checked"),
+            fail_status=_("label_failed_to_check", "Failed to check"),
             bold_part=_("label_waiting_for_cpu_load", "Waiting for CPU load"),
             stealth=True
         ))

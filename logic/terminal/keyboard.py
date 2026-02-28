@@ -3,42 +3,41 @@ import os
 import threading
 import select
 import time
+import signal
 from typing import List, Optional
 
-# Standard Unix terminal modules
 try:
     import termios
     import tty
 except ImportError:
-    # Windows fallback (minimal)
     termios = None
     tty = None
 
 class KeyboardSuppressor:
     """
-    Suppresses keyboard input echoing to the terminal while recording it.
-    Useful for protecting erasable status lines from being broken by user input.
-    Uses reference counting to handle nested or concurrent usage.
+    Suppresses keyboard input echoing to the terminal.
+    Uses reference counting to handle nested usage.
     """
     def __init__(self):
-        self.captured_keys: List[bytes] = []
         self.running = False
-        self._thread: Optional[threading.Thread] = None
         self._old_settings = None
         self._ref_count = 0
+        self._fd = None
         
         # Try to get the terminal FD
-        self._fd = None
-        self._tty_f = None
         try:
-            if sys.stdin.isatty():
-                self._fd = sys.stdin.fileno()
-            else:
-                # Try opening /dev/tty directly
-                self._tty_f = open('/dev/tty', 'rb', buffering=0)
-                self._fd = self._tty_f.fileno()
-        except:
-            self._fd = None
+            if sys.stdin and sys.stdin.isatty(): self._fd = sys.stdin.fileno()
+            elif sys.stdout and sys.stdout.isatty(): self._fd = sys.stdout.fileno()
+            elif sys.stderr and sys.stderr.isatty(): self._fd = sys.stderr.fileno()
+        except: pass
+        
+        if self._fd is None:
+            for name in ['/dev/tty', '/dev/console']:
+                try:
+                    f = open(name, 'rb+', buffering=0)
+                    self._fd = f.fileno()
+                    break
+                except: continue
             
         self._lock = threading.Lock()
 
@@ -53,91 +52,92 @@ class KeyboardSuppressor:
             
             try:
                 self._old_settings = termios.tcgetattr(self._fd)
-                
-                # Create new settings
                 new_settings = termios.tcgetattr(self._fd)
-                new_settings[3] = new_settings[3] & ~termios.ECHO
-                new_settings[3] = new_settings[3] & ~termios.ICANON
                 
+                # Keep ICANON ON and ISIG ON for standard Ctrl+C handling.
+                # Just turn off ECHO and ECHOCTL to hide user input.
+                new_settings[3] = new_settings[3] & ~termios.ECHO
+                new_settings[3] = new_settings[3] | termios.ISIG
                 if hasattr(termios, 'ECHOCTL'):
                     new_settings[3] = new_settings[3] & ~termios.ECHOCTL
                 
                 termios.tcsetattr(self._fd, termios.TCSANOW, new_settings)
-                
                 self.running = True
-                self._thread = threading.Thread(target=self._capture_loop, daemon=True)
-                self._thread.start()
             except Exception:
                 self.running = False
                 self._ref_count -= 1
 
-    def stop(self):
-        thread_to_join = None
+    def stop(self, force: bool = False):
         with self._lock:
             if not self.running:
+                if not force and self._ref_count > 0:
+                    self._ref_count -= 1
                 return
             
-            self._ref_count -= 1
-            if self._ref_count > 0:
-                return # Still in use elsewhere
+            if not force:
+                self._ref_count -= 1
+                if self._ref_count > 0:
+                    return
+            else:
+                self._ref_count = 0
             
             self.running = False
-            thread_to_join = self._thread
-            self._thread = None
+            old_settings = self._old_settings
+            self._old_settings = None
             
-        # Join outside the lock to avoid deadlock with _capture_loop
-        if thread_to_join:
-            thread_to_join.join(timeout=0.5)
-        
-        # Restore settings
-        if self._old_settings and self._fd is not None:
+        if old_settings and self._fd is not None:
             try:
-                termios.tcsetattr(self._fd, termios.TCSANOW, self._old_settings)
+                # Use TCSAFLUSH to discard any unread input buffered during suppression
+                termios.tcsetattr(self._fd, termios.TCSAFLUSH, old_settings)
             except Exception:
                 pass
-        
-        if hasattr(self, '_tty_f') and self._tty_f:
-            try:
-                self._tty_f.close()
-            except:
-                pass
-                
-        self._old_settings = None
 
-    def _capture_loop(self):
-        """Background thread to read from stdin or /dev/tty."""
-        if self._fd is None:
-            return
-
-        while self.running:
+    def suspend(self):
+        """Temporarily suspend suppression without changing the ref count."""
+        with self._lock:
+            if not self.running: return
+            self.running = False
+            old_settings = self._old_settings
+            
+        if old_settings and self._fd is not None:
             try:
-                # Use select to avoid blocking forever, allowing thread to exit
-                r, _, _ = select.select([self._fd], [], [], 0.1)
-                if r:
-                    # Read available bytes. We use os.read for raw bytes.
-                    data = os.read(self._fd, 1024)
-                    if data:
-                        with self._lock:
-                            self.captured_keys.append(data)
-            except (IOError, EOFError):
-                break
+                termios.tcsetattr(self._fd, termios.TCSAFLUSH, old_settings)
             except Exception:
-                break
+                pass
 
-    def get_captured_raw(self) -> List[bytes]:
+    def resume(self):
+        """Resume suppression if there is a positive ref count."""
+        if self._fd is None or termios is None: return
         with self._lock:
-            return list(self.captured_keys)
+            if self.running or self._ref_count == 0: return
+            try:
+                self._old_settings = termios.tcgetattr(self._fd)
+                new_settings = termios.tcgetattr(self._fd)
+                new_settings[3] = new_settings[3] & ~termios.ECHO
+                new_settings[3] = new_settings[3] | termios.ISIG
+                if hasattr(termios, 'ECHOCTL'):
+                    new_settings[3] = new_settings[3] & ~termios.ECHOCTL
+                termios.tcsetattr(self._fd, termios.TCSANOW, new_settings)
+                self.running = True
+            except Exception:
+                pass
 
-    def get_captured_text(self) -> str:
-        """Joins captured bytes into a single string if possible."""
+    def is_suppressed(self) -> bool:
+        """Checks if the terminal is currently in a suppressed state."""
         with self._lock:
-            parts = []
-            for b in self.captured_keys:
-                try:
-                    parts.append(b.decode('utf-8', errors='replace'))
-                except:
-                    parts.append(repr(b))
-            return "".join(parts)
+            # If our state says running, it's suppressed by us
+            if self.running:
+                return True
+        
+        # Also check the actual terminal attributes as a final truth
+        if self._fd is None or termios is None:
+            return False
+        try:
+            attrs = termios.tcgetattr(self._fd)
+            # ECHO is bit 3 of the lflag (index 3)
+            return not (attrs[3] & termios.ECHO)
+        except Exception:
+            return False
 
     def __enter__(self):
         self.start()
@@ -146,12 +146,15 @@ class KeyboardSuppressor:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
 
-# Global instance for easy access if needed, but per-instance usage preferred
 _global_suppressor = None
 
 def get_global_suppressor() -> KeyboardSuppressor:
     global _global_suppressor
     if _global_suppressor is None:
         _global_suppressor = KeyboardSuppressor()
+        import atexit
+        def _cleanup():
+            if _global_suppressor:
+                _global_suppressor.stop(force=True)
+        atexit.register(_cleanup)
     return _global_suppressor
-

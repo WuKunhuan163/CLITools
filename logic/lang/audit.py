@@ -116,9 +116,10 @@ class LangAuditor:
         bold_part = get_val(11, "bold_part", None)
 
         # Simulation Logic (simplified ProgressTuringMachine.run formatting)
-        BLUE = "\033[34m"
-        BOLD = "\033[1m"
-        RESET = "\033[0m"
+        from logic.config import get_color
+        BLUE = get_color("BLUE", "\033[34m")
+        BOLD = get_color("BOLD", "\033[1m")
+        RESET = get_color("RESET", "\033[0m")
         
         def format_state(status, n, color_code, bold_p):
             actual_n = n if n is not None else name
@@ -126,14 +127,14 @@ class LangAuditor:
             if bold_p and full_no_format.startswith(bold_p):
                 bold_text = bold_p
                 rest_text = full_no_format[len(bold_p):].lstrip()
-                return f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                return f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
             elif actual_n:
-                return f"{BOLD}{color_code}{status}{RESET} {actual_n}"
+                return f"{color_code}{status}{RESET} {actual_n}"
             else:
-                return f"{BOLD}{color_code}{status}{RESET}"
+                return f"{color_code}{status}{RESET}"
 
-        green_code = "\033[32m" 
-        red_code = "\033[31m"
+        green_code = get_color(success_color, "\033[32m") 
+        red_code = get_color(fail_color, "\033[31m")
         
         expected_active = format_state(active_status, active_name, BLUE, bold_part) + "..."
         expected_success = format_state(success_status, success_name, green_code, bold_part)
@@ -169,7 +170,12 @@ class LangAuditor:
                             target_dir = str(parent / "logic")
                             break
                     
-                    res = get_translation(target_dir, key, default, lang_code=self.lang_code)
+                    res = get_translation(target_dir, key, None, lang_code=self.lang_code)
+                    if res is None and target_dir != str(self.project_root / "logic"):
+                        # Fallback to root logic
+                        res = get_translation(str(self.project_root / "logic"), key, default, lang_code=self.lang_code)
+                    else:
+                        res = res or default
                     # If translation contains placeholders like {name}, keep them
                     return res
         elif isinstance(node, ast.JoinedStr):

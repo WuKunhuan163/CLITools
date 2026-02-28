@@ -65,9 +65,6 @@ class TestRunner:
             print(f"  [{i}] {test.name}")
 
     def run_tests(self, start_id=None, end_id=None, max_concurrent=3, timeout=60, quiet_if_no_tests=False) -> bool:
-        old_lang = os.environ.get("TOOL_LANGUAGE")
-        os.environ["TOOL_LANGUAGE"] = "en" # Force English for tests
-        
         # Record current branch to restore it later
         current_branch = None
         try:
@@ -101,9 +98,6 @@ class TestRunner:
             return success
             
         finally:
-            if old_lang: os.environ["TOOL_LANGUAGE"] = old_lang
-            else: os.environ.pop("TOOL_LANGUAGE", None)
-            
             # Restore branch if it was changed during tests
             if current_branch:
                 try:
@@ -387,7 +381,7 @@ class TestRunner:
         self._cleanup_resources(all_test_pids)
         
         if not stop_event.is_set():
-            print(self._("test_all_completed", "\nAll tests completed."))
+            print(self._("test_all_completed", "All tests completed."))
         sys.stdout.flush()
         return success_count[0] == len(test_files)
 

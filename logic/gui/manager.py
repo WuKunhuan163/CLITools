@@ -84,7 +84,7 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(msg)
     return 0
 
-def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None) -> Dict[str, Any]:
+def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None, args: List[str] = None) -> Dict[str, Any]:
     """
     Unified launcher for GUI subprocesses with signal redirection and result capture.
     Used by parent processes (e.g. tool/NAME/main.py).
@@ -98,27 +98,39 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     env["TK_SILENCE_DEPRECATION"] = "1"
     env["GDS_GUI_MANAGED"] = "1"
     
-    proc = subprocess.Popen([python_exe, script_path], 
+    cmd = [python_exe, script_path]
+    if args:
+        cmd.extend(args)
+    
+    proc = subprocess.Popen(cmd, 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                             text=True, encoding='utf-8', start_new_session=True,
                             env=env)
     
     # Display PID for precise termination if needed
     tool_name = tool_instance.tool_name
+    is_quiet = getattr(tool_instance, "is_quiet", False)
+    
     label_waiting_key = "label_waiting_gui"
     if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
     
-    label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback")
+    label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback").format(tool_name=tool_name)
     via_gui_label = tool_instance.get_translation("label_via_gui", "via GUI")
     display_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} {via_gui_label} (PID: {proc.pid})..."
     
-    from logic.turing.display.manager import truncate_to_width, _get_configured_width
-    width = _get_configured_width()
-    if width > 0:
-        display_msg = truncate_to_width(display_msg, width)
-        
-    sys.stdout.write(f"\r\033[K{display_msg}")
-    sys.stdout.flush()
+    # Try to use the global turing manager for better line management
+    from logic.turing.models.progress import get_global_turing_manager
+    manager = get_global_turing_manager()
+    gui_slot_id = f"gui_wait_{proc.pid}"
+    
+    if not is_quiet:
+            from logic.turing.display.manager import truncate_to_width, _get_configured_width
+            width = _get_configured_width()
+            if width > 0:
+                display_msg = truncate_to_width(display_msg, width)
+                
+            sys.stdout.write(f"\r\033[K{display_msg}")
+            sys.stdout.flush()
 
     # Hide debug prints unless specifically enabled
     from logic.config import get_setting
@@ -168,27 +180,39 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             # 1. Check for add_time events
             try:
                 for f in list(added_time_dir.glob(f"{proc.pid}_*.add")):
-                    # Extract increment from filename
                     parts = f.stem.split('_')
                     if len(parts) >= 3:
                         try:
                             inc = int(parts[2])
                             parent_timeout += inc
                         except: pass
-                    f.unlink() # Consume event
+                    f.unlink()
             except: pass
 
-            # 2. Watchdog check
+            # 2. Keepalive: update waiting message every 5 seconds to prevent Cursor disconnect
+            elapsed = int(time.time() - start_wait)
+            keepalive_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} {via_gui_label} (PID: {proc.pid})({elapsed}s)..."
+            if not is_quiet:
+                sys.stdout.write(f"\r\033[K{keepalive_msg}")
+                sys.stdout.flush()
+
+            # 3. Watchdog check
             if time.time() - start_wait > parent_timeout:
                 proc.kill()
-                sys.stdout.write("\r\033[K")
-                sys.stdout.flush()
+                if manager:
+                    manager.update(gui_slot_id, "", is_final=True)
+                else:
+                    sys.stdout.write("\r\033[K")
+                    sys.stdout.flush()
                 t_stdout.join(timeout=2)
                 t_stderr.join(timeout=2)
                 return {"status": "timeout", "data": None}
-            time.sleep(0.5)
+            time.sleep(5)
         
         proc.wait() # Wait for process to exit
+        if manager and not is_quiet:
+            manager.update(gui_slot_id, "", is_final=True)
+        
         t_stdout.join(timeout=2)
         t_stderr.join(timeout=2)
         stdout = "".join(stdout_content)
@@ -234,7 +258,8 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 return {"status": "terminated", "data": None, "reason": "interrupted"}
             raise e
 
-    sys.stdout.write("\r\033[K"); sys.stdout.flush()
+    if not is_quiet:
+        sys.stdout.write("\r\033[K"); sys.stdout.flush()
     
     # Parse JSON result
     res = None
@@ -313,10 +338,13 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     sb_type = get_sandbox_type()
     # Erase the "Waiting for GUI" line if it exists
     sys.stdout.write("\r\033[K")
-    print(f"{BOLD}{YELLOW}Sandbox detected{RESET}: {sb_type} (GUI physical blocking)")
+    
+    _ = tool_instance.get_translation
+    sb_label = _("label_sandbox_detected", "Sandbox detected")
+    pb_label = _("msg_gui_physical_blocking", "GUI physical blocking")
+    print(f"{BOLD}{YELLOW}{sb_label}{RESET}: {sb_type} ({pb_label})")
     
     # Display Hint if provided
-    _ = tool_instance.get_translation
     if initial_content:
         hint_label = _("fallback_hint_label", "Hint")
         WHITE = get_color("WHITE", "\033[37m")
@@ -374,7 +402,8 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
                         content = f.read().strip()
                     if content: # Any non-empty content is accepted
                         success_label = _("label_successfully_received", "Successfully received")
-                        print(f"{BOLD}{GREEN}{success_label}{RESET} from file: {content}", flush=True)
+                        from_file_label = _("label_from_file", "from file")
+                        print(f"{BOLD}{GREEN}{success_label}{RESET} {from_file_label}: {content}", flush=True)
                         return content
             time.sleep(1)
     except KeyboardInterrupt:

@@ -61,7 +61,7 @@ class BaseGUIWindow:
     """
     Blueprint for Tool GUIs with timeout, signal handling, and state management.
     """
-    def __init__(self, title: str, timeout: int, internal_dir: str, tool_name: str = None):
+    def __init__(self, title: str, timeout: int, internal_dir: str, tool_name: str = None, focus_interval: int = 90):
         self.title = title
         self.remaining_time = timeout
         self.internal_dir = internal_dir
@@ -72,7 +72,7 @@ class BaseGUIWindow:
         self.pulse_active = False # Flag to avoid timer overwriting pulse status
         
         # Shared behavior state
-        self.focus_interval = 0
+        self.focus_interval = focus_interval
         self.bell_path = str(Path(__file__).resolve().parent.parent.parent.parent / "asset" / "audio" / "bell.mp3")
         self.is_triggering_subtool = False
         self.add_time_increment = 60 # Default
@@ -92,9 +92,12 @@ class BaseGUIWindow:
         # Thread safety: queue for callbacks from background threads
         self.callback_queue = queue.Queue()
         
+        # Child subprocess tracking for cleanup on parent destruction
+        self._child_procs: List[Any] = []
+        
         # Robust project root detection for flags and audio
         from logic.utils import find_project_root
-        if self.internal_dir:
+        if self.internal_dir and isinstance(self.internal_dir, (str, Path)):
             self.project_root = find_project_root(Path(self.internal_dir))
         else:
             # Fallback to current working directory
@@ -230,6 +233,25 @@ class BaseGUIWindow:
         if self.root:
             self.root.after(self.focus_interval * 1000, refocus)
 
+    def register_child_proc(self, proc):
+        """Register a child subprocess for cleanup when this window closes."""
+        self._child_procs.append(proc)
+
+    def _terminate_children(self):
+        """Terminate all registered child subprocesses."""
+        import signal
+        for proc in self._child_procs:
+            try:
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=2)
+                    except Exception:
+                        proc.kill()
+            except Exception:
+                pass
+        self._child_procs.clear()
+
     def finalize(self, status: str, data: Any, reason: Optional[str] = None):
         """Unified closure point (Interface I). status: success, cancelled, timeout, terminated, error."""
         if not self.window_closed:
@@ -237,8 +259,11 @@ class BaseGUIWindow:
             self.result = {"status": status, "data": data}
             if reason:
                 self.result["reason"] = reason
+            self._terminate_children()
             try:
-                if self.root: self.root.destroy()
+                if self.root:
+                    self.root.update_idletasks()
+                    self.root.destroy()
             except: pass
 
     def trigger_add_time(self, increment: int, status_label: Optional[Any] = None):
@@ -280,16 +305,14 @@ class BaseGUIWindow:
         """Subclasses MUST override this to return their current state (State A)."""
         return None
 
-    def add_block(self, parent, pady=10, padx=20, bg=None):
+    def add_block(self, parent, pady=10, padx=0, bg=None):
         """Adds a new layout block (tk.Frame) that fills the width."""
         import tkinter as tk
         block_bg = bg
         if not block_bg:
             if getattr(self, "debug_blocks", False):
-                # Light alpha-like colors for visual debugging
-                colors = ["#e8f0fe", "#fdf7e3", "#f6f6f6", "#e6fffa", "#fff5f5"]
-                idx = len(self.blocks) % len(colors)
-                block_bg = colors[idx]
+                # Light grayish-white for all blocks in debug mode
+                block_bg = "#f9f9f9"
             else:
                 block_bg = parent.cget("bg")
                 
@@ -311,8 +334,9 @@ class BaseGUIWindow:
         try:
             img_path_str = str(image_path)
             img = Image.open(img_path_str)
+            if img.mode in ("P", "PA", "L", "LA", "1"):
+                img = img.convert("RGBA")
             
-            # Create label first, we'll configure it in resize
             label = tk.Label(parent, bg=parent.cget("bg"))
             label.pack(pady=10, fill=tk.X)
             
@@ -363,19 +387,27 @@ class BaseGUIWindow:
         # 2. If parent_w is 1 (not rendered yet), try to get from window width
         if parent_w <= 1:
             if self.root:
-                self.root.update_idletasks()
+                # Use update_idletasks sparingly to avoid recursion
+                # self.root.update_idletasks()
                 parent_w = parent.winfo_width()
             
             if parent_w <= 1:
                 parent_w = self.root.winfo_width() - 80 if self.root else 720
         
-        # 3. Account for block padding (padx=20 on both sides = 40)
+        # 3. Check if we actually need to resize to avoid jitter
+        prev_target_w = item.get("last_target_w", 0)
+        # 4. Target width is slightly less than parent width for padding
         target_w = parent_w - 40
         if target_w < 50: target_w = 50
         
-        # 4. Apply max_width if provided
-        if item["max_width"]:
+        if prev_target_w > 0 and abs(target_w - prev_target_w) < 5:
+            return
+
+        # 5. Apply max_width if provided
+        if item.get("max_width"):
             target_w = min(target_w, item["max_width"])
+        
+        item["last_target_w"] = target_w
         
         orig_w, orig_h = original_img.size
         # Calculate aspect ratio
@@ -392,15 +424,15 @@ class BaseGUIWindow:
             print(f"  Parent width: {parent_w}, Calculated target_w: {target_w}, Target height: {target_h}")
 
         try:
-            # Render at upscale resolution for clarity
-            render_w, render_h = int(target_w * upscale), int(target_h * upscale)
-            resized_img = original_img.resize((render_w, render_h), Image.Resampling.LANCZOS)
+            img_to_resize = original_img
+            if img_to_resize.mode in ("P", "PA", "L", "LA", "1"):
+                img_to_resize = img_to_resize.convert("RGBA")
+            resized_img = img_to_resize.resize((target_w, target_h), Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(resized_img)
             label.config(image=photo)
             label.image = photo 
         except Exception as e:
-            if self.debug_blocks:
-                print(f"DEBUG: Resize error for {item['path']}: {e}")
+            label.config(text=f"[Image Error: {os.path.basename(item['path'])}]", fg="red")
 
     def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
         """Standardized label creation with automatic wrapping."""
@@ -420,14 +452,15 @@ class BaseGUIWindow:
         w = parent.winfo_width()
         if w <= 1: 
             if self.root:
-                self.root.update_idletasks()
+                # self.root.update_idletasks() # Use sparingly
                 w = parent.winfo_width()
             if w <= 1: w = 700
         
-        # Labels are centered if they are titles, otherwise left-justified
+        # Labels should fill the width of the block
+        # We use a small margin of 10 to avoid clipping
         label = tk.Label(parent, text=text, font=font, bg=parent.cget("bg"), 
                          justify=tk.CENTER if is_title else justify, 
-                         wraplength=max(50, w-40))
+                         wraplength=max(50, w-10))
         label.pack(pady=pady, padx=padx, fill=tk.X)
         
         if self.debug_blocks:
@@ -497,6 +530,14 @@ class BaseGUIWindow:
 
     def on_container_resize(self, event):
         """Callback for container <Configure> events to handle dynamic image and text wrapping."""
+        # Only trigger updates if width changed significantly to avoid jitter from height-only changes
+        # (e.g. from image/text wrapping itself changing height)
+        # We store the last width on the parent object
+        prev_w = getattr(event.widget, "_last_config_w", 0)
+        if prev_w > 0 and abs(event.width - prev_w) < 5:
+            return
+        event.widget._last_config_w = event.width
+
         # Use a small delay to avoid excessive resizing during active drag
         if hasattr(self, "_resize_timer"):
             self.root.after_cancel(self._resize_timer)
@@ -527,10 +568,10 @@ class BaseGUIWindow:
                         # Only update if it already has a non-zero wraplength (meaning it's intended to wrap)
                         curr_wrap = child.cget("wraplength")
                         if curr_wrap and int(curr_wrap) > 0:
-                            # Set wraplength to parent width minus padding
+                            # Set wraplength to parent width minus a small margin of 10
                             parent_w = container.winfo_width()
-                            if parent_w > 40:
-                                child.config(wraplength=parent_w - 40)
+                            if parent_w > 10:
+                                child.config(wraplength=parent_w - 10)
                     except: pass
                 elif isinstance(child, tk.Frame):
                     update_labels(child)
@@ -615,8 +656,35 @@ class BaseGUIWindow:
             # Bring to front (Interface I behavior)
             self.root.lift()
             self.root.attributes("-topmost", True)
+            
+            def _delayed_focus_and_bell():
+                try:
+                    if self.window_closed: return
+                    self.root.lift()
+                    self.root.focus_force()
+                    self.root.attributes("-topmost", True)
+                    self.root.after(500, lambda: self.root.attributes("-topmost", False) if not self.window_closed else None)
+                    self.play_bell()
+                    if self.focus_interval > 0:
+                        self.start_periodic_focus(self.focus_interval)
+                except Exception:
+                    pass
+            self.root.after(300, _delayed_focus_and_bell)
 
-            self.root.mainloop()
+            if platform.system() == "Darwin":
+                # Suppress IMKClient noise during mainloop too
+                fd = os.open(os.devnull, os.O_WRONLY)
+                old_stderr = os.dup(sys.stderr.fileno())
+                os.dup2(fd, sys.stderr.fileno())
+                try:
+                    self.root.mainloop()
+                finally:
+                    sys.stderr.flush()
+                    os.dup2(old_stderr, sys.stderr.fileno())
+                    os.close(fd)
+                    os.close(old_stderr)
+            else:
+                self.root.mainloop()
             
             # Cleanup stop files if they exist for this PID
             try:

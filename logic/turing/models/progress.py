@@ -1,30 +1,54 @@
 import sys
+import os
+import time
+import re
+import inspect
 from typing import List, Optional
 from pathlib import Path
 from logic.turing.logic import TuringStage
+from logic.config import get_color
+from logic.turing.display.manager import truncate_to_width, _get_configured_width
+from logic.terminal.keyboard import get_global_suppressor
+from logic.lang.utils import get_translation
+from logic.utils import get_logic_dir, find_project_root
+
+# Global manager for synchronization across components
+_GLOBAL_TURING_MANAGER = None
+
+def get_global_turing_manager():
+    return _GLOBAL_TURING_MANAGER
 
 class ProgressTuringMachine:
     """Executes a sequence of TuringStages with erasable progress display."""
     def __init__(self, stages: List[TuringStage] = None, project_root: Optional[str] = None, 
                  tool_name: Optional[str] = None, log_dir: Optional[str] = None,
-                 no_warning: bool = False):
+                 no_warning: bool = False, manager: Optional['MultiLineManager'] = None,
+                 session_logger=None):
+        from logic.turing.display.manager import MultiLineManager
+        global _GLOBAL_TURING_MANAGER
         self.stages = stages or []
         self.no_warning = no_warning
-        # Support for error logging
+        self.manager = manager or MultiLineManager()
+        _GLOBAL_TURING_MANAGER = self.manager
         self.project_root = Path(project_root) if project_root else None
         self.tool_name = tool_name
         self.log_dir = Path(log_dir) if log_dir else None
+        self.session_logger = session_logger
 
     def add_stage(self, stage: TuringStage):
         self.stages.append(stage)
         
     def _log_error(self, stage: TuringStage, exception: Optional[Exception] = None):
-        """Saves full error information to a log file."""
+        """Saves full error information to the session log or a standalone file."""
         from logic.turing.utils import log_turing_error
-        return log_turing_error(stage, self.project_root, self.tool_name, exception, log_dir=self.log_dir)
+        return log_turing_error(stage, self.project_root, self.tool_name, exception,
+                                log_dir=self.log_dir, session_logger=self.session_logger)
 
     def refresh_stage(self, stage: TuringStage):
         """Refreshes the current active stage display line."""
+        from logic.utils import log_debug
+        log_debug(f"TM: refreshing stage '{stage.name}' (active_status: {stage.active_status}, active_name: {stage.active_name or stage.name})")
+        
         if stage.stealth:
             return
 
@@ -43,7 +67,7 @@ class ProgressTuringMachine:
         RESET = get_color("RESET", "\033[0m")
         
         width = _get_configured_width()
-        active_name = stage.active_name or stage.name
+        active_name = stage.active_name if stage.active_name is not None else stage.name
         
         if stage.bold_part:
             # Check if bold_part matches the whole active phrase
@@ -52,25 +76,23 @@ class ProgressTuringMachine:
             if full_active_no_format.startswith(bold_p):
                 bold_text = bold_p
                 rest_text = full_active_no_format[len(bold_p):].lstrip()
-                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
             elif active_name and active_name.strip().startswith(bold_p):
                 # User wants to bold status + prefix of the name
                 bold_text = f"{stage.active_status} {bold_p}".strip()
                 rest_text = active_name.strip()[len(bold_p):].lstrip()
-                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
             else:
-                active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
         else:
-            active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+            active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
         
-        sys.stdout.write(f"\r\033[K{truncate_to_width(active_msg, width)}")
-        sys.stdout.flush()
+        # Use manager to refresh stage line
+        self.manager.update(f"stage_{stage.name}", active_msg)
 
-    def run(self, ephemeral: bool = False, final_newline: bool = True, final_msg: Optional[str] = None) -> bool:
-        from logic.config import get_color
-        from logic.turing.display.manager import truncate_to_width, _get_configured_width
-        from logic.terminal.keyboard import get_global_suppressor
-        import traceback
+    def run(self, ephemeral: bool = False, final_newline: bool = False, final_msg: Optional[str] = None) -> bool:
+        # Use global suppressor to avoid conflicts and potential deadlocks
+        suppressor = get_global_suppressor()
         
         BLUE = get_color("BLUE", "\033[34m")
         BOLD = get_color("BOLD", "\033[1m")
@@ -78,16 +100,19 @@ class ProgressTuringMachine:
         RESET = get_color("RESET", "\033[0m")
         GREEN = get_color("GREEN", "\033[32m")
         
-        # Use global suppressor to avoid conflicts and potential deadlocks
-        suppressor = get_global_suppressor()
         with suppressor:
             try:
                 for i, stage in enumerate(self.stages):
+                    if getattr(stage, "finished", False):
+                        continue
                     # Attach machine to stage so action can refresh
                     stage.machine = self
                     
+                    from logic.utils import log_debug
+                    log_debug(f"TM: starting stage {i+1}/{len(self.stages)}: '{stage.name}' (active_status: {stage.active_status}, stealth: {stage.stealth})")
+                    
                     is_last = (i == len(self.stages) - 1)
-                    active_name = stage.active_name or stage.name
+                    active_name = stage.active_name if stage.active_name is not None else stage.name
                     width = _get_configured_width()
                     
                     # Detect if this stage is a warning
@@ -95,30 +120,29 @@ class ProgressTuringMachine:
                                   stage.active_status == "Warning" or stage.fail_color == "YELLOW")
                     
                     if not (self.no_warning and is_warning) and not stage.stealth:
+                        suffix = "..." if not active_name.strip().endswith("...") else ""
                         if stage.bold_part:
                             full_active_no_format = f"{stage.active_status} {active_name}".strip()
                             bold_p = stage.bold_part.strip()
                             if full_active_no_format.startswith(bold_p):
                                 bold_text = bold_p
                                 rest_text = full_active_no_format[len(bold_p):].lstrip()
-                                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}{suffix}"
                             elif active_name and active_name.strip().startswith(bold_p):
                                 # User wants to bold status + prefix of the name
                                 bold_text = f"{stage.active_status} {bold_p}".strip()
                                 rest_text = active_name.strip()[len(bold_p):].lstrip()
-                                active_msg = f"{BOLD}{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
+                                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}{suffix}"
                             else:
-                                active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                                active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}{suffix}"
                         else:
-                            active_msg = f"{BOLD}{BLUE}{stage.active_status}{RESET} {active_name}..."
+                            active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}{suffix}"
                         
-                        sys.stdout.write(f"\r\033[K{truncate_to_width(active_msg, width)}")
-                        sys.stdout.flush()
+                        self.manager.update(f"stage_{stage.name}", active_msg)
                     
                     try:
                         # Pass the stage itself to the action so it can report errors/output
                         # Support both Callable[[], bool] and Callable[[TuringStage], bool]
-                        import inspect
                         sig = inspect.signature(stage.action)
                         if len(sig.parameters) > 0:
                             success = stage.action(stage)
@@ -126,13 +150,16 @@ class ProgressTuringMachine:
                             success = stage.action()
                             
                         if success:
+                            stage.finished = True
+                            log_debug(f"TM: stage '{stage.name}' succeeded")
                             # Skip printing if it's a warning and no_warning is True, or if it's stealth
                             is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning")
                             if (self.no_warning and is_warning) or stage.stealth:
                                 # Just clear the active line and continue
                                 if not ephemeral or not is_last:
-                                    sys.stdout.write("\r\033[K")
-                                    sys.stdout.flush()
+                                    # Only update if it was actually added to manager (not stealthy)
+                                    if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
+                                        self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                                 continue
 
                             # Use success_name if provided, else use name. 
@@ -150,76 +177,79 @@ class ProgressTuringMachine:
                                 if full_success_no_format.startswith(bold_p):
                                     bold_text = bold_p
                                     rest_text = full_success_no_format[len(bold_p):].lstrip()
-                                    full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    full_msg = f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 elif success_name and success_name.strip().startswith(bold_p):
                                     bold_text = f"{stage.success_status} {bold_p}".strip()
                                     rest_text = success_name.strip()[len(bold_p):].lstrip()
-                                    full_msg = f"{BOLD}{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    full_msg = f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 elif success_name:
-                                    full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
+                                    full_msg = f"{color_code}{stage.success_status}{RESET} {success_name}"
                                 else:
-                                    full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                                    full_msg = f"{color_code}{stage.success_status}{RESET}"
                             elif success_name:
-                                full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET} {success_name}"
+                                full_msg = f"{color_code}{stage.success_status}{RESET} {success_name}"
                             else:
                                 # Explicitly empty success_name
-                                full_msg = f"{BOLD}{color_code}{stage.success_status}{RESET}"
+                                full_msg = f"{color_code}{stage.success_status}{RESET}"
                             
                             # Ensure completion period for success states
                             # Strip ANSI escape codes for punctuation check
-                            import re
                             stripped_msg = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', full_msg)
                             if stripped_msg and not any(stripped_msg.rstrip().endswith(c) for c in [".", "!", ")", "]", "}", ">"]):
                                 full_msg = full_msg.rstrip() + "."
                                 
-                            full_msg = truncate_to_width(full_msg, width)
+                            # Do NOT truncate finalized messages, allow them to wrap for visibility
+                            # full_msg = truncate_to_width(full_msg, width)
 
                             if ephemeral:
                                 if is_last and final_msg is not None:
-                                    sys.stdout.write(f"\r\033[K{truncate_to_width(final_msg, width)}")
+                                    if final_msg == "":
+                                        self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
+                                    else:
+                                        self.manager.update(f"stage_{stage.name}", final_msg, is_final=True, truncate=False)
+                                elif is_last and final_msg is None:
+                                    self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                                 elif is_last and not final_newline:
-                                    sys.stdout.write(f"\r\033[K{full_msg}")
+                                    self.manager.update(f"stage_{stage.name}", full_msg, is_final=True, truncate=False)
                                 elif not stage.is_sticky and not is_last:
-                                    sys.stdout.write(f"\r\033[K") # Clear line for non-sticky ephemeral stages
+                                    self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                                 else:
-                                    sys.stdout.write(f"\r\033[K{full_msg}\n")
+                                    self.manager.update(f"stage_{stage.name}", full_msg, is_final=True, truncate=False)
                             else:
-                                sys.stdout.write(f"\r\033[K{full_msg}\n")
-                            sys.stdout.flush()
+                                self.manager.update(f"stage_{stage.name}", full_msg, is_final=True, truncate=False)
                         else:
                             # Failure
+                            log_debug(f"TM: stage '{stage.name}' failed")
                             # Skip printing if it's a warning and no_warning is True
                             is_warning = (stage.fail_color == "YELLOW" or stage.fail_status == "Warning")
                             if self.no_warning and is_warning:
                                 # Just clear the active line and continue
-                                sys.stdout.write("\r\033[K")
-                                sys.stdout.flush()
-                                return True # Continue the pipeline if it was just a warning? No, usually action returning False means stop. But for warning, maybe we want to continue?
-                                # Actually, for warning, if it fails, it might still mean something went wrong. 
-                                # But the user wants to filter out WARNING information.
-                                # I'll return True to allow the sequence to continue if it was just a warning failure.
-                                # Wait, if it was a failure, maybe we should still stop but just not print it?
-                                # Re-reading: "过滤掉图灵机输出所有的Warning信息"
-                                # I'll return success=True if it was a warning failure and no_warning is active.
-                                # Wait, if it was a failure, maybe we should still stop but just not print it?
-                                # Re-reading: "过滤掉图灵机输出所有的Warning信息"
-                                # I'll return success=True if it was a warning failure and no_warning is active.
+                                if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
+                                    self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
+                                return True 
                             
                             log_path = self._log_error(stage)
-                            sys.stdout.write("\r\033[K")
-                            sys.stdout.flush()
+                            if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
+                                self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                             
                             fail_name = stage.fail_name or stage.name
-                            brief_reason = stage.error_brief or "Action returned False"
+                            brief_reason = stage.error_brief
                             
-                            # If we have a full error log, prioritize it for the brief if it's a string
-                            if stage.error_full and isinstance(stage.error_full, str) and not stage.error_brief:
-                                brief_reason = stage.error_full
+                            if not brief_reason:
+                                if stage.error_full and isinstance(stage.error_full, str):
+                                    # Try to extract the first line or a specific "error:" pattern from error_full
+                                    lines = stage.error_full.splitlines()
+                                    error_line = next((l for l in lines if "error:" in l.lower()), None)
+                                    if error_line:
+                                        brief_reason = error_line.strip()
+                                    elif lines:
+                                        brief_reason = lines[0].strip()
+                                    else:
+                                        brief_reason = "Action returned False"
+                                else:
+                                    brief_reason = "Action returned False"
                             
                             if self.no_warning and is_warning:
-                                # Just clear the active line and continue
-                                sys.stdout.write("\r\033[K")
-                                sys.stdout.flush()
                                 return True 
                             
                             fail_color_code = get_color(stage.fail_color, "\033[31m")
@@ -230,25 +260,28 @@ class ProgressTuringMachine:
                                 if full_fail_no_format.startswith(bold_p):
                                     bold_text = bold_p
                                     rest_text = full_fail_no_format[len(bold_p):].lstrip()
-                                    fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 elif fail_name and fail_name.strip().startswith(bold_p):
                                     bold_text = f"{stage.fail_status} {bold_p}".strip()
                                     rest_text = fail_name.strip()[len(bold_p):].lstrip()
-                                    fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                    fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                                 else:
-                                    fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                    fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                             else:
-                                fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                             
                             # Ensure we don't have double periods
                             brief_reason = brief_reason.rstrip(".")
-                            full_msg_fail = f"{fail_msg_start}. Reason: {brief_reason}."
                             
-                            sys.stdout.write(f"\r\033[K{full_msg_fail}\n")
+                            logic_dir = str(find_project_root(Path(__file__)) / "logic")
+                            reason_label = get_translation(logic_dir, "label_reason", "Reason")
+                            full_msg_fail = f"{fail_msg_start} . {reason_label}: {brief_reason}."
+                            
+                            self.manager.update(f"stage_{stage.name}", full_msg_fail, is_final=True, truncate=False)
                             if log_path:
-                                print(f"{BOLD}Traceback saved to:{RESET} {log_path}", flush=True)
-                                
-                            sys.stdout.flush()
+                                traceback_label = get_translation(logic_dir, "label_traceback_saved_to", "Traceback saved to")
+                                self.manager.update(f"log_{stage.name}", f"{BOLD}{traceback_label}:{RESET} {log_path}", is_final=True, truncate=False)
+                            
                             return False
                     except Exception as e:
                         # Handle TuringError or other exceptions
@@ -258,8 +291,8 @@ class ProgressTuringMachine:
                             stage.error_full = e.full
                         
                         log_path = self._log_error(stage, exception=e if not isinstance(e, TuringError) else None)
-                        sys.stdout.write("\r\033[K")
-                        sys.stdout.flush()
+                        if f"stage_{stage.name}" in self.manager.worker_to_slot_idx:
+                            self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
                         
                         fail_name = stage.fail_name or stage.name
                         brief_reason = stage.error_brief or str(e).split('\n')[0]
@@ -273,60 +306,70 @@ class ProgressTuringMachine:
                             if full_fail_no_format.startswith(bold_p):
                                 bold_text = bold_p
                                 rest_text = full_fail_no_format[len(bold_p):].lstrip()
-                                fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             elif fail_name and fail_name.strip().startswith(bold_p):
                                 bold_text = f"{stage.fail_status} {bold_p}".strip()
                                 rest_text = fail_name.strip()[len(bold_p):].lstrip()
-                                fail_msg_start = f"{BOLD}{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
+                                fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
                             else:
-                                fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                         else:
-                            fail_msg_start = f"{BOLD}{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
+                            fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}"
                         
-                        fail_msg = f"{fail_msg_start}. Reason: {brief_reason}."
-                        sys.stdout.write(f"\r\033[K{fail_msg}\n")
+                        logic_dir = str(find_project_root(Path(__file__)) / "logic")
+                        reason_label = get_translation(logic_dir, "label_reason", "Reason")
+                        fail_msg = f"{fail_msg_start} . {reason_label}: {brief_reason}."
+                        self.manager.update(f"stage_{stage.name}", fail_msg, is_final=True, truncate=False)
                         if log_path:
-                            print(f"{BOLD}Traceback saved to:{RESET} {log_path}", flush=True)
-                            
-                        sys.stdout.flush()
+                            traceback_label = get_translation(logic_dir, "label_traceback_saved_to", "Traceback saved to")
+                            self.manager.update(f"log_{stage.name}", f"{BOLD}{traceback_label}:{RESET} {log_path}", is_final=True, truncate=False)
+                        
                         return False
                 
                 if ephemeral:
                     if final_msg is not None:
-                        sys.stdout.write(f"\r\033[K{truncate_to_width(final_msg, _get_configured_width())}")
-                        if final_newline:
-                            sys.stdout.write("\n")
+                        if final_msg == "":
+                            # Remove all stages from manager
+                            for stage in self.stages:
+                                self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
+                        else:
+                            # Print final message in a new slot or replace?
+                            # For simplicity, let's just use direct print if manager is empty,
+                            # or update a specific slot.
+                            self.manager.update("final_msg", final_msg, is_final=True, truncate=False)
                     else:
-                        # Erase everything
-                        sys.stdout.write("\r\033[K")
-                        if final_newline:
-                            # Actually if we erase everything, maybe we don't want a final newline?
-                            # But if the user requested it, we do it.
-                            sys.stdout.write("") 
-                    sys.stdout.flush()
-                elif final_newline:
-                    sys.stdout.write("\n")
-                    sys.stdout.flush()
+                        # Erase everything managed by this TM
+                        for stage in self.stages:
+                            self.manager.update(f"stage_{stage.name}", "remove", is_final=True)
+                
+                # If non-ephemeral, the last stage already printed a newline
                 return True
             except KeyboardInterrupt:
-                sys.stdout.write("\r\033[K")
+                if suppressor:
+                    try: suppressor.stop(force=True)
+                    except: pass
+                
+                # Use hardcoded escape codes if get_color fails for some reason
+                BOLD_RED = "\033[1;31m"
+                RESET = "\033[0m"
+                
+                # Erase current line via manager
+                self.manager.update("interrupted", "remove", is_final=True)
+                
+                # Try to get translation, but have a solid fallback
+                try:
+                    root = find_project_root(Path(__file__))
+                    logic_dir = str(get_logic_dir(root))
+                    cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
+                    by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
+                except:
+                    cancelled_label, by_user_label = "Operation cancelled", "by user."
+                
+                sys.stdout.write(f"{BOLD_RED}{cancelled_label}{RESET} {by_user_label}\n")
                 sys.stdout.flush()
-                # Print cancellation status
-                BOLD = get_color("BOLD", "\033[1m")
-                YELLOW = get_color("YELLOW", "\033[33m")
-                RESET = get_color("RESET", "\033[0m")
                 
-                from logic.lang.utils import get_translation
-                from logic.utils import get_logic_dir, find_project_root
-                root = find_project_root(Path(__file__))
-                logic_dir = str(get_logic_dir(root))
-                
-                cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
-                by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
-                
-                sys.stdout.write(f"{BOLD}{YELLOW}{cancelled_label}{RESET} {by_user_label}\n")
-                sys.stdout.flush()
-                raise
+                # Force exit to prevent being caught and ignored by other loops
+                os._exit(130)
             except Exception:
                 sys.stdout.write("\r\033[K")
                 sys.stdout.flush()

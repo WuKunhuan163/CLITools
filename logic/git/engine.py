@@ -72,6 +72,196 @@ def get_current_branch(cwd=None):
         return result.stdout.strip()
     return "unknown"
 
+DEFAULT_SQUASH_CONFIG = {
+    "base": 10,
+    "levels": [
+        {"level": 1, "frequency": 1},
+        {"level": 2, "frequency": 0.5},
+        {"level": 6, "frequency": 1.0/6},
+    ]
+}
+
+
+def auto_squash_if_needed(cwd=None, config=None):
+    """Long-tail commit squashing using git commit-tree (safe, no working-tree changes).
+    
+    Keeps recent commits intact, progressively compresses older commits based
+    on configurable zone/frequency rules. Uses commit-tree to rebuild history
+    from existing tree objects — never touches the working tree or index.
+    
+    Returns True if any squashing was performed."""
+    import time as _time
+    if config is None:
+        config = DEFAULT_SQUASH_CONFIG
+    
+    branch = None
+    backup_ref = None
+    
+    try:
+        branch = get_current_branch(cwd)
+        if not branch or branch in ("HEAD", "unknown"):
+            return False
+        
+        base = config["base"]
+        levels = config["levels"]
+        
+        result = run_git_command(["rev-list", "--count", "HEAD"], cwd=cwd, silent=True)
+        if not result or result.returncode != 0:
+            return False
+        total = int(result.stdout.strip())
+        
+        if total < base * 2:
+            return False
+        
+        if total % base != 0:
+            return False
+        
+        result = run_git_command(
+            ["log", "--format=%H %s", "--reverse"],
+            cwd=cwd, silent=True
+        )
+        if not result or result.returncode != 0:
+            return False
+        
+        lines = result.stdout.strip().split("\n")
+        commits = []
+        for line in lines:
+            parts = line.split(" ", 1)
+            commits.append({"sha": parts[0], "msg": parts[1] if len(parts) > 1 else ""})
+        
+        if len(commits) != total:
+            return False
+        
+        newest_first = list(reversed(commits))
+        
+        keep_set = set()
+        prev_boundary = 0
+        for lvl_cfg in levels:
+            lvl = lvl_cfg["level"]
+            freq = lvl_cfg["frequency"]
+            boundary = base * lvl
+            if boundary > total:
+                boundary = total
+            
+            zone_start = prev_boundary
+            zone_end = boundary
+            
+            if freq >= 1.0:
+                for i in range(zone_start, zone_end):
+                    keep_set.add(i)
+            else:
+                zone_size = zone_end - zone_start
+                target_count = max(1, int(zone_size * freq))
+                if target_count >= zone_size:
+                    for i in range(zone_start, zone_end):
+                        keep_set.add(i)
+                else:
+                    step = zone_size / target_count
+                    for j in range(target_count):
+                        idx = zone_start + int(j * step)
+                        keep_set.add(idx)
+            
+            prev_boundary = boundary
+            if boundary >= total:
+                break
+        
+        if prev_boundary < total:
+            last_freq = levels[-1]["frequency"] if levels else 1.0
+            remaining = total - prev_boundary
+            target = max(1, int(remaining * last_freq))
+            step = remaining / target
+            for j in range(target):
+                idx = prev_boundary + int(j * step)
+                keep_set.add(idx)
+        
+        new_count = len(keep_set)
+        if new_count >= total:
+            return False
+        
+        removed = total - new_count
+        if removed < 2:
+            return False
+        
+        ts = _time.strftime("%Y%m%d_%H%M%S")
+        backup_ref = f"refs/backup/pre_squash_{ts}"
+        run_git_command(["update-ref", backup_ref, "HEAD"], cwd=cwd, silent=True)
+        
+        # Build plan: iterate oldest-first, grouping non-kept commits for squashing
+        oldest_first_indices = list(range(len(newest_first) - 1, -1, -1))
+        
+        build_plan = []
+        group = []
+        for nf_idx in oldest_first_indices:
+            commit = newest_first[nf_idx]
+            if nf_idx in keep_set:
+                if group:
+                    build_plan.append({"type": "squash", "commits": list(group)})
+                    group = []
+                build_plan.append({"type": "keep", "commit": commit})
+            else:
+                group.append(commit)
+        if group:
+            build_plan.append({"type": "squash", "commits": list(group)})
+        
+        # Promote single-commit squash groups to "keep" (pointless to squash 1 commit)
+        for entry in build_plan:
+            if entry["type"] == "squash" and len(entry["commits"]) == 1:
+                entry["type"] = "keep"
+                entry["commit"] = entry.pop("commits")[0]
+        
+        if not any(p["type"] == "squash" for p in build_plan):
+            return False
+        
+        # Rebuild history using commit-tree: safe, no working-tree or index changes.
+        # Each commit's tree object already contains the full file state.
+        # For squash groups, we use the LAST commit's tree (cumulative state).
+        prev_sha = None
+        for step_entry in build_plan:
+            if step_entry["type"] == "keep":
+                tree_res = run_git_command(["rev-parse", step_entry["commit"]["sha"] + "^{tree}"], cwd=cwd, silent=True)
+                if not tree_res or tree_res.returncode != 0:
+                    return False
+                tree_sha = tree_res.stdout.strip()
+                msg = step_entry["commit"]["msg"]
+            else:
+                last_in_group = step_entry["commits"][-1]
+                tree_res = run_git_command(["rev-parse", last_in_group["sha"] + "^{tree}"], cwd=cwd, silent=True)
+                if not tree_res or tree_res.returncode != 0:
+                    return False
+                tree_sha = tree_res.stdout.strip()
+                msg = f"GIT_MAINTENANCE: Squashed {len(step_entry['commits'])} commits"
+            
+            ct_args = ["commit-tree", tree_sha, "-m", msg]
+            if prev_sha:
+                ct_args += ["-p", prev_sha]
+            
+            ct_res = run_git_command(ct_args, cwd=cwd, silent=True)
+            if not ct_res or ct_res.returncode != 0:
+                return False
+            prev_sha = ct_res.stdout.strip()
+        
+        if not prev_sha:
+            return False
+        
+        # Verify: final tree must match original HEAD's tree
+        orig_tree = run_git_command(["rev-parse", "HEAD^{tree}"], cwd=cwd, silent=True)
+        new_tree = run_git_command(["rev-parse", prev_sha + "^{tree}"], cwd=cwd, silent=True)
+        if (not orig_tree or not new_tree or
+            orig_tree.stdout.strip() != new_tree.stdout.strip()):
+            return False
+        
+        run_git_command(["reset", "--hard", prev_sha], cwd=cwd, silent=True)
+        return True
+        
+    except Exception:
+        if backup_ref and branch:
+            try:
+                run_git_command(["reset", "--hard", backup_ref], cwd=cwd, silent=True)
+            except:
+                pass
+        return False
+
+
 def auto_push_if_needed(remote="origin", branch=None, interval=3, cwd=None):
     """
     Checks local commit count and pushes to remote if the count is a multiple of interval.

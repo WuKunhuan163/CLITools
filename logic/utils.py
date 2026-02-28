@@ -817,3 +817,177 @@ def get_variable_from_file(file_path, var_name, default=None):
     except Exception:
         pass
     return default
+
+class SessionLogger:
+    """Per-invocation log file that accumulates timestamped entries.
+    
+    Creates one log file per tool session (log_YYYYMMDD_HHMMSS.log) in the
+    given directory. Runs cleanup_old_files on initialization to cap total
+    log files at `limit` (default 64, deleting half when exceeded).
+    
+    Usage:
+        logger = SessionLogger(Path("tool/FOO/data/log"))
+        logger.write("Download started", extra="url=https://...")
+        logger.write("Download complete")
+    """
+    def __init__(self, log_dir: Path, limit: int = 64, prefix: str = "log"):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        pid = os.getpid()
+        self.log_file = self.log_dir / f"{prefix}_{ts}_{pid}.log"
+        self._started = False
+        cleanup_old_files(self.log_dir, f"{prefix}_*.log", limit=limit)
+
+    def write(self, message: str, extra: str = None, include_stack: bool = True):
+        """Append a timestamped entry to the session log file."""
+        try:
+            import traceback as tb
+            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            parts = [f"[{ts}] {message}"]
+            if extra:
+                parts.append(f"  detail: {extra}")
+            if include_stack:
+                frames = tb.extract_stack()
+                relevant = [f for f in frames[:-1]
+                            if "/logic/tool/base.py" not in f.filename
+                            and "/logic/utils.py" not in f.filename][-3:]
+                if relevant:
+                    brief = " -> ".join(
+                        f"{Path(f.filename).name}:{f.lineno}({f.name})"
+                        for f in relevant
+                    )
+                    parts.append(f"  stack: {brief}")
+            entry = "\n".join(parts) + "\n"
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                if not self._started:
+                    f.write(f"# Session started at {ts}\n")
+                    f.write(f"# Command: {' '.join(sys.argv)}\n\n")
+                    self._started = True
+                f.write(entry)
+                f.flush()
+        except Exception:
+            pass
+
+    def write_exception(self, error: Exception, context: str = ""):
+        """Write a full exception traceback to the session log."""
+        try:
+            import traceback as tb
+            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            lines = [f"[{ts}] EXCEPTION: {context or type(error).__name__}: {error}"]
+            lines.append(f"  traceback:\n{''.join(tb.format_exception(type(error), error, error.__traceback__))}")
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                if not self._started:
+                    f.write(f"# Session started at {ts}\n")
+                    f.write(f"# Command: {' '.join(sys.argv)}\n\n")
+                    self._started = True
+                f.write("\n".join(lines) + "\n")
+                f.flush()
+        except Exception:
+            pass
+
+    @property
+    def path(self) -> Path:
+        return self.log_file
+
+
+def log_debug(msg):
+    """Log a message with a timestamp to /tmp/ait_debug.log."""
+    try:
+        import time
+        with open("/tmp/ait_debug.log", "a", encoding="utf-8") as f:
+            f.write(f"[{time.time()}] {msg}\n")
+            f.flush()
+    except:
+        pass
+
+def get_current_timezone():
+    """Detect current timezone based on IP if possible, otherwise return configured or UTC."""
+    try:
+        import requests
+        # Use ip-api.com (reliable, no key needed for simple usage)
+        res = requests.get("http://ip-api.com/json/", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("status") == "success":
+                return data.get("timezone", "UTC")
+    except:
+        pass
+    
+    # Fallback to configured timezone
+    from logic.config import get_global_config
+    return get_global_config("timezone", "UTC")
+
+def resolve_timezone(tz_input=None):
+    """
+    Resolves a timezone input into a (tz_object, display_name).
+    tz_input can be:
+    - None or "AUTO": detect via IP
+    - "UTC+X" or "GMT-X"
+    - City names (Beijing, Tokyo, etc.)
+    - IANA names (Asia/Shanghai)
+    """
+    import re
+    from zoneinfo import ZoneInfo
+    from datetime import datetime, timezone as py_timezone, timedelta
+    
+    # Manual mapping for common cities that are not IANA zones directly
+    manual_mapping = {
+        "Beijing": "Asia/Shanghai",
+        "Chongqing": "Asia/Shanghai",
+        "Harbin": "Asia/Shanghai",
+        "Taipei": "Asia/Taipei",
+        "Hong_Kong": "Asia/Hong_Kong",
+        "Macau": "Asia/Macau",
+    }
+    
+    tz_name = tz_input or "AUTO"
+    if tz_name.upper() == "AUTO":
+        tz_name = get_current_timezone()
+    
+    # Check manual mapping first
+    if tz_name in manual_mapping:
+        tz_name = manual_mapping[tz_name]
+    
+    # Handle UTC offsets like UTC+8 or GMT+8
+    utc_match = re.match(r'^(?:UTC|GMT)([+-]\d+)$', tz_name, re.IGNORECASE)
+    
+    target_tz = None
+    display_name = tz_name
+    
+    if utc_match:
+        offset = int(utc_match.group(1))
+        target_tz = py_timezone(timedelta(hours=offset))
+        display_name = f"UTC{'+' if offset >= 0 else ''}{offset}"
+    else:
+        # Try direct ZoneInfo
+        try:
+            target_tz = ZoneInfo(tz_name)
+        except Exception:
+            # Try to search for it in IANA database if it's just a city name
+            # e.g. "Paris" -> "Europe/Paris"
+            try:
+                import pytz
+                found = None
+                for zone in pytz.all_timezones:
+                    if zone.split('/')[-1].lower() == tz_name.lower():
+                        found = zone
+                        break
+                if found:
+                    target_tz = ZoneInfo(found)
+                    display_name = found
+                else:
+                    raise Exception("Not found")
+            except Exception:
+                # Last resort fallback to UTC
+                target_tz = py_timezone.utc
+                display_name = "UTC"
+            
+    # Calculate offset string for display
+    now = datetime.now(target_tz)
+    offset_total_seconds = int(now.utcoffset().total_seconds())
+    offset_hours = offset_total_seconds // 3600
+    offset_str = f"UTC{'+' if offset_hours >= 0 else ''}{offset_hours}"
+    
+    full_display = f"{display_name} ({offset_str})"
+    return target_tz, full_display

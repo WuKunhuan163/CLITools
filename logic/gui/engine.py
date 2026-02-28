@@ -55,7 +55,8 @@ def get_safe_python_for_gui():
     Returns a Python executable path that is known to work with GUI in the current environment.
     """
     # 1. Try to use the PYTHON tool's interface first
-    project_root = Path(__file__).resolve().parent.parent
+    # logic/gui/engine.py -> 3 levels up to project root
+    project_root = Path(__file__).resolve().parent.parent.parent
     python_tool_interface = project_root / "tool" / "PYTHON" / "logic" / "interface" / "main.py"
     
     if python_tool_interface.exists():
@@ -71,19 +72,24 @@ def get_safe_python_for_gui():
             pass
 
     # 2. Fallback to manual detection (same as before)
-    version = "python3.10.19"
+    version = "3.10.19"
     system_tag = "macos"
     if sys.platform == "linux": system_tag = "linux64"
     elif sys.platform == "win32": system_tag = "windows-amd64"
 
-    possible_dirs = [version, f"{version}-{system_tag}", f"{version}-macos", f"{version}-linux64"]
+    # Support both with and without 'python' prefix
+    possible_versions = [version, f"python{version}"]
+    possible_suffixes = ["", f"-{system_tag}", "-macos", "-linux64", "-macos-arm64"]
+    
     install_root = project_root / "tool" / "PYTHON" / "data" / "install"
     
-    for d in possible_dirs:
-        python_exec = install_root / d / "install" / "bin" / "python3"
-        if python_exec.exists(): return str(python_exec)
-        python_exec_win = install_root / d / "install" / "python.exe"
-        if python_exec_win.exists(): return str(python_exec_win)
+    for v in possible_versions:
+        for s in possible_suffixes:
+            d = f"{v}{s}"
+            python_exec = install_root / d / "install" / "bin" / "python3"
+            if python_exec.exists(): return str(python_exec)
+            python_exec_win = install_root / d / "install" / "python.exe"
+            if python_exec_win.exists(): return str(python_exec_win)
     
     # 3. Darwin specific system fallbacks
     if platform.system() == "Darwin":

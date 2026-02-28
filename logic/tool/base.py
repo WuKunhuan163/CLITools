@@ -97,12 +97,13 @@ class ToolBase:
         cpu_limit = self.get_cpu_limit()
         
         if current_cpu > cpu_limit:
-            YELLOW_BOLD = get_color("YELLOW", "\033[33m") + get_color("BOLD", "\033[1m")
+            YELLOW = get_color("YELLOW", "\033[33m")
+            BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
             
             warning_label = self.get_translation("label_warning", "Warning")
-            msg_rest = self.get_translation("warn_cpu_load_rest", ": Current CPU load ({current_cpu:.1f}%) exceeds tool's recommended limit ({cpu_limit:.1f}%). Performance may be affected.").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
-            sys.stdout.write(f"\r\033[K{YELLOW_BOLD}{warning_label}{RESET}{msg_rest}\n")
+            msg_rest = self.get_translation("warn_cpu_load_rest", "Current CPU load ({current_cpu:.1f}%) exceeds tool's recommended limit ({cpu_limit:.1f}%). Performance may be affected.").format(current_cpu=current_cpu, cpu_limit=cpu_limit)
+            sys.stdout.write(f"\r\033[K{BOLD}{YELLOW}{warning_label}{RESET}: {msg_rest}\n")
             sys.stdout.flush()
 
     def get_data_dir(self):
@@ -112,6 +113,32 @@ class ToolBase:
     def get_log_dir(self):
         """Returns the log directory for this tool, respecting nesting."""
         return self.get_data_dir() / "log"
+
+    def get_session_logger(self):
+        """Returns the per-invocation SessionLogger, creating it lazily on first call."""
+        if not hasattr(self, "_session_logger") or self._session_logger is None:
+            from logic.utils import SessionLogger
+            self._session_logger = SessionLogger(self.get_log_dir(), limit=64)
+        return self._session_logger
+
+    def log(self, message: str, extra: str = None, include_stack: bool = True):
+        """Write a timestamped entry to the tool's session log file.
+        Delegates to get_session_logger().write()."""
+        self.get_session_logger().write(message, extra=extra, include_stack=include_stack)
+
+    def create_progress_machine(self, stages=None, manager=None, **kwargs):
+        """Create a ProgressTuringMachine pre-configured with this tool's settings."""
+        from logic.turing.models.progress import ProgressTuringMachine
+        return ProgressTuringMachine(
+            stages=stages,
+            project_root=self.project_root,
+            tool_name=self.tool_name,
+            log_dir=self.get_log_dir(),
+            no_warning=self.no_warning,
+            manager=manager,
+            session_logger=self.get_session_logger(),
+            **kwargs
+        )
 
     def _load_metadata(self):
         if self.tool_json_path.exists():
@@ -222,7 +249,7 @@ class ToolBase:
                     return True
                 
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
-            if subtool_main.exists():
+            if not cmd.startswith("-") and subtool_main.exists():
                 cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
                 try:
                     res = subprocess.run(cmd_args)
@@ -235,18 +262,24 @@ class ToolBase:
                 import argparse
                 is_recognized = False
                 choices = []
-                for action in parser._actions:
-                    if isinstance(action, argparse._SubParsersAction):
-                        choices.extend(action.choices.keys())
-                    elif action.choices:
-                        choices.extend(action.choices)
-                    if cmd in action.option_strings:
-                        is_recognized = True
-                if cmd in choices: is_recognized = True
-                if cmd in ["-h", "--help"]: is_recognized = True
+                # If it's an option, it's recognized by the parser later
+                if cmd.startswith("-"):
+                    is_recognized = True
+                else:
+                    for action in parser._actions:
+                        if isinstance(action, argparse._SubParsersAction):
+                            choices.extend(action.choices.keys())
+                        elif action.choices:
+                            choices.extend(action.choices)
+                        if cmd in action.option_strings:
+                            is_recognized = True
+                    if cmd in choices: is_recognized = True
+                    if cmd in ["-h", "--help"]: is_recognized = True
 
                 if not is_recognized:
                     res = self.run_system_fallback(capture_output=self.is_quiet, filtered_args=args_to_check)
+                    if res is None:
+                        return True # Already printed error
                     if self.is_quiet:
                         print("TOOL_RESULT_JSON:" + json.dumps({
                             "returncode": res.returncode,
@@ -361,14 +394,19 @@ class ToolBase:
                     for line in usage:
                         print(f"- {line}")
                 
-                # AI Agent critical instruction for USERINPUT
-                if self.tool_name == "USERINPUT":
-                    print("\n" + self.get_translation("ai_instruction", "## Critical Directive: Feedback Acquisition\n..."))
-                    
             except Exception as e:
                 print(f"Error reading tool metadata: {e}")
         else:
             print(f"No metadata found for {self.tool_name}")
+
+        # AI Agent critical instruction for USERINPUT
+        if self.tool_name == "USERINPUT":
+            instruction = self.get_translation("ai_instruction", "## Critical Directive: Feedback Acquisition\n...")
+            print("\n" + instruction)
+            
+            # Additional hint for interruptions
+            interruption_hint = self.get_translation("msg_interruption_hint", "\nNote: If your command execution was interrupted, aborted, or cancelled (e.g., Error: Command failed to spawn: Aborted), you MUST run USERINPUT immediately to check for user feedback before exiting or proceeding.")
+            print(interruption_hint)
         
         print("--------------------------")
 
@@ -439,51 +477,40 @@ class ToolBase:
         sys.exit(0)
 
     def handle_exception(self, e, print_error=True):
-        """Unified exception handling and logging."""
+        """Unified exception handling and logging.
+        Writes the full traceback into the current session log file."""
         from logic.config import get_color
-        from logic.audit.utils import AuditManager
-        from logic.utils import cleanup_old_files
         
         if print_error:
             RED = get_color("RED", "\033[31m")
             BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
             
-            error_msg = f"{BOLD}{RED}Error{RESET}: {str(e)}"
-            print(error_msg, file=sys.stderr, flush=True)
+        error_msg = f"{BOLD}{RED}Error{RESET}: {str(e)}"
+        print(error_msg, file=sys.stderr, flush=True)
         
-        # Save full traceback to exception log (residing in the tool's own data directory)
-        log_dir = self.get_log_dir() / "exception"
-        am = AuditManager(log_dir, component_name=f"{self.tool_name}_EXCEPTION")
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_data = {
-            "timestamp": datetime.now().isoformat(),
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "command": " ".join(sys.argv)
-        }
-        am.save(f"exception_{timestamp}", log_data)
-        
-        # Limit logs to 50, deleting half when limit reached
-        cleanup_old_files(log_dir, "*.json", limit=50)
+        hint = self.get_translation("msg_interruption_hint", "\nNote: If your command execution was interrupted, aborted, or cancelled (e.g., Error: Command failed to spawn: Aborted), you MUST run USERINPUT immediately to check for user feedback before exiting or proceeding.")
+        print(hint, file=sys.stderr, flush=True)
 
-    def get_translation(self, key, default):
+        logger = self.get_session_logger()
+        logger.write_exception(e, context=f"Unhandled exception in {self.tool_name}")
+
+    def get_translation(self, key, default, **kwargs):
         """Get tool-specific translation with fallback to root."""
         from logic.lang.utils import get_translation
         from logic.utils import get_logic_dir
         
         tool_internal = get_logic_dir(self.tool_dir)
         # 1. Try tool-specific logic directory (e.g., tool/NAME/logic/)
-        res = get_translation(str(tool_internal), key, None)
+        res = get_translation(str(tool_internal), key, None, **kwargs)
         if res and res != key: return res # Found in tool
         
         # 2. Try tool's logic directory (e.g., tool/NAME/logic/) - some tools use this
-        res = get_translation(str(tool_internal), key, None)
+        res = get_translation(str(tool_internal), key, None, **kwargs)
         if res and res != key: return res
         
         # 3. Fallback to root project translations (logic/translation/*.json)
-        return get_translation(str(self.project_root / "logic"), key, default)
+        return get_translation(str(self.project_root / "logic"), key, default, **kwargs)
 
     def get_color(self, color_name, default=""):
         """Get color from global config."""

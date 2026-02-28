@@ -20,11 +20,13 @@ class AccountLoginWindow(BaseGUIWindow):
     """
     def __init__(self, title, timeout, internal_dir, tool_name=None, 
                  instruction_text=None, account_label=None, password_label=None,
-                 error_msg=None, verify_handler: Optional[Callable[[Dict[str, str]], Dict[str, Any]]] = None):
+                 error_msg=None, lock_account=False,
+                 verify_handler: Optional[Callable[[Dict[str, str]], Dict[str, Any]]] = None):
         super().__init__(title, timeout, internal_dir, tool_name=tool_name or "LOGIN")
         self.instruction_text = instruction_text
         self.account_label = account_label
         self.password_label = password_label
+        self.lock_account = lock_account
         self.account_entry = None
         self.password_entry = None
         self.submit_btn = None
@@ -167,10 +169,15 @@ class AccountLoginWindow(BaseGUIWindow):
         
         if self.account_initial:
             self.account_entry.insert(0, self.account_initial)
-            self.password_entry_focus = True
+            if self.lock_account:
+                self.account_entry.config(state="readonly")
+                self.password_entry_focus = True
+            else:
+                self.password_entry_focus = True
         else:
             self.password_entry_focus = False
-            self.account_entry.focus_set()
+            if not self.lock_account:
+                self.account_entry.focus_set()
 
         # Password input (masked) with visibility toggle
         pw_lbl_text = self.password_label or self._("label_password", "Password:")
