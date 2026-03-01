@@ -11,6 +11,22 @@ from logic.utils import get_cpu_percent
 from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
 
+def _resolve_tool_name(name: str, project_root: Path) -> str:
+    """Resolve a shortcut name (e.g. 'GCS') to the full tool name (e.g. 'GOOGLE.GCS')."""
+    tool_dir = project_root / "tool" / name
+    if tool_dir.exists() and (tool_dir / "main.py").exists():
+        return name
+    registry_path = project_root / "tool.json"
+    if registry_path.exists():
+        with open(registry_path) as f:
+            registry = json.load(f)
+        for full_name in registry.get("tools", []):
+            shortcut = full_name.split(".")[-1] if "." in full_name else full_name
+            if shortcut == name:
+                return full_name
+    return name
+
+
 def test_tool_with_args(args, project_root: Path, translation_func: Optional[Callable] = None):
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
     BOLD = get_color("BOLD", "\033[1m")
@@ -32,6 +48,8 @@ def test_tool_with_args(args, project_root: Path, translation_func: Optional[Cal
 
     try:
         actual_tool_name = "root" if args.tool_name in ["root", "TOOL"] else args.tool_name
+        if actual_tool_name != "root":
+            actual_tool_name = _resolve_tool_name(actual_tool_name, project_root)
         tool_dir = project_root if actual_tool_name == "root" else project_root / "tool" / actual_tool_name
         if not tool_dir.exists() and actual_tool_name != "root":
             print(f"{BOLD}{RED}Error{RESET}: Tool '{args.tool_name}' not found.")
