@@ -175,37 +175,41 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
             return False
 
         tm_install = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
-        def install_test_action():
+        def install_test_action(stage):
             error_details = []
+            def _fail(brief, details=None):
+                stage.error_brief = brief
+                if details:
+                    error_details.extend(details) if isinstance(details, list) else error_details.append(details)
+                install_test_action.error_msg = "\n".join(error_details) if error_details else brief
+                return False
+
             try:
                 subprocess.run([sys.executable, "main.py", "uninstall", tool_name, "-y"], cwd=str(project_root), capture_output=True)
                 res = subprocess.run([sys.executable, "main.py", "install", tool_name], cwd=str(project_root), capture_output=True, text=True)
                 if res.returncode != 0:
-                    error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed.")
-                    if res.stdout: error_details.append(res.stdout.strip())
-                    if res.stderr: error_details.append(res.stderr.strip())
-                    install_test_action.error_msg = "\n".join(error_details)
-                    return False
+                    brief = f"'TOOL install {tool_name}' exited with code {res.returncode}"
+                    extra = []
+                    if res.stderr: extra.append(res.stderr.strip())
+                    elif res.stdout: extra.append(res.stdout.strip())
+                    return _fail(brief, extra)
                 
                 shortcut_name = tool_name.split('.')[-1] if '.' in tool_name else tool_name
                 bin_path = project_root / "bin" / shortcut_name / shortcut_name
                 if not bin_path.exists():
                     bin_path = project_root / "bin" / shortcut_name
                 if not bin_path.exists():
-                    error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed: {BOLD}Shortcut bin/{shortcut_name} cannot be found.{RESET}")
-                    install_test_action.error_msg = "\n".join(error_details)
-                    return False
+                    return _fail(f"Shortcut bin/{shortcut_name} not found after install")
                 
                 res = subprocess.run([str(bin_path), "--help"], capture_output=True, text=True)
                 if res.returncode != 0:
-                    error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed: {BOLD}Help command failed (code {res.returncode}).{RESET}")
-                    install_test_action.error_msg = "\n".join(error_details)
-                    return False
+                    brief = f"'{shortcut_name} --help' exited with code {res.returncode}"
+                    extra = []
+                    if res.stderr: extra.append(res.stderr.strip())
+                    return _fail(brief, extra)
                 return True
             except Exception as e:
-                error_details.append(f"Unexpected error: {e}")
-                install_test_action.error_msg = "\n".join(error_details)
-                return False
+                return _fail(f"Unexpected error: {e}")
 
         tm_install.add_stage(TuringStage(
             name=_("label_installation", "installation"), 
@@ -227,17 +231,10 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
         else:
             error_msg = getattr(install_test_action, 'error_msg', 'Unknown error')
             lines = error_msg.split("\n")
-            first_line = lines[0]
-            if " failed:" in first_line:
-                prefix, reason = first_line.split(" failed:", 1)
-                formatted_first = f"{prefix} failed:{BOLD}{reason}{RESET}"
-            elif " failed." in first_line:
-                prefix, reason = first_line.split(" failed.", 1)
-                formatted_first = f"{prefix} failed.{BOLD}{reason}{RESET}"
-            else:
-                formatted_first = f"{BOLD}{first_line}{RESET}"
-            print(f"{BOLD}{RED}Failed{RESET}: {formatted_first}")
-            if len(lines) > 1: print("\n".join(lines[1:]))
+            print(f"\n{BOLD}{RED}" + _("label_failed_to_test", "Failed to test") + f"{RESET} " + _("label_installation", "installation") + f". " + _("label_reason", "Reason") + f": {lines[0]}")
+            if len(lines) > 1:
+                for line in lines[1:]:
+                    print(f"  {line}")
             subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
             return False
     finally:
