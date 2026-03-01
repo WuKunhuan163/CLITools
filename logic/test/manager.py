@@ -170,7 +170,9 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
                     return False
                 
                 shortcut_name = tool_name.split('.')[-1] if '.' in tool_name else tool_name
-                bin_path = project_root / "bin" / shortcut_name
+                bin_path = project_root / "bin" / shortcut_name / shortcut_name
+                if not bin_path.exists():
+                    bin_path = project_root / "bin" / shortcut_name
                 if not bin_path.exists():
                     error_details.append(f"Installation with '{BOLD}TOOL install {tool_name}{RESET}' failed: {BOLD}Shortcut bin/{shortcut_name} cannot be found.{RESET}")
                     install_test_action.error_msg = "\n".join(error_details)
