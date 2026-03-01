@@ -108,11 +108,34 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
 
     tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
 
-    # 2. dev -> tool
+    # 2. dev -> tool (preserving resource/ from old tool branch)
     def align_tool(stage: TuringStage):
         try:
             if not run_git(["checkout", "tool"], project_root, stage): return False
+            # Save old tool HEAD to restore resource/ later
+            res = subprocess.run(["/usr/bin/git", "rev-parse", "HEAD"],
+                                 cwd=str(project_root), capture_output=True, text=True)
+            old_tool_sha = res.stdout.strip() if res.returncode == 0 else None
+
             if not run_git(["reset", "--hard", "dev"], project_root, stage): return False
+
+            # Restore resource/ from old tool branch (if it existed)
+            # Uses -f to bypass .gitignore (resource/ is only tracked on tool branch)
+            if old_tool_sha:
+                subprocess.run(
+                    ["/usr/bin/git", "checkout", old_tool_sha, "--", "resource/"],
+                    cwd=str(project_root), capture_output=True, text=True
+                )
+                subprocess.run(["/usr/bin/git", "add", "-f", "resource/"],
+                               cwd=str(project_root), capture_output=True)
+                res = subprocess.run(["/usr/bin/git", "diff", "--cached", "--quiet"],
+                                     cwd=str(project_root), capture_output=True)
+                if res.returncode != 0:
+                    subprocess.run(
+                        ["/usr/bin/git", "commit", "--amend", "--no-edit"],
+                        cwd=str(project_root), capture_output=True
+                    )
+
             if not run_git(["push", "origin", "tool", "--force"], project_root, stage): return False
             return True
         except Exception as e:

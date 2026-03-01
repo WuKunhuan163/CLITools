@@ -4,6 +4,7 @@
 !/setup.py
 !/tool.json
 !/README.md
+!/for_agent.md
 !/.gitignore
 !/.gitattributes
 
@@ -13,7 +14,6 @@
 !/test/
 !/tool/
 !/report/
-!/resource/
 
 # --- Transient Directories ---
 **/data/
@@ -21,13 +21,8 @@
 **/tmp/
 
 # --- Resource Management ---
-# Global ignore for resource dirs, negated for specific tools
+# resource/ is only tracked on the tool branch (preserved by align_tool via git add -f)
 **/resource/
-!/resource/
-!/resource/tool/PYTHON/
-!/resource/tool/PYTHON/**/data/
-!/resource/tool/GDS/
-!/resource/tool/GOOGLE.GCS/
 
 # --- Python Patterns ---
 **/__pycache__/
@@ -48,7 +43,6 @@ Thumbs.db
 # --- Tool Specific Rules ---
 # PYTHON
 !/tool/PYTHON/
-!/tool/PYTHON/data/
 /tool/PYTHON/data/*
 !/tool/PYTHON/data/install/
 /tool/PYTHON/logs/
@@ -58,5 +52,5 @@ Thumbs.db
 /tool/VPN/data/
 /tool/VPN/logs/
 
-# iCloud / tool / iCloudPD
-/tool/iCloud/tool/iCloudPD/data/
+# iCloud.iCloudPD
+/tool/iCloud.iCloudPD/data/

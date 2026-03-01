@@ -55,9 +55,13 @@ class ToolBase:
         self._load_tool_config()
         
         # Auto-reexecute with correct python if PYTHON is a dependency
+        # Must happen BEFORE setting sys.argv[0], since execve uses it
         if "PYTHON" in self.dependencies:
             from logic.utils import check_and_reexecute_with_python
             check_and_reexecute_with_python(self.tool_name)
+
+        # Set argv[0] so argparse shows the tool name in usage text
+        sys.argv[0] = self.tool_name
 
     def _load_tool_config(self):
         """Load tool-specific configuration, including CPU limits."""
@@ -261,8 +265,8 @@ class ToolBase:
             if parser:
                 import argparse
                 is_recognized = False
+                has_positional_nargs = False
                 choices = []
-                # If it's an option, it's recognized by the parser later
                 if cmd.startswith("-"):
                     is_recognized = True
                 else:
@@ -273,10 +277,13 @@ class ToolBase:
                             choices.extend(action.choices)
                         if cmd in action.option_strings:
                             is_recognized = True
+                        if (not action.option_strings
+                                and action.nargs in ("*", "+", argparse.REMAINDER)):
+                            has_positional_nargs = True
                     if cmd in choices: is_recognized = True
                     if cmd in ["-h", "--help"]: is_recognized = True
 
-                if not is_recognized:
+                if not is_recognized and not has_positional_nargs:
                     res = self.run_system_fallback(capture_output=self.is_quiet, filtered_args=args_to_check)
                     if res is None:
                         return True # Already printed error

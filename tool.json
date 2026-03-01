@@ -6,7 +6,8 @@
   ],
   "tool_dependencies": [
     "PYTHON",
-    "GIT"
+    "GIT",
+    "SKILLS"
   ],
   "tools": [
     "PYTHON",
@@ -24,6 +25,7 @@
     "iCloud.iCloudPD",
     "GOOGLE",
     "GOOGLE.GCS",
-    "SKILLS"
+    "SKILLS",
+    "TAVILY"
   ]
 }

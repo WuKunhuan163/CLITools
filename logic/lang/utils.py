@@ -31,46 +31,44 @@ def get_translation(tool_logic_dir, key, default_text, lang_code=None, **kwargs)
         tool_logic_path = Path(tool_logic_dir)
         found = False
         
-        # 2. Try the monolithic translation.json (legacy/standard)
-        translation_path = tool_logic_path / "translation.json"
-        if translation_path.exists():
-            try:
-                with open(translation_path, 'r', encoding='utf-8') as f:
-                    translation = json.load(f)
-                    result = translation.get(lang, {}).get(key)
-                    if result:
-                        translated_text = result
-                        found = True
-            except Exception:
-                pass
+        # 2. Try the directory-based translation (preferred format)
+        translation_dir = tool_logic_path / "translation"
+        if translation_dir.exists():
+            lang_json_path = translation_dir / f"{lang}.json"
+            if lang_json_path.exists():
+                try:
+                    with open(lang_json_path, 'r', encoding='utf-8') as f:
+                        lang_translation = json.load(f)
+                        result = lang_translation.get(key)
+                        if result:
+                            translated_text = result
+                            found = True
+                except Exception:
+                    pass
 
-        if not found:
-            # 3. Try the directory-based translation
-            translation_dir = tool_logic_path / "translation"
-            if translation_dir.exists():
-                # 3a. Try <lang>.json in translation/ directory
-                lang_json_path = translation_dir / f"{lang}.json"
-                if lang_json_path.exists():
+            if not found:
+                key_file_path = translation_dir / lang / f"{key}.txt"
+                if key_file_path.exists():
                     try:
-                        with open(lang_json_path, 'r', encoding='utf-8') as f:
-                            lang_translation = json.load(f)
-                            result = lang_translation.get(key)
-                            if result:
-                                translated_text = result
-                                found = True
+                        with open(key_file_path, 'r', encoding='utf-8') as f:
+                            translated_text = f.read().strip()
+                            found = True
                     except Exception:
                         pass
-                
-                if not found:
-                    # 3b. Try <lang>/<key>.txt in translation/ directory
-                    key_file_path = translation_dir / lang / f"{key}.txt"
-                    if key_file_path.exists():
-                        try:
-                            with open(key_file_path, 'r', encoding='utf-8') as f:
-                                translated_text = f.read().strip()
-                                found = True
-                        except Exception:
-                            pass
+
+        # 3. Fallback: monolithic translation.json (deprecated)
+        if not found:
+            translation_path = tool_logic_path / "translation.json"
+            if translation_path.exists():
+                try:
+                    with open(translation_path, 'r', encoding='utf-8') as f:
+                        translation = json.load(f)
+                        result = translation.get(lang, {}).get(key)
+                        if result:
+                            translated_text = result
+                            found = True
+                except Exception:
+                    pass
     
     # 4. Handle recursive translation with {{}}
     # We find all {{...}} patterns and replace them with their own translations

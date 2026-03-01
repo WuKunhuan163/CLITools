@@ -77,6 +77,98 @@ def update_config(key, value):
         return True
     return False
 
+# --- Config Show Command ---
+def _show_config():
+    """Display global and per-tool configurations."""
+    global_config_path = ROOT_PROJECT_ROOT / "data" / "config.json"
+
+    print(f"\n{BOLD}Global Configuration{RESET}")
+    if global_config_path.exists():
+        try:
+            with open(global_config_path) as f:
+                global_config = json.load(f)
+            for k, v in sorted(global_config.items()):
+                print(f"  {k}: {v}")
+        except Exception:
+            print(f"  {RED}Error reading config{RESET}")
+    else:
+        print("  (no global config)")
+
+    tool_dir = ROOT_PROJECT_ROOT / "tool"
+    tool_configs = []
+    if tool_dir.exists():
+        for td in sorted(tool_dir.iterdir()):
+            config_path = td / "data" / "config.json"
+            if config_path.exists():
+                try:
+                    with open(config_path) as f:
+                        cfg = json.load(f)
+                    tool_configs.append((td.name, cfg))
+                except Exception:
+                    tool_configs.append((td.name, {"_error": "unreadable"}))
+
+    if tool_configs:
+        print(f"\n{BOLD}Tool Configurations{RESET}")
+        for name, cfg in tool_configs:
+            items = ", ".join(f"{k}={v}" for k, v in cfg.items() if not k.startswith("_"))
+            if items:
+                print(f"  {name}: {items}")
+            elif "_error" in cfg:
+                print(f"  {name}: {RED}error{RESET}")
+    print()
+
+
+# --- Status Command ---
+def _show_status():
+    """Display installed tools, configuration completeness, and health."""
+    registry_path = ROOT_PROJECT_ROOT / "tool.json"
+    if not registry_path.exists():
+        print(f"{BOLD}{RED}Registry not found{RESET}.")
+        return
+
+    with open(registry_path) as f:
+        registry = json.load(f)
+
+    all_tools = registry.get("tools", [])
+    bin_dir = ROOT_PROJECT_ROOT / "bin"
+    tool_dir = ROOT_PROJECT_ROOT / "tool"
+
+    print(f"\n{BOLD}AITerminalTools Status{RESET}")
+    print(f"{'Tool':<20} {'Installed':<12} {'Config':<12} {'Tests':<10}")
+    print("-" * 54)
+
+    def _is_tool_installed(n):
+        sn = n.split(".")[-1] if "." in n else n
+        return (bin_dir / sn / sn).exists() or (bin_dir / sn).is_file()
+
+    for name in sorted(all_tools):
+        installed = _is_tool_installed(name)
+        has_main = (tool_dir / name / "main.py").exists()
+
+        installed_str = f"{GREEN}yes{RESET}" if (installed and has_main) else f"{RED}no{RESET}"
+
+        config_status = "-"
+        config_path = tool_dir / name / "data" / "config.json"
+        if config_path.exists():
+            config_status = f"{GREEN}ok{RESET}"
+        elif has_main:
+            config_status = f"{YELLOW}none{RESET}"
+
+        test_dir = tool_dir / name / "test"
+        if test_dir.exists() and any(test_dir.glob("test_*.py")):
+            test_count = len(list(test_dir.glob("test_*.py")))
+            test_status = f"{test_count} test(s)"
+        else:
+            test_status = "-"
+
+        # Pad ANSI-colored strings properly
+        print(f"  {name:<18} {installed_str:<21} {config_status:<21} {test_status}")
+
+    installed_count = sum(1 for n in all_tools
+                         if _is_tool_installed(n) and (tool_dir / n / "main.py").exists())
+    print(f"\n{BOLD}{installed_count}/{len(all_tools)}{RESET} tools installed.\n")
+
+
 # --- Dev Commands ---
 def _dev_sync(quiet=False):
     from logic.dev.commands import dev_sync
@@ -106,6 +198,14 @@ def _dev_audit_bin(fix=False):
     from logic.dev.commands import dev_audit_bin
     return dev_audit_bin(ROOT_PROJECT_ROOT, fix=fix)
 
+def _dev_migrate_bin():
+    from logic.dev.commands import dev_migrate_bin
+    return dev_migrate_bin(ROOT_PROJECT_ROOT)
+
+def _dev_audit_archived():
+    from logic.dev.commands import dev_audit_archived
+    return dev_audit_archived(ROOT_PROJECT_ROOT)
+
 # --- Test Commands ---
 def _test_tool_with_args(args):
     from logic.test.manager import test_tool_with_args
@@ -121,6 +221,14 @@ def _list_languages():
     list_languages(ROOT_PROJECT_ROOT, translation_func=_)
 
 # --- Rule Commands ---
+def _show_rule():
+    from logic.rule.manager import generate_ai_rule
+    generate_ai_rule(ROOT_PROJECT_ROOT)
+
+def _inject_rule():
+    from logic.rule.manager import inject_rule
+    inject_rule(ROOT_PROJECT_ROOT)
+
 def _generate_ai_rule(name, description, globs, always_apply):
     from logic.rule.manager import generate_ai_rule
     generate_ai_rule(name, description, globs, always_apply, ROOT_PROJECT_ROOT)
@@ -153,6 +261,10 @@ def main():
     config_set.add_argument("key", help="Configuration key")
     config_set.add_argument("value", help="Configuration value")
     config_sub.add_parser("show-lang", help="Show current language")
+    config_sub.add_parser("show", help="Show all tool configurations")
+
+    # TOOL status
+    subparsers.add_parser("status", help="Show installed tools and their status")
 
     # TOOL dev
     dev_p = subparsers.add_parser("dev", help="Developer commands")
@@ -172,6 +284,8 @@ def main():
     dev_audit_t.add_argument("--fix", action="store_true", help="Fix naming")
     dev_audit_b = dev_sub.add_parser("audit-bin", help="Audit bin directory")
     dev_audit_b.add_argument("--fix", action="store_true", help="Fix shortcuts")
+    dev_sub.add_parser("audit-archived", help="Check for duplicate tools in tool/ and resource/archived/")
+    dev_sub.add_parser("migrate-bin", help="Migrate flat bin/ shortcuts to bin/<tool>/ structure")
 
     # TOOL test <name>
     test_p = subparsers.add_parser("test", help="Run unit tests")
@@ -199,6 +313,7 @@ def main():
     rule_create_p.add_argument("--description", required=True, help="Rule description")
     rule_create_p.add_argument("--globs", help="File patterns (comma separated)")
     rule_create_p.add_argument("--always-apply", action="store_true", help="Always apply this rule")
+    rule_sub.add_parser("inject", help="Inject TOOL rule into .cursor/rules/ (auto-apply)")
 
     args = parser.parse_args()
 
@@ -210,6 +325,7 @@ def main():
     elif args.command == "reinstall": reinstall_tool(args.name)
     elif args.command == "uninstall": uninstall_tool(args.name, args.yes)
     elif args.command == "list": _list_tools(args.force)
+    elif args.command == "status": _show_status()
     elif args.command == "config":
         if args.config_command == "set":
             val = args.value
@@ -217,6 +333,8 @@ def main():
             update_config(args.key, val)
         elif args.config_command == "show-lang":
             print(f"Current language: {current_lang}")
+        elif args.config_command == "show":
+            _show_config()
     elif args.command == "dev":
         if args.dev_command == "sync": _dev_sync()
         elif args.dev_command == "reset": _dev_reset()
@@ -225,12 +343,16 @@ def main():
         elif args.dev_command == "sanity-check": _dev_sanity_check(args.name, args.fix)
         elif args.dev_command == "audit-test": _dev_audit_test(args.name, args.fix)
         elif args.dev_command == "audit-bin": _dev_audit_bin(args.fix)
+        elif args.dev_command == "migrate-bin": _dev_migrate_bin()
+        elif args.dev_command == "audit-archived": _dev_audit_archived()
     elif args.command == "test": _test_tool_with_args(args)
     elif args.command == "lang":
         if args.lang_command == "audit": _audit_lang(args.code, args.force, args.turing)
         elif args.lang_command == "list": _list_languages()
     elif args.command == "rule":
         if args.rule_command == "create": _generate_ai_rule(args.name, args.description, args.globs, args.always_apply)
+        elif args.rule_command == "inject": _inject_rule()
+        elif not args.rule_command: _show_rule()
     else:
         parser.print_help()
 

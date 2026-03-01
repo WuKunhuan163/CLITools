@@ -84,7 +84,7 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(msg)
     return 0
 
-def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None, args: List[str] = None) -> Dict[str, Any]:
+def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout: int, custom_id: str = None, args: List[str] = None, waiting_label: str = None) -> Dict[str, Any]:
     """
     Unified launcher for GUI subprocesses with signal redirection and result capture.
     Used by parent processes (e.g. tool/NAME/main.py).
@@ -111,12 +111,16 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     tool_name = tool_instance.tool_name
     is_quiet = getattr(tool_instance, "is_quiet", False)
     
-    label_waiting_key = "label_waiting_gui"
-    if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection"
-    
-    label_waiting = tool_instance.get_translation(label_waiting_key, f"Waiting for {tool_name} feedback").format(tool_name=tool_name)
-    via_gui_label = tool_instance.get_translation("label_via_gui", "via GUI")
-    display_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} {via_gui_label} (PID: {proc.pid})..."
+    if waiting_label:
+        label_waiting_full = waiting_label
+    else:
+        label_waiting_key = "label_waiting_gui_full"
+        if tool_name == "FILEDIALOG": label_waiting_key = "label_waiting_selection_full"
+        label_waiting_full = tool_instance.get_translation(
+            label_waiting_key,
+            "Waiting for {tool_name} feedback via GUI"
+        ).format(tool_name=tool_name)
+    display_msg = f"{BOLD}{BLUE}{label_waiting_full}{RESET} (PID: {proc.pid})..."
     
     # Try to use the global turing manager for better line management
     from logic.turing.models.progress import get_global_turing_manager
@@ -191,7 +195,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
 
             # 2. Keepalive: update waiting message every 5 seconds to prevent Cursor disconnect
             elapsed = int(time.time() - start_wait)
-            keepalive_msg = f"{BOLD}{BLUE}{label_waiting}{RESET} {via_gui_label} (PID: {proc.pid})({elapsed}s)..."
+            keepalive_msg = f"{BOLD}{BLUE}{label_waiting_full}{RESET} (PID: {proc.pid})({elapsed}s)..."
             if not is_quiet:
                 sys.stdout.write(f"\r\033[K{keepalive_msg}")
                 sys.stdout.flush()

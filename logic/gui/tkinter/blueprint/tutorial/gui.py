@@ -48,11 +48,13 @@ class TutorialWindow(BaseGUIWindow):
     Middle: Content Container
     Bottom: Prev, Next/Complete
     """
-    def __init__(self, title, timeout, internal_dir, steps: List[TutorialStep], tool_name=None):
+    def __init__(self, title, timeout, internal_dir, steps: List[TutorialStep], tool_name=None,
+                 on_step_change: Optional[Callable[[int, int, str], None]] = None):
         super().__init__(title, timeout, internal_dir, tool_name=tool_name or "TUTORIAL")
         self.steps = steps
         self.current_step_idx = 0
-        self.project_root = None # Will be set during find_root in subclasses or manually
+        self.project_root = None
+        self.on_step_change = on_step_change
         
         # UI Elements
         self.step_indicator = None
@@ -165,6 +167,13 @@ class TutorialWindow(BaseGUIWindow):
         # 5. Clear any previous errors
         self.show_error("", is_info=True)
 
+        # 6. Notify step change callback
+        if self.on_step_change:
+            try:
+                self.on_step_change(self.current_step_idx, len(self.steps), step.title)
+            except Exception:
+                pass
+
     def setup_ui(self):
         """Builds the shell of the tutorial window."""
         self.root.geometry("800x650") # Increased size for better image quality and visibility
@@ -268,7 +277,7 @@ class TutorialWindow(BaseGUIWindow):
     def finalize(self, status: str, data: Any, reason: Optional[str] = None):
         """Override to ensure a reason is set for cancelled."""
         if status == "cancelled" and not reason:
-            reason = "User closed tutorial"
+            reason = self._("tutorial_user_closed", "User closed tutorial")
         super().finalize(status, data, reason=reason)
 
     def add_clickable_url(self, frame, text, url):

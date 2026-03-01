@@ -164,11 +164,12 @@ import sys
 import argparse
 from pathlib import Path
 
-# Add project root to sys.path
 script_path = Path(__file__).resolve()
 project_root = script_path.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+root_str = str(project_root)
+if root_str in sys.path:
+    sys.path.remove(root_str)
+sys.path.insert(0, root_str)
 
 from logic.tool.base import ToolBase
 from logic.config import get_color
@@ -290,6 +291,32 @@ if __name__ == "__main__":
 '''
     with open(tool_dir / "test" / "test_00_help.py", 'w') as f: f.write(test_help_content)
 
+    test_basic_content = f'''import unittest
+import subprocess
+import sys
+from pathlib import Path
+
+EXPECTED_TIMEOUT = 30
+
+class TestBasic(unittest.TestCase):
+    def test_no_args(self):
+        """Test that the tool handles no arguments gracefully."""
+        project_root = Path(__file__).resolve().parent.parent.parent
+        bin_path = project_root / "bin" / "{tool_name.split('.')[-1] if '.' in tool_name else tool_name}"
+        if not bin_path.exists():
+            bin_path = project_root / "tool" / "{tool_name}" / "main.py"
+
+        cmd = [sys.executable, str(bin_path)]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        # Should exit 0 (help) or 1 (error) but not crash
+        self.assertIn(res.returncode, [0, 1],
+            f"Unexpected exit code {{res.returncode}}: {{res.stderr}}")
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+    with open(tool_dir / "test" / "test_01_basic.py", 'w') as f: f.write(test_basic_content)
+
     try:
         res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))
         current_real = res.stdout.strip() if res.returncode == 0 else "dev"
@@ -305,7 +332,7 @@ if __name__ == "__main__":
     except: pass
 
     success_status = _("label_success", "Successfully")
-    print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {dir}", dir=tool_dir))
+    print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {name}", name=tool_dir))
 
 def dev_sanity_check(tool_name: str, project_root: Path, fix: bool = False, translation_func: Optional[Callable] = None) -> bool:
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
@@ -457,8 +484,42 @@ def dev_audit_test(tool_name: str, project_root: Path, fix: bool = False) -> boo
     
     return False
 
+def dev_audit_archived(project_root: Path) -> bool:
+    """Audit for duplicate tools between tool/ and resource/archived/ on the tool branch."""
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
+
+    tool_dir = project_root / "tool"
+    archived_dir = project_root / "resource" / "archived"
+
+    active_tools = set()
+    if tool_dir.exists():
+        for d in tool_dir.iterdir():
+            if d.is_dir() and (d / "main.py").exists():
+                active_tools.add(d.name)
+
+    archived_tools = set()
+    if archived_dir.exists():
+        for d in archived_dir.iterdir():
+            if d.is_dir() and (d / "main.py").exists():
+                archived_tools.add(d.name)
+
+    duplicates = active_tools & archived_tools
+    if duplicates:
+        print(f"{BOLD}{RED}Found duplicate tools{RESET} in both tool/ and resource/archived/:")
+        for name in sorted(duplicates):
+            print(f"  {name}")
+        return False
+
+    total = len(active_tools) + len(archived_tools)
+    print(f"{BOLD}{GREEN}No duplicates{RESET}: {len(active_tools)} active, {len(archived_tools)} archived tools.")
+    return True
+
+
 def dev_audit_bin(project_root: Path, fix: bool = False) -> bool:
-    """Audit bin/ directory to ensure only symlinks or bootstrap scripts exist."""
+    """Audit bin/ directory for the tool-subdirectory structure (bin/<tool>/<tool>)."""
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     YELLOW = get_color("YELLOW", "\033[33m")
@@ -479,53 +540,148 @@ def dev_audit_bin(project_root: Path, fix: bool = False) -> bool:
             if isinstance(tools_data, dict): tools = list(tools_data.keys())
             elif isinstance(tools_data, list): tools = tools_data
     
+    def _is_valid_bootstrap(filepath):
+        try:
+            with open(filepath, 'r') as f_in:
+                content = f_in.read()
+                return "# Use managed python if available" in content and "subprocess.run" in content
+        except:
+            return False
+
     violations = []
-    existing_in_bin = [f.name for f in bin_dir.iterdir()]
-    
+
+    # Check for legacy flat shortcuts (files directly in bin/ that aren't TOOL)
     for f in bin_dir.iterdir():
         if f.name == "TOOL": continue
-        is_valid_bootstrap = False
         if f.is_file() and not f.is_symlink():
-            try:
-                with open(f, 'r') as f_in:
-                    content = f_in.read()
-                    if "# Use managed python if available" in content and "subprocess.run" in content:
-                        is_valid_bootstrap = True
-            except: pass
-        
-        is_tool = f.name in tools
-        matched_tool_name = f.name if is_tool else None
-        if not is_tool:
+            shortcut_name = f.name
+            matched_tool = None
             for t in tools:
-                if "." in t and t.split(".")[-1] == f.name:
-                    is_tool = True
-                    matched_tool_name = t
+                sn = t.split(".")[-1] if "." in t else t
+                if sn == shortcut_name:
+                    matched_tool = t
                     break
-        
-        if is_tool and not is_valid_bootstrap:
-            violations.append((f.name, matched_tool_name, "Unmanaged or old-style"))
+            if matched_tool:
+                violations.append((shortcut_name, matched_tool, "Legacy flat shortcut (should be in bin/{}/{}/)".format(shortcut_name, shortcut_name)))
 
+    # Check each tool has proper bin/<tool>/<tool> structure
     for t in tools:
         shortcut_name = t.split(".")[-1] if "." in t else t
         if shortcut_name == "TOOL": continue
-        tool_dir = project_root / t
-        if tool_dir.exists() and shortcut_name not in existing_in_bin:
-            violations.append((shortcut_name, t, "Missing shortcut"))
-    
+        tool_src_dir = project_root / "tool" / t
+        if not tool_src_dir.exists():
+            continue
+
+        tool_bin_dir = bin_dir / shortcut_name
+        main_shortcut = tool_bin_dir / shortcut_name
+
+        if not tool_bin_dir.exists() or not tool_bin_dir.is_dir():
+            violations.append((shortcut_name, t, "Missing bin/{sn}/ directory".format(sn=shortcut_name)))
+        elif not (main_shortcut.exists() or main_shortcut.is_symlink()):
+            violations.append((shortcut_name, t, "Missing bin/{sn}/{sn} shortcut".format(sn=shortcut_name)))
+        elif main_shortcut.is_file() and not main_shortcut.is_symlink() and not _is_valid_bootstrap(main_shortcut):
+            violations.append((shortcut_name, t, "Invalid bootstrap script in bin/{sn}/{sn}".format(sn=shortcut_name)))
+
     if not violations:
-        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts in bin/ are valid managed bootstrap scripts.")
+        print(f"{BOLD}{GREEN}Success{RESET}: All tool shortcuts use the bin/<tool>/ directory structure.")
         return True
     
     print(f"{BOLD}{RED}Found shortcut violations in bin/{RESET}:")
     for shortcut_name, tool_name, reason in violations:
         print(f"  {shortcut_name} ({reason})")
         if fix:
+            # Remove legacy flat shortcut if present
+            legacy = bin_dir / shortcut_name
+            if legacy.is_file() and not legacy.is_dir():
+                try:
+                    os.remove(legacy)
+                    print(f"    {BOLD}{YELLOW}Removed{RESET}: legacy flat shortcut bin/{shortcut_name}")
+                except: pass
+
             from logic.tool.setup.engine import ToolEngine
             engine = ToolEngine(tool_name, project_root)
             if engine.create_shortcut():
-                print(f"    {BOLD}{GREEN}Fixed{RESET}: Created/Updated managed bootstrap script.")
+                print(f"    {BOLD}{GREEN}Fixed{RESET}: Created bin/{shortcut_name}/{shortcut_name} bootstrap script.")
             else:
                 print(f"    {BOLD}{RED}Failed to fix{RESET}: could not create shortcut.")
                 
     return False
+
+
+def dev_migrate_bin(project_root: Path) -> bool:
+    """Migrate flat bin/ shortcuts to the new bin/<tool>/ directory structure."""
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    YELLOW = get_color("YELLOW", "\033[33m")
+    BLUE = get_color("BLUE", "\033[34m")
+    RESET = get_color("RESET", "\033[0m")
+
+    bin_dir = project_root / "bin"
+    if not bin_dir.exists():
+        print(f"{BOLD}{YELLOW}Warning{RESET}: bin/ directory not found.")
+        return True
+
+    registry_path = project_root / "tool.json"
+    tools = []
+    if registry_path.exists():
+        with open(registry_path, 'r') as f:
+            data = json.load(f)
+            tools_data = data.get("tools", [])
+            if isinstance(tools_data, dict): tools = list(tools_data.keys())
+            elif isinstance(tools_data, list): tools = tools_data
+
+    tool_shortcut_map = {}
+    for t in tools:
+        sn = t.split(".")[-1] if "." in t else t
+        tool_shortcut_map[sn] = t
+
+    python_extra_links = {"pip", "pip3", "python3", "python"}
+    migrated = 0
+    deferred_extras = []
+
+    # Pass 1: migrate tool shortcuts (create bin/<tool>/<tool>)
+    for f in list(bin_dir.iterdir()):
+        if f.name == "TOOL" or f.name.startswith("."):
+            continue
+        if f.is_dir():
+            continue
+
+        if f.name in tool_shortcut_map:
+            import tempfile
+            tmp = tempfile.mktemp(dir=str(bin_dir), prefix=f".migrate_{f.name}_")
+            shutil.move(str(f), tmp)
+            tool_bin_dir = bin_dir / f.name
+            tool_bin_dir.mkdir(exist_ok=True)
+            dest = tool_bin_dir / f.name
+            if dest.exists() or dest.is_symlink():
+                os.remove(dest)
+            shutil.move(tmp, str(dest))
+            print(f"  {BOLD}{BLUE}Migrated{RESET}: bin/{f.name} -> bin/{f.name}/{f.name}")
+            migrated += 1
+
+            from logic.utils import register_path
+            register_path(tool_bin_dir)
+
+        elif f.name in python_extra_links:
+            deferred_extras.append(f)
+
+    # Pass 2: migrate python extra symlinks (pip, pip3, python3)
+    for f in deferred_extras:
+        if not f.exists():
+            continue
+        python_bin_dir = bin_dir / "PYTHON"
+        python_bin_dir.mkdir(exist_ok=True)
+        dest = python_bin_dir / f.name
+        if dest.exists() or dest.is_symlink():
+            os.remove(dest)
+        shutil.move(str(f), str(dest))
+        print(f"  {BOLD}{BLUE}Migrated{RESET}: bin/{f.name} -> bin/PYTHON/{f.name}")
+        migrated += 1
+
+    if migrated == 0:
+        print(f"{BOLD}{GREEN}Success{RESET}: No legacy flat shortcuts to migrate.")
+    else:
+        print(f"\n{BOLD}{GREEN}Successfully migrated{RESET} {migrated} shortcut(s) to bin/<tool>/ structure.")
+
+    return True
 

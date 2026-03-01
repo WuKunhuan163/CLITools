@@ -34,18 +34,35 @@ class ToolEngine:
         text = get_translation(str(self.project_root / "logic"), key, default)
         return text.format(**kwargs)
 
-    def is_installed(self):
-        """Check if the tool is correctly installed and operational."""
+    def _get_tool_bin_dir(self):
+        """Returns the tool-specific bin directory: bin/<tool_name>/"""
         shortcut_name = self.tool_name
         if "." in self.tool_name:
             shortcut_name = self.tool_name.split(".")[-1]
-            
-        link_path = self.bin_dir / shortcut_name
-        # Fallback to full name check for legacy or special cases
-        if not (link_path.exists() or link_path.is_symlink()):
-            link_path = self.bin_dir / self.tool_name
-            
-        if not (self.tool_dir.exists() and (link_path.exists() or link_path.is_symlink())):
+        return self.bin_dir / shortcut_name
+
+    def _get_shortcut_path(self):
+        """Returns the path to the tool's main shortcut script."""
+        shortcut_name = self.tool_name
+        if "." in self.tool_name:
+            shortcut_name = self.tool_name.split(".")[-1]
+        tool_bin = self._get_tool_bin_dir()
+        return tool_bin / shortcut_name
+
+    def is_installed(self):
+        """Check if the tool is correctly installed and operational."""
+        shortcut_path = self._get_shortcut_path()
+
+        # Check new structure: bin/<tool_name>/<shortcut_name>
+        found = shortcut_path.exists() or shortcut_path.is_symlink()
+
+        # Backward compat: check legacy flat bin/<shortcut_name>
+        if not found:
+            shortcut_name = self.tool_name.split(".")[-1] if "." in self.tool_name else self.tool_name
+            legacy_path = self.bin_dir / shortcut_name
+            found = legacy_path.exists() or legacy_path.is_symlink()
+
+        if not (self.tool_dir.exists() and found):
             return False
         
         # Check dependencies
@@ -57,8 +74,12 @@ class ToolEngine:
                     dependencies = tool_data.get("dependencies", [])
                     for dep in dependencies:
                         dep_dir = self.tool_parent_dir / dep
-                        dep_link = self.bin_dir / dep
-                        if not (dep_dir.exists() and (dep_link.exists() or dep_link.is_symlink())):
+                        dep_name = dep.split(".")[-1] if "." in dep else dep
+                        dep_new = self.bin_dir / dep_name / dep_name
+                        dep_legacy = self.bin_dir / dep_name
+                        dep_found = (dep_new.exists() or dep_new.is_symlink() or
+                                     dep_legacy.exists() or dep_legacy.is_symlink())
+                        if not (dep_dir.exists() and dep_found):
                             return False
             except: return False
         return True
@@ -85,11 +106,14 @@ class ToolEngine:
         # 3. Check for partial installation/missing deps
         # A tool is "partial" if it has no bin shortcut but the directory exists,
         # UNLESS it's a new tool being developed (has main.py).
-        has_shortcut = (self.bin_dir / self.tool_name).exists() or (self.bin_dir / self.tool_name).is_symlink()
+        shortcut_path = self._get_shortcut_path()
+        has_shortcut = shortcut_path.exists() or shortcut_path.is_symlink()
+        # Also check legacy location
+        if not has_shortcut:
+            legacy = self.bin_dir / self.tool_name
+            has_shortcut = legacy.exists() or legacy.is_symlink()
         is_partial = (self.tool_dir.exists() or has_shortcut) and not self.is_installed()
         
-        # If it has main.py but no shortcut, it's not "partial" in a bad way, 
-        # it just needs a shortcut and setup.
         if self.tool_dir.exists() and (self.tool_dir / "main.py").exists() and not has_shortcut:
             is_partial = False
 
@@ -264,18 +288,14 @@ class ToolEngine:
         if (self.tool_dir / "main.py").exists():
             return True
 
-        # 1. Determine relative path for checkout
         rel_tool_path = self.tool_dir.relative_to(self.project_root)
-        
-        # All tools are now in the top-level tool/ directory (some with PARENT.SUBTOOL names)
         remote_source_path = rel_tool_path
 
-        # 1. Try checkout from known branches
+        # 1. Try checkout tool/ from known branches
         sources = ["dev", "tool", "origin/tool", "origin/dev"]
         last_err = "No source found in any branch"
         for branch in sources:
             try:
-                # Use shlex to safely handle paths with spaces if any
                 cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
                 res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
                 if res.returncode == 0:
@@ -284,7 +304,23 @@ class ToolEngine:
                     last_err = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else f"Git checkout from {branch} failed"
             except Exception as e:
                 last_err = str(e)
-        
+
+        # 2. Fallback: try resource/archived/ on tool branches
+        archived_path = f"resource/archived/{self.tool_name}"
+        for branch in ["tool", "origin/tool"]:
+            try:
+                cmd = ["/usr/bin/git", "checkout", branch, "--", archived_path]
+                res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
+                if res.returncode == 0:
+                    import shutil
+                    src = self.project_root / archived_path
+                    if src.exists() and (src / "main.py").exists():
+                        shutil.copytree(str(src), str(self.tool_dir), dirs_exist_ok=True)
+                        shutil.rmtree(str(src))
+                        return True
+            except Exception:
+                pass
+
         if stage: stage.error_brief = last_err
         return False
 
@@ -365,12 +401,20 @@ class ToolEngine:
         
         self.bin_dir.mkdir(exist_ok=True)
         
-        # Shortcut naming: if tool is PARENT.SUBTOOL, create shortcut for SUBTOOL
         shortcut_name = self.tool_name
         if "." in self.tool_name:
             shortcut_name = self.tool_name.split(".")[-1]
+
+        tool_bin_dir = self._get_tool_bin_dir()
+        tool_bin_dir.mkdir(exist_ok=True)
+
+        # Clean up legacy flat shortcut if it exists
+        legacy_path = self.bin_dir / shortcut_name
+        if legacy_path.is_file() and not legacy_path.is_dir():
+            try: os.remove(legacy_path)
+            except: pass
             
-        shortcut_path = self.bin_dir / shortcut_name
+        shortcut_path = tool_bin_dir / shortcut_name
         if shortcut_path.exists() or shortcut_path.is_symlink():
             try: os.remove(shortcut_path)
             except Exception as e:
@@ -423,13 +467,16 @@ python_path = env.get('PYTHONPATH', '')
 new_paths = f"{{project_root}}:{{main_py.parent}}"
 env["PYTHONPATH"] = f"{{new_paths}}:{{python_path}}" if python_path else new_paths
 
-# On macOS (case-insensitive), we handle 'python' vs 'PYTHON' in the same script
+# Distinguish tool invocation from python/pip exec passthrough
 invoked_name = os.path.basename(sys.argv[0])
-is_python_exec = invoked_name.lower() in ["python", "python3", "pip", "pip3"]
+tool_shortcut = "{shortcut_name}"
+is_tool_invocation = (invoked_name == tool_shortcut)
+is_python_exec = (not is_tool_invocation and
+                  invoked_name.lower() in ["python", "python3", "pip", "pip3"]
+                  and "{self.tool_name}".upper() == "PYTHON")
 
-if is_python_exec and "{self.tool_name}".upper() == "PYTHON":
+if is_python_exec:
     if "pip" in invoked_name.lower():
-        # Find pip associated with the managed python
         pip_path = Path(python_exec).parent / invoked_name.lower()
         if not pip_path.exists():
             pip_path = Path(python_exec).parent / "pip"
@@ -454,7 +501,7 @@ except KeyboardInterrupt:
             os.chmod(shortcut_path, st.st_mode | stat.S_IEXEC)
             
             from logic.utils import register_path
-            register_path(self.bin_dir)
+            register_path(tool_bin_dir)
             return True
         except Exception as e:
             if stage: stage.error_brief = str(e)
@@ -478,8 +525,20 @@ except KeyboardInterrupt:
 
     def uninstall_action(self):
         try:
-            link_path = self.bin_dir / self.tool_name
-            if link_path.exists() or link_path.is_symlink(): os.remove(link_path)
+            # Remove new-style bin/<tool_name>/ directory
+            tool_bin_dir = self._get_tool_bin_dir()
+            if tool_bin_dir.exists() and tool_bin_dir.is_dir():
+                shutil.rmtree(tool_bin_dir)
+
+            # Remove legacy flat shortcut if exists
+            shortcut_name = self.tool_name.split(".")[-1] if "." in self.tool_name else self.tool_name
+            legacy_path = self.bin_dir / shortcut_name
+            if legacy_path.exists() or legacy_path.is_symlink():
+                if legacy_path.is_dir():
+                    shutil.rmtree(legacy_path)
+                else:
+                    os.remove(legacy_path)
+
             if self.tool_dir.exists(): shutil.rmtree(self.tool_dir)
-            return not (link_path.exists() or self.tool_dir.exists())
+            return not (tool_bin_dir.exists() or self.tool_dir.exists())
         except: return False

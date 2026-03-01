@@ -9,6 +9,41 @@ import builtins
 import platform
 from pathlib import Path
 
+def retry(max_attempts=3, backoff=1.0, retryable_exceptions=(Exception,), retryable_status_codes=(500, 502, 503, 504)):
+    """
+    Decorator for retrying a function on transient failures.
+
+    Args:
+        max_attempts: Maximum number of attempts (default 3).
+        backoff: Seconds to wait between retries (default 1.0).
+        retryable_exceptions: Tuple of exception types to retry on.
+        retryable_status_codes: HTTP status codes that trigger a retry
+            (only checked if the return value has a `status_code` attribute).
+    """
+    import functools
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_attempts):
+                try:
+                    result = func(*args, **kwargs)
+                    if hasattr(result, 'status_code') and result.status_code in retryable_status_codes:
+                        if attempt < max_attempts - 1:
+                            time.sleep(backoff)
+                            continue
+                    return result
+                except retryable_exceptions as e:
+                    last_exception = e
+                    if attempt < max_attempts - 1:
+                        time.sleep(backoff)
+                    else:
+                        raise
+            raise last_exception
+        return wrapper
+    return decorator
+
+
 def calculate_eta(current, total, elapsed_time):
     """
     Calculate estimated remaining time.
@@ -518,14 +553,11 @@ def check_and_reexecute_with_python(tool_name, version=None):
             env["PYTHONPATH"] = f"{project_root}:{env.get('PYTHONPATH', '')}"
             env["TOOL_MANAGED_PYTHON_ACTIVE"] = "1"
             
-            # Strip --no-warning and --tool-quiet from sys.argv for the real python
-            # because these are handled by ToolBase before re-execution
-            filtered_argv = [sys.argv[0]]
-            for arg in sys.argv[1:]:
-                if arg not in ["--no-warning", "--tool-quiet"]:
-                    filtered_argv.append(arg)
+            # Re-execute with managed Python, keeping the script path
+            script_path = sys.argv[0]
+            extra_args = [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
             
-            os.execve(py_exec, [py_exec] + filtered_argv[1:], env)
+            os.execve(py_exec, [py_exec, script_path] + extra_args, env)
     
     if not py_exec:
         # PYTHON tool missing or not operational
@@ -764,6 +796,20 @@ def register_path(bin_dir):
 
     if str(bin_dir) not in os.environ.get("PATH", ""):
         os.environ["PATH"] = f"{bin_dir}:" + os.environ["PATH"]
+
+def get_tool_bin_path(project_root, tool_name):
+    """Resolve the path to a tool's executable in bin/, supporting both new
+    (bin/<tool>/<tool>) and legacy (bin/<tool>) structures."""
+    from pathlib import Path
+    project_root = Path(project_root)
+    shortcut_name = tool_name.split(".")[-1] if "." in tool_name else tool_name
+    new_path = project_root / "bin" / shortcut_name / shortcut_name
+    if new_path.exists():
+        return new_path
+    legacy = project_root / "bin" / shortcut_name
+    if legacy.exists() and legacy.is_file():
+        return legacy
+    return new_path
 
 def print_success_status(action_msg):
     """

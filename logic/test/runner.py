@@ -418,7 +418,9 @@ class TestRunner:
                                 ppid = p.ppid()
                                 if ppid in test_pids:
                                     # Target this specific GUI
-                                    userinput_bin = self.project_root / "bin" / "USERINPUT"
+                                    userinput_bin = self.project_root / "bin" / "USERINPUT" / "USERINPUT"
+                                    if not userinput_bin.exists():
+                                        userinput_bin = self.project_root / "bin" / "USERINPUT"
                                     if userinput_bin.exists():
                                         subprocess.run([str(userinput_bin), "stop", str(gui_pid)], capture_output=True)
                                     else:

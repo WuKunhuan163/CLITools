@@ -109,7 +109,9 @@ def setup_gui_python_action(stage=None):
         py_exe = get_python_exe("3.10.19")
         if not py_exe or py_exe == "python3":
             # Attempt installation
-            python_bin = project_root / "bin" / "PYTHON"
+            python_bin = project_root / "bin" / "PYTHON" / "PYTHON"
+            if not python_bin.exists():
+                python_bin = project_root / "bin" / "PYTHON"
             if not python_bin.exists():
                 python_bin = project_root / "tool" / "PYTHON" / "main.py"
             

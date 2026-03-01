@@ -42,23 +42,35 @@ class ButtonBarWindow(BaseGUIWindow):
         
         # Optional Instruction Area (using Text for markdown-like bolding)
         if self.instruction_text:
+            line_count = self.instruction_text.count('\n') + 1
+            display_height = min(max(line_count, 2), 10)
+            needs_scroll = line_count > 10
+
+            text_frame = tk.Frame(main_frame)
+            text_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 15))
+
             text_widget = tk.Text(
-                main_frame, 
+                text_frame, 
                 font=get_label_style(),
                 wrap=tk.WORD,
-                height=2, # Initial height, will adjust
+                height=display_height,
                 padx=0,
                 pady=0,
                 borderwidth=0,
                 highlightthickness=0,
                 bg=main_frame.cget("bg")
             )
-            text_widget.pack(side=tk.TOP, fill=tk.X, pady=(0, 15))
+
+            if needs_scroll:
+                scrollbar = tk.Scrollbar(text_frame, command=text_widget.yview)
+                scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+                text_widget.config(yscrollcommand=scrollbar.set)
+
+            text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             
             # Configure bold tag
             bold_font = list(get_label_style())
             if len(bold_font) >= 2:
-                # If font is (family, size, weight), update weight
                 if len(bold_font) > 2:
                     bold_font[2] = "bold"
                 else:
@@ -74,7 +86,7 @@ class ButtonBarWindow(BaseGUIWindow):
                 else:
                     text_widget.insert(tk.END, part)
             
-            text_widget.config(state=tk.DISABLED) # Read only
+            text_widget.config(state=tk.DISABLED)
 
         button_frame = tk.Frame(main_frame)
         button_frame.pack(fill=tk.X, expand=True)
