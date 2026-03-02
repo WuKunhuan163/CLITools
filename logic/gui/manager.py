@@ -5,6 +5,8 @@ import argparse
 import subprocess
 import time
 import threading
+import platform
+import signal
 from pathlib import Path
 import random
 import hashlib
@@ -259,7 +261,20 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         if not stdout:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
             if is_interrupted:
-                return {"status": "terminated", "data": None, "reason": "interrupted"}
+                BOLD_RED = "\033[1;31m"
+                RST = "\033[0m"
+                try:
+                    from logic.utils import find_project_root, get_logic_dir
+                    from logic.lang.utils import get_translation
+                    root = find_project_root(Path(__file__))
+                    logic_dir = str(get_logic_dir(root))
+                    cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
+                    by_user_label = get_translation(logic_dir, "msg_cancelled_by_user", "by user.")
+                except Exception:
+                    cancelled_label, by_user_label = "Operation cancelled", "by user."
+                sys.stdout.write(f"{BOLD_RED}{cancelled_label}{RST} {by_user_label}\n")
+                sys.stdout.flush()
+                os._exit(130)
             raise e
 
     if not is_quiet:
@@ -297,7 +312,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     # Hide debug prints unless specifically enabled
     from logic.config import get_setting
     # Use environment variable or setting, default to False but allow override
-    if os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", True):
+    if os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", False):
         sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
         if filtered_stderr: sys.stderr.write(f"DEBUG: GUI stderr: {filtered_stderr}\n")
         if stdout: sys.stderr.write(f"DEBUG: GUI stdout: {stdout}\n")

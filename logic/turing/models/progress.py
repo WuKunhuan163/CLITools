@@ -8,7 +8,7 @@ from pathlib import Path
 from logic.turing.logic import TuringStage
 from logic.config import get_color
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
-from logic.terminal.keyboard import get_global_suppressor
+from logic.turing.terminal.keyboard import get_global_suppressor
 from logic.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
 
@@ -348,12 +348,14 @@ class ProgressTuringMachine:
                     try: suppressor.stop(force=True)
                     except: pass
                 
-                # Use hardcoded escape codes if get_color fails for some reason
                 BOLD_RED = "\033[1;31m"
                 RESET = "\033[0m"
                 
-                # Erase current line via manager
-                self.manager.update("interrupted", "remove", is_final=True)
+                # Remove all active stage lines from the display
+                for s in self.stages:
+                    key = f"stage_{s.name}"
+                    if key in self.manager.worker_to_slot_idx:
+                        self.manager.update(key, "remove", is_final=True)
                 
                 # Try to get translation, but have a solid fallback
                 try:

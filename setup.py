@@ -73,6 +73,22 @@ def install_deps_action(stage=None):
         if stage: stage.error_brief = str(e)
         return False
 
+def setup_keyboard_access_action(stage=None):
+    """On macOS, verify accessibility permission for global keyboard monitoring."""
+    import platform
+    if platform.system() != "Darwin":
+        return True
+    try:
+        from logic.accessibility.keyboard.monitor import check_accessibility_trusted
+        if check_accessibility_trusted():
+            return True
+        from logic.accessibility.keyboard.monitor import request_accessibility_permission
+        request_accessibility_permission()
+        return True
+    except Exception:
+        return True
+
+
 def install_core_tools_action(stage=None):
     project_root = Path(__file__).parent.absolute()
     registry_path = project_root / "tool.json"
@@ -186,6 +202,16 @@ def setup():
         fail_status="Failed to install",
         success_color="BOLD",
         bold_part="Installing dependencies"
+    ))
+
+    pm.add_stage(TuringStage(
+        name="keyboard access",
+        action=setup_keyboard_access_action,
+        active_status="Checking",
+        success_status="Successfully verified",
+        fail_status="Failed to verify",
+        success_color="BOLD",
+        bold_part="Checking keyboard access"
     ))
 
     pm.add_stage(TuringStage(

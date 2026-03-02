@@ -127,7 +127,7 @@ class MultiLineManager:
         if getattr(self, "_initialized", False):
             return
         self._initialized = True
-        from logic.terminal.keyboard import get_global_suppressor
+        from logic.turing.terminal.keyboard import get_global_suppressor
         self.lock = threading.Lock()
         self.slots = [] # List of Slot objects
         self.worker_to_slot_idx = {} # worker_id -> index in self.slots
@@ -226,6 +226,9 @@ class MultiLineManager:
                 sys.stdout.write(f"\r\033[K{display_text}\n")
                 if is_final:
                     del self.worker_to_slot_idx[worker_id]
+                    if not self.worker_to_slot_idx and self.is_suppressing:
+                        self.suppressor.stop()
+                        self.is_suppressing = False
                 
                 self._save_debug_state("create", worker_id)
                 if callback:

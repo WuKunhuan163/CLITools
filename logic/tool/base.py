@@ -12,38 +12,23 @@ class ToolBase:
     def __init__(self, tool_name):
         self.tool_name = tool_name
         self.no_warning = "--no-warning" in sys.argv
-        
-        # Determine tool_dir (the actual installation directory of the tool)
+
         import inspect
-        caller_frame = inspect.stack()[1]
-        caller_file = Path(caller_frame.filename).resolve()
-        
-        # Robust detection: find the nearest directory containing tool.json 
-        # starting from the caller's directory and going upwards.
+        caller_file = Path(inspect.stack()[1].filename).resolve()
+
+        from logic.resolve import setup_paths, find_project_root, get_tool_module_path
+        self.project_root = setup_paths(caller_file)
+
         curr = caller_file.parent
-        self.tool_dir = curr # Default fallback
-        
-        # But we stop if we hit project root to avoid jumping to the wrong tool
-        # Wait, we need project root first for the limit.
-        from logic.utils import find_project_root, get_tool_module_path
-        self.project_root = find_project_root(curr)
-        
+        self.tool_dir = curr
         while curr != curr.parent and curr != self.project_root.parent:
             if (curr / "tool.json").exists():
                 self.tool_dir = curr
                 break
             curr = curr.parent
-            
-        # Keep script_dir as an alias for backward compatibility
+
         self.script_dir = self.tool_dir
-        
         self.tool_module_path = get_tool_module_path(self.tool_dir, self.project_root)
-        
-        # Ensure project root is in path for imports and it's at the FRONT
-        root_str = str(self.project_root)
-        if root_str in sys.path:
-            sys.path.remove(root_str)
-        sys.path.insert(0, root_str)
             
         self.tool_json_path = self.tool_dir / "tool.json"
         self.dependencies = []
@@ -195,20 +180,49 @@ class ToolBase:
         cmd = [str(bin_path)] + args
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
-    def handle_command_line(self, parser=None):
-        """
-        Process command line arguments. 
+    def handle_command_line(self, parser=None, dev_handler=None, test_handler=None):
+        """Process command line arguments.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser, optional
+            The tool's own argument parser.
+        dev_handler : callable(list[str]) -> None, optional
+            Custom handler for ``--dev`` sub-commands.  Receives the
+            arguments after ``--dev``.  When *None*, only the built-in
+            dev commands (sanity-check, audit-test, info) are available.
+        test_handler : callable(list[str]) -> None, optional
+            Custom handler for ``--test`` sub-commands.  Receives the
+            arguments after ``--test``.  When *None*, the default test
+            runner is used.
+
         Returns True if a command was handled and the tool should exit.
         """
         self.check_cpu_load_and_warn()
 
-        # Check for quiet flag globally
         self.is_quiet = "--tool-quiet" in sys.argv
-        
-        # Clean sys.argv for the provided parser
-        orig_argv = sys.argv[:]
+
         sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
-        
+
+        # ---- --dev / --test flag intercept (before argparse) ----
+        if "--dev" in sys.argv:
+            idx = sys.argv.index("--dev")
+            dev_args = sys.argv[idx + 1:]
+            if dev_handler:
+                dev_handler(dev_args)
+            else:
+                self._handle_default_dev(dev_args)
+            return True
+
+        if "--test" in sys.argv:
+            idx = sys.argv.index("--test")
+            test_args = sys.argv[idx + 1:]
+            if test_handler:
+                test_handler(test_args)
+            else:
+                self._handle_default_test(test_args)
+            return True
+
         if len(sys.argv) > 1:
             args_to_check = sys.argv[1:]
             cmd = args_to_check[0]
@@ -241,6 +255,9 @@ class ToolBase:
             elif cmd == "rule":
                 self.print_rule()
                 return True
+            elif cmd == "skills":
+                self._handle_skills_command(args_to_check[1:])
+                return True
             elif cmd == "config":
                 is_custom_config = False
                 if parser:
@@ -251,7 +268,7 @@ class ToolBase:
                 if not is_custom_config:
                     self._handle_tool_config(args_to_check[1:])
                     return True
-                
+
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if not cmd.startswith("-") and subtool_main.exists():
                 cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
@@ -286,7 +303,7 @@ class ToolBase:
                 if not is_recognized and not has_positional_nargs:
                     res = self.run_system_fallback(capture_output=self.is_quiet, filtered_args=args_to_check)
                     if res is None:
-                        return True # Already printed error
+                        return True
                     if self.is_quiet:
                         print("TOOL_RESULT_JSON:" + json.dumps({
                             "returncode": res.returncode,
@@ -296,6 +313,61 @@ class ToolBase:
                         return True
                     return True
         return False
+
+    # ------------------------------------------------------------------ #
+    #  --dev / --test default handlers                                     #
+    # ------------------------------------------------------------------ #
+
+    def _handle_default_dev(self, args):
+        """Built-in --dev commands available for every tool."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        BLUE = get_color("BLUE", "\033[34m")
+        RESET = get_color("RESET", "\033[0m")
+
+        subcmd = args[0] if args else ""
+
+        if subcmd == "sanity-check":
+            fix = "--fix" in args
+            from logic.tool.dev.commands import dev_sanity_check
+            dev_sanity_check(self.tool_name, self.project_root, fix=fix)
+        elif subcmd == "audit-test":
+            fix = "--fix" in args
+            from logic.tool.dev.commands import dev_audit_test
+            dev_audit_test(self.tool_name, self.project_root, fix=fix)
+        elif subcmd == "info":
+            print(f"\n{BOLD}{self.tool_name} Developer Info{RESET}")
+            print(f"  tool_dir:        {self.tool_dir}")
+            print(f"  project_root:    {self.project_root}")
+            print(f"  module_path:     {self.tool_module_path}")
+            print(f"  dependencies:    {', '.join(self.dependencies) or '(none)'}")
+            print(f"  data_dir:        {self.get_data_dir()}")
+            test_dir = self.tool_dir / "test"
+            tests = list(test_dir.glob("test_*.py")) if test_dir.exists() else []
+            print(f"  tests:           {len(tests)} file(s)")
+            print()
+        else:
+            print(f"Usage: {self.tool_name} --dev <command>")
+            print(f"\n{BOLD}Available commands:{RESET}")
+            print(f"  sanity-check [--fix]   Check tool structure")
+            print(f"  audit-test [--fix]     Audit unit test naming")
+            print(f"  info                   Show tool developer info")
+
+    def _handle_default_test(self, args):
+        """Built-in --test handler: run this tool's unit tests."""
+        import argparse as _ap
+        tp = _ap.ArgumentParser(add_help=False)
+        tp.add_argument("--range", nargs=2, type=int, help="Test range (start end)")
+        tp.add_argument("--max", type=int, default=3, help="Max concurrent tests")
+        tp.add_argument("--timeout", type=int, default=60, help="Timeout per test")
+        tp.add_argument("--list", action="store_true", help="List tests only")
+        tp.add_argument("--no-warning", action="store_true")
+        test_args = tp.parse_args(args)
+
+        test_args.tool_name = self.tool_name
+        from logic.test.manager import test_tool_with_args
+        test_tool_with_args(test_args, self.project_root)
 
     def _handle_tool_config(self, args):
         """Handle tool-specific configuration settings."""
@@ -336,6 +408,115 @@ class ToolBase:
                 print(f"  {k}: {v}")
         else:
             print(f"Usage: {self.tool_name} config [--cpu-limit <float>] [--cpu-timeout <int>]")
+
+    def _get_tool_skills(self):
+        """Get skills relevant to this tool from tool.json and tool-level skills/ directory."""
+        skills = []
+        # 1. From tool.json "skills" field
+        if self.tool_json_path.exists():
+            try:
+                with open(self.tool_json_path, 'r') as f:
+                    data = json.load(f)
+                skills_list = data.get("skills", [])
+                if isinstance(skills_list, list):
+                    skills.extend(skills_list)
+            except Exception:
+                pass
+        # 2. From tool-level skills/ directory
+        tool_skills_dir = self.tool_dir / "skills"
+        if tool_skills_dir.exists():
+            for skill_dir in sorted(tool_skills_dir.iterdir()):
+                if skill_dir.is_dir() and (skill_dir / "SKILL.md").exists():
+                    if skill_dir.name not in skills:
+                        skills.append(skill_dir.name)
+        return skills
+
+    def _resolve_skill_path(self, name):
+        """Find SKILL.md by name across all skill locations."""
+        # 1. Tool-level skills/
+        p = self.tool_dir / "skills" / name / "SKILL.md"
+        if p.exists(): return p
+        # 2. Project-level skills/
+        p = self.project_root / "skills" / name / "SKILL.md"
+        if p.exists(): return p
+        # 3. SKILLS tool library
+        p = self.project_root / "tool" / "SKILLS" / "data" / "library" / name / "SKILL.md"
+        if p.exists(): return p
+        return None
+
+    def _handle_skills_command(self, args):
+        """Handle 'TOOLNAME skills [show <name> | list | search <query>]' command."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        BLUE = get_color("BLUE", "\033[34m")
+        YELLOW = get_color("YELLOW", "\033[33m")
+        RED = get_color("RED", "\033[31m")
+        RESET = get_color("RESET", "\033[0m")
+
+        tool_skills = self._get_tool_skills()
+        subcmd = args[0] if args else "list"
+
+        if subcmd == "show" and len(args) > 1:
+            name = args[1]
+            path = self._resolve_skill_path(name)
+            if path:
+                print(path.read_text())
+            else:
+                print(f"{BOLD}{RED}Error{RESET}: Skill '{name}' not found.")
+            return
+
+        if subcmd == "search" and len(args) > 1:
+            query = " ".join(args[1:]).lower()
+            library_dir = self.project_root / "tool" / "SKILLS" / "data" / "library"
+            project_skills_dir = self.project_root / "skills"
+            matches = []
+            for source in [library_dir, project_skills_dir]:
+                if not source.exists(): continue
+                for skill_dir in sorted(source.iterdir()):
+                    skill_file = skill_dir / "SKILL.md"
+                    if not skill_dir.is_dir() or not skill_file.exists(): continue
+                    content = skill_file.read_text()
+                    if query in skill_dir.name.lower() or query in content.lower():
+                        desc = ""
+                        for line in content.splitlines():
+                            if line.startswith("description:"):
+                                desc = line[len("description:"):].strip()
+                                break
+                        matches.append((skill_dir.name, desc))
+            if matches:
+                print(f"{BOLD}Found {len(matches)} skill(s) matching '{query}':{RESET}\n")
+                for name, desc in matches[:20]:
+                    print(f"  {BOLD}{name}{RESET}")
+                    if desc: print(f"    {desc}")
+                if len(matches) > 20:
+                    print(f"\n  ... and {len(matches) - 20} more.")
+            else:
+                print(f"No skills found matching '{query}'.")
+            return
+
+        # Default: list skills for this tool
+        if subcmd == "list" or not args:
+            if tool_skills:
+                print(f"\n{BOLD}{self.tool_name} Skills:{RESET}\n")
+                for name in tool_skills:
+                    path = self._resolve_skill_path(name)
+                    desc = ""
+                    if path:
+                        for line in path.read_text().splitlines():
+                            if line.startswith("description:"):
+                                desc = line[len("description:"):].strip()
+                                break
+                    status = f"{GREEN}available{RESET}" if path else f"{YELLOW}not found{RESET}"
+                    print(f"  {BOLD}{name}{RESET}  [{status}]")
+                    if desc: print(f"    {desc}")
+                print(f"\n  Use '{self.tool_name} skills show <name>' to view a skill.")
+            else:
+                print(f"{self.tool_name} has no tool-specific skills configured.")
+                print(f"Use '{self.tool_name} skills search <query>' to find skills from the library.")
+            return
+
+        print(f"Usage: {self.tool_name} skills [list | show <name> | search <query>]")
 
     def run_system_fallback(self, capture_output=False, filtered_args=None):
         """Delegate unknown commands to the system equivalent."""

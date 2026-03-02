@@ -14,7 +14,7 @@ if str(project_root) not in sys.path:
 
 from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
-from logic.terminal.keyboard import get_global_suppressor
+from logic.turing.terminal.keyboard import get_global_suppressor
 
 def test_keyboard_suppression_release():
     """
