@@ -117,7 +117,7 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
 
     is_dev_branch = current_branch in ["dev", "tool"] or current_branch.startswith("feature/")
     
-    from tool.GIT.logic.interface.main import run_git_tool_managed
+    from tool.GIT.interface.main import run_git_tool_managed
     
     if not is_dev_branch:
         # Auto-commit local changes before checkout to avoid errors
@@ -158,6 +158,9 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     tool_internal = get_logic_dir(tool_dir)
     tool_internal.mkdir()
     (tool_internal / "translation").mkdir(parents=True)
+    (tool_dir / "interface").mkdir(exist_ok=True)
+    (tool_dir / "hooks" / "interface").mkdir(parents=True, exist_ok=True)
+    (tool_dir / "hooks" / "instance").mkdir(parents=True, exist_ok=True)
     
     main_content = f'''#!/usr/bin/env python3
 import sys
@@ -173,7 +176,7 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.base import ToolBase
+from logic.tool.blueprint.base import ToolBase
 from logic.config import get_color
 
 def main():
@@ -252,9 +255,7 @@ if __name__ == "__main__":
     }
     with open(tool_dir / "tool.json", 'w') as f: json.dump(tool_json, f, indent=2)
     
-    # ... README content ... (shortened for brevity in this refactor call)
-    readme_content = f"# {tool_name}\n\n{tool_name} tool template."
-    with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)
+    short_name = tool_name.split('.')[-1] if '.' in tool_name else tool_name
     
     # Update global tool.json
     registry_path = project_root / "tool.json"
@@ -321,6 +322,161 @@ if __name__ == "__main__":
     unittest.main()
 '''
     with open(tool_dir / "test" / "test_01_basic.py", 'w') as f: f.write(test_basic_content)
+
+    # --- Interface template ---
+    interface_content = f'''"""
+{tool_name} Tool Interface
+
+Provides functions for cross-tool communication.
+Other tools can access this via:
+    from interface import get_interface
+    iface = get_interface("{tool_name}")
+"""
+
+
+def get_info():
+    """Return basic tool info dict."""
+    return {{"name": "{tool_name}", "version": "1.0.0"}}
+'''
+    with open(tool_dir / "interface" / "main.py", 'w') as f: f.write(interface_content)
+
+    # --- Hooks: template interface ---
+    hook_iface_content = f'''"""Hook interface: on_demo_action
+
+Fired when the tool's --demo command runs.
+
+kwargs:
+    tool: ToolBase instance
+    countdown: int (current countdown value)
+"""
+from logic.tool.hooks.engine import HookInterface
+
+
+class OnDemoAction(HookInterface):
+    event_name = "on_demo_action"
+    description = "Fired during --demo countdown. Extend to add custom logic."
+'''
+    with open(tool_dir / "hooks" / "interface" / "on_demo_action.py", 'w') as f: f.write(hook_iface_content)
+
+    # --- Hooks: template instance ---
+    hook_inst_content = f'''"""Hook instance: demo_logger
+
+Logs each demo countdown tick to the session log.
+
+Event: on_demo_action
+"""
+from logic.tool.hooks.engine import HookInstance
+
+
+class DemoLogger(HookInstance):
+    name = "demo_logger"
+    description = "Log demo countdown ticks to the session log."
+    event_name = "on_demo_action"
+    enabled_by_default = False
+
+    def execute(self, **kwargs):
+        tool = kwargs.get("tool")
+        countdown = kwargs.get("countdown", 0)
+        if tool:
+            tool.log(f"Demo countdown: {{countdown}}")
+        return {{"logged": True, "countdown": countdown}}
+'''
+    with open(tool_dir / "hooks" / "instance" / "demo_logger.py", 'w') as f: f.write(hook_inst_content)
+
+    # --- Hooks config ---
+    hooks_config = {{"enabled": [], "disabled": []}}
+    with open(tool_dir / "hooks" / "config.json", 'w') as f: json.dump(hooks_config, f, indent=2)
+
+    # --- for_agent.md ---
+    for_agent_content = f"""# {tool_name} — Agent Quick Reference
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `{short_name} --demo` | Run demo countdown |
+| `{short_name} setup` | Run tool setup |
+| `{short_name} hooks list` | List available hooks |
+| `{short_name} hooks enable <name>` | Enable a hook instance |
+| `{short_name} hooks disable <name>` | Disable a hook instance |
+| `{short_name} skills list` | List tool skills |
+
+## Hooks
+
+This tool supports the hooks system. See `{short_name} hooks list` for available events and instances.
+
+## Interface
+
+Other tools can import this tool's interface:
+```python
+from interface import get_interface
+iface = get_interface("{tool_name}")
+info = iface.get_info()
+```
+"""
+    with open(tool_dir / "for_agent.md", 'w') as f: f.write(for_agent_content)
+
+    # --- Enhanced README ---
+    readme_content = f"""# {tool_name}
+
+{tool_name} tool template.
+
+## Quick Start
+
+```bash
+{short_name} --demo         # Run demo
+{short_name} setup          # Install dependencies
+{short_name} --help         # Show help
+```
+
+## Hooks
+
+Event-driven callback system. See [Hooks Documentation](#hooks-system).
+
+```bash
+{short_name} hooks list                  # List events and instances
+{short_name} hooks enable demo_logger    # Enable the demo logger hook
+{short_name} hooks disable demo_logger   # Disable it
+{short_name} hooks show demo_logger      # Inspect a hook instance
+```
+
+### Hook Events
+
+| Event | Description |
+|-------|-------------|
+| `on_tool_start` | Fired when the tool begins execution (base) |
+| `on_tool_exit` | Fired when the tool finishes execution (base) |
+| `on_demo_action` | Fired during --demo countdown |
+
+### Hook Instances
+
+| Instance | Event | Default |
+|----------|-------|---------|
+| `demo_logger` | `on_demo_action` | disabled |
+
+## Interface
+
+```python
+from interface import get_interface
+iface = get_interface("{tool_name}")
+info = iface.get_info()  # {{"name": "{tool_name}", "version": "1.0.0"}}
+```
+
+## Skills
+
+```bash
+{short_name} skills list
+{short_name} skills show <name>
+{short_name} skills search <query>
+```
+
+## Testing
+
+```bash
+TOOL test {tool_name}
+```
+"""
+    with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)
 
     try:
         res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))

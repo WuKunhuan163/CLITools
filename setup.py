@@ -119,7 +119,7 @@ def setup_gui_python_action(stage=None):
     
     try:
         sys.path.append(str(project_root))
-        from tool.PYTHON.logic.interface.main import get_python_exe_func
+        from tool.PYTHON.interface.main import get_python_exe_func
         get_python_exe = get_python_exe_func()
         
         py_exe = get_python_exe("3.10.19")

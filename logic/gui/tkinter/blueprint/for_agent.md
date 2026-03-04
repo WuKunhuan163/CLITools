@@ -18,14 +18,26 @@ The foundation for all blueprints. Provides:
 - MacOS system noise suppression.
 - `callback_queue` for thread-safe UI updates from background threads.
 
-### 2. Account Login (`account_login`)
+### 2. Bottom Bar (`bottom_bar`)
+A minimal window with Cancel/Save buttons. No timer or "Add Time".
+- Base class for GUIs that need persistent action buttons without timed interaction.
+- Inherits: `BaseGUIWindow` -> `BottomBarWindow`.
+
+### 3. Editable List (`editable_list`)
+A reorderable list manager with Cancel/Save bottom bar.
+- Move Up / Down / to Top / to Bottom operations.
+- Add / Edit / Delete items via dialogs.
+- External control commands (`cmd_select`, `cmd_move_up`, etc.) for programmatic testing.
+- Inherits: `BottomBarWindow` -> `EditableListWindow`.
+
+### 4. Account Login (`account_login`)
 A standardized login interface with:
 - Pre-fillable account field.
-- Password visibility toggle (👁 icon).
+- Password visibility toggle.
 - Built-in verification loop (5 attempts by default) using a background thread to keep the UI responsive.
 - Detailed history logging of failed attempts.
 
-### 3. Two-Factor Auth (`two_factor_auth`)
+### 5. Two-Factor Auth (`two_factor_auth`)
 A boxy numeric code entry interface:
 - Supports N digits (default 6).
 - Auto-focusing next/previous boxes on input/backspace.
@@ -37,7 +49,7 @@ A boxy numeric code entry interface:
 Use the `run_gui` method provided by `ToolBase`:
 
 ```python
-from logic.tool.base import ToolBase
+from logic.tool.blueprint.base import ToolBase
 
 tool = ToolBase("MyTool")
 # ...

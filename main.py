@@ -352,6 +352,18 @@ def main():
     lang_audit_p.add_argument("code", help="Language code")
     lang_audit_p.add_argument("--force", action="store_true", help="Clear audit cache")
     lang_audit_p.add_argument("--turing", action="store_true", help="Scan Turing states")
+
+    audit_p = subparsers.add_parser("audit", help="Code quality audits")
+    audit_sub = audit_p.add_subparsers(dest="audit_command")
+    audit_imports_p = audit_sub.add_parser("imports", help="Audit cross-tool import quality")
+    audit_imports_p.add_argument("--tool", help="Audit specific tool only")
+    audit_imports_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+    audit_imports_p.add_argument("--exclude", help="Comma-separated tool names to skip")
+    audit_quality_p = audit_sub.add_parser("quality", help="Audit hooks, interfaces, and skills")
+    audit_quality_p.add_argument("--tool", help="Audit specific tool only")
+    audit_quality_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+    audit_quality_p.add_argument("--exclude", help="Comma-separated tool names to skip")
+    audit_quality_p.add_argument("--no-skills", action="store_true", help="Skip skills audit")
     lang_sub.add_parser("list", help="List supported languages")
 
     rule_p = subparsers.add_parser("rule", help="AI rule management")
@@ -382,6 +394,45 @@ def main():
             print(f"Current language: {current_lang}")
         elif args.config_command == "show":
             _show_config()
+    elif args.command == "audit":
+        if args.audit_command == "imports":
+            from logic.lang.audit_imports import audit_all_tools, audit_tool, format_report, to_json
+            root = Path(__file__).resolve().parent
+            exclude = [x.strip() for x in (args.exclude or "").split(",") if x.strip()]
+            if args.tool:
+                tool_dir = root / "tool" / args.tool
+                if not tool_dir.exists():
+                    print(f"Tool not found: {args.tool}")
+                else:
+                    issues = audit_tool(tool_dir, root)
+                    results = {args.tool: issues} if issues else {}
+                    print(to_json(results) if args.as_json else format_report(results))
+            else:
+                results = audit_all_tools(root, exclude=exclude or ["GOOGLE.CDMCP"])
+                print(to_json(results) if args.as_json else format_report(results))
+        elif args.audit_command == "quality":
+            from logic.tool.audit.hooks import (
+                audit_all_quality, audit_tool_quality, audit_skills,
+                format_quality_report, quality_to_json,
+            )
+            root = Path(__file__).resolve().parent
+            exclude = [x.strip() for x in (args.exclude or "").split(",") if x.strip()]
+            skills_issues = None if args.no_skills else audit_skills(root)
+            if args.tool:
+                tool_dir = root / "tool" / args.tool
+                if not tool_dir.exists():
+                    print(f"Tool not found: {args.tool}")
+                else:
+                    tool_res = audit_tool_quality(tool_dir, root)
+                    results = {args.tool: tool_res} if tool_res else {}
+                    print(quality_to_json(results, skills_issues) if args.as_json
+                          else format_quality_report(results, skills_issues))
+            else:
+                results = audit_all_quality(root, exclude=exclude)
+                print(quality_to_json(results, skills_issues) if args.as_json
+                      else format_quality_report(results, skills_issues))
+        else:
+            audit_p.print_help()
     elif args.command == "lang":
         if args.lang_command == "audit": _audit_lang(args.code, args.force, args.turing)
         elif args.lang_command == "list": _list_languages()

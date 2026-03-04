@@ -8,7 +8,7 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.tool.base import ToolBase
+from logic.tool.blueprint.base import ToolBase
 from logic.utils import find_project_root, get_tool_module_path
 
 class TestPathResolution(unittest.TestCase):

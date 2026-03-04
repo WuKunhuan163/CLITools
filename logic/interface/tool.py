@@ -1,11 +1,2 @@
-"""Tool base and setup interface.
-
-Provides the core tool infrastructure classes.
-"""
-from logic.tool.base import ToolBase
-from logic.tool.setup.engine import ToolEngine
-
-__all__ = [
-    "ToolBase",
-    "ToolEngine",
-]
+"""Compatibility shim — use interface.tool instead."""
+from interface.tool import *  # noqa: F401,F403
