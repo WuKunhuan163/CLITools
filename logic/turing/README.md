@@ -11,6 +11,7 @@ Turing Machine progress display system: stages, workers, multi-line status, para
 - **worker.py** - `TuringWorker` (executes tasks with step generators)
 - **utils.py** - `log_turing_error`
 - **select.py** - `select_menu` (arrow-key list selector: up/down/Enter/Esc)
+- **multiline_input.py** - `multiline_input` (multi-line terminal input with placeholder, submit color, and injection)
 - **terminal/keyboard.py** - `KeyboardSuppressor`, `get_global_suppressor` (suppress echo during progress)
 
 ## Structure
@@ -21,6 +22,7 @@ turing/
   worker.py
   utils.py
   select.py
+  multiline_input.py
   display/
     manager.py
   models/
@@ -64,3 +66,25 @@ key = read_masked("Enter API key:", allow_empty=True)
 ```
 
 Terminal raw mode is saved/restored automatically with `atexit` guard.
+
+### Multi-line input (CLI blueprint)
+
+```python
+from logic.turing.multiline_input import multiline_input
+
+text = multiline_input(
+    prompt="\n\u25A1 ",                    # □ idle indicator
+    placeholder="Type command here, press Ctrl+Enter to submit.",
+    submit_color="\033[34m",               # BLUE after submit
+    inject_check=my_inject_fn,             # () -> str|None for external injection
+    poll_interval=0.1,
+)
+```
+
+Features:
+- **Gray placeholder** shown when buffer is empty; disappears on first keystroke
+- **Enter** creates a new line; **Ctrl+Enter** submits
+- **Backspace** on an empty line removes that line; when all lines cleared, placeholder reappears
+- After submit, the input text is reprinted in `submit_color` (default: BLUE)
+- **External injection** via `inject_check` callable polled every `poll_interval` seconds
+- Falls back to `input()` when termios is unavailable (e.g., non-TTY environments)

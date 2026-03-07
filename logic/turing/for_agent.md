@@ -37,9 +37,19 @@
 2. **Generators**: Step func yields `StepResult(msg, WorkerState.CONTINUE)` then `StepResult(final, WorkerState.SUCCESS, is_final=True)`
 3. **Parallel**: Use `ParallelWorkerPool` or `TuringWorker` + `MultiLineManager` with task queue
 
+### multiline_input.py
+- `multiline_input(prompt, placeholder, submit_color, inject_check, poll_interval)` - Multi-line terminal input widget
+- Gray placeholder when buffer empty; disappears on first keystroke; reappears when buffer cleared
+- Enter = new line; Ctrl+Enter = submit; Backspace on empty line = delete line
+- `submit_color` (default BLUE): re-renders submitted text in this color
+- `inject_check`: `() -> str|None`; returns injected text or None. Polled every `poll_interval` (0.1s)
+- Falls back to `input()` when termios unavailable
+- Used by: OPENCLAW CLI (`tool/OPENCLAW/logic/gui/cli.py`)
+
 ## Gotchas
 
 - MultiLineManager is singleton; concurrent use shares slots
 - `stealth` stages don't print; `no_warning` skips YELLOW/warning stages
 - KeyboardSuppressor uses termios; ECHO off, ISIG on for Ctrl+C
 - RTL mode affects padding in display manager
+- multiline_input uses raw terminal mode; always wrapped in termios save/restore
