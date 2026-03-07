@@ -1,26 +1,23 @@
-# SENTRY - Agent Guide
+# SENTRY — Agent Reference
 
-AI-powered error monitoring via Sentry MCP
-
-## Quick Reference
-
-```bash
-SENTRY status          # Check status and capabilities
-SENTRY config <k> <v>  # Set API credentials
-SENTRY setup           # Install dependencies and configure
+## Quick Start
+```
+SENTRY status               # Check auth state
+SENTRY page                 # Current page info
+SENTRY orgs                 # List organizations
+SENTRY projects <org>       # List projects
+SENTRY issues <org>         # List issues
 ```
 
-## Capabilities
-
-- list-issues
-- error-details
-- performance-monitoring
-- alerts
-
-Required credentials: `SENTRY_AUTH_TOKEN`
+## CDP API (`tool.SENTRY.logic.chrome.api`)
+- `find_sentry_tab()` — Locate the Sentry browser tab
+- `get_auth_state()` — Check authentication state
+- `get_page_info()` — Get current page title/URL
+- `get_organizations()` — List orgs via `/api/0/organizations/`
+- `get_projects(org)` — List projects via same-origin API
+- `get_issues(org, project)` — List issues via same-origin API
 
 ## Notes
-
-- Run `SENTRY setup` before first use to install MCP dependencies.
-- API credentials are stored in `tool/SENTRY/data/config.json`.
-- Use `SENTRY --json` for machine-readable output.
+- Requires Chrome CDP on port 9222
+- Sentry has same-origin REST API (`/api/0/`) that works with session cookies
+- Supports Google and GitHub sign-in

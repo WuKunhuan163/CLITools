@@ -1,96 +1,91 @@
 #!/usr/bin/env python3
-"""
-PAYPAL Tool - PayPal payment integration
-MCP-based integration wrapping custom API.
-"""
-import os
 import sys
-import json
 import argparse
+import json
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-root_str = str(project_root)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color
 
-BOLD = get_color("BOLD")
-GREEN = get_color("GREEN")
-RED = get_color("RED")
-BLUE = get_color("BLUE")
-YELLOW = get_color("YELLOW")
-RESET = get_color("RESET")
-
-
-class PAYPALTool(ToolBase):
-    def __init__(self):
-        super().__init__("PAYPAL")
-
-    def get_config_value(self, key):
-        """Retrieve a config value from data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    return json.load(f).get(key)
-            except Exception:
-                pass
-        return None
-
-    def set_config_value(self, key, value):
-        """Store a config value in data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        config = {}
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    config = json.load(f)
-            except Exception:
-                pass
-        config[key] = value
-        with open(config_file, "w") as f:
-            json.dump(config, f, indent=2)
-
 
 def main():
-    tool = PAYPALTool()
+    tool = ToolBase("PAYPAL")
 
-    parser = argparse.ArgumentParser(description="PayPal payment integration", add_help=False)
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("args", nargs="*", help="Additional arguments")
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser = argparse.ArgumentParser(
+        description="PayPal payment integration via Chrome CDP", add_help=False
+    )
+    sub = parser.add_subparsers(dest="command", help="Subcommand")
+
+    sub.add_parser("status", help="Check authentication state")
+    sub.add_parser("page", help="Show current page info")
+    sub.add_parser("account", help="Show account info (requires auth)")
+    sub.add_parser("activity", help="Show recent activity (requires auth)")
 
     if tool.handle_command_line(parser):
         return
 
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    YELLOW = get_color("YELLOW")
+    RESET = get_color("RESET")
+
+    from tool.PAYPAL.logic.chrome.api import (
+        get_auth_state, get_page_info, get_account_info, get_recent_activity,
+    )
 
     if args.command == "status":
-        print(f"{BOLD}PAYPAL{RESET} tool status:")
-        print(f"  MCP package: custom")
-        print(f"  Type: custom")
-        print(f"  Capabilities: create-payment, capture-payment, list-transactions, refunds")
-        return 0
+        r = get_auth_state()
+        auth = r.get("authenticated", False)
+        print(f"  Authenticated: {BOLD}{GREEN if auth else YELLOW}{'Yes' if auth else 'No'}{RESET}")
+        print(f"  Page: {r.get('title', '?')}")
+        if r.get("isLogin"):
+            print(f"  {YELLOW}On login page{RESET}")
 
-    if args.command == "config":
-        if not args.args or len(args.args) < 2:
-            print(f"Usage: PAYPAL config <key> <value>")
-            return 1
-        key, value = args.args[0], args.args[1]
-        tool.set_config_value(key, value)
-        print(f"{BOLD}{GREEN}Successfully set{RESET} {key}.")
-        return 0
+    elif args.command == "page":
+        r = get_page_info()
+        if r.get("ok"):
+            print(f"  Title:   {r.get('title', '?')}")
+            print(f"  URL:     {r.get('url', '?')}")
+            if r.get("heading"):
+                print(f"  Heading: {r['heading']}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
-    parser.print_help()
-    print(f"\n{BOLD}Capabilities{RESET}: create-payment, capture-payment, list-transactions, refunds")
-    return 0
+    elif args.command == "account":
+        r = get_account_info()
+        if r.get("ok"):
+            d = r.get("data", {})
+            print(f"  Name:    {d.get('name') or '(not visible)'}")
+            print(f"  Email:   {d.get('email') or '(not visible)'}")
+            print(f"  Balance: {d.get('balance') or '(not visible)'}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires authenticated session')}")
+
+    elif args.command == "activity":
+        r = get_recent_activity()
+        if r.get("ok"):
+            items = r.get("items", [])
+            print(f"  Found {r.get('count', 0)} transactions")
+            for i, item in enumerate(items):
+                print(f"  [{i+1}] {item.get('text', '')[:100]}")
+            if not items:
+                print(f"  {YELLOW}No transactions visible — log in first{RESET}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires authenticated session')}")
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    main()

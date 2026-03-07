@@ -1,26 +1,19 @@
-# SQUARE - Agent Guide
+# SQUARE — Agent Reference
 
-Business and payment platform via Square MCP
-
-## Quick Reference
-
-```bash
-SQUARE status          # Check status and capabilities
-SQUARE config <k> <v>  # Set API credentials
-SQUARE setup           # Install dependencies and configure
+## Quick Start
+```
+SQUARE status     # Check auth state
+SQUARE page       # Current page info
+SQUARE dashboard  # Dashboard summary (requires auth)
 ```
 
-## Capabilities
-
-- payments
-- inventory
-- catalog
-- customers
-
-Required credentials: `SQUARE_ACCESS_TOKEN`
+## CDP API (`tool.SQUARE.logic.chrome.api`)
+- `find_square_tab()` — Locate the Square browser tab
+- `get_auth_state()` — Check if user is authenticated
+- `get_page_info()` — Get current page title/URL
+- `get_dashboard_info()` — Read merchant/balance from dashboard DOM
 
 ## Notes
-
-- Run `SQUARE setup` before first use to install MCP dependencies.
-- API credentials are stored in `tool/SQUARE/data/config.json`.
-- Use `SQUARE --json` for machine-readable output.
+- Requires Chrome CDP on port 9222
+- Square uses email/phone login and passkey (no Google sign-in)
+- Dashboard command requires authenticated session

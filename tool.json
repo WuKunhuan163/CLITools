@@ -51,6 +51,7 @@
     "SENTRY",
     "PLAID",
     "INTERCOM",
-    "CLOUDFLARE"
+    "CLOUDFLARE",
+    "GMAIL"
   ]
 }

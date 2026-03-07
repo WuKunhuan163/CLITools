@@ -1,26 +1,21 @@
-# PAYPAL - Agent Guide
+# PAYPAL — Agent Reference
 
-PayPal payment integration
-
-## Quick Reference
-
-```bash
-PAYPAL status          # Check status and capabilities
-PAYPAL config <k> <v>  # Set API credentials
-PAYPAL setup           # Install dependencies and configure
+## Quick Start
+```
+PAYPAL status    # Check auth state
+PAYPAL page      # Current page info
+PAYPAL account   # Account info (requires auth)
+PAYPAL activity  # Recent transactions (requires auth)
 ```
 
-## Capabilities
-
-- create-payment
-- capture-payment
-- list-transactions
-- refunds
-
-Required credentials: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`
+## CDP API (`tool.PAYPAL.logic.chrome.api`)
+- `find_paypal_tab()` — Locate the PayPal browser tab
+- `get_auth_state()` — Check if user is authenticated
+- `get_page_info()` — Get current page title/URL/heading
+- `get_account_info()` — Read name/email/balance from dashboard DOM
+- `get_recent_activity()` — Read transaction rows from dashboard DOM
 
 ## Notes
-
-- Run `PAYPAL setup` before first use to install MCP dependencies.
-- API credentials are stored in `tool/PAYPAL/data/config.json`.
-- Use `PAYPAL --json` for machine-readable output.
+- Requires Chrome CDP on port 9222
+- PayPal login uses email/password (no Google sign-in)
+- Account and activity commands require authenticated dashboard session

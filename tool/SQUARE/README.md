@@ -1,32 +1,35 @@
 # SQUARE
 
-Business and payment platform via Square MCP
+Square business platform tool via Chrome DevTools Protocol.
 
-**Purpose**: Manage payments, inventory, and business operations through Square.
+## Overview
 
-## Capabilities
+Access Square dashboard info, merchant data, and payment overview
+through the authenticated browser session using Chrome CDP.
 
-- payments
-- inventory
-- catalog
-- customers
+## Prerequisites
+
+- Chrome running with `--remote-debugging-port=9222`
+- An authenticated Square session at `squareup.com`
+
+## Commands
+
+| Command     | Description                          |
+|-------------|--------------------------------------|
+| `status`    | Check authentication state           |
+| `page`      | Show current page info               |
+| `dashboard` | Show dashboard summary (auth)        |
 
 ## Usage
 
 ```bash
-SQUARE status          # Show tool status
-SQUARE config <k> <v>  # Set configuration
-SQUARE setup           # Install dependencies
+SQUARE status
+SQUARE page
+SQUARE dashboard
 ```
 
-## Environment Variables
+## Architecture
 
-- `SQUARE_ACCESS_TOKEN`
-
-## API Key
-
-Obtain credentials at: https://developer.squareup.com/apps
-
-## MCP Backend
-
-Package: `square-mcp-server`
+- `logic/chrome/api.py` — CDP-based Square functions
+- `logic/interface/main.py` — Cross-tool interface exports
+- `logic/translation/zh.json` — Chinese translations

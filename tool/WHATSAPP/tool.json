@@ -1,9 +1,12 @@
 {
   "name": "WHATSAPP",
   "version": "1.0.0",
-  "description": "WhatsApp Business API integration",
-  "purpose": "Send and receive WhatsApp messages via the Business API.",
+  "description": "WhatsApp Web messaging via Chrome DevTools Protocol",
+  "purpose": "Access WhatsApp chats, contacts, and profile via CDP using the linked WhatsApp Web session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

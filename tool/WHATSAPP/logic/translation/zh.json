@@ -1,5 +1,11 @@
 {
-  "tool_description": "WhatsApp商业API集成",
-  "status_label": "状态",
-  "config_set_success": "成功设置"
+  "tool_description": "通过 Chrome CDP 访问 WhatsApp Web 消息",
+  "status": "链接状态",
+  "page": "页面信息",
+  "chats": "聊天列表",
+  "profile": "个人资料",
+  "linked": "已链接",
+  "not_linked": "未链接",
+  "scan_qr": "请扫描二维码以链接手机",
+  "no_chats": "暂无可见聊天 — 请先扫码链接"
 }

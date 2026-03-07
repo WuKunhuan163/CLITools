@@ -1,9 +1,12 @@
 {
   "name": "XMIND",
   "version": "1.0.0",
-  "description": "Mind mapping and brainstorming tool",
-  "purpose": "Create, edit, and export mind maps for project planning and brainstorming.",
+  "description": "XMind mind mapping via Chrome DevTools Protocol",
+  "purpose": "Access XMind mind maps and workspace via CDP using the authenticated app.xmind.com session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

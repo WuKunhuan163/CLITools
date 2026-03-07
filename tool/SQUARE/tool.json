@@ -1,12 +1,12 @@
 {
   "name": "SQUARE",
   "version": "1.0.0",
-  "description": "Business and payment platform via Square MCP",
-  "purpose": "Manage payments, inventory, and business operations through Square.",
+  "description": "Square business platform via Chrome DevTools Protocol",
+  "purpose": "Access Square dashboard info, merchant data, and payment overview via CDP using the authenticated session.",
   "dependencies": [
     "PYTHON"
   ],
-  "npm_dependencies": [
-    "square-mcp-server"
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

@@ -257,7 +257,49 @@ Kling AI video generation via `app.klingai.com` CDP session. Data is read from l
 Linear product development via `linear.app` CDP session. Data is read from localStorage (`ApplicationStore`) since the GraphQL API requires token auth:
 - `LINEAR status` — authentication and organization state
 - `LINEAR me` — user info (account ID, email, organizations)
-- `LINEAR page` — current page state
+
+#### PAYPAL
+PayPal payment integration via `paypal.com` CDP session. Data is read from the dashboard DOM when authenticated:
+- `PAYPAL status` — authentication state (login page vs dashboard)
+- `PAYPAL page` — current page title, URL, heading
+- `PAYPAL account` — account info: name, email, balance (requires auth)
+- `PAYPAL activity` — recent transactions from dashboard (requires auth)
+
+#### SENTRY
+Sentry error monitoring via `sentry.io` CDP session. Uses same-origin REST API (`/api/0/`) with session cookies:
+- `SENTRY status` — authentication state
+- `SENTRY page` — current page info
+- `SENTRY orgs` — list organizations (requires auth)
+- `SENTRY projects <org>` — list projects (requires auth)
+- `SENTRY issues <org> [--project <slug>]` — list issues (requires auth)
+
+#### SQUARE
+Square business platform via `squareup.com` CDP session. Dashboard data is read from DOM when authenticated:
+- `SQUARE status` — authentication state (login page vs dashboard)
+- `SQUARE page` — current page title, URL, heading
+- `SQUARE dashboard` — merchant name, balance, summary (requires auth)
+
+#### WHATSAPP
+WhatsApp Web messaging via `web.whatsapp.com` CDP session. Requires QR code linking with phone:
+- `WHATSAPP status` — link/authentication state (QR scan needed vs linked)
+- `WHATSAPP page` — current page info
+- `WHATSAPP chats` — list visible chats: name, last message, time, unread count (requires link)
+- `WHATSAPP profile` — push name and avatar status (requires link)
+
+#### WPS
+WPS Office / KDocs via `kdocs.cn` / `wps.com` CDP session. Supports WeChat/QQ/email login:
+- `WPS status` — authentication state (login page vs docs page)
+- `WPS page` — current page info
+- `WPS me` — user info: name, avatar, localStorage data (requires auth)
+- `WPS docs` — list recent documents from DOM (requires auth)
+
+#### GMAIL
+Gmail email client via `mail.google.com` CDP session. Data is read from the Gmail SPA DOM:
+- `GMAIL status` — authentication state, email address, unread count (from title)
+- `GMAIL page` — current page info and section (inbox, sent, etc.)
+- `GMAIL inbox [--limit N]` — list inbox emails: from, subject, date, unread/starred (requires auth)
+- `GMAIL labels` — list sidebar labels with counts (requires auth)
+- `GMAIL search <query> [--limit N]` — search emails via hash navigation (requires auth)
 
 ### TAVILY Tool
 AI-optimized web search:
@@ -277,22 +319,17 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 
 **Productivity/Collaboration**:
 - `XMIND`: Mind mapping and brainstorming.
-- `WPS`: WPS Office document integration.
 
 **Messaging/Communication**:
 - `DINGTALK`: DingTalk messaging and workspace integration.
-- `WHATSAPP`: WhatsApp Business API messaging.
 
 **Payments/Finance**:
 - `STRIPE`: Payment processing via Stripe MCP.
-- `PAYPAL`: PayPal payment integration.
-- `SQUARE`: Business and payment platform.
 - `PLAID`: Financial data and bank account integration.
 
 **DevOps/Infrastructure**:
 - `GITHUB`: GitHub repositories, issues, PRs (depends on GIT).
 - `GITLAB`: GitLab repositories, merge requests, CI/CD.
-- `SENTRY`: AI-powered error monitoring and debugging.
 
 **Automation**:
 - `ZAPIER`: Workflow automation across 8000+ apps.

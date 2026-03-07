@@ -1,25 +1,21 @@
-# WPS - Agent Guide
+# WPS — Agent Reference
 
-WPS Office document integration
-
-## Quick Reference
-
-```bash
-WPS status          # Check status and capabilities
-WPS config <k> <v>  # Set API credentials
-WPS setup           # Install dependencies and configure
+## Quick Start
+```
+WPS status    # Check auth state
+WPS page      # Current page info
+WPS me        # User info (requires auth)
+WPS docs      # Recent documents (requires auth)
 ```
 
-## Capabilities
-
-- create-document
-- edit-document
-- convert-format
-
-Required credentials: `WPS_APP_ID`, `WPS_APP_KEY`
+## CDP API (`tool.WPS.logic.chrome.api`)
+- `find_wps_tab()` — Locate the WPS/KDocs tab
+- `get_auth_state()` — Check authentication state
+- `get_page_info()` — Get page title/URL/heading
+- `get_user_info()` — Read name, avatar, localStorage data
+- `get_recent_docs()` — List recent documents from DOM
 
 ## Notes
-
-- Run `WPS setup` before first use to install MCP dependencies.
-- API credentials are stored in `tool/WPS/data/config.json`.
-- Use `WPS --json` for machine-readable output.
+- Requires Chrome CDP on port 9222
+- Searches for tabs matching `kdocs`, `wps.cn`, or `wps.com`
+- WPS login supports WeChat, QQ, and email/password

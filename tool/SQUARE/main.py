@@ -1,96 +1,79 @@
 #!/usr/bin/env python3
-"""
-SQUARE Tool - Business and payment platform via Square MCP
-MCP-based integration wrapping square-mcp-server.
-"""
-import os
 import sys
-import json
 import argparse
+import json
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-root_str = str(project_root)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color
 
-BOLD = get_color("BOLD")
-GREEN = get_color("GREEN")
-RED = get_color("RED")
-BLUE = get_color("BLUE")
-YELLOW = get_color("YELLOW")
-RESET = get_color("RESET")
-
-
-class SQUARETool(ToolBase):
-    def __init__(self):
-        super().__init__("SQUARE")
-
-    def get_config_value(self, key):
-        """Retrieve a config value from data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    return json.load(f).get(key)
-            except Exception:
-                pass
-        return None
-
-    def set_config_value(self, key, value):
-        """Store a config value in data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        config = {}
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    config = json.load(f)
-            except Exception:
-                pass
-        config[key] = value
-        with open(config_file, "w") as f:
-            json.dump(config, f, indent=2)
-
 
 def main():
-    tool = SQUARETool()
+    tool = ToolBase("SQUARE")
 
-    parser = argparse.ArgumentParser(description="Business and payment platform via Square MCP", add_help=False)
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("args", nargs="*", help="Additional arguments")
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser = argparse.ArgumentParser(
+        description="Square business platform via Chrome CDP", add_help=False
+    )
+    sub = parser.add_subparsers(dest="command", help="Subcommand")
+
+    sub.add_parser("status", help="Check authentication state")
+    sub.add_parser("page", help="Show current page info")
+    sub.add_parser("dashboard", help="Show dashboard summary (requires auth)")
 
     if tool.handle_command_line(parser):
         return
 
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    YELLOW = get_color("YELLOW")
+    RESET = get_color("RESET")
+
+    from tool.SQUARE.logic.chrome.api import (
+        get_auth_state, get_page_info, get_dashboard_info,
+    )
 
     if args.command == "status":
-        print(f"{BOLD}SQUARE{RESET} tool status:")
-        print(f"  MCP package: square-mcp-server")
-        print(f"  Type: npm")
-        print(f"  Capabilities: payments, inventory, catalog, customers")
-        return 0
+        r = get_auth_state()
+        auth = r.get("authenticated", False)
+        print(f"  Authenticated: {BOLD}{GREEN if auth else YELLOW}{'Yes' if auth else 'No'}{RESET}")
+        print(f"  Page: {r.get('title', '?')}")
+        if r.get("isLogin"):
+            print(f"  {YELLOW}On login page{RESET}")
 
-    if args.command == "config":
-        if not args.args or len(args.args) < 2:
-            print(f"Usage: SQUARE config <key> <value>")
-            return 1
-        key, value = args.args[0], args.args[1]
-        tool.set_config_value(key, value)
-        print(f"{BOLD}{GREEN}Successfully set{RESET} {key}.")
-        return 0
+    elif args.command == "page":
+        r = get_page_info()
+        if r.get("ok"):
+            print(f"  Title:   {r.get('title', '?')}")
+            print(f"  URL:     {r.get('url', '?')}")
+            if r.get("heading"):
+                print(f"  Heading: {r['heading']}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
-    parser.print_help()
-    print(f"\n{BOLD}Capabilities{RESET}: payments, inventory, catalog, customers")
-    return 0
+    elif args.command == "dashboard":
+        r = get_dashboard_info()
+        if r.get("ok"):
+            d = r.get("data", {})
+            print(f"  Merchant: {d.get('merchantName') or '(not visible)'}")
+            print(f"  Balance:  {d.get('balance') or '(not visible)'}")
+            if d.get("summary"):
+                print(f"  Summary:  {d['summary'][:150]}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires authenticated session')}")
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    main()

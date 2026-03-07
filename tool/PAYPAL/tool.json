@@ -1,9 +1,12 @@
 {
   "name": "PAYPAL",
   "version": "1.0.0",
-  "description": "PayPal payment integration",
-  "purpose": "Process payments and manage transactions through PayPal API.",
+  "description": "PayPal payment integration via Chrome DevTools Protocol",
+  "purpose": "Access PayPal account info, balance, and recent activity via CDP using the authenticated session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

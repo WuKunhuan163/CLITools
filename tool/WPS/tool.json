@@ -1,9 +1,12 @@
 {
   "name": "WPS",
   "version": "1.0.0",
-  "description": "WPS Office document integration",
-  "purpose": "Create, edit, and manage WPS Office documents programmatically.",
+  "description": "WPS Office / KDocs via Chrome DevTools Protocol",
+  "purpose": "Access WPS user info and recent documents via CDP using the authenticated KDocs/WPS session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

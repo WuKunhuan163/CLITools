@@ -1,33 +1,37 @@
 # PAYPAL
 
-PayPal payment integration
+PayPal payment integration tool via Chrome DevTools Protocol.
 
-**Purpose**: Process payments and manage transactions through PayPal API.
+## Overview
 
-## Capabilities
+Access PayPal account info, balance, and recent activity through the
+authenticated browser session using Chrome CDP.
 
-- create-payment
-- capture-payment
-- list-transactions
-- refunds
+## Prerequisites
+
+- Chrome running with `--remote-debugging-port=9222`
+- An authenticated PayPal session at `paypal.com`
+
+## Commands
+
+| Command    | Description                          |
+|------------|--------------------------------------|
+| `status`   | Check authentication state           |
+| `page`     | Show current page info               |
+| `account`  | Show account info (requires auth)    |
+| `activity` | Show recent transactions (auth)      |
 
 ## Usage
 
 ```bash
-PAYPAL status          # Show tool status
-PAYPAL config <k> <v>  # Set configuration
-PAYPAL setup           # Install dependencies
+PAYPAL status
+PAYPAL page
+PAYPAL account
+PAYPAL activity
 ```
 
-## Environment Variables
+## Architecture
 
-- `PAYPAL_CLIENT_ID`
-- `PAYPAL_CLIENT_SECRET`
-
-## API Key
-
-Obtain credentials at: https://developer.paypal.com
-
-## MCP Backend
-
-Custom API integration
+- `logic/chrome/api.py` — CDP-based PayPal functions
+- `logic/interface/main.py` — Cross-tool interface exports
+- `logic/translation/zh.json` — Chinese translations

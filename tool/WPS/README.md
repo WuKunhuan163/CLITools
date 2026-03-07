@@ -1,32 +1,37 @@
 # WPS
 
-WPS Office document integration
+WPS Office / KDocs tool via Chrome DevTools Protocol.
 
-**Purpose**: Create, edit, and manage WPS Office documents programmatically.
+## Overview
 
-## Capabilities
+Access WPS user info and recent documents through the authenticated
+KDocs/WPS web session using Chrome CDP. Supports WeChat/QQ/email
+login on `kdocs.cn`.
 
-- create-document
-- edit-document
-- convert-format
+## Prerequisites
+
+- Chrome running with `--remote-debugging-port=9222`
+- Authenticated WPS/KDocs session at `kdocs.cn` or `wps.com`
+
+## Commands
+
+| Command  | Description                          |
+|----------|--------------------------------------|
+| `status` | Check authentication state           |
+| `page`   | Show current page info               |
+| `me`     | Show user info (requires auth)       |
+| `docs`   | List recent documents (requires auth)|
 
 ## Usage
 
 ```bash
-WPS status          # Show tool status
-WPS config <k> <v>  # Set configuration
-WPS setup           # Install dependencies
+WPS status
+WPS me
+WPS docs
 ```
 
-## Environment Variables
+## Architecture
 
-- `WPS_APP_ID`
-- `WPS_APP_KEY`
-
-## API Key
-
-Obtain credentials at: https://open.wps.cn
-
-## MCP Backend
-
-Custom API integration
+- `logic/chrome/api.py` — CDP-based WPS/KDocs functions
+- `logic/interface/main.py` — Cross-tool interface exports
+- `logic/translation/zh.json` — Chinese translations

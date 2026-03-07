@@ -1,96 +1,120 @@
 #!/usr/bin/env python3
-"""
-WHATSAPP Tool - WhatsApp Business API integration
-MCP-based integration wrapping custom API.
-"""
-import os
 import sys
-import json
 import argparse
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-root_str = str(project_root)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color
 
-BOLD = get_color("BOLD")
-GREEN = get_color("GREEN")
-RED = get_color("RED")
-BLUE = get_color("BLUE")
-YELLOW = get_color("YELLOW")
-RESET = get_color("RESET")
-
-
-class WHATSAPPTool(ToolBase):
-    def __init__(self):
-        super().__init__("WHATSAPP")
-
-    def get_config_value(self, key):
-        """Retrieve a config value from data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    return json.load(f).get(key)
-            except Exception:
-                pass
-        return None
-
-    def set_config_value(self, key, value):
-        """Store a config value in data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        config = {}
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    config = json.load(f)
-            except Exception:
-                pass
-        config[key] = value
-        with open(config_file, "w") as f:
-            json.dump(config, f, indent=2)
-
 
 def main():
-    tool = WHATSAPPTool()
+    tool = ToolBase("WHATSAPP")
 
-    parser = argparse.ArgumentParser(description="WhatsApp Business API integration", add_help=False)
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("args", nargs="*", help="Additional arguments")
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser = argparse.ArgumentParser(
+        description="WhatsApp Web messaging via Chrome CDP", add_help=False
+    )
+    sub = parser.add_subparsers(dest="command", help="Subcommand")
+
+    sub.add_parser("status", help="Check link/authentication state")
+    sub.add_parser("page", help="Show current page info")
+    sub.add_parser("chats", help="List visible chats (requires linked session)")
+    sub.add_parser("profile", help="Show profile info (requires linked session)")
+    p_search = sub.add_parser("search", help="Search contacts/chats")
+    p_search.add_argument("query", help="Name or number to search")
+    p_send = sub.add_parser("send", help="Send a message to a phone number")
+    p_send.add_argument("phone", help="Phone number (e.g. +85290549853)")
+    p_send.add_argument("message", help="Message text to send")
 
     if tool.handle_command_line(parser):
         return
 
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    YELLOW = get_color("YELLOW")
+    RESET = get_color("RESET")
+
+    from tool.WHATSAPP.logic.chrome.api import (
+        get_auth_state, get_page_info, get_chats, get_profile,
+        search_contact, send_message,
+    )
 
     if args.command == "status":
-        print(f"{BOLD}WHATSAPP{RESET} tool status:")
-        print(f"  MCP package: custom")
-        print(f"  Type: custom")
-        print(f"  Capabilities: send-message, send-template, receive-message")
-        return 0
+        r = get_auth_state()
+        auth = r.get("authenticated", False)
+        print(f"  Linked: {BOLD}{GREEN if auth else YELLOW}{'Yes' if auth else 'No'}{RESET}")
+        print(f"  Page: {r.get('title', '?')}")
+        if r.get("needsQrScan"):
+            print(f"  {YELLOW}Scan QR code with phone to link{RESET}")
 
-    if args.command == "config":
-        if not args.args or len(args.args) < 2:
-            print(f"Usage: WHATSAPP config <key> <value>")
-            return 1
-        key, value = args.args[0], args.args[1]
-        tool.set_config_value(key, value)
-        print(f"{BOLD}{GREEN}Successfully set{RESET} {key}.")
-        return 0
+    elif args.command == "page":
+        r = get_page_info()
+        if r.get("ok"):
+            print(f"  Title: {r.get('title', '?')}")
+            print(f"  URL:   {r.get('url', '?')}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
-    parser.print_help()
-    print(f"\n{BOLD}Capabilities{RESET}: send-message, send-template, receive-message")
-    return 0
+    elif args.command == "chats":
+        r = get_chats()
+        if r.get("ok"):
+            chats = r.get("chats", [])
+            print(f"  Found {r.get('count', 0)} chats")
+            for i, c in enumerate(chats):
+                unread = f" [{c['unread']}]" if c.get("unread") else ""
+                print(f"  [{i+1}] {c['name']:<25} {c.get('time',''):<10} {c.get('lastMessage','')[:40]}{unread}")
+            if not chats:
+                print(f"  {YELLOW}No chats visible — scan QR to link first{RESET}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires linked session')}")
+
+    elif args.command == "profile":
+        r = get_profile()
+        if r.get("ok"):
+            d = r.get("data", {})
+            print(f"  Name:   {d.get('pushName') or '(not available)'}")
+            print(f"  Avatar: {('Yes' if d.get('avatarUrl') else 'No')}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires linked session')}")
+
+    elif args.command == "search":
+        r = search_contact(args.query)
+        if r.get("ok"):
+            contacts = r.get("contacts", [])
+            print(f"  Found {r.get('count', 0)} results for '{args.query}'")
+            for i, c in enumerate(contacts):
+                print(f"  [{i+1}] {c['name']}")
+            if not contacts:
+                print(f"  {YELLOW}No matching contacts{RESET}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "send":
+        r = send_message(args.phone, args.message)
+        if r.get("ok"):
+            if r.get("sent"):
+                print(f"  {BOLD}{GREEN}Successfully sent{RESET} message to {args.phone}.")
+            else:
+                print(f"  {YELLOW}Message may not have been sent{RESET}")
+                if r.get("lastOutgoing"):
+                    print(f"  Last outgoing: {r['lastOutgoing'][:60]}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+            if r.get("page"):
+                print(f"  Page: {r['page'][:100]}")
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    main()

@@ -1,96 +1,108 @@
 #!/usr/bin/env python3
-"""
-SENTRY Tool - AI-powered error monitoring via Sentry MCP
-MCP-based integration wrapping @sentry/mcp-server.
-"""
-import os
 import sys
-import json
 import argparse
+import json
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-root_str = str(project_root)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color
 
-BOLD = get_color("BOLD")
-GREEN = get_color("GREEN")
-RED = get_color("RED")
-BLUE = get_color("BLUE")
-YELLOW = get_color("YELLOW")
-RESET = get_color("RESET")
-
-
-class SENTRYTool(ToolBase):
-    def __init__(self):
-        super().__init__("SENTRY")
-
-    def get_config_value(self, key):
-        """Retrieve a config value from data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    return json.load(f).get(key)
-            except Exception:
-                pass
-        return None
-
-    def set_config_value(self, key, value):
-        """Store a config value in data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        config = {}
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    config = json.load(f)
-            except Exception:
-                pass
-        config[key] = value
-        with open(config_file, "w") as f:
-            json.dump(config, f, indent=2)
-
 
 def main():
-    tool = SENTRYTool()
+    tool = ToolBase("SENTRY")
 
-    parser = argparse.ArgumentParser(description="AI-powered error monitoring via Sentry MCP", add_help=False)
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("args", nargs="*", help="Additional arguments")
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser = argparse.ArgumentParser(
+        description="Sentry error monitoring via Chrome CDP", add_help=False
+    )
+    sub = parser.add_subparsers(dest="command", help="Subcommand")
+
+    sub.add_parser("status", help="Check authentication state")
+    sub.add_parser("page", help="Show current page info")
+    sub.add_parser("orgs", help="List organizations (requires auth)")
+    p_proj = sub.add_parser("projects", help="List projects (requires auth)")
+    p_proj.add_argument("org", help="Organization slug")
+    p_iss = sub.add_parser("issues", help="List issues (requires auth)")
+    p_iss.add_argument("org", help="Organization slug")
+    p_iss.add_argument("--project", help="Project slug filter")
 
     if tool.handle_command_line(parser):
         return
 
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    YELLOW = get_color("YELLOW")
+    RESET = get_color("RESET")
+
+    from tool.SENTRY.logic.chrome.api import (
+        get_auth_state, get_page_info, get_organizations, get_projects, get_issues,
+    )
 
     if args.command == "status":
-        print(f"{BOLD}SENTRY{RESET} tool status:")
-        print(f"  MCP package: @sentry/mcp-server")
-        print(f"  Type: npm")
-        print(f"  Capabilities: list-issues, error-details, performance-monitoring, alerts")
-        return 0
+        r = get_auth_state()
+        auth = r.get("authenticated", False)
+        print(f"  Authenticated: {BOLD}{GREEN if auth else YELLOW}{'Yes' if auth else 'No'}{RESET}")
+        print(f"  Page: {r.get('title', '?')}")
+        if r.get("isLogin"):
+            print(f"  {YELLOW}On login page{RESET}")
+        if r.get("isSetup"):
+            print(f"  {YELLOW}On setup/identity page{RESET}")
 
-    if args.command == "config":
-        if not args.args or len(args.args) < 2:
-            print(f"Usage: SENTRY config <key> <value>")
-            return 1
-        key, value = args.args[0], args.args[1]
-        tool.set_config_value(key, value)
-        print(f"{BOLD}{GREEN}Successfully set{RESET} {key}.")
-        return 0
+    elif args.command == "page":
+        r = get_page_info()
+        if r.get("ok"):
+            print(f"  Title:   {r.get('title', '?')}")
+            print(f"  URL:     {r.get('url', '?')}")
+            if r.get("heading"):
+                print(f"  Heading: {r['heading']}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
-    parser.print_help()
-    print(f"\n{BOLD}Capabilities{RESET}: list-issues, error-details, performance-monitoring, alerts")
-    return 0
+    elif args.command == "orgs":
+        r = get_organizations()
+        if r.get("ok") and isinstance(r.get("data"), list):
+            orgs = r["data"]
+            if not orgs:
+                print(f"  {YELLOW}No organizations{RESET}")
+            for o in orgs:
+                print(f"  {o.get('name', '?'):<30} slug={o.get('slug', '?')}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires authenticated session')}")
+
+    elif args.command == "projects":
+        r = get_projects(args.org)
+        if r.get("ok") and isinstance(r.get("data"), list):
+            projects = r["data"]
+            if not projects:
+                print(f"  {YELLOW}No projects{RESET}")
+            for p in projects:
+                print(f"  {p.get('name', '?'):<30} slug={p.get('slug', '?')}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires authenticated session')}")
+
+    elif args.command == "issues":
+        r = get_issues(args.org, project_slug=getattr(args, "project", None))
+        if r.get("ok") and isinstance(r.get("data"), list):
+            issues = r["data"]
+            if not issues:
+                print(f"  {YELLOW}No issues{RESET}")
+            for iss in issues[:20]:
+                print(f"  [{iss.get('shortId', '?')}] {iss.get('title', '?')[:70]}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Requires authenticated session')}")
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    main()

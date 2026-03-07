@@ -1,32 +1,40 @@
 # SENTRY
 
-AI-powered error monitoring via Sentry MCP
+Sentry error monitoring tool via Chrome DevTools Protocol.
 
-**Purpose**: Monitor errors, debug issues, and track performance with Sentry.
+## Overview
 
-## Capabilities
+Access Sentry organizations, projects, and issues through the
+authenticated browser session using Chrome CDP. Sentry's same-origin
+REST API at `/api/0/` works with session cookies, enabling direct
+API calls via CDP `fetch()`.
 
-- list-issues
-- error-details
-- performance-monitoring
-- alerts
+## Prerequisites
+
+- Chrome running with `--remote-debugging-port=9222`
+- An authenticated Sentry session at `sentry.io`
+
+## Commands
+
+| Command               | Description                          |
+|-----------------------|--------------------------------------|
+| `status`              | Check authentication state           |
+| `page`                | Show current page info               |
+| `orgs`                | List organizations (requires auth)   |
+| `projects <org>`      | List projects (requires auth)        |
+| `issues <org>`        | List issues (requires auth)          |
 
 ## Usage
 
 ```bash
-SENTRY status          # Show tool status
-SENTRY config <k> <v>  # Set configuration
-SENTRY setup           # Install dependencies
+SENTRY status
+SENTRY orgs
+SENTRY projects my-org
+SENTRY issues my-org --project my-project
 ```
 
-## Environment Variables
+## Architecture
 
-- `SENTRY_AUTH_TOKEN`
-
-## API Key
-
-Obtain credentials at: https://sentry.io/settings/account/api/auth-tokens/
-
-## MCP Backend
-
-Package: `@sentry/mcp-server`
+- `logic/chrome/api.py` — CDP-based Sentry functions (same-origin API)
+- `logic/interface/main.py` — Cross-tool interface exports
+- `logic/translation/zh.json` — Chinese translations

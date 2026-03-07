@@ -1,25 +1,21 @@
-# WHATSAPP - Agent Guide
+# WHATSAPP — Agent Reference
 
-WhatsApp Business API integration
-
-## Quick Reference
-
-```bash
-WHATSAPP status          # Check status and capabilities
-WHATSAPP config <k> <v>  # Set API credentials
-WHATSAPP setup           # Install dependencies and configure
+## Quick Start
+```
+WHATSAPP status    # Check link state
+WHATSAPP page      # Current page info
+WHATSAPP chats     # List visible chats (requires link)
+WHATSAPP profile   # Profile info (requires link)
 ```
 
-## Capabilities
-
-- send-message
-- send-template
-- receive-message
-
-Required credentials: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`
+## CDP API (`tool.WHATSAPP.logic.chrome.api`)
+- `find_whatsapp_tab()` — Locate the WhatsApp Web tab
+- `get_auth_state()` — Check if phone is linked (QR scanned)
+- `get_page_info()` — Get page title/URL
+- `get_chats()` — Read chat list from DOM (name, last message, time, unread)
+- `get_profile()` — Read push name and avatar status
 
 ## Notes
-
-- Run `WHATSAPP setup` before first use to install MCP dependencies.
-- API credentials are stored in `tool/WHATSAPP/data/config.json`.
-- Use `WHATSAPP --json` for machine-readable output.
+- Requires Chrome CDP on port 9222
+- WhatsApp Web uses QR code linking (no username/password login)
+- Chats and profile require the phone to be linked first
