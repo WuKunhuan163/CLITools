@@ -35,12 +35,65 @@ GOOGLE.GC notebook save           # Save notebook (Cmd+S)
 GOOGLE.GC notebook clear-outputs  # Clear all cell outputs
 ```
 
-### Other Commands
+### Cell Focus & Context Menu
 ```bash
-GOOGLE.GC status              # Check CDP and Colab tab availability
+GOOGLE.GC cell focus --index 0                            # Focus a cell
+GOOGLE.GC cell focus --index 0 --toolbar-click move-up    # Focus + toolbar button
+GOOGLE.GC cell focus --index 0 --toolbar-click more       # Open "More actions" menu
+GOOGLE.GC cell focus --index 0 --menu-click copy          # Click a More actions item
+GOOGLE.GC cell focus --index 0 --menu-click delete        # Delete via context menu
+```
+
+Toolbar buttons: `move-up`, `move-down`, `delete`, `edit`, `more`
+More actions: `select`, `copy-link`, `cut`, `copy`, `delete`, `comment`, `editor-settings`, `mirror`, `scratch`, `form`
+
+### Toolbar
+```bash
+GOOGLE.GC toolbar commands       # Open command palette
+GOOGLE.GC toolbar add-code       # Add code cell
+GOOGLE.GC toolbar add-text       # Add text cell
+GOOGLE.GC toolbar run-all        # Run all cells
+GOOGLE.GC toolbar run-dropdown   # Run options dropdown
+GOOGLE.GC toolbar connect        # Connect/reconnect runtime
+GOOGLE.GC toolbar settings       # Open settings dialog
+GOOGLE.GC toolbar comments       # Toggle comments pane
+GOOGLE.GC toolbar toggle-header  # Toggle top header visibility
+```
+
+### Top Bar Menus
+```bash
+GOOGLE.GC menu file                        # Open File menu
+GOOGLE.GC menu runtime --item "Run all"    # Open Runtime menu and click "Run all"
+GOOGLE.GC menu tools --item "Settings"     # Open Tools menu and click "Settings"
+```
+
+Menus: `file`, `edit`, `view`, `insert`, `runtime`, `tools`, `help`
+
+### Sidebar
+```bash
+GOOGLE.GC sidebar toc            # Toggle Table of Contents
+GOOGLE.GC sidebar find           # Toggle Find and Replace
+GOOGLE.GC sidebar snippets       # Toggle Code Snippets
+GOOGLE.GC sidebar inspector      # Toggle Data Inspector
+GOOGLE.GC sidebar secrets        # Toggle Secrets
+GOOGLE.GC sidebar files          # Toggle Files
+GOOGLE.GC sidebar data-explorer  # Toggle Data Explorer
+```
+
+### Bottom Bar
+```bash
+GOOGLE.GC bottom variables       # Toggle Variables panel
+GOOGLE.GC bottom terminal        # Toggle Terminal panel
+```
+
+### State & Other
+```bash
+GOOGLE.GC state                   # Show MCP state report
+GOOGLE.GC state --json            # JSON output for programmatic use
+GOOGLE.GC status                  # Check CDP and Colab tab availability
 GOOGLE.GC inject "print('hi')" --timeout 30  # Inject and run code directly
-GOOGLE.GC reopen              # Reopen the configured Colab notebook tab
-GOOGLE.GC oauth               # Handle OAuth dialog if present
+GOOGLE.GC reopen                  # Reopen the configured Colab notebook tab
+GOOGLE.GC oauth                   # Handle OAuth dialog if present
 ```
 
 ## MCP Visual Effects

@@ -9,7 +9,7 @@ GOOGLE.GC cell edit --index N [--clear] [--type "text"] [--clear-line L] [--line
 GOOGLE.GC cell run --index N [--wait 120]
 GOOGLE.GC cell delete [--index N]
 GOOGLE.GC cell move --index N --direction up|down
-GOOGLE.GC cell focus --index N [--toolbar-click move-up|move-down|delete|edit|more] [--menu-click select|copy-link|cut|copy|comment|editor-settings|mirror|scratch|form]
+GOOGLE.GC cell focus --index N [--toolbar-click move-up|move-down|delete|edit|more] [--menu-click select|copy-link|cut|copy|delete|comment|editor-settings|mirror|scratch|form]
 ```
 
 ### Toolbar Buttons
@@ -52,7 +52,7 @@ Colab creates the cell toolbar (shadow DOM) **only for the focused cell**. The f
 4. Access buttons via `cells[idx].querySelector('.cell-toolbar colab-cell-toolbar').shadowRoot`
 
 Available toolbar buttons: `move-up`, `move-down`, `delete`, `edit` (text cells), `more`
-Available "More actions" menu: `select`, `copy-link`, `cut`, `copy`, `comment`, `editor-settings`, `mirror`, `scratch`, `form`
+Available "More actions" menu: `select`, `copy-link`, `cut`, `copy`, `delete`, `comment`, `editor-settings`, `mirror`, `scratch`, `form`
 
 ## Closure Library Menus
 
@@ -61,6 +61,29 @@ Colab uses Google Closure Library for top-bar menus and cell context menus.
 - Use JS `dispatchEvent(new MouseEvent('mousedown', ...))` instead
 - Menu item text may include keyboard shortcuts (use `startsWith` matching)
 - Menu item IDs are dynamic (`:75`, `:76`) so match by text content
+
+## State Reporting
+
+`GOOGLE.GC state --json` returns structured state:
+- `cells`: list of `{index, type, text, text_length, focused}`
+- `runtime`: `{button_text, connected, running_cells, pending_cells}`
+- `notebook`: `{title, url}`
+- `cdp_available`: bool
+- `colab_tab`: `{id, url}`
+
+Use after operations to verify expected state changes programmatically.
+
+## Screenshot for Verification
+
+Page.captureScreenshot requires connecting to the `type: "page"` target (not iframe):
+```python
+from logic.chrome.session import CDPSession, list_tabs, capture_screenshot
+tabs = [t for t in list_tabs()
+        if "colab.research.google.com" in t.get("url", "") and t.get("type") == "page"]
+s = CDPSession(tabs[0]["webSocketDebuggerUrl"])
+img = capture_screenshot(s)  # returns bytes or None
+s.close()
+```
 
 ## Cell Edit Details
 

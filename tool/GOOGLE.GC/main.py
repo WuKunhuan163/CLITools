@@ -1181,6 +1181,7 @@ _CELL_MORE_MENU_ITEMS = {
     "copy-link": {"text": "Copy link to cell", "label": "Copy link to cell"},
     "cut": {"text": "Cut cell", "label": "Cut cell"},
     "copy": {"text": "Copy cell", "label": "Copy cell"},
+    "delete": {"text": "Delete cell", "label": "Delete cell"},
     "comment": {"text": "Add a comment", "label": "Add comment"},
     "editor-settings": {"text": "Open editor settings", "label": "Editor settings"},
     "mirror": {"text": "Mirror cell in tab", "label": "Mirror in tab"},
@@ -1341,26 +1342,26 @@ def _click_cell_more_menu_item(cdp, menu_text: str, cell_idx: int = -1):
         return result
     _time.sleep(1.0)
 
-    coords_js = (
+    click_js = (
         f"(function(){{ var items = document.querySelectorAll('[role=menuitem]');"
         f" for(var i=0; i<items.length; i++){{"
         f"   var r = items[i].getBoundingClientRect();"
-        f"   if(r.width > 0 && items[i].textContent.trim() === '{menu_text}')"
-        f"     return JSON.stringify({{x: r.x + r.width/2, y: r.y + r.height/2}});"
-        f" }} return ''; }})()"
+        f"   if(r.width > 0 && items[i].textContent.trim().startsWith('{menu_text}'))"
+        f"   {{ items[i].dispatchEvent(new MouseEvent('mousedown', "
+        f"      {{bubbles:true, cancelable:true, clientX:r.x+r.width/2, clientY:r.y+r.height/2}}));"
+        f"      items[i].dispatchEvent(new MouseEvent('mouseup', "
+        f"      {{bubbles:true, cancelable:true, clientX:r.x+r.width/2, clientY:r.y+r.height/2}}));"
+        f"      items[i].dispatchEvent(new MouseEvent('click', "
+        f"      {{bubbles:true, cancelable:true, clientX:r.x+r.width/2, clientY:r.y+r.height/2}}));"
+        f"      return 'clicked'; }}"
+        f" }} return 'no_item'; }})()"
     )
-    coords_raw = cdp.evaluate(coords_js)
-    if not coords_raw:
-        cdp.send_and_recv("Input.dispatchKeyEvent", {
-            "type": "keyDown", "key": "Escape", "code": "Escape"
-        }, timeout=5)
-        cdp.send_and_recv("Input.dispatchKeyEvent", {
-            "type": "keyUp", "key": "Escape", "code": "Escape"
-        }, timeout=5)
+    result = cdp.evaluate(click_js)
+    if result == "no_item":
+        from logic.chrome.session import dispatch_key
+        dispatch_key(cdp, "Escape")
         return "no_item"
 
-    coords = _json.loads(coords_raw)
-    real_click(cdp, int(coords["x"]), int(coords["y"]))
     _time.sleep(0.5)
     return "clicked"
 
