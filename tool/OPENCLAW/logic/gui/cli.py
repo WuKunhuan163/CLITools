@@ -296,7 +296,10 @@ class OpenClawCLI:
 
     def _init_provider(self):
         from tool.LLM.logic.registry import get_provider
-        self._provider = get_provider(self.backend)
+        try:
+            self._provider = get_provider(self.backend)
+        except ValueError:
+            self._provider = None
 
     def _print_banner(self):
         os.system("clear")
