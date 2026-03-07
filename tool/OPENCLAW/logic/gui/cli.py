@@ -472,6 +472,7 @@ class OpenClawCLI:
 
     def _rewrite_submitted(self, text: str, color: str):
         """Rewrite all lines of submitted text with the ■ indicator."""
+        sys.stdout.flush()
         text_lines = text.split('\n')
         n = len(text_lines)
         sys.stdout.write(f"\033[{n}A")
@@ -1258,9 +1259,13 @@ class OpenClawCLI:
                 if text.startswith("/"):
                     if text == "/setup":
                         self._mark_running(text)
+                        sys.stdout.flush()
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
-                        self._setup_llm()
+                        try:
+                            self._setup_llm()
+                        except Exception as _setup_err:
+                            _dev_log("setup_error", {"error": str(_setup_err)})
                         sys.stdout = tracker._wrapped
                         if self._provider and self._provider.is_available():
                             self._recolor_indicator(text, tracker.lines, GREEN)

@@ -175,7 +175,7 @@ def multiline_input(
                 injected = inject_check()
                 if injected is not None:
                     _clear_area(vis_row, vis_total)
-                    text = injected.strip()
+                    text = injected.strip().rstrip("\n")
                     _show_submitted(display_prompt, cont_pfx, text, submit_color)
                     return text
 
@@ -196,7 +196,7 @@ def multiline_input(
 
             # Ctrl+D or Ctrl+J -> submit
             if ch in (b'\x04', b'\x0a'):
-                text = "\n".join(lines)
+                text = "\n".join(lines).rstrip("\n")
                 _clear_area(vis_row, vis_total)
                 _show_submitted(display_prompt, cont_pfx, text, submit_color)
                 return text
@@ -257,7 +257,7 @@ def multiline_input(
 
                 # Ctrl+Enter via CSI u encoding
                 if seq == b'[13;5u':
-                    text = "\n".join(lines)
+                    text = "\n".join(lines).rstrip("\n")
                     _clear_area(vis_row, vis_total)
                     _show_submitted(display_prompt, cont_pfx, text, submit_color)
                     return text
