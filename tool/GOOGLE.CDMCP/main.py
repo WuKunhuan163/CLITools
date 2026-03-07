@@ -257,7 +257,10 @@ class CDMCPTool(ToolBase):
                     for s in sessions:
                         exp = " [EXPIRED]" if s.get("expired") else ""
                         boot = " [BOOTED]" if s.get("booted") else ""
-                        print(f"  {s['name']} ({s['session_id']}) age={s['age_sec']}s{boot}{exp}")
+                        tabs = s.get("tabs", [])
+                        alive_ct = sum(1 for t in tabs if t.get("alive"))
+                        tab_info = f" tabs={alive_ct}/{len(tabs)}" if tabs else ""
+                        print(f"  {s['name']} ({s['session_id'][:8]}) age={s['age_sec']}s{boot}{exp}{tab_info}")
                 else:
                     print(f"  {YELLOW}No active sessions.{RESET}")
             elif args.action == "close":
@@ -265,6 +268,25 @@ class CDMCPTool(ToolBase):
                     print(f"  {BOLD}{GREEN}Closed{RESET} session '{args.name}'.")
                 else:
                     print(f"  {BOLD}{RED}Not found{RESET}: session '{args.name}'")
+
+        elif args.command == "session-tabs":
+            sessions = api.list_sessions()
+            found = None
+            for s in sessions:
+                if s["name"] == args.name:
+                    found = s
+                    break
+            if not found:
+                print(f"  {BOLD}{RED}Not found{RESET}: session '{args.name}'")
+            elif not found.get("tabs"):
+                print(f"  {YELLOW}No tabs in session '{args.name}'.{RESET}")
+            else:
+                print(f"  Session: {found['name']} ({found['session_id'][:8]})")
+                for i, t in enumerate(found["tabs"]):
+                    alive = f"{GREEN}ALIVE{RESET}" if t.get("alive") else f"{RED}GONE{RESET}"
+                    label = t.get("label", "?")
+                    print(f"    [{i}] {label:<20} {alive}  id={t.get('id', '?')[:16]}")
+                    print(f"        {t.get('url', '?')[:80]}")
 
         elif args.command == "boot":
             r = api.boot_session(args.name, url=args.url)

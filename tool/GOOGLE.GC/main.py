@@ -19,7 +19,11 @@ from logic.interface.config import get_color
 
 
 def _get_colab_open_url() -> str:
-    """Read the Colab notebook URL from GCS config for auto-open."""
+    """Read the Colab notebook URL from GCS config, or default to Colab home.
+
+    Tries config sources for a specific notebook URL/ID, then falls back
+    to the Colab homepage which starts a new notebook.
+    """
     import json as _json
     for cfg_path in [
         Path(__file__).resolve().parents[2] / "data" / "config.json",
@@ -37,7 +41,7 @@ def _get_colab_open_url() -> str:
                     return f"https://colab.research.google.com/drive/{nid}"
             except Exception:
                 continue
-    return ""
+    return "https://colab.research.google.com/"
 
 
 class GCTool(MCPToolBase):
@@ -166,67 +170,13 @@ def _run_cell_action(tool, args):
     cell_text = getattr(args, "text", "") or ""
     cell_type = getattr(args, "cell_type", "code") or "code"
 
-    _cdp = [None]
-    _overlay = [None]
-    _interact = [None]
-    _session_mgr = [None]
-
-    def stage_connect(stage=None):
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
-        if not is_chrome_cdp_available():
-            if stage:
-                stage.error_brief = "Chrome CDP not available."
-            return False
-        try:
-            from logic.cdmcp_loader import (
-                load_cdmcp_overlay, load_cdmcp_interact, load_cdmcp_sessions,
-            )
-            _overlay[0] = load_cdmcp_overlay()
-            _interact[0] = load_cdmcp_interact()
-            _session_mgr[0] = load_cdmcp_sessions()
-        except Exception:
-            pass
-        return True
-
-    def stage_find_tab(stage=None):
-        from tool.GOOGLE.logic.chrome.session import CDPSession
-        sm = _session_mgr[0]
-
-        tab_info = None
-        if sm:
-            tab_info = sm.require_tab(
-                label="colab",
-                url_pattern="colab.research.google.com",
-                open_url=_get_colab_open_url(),
-                auto_open=True,
-                wait_sec=12.0,
-            )
-
-        if not tab_info:
-            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
-            raw = find_colab_tab()
-            if raw:
-                tab_info = {"id": raw["id"], "url": raw.get("url", ""),
-                            "ws": raw.get("webSocketDebuggerUrl", ""),
-                            "label": "colab", "recovered": False}
-
-        if not tab_info or not tab_info.get("ws"):
-            if stage:
-                stage.error_brief = "No Colab tab found."
-            return False
-
-        _cdp[0] = CDPSession(tab_info["ws"], timeout=15)
-        if _overlay[0]:
-            _overlay[0].inject_badge(_cdp[0], text="GC [colab]", color="#e8710a")
-            _overlay[0].inject_focus(_cdp[0], color="#e8710a")
-            _overlay[0].inject_lock(_cdp[0], tool_name="GC")
-        return True
+    ctx, stage_connect, stage_find_tab, stage_cleanup_shared = _colab_connect_stages()
 
     def stage_add_cell(stage=None):
         import time
-        cdp = _cdp[0]
-        ov = _overlay[0]
-        interact = _interact[0]
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+        interact = ctx["interact"]
 
         is_text = cell_type == "text"
         btn_id = "#toolbar-add-text" if is_text else "#toolbar-add-code"
@@ -264,13 +214,6 @@ def _run_cell_action(tool, args):
                 ov.increment_mcp_count(cdp, 1)
         return True
 
-    def stage_cleanup(stage=None):
-        if _overlay[0] and _cdp[0]:
-            _overlay[0].remove_all_overlays(_cdp[0])
-        if _cdp[0]:
-            _cdp[0].close()
-        return True
-
     pm = tool.create_progress_machine()
     pm.add_stage(TuringStage(
         "connect", stage_connect,
@@ -292,7 +235,7 @@ def _run_cell_action(tool, args):
         fail_status="Failed to create", fail_name=f"{_ct_label}.",
     ))
     pm.add_stage(TuringStage(
-        "cleanup", stage_cleanup,
+        "cleanup", stage_cleanup_shared,
         active_status="Cleaning up", active_name="overlays...",
         success_status="Cleaned up", success_name="overlays.",
     ))
@@ -323,60 +266,13 @@ def _run_cell_edit(tool, args):
     to_line = getattr(args, "to_line", -1)
     replace_with = getattr(args, "replace_with", "") or ""
 
-    _cdp = [None]
-    _overlay = [None]
-    _interact = [None]
-    _session_mgr = [None]
-
-    def stage_connect(stage=None):
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
-        if not is_chrome_cdp_available():
-            if stage:
-                stage.error_brief = "Chrome CDP not available."
-            return False
-        try:
-            from logic.cdmcp_loader import (
-                load_cdmcp_overlay, load_cdmcp_interact, load_cdmcp_sessions,
-            )
-            _overlay[0] = load_cdmcp_overlay()
-            _interact[0] = load_cdmcp_interact()
-            _session_mgr[0] = load_cdmcp_sessions()
-        except Exception:
-            pass
-        return True
-
-    def stage_find_tab(stage=None):
-        from tool.GOOGLE.logic.chrome.session import CDPSession
-        sm = _session_mgr[0]
-        tab_info = None
-        if sm:
-            tab_info = sm.require_tab(
-                label="colab", url_pattern="colab.research.google.com",
-                open_url=_get_colab_open_url(), auto_open=True, wait_sec=12.0,
-            )
-        if not tab_info:
-            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
-            raw = find_colab_tab()
-            if raw:
-                tab_info = {"id": raw["id"], "url": raw.get("url", ""),
-                            "ws": raw.get("webSocketDebuggerUrl", ""),
-                            "label": "colab", "recovered": False}
-        if not tab_info or not tab_info.get("ws"):
-            if stage:
-                stage.error_brief = "No Colab tab found."
-            return False
-        _cdp[0] = CDPSession(tab_info["ws"], timeout=15)
-        if _overlay[0]:
-            _overlay[0].inject_badge(_cdp[0], text="GC [colab]", color="#e8710a")
-            _overlay[0].inject_focus(_cdp[0], color="#e8710a")
-            _overlay[0].inject_lock(_cdp[0], tool_name="GC")
-        return True
+    ctx, stage_connect, stage_find_tab, stage_cleanup_shared = _colab_connect_stages()
 
     def stage_select_cell(stage=None):
         import time, json as _json
-        cdp = _cdp[0]
-        interact = _interact[0]
-        ov = _overlay[0]
+        cdp = ctx["cdp"]
+        interact = ctx["interact"]
+        ov = ctx["overlay"]
 
         cell_count = cdp.evaluate(
             "(function(){ var c = colab.global.notebook.cells;"
@@ -408,9 +304,9 @@ def _run_cell_edit(tool, args):
 
     def stage_edit_cell(stage=None):
         import time, json as _json
-        cdp = _cdp[0]
-        ov = _overlay[0]
-        interact = _interact[0]
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+        interact = ctx["interact"]
         idx = cell_idx
 
         if do_clear:
@@ -556,13 +452,6 @@ def _run_cell_edit(tool, args):
             ov.remove_highlight(cdp)
         return True
 
-    def stage_cleanup(stage=None):
-        if _overlay[0] and _cdp[0]:
-            _overlay[0].remove_all_overlays(_cdp[0])
-        if _cdp[0]:
-            _cdp[0].close()
-        return True
-
     pm = tool.create_progress_machine()
     pm.add_stage(TuringStage(
         "connect", stage_connect,
@@ -589,7 +478,7 @@ def _run_cell_edit(tool, args):
         fail_status="Failed to edit", fail_name=f"cell [{cell_idx}].",
     ))
     pm.add_stage(TuringStage(
-        "cleanup", stage_cleanup,
+        "cleanup", stage_cleanup_shared,
         active_status="Cleaning up", active_name="overlays...",
         success_status="Cleaned up", success_name="overlays.",
     ))
@@ -604,61 +493,14 @@ def _run_cell_execute(tool, args):
     cell_idx = getattr(args, "index", 0)
     max_wait = getattr(args, "wait", 120)
 
-    _cdp = [None]
-    _overlay = [None]
-    _interact = [None]
-    _session_mgr = [None]
+    ctx, stage_connect, stage_find_tab, stage_cleanup_shared = _colab_connect_stages()
     _output = [""]
-
-    def stage_connect(stage=None):
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
-        if not is_chrome_cdp_available():
-            if stage:
-                stage.error_brief = "Chrome CDP not available."
-            return False
-        try:
-            from logic.cdmcp_loader import (
-                load_cdmcp_overlay, load_cdmcp_interact, load_cdmcp_sessions,
-            )
-            _overlay[0] = load_cdmcp_overlay()
-            _interact[0] = load_cdmcp_interact()
-            _session_mgr[0] = load_cdmcp_sessions()
-        except Exception:
-            pass
-        return True
-
-    def stage_find_tab(stage=None):
-        from tool.GOOGLE.logic.chrome.session import CDPSession
-        sm = _session_mgr[0]
-        tab_info = None
-        if sm:
-            tab_info = sm.require_tab(
-                label="colab", url_pattern="colab.research.google.com",
-                open_url=_get_colab_open_url(), auto_open=True, wait_sec=12.0,
-            )
-        if not tab_info:
-            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
-            raw = find_colab_tab()
-            if raw:
-                tab_info = {"id": raw["id"], "url": raw.get("url", ""),
-                            "ws": raw.get("webSocketDebuggerUrl", ""),
-                            "label": "colab", "recovered": False}
-        if not tab_info or not tab_info.get("ws"):
-            if stage:
-                stage.error_brief = "No Colab tab found."
-            return False
-        _cdp[0] = CDPSession(tab_info["ws"], timeout=15)
-        if _overlay[0]:
-            _overlay[0].inject_badge(_cdp[0], text="GC [colab]", color="#e8710a")
-            _overlay[0].inject_focus(_cdp[0], color="#e8710a")
-            _overlay[0].inject_lock(_cdp[0], tool_name="GC")
-        return True
 
     def stage_run_cell(stage=None):
         import time
-        cdp = _cdp[0]
-        interact = _interact[0]
-        ov = _overlay[0]
+        cdp = ctx["cdp"]
+        interact = ctx["interact"]
+        ov = ctx["overlay"]
 
         cell_count = cdp.evaluate(
             "(function(){ var c = colab.global.notebook.cells;"
@@ -684,8 +526,8 @@ def _run_cell_execute(tool, args):
 
     def stage_wait_complete(stage=None):
         import time
-        cdp = _cdp[0]
-        ov = _overlay[0]
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
 
         poll_js = f"""(function(){{
             var cells = document.querySelectorAll('.cell.code');
@@ -734,11 +576,8 @@ def _run_cell_execute(tool, args):
             stage.error_brief = f"Timed out after {max_wait}s."
         return False
 
-    def stage_cleanup(stage=None):
-        if _overlay[0] and _cdp[0]:
-            _overlay[0].remove_all_overlays(_cdp[0])
-        if _cdp[0]:
-            _cdp[0].close()
+    def stage_cleanup_with_output(stage=None):
+        stage_cleanup_shared(stage)
         if _output[0]:
             print(_output[0].strip())
         return True
@@ -769,7 +608,7 @@ def _run_cell_execute(tool, args):
         fail_status="Failed:", fail_name=f"cell [{cell_idx}] execution.",
     ))
     pm.add_stage(TuringStage(
-        "cleanup", stage_cleanup,
+        "cleanup", stage_cleanup_with_output,
         active_status="Cleaning up", active_name="overlays...",
         success_status="Cleaned up", success_name="overlays.",
     ))
@@ -778,7 +617,8 @@ def _run_cell_execute(tool, args):
 
 def _colab_connect_stages():
     """Return shared (state_dict, connect_fn, find_tab_fn) for Colab Turing machines."""
-    ctx = {"cdp": None, "overlay": None, "interact": None, "session_mgr": None}
+    ctx = {"cdp": None, "overlay": None, "interact": None, "session_mgr": None,
+           "session": None}
 
     def stage_connect(stage=None):
         from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
@@ -792,16 +632,32 @@ def _colab_connect_stages():
             )
             ctx["overlay"] = load_cdmcp_overlay()
             ctx["interact"] = load_cdmcp_interact()
-            ctx["session_mgr"] = load_cdmcp_sessions()
+            sm = load_cdmcp_sessions()
+            ctx["session_mgr"] = sm
+
+            session = sm.get_any_active_session()
+            if not session:
+                boot_result = sm.boot_tool_session("gc_colab")
+                session = boot_result.get("session") if boot_result.get("ok") else None
+            ctx["session"] = session
         except Exception:
             pass
         return True
 
     def stage_find_tab(stage=None):
         from tool.GOOGLE.logic.chrome.session import CDPSession
+        session = ctx["session"]
         sm = ctx["session_mgr"]
+        ov = ctx["overlay"]
         tab_info = None
-        if sm:
+
+        if session:
+            open_url = _get_colab_open_url() or "https://colab.research.google.com/"
+            tab_info = session.require_tab(
+                label="colab", url_pattern="colab.research.google.com",
+                open_url=open_url, auto_open=True, wait_sec=12.0,
+            )
+        elif sm:
             tab_info = sm.require_tab(
                 label="colab", url_pattern="colab.research.google.com",
                 open_url=_get_colab_open_url(), auto_open=True, wait_sec=12.0,
@@ -817,11 +673,15 @@ def _colab_connect_stages():
             if stage:
                 stage.error_brief = "No Colab tab found."
             return False
+
+        if ov and tab_info.get("id"):
+            ov.activate_tab(tab_info["id"], 9222)
+
         ctx["cdp"] = CDPSession(tab_info["ws"], timeout=15)
-        if ctx["overlay"]:
-            ctx["overlay"].inject_badge(ctx["cdp"], text="GC [colab]", color="#e8710a")
-            ctx["overlay"].inject_focus(ctx["cdp"], color="#e8710a")
-            ctx["overlay"].inject_lock(ctx["cdp"], tool_name="GC")
+        if ov:
+            ov.inject_badge(ctx["cdp"], text="GC [colab]", color="#e8710a")
+            ov.inject_focus(ctx["cdp"], color="#e8710a")
+            ov.inject_lock(ctx["cdp"], tool_name="GC")
         return True
 
     def stage_cleanup(stage=None):
