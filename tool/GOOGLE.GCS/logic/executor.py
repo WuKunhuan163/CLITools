@@ -330,7 +330,8 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     def _cdp_auto_inject():
         """Background thread: inject script into Colab via Chrome DevTools Protocol."""
         try:
-            from logic.cdp.colab import is_chrome_cdp_available, inject_and_execute
+            from logic.cdp.colab import is_chrome_cdp_available, inject_and_execute, find_colab_tab
+            from logic.cdp.colab import CDPSession as _CdpSession
         except ImportError:
             return
 
@@ -339,6 +340,34 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
 
         cdp_thread_result["attempted"] = True
         _update_gui_status("[MCP] Executing command...")
+
+        _overlay = None
+        _cdp_ov = None
+        try:
+            from logic.cdmcp_loader import load_cdmcp_overlay
+            _overlay = load_cdmcp_overlay()
+            _tab = find_colab_tab()
+            if _tab and _tab.get("webSocketDebuggerUrl") and _overlay:
+                _cdp_ov = _CdpSession(_tab["webSocketDebuggerUrl"], timeout=10)
+                _overlay.inject_badge(_cdp_ov, text="GCS [colab]", color="#0d904f")
+                _overlay.inject_focus(_cdp_ov, color="#0d904f")
+                _overlay.inject_lock(_cdp_ov, base_opacity=0.08, flash_opacity=0.25,
+                                      tool_name="GCS")
+                _overlay.inject_highlight(_cdp_ov, ".cell.code",
+                                           label="Injecting command...", color="#1a73e8")
+                _overlay.increment_mcp_count(_cdp_ov, 1)
+                import time as _t
+                _t.sleep(0.6)
+                _overlay.remove_highlight(_cdp_ov)
+                _cdp_ov.close()
+                _cdp_ov = None
+        except Exception:
+            if _cdp_ov:
+                try:
+                    _cdp_ov.close()
+                except Exception:
+                    pass
+                _cdp_ov = None
 
         inject_code = script
         if not as_python:
@@ -368,6 +397,16 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             cdp_thread_result["error"] = str(e)
             _update_gui_status("[MCP] Connection error. Use Feedback to report.")
             _enable_feedback_btn_via_signal()
+        finally:
+            if _overlay:
+                try:
+                    _tab = find_colab_tab()
+                    if _tab and _tab.get("webSocketDebuggerUrl"):
+                        _cdp_cleanup = _CdpSession(_tab["webSocketDebuggerUrl"], timeout=5)
+                        _overlay.remove_all_overlays(_cdp_cleanup)
+                        _cdp_cleanup.close()
+                except Exception:
+                    pass
 
     def _enable_feedback_btn_via_signal():
         """Write a signal file to tell the GUI to enable the feedback button."""

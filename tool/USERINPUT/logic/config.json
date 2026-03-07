@@ -12,6 +12,7 @@
     "Do not use emojis in code or console outputs to maintain professionalism.",
     "Proactively seek user help via USERINPUT whenever encountering exceptions or uncertainties.",
     "Execute USERINPUT at least once every ~25 operations (tool calls/code edits) for intermediate feedback, using the --hint parameter to explain intent (e.g., USERINPUT --hint \"Please provide instant feedback to my recent work\").",
-    "No Background Execution: USERINPUT is a blocking command. DO NOT use block_until_ms: 0 or similar backgrounding methods; you must wait for its return and not use sleep for manual polling."
+    "No Background Execution: USERINPUT is a blocking command. DO NOT use block_until_ms: 0 or similar backgrounding methods; you must wait for its return and not use sleep for manual polling.",
+    "Avoid duplicate implementations: when introducing new architecture or patterns, first search for existing code that already implements similar functionality. Refactor or extend existing code instead of writing parallel implementations. When a new abstraction layer is added, migrate old callers to use it and remove the old code path."
   ]
 }

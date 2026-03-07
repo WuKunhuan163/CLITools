@@ -14,6 +14,44 @@ from tool.GOOGLE.logic.chrome.session import (
 )
 
 
+def _open_in_session_window(url: str, port: int = CDP_PORT):
+    """Open a URL in the CDMCP session window if available, otherwise any window."""
+    window_id = None
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+        from logic.cdmcp_loader import load_cdmcp_sessions
+        sm = load_cdmcp_sessions()
+        for info in sm.list_sessions():
+            wid = info.get("window_id")
+            if wid:
+                window_id = wid
+                break
+    except Exception:
+        pass
+
+    if window_id:
+        try:
+            import urllib.request
+            ver_url = f"http://localhost:{port}/json/version"
+            with urllib.request.urlopen(ver_url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            browser_ws = data.get("webSocketDebuggerUrl")
+            if browser_ws:
+                s = CDPSession(browser_ws, timeout=10)
+                s.send_and_recv("Target.createTarget", {
+                    "url": url,
+                    "newWindow": False,
+                    "windowId": window_id,
+                })
+                s.close()
+                return True
+        except Exception:
+            pass
+
+    return open_tab(url, port)
+
+
 # ---------------------------------------------------------------------------
 # Tab discovery
 # ---------------------------------------------------------------------------
@@ -58,7 +96,7 @@ def reopen_colab_tab(port: int = CDP_PORT, log_fn: Callable = None) -> Optional[
     if not notebook_url:
         return None
 
-    open_tab(notebook_url, port)
+    _open_in_session_window(notebook_url, port)
     _log("Reopened Colab tab. Waiting for page to load...")
 
     for i in range(20):

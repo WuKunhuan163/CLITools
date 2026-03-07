@@ -111,6 +111,7 @@ class CDMCPSession:
         self._capture_window_id(tab)
         _log_session("booted", self.name,
                      f"tabId={self.lifetime_tab_id} windowId={self.window_id}")
+        _save_state()
 
         return {
             "ok": True,
@@ -365,10 +366,65 @@ class CDMCPSession:
 
 
 # ---------------------------------------------------------------------------
+# Persistent state file
+# ---------------------------------------------------------------------------
+
+_STATE_FILE = _SESSION_DIR / "state.json"
+
+
+def _save_state():
+    """Persist all session metadata to disk for cross-process sharing."""
+    _SESSION_DIR.mkdir(parents=True, exist_ok=True)
+    state = {}
+    for name, s in _sessions.items():
+        state[name] = {
+            "session_id": s.session_id,
+            "window_id": s.window_id,
+            "lifetime_tab_id": s.lifetime_tab_id,
+            "lifetime_tab_url": s.lifetime_tab_url,
+            "created_at": s.created_at,
+            "last_activity": s.last_activity,
+            "timeout_sec": s.timeout_sec,
+            "port": s.port,
+        }
+    try:
+        with open(_STATE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+    except OSError:
+        pass
+
+
+def _load_state():
+    """Restore sessions from disk (window_id, tab_id, etc.)."""
+    if not _STATE_FILE.exists():
+        return
+    try:
+        with open(_STATE_FILE, "r") as f:
+            state = json.load(f)
+    except Exception:
+        return
+    for name, info in state.items():
+        if name in _sessions:
+            continue
+        s = CDMCPSession(name, timeout_sec=info.get("timeout_sec", DEFAULT_TIMEOUT_SEC),
+                         port=info.get("port", CDP_PORT))
+        s.session_id = info.get("session_id", s.session_id)
+        s.window_id = info.get("window_id")
+        s.lifetime_tab_id = info.get("lifetime_tab_id")
+        s.lifetime_tab_url = info.get("lifetime_tab_url")
+        s.created_at = info.get("created_at", s.created_at)
+        s.last_activity = info.get("last_activity", s.last_activity)
+        s._booted = bool(s.lifetime_tab_id)
+        if not s.is_expired():
+            _sessions[name] = s
+
+
+# ---------------------------------------------------------------------------
 # Session Registry (module-level singleton)
 # ---------------------------------------------------------------------------
 
 _sessions: Dict[str, CDMCPSession] = {}
+_load_state()
 
 
 def create_session(name: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC,
@@ -379,6 +435,7 @@ def create_session(name: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     session = CDMCPSession(name, timeout_sec=timeout_sec, port=port)
     _sessions[name] = session
     _log_session("create", name, f"timeout={timeout_sec}s")
+    _save_state()
     return session
 
 
@@ -389,6 +446,7 @@ def get_session(name: str) -> Optional[CDMCPSession]:
         _log_session("expired", name)
         session.close()
         del _sessions[name]
+        _save_state()
         return None
     return session
 
@@ -402,6 +460,7 @@ def close_session(name: str) -> bool:
     session = _sessions.pop(name, None)
     if session:
         session.close()
+        _save_state()
         return True
     return False
 
@@ -410,6 +469,7 @@ def close_all_sessions():
     for s in _sessions.values():
         s.close()
     _sessions.clear()
+    _save_state()
 
 
 def _cleanup_expired():
@@ -418,3 +478,5 @@ def _cleanup_expired():
         _sessions[n].close()
         del _sessions[n]
         _log_session("expired_cleanup", n)
+    if expired:
+        _save_state()

@@ -124,6 +124,13 @@ def main():
                 pass
 
             if _cdp_ok:
+                clean = [a for a in sys.argv[1:] if a not in ("--mcp", "--json", "--no-warning", "--python", "--no-feedback")]
+                as_json_flag = "--json" in sys.argv
+                as_python_flag = "--python" in sys.argv
+                command = " ".join(clean)
+                if command:
+                    mcp_exec = _load_mcp_module("mcp/execute")
+                    sys.exit(mcp_exec.run_mcp_execute(command, as_python=as_python_flag, as_json=as_json_flag))
                 os.environ["GCS_CDP_ENABLED"] = "1"
                 sys.argv = [a for a in sys.argv if a not in ("--mcp", "--json")]
             else:

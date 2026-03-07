@@ -371,12 +371,25 @@ def _run_cdp_with_turing(command, as_python=False):
             except Exception:
                 pass
 
-        code, output = _run_cdp_execute(command, as_python)
-        if overlay and _cdp_session_holder[0]:
+        if cdp:
             try:
-                overlay.increment_mcp_count(_cdp_session_holder[0], 1)
+                cdp.close()
             except Exception:
                 pass
+            _cdp_session_holder[0] = None
+
+        code, output = _run_cdp_execute(command, as_python)
+
+        from logic.cdp.colab import find_colab_tab as _find_tab
+        _tab = _find_tab()
+        if _tab and _tab.get("webSocketDebuggerUrl"):
+            from logic.cdp.colab import CDPSession as _CdpCls
+            _cdp_session_holder[0] = _CdpCls(_tab["webSocketDebuggerUrl"], timeout=10)
+            if overlay:
+                try:
+                    overlay.increment_mcp_count(_cdp_session_holder[0], 1)
+                except Exception:
+                    pass
         _cdp_result["code"] = code
         _cdp_result["output"] = output
         mcp_count[0] += 1

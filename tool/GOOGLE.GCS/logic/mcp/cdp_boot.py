@@ -259,8 +259,22 @@ def _find_or_create_notebook(cfg):
     return None, None, False
 
 
+def _get_cdmcp_session_window(port=CDP_PORT):
+    """Try to get the window ID from an active CDMCP session."""
+    try:
+        from logic.cdmcp_loader import load_cdmcp_sessions
+        sm = load_cdmcp_sessions()
+        for info in sm.list_sessions():
+            wid = info.get("window_id")
+            if wid:
+                return wid
+    except Exception:
+        pass
+    return None
+
+
 def _open_colab_tab(colab_url, port=CDP_PORT):
-    """Open the Colab notebook URL in a new Chrome tab via CDP."""
+    """Open the Colab notebook URL in the CDMCP session window (or any window)."""
     try:
         import urllib.request
         from logic.cdp.colab import find_colab_tab
@@ -278,10 +292,16 @@ def _open_colab_tab(colab_url, port=CDP_PORT):
         if not browser_ws:
             return False
 
+        window_id = _get_cdmcp_session_window(port)
+
         import websocket
         ws = websocket.create_connection(browser_ws, timeout=15)
         try:
-            ws.send(json.dumps({"id": 1, "method": "Target.createTarget", "params": {"url": colab_url}}))
+            params = {"url": colab_url}
+            if window_id:
+                params["windowId"] = window_id
+                params["newWindow"] = False
+            ws.send(json.dumps({"id": 1, "method": "Target.createTarget", "params": params}))
             ws.settimeout(10)
             for _ in range(20):
                 resp = json.loads(ws.recv())
