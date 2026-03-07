@@ -32,7 +32,7 @@ if project_root:
 
 from logic.tool.blueprint.base import ToolBase
 from interface.config import get_color
-from logic.utils import format_table
+from interface.utils import format_table
 
 class BackgroundManager(ToolBase):
     def __init__(self):

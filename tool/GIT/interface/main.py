@@ -50,7 +50,7 @@ def get_system_git() -> str:
 
 def get_git_engine():
     """Return a ``GitEngine`` bound to the project root."""
-    from logic.utils import find_project_root
+    from interface.utils import find_project_root
     project_root = find_project_root(Path(__file__))
     return GitEngine(project_root)
 

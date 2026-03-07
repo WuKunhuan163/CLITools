@@ -87,7 +87,7 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
 
     warnings = result.get("warnings", [])
     if warnings:
-        from logic.turing.status import fmt_warning
+        from interface.status import fmt_warning
         for w in warnings:
             print(fmt_warning(w, indent=0))
 

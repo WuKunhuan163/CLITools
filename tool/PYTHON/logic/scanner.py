@@ -17,7 +17,7 @@ from typing import List, Dict, Optional, Any
 
 # Import shared utilities
 try:
-    from logic.utils import get_system_tag, regularize_version_name, truncate_to_display_width
+    from interface.utils import get_system_tag, regularize_version_name, truncate_to_display_width
     from interface.turing import ProgressTuringMachine, TuringStage
     from logic.audit.utils import AuditManager
     from tool.PYTHON.logic.config import DATA_DIR, AUDIT_DIR, PROJECT_ROOT

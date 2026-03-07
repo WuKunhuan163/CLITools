@@ -109,7 +109,7 @@ def download_and_verify(asset, target_root, silent=False):
     """Downloads an asset to tmp, verifies it, then moves to target_dir using a Turing Machine."""
     from interface.turing import ProgressTuringMachine
     from interface.turing import TuringStage
-    from logic.utils import run_with_progress, extract_resource, print_success_status
+    from interface.utils import run_with_progress, extract_resource, print_success_status
     
     # Use consistent naming: X.Y.Z-platform (no 'python' prefix)
     v_tag = f"{asset['version']}-{asset['platform']}"
@@ -204,7 +204,7 @@ def main():
     PythonScanner(silent=args.tool_quiet)
     filtered = get_all_assets_from_cache(tag_filter=args.tag, version_filter=args.version, platform_filter=args.platform)
     if not filtered:
-        from logic.turing.status import fmt_warning
+        from interface.status import fmt_warning
         print(fmt_warning("No matching assets found.", indent=0))
         return
 

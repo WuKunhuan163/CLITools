@@ -21,7 +21,7 @@ try:
     from interface.turing import ProgressTuringMachine
     from interface.turing import TuringStage
     from interface.lang import get_translation
-    from logic.utils import get_logic_dir
+    from interface.utils import get_logic_dir
 except ImportError:
     class ProgressTuringMachine:
         def add_stage(self, stage): stage.action()
@@ -58,7 +58,7 @@ def main():
         print("\033[1;31mError\033[0m: PYTHON tool binary not found.")
         sys.exit(1)
         
-    from logic.utils import regularize_version_name
+    from interface.utils import regularize_version_name
     version = regularize_version_name(args.py_version)
 
     def install_python():
@@ -119,7 +119,7 @@ def main():
     ))
     
     if tm.run(ephemeral=True):
-        from logic.utils import print_success_status
+        from interface.utils import print_success_status
         print_success_status(f"setup USERINPUT tool")
         return 0
     return 1

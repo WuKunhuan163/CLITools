@@ -27,7 +27,7 @@ setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
 from logic.config import get_color
-from logic.turing.status import fmt_status, fmt_detail, fmt_warning
+from interface.status import fmt_status, fmt_detail, fmt_warning
 
 
 def _format_item(item, bold, dim, reset, green, red, yellow, cyan):

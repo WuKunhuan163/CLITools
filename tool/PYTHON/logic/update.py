@@ -47,7 +47,7 @@ try:
     
     from interface.lang import get_translation
     from interface.config import get_color
-    from logic.utils import get_system_tag, regularize_version_name, run_with_progress, truncate_to_display_width
+    from interface.utils import get_system_tag, regularize_version_name, run_with_progress, truncate_to_display_width
     from interface.turing import TuringWorker
     from interface.turing import TuringTask, StepResult, WorkerState
     from interface.turing import MultiLineManager
@@ -203,7 +203,7 @@ def log_failure(asset_name, tag, error_msg):
         with open(report_path, "w") as f:
             json.dump(failure_data, f, indent=2)
             
-        from logic.utils import cleanup_old_files
+        from interface.utils import cleanup_old_files
         cleanup_old_files(report_dir, "failure_*.json", limit=1000, batch_size=500)
     except: pass
 

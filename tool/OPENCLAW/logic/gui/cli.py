@@ -25,7 +25,7 @@ except ImportError:
 from logic.config import get_color
 from logic.lang.utils import get_translation
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
-from logic.turing.status import fmt_status, fmt_detail, fmt_stage
+from interface.status import fmt_status, fmt_detail, fmt_stage
 from tool.OPENCLAW.logic.session import SessionManager, Session
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent)
@@ -1451,7 +1451,7 @@ class OpenClawCLI:
                         self._show_log(parts[1].strip() if len(parts) > 1 else "")
                     else:
                         self._mark_failed(display_text)
-                        from logic.utils.fuzzy import format_suggestion
+                        from interface.utils import format_suggestion
                         hint = format_suggestion(text.split()[0], _CMD_NAMES,
                                                  prefix="")
                         if hint:

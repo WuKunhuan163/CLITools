@@ -45,7 +45,7 @@ try:
     from logic.tool.blueprint.base import ToolBase
     from interface.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
     from interface.lang import get_translation
-    from logic.utils import get_logic_dir, cleanup_old_files
+    from interface.utils import get_logic_dir, cleanup_old_files
 except ImportError:
     # Fallback
     class ToolBase:
@@ -113,7 +113,7 @@ class UserInputTool(ToolBase):
         except (ImportError, AttributeError):
             install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
 
-        from logic.utils import get_system_tag
+        from interface.utils import get_system_tag
         system_tag = get_system_tag()
 
         possible_dirs = [v, f"{v}-{system_tag}", f"python{v}-{system_tag}", f"python3{v}-{system_tag}"]
@@ -198,7 +198,7 @@ try:
     from interface.gui import BaseGUIWindow, setup_common_bottom_bar
     from interface.gui import setup_gui_environment, play_notification_bell
     from interface.gui import get_label_style
-    from logic.utils import find_project_root
+    from interface.utils import find_project_root
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
 

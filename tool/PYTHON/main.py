@@ -137,7 +137,7 @@ def main():
     shorthand_version = None
     filtered_args = []
     
-    from logic.utils import get_system_tag
+    from interface.utils import get_system_tag
     get_system_tag()
     install_root = INSTALL_DIR
 
@@ -214,7 +214,7 @@ def main():
             # Run all test_xx_*.py files in the root test/ directory
             test_files = sorted(list(test_dir.glob("test_*.py")))
             if not test_files:
-                from logic.turing.status import fmt_warning
+                from interface.status import fmt_warning
                 print(fmt_warning("No test files found.", indent=0))
                 sys.exit(0)
                 
@@ -325,7 +325,7 @@ def _enable_managed_python():
         if create_link(str(pip_exec), "pip3"): success_count += 1
 
     if success_count > 0:
-        from logic.utils import register_path
+        from interface.utils import register_path
         register_path(python_bin_dir)
         success_label = _("python_install_success_status", "Successfully enabled")
         print(f"{GREEN}{BOLD}{success_label}{RESET} managed Python ({default_version}) with {success_count} symlinks in bin/PYTHON/.")
@@ -409,7 +409,7 @@ def _list_versions(force=False, tag_filter=None, version_filter=None, platform_f
         return
 
     # Filter for current platform by default for cleaner list if no platform filter specified
-    from logic.utils import get_system_tag
+    from interface.utils import get_system_tag
     tag = get_system_tag()
     
     display_rows = []
@@ -433,7 +433,7 @@ def _list_versions(force=False, tag_filter=None, version_filter=None, platform_f
         
     # 4. Save Audit Record
     if display_rows:
-        from logic.utils import save_list_report
+        from interface.utils import save_list_report
         report_path = save_list_report(display_rows, save_dir="python_list", filename_prefix="python_versions")
         if report_path:
             print(f"\n{BOLD}{WHITE}Full result saved to{RESET}: {report_path}")
@@ -453,7 +453,7 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
     all_available = sorted(list(set([a["v_tag"] for a in all_assets])))
     
     # Compatibility layer: handle 'python' prefix and platform tags
-    from logic.utils import get_system_tag
+    from interface.utils import get_system_tag
     tag = get_system_tag()
     
     final_version = None
@@ -500,7 +500,7 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
     try:
         source_dir_rel = str(RESOURCE_ROOT.relative_to(project_root) / version)
         full_source_path = RESOURCE_ROOT / version
-        from logic.utils import extract_resource
+        from interface.utils import extract_resource
         
         resource_ready = False
         zst_files = []

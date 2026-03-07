@@ -31,7 +31,7 @@ try:
     from logic.tool.blueprint.base import ToolBase
     from interface.gui import setup_gui_environment, get_safe_python_for_gui
     from interface.lang import get_translation
-    from logic.utils import get_logic_dir
+    from interface.utils import get_logic_dir
 except ImportError:
     # Minimal fallback
     class ToolBase:

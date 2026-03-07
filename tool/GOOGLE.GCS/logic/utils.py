@@ -240,7 +240,7 @@ except Exception as e:
         python_tool = project_root / "tool" / "PYTHON"
         if python_tool.exists():
             try:
-                from logic.utils import get_logic_dir
+                from interface.utils import get_logic_dir
                 import importlib.util
                 utils_path = get_logic_dir(python_tool) / "utils.py"
                 if utils_path.exists():

@@ -119,7 +119,7 @@ def main():
             _icloud_iface = _get_icloud()
             local_library = _icloud_iface["get_local_photos_library"](library_path)
             if not local_library.is_valid():
-                from logic.turing.status import fmt_warning
+                from interface.status import fmt_warning
                 print(fmt_warning(f"'{library_path}' does not appear to be a valid Photos Library (missing 'originals' folder)."))
                 local_library = None
             else:
@@ -203,7 +203,7 @@ def main():
                 if stage: stage.active_name = f"authenticating {apple_id}"
                 api = PyiCloudService(apple_id, password)
                 if api.requires_2fa:
-                    from logic.turing.status import fmt_warning
+                    from interface.status import fmt_warning
                     print(f"\n{fmt_warning('Two-factor authentication required.', indent=0)}")
                     try: code = input("Enter 6-digit 2FA code: ").strip()
                     except EOFError: return False
@@ -325,7 +325,7 @@ def main():
 
         count, start_time = 0, time.time()
         last_save_time, last_seen_date = start_time, None
-        from logic.utils import calculate_eta
+        from interface.utils import calculate_eta
         from pyicloud.services.photos import DirectionEnum
         
         for lib_name, lib in libs.items():
@@ -391,7 +391,7 @@ def main():
     pm.run()
     
     if used_cache:
-        from logic.turing.status import fmt_warning
+        from interface.status import fmt_warning
         print(fmt_warning("Using cached scan results. Run with --force-rescan to refresh metadata."))
 
     if args.only_scan:
@@ -478,7 +478,7 @@ def main():
             continue
         final_scheduled_info[aid] = info
     
-    from logic.turing.status import fmt_status, fmt_info, fmt_detail
+    from interface.status import fmt_status, fmt_info, fmt_detail
     if already_downloaded_count > 0:
         print(fmt_status("Skipped", complement=f"{already_downloaded_count} photos/videos already downloaded.", indent=0))
     
@@ -529,7 +529,7 @@ def main():
                     is_local = True
                     # Update progress for local matches periodically
                     if count % 100 == 0 or count == total_scheduled:
-                        from logic.utils import calculate_eta
+                        from interface.utils import calculate_eta
                         e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
                         if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
             
@@ -543,7 +543,7 @@ def main():
             # Erase current line
             sys.stdout.write("\r\033[K")
             sys.stdout.flush()
-            from logic.turing.status import fmt_warning
+            from interface.status import fmt_warning
             print(fmt_warning(f"{missing_count} photos not found in local library. Gathering from iCloud..."))
             if stage: stage.refresh() # Restore active line below warning
 
@@ -575,7 +575,7 @@ def main():
                                 to_download_objects.append(asset)
                                 count += 1
                                 if count % 10 == 0 or count == total_scheduled:
-                                    from logic.utils import calculate_eta
+                                    from interface.utils import calculate_eta
                                     e_str, r_str = calculate_eta(count, total_scheduled, time.time() - start_time)
                                     if stage: stage.active_name = f"photo/video objects ({count}/{total_scheduled}) [{e_str}>{r_str}]"; stage.refresh()
                             success_batch = True

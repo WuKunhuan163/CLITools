@@ -15,7 +15,7 @@ project_root = script_path.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.utils import print_success_status
+from interface.utils import print_success_status
 
 def setup():
     # Standard installation (dependencies, shortcut) is handled by ToolEngine.
