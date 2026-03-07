@@ -33,7 +33,7 @@ if python_tool_dir.exists():
         except: pass
 
 # Run the actual tool
-main_py = project_root / "tool/YOUTUBE/main.py"
+main_py = project_root / "tool/BILIBILI/main.py"
 env = os.environ.copy()
 # Add project root and tool logic to PYTHONPATH
 python_path = env.get('PYTHONPATH', '')
@@ -42,11 +42,11 @@ env["PYTHONPATH"] = f"{new_paths}:{python_path}" if python_path else new_paths
 
 # Distinguish tool invocation from python/pip exec passthrough
 invoked_name = os.path.basename(sys.argv[0])
-tool_shortcut = "YOUTUBE"
+tool_shortcut = "BILIBILI"
 is_tool_invocation = (invoked_name == tool_shortcut)
 is_python_exec = (not is_tool_invocation and
                   invoked_name.lower() in ["python", "python3", "pip", "pip3"]
-                  and "YOUTUBE".upper() == "PYTHON")
+                  and "BILIBILI".upper() == "PYTHON")
 
 if is_python_exec:
     if "pip" in invoked_name.lower():

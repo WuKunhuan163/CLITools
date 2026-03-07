@@ -52,6 +52,8 @@
     "PLAID",
     "INTERCOM",
     "CLOUDFLARE",
-    "GMAIL"
+    "GMAIL",
+    "YOUTUBE",
+    "BILIBILI"
   ]
 }

@@ -10,7 +10,12 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.interface.engine import ToolEngine
+from logic.tool.setup.engine import ToolEngine
+
+def setup():
+    tool_name = "YOUTUBE"
+    engine = ToolEngine(tool_name, _r)
+    return engine.install()
 
 if __name__ == "__main__":
-    ToolEngine("YOUTUBE").run()
+    setup()

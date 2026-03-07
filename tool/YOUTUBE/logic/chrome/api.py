@@ -358,6 +358,8 @@ def search_videos(query: str, limit: int = 10, port: int = CDP_PORT) -> Dict[str
             session.evaluate(f"window.location.href = {json.dumps(YOUTUBE_HOME)}")
             time.sleep(2)
 
+        safe_q = query.replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
+
         # Type in search box with visual effect
         search_typed = interact.mcp_type(
             session, 'input#search, input[name="search_query"]', query,
@@ -366,14 +368,12 @@ def search_videos(query: str, limit: int = 10, port: int = CDP_PORT) -> Dict[str
 
         if search_typed.get("ok"):
             time.sleep(0.3)
-            # Click search button
             interact.mcp_click(
                 session, '#search-icon-legacy, button[aria-label="Search"]',
                 label="Search", dwell=0.5,
             )
             time.sleep(3)
         else:
-            safe_q = query.replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
             session.evaluate(f"window.location.href = 'https://www.youtube.com/results?search_query={safe_q}'")
             time.sleep(4)
 
@@ -383,7 +383,8 @@ def search_videos(query: str, limit: int = 10, port: int = CDP_PORT) -> Dict[str
         r = session.evaluate("""
             (function() {
                 try {
-                    var items = document.querySelectorAll('ytd-video-renderer, ytd-rich-item-renderer');
+                    var items = document.querySelectorAll('ytd-video-renderer');
+                    if (items.length === 0) items = document.querySelectorAll('ytd-rich-item-renderer');
                     var results = [];
                     for (var i = 0; i < Math.min(items.length, %d); i++) {
                         var item = items[i];
