@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """GCS edit command: edit remote files via base64-encoded Python script execution."""
+import os
 import sys
 import json
 import base64
@@ -54,8 +55,9 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
     logical_path = utils.normalize_input_path(filename, current_path)
     remote_abs_path = utils.logical_to_mount_path(logical_path)
 
+    display_name = logical_path if logical_path.startswith("~") else filename
     return _execute_remote_edit(tool, state_mgr, load_logic, utils,
-                                filename, remote_abs_path, replacements,
+                                display_name, remote_abs_path, replacements,
                                 preview, backup)
 
 
@@ -82,8 +84,10 @@ def _execute_remote_edit(tool, state_mgr, load_logic, utils,
     current_logical = info.get("current_path", "~") if info else "~"
     remote_cwd = utils.logical_to_mount_path(current_logical)
 
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
     script, metadata = executor_mod.generate_remote_command_script(
-        tool.project_root, command, remote_cwd=remote_cwd, as_python=False
+        tool.project_root, command, remote_cwd=remote_cwd, as_python=False,
+        cdp_mode=cdp_enabled
     )
 
     from logic.interface.turing import ProgressTuringMachine
@@ -106,6 +110,12 @@ def _execute_remote_edit(tool, state_mgr, load_logic, utils,
             "--script-path", str(tmp_script),
             "--project-root", str(tool.project_root)
         ]
+        if cdp_enabled:
+            gui_args.append("--as-python")
+        if metadata.get("done_marker"):
+            gui_args.extend(["--done-marker", metadata["done_marker"]])
+        if cdp_enabled:
+            gui_args.append("--cdp-enabled")
         old_quiet = getattr(tool, "is_quiet", False)
         tool.is_quiet = True
         try:

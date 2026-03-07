@@ -42,7 +42,12 @@ BLUE = get_color("BLUE")
 RESET = get_color("RESET")
 
 CDP_PORT = 9222
-NOTEBOOK_NAME = ".root.ipynb"
+_DEFAULT_NOTEBOOK_NAME = ".root.ipynb"
+
+
+def _get_notebook_name():
+    cfg = _load_config()
+    return cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +244,8 @@ def _find_or_create_notebook(cfg):
 
     try:
         from logic.cdp.colab import create_notebook
-        result = create_notebook(NOTEBOOK_NAME, target_folder)
+        nb_name = cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
+        result = create_notebook(nb_name, target_folder)
         if result.get("success"):
             file_id = result["file_id"]
             colab_url = result["colab_url"]
@@ -330,10 +336,11 @@ def run_mcp_boot():
             print(f"  {BOLD}{YELLOW}No notebook found{RESET}. Run {BOLD}GCS --mcp setup-tutorial{RESET} to create one.")
         return 1
 
+    nb_name = _get_notebook_name()
     if created:
-        print(f"  {BOLD}Created{RESET} {NOTEBOOK_NAME} via CDP.")
+        print(f"  {BOLD}Created{RESET} {nb_name} via CDP.")
     else:
-        print(f"  {BOLD}Found{RESET} {NOTEBOOK_NAME}.")
+        print(f"  {BOLD}Found{RESET} {nb_name}.")
 
     print(f"  Opening Colab notebook...")
     if _open_colab_tab(colab_url):

@@ -92,6 +92,8 @@ def _resolve_remote_dest(args, state_mgr, utils):
 def _upload_small(tool, local_path, filename, file_size,
                   remote_dest_dir, state_mgr, load_logic, as_python):
     """Upload a small file by base64-encoding and writing through the Colab pipeline."""
+    from logic.interface.turing import ProgressTuringMachine, TuringStage
+
     with open(local_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode("ascii")
 
@@ -100,12 +102,28 @@ def _upload_small(tool, local_path, filename, file_size,
 
     remote_cmd = (
         f"mkdir -p {parent_dir} && "
-        f"echo '{encoded}' | base64 -d > {dest_file} && "
-        f"echo 'Uploaded: {filename} ({file_size} bytes)'"
+        f"echo '{encoded}' | base64 -d > {dest_file}"
     )
 
-    remote_mod = load_logic("command/remote")
-    return remote_mod.execute(tool, remote_cmd, state_mgr, load_logic, as_python=as_python)
+    upload_result = {}
+
+    def do_upload(stage=None):
+        remote_mod = load_logic("command/remote")
+        code = remote_mod.execute(tool, remote_cmd, state_mgr, load_logic, as_python=as_python)
+        upload_result["code"] = code
+        if code != 0 and stage:
+            stage.error_brief = "Remote write failed."
+        return code == 0
+
+    size_str = _human_size(file_size)
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm.add_stage(TuringStage("upload", do_upload,
+        active_status="Uploading", active_name=f"{filename} ({size_str})",
+        fail_status="Failed to upload", fail_name=filename,
+        success_status="Uploaded", success_name=f"{filename} ({size_str})",
+        success_color="GREEN"))
+
+    return 0 if pm.run(ephemeral=True) else 1
 
 
 # ---------------------------------------------------------------------------

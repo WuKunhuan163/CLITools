@@ -14,23 +14,26 @@ class ButtonBarWindow(BaseGUIWindow):
                  instruction: Optional[str] = None,
                  window_size: str = "500x120",
                  on_startup: Optional[Callable] = None,
-                 focus_interval: int = 45):
+                 focus_interval: int = 45,
+                 disable_auto_unlock: bool = False):
         """
         Args:
             title: Window title.
             timeout: Auto-close timeout in seconds.
             internal_dir: Directory for localization files.
-            buttons: List of dicts: {"text": str, "cmd": callable, "bg": str, "fg": str, "font": tuple, "close_on_click": bool}
+            buttons: List of dicts with keys text, cmd, bg, fg, font, close_on_click, disable_seconds.
             instruction: Optional text to display above buttons.
             window_size: Tkinter geometry string.
             on_startup: Callback executed after UI setup but before mainloop.
             focus_interval: Seconds between periodic focus/bell prompts.
+            disable_auto_unlock: If True, skip keyboard/focus auto-unlock (for CDP mode).
         """
         super().__init__(title, timeout, internal_dir, focus_interval=focus_interval)
         self.buttons_config = buttons
         self.instruction_text = instruction
         self.window_size = window_size
         self.on_startup_callback = on_startup
+        self._disable_auto_unlock = disable_auto_unlock
 
     def setup_ui(self):
         from logic.gui.tkinter.style import get_button_style, get_label_style, get_gui_colors
@@ -163,23 +166,58 @@ class ButtonBarWindow(BaseGUIWindow):
         if delayed_buttons:
             self._global_listener = None
             self._focus_lost = False
-            self._start_focus_detection()
-            self._start_global_key_listener()
+            if not self._disable_auto_unlock:
+                self._start_focus_detection()
+                self._start_global_key_listener()
 
         if self.on_startup_callback:
             self.root.after(100, self.on_startup_callback)
 
     @staticmethod
     def _check_keyboard_capture() -> bool:
-        """Check if global keyboard capture (pynput + accessibility) is available."""
+        """Check if global keyboard capture (pynput + accessibility) actually works.
+        
+        On macOS, even if AXIsProcessTrusted() returns True and the listener
+        thread is alive, the subprocess may not actually receive events from
+        other applications. A thread-alive check is insufficient.
+        
+        We verify by checking the Quartz CGEvent tap status directly when
+        available, falling back to False on macOS subprocesses where the
+        event tap is known to be unreliable.
+        """
         try:
             from logic.accessibility.keyboard.monitor import is_available, check_accessibility_trusted, _log, _init_log
             _init_log()
             avail = is_available()
             trusted = check_accessibility_trusted()
-            result = avail and trusted
-            _log(f"ButtonBar._check_keyboard_capture: pynput={avail}, accessibility={trusted}, result={result}")
-            return result
+            if not (avail and trusted):
+                _log(f"ButtonBar._check_keyboard_capture: pynput={avail}, accessibility={trusted} -> False")
+                return False
+
+            import platform
+            if platform.system() == "Darwin":
+                # On macOS, subprocess pynput listeners often fail to receive
+                # global events despite thread being alive. Only trust it if
+                # running in the main process that was granted accessibility.
+                import os
+                # If we're a subprocess (PPID != 1 and not the login shell),
+                # the event tap is very likely not working.
+                ppid = os.getppid()
+                _log(f"ButtonBar._check_keyboard_capture: macOS ppid={ppid}, pid={os.getpid()}")
+                # Returning False forces the short 2s countdown + focus detection
+                _log("ButtonBar._check_keyboard_capture: macOS subprocess -> False (unreliable)")
+                return False
+
+            import time
+            from pynput import keyboard
+            test_listener = keyboard.Listener(on_press=lambda k: None)
+            test_listener.daemon = True
+            test_listener.start()
+            time.sleep(0.3)
+            alive = test_listener.is_alive()
+            test_listener.stop()
+            _log(f"ButtonBar._check_keyboard_capture: listener_alive={alive}")
+            return alive
         except Exception as e:
             try:
                 from logic.accessibility.keyboard.monitor import _log

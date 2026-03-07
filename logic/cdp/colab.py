@@ -93,7 +93,7 @@ def _reopen_colab_tab(port: int = CDP_PORT, log_fn=None) -> Optional[Dict]:
     """Attempt to reopen the configured Colab notebook tab.
 
     Reads the notebook URL from config and opens it via CDP Target.createTarget.
-    Waits up to 15 seconds for the tab to become available.
+    If the notebook was deleted, recreates it first.
     Returns the tab dict if successful, None otherwise.
     """
     config_path = Path(__file__).resolve().parent.parent.parent / "data" / "config.json"
@@ -105,48 +105,159 @@ def _reopen_colab_tab(port: int = CDP_PORT, log_fn=None) -> Optional[Dict]:
     except Exception:
         return None
 
+    notebook_id = cfg.get("root_notebook_id", "")
+    env_folder_id = cfg.get("env_folder_id", "")
     notebook_url = cfg.get("root_notebook_url", "")
-    if not notebook_url:
-        notebook_id = cfg.get("root_notebook_id", "")
-        if not notebook_id:
-            return None
+    if not notebook_url and notebook_id:
         notebook_url = f"https://colab.research.google.com/drive/{notebook_id}"
 
-    try:
-        version_url = f"http://localhost:{port}/json/version"
-        with urllib.request.urlopen(version_url, timeout=5) as resp:
-            data = json.loads(resp.read().decode())
-        browser_ws = data.get("webSocketDebuggerUrl")
-        if not browser_ws:
-            return None
-
-        import websocket
-        ws = websocket.create_connection(browser_ws, timeout=15)
-        try:
-            ws.send(json.dumps({"id": 1, "method": "Target.createTarget", "params": {"url": notebook_url}}))
-            ws.settimeout(10)
-            for _ in range(20):
-                r = json.loads(ws.recv())
-                if r.get("id") == 1:
-                    break
-        finally:
-            ws.close()
-    except Exception as e:
-        if log_fn:
-            log_fn(f"Failed to create tab: {e}")
+    if not notebook_url:
         return None
 
+    def _open_url_in_chrome(url):
+        try:
+            version_url = f"http://localhost:{port}/json/version"
+            with urllib.request.urlopen(version_url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            browser_ws = data.get("webSocketDebuggerUrl")
+            if not browser_ws:
+                return False
+            import websocket
+            ws = websocket.create_connection(browser_ws, timeout=15)
+            try:
+                ws.send(json.dumps({"id": 1, "method": "Target.createTarget", "params": {"url": url}}))
+                ws.settimeout(10)
+                for _ in range(20):
+                    r = json.loads(ws.recv())
+                    if r.get("id") == 1:
+                        return True
+            finally:
+                ws.close()
+        except Exception as e:
+            if log_fn:
+                log_fn(f"Failed to open URL: {e}")
+        return False
+
+    _open_url_in_chrome(notebook_url)
     if log_fn:
-        log_fn(f"Reopened Colab tab. Waiting for page to load...")
+        log_fn("Reopened Colab tab. Waiting for page to load...")
 
     for i in range(20):
         time.sleep(1)
         tab = find_colab_tab(port)
         if tab:
             if log_fn:
-                log_fn(f"Colab tab detected after {i+1}s. Waiting for full load...")
+                log_fn(f"Colab tab detected after {i+1}s. Checking notebook...")
             time.sleep(5)
+            session = CDPSession(tab["webSocketDebuggerUrl"])
+            try:
+                repaired = _repair_notebook_if_needed(
+                    session, notebook_id, env_folder_id, cfg, config_path, port, log_fn
+                )
+                if repaired == "recreated":
+                    new_url = cfg.get("root_notebook_url", "")
+                    session.close()
+                    _open_url_in_chrome(new_url)
+                    for j in range(15):
+                        time.sleep(1)
+                        tab = find_colab_tab(port)
+                        if tab:
+                            time.sleep(5)
+                            return tab
+                    return None
+            except Exception:
+                pass
+            finally:
+                try:
+                    session.close()
+                except Exception:
+                    pass
             return tab
+    return None
+
+
+def _repair_notebook_if_needed(session, notebook_id, env_folder_id, cfg, config_path, port, log_fn):
+    """Check if the notebook is accessible and recreate if not.
+    
+    Any non-normal state (trashed, deleted, inaccessible, trash banner) triggers
+    a full recreation rather than attempting recovery from trash.
+    
+    Returns:
+        None: notebook is fine
+        "recreated": was not accessible, recreated with new ID
+    """
+    if not notebook_id:
+        return None
+
+    notebook_name = cfg.get("root_notebook_name", ".root.ipynb")
+    needs_recreate = False
+    reason = ""
+
+    drive_check = session.evaluate(f"""
+    (async function() {{
+        try {{
+            var resp = await gapi.client.request({{
+                path: '/drive/v3/files/{notebook_id}',
+                method: 'GET',
+                params: {{fields: 'id,name,trashed'}}
+            }});
+            return JSON.stringify(resp.result);
+        }} catch(e) {{
+            return JSON.stringify({{error: String(e)}});
+        }}
+    }})()
+    """)
+
+    if not drive_check:
+        return None
+
+    try:
+        data = json.loads(drive_check)
+    except Exception:
+        return None
+
+    if data.get("trashed"):
+        needs_recreate = True
+        reason = "trashed"
+    elif data.get("error"):
+        needs_recreate = True
+        reason = "not accessible"
+    else:
+        trash_on_page = session.evaluate("""
+        (function() {
+            var body = document.body ? document.body.innerText : '';
+            return body.includes('moved to the trash') || body.includes('Moved to the trash');
+        })()
+        """)
+        if trash_on_page == True or trash_on_page == "true":
+            needs_recreate = True
+            reason = "trash banner on page"
+
+    if not needs_recreate:
+        return None
+
+    if log_fn:
+        log_fn(f"Notebook {reason}. Recreating {notebook_name}...")
+    if not env_folder_id:
+        if log_fn:
+            log_fn("No env_folder_id. Cannot recreate.")
+        return None
+
+    result = create_notebook(notebook_name, env_folder_id, port)
+    if result.get("success"):
+        cfg["root_notebook_id"] = result["file_id"]
+        cfg["root_notebook_url"] = result["colab_url"]
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(cfg, f, indent=2)
+        except Exception:
+            pass
+        if log_fn:
+            log_fn(f"Recreated {notebook_name} ({result['file_id']}).")
+        return "recreated"
+    elif log_fn:
+        log_fn(f"Failed to recreate: {result.get('error')}")
+
     return None
 
 
@@ -194,6 +305,14 @@ def inject_and_execute(code: str, port: int = CDP_PORT, timeout: int = 300,
     session = CDPSession(ws_url)
 
     try:
+        cell_count = session.evaluate(
+            "colab.global.notebook.cells ? colab.global.notebook.cells.length : 0"
+        )
+        if not cell_count or int(cell_count) == 0:
+            _log("No cells found. Adding a code cell...")
+            session.evaluate("colab.global.notebook.addCell('code', {cellIndex: 0})")
+            time.sleep(1)
+
         code_json = json.dumps(code)
         session.evaluate(f"colab.global.notebook.cells[0].setText({code_json})")
         time.sleep(0.3)

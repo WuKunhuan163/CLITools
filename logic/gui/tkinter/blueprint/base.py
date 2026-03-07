@@ -267,8 +267,9 @@ class BaseGUIWindow:
             self._terminate_children()
             try:
                 if self.root:
+                    self.root.withdraw()
                     self.root.update_idletasks()
-                    self.root.destroy()
+                    self.root.after(50, self.root.destroy)
             except: pass
 
     def _salvage_content(self, data: str):

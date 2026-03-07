@@ -10,7 +10,18 @@ _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 def _(key, default, **kwargs):
     return get_translation(_LOGIC_DIR, key, default, **kwargs)
 
-NOTEBOOK_NAME = ".root.ipynb"
+_DEFAULT_NOTEBOOK_NAME = ".root.ipynb"
+
+
+def _get_notebook_name(project_root):
+    path = project_root / "data" / "config.json"
+    if not path.exists():
+        return _DEFAULT_NOTEBOOK_NAME
+    try:
+        with open(path, 'r') as f:
+            return json.load(f).get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
+    except Exception:
+        return _DEFAULT_NOTEBOOK_NAME
 
 
 def _build_notebook_json():
@@ -61,10 +72,11 @@ def _get_drive_token(project_root):
     return auth_mod.get_access_token(info, scope="https://www.googleapis.com/auth/drive")
 
 
-def _find_notebook_in_folder(token, folder_id):
+def _find_notebook_in_folder(token, folder_id, notebook_name=None):
     import requests
+    nb_name = notebook_name or _DEFAULT_NOTEBOOK_NAME
     headers = {"Authorization": f"Bearer {token}"}
-    q = f"'{folder_id}' in parents and name = '{NOTEBOOK_NAME}' and trashed = false"
+    q = f"'{folder_id}' in parents and name = '{nb_name}' and trashed = false"
     params = {"q": q, "fields": "files(id, name)", "pageSize": 5}
     res = requests.get("https://www.googleapis.com/drive/v3/files",
                        headers=headers, params=params, timeout=20)
@@ -75,7 +87,7 @@ def _find_notebook_in_folder(token, folder_id):
     return None
 
 
-def _try_create_notebook(token, target_folder_id):
+def _try_create_notebook(token, target_folder_id, notebook_name=None):
     """
     Two-step approach:
     1. Create a metadata-only native Colab file (bypasses SA storage quota).
@@ -85,7 +97,7 @@ def _try_create_notebook(token, target_folder_id):
     import requests
 
     metadata = {
-        "name": NOTEBOOK_NAME,
+        "name": notebook_name or _DEFAULT_NOTEBOOK_NAME,
         "parents": [target_folder_id],
         "mimeType": "application/vnd.google.colaboratory"
     }
@@ -168,6 +180,7 @@ def build_step(frame, win):
     win.setup_label(title_block, _("tutorial_step6_title", "Step 6: Create Remote Notebook"), is_title=True)
 
     project_root = getattr(win, "project_root", None)
+    NOTEBOOK_NAME = _get_notebook_name(project_root) if project_root else _DEFAULT_NOTEBOOK_NAME
     env_folder_id = ""
     root_folder_id = ""
     if project_root:

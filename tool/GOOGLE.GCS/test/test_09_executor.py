@@ -76,13 +76,14 @@ class TestExecutorScriptGeneration(unittest.TestCase):
         )
         self.assertIn('SHELL_BIN="bash"', script)
 
-    def test_08_python_mode_ignores_shell_type(self):
-        """as_python=True should not include shell binary resolution."""
+    def test_08_python_mode_generates_cell_code(self):
+        """as_python=True should generate Python cell code with subprocess.run."""
         script, _ = self.executor.generate_remote_command_script(
             project_root, "print('hi')", as_python=True, shell_type="zsh"
         )
-        self.assertNotIn("SHELL_BIN", script)
-        self.assertIn("python3", script)
+        self.assertIn("subprocess.run", script)
+        self.assertIn("zsh", script)
+        self.assertIn("capture_output=True", script)
 
 
 if __name__ == "__main__":

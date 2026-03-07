@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 """GCS --remount command: generate and execute Colab remount script via GUI."""
+import os
 import sys
+import time
 from pathlib import Path
 from logic.interface.config import get_color
 from logic.interface.turing import ProgressTuringMachine
 from logic.interface.turing import TuringStage
+
+_DEBUG_LOG = Path("/Applications/AITerminalTools/tmp/remount_debug.log")
+
+
+def _debug_log(msg):
+    try:
+        _DEBUG_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_DEBUG_LOG, "a") as f:
+            ts = time.strftime("%H:%M:%S")
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
 
 
 def execute(tool, args, state_mgr, load_logic, **kwargs):
@@ -13,6 +27,8 @@ def execute(tool, args, state_mgr, load_logic, **kwargs):
     if not script:
         print(f"{get_color('BOLD')}{get_color('RED')}Error{get_color('RESET')}: {metadata}")
         return 1
+
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
 
     logic_script = Path(__file__).resolve().parent.parent / "remount.py"
     gui_args = [
@@ -23,30 +39,10 @@ def execute(tool, args, state_mgr, load_logic, **kwargs):
     ]
 
     def gui_action(stage=None):
-        gui_queue_mod = load_logic("command/gui_queue")
-        gui_q = gui_queue_mod.get_gui_queue(tool.project_root)
-
-        tmp_script = tool.project_root / "tmp" / f"gcs_remount_{metadata['ts']}.py"
-        tmp_script.parent.mkdir(parents=True, exist_ok=True)
-        with open(tmp_script, 'w') as f:
-            f.write(script)
-        gui_args[1] = str(tmp_script)
-        old_quiet = getattr(tool, "is_quiet", False)
-        tool.is_quiet = True
-        try:
-            res = gui_q.run_gui_subprocess(
-                tool, sys.executable, str(logic_script), 300,
-                args=gui_args, request_id=f"remount_{metadata['ts']}"
-            )
-        finally:
-            tool.is_quiet = old_quiet
-        if tmp_script.exists():
-            tmp_script.unlink()
-        if res.get("status") == "success":
-            return True
-        if stage:
-            _set_failure_reason(stage, res)
-        return False
+        _debug_log(f"gui_action called. cdp_enabled={cdp_enabled}")
+        if cdp_enabled:
+            return _gui_action_cdp(tool, load_logic, script, metadata, stage)
+        return _gui_action_manual(tool, load_logic, logic_script, gui_args, script, metadata, stage)
 
     def verify_action(stage=None):
         import time
@@ -98,6 +94,79 @@ def execute(tool, args, state_mgr, load_logic, **kwargs):
                 json.dump(cfg, f, indent=2)
         return 0
     return 1
+
+
+def _gui_action_cdp(tool, load_logic, script, metadata, stage=None):
+    """Run remount via CDP injection (MCP mode) using the executor subprocess."""
+    _debug_log("_gui_action_cdp: starting")
+    gui_queue_mod = load_logic("command/gui_queue")
+    gui_q = gui_queue_mod.get_gui_queue(tool.project_root)
+
+    logic_script = Path(__file__).resolve().parent.parent / "executor.py"
+    cmd_hash = metadata.get("session_hash", "remount")
+    done_marker = f"GCS_DONE_{cmd_hash}"
+    _debug_log(f"_gui_action_cdp: logic_script={logic_script}, done_marker={done_marker}")
+
+    tmp_script = tool.project_root / "tmp" / f"gcs_remount_{metadata['ts']}.py"
+    tmp_script.parent.mkdir(parents=True, exist_ok=True)
+    with open(tmp_script, 'w') as f:
+        f.write(script)
+
+    gui_args = [
+        "--command", "remount",
+        "--script-path", str(tmp_script),
+        "--project-root", str(tool.project_root),
+        "--as-python",
+        "--done-marker", done_marker,
+        "--cdp-enabled"
+    ]
+    _debug_log(f"_gui_action_cdp: gui_args={gui_args}")
+
+    old_quiet = getattr(tool, "is_quiet", False)
+    tool.is_quiet = True
+    try:
+        res = gui_q.run_gui_subprocess(
+            tool, sys.executable, str(logic_script), 300,
+            args=gui_args, request_id=f"remount_{metadata['ts']}"
+        )
+    finally:
+        tool.is_quiet = old_quiet
+    _debug_log(f"_gui_action_cdp: gui result={res}")
+    if tmp_script.exists():
+        tmp_script.unlink()
+    if res.get("status") == "success":
+        return True
+    if stage:
+        _set_failure_reason(stage, res)
+    return False
+
+
+def _gui_action_manual(tool, load_logic, logic_script, gui_args, script, metadata, stage=None):
+    """Run remount via manual GUI interaction (non-MCP mode)."""
+    gui_queue_mod = load_logic("command/gui_queue")
+    gui_q = gui_queue_mod.get_gui_queue(tool.project_root)
+
+    tmp_script = tool.project_root / "tmp" / f"gcs_remount_{metadata['ts']}.py"
+    tmp_script.parent.mkdir(parents=True, exist_ok=True)
+    with open(tmp_script, 'w') as f:
+        f.write(script)
+    gui_args[1] = str(tmp_script)
+    old_quiet = getattr(tool, "is_quiet", False)
+    tool.is_quiet = True
+    try:
+        res = gui_q.run_gui_subprocess(
+            tool, sys.executable, str(logic_script), 300,
+            args=gui_args, request_id=f"remount_{metadata['ts']}"
+        )
+    finally:
+        tool.is_quiet = old_quiet
+    if tmp_script.exists():
+        tmp_script.unlink()
+    if res.get("status") == "success":
+        return True
+    if stage:
+        _set_failure_reason(stage, res)
+    return False
 
 
 def _set_failure_reason(stage, res):

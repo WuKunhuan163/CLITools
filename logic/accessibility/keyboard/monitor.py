@@ -334,6 +334,7 @@ def _run_interactive_test():
                             desc += "  [ENTER AFTER PASTE -> TRIGGERED]"
                             root.after(0, lambda: pe_status.set("Paste+Enter: TRIGGERED!"))
                             root.after(0, lambda: conclusion_var.set("Keyboard capture is WORKING."))
+                            root.after(1500, root.destroy)
 
                     root.after(0, lambda d=desc: append_log(d))
                 except Exception as exc:

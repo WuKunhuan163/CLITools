@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """GCS bg command: run remote commands in background with status tracking."""
+import os
 import sys
 import json
 import time
@@ -297,8 +298,10 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
     remote_env = "/content/drive/MyDrive/REMOTE_ENV"
     expanded = utils.expand_remote_paths(command, remote_root, remote_env)
 
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
     script, metadata = executor_mod.generate_remote_command_script(
-        tool.project_root, expanded, remote_cwd=remote_cwd, as_python=False
+        tool.project_root, expanded, remote_cwd=remote_cwd, as_python=False,
+        cdp_mode=cdp_enabled
     )
 
     command_result = {}
@@ -318,6 +321,12 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
             "--script-path", str(tmp_script),
             "--project-root", str(tool.project_root)
         ]
+        if cdp_enabled:
+            gui_args.append("--as-python")
+        if metadata.get("done_marker"):
+            gui_args.extend(["--done-marker", metadata["done_marker"]])
+        if cdp_enabled:
+            gui_args.append("--cdp-enabled")
         old_quiet = getattr(tool, "is_quiet", False)
         tool.is_quiet = True
         try:

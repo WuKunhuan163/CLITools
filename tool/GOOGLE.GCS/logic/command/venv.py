@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """GCS venv command: manage remote Python virtual environments."""
+import os
 import sys
 import json
 import base64
@@ -134,8 +135,10 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
     current_logical = info.get("current_path", "~") if info else "~"
     remote_cwd = utils.logical_to_mount_path(current_logical)
 
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
     script, metadata = executor_mod.generate_remote_command_script(
-        tool.project_root, command, remote_cwd=remote_cwd, as_python=False
+        tool.project_root, command, remote_cwd=remote_cwd, as_python=False,
+        cdp_mode=cdp_enabled
     )
 
     command_result = {}
@@ -155,6 +158,12 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
             "--script-path", str(tmp_script),
             "--project-root", str(tool.project_root)
         ]
+        if cdp_enabled:
+            gui_args.append("--as-python")
+        if metadata.get("done_marker"):
+            gui_args.extend(["--done-marker", metadata["done_marker"]])
+        if cdp_enabled:
+            gui_args.append("--cdp-enabled")
         old_quiet = getattr(tool, "is_quiet", False)
         tool.is_quiet = True
         try:

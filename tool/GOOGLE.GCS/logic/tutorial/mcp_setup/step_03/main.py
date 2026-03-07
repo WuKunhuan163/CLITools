@@ -11,8 +11,13 @@ _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 def _(key, default, **kwargs):
     return get_translation(_LOGIC_DIR, key, default, **kwargs)
 
-NOTEBOOK_NAME = ".root.ipynb"
+_DEFAULT_NOTEBOOK_NAME = ".root.ipynb"
 CDP_PORT = 9222
+
+
+def _get_notebook_name(project_root):
+    cfg = _load_config(project_root)
+    return cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
 
 
 def _load_config(project_root):
@@ -54,11 +59,12 @@ def _has_colab_tab():
         return False
 
 
-def _create_notebook_via_cdp(folder_id):
-    """Create .root.ipynb via CDP + gapi.client. Requires an open Colab tab."""
+def _create_notebook_via_cdp(folder_id, notebook_name=None):
+    """Create notebook via CDP + gapi.client. Requires an open Colab tab."""
     try:
         from logic.cdp.colab import create_notebook
-        return create_notebook(NOTEBOOK_NAME, folder_id, CDP_PORT)
+        name = notebook_name or _DEFAULT_NOTEBOOK_NAME
+        return create_notebook(name, folder_id, CDP_PORT)
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -112,6 +118,7 @@ def build_step(frame, win):
               "Please complete **GCS --setup-tutorial** first."))
         return
 
+    notebook_name = _get_notebook_name(project_root) if project_root else _DEFAULT_NOTEBOOK_NAME
     drive_link = f"https://drive.google.com/drive/folders/{target_folder_id}"
     win.setup_label(content_block,
         _("mcp_step3_content",
@@ -119,7 +126,7 @@ def build_step(frame, win):
           "as the remote execution environment.\n\n"
           "This step will create the notebook via Chrome DevTools, "
           "or verify it if already configured.").format(
-              notebook=NOTEBOOK_NAME, drive_link=drive_link))
+              notebook=notebook_name, drive_link=drive_link))
 
     action_block = win.add_block(frame, pady=(15, 5))
     bg = action_block.cget("bg")
@@ -202,10 +209,10 @@ def build_step(frame, win):
 
             def _creating():
                 status_var.set(_("mcp_step3_creating_nb",
-                    "Creating {notebook} via CDP...").format(notebook=NOTEBOOK_NAME))
+                    "Creating {notebook} via CDP...").format(notebook=notebook_name))
             callback_queue.append(_creating)
 
-            result = _create_notebook_via_cdp(target_folder_id)
+            result = _create_notebook_via_cdp(target_folder_id, notebook_name)
 
             if result.get("success"):
                 file_id = result["file_id"]

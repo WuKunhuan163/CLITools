@@ -167,5 +167,8 @@
   "mcp_step4_failed": "执行失败：{error}",
   "mcp_step4_retry": "重试",
 
-  "mcp_tutorial_complete": "MCP 自动化配置向导。"
+  "mcp_tutorial_complete": "MCP 自动化配置向导。",
+
+  "remote_executing": "正在执行",
+  "remote_finished": "已完成"
 }

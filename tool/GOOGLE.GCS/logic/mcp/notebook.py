@@ -30,7 +30,12 @@ YELLOW = get_color("YELLOW")
 BLUE = get_color("BLUE")
 RESET = get_color("RESET")
 
-NOTEBOOK_NAME = ".root.ipynb"
+_DEFAULT_NOTEBOOK_NAME = ".root.ipynb"
+
+
+def _get_notebook_name():
+    cfg = _load_config()
+    return cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
 
 
 def _load_config():
@@ -65,7 +70,8 @@ def _get_drive_token():
 def _check_notebook_exists(token, folder_id):
     """Check if .root.ipynb exists in folder and return (file_id, size) or (None, None)."""
     import requests
-    q = f"'{folder_id}' in parents and name = '{NOTEBOOK_NAME}' and trashed = false"
+    nb_name = _get_notebook_name()
+    q = f"'{folder_id}' in parents and name = '{nb_name}' and trashed = false"
     res = requests.get(
         "https://www.googleapis.com/drive/v3/files",
         headers={"Authorization": f"Bearer {token}"},
@@ -96,6 +102,7 @@ def run_mcp_create_notebook(as_json=False):
         1 = error
     """
     cfg = _load_config()
+    nb_name = cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
     env_folder_id = cfg.get("env_folder_id", "")
     root_folder_id = cfg.get("root_folder_id", "")
     target_folder_id = env_folder_id or root_folder_id
@@ -132,14 +139,14 @@ def run_mcp_create_notebook(as_json=False):
             if as_json:
                 print(json.dumps({"status": "exists", "file_id": file_id, "size": size, "colab_url": colab_url}))
             else:
-                print(f"{BOLD}{GREEN}Already configured{RESET}. {NOTEBOOK_NAME} exists ({size} bytes).")
+                print(f"{BOLD}{GREEN}Already configured{RESET}. {nb_name} exists ({size} bytes).")
                 print(f"  Colab: {colab_url}")
             return 0
         elif file_id and size == 0:
             if as_json:
                 print(json.dumps({"status": "corrupted", "file_id": file_id, "message": "Empty notebook (0 bytes). Needs recreation."}))
             else:
-                print(f"{BOLD}{YELLOW}Corrupted notebook{RESET}. {NOTEBOOK_NAME} is 0 bytes.")
+                print(f"{BOLD}{YELLOW}Corrupted notebook{RESET}. {nb_name} is 0 bytes.")
                 print(f"  Deleting and recreating...")
             import requests
             requests.delete(
@@ -161,13 +168,13 @@ def run_mcp_create_notebook(as_json=False):
             if as_json:
                 print(json.dumps({"status": "found", "file_id": file_id, "size": size, "colab_url": colab_url}))
             else:
-                print(f"{BOLD}{GREEN}Found existing{RESET} {NOTEBOOK_NAME} ({size} bytes).")
+                print(f"{BOLD}{GREEN}Found existing{RESET} {nb_name} ({size} bytes).")
                 print(f"  Colab: {colab_url}")
             return 0
 
     folder_type = "env" if env_folder_id else "root"
-    workflow = build_create_workflow(target_folder_id, "colab", NOTEBOOK_NAME)
-    workflow["notebook_name"] = NOTEBOOK_NAME
+    workflow = build_create_workflow(target_folder_id, "colab", nb_name)
+    workflow["notebook_name"] = nb_name
     workflow["folder_type"] = folder_type
     workflow["steps"].append({
         "action": "save_config",
@@ -181,7 +188,7 @@ def run_mcp_create_notebook(as_json=False):
         print(f"{BOLD}{BLUE}Notebook creation required{RESET}. Browser MCP workflow available.")
         print(f"  Target: {folder_type} folder ({target_folder_id})")
         print(f"  Drive URL: {workflow['folder_url']}")
-        print(f"  Notebook: {NOTEBOOK_NAME}")
+        print(f"  Notebook: {nb_name}")
         print(f"\n  Use {BOLD}GCS --mcp-create-notebook --json{RESET} for structured workflow instructions.")
         print(f"  Or follow the skill: {BOLD}GCS-mcp-create-notebook{RESET}")
     return 2

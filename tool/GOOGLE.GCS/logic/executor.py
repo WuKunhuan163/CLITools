@@ -8,10 +8,13 @@ import subprocess
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
-def generate_remote_command_script(project_root: Path, command: str, remote_cwd: str = "/content/drive/MyDrive/REMOTE_ROOT", as_python: bool = False, shell_type: str = "bash", finished_msg: str = ""):
+def generate_remote_command_script(project_root: Path, command: str, remote_cwd: str = "/content/drive/MyDrive/REMOTE_ROOT", as_python: bool = False, shell_type: str = "bash", finished_msg: str = "", executing_msg: str = "", finished_label: str = "", cdp_mode: bool = False):
     """
     Generates a script to be executed in Colab that runs a shell command
     and writes the result back to Google Drive.
+
+    When as_python=True or cdp_mode=True, generates clean Python cell code
+    with visible output. Otherwise generates a bash script for terminal pasting.
     """
     config_path = project_root / "data" / "config.json"
     mount_hash = ""
@@ -24,87 +27,25 @@ def generate_remote_command_script(project_root: Path, command: str, remote_cwd:
     ts = str(int(time.time()))
     cmd_hash = hashlib.md5(f"{ts}_{command}".encode()).hexdigest()[:8]
     
-    # We'll use a standardized path for results
     result_filename = f"result_{ts}_{cmd_hash}.json"
-    
-    if as_python:
-        script_template = r'''# GCS Remote Command Script
-import os
-import sys
-import subprocess
-import json
-import time
-from datetime import datetime
 
-cwd = %(cwd_repr)s
-
-if not os.path.exists('/content/drive/MyDrive'):
-    os.system('clear')
-    print("\033[1mError\033[0m: Google Drive is not mounted.")
-    sys.exit(1)
-
-fingerprint_file = os.path.join('/content/drive/MyDrive/REMOTE_ROOT/tmp', f'.gds_mount_fingerprint_{%(mount_hash_repr)s}')
-if %(mount_hash_repr)s and not os.path.exists(fingerprint_file):
-    os.system('clear')
-    print("\033[1mError\033[0m: Mount fingerprint validation failed.")
-    sys.exit(1)
-
-command = %(command_repr)s
-result_file = os.path.join('/content/drive/MyDrive/REMOTE_ROOT/tmp', %(result_filename_repr)s)
-
-os.makedirs(os.path.dirname(result_file), exist_ok=True)
-
-print(f"Executing: {command}")
-start_time = time.time()
-
-try:
-    process = subprocess.Popen(
-        ["python3", "-c", command],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        cwd=cwd
-    )
-    stdout, stderr = process.communicate()
-    returncode = process.returncode
-except Exception as e:
-    stdout = ""
-    stderr = str(e)
-    returncode = -1
-
-duration = time.time() - start_time
-
-result_data = {
-    "command": command,
-    "stdout": stdout,
-    "stderr": stderr,
-    "returncode": returncode,
-    "duration": duration,
-    "timestamp": %(ts_repr)s,
-    "completed": datetime.now().isoformat()
-}
-
-with open(result_file, 'w') as f:
-    json.dump(result_data, f, indent=2)
-
-print("\033[1mFinished\033[0m [GCS_DONE_%(cmd_hash)s]: %(finished_msg)s")
-''' % {
-            'command_repr': repr(command),
-            'cwd_repr': repr(remote_cwd),
-            'result_filename_repr': repr(result_filename),
-            'ts_repr': repr(ts),
-            'mount_hash_repr': repr(mount_hash),
-            'cmd_hash': cmd_hash,
-            'finished_msg': finished_msg or "Execution completed and result saved. You may now press the Finished button."
+    if cdp_mode or as_python:
+        script_template = _generate_cdp_cell_code(
+            command, remote_cwd, False, mount_hash, ts, cmd_hash,
+            result_filename, shell_type, finished_msg, executing_msg, finished_label
+        )
+        return script_template, {
+            "ts": ts,
+            "hash": cmd_hash,
+            "result_filename": result_filename,
+            "done_marker": f"GCS_DONE_{cmd_hash}"
         }
-    else:
-        # Bash version: write a self-contained script to /tmp then execute it.
-        # This avoids nested heredoc issues when pasting into Colab terminals.
-        import shlex
-        script_id = f"{ts}_{cmd_hash}"
-        
-        # Inner script body (written to a file, then executed)
-        inner_script = f'''#!/bin/bash
+
+    # Bash terminal version: write a self-contained script to /tmp then execute it.
+    import shlex
+    script_id = f"{ts}_{cmd_hash}"
+
+    inner_script = f'''#!/bin/bash
 if [ ! -d "/content/drive/MyDrive" ]; then
     clear
     echo -e "\\033[1mError\\033[0m: Google Drive is not mounted. Run '\\033[1mGCS --remount\\033[0m' locally first."
@@ -126,7 +67,7 @@ RESULT_BASE="/content/drive/MyDrive/REMOTE_ROOT/tmp"
 mkdir -p "$RESULT_BASE"
 RESULT_FILE="$RESULT_BASE/{result_filename}"
 
-echo "Executing command..."
+echo "{executing_msg or 'Executing'} command..."
 
 SHELL_BIN="{shell_type}"
 if [ "{shell_type}" != "bash" ] && [ "{shell_type}" != "sh" ]; then
@@ -175,11 +116,10 @@ with open(os.environ["GCS_RESULT_FILE"], "w") as f: json.dump(r, f, indent=2, en
 
 rm -f "$OUTPUT_FILE" "$ERROR_FILE"
 clear
-echo -e "\\033[1mFinished\\033[0m [GCS_DONE_{cmd_hash}]: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
+echo -e "\\033[1m{finished_label or 'Finished'}\\033[0m [GCS_DONE_{cmd_hash}]: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
 '''
 
-        # Wrap in a cat-heredoc-then-execute pattern for safe terminal pasting
-        script_template = f'''cat > /tmp/gcs_run_{script_id}.sh << 'GCS_SCRIPT_EOF'
+    script_template = f'''cat > /tmp/gcs_run_{script_id}.sh << 'GCS_SCRIPT_EOF'
 {inner_script}GCS_SCRIPT_EOF
 bash /tmp/gcs_run_{script_id}.sh ; rm -f /tmp/gcs_run_{script_id}.sh'''
 
@@ -189,6 +129,65 @@ bash /tmp/gcs_run_{script_id}.sh ; rm -f /tmp/gcs_run_{script_id}.sh'''
         "result_filename": result_filename,
         "done_marker": f"GCS_DONE_{cmd_hash}"
     }
+
+def _generate_cdp_cell_code(command, remote_cwd, as_python, mount_hash, ts,
+                            cmd_hash, result_filename, shell_type, finished_msg,
+                            executing_msg, finished_label):
+    """Generate clean Python cell code for CDP injection.
+
+    The output is designed to be readable in a Colab Python cell with
+    command output visible in the cell output area.
+    """
+    result_path = f"/content/drive/MyDrive/REMOTE_ROOT/tmp/{result_filename}"
+    done_marker = f"GCS_DONE_{cmd_hash}"
+    exec_msg = executing_msg or "Executing"
+    fin_label = finished_label or "Finished"
+    fin_msg = finished_msg or "Execution completed."
+
+    if as_python:
+        runner = f"_r = subprocess.run(['python3', '-c', _CMD], capture_output=True, text=True, cwd=_CWD)"
+    elif shell_type not in ("bash", "sh"):
+        runner = (
+            f"_custom = '/content/drive/MyDrive/REMOTE_ENV/shell/{shell_type}/bin/{shell_type}'\n"
+            f"_shell = _custom if os.path.isfile(_custom) and os.access(_custom, os.X_OK) else '{shell_type}'\n"
+            "_r = subprocess.run([_shell, '-c', _CMD], capture_output=True, text=True, cwd=_CWD)"
+        )
+    else:
+        runner = "_r = subprocess.run(['bash', '-c', _CMD], capture_output=True, text=True, cwd=_CWD)"
+
+    return f'''import subprocess, json, os, time
+from datetime import datetime
+
+_CWD = {repr(remote_cwd)}
+_CMD = {repr(command)}
+_HASH = {repr(mount_hash)}
+_TS = {repr(ts)}
+_RESULT = {repr(result_path)}
+
+if not os.path.isdir('/content/drive/MyDrive'):
+    print('\\033[1mError\\033[0m: Google Drive not mounted. Run GCS --remount.')
+    raise SystemExit(1)
+if _HASH and not os.path.exists(f'/content/drive/MyDrive/REMOTE_ROOT/tmp/.gds_mount_fingerprint_{{_HASH}}'):
+    print('\\033[1mError\\033[0m: Mount fingerprint validation failed. Run GCS --remount.')
+    raise SystemExit(1)
+
+os.makedirs(os.path.dirname(_RESULT), exist_ok=True)
+os.chdir(_CWD)
+print(f'{exec_msg}: {{_CMD}}')
+_t0 = time.time()
+{runner}
+if _r.stdout: print(_r.stdout, end='')
+if _r.stderr: print(_r.stderr, end='')
+_dur = time.time() - _t0
+
+json.dump({{'command': _CMD, 'stdout': _r.stdout, 'stderr': _r.stderr,
+    'returncode': _r.returncode, 'duration': _dur, 'timestamp': _TS,
+    'completed': datetime.now().isoformat()
+}}, open(_RESULT, 'w'), indent=2, ensure_ascii=False)
+
+print(f'\\n\\033[1m{fin_label}\\033[0m [{done_marker}]: {fin_msg}')
+'''
+
 
 def _get_gcs_translation(project_root, key, default, **kwargs):
     """Get a translated string for GCS using the logic translation dir."""
@@ -200,7 +199,15 @@ def _get_gcs_translation(project_root, key, default, **kwargs):
         return default.format(**kwargs) if kwargs else default
 
 
-def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False, done_marker: str = ""):
+def _collapse_home(text: str) -> str:
+    """Replace the expanded home directory with ~ in display text."""
+    home = os.path.expanduser("~")
+    if home and home != "~":
+        return text.replace(home, "~")
+    return text
+
+
+def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False, done_marker: str = "", cdp_enabled: bool = False):
     """
     Shows a GUI window with Copy Script and action buttons.
     When no_capture=True, the Feedback button is hidden (no result to download).
@@ -229,14 +236,15 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
         btn.config(text=btn_sending_text, state="disabled")
 
     cdp_available = False
-    try:
-        from logic.cdp.colab import is_chrome_cdp_available as _cdp_check
-        cdp_available = _cdp_check()
-    except Exception:
-        pass
+    if cdp_enabled:
+        try:
+            from logic.cdp.colab import is_chrome_cdp_available as _cdp_check
+            cdp_available = _cdp_check()
+        except Exception:
+            pass
 
     if cdp_available:
-        cdp_timeout_seconds = 30
+        cdp_inject_timeout = 30
         buttons = [
             {
                 "text": btn_copy_text,
@@ -252,7 +260,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 "cmd": None,
                 "on_click": on_feedback_click,
                 "close_on_click": True,
-                "disable_seconds": cdp_timeout_seconds
+                "disable_seconds": cdp_inject_timeout
             })
     else:
         buttons = [
@@ -296,8 +304,19 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             return
 
         cdp_thread_result["attempted"] = True
+
+        inject_code = script
+        if not as_python:
+            import json as _json
+            inject_code = (
+                "import subprocess, sys\n"
+                f"_script = {_json.dumps(script)}\n"
+                "_proc = subprocess.run(['bash', '-c', _script], "
+                "capture_output=False, text=True)\n"
+            )
+
         try:
-            result = inject_and_execute(script, timeout=300, done_marker=done_marker)
+            result = inject_and_execute(inject_code, timeout=300, done_marker=done_marker)
             cdp_thread_result.update(result)
 
             if result.get("success"):
@@ -378,14 +397,15 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             t.start()
             win.root.after(1000, _check_cdp_done)
 
+    display_command = _collapse_home(command)
     if as_python:
         base_instruction = _("gui_instruction_copy_python",
             "Copy the script and run it in a **Python code cell** on Colab.\n\nExecuting:\n**{command}**",
-            command=command)
+            command=display_command)
     else:
         base_instruction = _("gui_instruction_copy_terminal",
             "Copy the script and run it in the **Terminal** on Colab.\n\nExecuting:\n**{command}**",
-            command=command)
+            command=display_command)
 
     if cdp_available:
         instruction = base_instruction + "\n\n[CDP] Connecting to Chrome..."
@@ -393,7 +413,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
         instruction = base_instruction
 
     cmd_lines = command.count('\n') + 1
-    base_height = 120
+    base_height = 160 if cdp_available else 120
     extra_height = min(cmd_lines, 8) * 18
     win_height = base_height + extra_height
 
@@ -408,7 +428,8 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
         buttons=buttons,
         instruction=instruction,
         window_size=f"550x{win_height}",
-        on_startup=on_startup
+        on_startup=on_startup,
+        disable_auto_unlock=cdp_available
     )
     win.run()
     return win.result
@@ -426,6 +447,7 @@ if __name__ == "__main__":
     parser.add_argument("--as-python", action="store_true")
     parser.add_argument("--no-capture", action="store_true")
     parser.add_argument("--done-marker", default="")
+    parser.add_argument("--cdp-enabled", action="store_true")
     args = parser.parse_args()
     
     proj_root = Path(args.project_root)
@@ -435,5 +457,7 @@ if __name__ == "__main__":
     with open(args.script_path, 'r') as f:
         script_content = f.read()
         
-    res = show_command_gui(proj_root, args.command, script_content, as_python=args.as_python, no_capture=args.no_capture, done_marker=args.done_marker)
+    res = show_command_gui(proj_root, args.command, script_content,
+                           as_python=args.as_python, no_capture=args.no_capture,
+                           done_marker=args.done_marker, cdp_enabled=args.cdp_enabled)
 

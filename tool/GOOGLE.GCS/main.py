@@ -6,6 +6,7 @@ from pathlib import Path
 script_dir = Path(__file__).resolve().parent
 if sys.path and sys.path[0] == str(script_dir):
     del sys.path[0]
+import os
 import sys
 import argparse
 from pathlib import Path
@@ -40,6 +41,7 @@ from logic.interface.config import get_color
 
 
 def main():
+    os.environ.pop("GCS_CDP_ENABLED", None)
     if "--no-warning" not in sys.argv:
         sys.argv.append("--no-warning")
 
@@ -135,15 +137,31 @@ def main():
             else:
                 sys.exit(cdp_mod.run_mcp_status())
         else:
-            clean = [a for a in sys.argv[1:] if a not in ("--mcp", "--json", "--no-warning", "--python")]
-            as_json_flag = "--json" in sys.argv
-            as_python_flag = "--python" in sys.argv
-            command = " ".join(clean)
-            if not command:
-                print(f"{get_color('BOLD')}{get_color('RED')}Missing command{get_color('RESET')}. Usage: GCS --mcp <boot|shutdown|status|setup-tutorial> or GCS <command> --mcp")
-                sys.exit(1)
-            mcp_exec = _load_mcp_module("mcp/execute")
-            sys.exit(mcp_exec.run_mcp_execute(command, as_python=as_python_flag, as_json=as_json_flag))
+            # MCP decorator: GCS <command> --mcp
+            # With CDP: run the normal GCS flow (executor.py handles CDP auto-injection)
+            # Without CDP: print workflow instructions for agent
+            _cdp_ok = False
+            try:
+                from logic.cdp.colab import is_chrome_cdp_available
+                _cdp_ok = is_chrome_cdp_available()
+            except Exception:
+                pass
+
+            if _cdp_ok:
+                os.environ["GCS_CDP_ENABLED"] = "1"
+                sys.argv = [a for a in sys.argv if a not in ("--mcp", "--json")]
+            else:
+                print(f"{get_color('BOLD')}{get_color('YELLOW')}Chrome CDP not available{get_color('RESET')}. Run {get_color('BOLD')}GCS --mcp boot{get_color('RESET')} first.")
+                print(f"  If not yet configured, run {get_color('BOLD')}GCS --mcp setup-tutorial{get_color('RESET')}.\n")
+                clean = [a for a in sys.argv[1:] if a not in ("--mcp", "--json", "--no-warning", "--python")]
+                as_json_flag = "--json" in sys.argv
+                as_python_flag = "--python" in sys.argv
+                command = " ".join(clean)
+                if not command:
+                    print(f"{get_color('BOLD')}{get_color('RED')}Missing command{get_color('RESET')}. Usage: GCS --mcp <boot|shutdown|status|setup-tutorial> or GCS <command> --mcp")
+                    sys.exit(1)
+                mcp_exec = _load_mcp_module("mcp/execute")
+                sys.exit(mcp_exec.run_mcp_execute(command, as_python=as_python_flag, as_json=as_json_flag))
 
     # Early intercept MCP commands that have complex args
     if "--mcp-create" in sys.argv:

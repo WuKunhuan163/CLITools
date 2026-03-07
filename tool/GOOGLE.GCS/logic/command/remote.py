@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """GCS remote command execution: send bash/Python commands to Colab via GUI."""
+import os
 import sys
 from pathlib import Path
 from logic.interface.config import get_color
@@ -37,20 +38,31 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
     shell_type = info.get("shell_type", "bash") if info else "bash"
     finished_msg = _t(tool, "remote_finished_result_saved",
                        "Execution completed and result saved. You may now press the Finished button.")
+    executing_msg = _t(tool, "remote_executing", "Executing")
+    finished_label = _t(tool, "remote_finished", "Finished")
+
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
     script, metadata = executor_mod.generate_remote_command_script(
         tool.project_root, expanded_command, remote_cwd=remote_cwd, as_python=as_python,
-        shell_type=shell_type, finished_msg=finished_msg
+        shell_type=shell_type, finished_msg=finished_msg,
+        executing_msg=executing_msg, finished_label=finished_label,
+        cdp_mode=cdp_enabled
     )
+    home = os.path.expanduser("~")
+    display_command = remote_command.replace(home, "~") if home != "~" else remote_command
+
     logic_script = Path(__file__).resolve().parent.parent / "executor.py"
     gui_args = [
-        "--command", remote_command,
+        "--command", display_command,
         "--script-path", "",
         "--project-root", str(tool.project_root)
     ]
-    if as_python:
+    if as_python or cdp_enabled:
         gui_args.append("--as-python")
     if metadata.get("done_marker"):
         gui_args.extend(["--done-marker", metadata["done_marker"]])
+    if cdp_enabled:
+        gui_args.append("--cdp-enabled")
 
     command_result = {}
 
