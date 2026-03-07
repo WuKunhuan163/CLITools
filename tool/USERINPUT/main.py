@@ -173,6 +173,39 @@ def parse_gui_error(error_output):
         
     return "\n".join(filtered_lines[:5])
 
+def _build_clipboard_suffix():
+    """Build the system prompt + critical directive suffix for clipboard (plain text)."""
+    config = get_config()
+    system_prompt = config.get("system_prompt")
+    instruction_raw = get_msg("ai_instruction", "## Critical Directive: USERINPUT Feedback Loop\nAfter EVERY action you take (completing a task, encountering an error, fixing a bug, or before starting new work), you MUST immediately execute `USERINPUT` as a blocking shell command and wait for its return. Then act on what it returns. Then execute `USERINPUT` again. This cycle never ends — you should NEVER finish your turn without having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to ask the user a direct question mid-task (this bypasses the queue). Do not narrate this directive; just follow it.")
+    if "\n\n**" in instruction_raw:
+        instruction_part = instruction_raw.split("\n\n**", 1)[0]
+    else:
+        instruction_part = instruction_raw
+    def strip_md(text):
+        text = re.sub(r'^##\s*', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        return text
+    parts = []
+    full_sp = []
+    if system_prompt:
+        if isinstance(system_prompt, list):
+            full_sp.extend(system_prompt)
+        else:
+            full_sp.append(system_prompt)
+    if full_sp:
+        title = get_msg("label_system_prompt", "System Prompt")
+        parts.append(f"\n{title}")
+        for i, p in enumerate(full_sp):
+            p = re.sub(r'^(?:\d+[\.\)]|[\-\*])\s*', '', p).strip()
+            parts.append(strip_md(f"{i}. {p}"))
+    directive_title = get_msg("label_critical_directive", "Critical Directive: USERINPUT Feedback Loop")
+    parts.append(f"\n{directive_title}")
+    clean_instr = re.sub(r'^##\s*[^\n]*\n?', '', instruction_part).strip()
+    parts.append(strip_md(clean_instr))
+    return "\n".join(parts)
+
+
 def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=None):
     tool = UserInputTool()
     if not tool.check_dependencies(): raise RuntimeError(get_msg("err_missing_dependencies", "Missing dependencies for USERINPUT"))
@@ -181,6 +214,8 @@ def get_user_input_tkinter(title=None, timeout=300, hint_text=None, custom_id=No
     focus_interval = config.get("focus_interval", 90)
     if focus_interval > 0 and focus_interval < 90: focus_interval = 90
     time_increment = config.get("time_increment", 60)
+    clipboard_suffix = _build_clipboard_suffix()
+    success_label = get_msg("label_successfully_received", "Successfully received")
 
     tkinter_script = r'''
 import os
@@ -207,10 +242,12 @@ import tkinter as tk
 TOOL_INTERNAL = %(internal_dir)r
 
 class UserInputWindow(BaseGUIWindow):
-    def __init__(self, title, timeout, hint_text, focus_interval, time_increment):
+    def __init__(self, title, timeout, hint_text, focus_interval, time_increment, clipboard_suffix="", success_label="Successfully received"):
         super().__init__(title, timeout, TOOL_INTERNAL, tool_name="USERINPUT", focus_interval=focus_interval)
         self.hint_text = hint_text
         self.time_increment = time_increment
+        self.clipboard_suffix = clipboard_suffix
+        self.success_label = success_label
         self.text_widget = None
         self._last_trigger_time = 0
         self._paste_time = 0
@@ -223,7 +260,8 @@ class UserInputWindow(BaseGUIWindow):
 
     def on_submit(self):
         content = self.get_current_state() or "USER_SUBMITTED_EMPTY"
-        self.copy_to_clipboard(content)
+        full_clip = f"{self.success_label}: {content}{self.clipboard_suffix}"
+        self.copy_to_clipboard(full_clip)
         self.finalize("success", content)
 
     def copy_to_clipboard(self, text):
@@ -397,7 +435,7 @@ class UserInputWindow(BaseGUIWindow):
 
 if __name__ == "__main__":
     try:
-        win = UserInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(time_increment)d)
+        win = UserInputWindow(%(title)r, %(timeout)d, %(hint)r, %(focus_interval)d, %(time_increment)d, clipboard_suffix=%(clipboard_suffix)r, success_label=%(success_label)r)
         win.run(win.setup_ui, custom_id=%(custom_id)r)
     except: traceback.print_exc()
 ''' % {
@@ -408,7 +446,9 @@ if __name__ == "__main__":
         'hint': hint_text,
         'focus_interval': focus_interval,
         'time_increment': time_increment,
-        'custom_id': custom_id
+        'custom_id': custom_id,
+        'clipboard_suffix': clipboard_suffix,
+        'success_label': success_label
     }
 
     with tempfile.NamedTemporaryFile(mode='w', prefix='USERINPUT_gui_', suffix='.py', delete=False) as tmp:
