@@ -28,5 +28,7 @@
   "err_no_valid_response": "未收到 GUI 的有效响应",
   "label_failed": "失败",
   "label_system_prompt": "系统提示",
-  "label_critical_directive": "关键指令：持续反馈循环"
+  "label_critical_directive": "关键指令：持续反馈循环",
+  "label_successfully_received_from_queue": "成功接收（来自队列）",
+  "label_successfully_saved_to_queue": "成功保存到队列"
 }

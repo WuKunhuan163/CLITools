@@ -1,9 +1,10 @@
 {
   "name": "GOOGLE.GS",
   "version": "1.0.0",
-  "description": "Template tool GOOGLE.GS",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Google Scholar automation via CDMCP",
+  "purpose": "Search papers, manage citations, access author profiles, and build bibliographies on Google Scholar.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ]
 }

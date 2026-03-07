@@ -19,7 +19,7 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CDMCP_DIR = _PROJECT_ROOT / "tool" / "GOOGLE.CDMCP"
-_INTERFACE_PATH = _CDMCP_DIR / "logic" / "interface" / "main.py"
+_INTERFACE_PATH = _CDMCP_DIR / "interface" / "main.py"
 _OVERLAY_PATH = _CDMCP_DIR / "logic" / "cdp" / "overlay.py"
 _SESSION_PATH = _CDMCP_DIR / "logic" / "cdp" / "session_manager.py"
 _SERVER_PATH = _CDMCP_DIR / "logic" / "cdp" / "server.py"

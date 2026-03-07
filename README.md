@@ -96,6 +96,7 @@ Available skills: `TerminalTools-tool-development-workflow`, `TerminalTools-turi
 - `TOOL dev audit-test <NAME> [--fix]`: Audit test naming conventions.
 - `TOOL dev audit-bin [--fix]` / `TOOL dev audit-archived`: Audit shortcuts and archived tool duplicates.
 - `TOOL audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
+- `TOOL audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
 
 For detailed development guidance, run `SKILLS show TerminalTools-tool-development-workflow`.
 
@@ -105,12 +106,16 @@ For detailed development guidance, run `SKILLS show TerminalTools-tool-developme
 
 AITerminalTools follows a **Symmetrical Design Pattern**:
 - The **Root** has a `logic/` folder for shared utilities (`logic.turing`, `logic.utils`, etc.).
-- Each **Tool** (e.g., `tool/USERINPUT/`) also has its own `logic/` folder for tool-specific logic.
+- Each **Tool** (e.g., `tool/USERINPUT/`) also has its own `logic/` folder for tool-specific **internal** implementation.
+- Each **Tool** exposes a public API via `interface/main.py` at the tool root. Cross-tool imports MUST go through the interface.
 - Shadowing is avoided via intelligent `sys.path` management in each tool's entry point, ensuring `from logic...` always finds the root logic, while tool-specific logic is accessed via absolute paths or direct file reference.
 
 ### Core Directories
 - `logic/`: Shared core logic, utilities, and global configuration.
-- `tool/`: The home for all active tools.
+- `tool/`: The home for all active tools. Each tool has:
+  - `logic/` — Internal implementation (not for cross-tool access).
+  - `interface/` — Public API for cross-tool communication.
+  - `hooks/` — Event-driven callback interfaces and instances.
 - `bin/`: Executable symlinks for installed tools.
 - `resource/tool/`: Large binary assets (fonts, Python builds) — only on the `tool` branch.
 - `resource/archived/`: Archived/unmaintained tools — only on the `tool` branch. `TOOL install` falls back here.

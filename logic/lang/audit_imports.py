@@ -1,7 +1,7 @@
 """Cross-tool import quality checker.
 
 Statically analyzes Python source code to enforce:
-1. Cross-tool imports MUST go through logic/interface/main.py
+1. Cross-tool imports MUST go through tool.<NAME>.interface.main
 2. CDMCP access MUST use logic/cdmcp_loader (not hardcoded paths)
 3. Raw CDP tab operations (find_tab/open_tab/list_tabs) should use
    CDMCP session.require_tab() instead
@@ -76,17 +76,17 @@ class ImportAuditor(ast.NodeVisitor):
         mod = node.module or ""
         names = {a.name for a in node.names}
 
-        # Rule IMP001: Cross-tool internal import (not through interface)
-        if mod.startswith("tool.") and ".logic." in mod:
+        # Rule IMP001: Cross-tool import not going through interface
+        if mod.startswith("tool."):
             parts = mod.split(".")
-            other_tool = parts[1]
-            if other_tool != self.tool_name:
-                if "interface" not in mod:
-                    self._add(node.lineno, Severity.ERROR, "IMP001",
-                              f"Cross-tool internal import: 'from {mod}' — "
-                              f"must import from tool.{other_tool}.logic.interface.main")
-                else:
-                    pass  # Good: uses interface
+            if len(parts) >= 2:
+                other_tool = parts[1]
+                if other_tool != self.tool_name:
+                    is_interface = (len(parts) >= 3 and parts[2] == "interface")
+                    if not is_interface:
+                        self._add(node.lineno, Severity.ERROR, "IMP001",
+                                  f"Cross-tool internal import: 'from {mod}' — "
+                                  f"must import from tool.{other_tool}.interface.main")
 
         # Rule IMP002: Raw CDP tab ops (should use CDMCP session.require_tab)
         if mod == "logic.chrome.session":
@@ -218,7 +218,7 @@ def format_report(results: Dict[str, List[ImportIssue]],
     else:
         lines.append(f"\n{'=' * 60}")
         lines.append(f"\033[1mFix priority:\033[0m")
-        lines.append("  IMP001: Cross-tool imports → use tool.X.logic.interface.main")
+        lines.append("  IMP001: Cross-tool imports → use tool.X.interface.main")
         lines.append("  IMP002: Raw CDP tab ops → use CDMCP session.require_tab()")
         lines.append("  IMP003: Hardcoded CDMCP paths → use logic.cdmcp_loader")
         lines.append("  IMP004: ToolBase → MCPToolBase for MCP tools")

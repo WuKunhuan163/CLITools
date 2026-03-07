@@ -39,6 +39,9 @@ class ToolBase:
         self._cpu_timeout = None
         self._load_tool_config()
         
+        # Hooks engine (lazy-loaded on first use)
+        self._hooks_engine = None
+
         # Auto-reexecute with correct python if PYTHON is a dependency
         # Must happen BEFORE setting sys.argv[0], since execve uses it
         if "PYTHON" in self.dependencies:
@@ -128,6 +131,30 @@ class ToolBase:
             session_logger=self.get_session_logger(),
             **kwargs
         )
+
+    # ------------------------------------------------------------------ #
+    #  Hooks                                                               #
+    # ------------------------------------------------------------------ #
+
+    def get_hooks_engine(self):
+        """Return the HooksEngine for this tool, creating it lazily."""
+        if self._hooks_engine is None:
+            from logic.tool.hooks.engine import HooksEngine
+            self._hooks_engine = HooksEngine(
+                self.tool_dir, tool_name=self.tool_name,
+                project_root=self.project_root,
+            )
+        return self._hooks_engine
+
+    def fire_hook(self, event_name: str, **kwargs):
+        """Fire a hook event. kwargs are passed to all enabled handlers.
+
+        Automatically injects ``tool=self`` if not already present.
+        Returns a list of handler results, or [] if no handlers.
+        """
+        kwargs.setdefault("tool", self)
+        engine = self.get_hooks_engine()
+        return engine.fire(event_name, **kwargs)
 
     def _load_metadata(self):
         if self.tool_json_path.exists():
@@ -257,6 +284,9 @@ class ToolBase:
                 return True
             elif cmd == "skills":
                 self._handle_skills_command(args_to_check[1:])
+                return True
+            elif cmd == "hooks":
+                self._handle_hooks_command(args_to_check[1:])
                 return True
             elif cmd == "config":
                 is_custom_config = False
@@ -517,6 +547,84 @@ class ToolBase:
             return
 
         print(f"Usage: {self.tool_name} skills [list | show <name> | search <query>]")
+
+    def _handle_hooks_command(self, args):
+        """Handle 'TOOLNAME hooks [list|show <name>|enable <name>|disable <name>]'."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        BLUE = get_color("BLUE", "\033[34m")
+        YELLOW = get_color("YELLOW", "\033[33m")
+        RED = get_color("RED", "\033[31m")
+        RESET = get_color("RESET", "\033[0m")
+
+        engine = self.get_hooks_engine()
+        subcmd = args[0] if args else "list"
+
+        if subcmd == "list" or not args:
+            interfaces = engine.list_interfaces()
+            instances = engine.list_instances()
+
+            if interfaces:
+                print(f"\n{BOLD}{self.tool_name} Hook Events:{RESET}\n")
+                for iface in interfaces:
+                    print(f"  {BOLD}{iface['event_name']}{RESET}")
+                    if iface['description']:
+                        print(f"    {iface['description']}")
+
+            if instances:
+                print(f"\n{BOLD}{self.tool_name} Hook Instances:{RESET}\n")
+                for inst in instances:
+                    status = (f"{GREEN}enabled{RESET}" if inst['enabled']
+                              else f"{YELLOW}disabled{RESET}")
+                    default_tag = " (default)" if inst['enabled_by_default'] else ""
+                    print(f"  {BOLD}{inst['name']}{RESET}  [{status}]{default_tag}")
+                    print(f"    event: {inst['event_name']}")
+                    if inst['description']:
+                        print(f"    {inst['description']}")
+            else:
+                if not interfaces:
+                    print(f"{self.tool_name} has no hooks configured.")
+                    print(f"Create hooks in {self.tool_dir / 'hooks' / 'interface'}/")
+
+            print(f"\n  Use '{self.tool_name} hooks enable <name>' to enable an instance.")
+            print(f"  Use '{self.tool_name} hooks disable <name>' to disable an instance.")
+            print(f"  Use '{self.tool_name} hooks show <name>' to inspect an instance.")
+            return
+
+        if subcmd == "show" and len(args) > 1:
+            name = args[1]
+            info = engine.get_instance_info(name)
+            if info:
+                status = (f"{GREEN}enabled{RESET}" if info['enabled']
+                          else f"{YELLOW}disabled{RESET}")
+                print(f"\n{BOLD}{info['name']}{RESET}  [{status}]")
+                print(f"  event:       {info['event_name']}")
+                print(f"  description: {info['description']}")
+                print(f"  default:     {'yes' if info['enabled_by_default'] else 'no'}")
+                if info.get('module_file'):
+                    print(f"  file:        {info['module_file']}")
+            else:
+                print(f"{BOLD}{RED}Error{RESET}: Hook instance '{name}' not found.")
+            return
+
+        if subcmd == "enable" and len(args) > 1:
+            name = args[1]
+            if engine.enable(name):
+                print(f"{BOLD}{GREEN}Enabled{RESET} hook instance '{name}'.")
+            else:
+                print(f"{BOLD}{RED}Error{RESET}: Hook instance '{name}' not found.")
+            return
+
+        if subcmd == "disable" and len(args) > 1:
+            name = args[1]
+            if engine.disable(name):
+                print(f"{BOLD}{YELLOW}Disabled{RESET} hook instance '{name}'.")
+            else:
+                print(f"{BOLD}{RED}Error{RESET}: Hook instance '{name}' not found.")
+            return
+
+        print(f"Usage: {self.tool_name} hooks [list | show <name> | enable <name> | disable <name>]")
 
     def run_system_fallback(self, capture_output=False, filtered_args=None):
         """Delegate unknown commands to the system equivalent."""
@@ -810,6 +918,8 @@ class ToolBase:
         print(f"  install      Install a sub-tool")
         print(f"  uninstall    Uninstall a sub-tool")
         print(f"  config       Manage tool configuration")
+        print(f"  skills       List and view tool skills")
+        print(f"  hooks        Manage event hooks (list/enable/disable/show)")
         print(f"  rule         Show AI rules for this tool")
         print(f"  -h, --help   Show this help message")
 

@@ -42,7 +42,7 @@ The maintenance system uses a tiered frequency model based on a `base` commit co
 
 The tool is organized into several modules:
 - `logic/engine.py`: Core Git command execution and output parsing.
-- `logic/interface/main.py`: Managed entry point for internal tool-to-tool calls.
+- `interface/main.py`: Managed entry point for internal tool-to-tool calls.
 - `main.py`: Primary CLI entry point.
 
 ## Ecosystem Integration

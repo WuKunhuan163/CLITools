@@ -33,5 +33,5 @@ WPS docs
 ## Architecture
 
 - `logic/chrome/api.py` — CDP-based WPS/KDocs functions
-- `logic/interface/main.py` — Cross-tool interface exports
+- `interface/main.py` — Cross-tool interface exports
 - `logic/translation/zh.json` — Chinese translations

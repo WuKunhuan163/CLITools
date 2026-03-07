@@ -36,5 +36,5 @@ GMAIL search "from:github subject:PR"
 ## Architecture
 
 - `logic/chrome/api.py` — CDP-based Gmail functions (DOM reading, search)
-- `logic/interface/main.py` — Cross-tool interface exports
+- `interface/main.py` — Cross-tool interface exports
 - `logic/translation/zh.json` — Chinese translations

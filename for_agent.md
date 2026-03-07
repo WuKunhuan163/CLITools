@@ -60,6 +60,8 @@ Both `TOOL dev <command>` (legacy) and `TOOL --dev <command>` (preferred) syntax
 - **`TOOL --dev audit-test <name> [--fix]`**: Audit unit test naming.
 - **`TOOL --dev audit-bin [--fix]`**: Audit bin/ shortcut structure.
 - **`TOOL --dev audit-archived`**: Check for duplicate tools.
+- **`TOOL audit imports [--tool NAME] [--json]`**: Static analysis for cross-tool import quality (IMP001-IMP004).
+- **`TOOL audit quality [--tool NAME] [--json]`**: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
 - **`TOOL --dev enter <main|test> [-f]`**: Switch to branch.
 - **`TOOL --dev migrate-bin`**: Migrate legacy flat bin/ shortcuts.
 
@@ -145,7 +147,7 @@ from tool.GOOGLE.logic.chrome.session import CDPSession, CDP_PORT
 from tool.GOOGLE.logic.chrome.colab import inject_and_execute
 ```
 
-Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `logic/interface/main.py` for the public API, or import from the parent tool's modules.
+Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `interface/main.py` for the public API, or import from the parent tool's modules.
 
 ## 9. Key Shared Suites (`logic/` Directory)
 - `logic.resolve`: Universal path resolver protocol (see above).
@@ -369,7 +371,7 @@ Skills are structured best-practice guides that AI agents can reference during d
 - `TerminalTools-skills-index`: Master index of all framework skills.
 - `TerminalTools-tool-development-workflow`: Creating and deploying tools.
 - `TerminalTools-turing-machine-development`: Progress display system.
-- `TerminalTools-tool-interface`: Cross-tool `logic/interface` communication pattern.
+- `TerminalTools-tool-interface`: Cross-tool `interface/` communication pattern.
 - `TerminalTools-setup-tutorial-creation`: Interactive setup wizards.
 
 By following these architecture rules, you ensure that the project remains robust, maintainable, and "agent-friendly."

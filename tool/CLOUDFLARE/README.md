@@ -28,7 +28,7 @@ Uses the authenticated Cloudflare dashboard session in Chrome to perform API ope
 Other tools can import Cloudflare functions:
 
 ```python
-from tool.CLOUDFLARE.logic.interface.main import (
+from tool.CLOUDFLARE.interface.main import (
     find_cloudflare_tab,
     get_user,
     list_zones,

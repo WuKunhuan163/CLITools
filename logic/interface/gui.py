@@ -7,6 +7,8 @@ from logic.gui.tkinter.blueprint.tutorial.gui import TutorialWindow, TutorialSte
 from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
 from logic.gui.tkinter.blueprint.two_step_login.gui import TwoStepLoginWindow
 from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
+from logic.gui.tkinter.blueprint.bottom_bar.gui import BottomBarWindow, setup_bottom_bar
+from logic.gui.tkinter.blueprint.editable_list.gui import EditableListWindow
 from logic.gui.tkinter.style import get_label_style, get_button_style, get_gui_colors
 from logic.gui.engine import (
     setup_gui_environment,
@@ -23,6 +25,9 @@ __all__ = [
     "TutorialStep",
     "BaseGUIWindow",
     "setup_common_bottom_bar",
+    "BottomBarWindow",
+    "setup_bottom_bar",
+    "EditableListWindow",
     "TwoStepLoginWindow",
     "TwoFactorAuthWindow",
     "get_label_style",

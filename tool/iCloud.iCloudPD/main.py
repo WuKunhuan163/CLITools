@@ -115,7 +115,7 @@ def main():
             library_path = Path(args.local_photos)
             
         if library_path and library_path.exists():
-            from tool.iCloud.logic.interface.main import get_icloud_interface as _get_icloud
+            from tool.iCloud.interface.main import get_icloud_interface as _get_icloud
             _icloud_iface = _get_icloud()
             local_library = _icloud_iface["get_local_photos_library"](library_path)
             if not local_library.is_valid():
@@ -128,7 +128,7 @@ def main():
             sys.exit(1)
 
     # 1. Login and Authentication Flow
-    from tool.iCloud.logic.interface.main import get_icloud_interface
+    from tool.iCloud.interface.main import get_icloud_interface
     from pyicloud import PyiCloudService
     
     icloud = get_icloud_interface()

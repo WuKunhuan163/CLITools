@@ -23,6 +23,6 @@ Agents MUST maintain repository health by following these rules:
 
 ## Operation Rules
 - **Direct Git**: In high-load environments, use `/usr/bin/git` to avoid wrapper overhead and potential process limits.
-- **Silent Mode**: Internal calls between tools should use the `run_git_tool_managed` interface from `tool.GIT.logic.interface.main` to avoid output clutter.
+- **Silent Mode**: Internal calls between tools should use the `run_git_tool_managed` interface from `tool.GIT.interface.main` to avoid output clutter.
 - **Bold Phrases**: When reporting success, the entire action (e.g. "**Successfully pushed**") should be bolded.
 

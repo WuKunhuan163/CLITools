@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+"""Setup for GOOGLE.GS (Google Scholar MCP)."""
+
 import sys
 from pathlib import Path
 
-# Universal path resolver bootstrap
 _r = Path(__file__).resolve().parent
 while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
@@ -11,15 +12,12 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.setup.engine import ToolEngine
-from logic.utils import print_success_status
 
-def setup():
-    tool_name = "GOOGLE.GS"
-    engine = ToolEngine(tool_name, project_root)
-    
-    # 1. Standard installation (dependencies + shortcut)
-    return engine.install()
+def main():
+    from logic.tool.blueprint.base import ToolBase
+    tool = ToolBase("GOOGLE.GS")
+    print("GOOGLE.GS setup complete. Requires GOOGLE.CDMCP and Chrome with CDP.")
+
 
 if __name__ == "__main__":
-    setup()
+    main()

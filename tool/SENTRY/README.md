@@ -36,5 +36,5 @@ SENTRY issues my-org --project my-project
 ## Architecture
 
 - `logic/chrome/api.py` — CDP-based Sentry functions (same-origin API)
-- `logic/interface/main.py` — Cross-tool interface exports
+- `interface/main.py` — Cross-tool interface exports
 - `logic/translation/zh.json` — Chinese translations

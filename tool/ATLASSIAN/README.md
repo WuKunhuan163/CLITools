@@ -22,7 +22,7 @@ Uses the authenticated Atlassian Home session in Chrome to access user profile, 
 ## Interface
 
 ```python
-from tool.ATLASSIAN.logic.interface.main import (
+from tool.ATLASSIAN.interface.main import (
     find_atlassian_tab,
     get_me,
     get_notifications,

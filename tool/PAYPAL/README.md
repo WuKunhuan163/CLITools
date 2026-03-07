@@ -33,5 +33,5 @@ PAYPAL activity
 ## Architecture
 
 - `logic/chrome/api.py` — CDP-based PayPal functions
-- `logic/interface/main.py` — Cross-tool interface exports
+- `interface/main.py` — Cross-tool interface exports
 - `logic/translation/zh.json` — Chinese translations

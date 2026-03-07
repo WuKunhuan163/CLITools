@@ -22,12 +22,12 @@ GOOGLE              Chrome CDP session, input dispatch, OAuth, screenshots
 | `drive.py` | Google Drive operations via gapi.client in Colab |
 | `oauth.py` | Google OAuth consent flow automation |
 
-### Interface (`logic/interface/main.py`)
+### Interface (`interface/main.py`)
 
 Aggregates all CDP functions for external consumption:
 
 ```python
-from tool.GOOGLE.logic.interface.main import (
+from tool.GOOGLE.interface.main import (
     is_chrome_available, CDPSession, CDP_PORT,
     find_colab_tab, inject_and_execute,
     list_drive_files, create_notebook,

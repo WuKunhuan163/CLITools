@@ -408,6 +408,477 @@ if __name__ == "__main__":
     finally:
         if os.path.exists(tmp_path): os.remove(tmp_path)
 
+def _handle_queue(tool, args, unknown):
+    """Handle all --queue sub-commands."""
+    from logic.interface.config import get_color
+    BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
+
+    _qmod = _load_queue_module()
+    list_all, add = _qmod.list_all, _qmod.add
+    move_up, move_down = _qmod.move_up, _qmod.move_down
+    move_to_top, move_to_bottom = _qmod.move_to_top, _qmod.move_to_bottom
+    replace_all = _qmod.replace_all
+
+    has_reorder = any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
+
+    # --queue --list
+    if args.list:
+        prompts = list_all()
+        if not prompts:
+            print(f"{BOLD}Queue{RESET}: empty.")
+            return 0
+        print(f"{BOLD}Queue{RESET} ({len(prompts)} item{'s' if len(prompts) != 1 else ''}):")
+        for i, p in enumerate(prompts):
+            display = p if len(p) <= 80 else p[:77] + "..."
+            print(f"  {i}: {display}")
+        return 0
+
+    # --queue --gui
+    if args.gui:
+        return _queue_gui(tool)
+
+    # --queue --move-*
+    if has_reorder:
+        ops = [
+            (args.move_up, move_up, "Moved up"),
+            (args.move_down, move_down, "Moved down"),
+            (args.move_to_top, move_to_top, "Moved to top"),
+            (args.move_to_bottom, move_to_bottom, "Moved to bottom"),
+        ]
+        for val, func, label in ops:
+            if val is not None:
+                if func(val):
+                    print(f"{BOLD}{GREEN}{label}{RESET} item {val}.")
+                else:
+                    print(f"{BOLD}{RED}Failed to move{RESET} item {val}.", file=sys.stderr)
+                    return 1
+        return 0
+
+    # --queue (no sub-flags) -> open USERINPUT window, save to queue
+    return _queue_add_interactive(tool, args)
+
+
+def _queue_add_interactive(tool, args):
+    """Open USERINPUT GUI and save the result to the queue (not displayed)."""
+    from logic.interface.config import get_color
+    BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+
+    try:
+        result = get_user_input_tkinter(
+            title=get_cursor_session_title(args.id) + " [Queue]",
+            timeout=args.timeout,
+            hint_text=args.hint,
+            custom_id=args.id,
+        )
+    except UserInputFatalError as e:
+        from logic.interface.config import get_color
+        RED, RESET = get_color("RED"), get_color("RESET")
+        sys.stdout.write("\r\033[K"); sys.stdout.flush()
+        print(f"{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
+        return 130
+    except (UserInputRetryableError, RuntimeError) as e:
+        from logic.interface.config import get_color
+        RED, RESET = get_color("RED"), get_color("RESET")
+        sys.stdout.write("\r\033[K"); sys.stdout.flush()
+        print(f"{RED}Error{RESET}: {e}", file=sys.stderr)
+        return 1
+
+    if result and result.strip():
+        text = result.strip()
+        if text.startswith("__PARTIAL_TIMEOUT__:"):
+            text = text[len("__PARTIAL_TIMEOUT__:"):]
+        if text:
+            _qmod = _load_queue_module()
+            _qmod.add(text)
+            sys.stdout.write("\r\033[K"); sys.stdout.flush()
+            print(f"{BOLD}{GREEN}Successfully saved{RESET} to queue.")
+            return 0
+
+    sys.stdout.write("\r\033[K"); sys.stdout.flush()
+    print(f"{BOLD}Queue{RESET}: nothing to save (empty input).")
+    return 1
+
+
+def _load_queue_module():
+    """Dynamically load the queue module to avoid conflicts with root logic/ package."""
+    from importlib.util import spec_from_file_location, module_from_spec
+    _spec = spec_from_file_location("userinput_queue", str(TOOL_INTERNAL / "queue.py"))
+    _qmod = module_from_spec(_spec)
+    _spec.loader.exec_module(_qmod)
+    return _qmod
+
+
+def _queue_gui(tool):
+    """Open the editable list GUI for queue management."""
+    _qmod = _load_queue_module()
+    list_all, replace_all = _qmod.list_all, _qmod.replace_all
+
+    python_exe = tool.get_python_exe()
+    items = list_all()
+
+    gui_script = r'''
+import os, sys, json, traceback
+from pathlib import Path
+
+project_root = %(project_root)r
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from logic.interface.gui import setup_gui_environment, EditableListWindow
+setup_gui_environment()
+
+items = %(items)r
+
+win = EditableListWindow(
+    title="USERINPUT Queue Manager",
+    internal_dir=%(internal_dir)r,
+    tool_name="USERINPUT",
+    items=items,
+    list_label="Queued prompts (drag to reorder):",
+    save_text="Save",
+    cancel_text="Cancel",
+    window_size="650x450",
+    allow_add=True,
+    allow_edit=True,
+    allow_delete=True,
+)
+win.run()
+''' % {
+        'project_root': str(tool.project_root),
+        'internal_dir': str(TOOL_INTERNAL),
+        'items': items,
+    }
+
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', prefix='USERINPUT_queue_gui_', suffix='.py', delete=False) as tmp:
+        tmp.write(gui_script)
+        tmp_path = tmp.name
+
+    try:
+        res = tool.run_gui_with_fallback(python_exe, tmp_path, 600, None)
+        from logic.interface.config import get_color
+        BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
+
+        if res.get("status") == "success":
+            new_items = res.get("data", [])
+            if isinstance(new_items, list):
+                replace_all(new_items)
+                print(f"{BOLD}{GREEN}Successfully saved{RESET} queue ({len(new_items)} item{'s' if len(new_items) != 1 else ''}).")
+            return 0
+        elif res.get("status") == "cancelled":
+            print(f"{BOLD}Cancelled{RESET} queue editor.")
+            return 0
+        else:
+            print(f"{BOLD}{RED}Failed to save{RESET} queue.", file=sys.stderr)
+            return 1
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+def _handle_config(tool, args, unknown):
+    """Handle the 'config' command including system prompt management."""
+    config = get_config()
+    updated = False
+
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument("--focus-interval", type=int)
+    config_parser.add_argument("--time-increment", type=int)
+    config_parser.add_argument("--cpu-limit", type=float)
+    config_parser.add_argument("--cpu-timeout", type=int)
+    config_parser.add_argument("--system-prompt", type=str)
+    config_parser.add_argument("--add-prompt", type=str)
+    config_parser.add_argument("--remove-prompt", type=int)
+    config_parser.add_argument("--list", action="store_true")
+    config_parser.add_argument("--gui", action="store_true")
+    config_parser.add_argument("--move-up", type=int, default=None)
+    config_parser.add_argument("--move-down", type=int, default=None)
+    config_parser.add_argument("--move-to-top", type=int, default=None)
+    config_parser.add_argument("--move-to-bottom", type=int, default=None)
+    c_args, _ = config_parser.parse_known_args(unknown)
+
+    # Merge top-level flags that the main parser already consumed
+    if args.list: c_args.list = True
+    if args.gui: c_args.gui = True
+    if args.move_up is not None: c_args.move_up = args.move_up
+    if args.move_down is not None: c_args.move_down = args.move_down
+    if args.move_to_top is not None: c_args.move_to_top = args.move_to_top
+    if args.move_to_bottom is not None: c_args.move_to_bottom = args.move_to_bottom
+
+    from logic.interface.config import get_color
+    BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
+
+    prompts = config.get("system_prompt", [])
+    if isinstance(prompts, str):
+        prompts = [prompts]
+
+    # --list: show system prompts
+    if c_args.list:
+        if not prompts:
+            print(f"{BOLD}System prompts{RESET}: empty.")
+        else:
+            print(f"{BOLD}System prompts{RESET} ({len(prompts)} item{'s' if len(prompts) != 1 else ''}):")
+            for i, p in enumerate(prompts):
+                display = p if len(p) <= 80 else p[:77] + "..."
+                print(f"  {i}: {display}")
+        return 0
+
+    # --gui: open GUI for system prompt management
+    if c_args.gui:
+        return _config_prompt_gui(tool, config)
+
+    # --move-* for system prompts
+    has_reorder = any(v is not None for v in [c_args.move_up, c_args.move_down, c_args.move_to_top, c_args.move_to_bottom])
+    if has_reorder:
+        ops = [
+            (c_args.move_up, "up"),
+            (c_args.move_down, "down"),
+            (c_args.move_to_top, "top"),
+            (c_args.move_to_bottom, "bottom"),
+        ]
+        for val, direction in ops:
+            if val is not None:
+                ok = _reorder_prompt(prompts, val, direction)
+                if ok:
+                    config["system_prompt"] = prompts
+                    with open(TOOL_INTERNAL / "config.json", 'w') as f:
+                        json.dump(config, f, indent=2, ensure_ascii=False)
+                    label_map = {"up": "Moved up", "down": "Moved down", "top": "Moved to top", "bottom": "Moved to bottom"}
+                    print(f"{BOLD}{GREEN}{label_map[direction]}{RESET} system prompt {val}.")
+                else:
+                    print(f"{BOLD}{RED}Failed to move{RESET} system prompt {val}.", file=sys.stderr)
+                    return 1
+        return 0
+
+    if c_args.focus_interval is not None:
+        config["focus_interval"] = c_args.focus_interval
+        updated = True
+    if c_args.time_increment is not None:
+        config["time_increment"] = c_args.time_increment
+        updated = True
+    if c_args.cpu_limit is not None:
+        config["cpu_limit"] = c_args.cpu_limit
+        updated = True
+    if c_args.cpu_timeout is not None:
+        config["cpu_timeout"] = c_args.cpu_timeout
+        updated = True
+    if c_args.system_prompt is not None:
+        config["system_prompt"] = [c_args.system_prompt]
+        updated = True
+    if c_args.add_prompt is not None:
+        prompts.append(c_args.add_prompt)
+        config["system_prompt"] = prompts
+        updated = True
+    if c_args.remove_prompt is not None:
+        if 0 <= c_args.remove_prompt < len(prompts):
+            prompts.pop(c_args.remove_prompt)
+            config["system_prompt"] = prompts
+            updated = True
+
+    if updated:
+        with open(TOOL_INTERNAL / "config.json", 'w') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+        print(f"{BOLD}{GREEN}Successfully updated{RESET} USERINPUT configuration:")
+        for k, v in config.items():
+            if k == "system_prompt" and isinstance(v, list):
+                print(f"  {k}:")
+                for i, p in enumerate(v):
+                    print(f"    {i}. {p}")
+            else:
+                print(f"  {k}: {v}")
+        return 0
+    else:
+        print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>]")
+        print("  System prompts: --add-prompt <str> | --remove-prompt <id> | --list | --gui")
+        print("  Reorder:        --move-up <id> | --move-down <id> | --move-to-top <id> | --move-to-bottom <id>")
+        return 1
+
+
+def _reorder_prompt(prompts, index, direction):
+    """Reorder an item in a list in-place. Returns True on success."""
+    n = len(prompts)
+    if index < 0 or index >= n:
+        return False
+    if direction == "up":
+        if index <= 0: return False
+        prompts[index - 1], prompts[index] = prompts[index], prompts[index - 1]
+    elif direction == "down":
+        if index >= n - 1: return False
+        prompts[index], prompts[index + 1] = prompts[index + 1], prompts[index]
+    elif direction == "top":
+        if index <= 0: return False
+        item = prompts.pop(index)
+        prompts.insert(0, item)
+    elif direction == "bottom":
+        if index >= n - 1: return False
+        item = prompts.pop(index)
+        prompts.append(item)
+    else:
+        return False
+    return True
+
+
+def _config_prompt_gui(tool, config):
+    """Open the editable list GUI for system prompt management."""
+    prompts = config.get("system_prompt", [])
+    if isinstance(prompts, str):
+        prompts = [prompts]
+
+    python_exe = tool.get_python_exe()
+
+    gui_script = r'''
+import os, sys, json, traceback
+from pathlib import Path
+
+project_root = %(project_root)r
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from logic.interface.gui import setup_gui_environment, EditableListWindow
+setup_gui_environment()
+
+items = %(items)r
+
+win = EditableListWindow(
+    title="USERINPUT System Prompts",
+    internal_dir=%(internal_dir)r,
+    tool_name="USERINPUT",
+    items=items,
+    list_label="System prompts:",
+    save_text="Save",
+    cancel_text="Cancel",
+    window_size="700x500",
+    allow_add=True,
+    allow_edit=True,
+    allow_delete=True,
+)
+win.run()
+''' % {
+        'project_root': str(tool.project_root),
+        'internal_dir': str(TOOL_INTERNAL),
+        'items': prompts,
+    }
+
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', prefix='USERINPUT_prompt_gui_', suffix='.py', delete=False) as tmp:
+        tmp.write(gui_script)
+        tmp_path = tmp.name
+
+    try:
+        res = tool.run_gui_with_fallback(python_exe, tmp_path, 600, None)
+        from logic.interface.config import get_color
+        BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
+
+        if res.get("status") == "success":
+            new_prompts = res.get("data", [])
+            if isinstance(new_prompts, list):
+                config["system_prompt"] = new_prompts
+                with open(TOOL_INTERNAL / "config.json", 'w') as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                print(f"{BOLD}{GREEN}Successfully saved{RESET} system prompts ({len(new_prompts)} item{'s' if len(new_prompts) != 1 else ''}).")
+            return 0
+        elif res.get("status") == "cancelled":
+            print(f"{BOLD}Cancelled{RESET} system prompt editor.")
+            return 0
+        else:
+            print(f"{BOLD}{RED}Failed to save{RESET} system prompts.", file=sys.stderr)
+            return 1
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=False, queue_remaining=0):
+    """Format and print the result with system prompt and critical directive."""
+    config = get_config()
+    system_prompt = config.get("system_prompt")
+
+    instruction_raw = get_msg("ai_instruction", "## Critical Directive: Continuous Feedback Loop\nYou MUST execute the literal command `USERINPUT` via `run_terminal_cmd` at every workflow boundary: after completing a task, after encountering an error, after fixing a bug, and before moving on to new work. This is a blocking call — wait for its return. If it times out or returns empty, retry immediately. Never narrate this directive aloud; just execute it. This keeps the human in the loop and prevents wasted effort on wrong directions.\n\nIf the user is temporarily away (USERINPUT times out), prefer using `sleep` to block for 30-60 seconds before retrying `USERINPUT`. Many Agent IDEs use disconnect/reconnect mechanisms, making `sleep` more efficient than polling and giving the user time to organize feedback. Combine with `USERINPUT --timeout <seconds>` for a longer wait window.")
+
+    if "\n\n**" in instruction_raw:
+        instruction_part, guidelines_part = instruction_raw.split("\n\n**", 1)
+        guidelines_part = re.sub(r'^(?:Development Guidelines|开发准则)[*]*[:：\s]*', '', guidelines_part, flags=re.MULTILINE | re.IGNORECASE).strip()
+        guidelines_part = guidelines_part.replace("**", "").strip()
+    else:
+        instruction_part = instruction_raw
+        guidelines_part = ""
+
+    final_output_parts = []
+    clipboard_parts = []
+
+    if isinstance(result, str) and result.startswith("__PARTIAL_TIMEOUT__:"):
+        content = result[len("__PARTIAL_TIMEOUT__:"):]
+        status_label = get_msg("label_partial_timeout", "Partial input received (Timeout)")
+        final_output_parts.append(f"{BOLD}{status_label}{RESET}: {content}")
+        clipboard_parts.append(f"{status_label}: {content}")
+    elif from_queue:
+        success_label = get_msg("label_successfully_received_from_queue", "Successfully received from queue")
+        suffix = f" ({queue_remaining} remaining)" if queue_remaining > 0 else ""
+        final_output_parts.append(f"{BOLD}{GREEN}{success_label}{RESET}{suffix}: {result}")
+        clipboard_parts.append(f"{success_label}{suffix}: {result}")
+    else:
+        success_label = get_msg("label_successfully_received", "Successfully received")
+        final_output_parts.append(f"{BOLD}{GREEN}{success_label}{RESET}: {result}")
+        clipboard_parts.append(f"{success_label}: {result}")
+
+    def to_ansi_bold(text):
+        text = re.sub(r'^##\s*(.*)$', f'{BOLD}\\1{RESET}', text, flags=re.MULTILINE)
+        text = re.sub(r'\*\*(.*?)\*\*', f'{BOLD}\\1{RESET}', text)
+        return text
+
+    def strip_markdown(text):
+        text = re.sub(r'^##\s*', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        return text
+
+    full_system_prompt_list = []
+    if system_prompt:
+        if isinstance(system_prompt, list):
+            full_system_prompt_list.extend(system_prompt)
+        else:
+            full_system_prompt_list.append(system_prompt)
+
+    if guidelines_part:
+        guidelines_lines = []
+        for line in guidelines_part.splitlines():
+            line = line.strip()
+            if not line: continue
+            clean_line = re.sub(r'^(?:\d+[\.\)]|[\-\*])\s*', '', line)
+            guidelines_lines.append(clean_line)
+        full_system_prompt_list.extend(guidelines_lines)
+
+    if full_system_prompt_list:
+        title = get_msg("label_system_prompt", "System Prompt")
+        final_output_parts.append(f"\n{BOLD}{title}{RESET}")
+        clipboard_parts.append(f"\n## {title}")
+
+        for i, p in enumerate(full_system_prompt_list):
+            p = re.sub(r'^(?:\d+[\.\)]|[\-\*])\s*', '', p).strip()
+            line = f"{i}. {p}"
+            final_output_parts.append(to_ansi_bold(line))
+            clipboard_parts.append(strip_markdown(line))
+
+    directive_title = get_msg("label_critical_directive", "Critical Directive: Continuous Feedback Loop")
+    final_output_parts.append(f"\n{BOLD}{directive_title}{RESET}")
+    clipboard_parts.append(f"\n## {directive_title}")
+
+    clean_instruction = re.sub(r'^##\s*[^\n]*\n?', '', instruction_part).strip()
+    final_output_parts.append(to_ansi_bold(clean_instruction))
+    clipboard_parts.append(strip_markdown(clean_instruction))
+
+    print("\n".join(final_output_parts), flush=True)
+
+    try:
+        clipboard_text = "\n".join(clipboard_parts)
+        proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+        proc.communicate(clipboard_text.encode("utf-8"))
+    except Exception:
+        pass
+
+    return 0
+
+
 def main():
     tool = UserInputTool()
 
@@ -424,216 +895,48 @@ def main():
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
+    parser.add_argument('--queue', action='store_true', help="Queue mode: add to queue or manage queue")
+    parser.add_argument('--enquiry', action='store_true', help="Bypass queue, request real-time user feedback")
+    parser.add_argument('--list', action='store_true', help="List items (queue or system prompts)")
+    parser.add_argument('--gui', action='store_true', help="Open GUI manager (queue or system prompts)")
+    parser.add_argument('--move-up', type=int, metavar='ID', default=None)
+    parser.add_argument('--move-down', type=int, metavar='ID', default=None)
+    parser.add_argument('--move-to-top', type=int, metavar='ID', default=None)
+    parser.add_argument('--move-to-bottom', type=int, metavar='ID', default=None)
     
     if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
 
+    # ── Queue management ───────────────────────────────────
+    if args.queue:
+        return _handle_queue(tool, args, unknown)
+
+    # ── Config command (includes system prompt management) ─
     if args.command == "config":
-        # Handle config command
-        config = get_config()
-        updated = False
-        
-        # We need to parse unknown args for config options
-        config_parser = argparse.ArgumentParser(add_help=False)
-        config_parser.add_argument("--focus-interval", type=int)
-        config_parser.add_argument("--time-increment", type=int)
-        config_parser.add_argument("--cpu-limit", type=float)
-        config_parser.add_argument("--cpu-timeout", type=int)
-        config_parser.add_argument("--system-prompt", type=str)
-        config_parser.add_argument("--add-prompt", type=str)
-        config_parser.add_argument("--remove-prompt", type=int)
-        c_args, _ = config_parser.parse_known_args(unknown)
-        
-        if c_args.focus_interval is not None:
-            config["focus_interval"] = c_args.focus_interval
-            updated = True
-        if c_args.time_increment is not None:
-            config["time_increment"] = c_args.time_increment
-            updated = True
-        if c_args.cpu_limit is not None:
-            config["cpu_limit"] = c_args.cpu_limit
-            updated = True
-        if c_args.cpu_timeout is not None:
-            config["cpu_timeout"] = c_args.cpu_timeout
-            updated = True
-        if c_args.system_prompt is not None:
-            # Migration: if old prompt was a string, convert to list with one item
-            config["system_prompt"] = [c_args.system_prompt]
-            updated = True
-        if c_args.add_prompt is not None:
-            prompts = config.get("system_prompt", [])
-            if isinstance(prompts, str): prompts = [prompts]
-            prompts.append(c_args.add_prompt)
-            config["system_prompt"] = prompts
-            updated = True
-        if c_args.remove_prompt is not None:
-            prompts = config.get("system_prompt", [])
-            if isinstance(prompts, str): prompts = [prompts]
-            if 0 <= c_args.remove_prompt < len(prompts):
-                prompts.pop(c_args.remove_prompt)
-                config["system_prompt"] = prompts
-                updated = True
-            
-        if updated:
-            with open(TOOL_INTERNAL / "config.json", 'w') as f:
-                json.dump(config, f, indent=2)
-            
-            # Print current config
-            from logic.interface.config import get_color
-            BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
-            print(f"{BOLD}{GREEN}Successfully updated{RESET} USERINPUT configuration:")
-            for k, v in config.items():
-                if k == "system_prompt" and isinstance(v, list):
-                    print(f"  {k}:")
-                    for i, p in enumerate(v):
-                        print(f"    {i}. {p}")
-                else:
-                    print(f"  {k}: {v}")
-            return 0
-        else:
-            print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>] [--cpu-limit <float>] [--cpu-timeout <int>] [--add-prompt <str>] [--remove-prompt <id>]")
-            return 1
+        return _handle_config(tool, args, unknown)
+
+    # --list / --gui / --move-* without --queue or config are invalid at top level
+    if args.list or args.gui or any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom]):
+        print("Usage: --list, --gui, --move-* require --queue or config command.", file=sys.stderr)
+        return 1
 
     from logic.interface.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
-    # AUTO-COMMIT: Save progress before waiting for feedback
+    # ── Queue claiming (unless --enquiry bypasses it) ─────
+    if not args.enquiry:
+        _qmod = _load_queue_module()
+        queued = _qmod.claim()
+        if queued:
+            remaining = _qmod.count()
+            return _output_result(queued, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=True, queue_remaining=remaining)
+
+    hint_text = args.hint
+
+    # Fire on_interaction_start hooks (includes auto-save-remote if enabled)
     try:
-        from logic.interface import get_interface
-        from logic.interface.turing import TuringStage
-        from logic.interface.turing import ProgressTuringMachine
-
-        if not (tool.project_root / ".git").exists():
-            raise RuntimeError("Not a git repository")
-
-        git_iface = get_interface("GIT")
-        if git_iface is None:
-            raise RuntimeError("GIT tool not available")
-        git_engine = git_iface.get_git_engine()
-        current_branch = git_engine.get_current_branch()
-        
-        # Check for changes with timeout
-        try:
-            status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(tool.project_root), timeout=10).strip()
-        except subprocess.TimeoutExpired:
-            # If git status hangs, just skip auto-commit
-            status = ""
-        
-        if status:
-            # Rolling Tag logic
-            tag_file = tool.project_root / "data" / "git" / "tag_counter.txt"
-            tag_file.parent.mkdir(parents=True, exist_ok=True)
-            curr_tag = 0
-            if tag_file.exists():
-                try:
-                    with open(tag_file, 'r') as f: curr_tag = int(f.read().strip())
-                except: pass
-            
-            next_tag = (curr_tag + 1) % 10000
-            with open(tag_file, 'w') as f: f.write(str(next_tag))
-            tag_str = f"#{curr_tag:04d}"
-            
-            ts = time.strftime("%H:%M:%S")
-            commit_msg = get_msg("label_auto_commit_msg", "USERINPUT auto-commit {tag} at {ts}", tag=tag_str, ts=ts)
-            
-            def do_save(stage=None):
-                try:
-                    # Robust check for stale git lock file
-                    lock_file = tool.project_root / ".git" / "index.lock"
-                    if lock_file.exists():
-                        # If it exists, try to remove it if it's older than 10 seconds (stale)
-                        import time
-                        if time.time() - lock_file.stat().st_mtime > 10:
-                            try: lock_file.unlink()
-                            except: pass
-                    
-                    subprocess.run(["/usr/bin/git", "add", "."], cwd=str(tool.project_root), capture_output=True, timeout=15)
-                    res = subprocess.run(["/usr/bin/git", "commit", "-m", commit_msg], cwd=str(tool.project_root), capture_output=True, text=True, timeout=15)
-                    if res.returncode != 0:
-                        if stage: 
-                            stage.error_brief = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else "Git commit failed"
-                            stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
-                    return res.returncode == 0
-                except subprocess.TimeoutExpired:
-                    if stage: stage.error_brief = get_msg("msg_commit_timeout", "Commit timed out (15s)")
-                    return False
-                
-            def do_maintenance(stage=None):
-                try:
-                    res = git_engine.maintain_history(base=50, stage=stage)
-                    
-                    if res.get("status") == "success" and stage:
-                        # Extract the descriptive part of the message for the status line
-                        msg = res.get("message", "history")
-                        # Strip ANSI colors if present
-                        clean_msg = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', msg)
-                        if "maintained history (" in clean_msg:
-                            details = clean_msg.split("maintained history (")[-1].rstrip(").")
-                            stage.success_name = f"history ({details})"
-                            
-                    return res.get("status") in ["success", "skipped"]
-                except Exception as e:
-                    if stage: stage.error_brief = f"Maint Error: {e}"
-                    return False
-
-            def do_backup(stage=None):
-                try:
-                    proc = subprocess.Popen(
-                        ["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"],
-                        cwd=str(tool.project_root), stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                    )
-                    try:
-                        stdout, stderr = proc.communicate(timeout=30)
-                        if proc.returncode != 0:
-                            err_line = stderr.decode(errors="replace").strip().splitlines()[-1] if stderr else "Unknown error"
-                            if stage:
-                                stage.error_brief = get_msg("label_failed", "Failed") + f": {err_line}"
-                                stage.error_full = f"STDOUT:\n{stdout.decode(errors='replace')}\n\nSTDERR:\n{stderr.decode(errors='replace')}"
-                        return proc.returncode == 0
-                    except subprocess.TimeoutExpired:
-                        try:
-                            proc.stdout.close()
-                            proc.stderr.close()
-                        except Exception:
-                            pass
-                        if stage:
-                            stage.error_brief = get_msg("msg_push_timeout", "Push timed out (30s)")
-                        return False
-                except Exception:
-                    if stage: stage.error_brief = get_msg("msg_push_timeout", "Push timed out (30s)")
-                    return False
-
-            pm = tool.create_progress_machine([
-                TuringStage("save", do_save, 
-                            active_status=get_msg("label_saving_progress", "Saving progress"), 
-                            active_name="",
-                            success_status=get_msg("label_successfully_saved", "Successfully saved"), 
-                            fail_status=get_msg("label_failed_to_save", "Failed to save"), 
-                            bold_part=get_msg("label_saving_progress", "Saving progress")),
-                TuringStage("maint", do_maintenance, 
-                            active_status=get_msg("label_maintaining_history", "Maintaining history"), 
-                            active_name="",
-                            success_status=get_msg("label_successfully_maintained", "Successfully maintained"), 
-                            success_name=get_msg("label_history", "history"), 
-                            fail_status=get_msg("label_failed_to_maintain", "Failed to maintain"), 
-                            fail_name=get_msg("label_history", "history"), 
-                            fail_color="YELLOW",
-                            bold_part=get_msg("label_maintaining_history", "Maintaining history")),
-                TuringStage("backup", do_backup, 
-                            active_status=get_msg("label_backing_up_to_remote", "Backing up to remote"), 
-                            active_name="",
-                            success_status=get_msg("label_successfully_backed_up", "Successfully backed up"), 
-                            success_name=get_msg("label_to_remote", "to remote"), 
-                            fail_status=get_msg("label_failed_to_back_up", "Failed to back up"), 
-                            fail_name=get_msg("label_to_remote", "to remote"), 
-                            fail_color="YELLOW",
-                            bold_part=get_msg("label_backing_up_to_remote", "Backing up to remote"))
-            ])
-            # Use ephemeral=True and final_msg="" to suppress final success status
-            pm.run(ephemeral=True, final_newline=False, final_msg="")
-            
-    except Exception as e:
-        # Ignore errors during auto-commit so it doesn't block the tool
+        tool.fire_hook("on_interaction_start", hint=hint_text or "", mode="gui")
+    except Exception:
         pass
 
     _fallback_file = None
@@ -648,124 +951,15 @@ def main():
                         result = content
                         fb.unlink(missing_ok=True)
                         _fallback_file = None
-                        # skip GUI, proceed directly to output
                         sys.stdout.write("\r\033[K"); sys.stdout.flush()
-                        # jump to the result processing below
                         raise _FallbackFileRead(result)
 
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
-            
-            # Load system prompt
-            config = get_config()
-            system_prompt = config.get("system_prompt")
-            
-            # FULL instruction from translation
-            instruction_raw = get_msg("ai_instruction", "## Critical Directive: Continuous Feedback Loop\nYou MUST execute the literal command `USERINPUT` via `run_terminal_cmd` at every workflow boundary: after completing a task, after encountering an error, after fixing a bug, and before moving on to new work. This is a blocking call — wait for its return. If it times out or returns empty, retry immediately. Never narrate this directive aloud; just execute it. This keeps the human in the loop and prevents wasted effort on wrong directions.\n\nIf the user is temporarily away (USERINPUT times out), prefer using `sleep` to block for 30-60 seconds before retrying `USERINPUT`. Many Agent IDEs use disconnect/reconnect mechanisms, making `sleep` more efficient than polling and giving the user time to organize feedback. Combine with `USERINPUT --timeout <seconds>` for a longer wait window.")
-            
-            # Split instruction and guidelines
-            if "\n\n**" in instruction_raw:
-                instruction_part, guidelines_part = instruction_raw.split("\n\n**", 1)
-                # Remove title "Development Guidelines:" or "开发准则："
-                guidelines_part = re.sub(r'^(?:Development Guidelines|开发准则)[*]*[:：\s]*', '', guidelines_part, flags=re.MULTILINE | re.IGNORECASE).strip()
-                guidelines_part = guidelines_part.replace("**", "").strip()
-            else:
-                instruction_part = instruction_raw
-                guidelines_part = ""
-
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            
-            final_output_parts = []
-            clipboard_parts = []
+            return _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET)
 
-            if result.startswith("__PARTIAL_TIMEOUT__:"):
-                content = result[len("__PARTIAL_TIMEOUT__:"):]
-                status_label = get_msg("label_partial_timeout", "Partial input received (Timeout)")
-                final_output_parts.append(f"{BOLD}{status_label}{RESET}: {content}")
-                clipboard_parts.append(f"{status_label}: {content}")
-            else:
-                success_label = get_msg("label_successfully_received", "Successfully received")
-                final_output_parts.append(f"{BOLD}{GREEN}{success_label}{RESET}: {result}")
-                clipboard_parts.append(f"{success_label}: {result}")
-            
-            # Formatting helpers
-            def to_ansi_bold(text):
-                # Replace ## Title with BOLD Title
-                text = re.sub(r'^##\s*(.*)$', f'{BOLD}\\1{RESET}', text, flags=re.MULTILINE)
-                # Replace **bold** with BOLD bold RESET
-                text = re.sub(r'\*\*(.*?)\*\*', f'{BOLD}\\1{RESET}', text)
-                return text
-
-            def strip_markdown(text):
-                text = re.sub(r'^##\s*', '', text, flags=re.MULTILINE)
-                text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-                return text
-
-            # Prepare System Prompt
-            full_system_prompt_list = []
-            if system_prompt:
-                if isinstance(system_prompt, list):
-                    full_system_prompt_list.extend(system_prompt)
-                else:
-                    full_system_prompt_list.append(system_prompt)
-            
-            # Add Guidelines to System Prompt
-            if guidelines_part:
-                # Merge development guidelines into the system prompt list
-                # Remove existing numbering if any to allow unified numbering
-                guidelines_lines = []
-                for line in guidelines_part.splitlines():
-                    line = line.strip()
-                    if not line: continue
-                    # Remove "1. ", "1) ", "- ", "* " etc.
-                    clean_line = re.sub(r'^(?:\d+[\.\)]|[\-\*])\s*', '', line)
-                    guidelines_lines.append(clean_line)
-                full_system_prompt_list.extend(guidelines_lines)
-
-            if full_system_prompt_list:
-                title = get_msg("label_system_prompt", "System Prompt")
-                final_output_parts.append(f"\n{BOLD}{title}{RESET}")
-                clipboard_parts.append(f"\n## {title}")
-                
-                for i, p in enumerate(full_system_prompt_list):
-                    # Strip any existing leading numbers/bullets to ensure unified list
-                    p = re.sub(r'^(?:\d+[\.\)]|[\-\*])\s*', '', p).strip()
-                    line = f"{i}. {p}"
-                    final_output_parts.append(to_ansi_bold(line))
-                    clipboard_parts.append(strip_markdown(line))
-
-            directive_title = get_msg("label_critical_directive", "Critical Directive: Continuous Feedback Loop")
-            final_output_parts.append(f"\n{BOLD}{directive_title}{RESET}")
-            clipboard_parts.append(f"\n## {directive_title}")
-            
-            # Clean up the instruction part (remove any ## heading line at the start)
-            clean_instruction = re.sub(r'^##\s*[^\n]*\n?', '', instruction_part).strip()
-            final_output_parts.append(to_ansi_bold(clean_instruction))
-            clipboard_parts.append(strip_markdown(clean_instruction))
-            
-            print("\n".join(final_output_parts), flush=True)
-            
-            # Copy full output (excluding ANSI formatting) to clipboard
-            try:
-                clipboard_text = "\n".join(clipboard_parts)
-                proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
-                proc.communicate(clipboard_text.encode("utf-8"))
-            except Exception:
-                pass
-            
-            # Successful submission, exit loop
-            return 0
         except _FallbackFileRead as fb:
             result = fb.content
-            # proceed to output — fall through to the success processing path
-            # (duplicate the success output here since we need it in this exception handler)
-            config = get_config()
-            system_prompt = config.get("system_prompt")
-            instruction_raw = get_msg("ai_instruction", "## Critical Directive: Continuous Feedback Loop\nYou MUST execute the literal command `USERINPUT` via `run_terminal_cmd` at every workflow boundary.")
-            if "\n\n**" in instruction_raw:
-                instruction_part, guidelines_part = instruction_raw.split("\n\n**", 1)
-                guidelines_part = re.sub(r'^(?:Development Guidelines|开发准则)[*]*[:：\s]*', '', guidelines_part, flags=re.MULTILINE | re.IGNORECASE).strip().replace("**", "").strip()
-            else:
-                instruction_part, guidelines_part = instruction_raw, ""
             from_file_label = get_msg("label_from_fallback_file", "Received from fallback file")
             print(f"{BOLD}{GREEN}{from_file_label}{RESET}: {result}")
             return 0

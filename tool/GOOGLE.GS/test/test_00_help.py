@@ -1,20 +1,21 @@
-import unittest
+"""test_00_help — Verify GS --help flag works."""
+
 import subprocess
 import sys
 from pathlib import Path
 
-class TestHelp(unittest.TestCase):
-    def test_help(self):
-        """Test that the tool supports --help and returns success."""
-        project_root = Path(__file__).resolve().parent.parent.parent
-        bin_path = project_root / "bin" / "GS"
-        if not bin_path.exists():
-            bin_path = project_root / "tool" / "GOOGLE.GS" / "main.py"
-            
-        cmd = [sys.executable, str(bin_path), "--help"]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        self.assertEqual(res.returncode, 0, f"Help command failed with code {res.returncode}: {res.stderr}")
-        self.assertIn("usage:", res.stdout.lower() or res.stderr.lower())
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_BIN = _PROJECT_ROOT / "bin" / "GS" / "GS"
+
+
+def test_help_flag():
+    r = subprocess.run([sys.executable, str(_PROJECT_ROOT / "tool" / "GOOGLE.GS" / "main.py"), "--help"],
+                       capture_output=True, text=True, timeout=30,
+                       env={"PYTHONPATH": str(_PROJECT_ROOT)})
+    assert r.returncode == 0, f"--help returned {r.returncode}: {r.stderr}"
+    assert "Google Scholar" in r.stdout, f"Missing description in help: {r.stdout[:200]}"
+
 
 if __name__ == "__main__":
-    unittest.main()
+    test_help_flag()
+    print("PASS: test_00_help")

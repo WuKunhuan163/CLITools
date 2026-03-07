@@ -343,10 +343,10 @@ def _run_userinput_feedback(tool):
     """Launch USERINPUT interface to collect direct user feedback."""
     if str(tool.project_root) not in sys.path:
         sys.path.insert(0, str(tool.project_root))
-    interface_path = tool.project_root / "tool" / "USERINPUT" / "logic" / "interface" / "main.py"
+    interface_path = tool.project_root / "tool" / "USERINPUT" / "interface" / "main.py"
     if interface_path.exists():
         try:
-            from tool.USERINPUT.logic.interface.main import get_user_feedback
+            from tool.USERINPUT.interface.main import get_user_feedback
             return get_user_feedback(
                 hint="GCS Raw Mode: Please provide feedback on the command output.",
                 title="GCS Raw Feedback"

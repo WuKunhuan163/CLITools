@@ -359,6 +359,11 @@ def main():
     audit_imports_p.add_argument("--tool", help="Audit specific tool only")
     audit_imports_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
     audit_imports_p.add_argument("--exclude", help="Comma-separated tool names to skip")
+    audit_quality_p = audit_sub.add_parser("quality", help="Audit hooks, interfaces, and skills")
+    audit_quality_p.add_argument("--tool", help="Audit specific tool only")
+    audit_quality_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+    audit_quality_p.add_argument("--exclude", help="Comma-separated tool names to skip")
+    audit_quality_p.add_argument("--no-skills", action="store_true", help="Skip skills audit")
     lang_sub.add_parser("list", help="List supported languages")
 
     rule_p = subparsers.add_parser("rule", help="AI rule management")
@@ -405,6 +410,27 @@ def main():
             else:
                 results = audit_all_tools(root, exclude=exclude or ["GOOGLE.CDMCP"])
                 print(to_json(results) if args.as_json else format_report(results))
+        elif args.audit_command == "quality":
+            from logic.tool.audit.hooks import (
+                audit_all_quality, audit_tool_quality, audit_skills,
+                format_quality_report, quality_to_json,
+            )
+            root = Path(__file__).resolve().parent
+            exclude = [x.strip() for x in (args.exclude or "").split(",") if x.strip()]
+            skills_issues = None if args.no_skills else audit_skills(root)
+            if args.tool:
+                tool_dir = root / "tool" / args.tool
+                if not tool_dir.exists():
+                    print(f"Tool not found: {args.tool}")
+                else:
+                    tool_res = audit_tool_quality(tool_dir, root)
+                    results = {args.tool: tool_res} if tool_res else {}
+                    print(quality_to_json(results, skills_issues) if args.as_json
+                          else format_quality_report(results, skills_issues))
+            else:
+                results = audit_all_quality(root, exclude=exclude)
+                print(quality_to_json(results, skills_issues) if args.as_json
+                      else format_quality_report(results, skills_issues))
         else:
             audit_p.print_help()
     elif args.command == "lang":

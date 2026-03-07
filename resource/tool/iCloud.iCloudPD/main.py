@@ -66,7 +66,7 @@ def main():
     BOLD, GREEN, BLUE, RESET, YELLOW, RED = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW"), get_color("RED")
     
     # 1. Login and Authentication Flow
-    from tool.iCloud.logic.interface.main import get_icloud_interface
+    from tool.iCloud.interface.main import get_icloud_interface
     from pyicloud import PyiCloudService
     
     icloud = get_icloud_interface()

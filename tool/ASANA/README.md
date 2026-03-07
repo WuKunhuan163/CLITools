@@ -27,7 +27,7 @@ Uses the authenticated Asana web app session in Chrome to perform REST API opera
 ## Interface
 
 ```python
-from tool.ASANA.logic.interface.main import (
+from tool.ASANA.interface.main import (
     find_asana_tab,
     get_me,
     list_workspaces,

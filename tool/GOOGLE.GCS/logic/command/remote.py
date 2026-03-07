@@ -240,10 +240,10 @@ def _run_userinput_feedback(tool):
     import sys
     if str(tool.project_root) not in sys.path:
         sys.path.insert(0, str(tool.project_root))
-    interface_path = tool.project_root / "tool" / "USERINPUT" / "logic" / "interface" / "main.py"
+    interface_path = tool.project_root / "tool" / "USERINPUT" / "interface" / "main.py"
     if interface_path.exists():
         try:
-            from tool.USERINPUT.logic.interface.main import get_user_feedback
+            from tool.USERINPUT.interface.main import get_user_feedback
             return get_user_feedback(
                 hint="GCS: Please provide feedback on the command execution.",
                 title="GCS Feedback"

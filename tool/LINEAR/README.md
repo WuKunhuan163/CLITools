@@ -33,5 +33,5 @@ LINEAR page
 ## Architecture
 
 - `logic/chrome/api.py` — CDP-based Linear functions (localStorage)
-- `logic/interface/main.py` — Cross-tool interface exports
+- `interface/main.py` — Cross-tool interface exports
 - `logic/translation/zh.json` — Chinese translations

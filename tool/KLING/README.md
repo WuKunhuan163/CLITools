@@ -35,5 +35,5 @@ KLING history
 ## Architecture
 
 - `logic/chrome/api.py` — CDP-based Kling AI functions (localStorage + DOM)
-- `logic/interface/main.py` — Cross-tool interface exports
+- `interface/main.py` — Cross-tool interface exports
 - `logic/translation/zh.json` — Chinese translations

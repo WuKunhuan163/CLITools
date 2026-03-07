@@ -57,12 +57,12 @@ def get_safe_python_for_gui():
     # 1. Try to use the PYTHON tool's interface first
     # logic/gui/engine.py -> 3 levels up to project root
     project_root = Path(__file__).resolve().parent.parent.parent
-    python_tool_interface = project_root / "tool" / "PYTHON" / "logic" / "interface" / "main.py"
+    python_tool_interface = project_root / "tool" / "PYTHON" / "interface" / "main.py"
     
     if python_tool_interface.exists():
         try:
             sys.path.append(str(project_root))
-            from tool.PYTHON.logic.interface.main import get_python_exe_func
+            from tool.PYTHON.interface.main import get_python_exe_func
             get_python_exe = get_python_exe_func()
             # Request version 3.10.19 which is known to have tkinter in this ecosystem
             py_exe = get_python_exe("3.10.19")
