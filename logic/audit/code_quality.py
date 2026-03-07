@@ -200,7 +200,9 @@ def run_full_audit(
 
 def print_report(report: AuditReport) -> None:
     """Pretty-print the audit report to stdout."""
-    from logic.turing.status import fmt_status, fmt_detail, fmt_warning
+    from logic.turing.status import fmt_status, fmt_detail, fmt_warning, fmt_info
+
+    RESET = "\033[0m"
 
     if report.error:
         print(fmt_warning(report.error, indent=0))
@@ -209,6 +211,8 @@ def print_report(report: AuditReport) -> None:
     cats = report.by_category()
     if not cats:
         print(fmt_status("Code quality audit passed.", style="success", indent=0))
+        sys.stdout.write(RESET)
+        sys.stdout.flush()
         return
 
     for cat in sorted(cats):
@@ -221,4 +225,6 @@ def print_report(report: AuditReport) -> None:
             print(fmt_detail(f"... and {len(items) - 10} more", indent=2))
     print()
     for line in report.summary_lines():
-        print(line)
+        print(f"{RESET}{line}")
+    sys.stdout.write(RESET)
+    sys.stdout.flush()
