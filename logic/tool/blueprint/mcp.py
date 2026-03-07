@@ -5,11 +5,12 @@ MCP-enabled tools inherit from MCPToolBase to gain:
   - Auto-lock enforcement on browser tabs
   - Session window awareness (opens tabs in session window)
   - Shared CDMCP overlay and interaction interfaces
+  - MCP state reporting (get_mcp_state) for monitoring tab/tool status
 """
 import sys
 import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from logic.tool.blueprint.base import ToolBase
 
@@ -191,3 +192,148 @@ class MCPToolBase(ToolBase):
             return True
 
         return False
+
+    # ── MCP State Interface ──────────────────────────────────────────────
+
+    def get_mcp_state(self, session_id: str = "",
+                      tab_label: str = "") -> Dict[str, Any]:
+        """Return the current MCP state for this tool.
+
+        Subclasses MUST override _collect_mcp_state() to supply tool-specific
+        state (e.g. Colab cells, YouTube video, XMind map structure).
+
+        The base implementation wraps the tool-specific state with common
+        CDMCP session information.
+
+        Args:
+            session_id: Optional session ID to query. Empty = active session.
+            tab_label: Optional tab label to focus on.
+
+        Returns:
+            Dict with keys:
+              tool: str           -- tool name
+              session: dict|None  -- CDMCP session info
+              tabs: list          -- registered session tabs
+              state: dict         -- tool-specific state from _collect_mcp_state()
+              timestamp: float    -- when state was collected
+              ok: bool            -- whether collection succeeded
+        """
+        import time as _time
+
+        result = {
+            "tool": self.tool_name,
+            "session": None,
+            "tabs": [],
+            "state": {},
+            "timestamp": _time.time(),
+            "ok": False,
+        }
+
+        self._load_cdmcp()
+        sid = session_id or self._session_name
+        session = None
+        if self.session_mgr:
+            session = self.session_mgr.get_session(sid)
+            if not session:
+                for info in self.session_mgr.list_sessions():
+                    if session_id and info.get("session_id", "").startswith(session_id):
+                        session = self.session_mgr.get_session(info["name"])
+                        break
+                    elif not session_id:
+                        session = self.session_mgr.get_session(info["name"])
+                        break
+
+        if session:
+            result["session"] = {
+                "name": getattr(session, "name", sid),
+                "session_id": getattr(session, "session_id", ""),
+                "window_id": getattr(session, "window_id", None),
+                "booted": getattr(session, "booted", False),
+            }
+            tabs_info = getattr(session, "tabs", {})
+            if isinstance(tabs_info, dict):
+                result["tabs"] = [
+                    {"label": k, **v} for k, v in tabs_info.items()
+                ]
+
+        try:
+            tool_state = self._collect_mcp_state(
+                session=session, tab_label=tab_label,
+            )
+            result["state"] = tool_state or {}
+            result["ok"] = True
+        except Exception as exc:
+            result["state"] = {"error": str(exc)}
+
+        return result
+
+    def _collect_mcp_state(self, session=None,
+                           tab_label: str = "") -> Dict[str, Any]:
+        """Override in subclass to return tool-specific MCP state.
+
+        This is called by get_mcp_state(). Return a dict with whatever
+        state is relevant for the tool. For example, GOOGLE.GC returns
+        cell list, runtime status, etc.
+
+        Args:
+            session: The CDMCPSession object (or None).
+            tab_label: Optional tab label to focus on.
+
+        Returns:
+            Dict with tool-specific state.
+        """
+        return {}
+
+    def print_mcp_state(self, session_id: str = "",
+                        tab_label: str = "") -> None:
+        """Print a human-readable MCP state report."""
+        import json as _json
+        from logic.interface.config import get_color
+        BOLD = get_color("BOLD")
+        GREEN = get_color("GREEN")
+        BLUE = get_color("BLUE")
+        RED = get_color("RED")
+        YELLOW = get_color("YELLOW")
+        RESET = get_color("RESET")
+
+        state = self.get_mcp_state(session_id=session_id, tab_label=tab_label)
+
+        status = f"{GREEN}OK{RESET}" if state["ok"] else f"{RED}ERROR{RESET}"
+        print(f"  {BOLD}MCP State{RESET} [{self.tool_name}]: {status}")
+
+        sess = state.get("session")
+        if sess:
+            sid = sess.get("session_id", "?")[:8]
+            print(f"  {BOLD}Session{RESET}: {sess.get('name', '?')} [{sid}]"
+                  f"  window={sess.get('window_id', '?')}")
+        else:
+            print(f"  {BOLD}{YELLOW}Session{RESET}: None")
+
+        tabs = state.get("tabs", [])
+        if tabs:
+            print(f"  {BOLD}Tabs{RESET} ({len(tabs)}):")
+            for tab in tabs:
+                label = tab.get("label", "?")
+                st = tab.get("state", "?")
+                url = (tab.get("url", "") or "")[:60]
+                print(f"    {label}: {st} | {url}")
+
+        tool_state = state.get("state", {})
+        if tool_state:
+            print(f"  {BOLD}Tool State{RESET}:")
+            for k, v in tool_state.items():
+                if isinstance(v, list) and len(v) > 5:
+                    print(f"    {k}: [{len(v)} items]")
+                    for item in v[:5]:
+                        if isinstance(item, dict):
+                            summary = ", ".join(f"{kk}={vv}" for kk, vv in
+                                                list(item.items())[:3])
+                            print(f"      {summary}")
+                        else:
+                            print(f"      {item}")
+                    if len(v) > 5:
+                        print(f"      ... ({len(v) - 5} more)")
+                elif isinstance(v, dict):
+                    print(f"    {k}: {_json.dumps(v, ensure_ascii=False)}")
+                else:
+                    print(f"    {k}: {v}")

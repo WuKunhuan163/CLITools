@@ -14,6 +14,7 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
+from logic.tool.blueprint.mcp import MCPToolBase
 from logic.interface.config import get_color
 
 
@@ -37,6 +38,118 @@ def _get_colab_open_url() -> str:
             except Exception:
                 continue
     return ""
+
+
+class GCTool(MCPToolBase):
+    """GOOGLE.GC tool with Colab MCP state reporting."""
+
+    def __init__(self):
+        super().__init__("GOOGLE.GC", session_name="")
+
+    def _collect_mcp_state(self, session=None, tab_label: str = ""):
+        """Collect Google Colab notebook state via CDP."""
+        from tool.GOOGLE.logic.chrome.session import CDPSession, is_chrome_cdp_available
+        import json as _json
+
+        state = {
+            "cdp_available": False,
+            "colab_tab": None,
+            "cells": [],
+            "cell_count": 0,
+            "runtime": {"connected": False, "status": "unknown"},
+            "notebook": {"title": "", "url": ""},
+        }
+
+        if not is_chrome_cdp_available():
+            return state
+        state["cdp_available"] = True
+
+        tab_info = None
+        sm = self.session_mgr
+        if sm:
+            tab_info = sm.require_tab(
+                label="colab", url_pattern="colab.research.google.com",
+                auto_open=False, wait_sec=0,
+            )
+        if not tab_info:
+            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+            raw = find_colab_tab()
+            if raw:
+                tab_info = {"id": raw["id"], "url": raw.get("url", ""),
+                            "ws": raw.get("webSocketDebuggerUrl", "")}
+
+        if not tab_info or not tab_info.get("ws"):
+            return state
+
+        state["colab_tab"] = {
+            "id": tab_info.get("id", ""),
+            "url": tab_info.get("url", ""),
+        }
+
+        try:
+            cdp = CDPSession(tab_info["ws"], timeout=10)
+
+            full_state = cdp.evaluate('''
+                (function(){
+                    var out = {cells:[], runtime:{}, notebook:{}};
+                    // Notebook info
+                    out.notebook.title = document.title || '';
+                    out.notebook.url = window.location.href || '';
+
+                    // Cells
+                    var cells = [];
+                    try {
+                        cells = colab.global.notebook.cells;
+                    } catch(e) {}
+                    if (Array.isArray(cells)) {
+                        for (var i = 0; i < cells.length; i++) {
+                            var c = cells[i];
+                            var text = '';
+                            try { text = c.getText(); } catch(e){}
+                            var type = 'unknown';
+                            try { type = c.getType(); } catch(e){}
+                            var focused = false;
+                            try { focused = c.isFocused(); } catch(e){}
+                            out.cells.push({
+                                index: i,
+                                type: type,
+                                text: text.substring(0, 200),
+                                text_length: text.length,
+                                focused: focused
+                            });
+                        }
+                    }
+
+                    // Runtime status
+                    var conn = document.querySelector('colab-connect-button');
+                    if (conn) {
+                        out.runtime.button_text = (conn.textContent || '').trim().substring(0, 30);
+                        out.runtime.connected = out.runtime.button_text.toLowerCase().includes('connect') ?
+                            !out.runtime.button_text.toLowerCase().startsWith('connect') : true;
+                    }
+
+                    // Check for running cells
+                    var runningCells = document.querySelectorAll('.cell-execution.running');
+                    out.runtime.running_cells = runningCells.length;
+                    var pendingCells = document.querySelectorAll('.cell-execution.pending');
+                    out.runtime.pending_cells = pendingCells.length;
+
+                    return JSON.stringify(out);
+                })()
+            ''')
+
+            if full_state:
+                parsed = _json.loads(full_state)
+                state["cells"] = parsed.get("cells", [])
+                state["cell_count"] = len(state["cells"])
+                state["runtime"] = parsed.get("runtime", state["runtime"])
+                state["notebook"] = parsed.get("notebook", state["notebook"])
+
+            cdp.close()
+        except Exception as exc:
+            state["error"] = str(exc)
+
+        return state
 
 
 def _run_cell_action(tool, args):
@@ -663,8 +776,385 @@ def _run_cell_execute(tool, args):
     pm.run(ephemeral=True)
 
 
+def _colab_connect_stages():
+    """Return shared (state_dict, connect_fn, find_tab_fn) for Colab Turing machines."""
+    ctx = {"cdp": None, "overlay": None, "interact": None, "session_mgr": None}
+
+    def stage_connect(stage=None):
+        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
+        if not is_chrome_cdp_available():
+            if stage:
+                stage.error_brief = "Chrome CDP not available."
+            return False
+        try:
+            from logic.cdmcp_loader import (
+                load_cdmcp_overlay, load_cdmcp_interact, load_cdmcp_sessions,
+            )
+            ctx["overlay"] = load_cdmcp_overlay()
+            ctx["interact"] = load_cdmcp_interact()
+            ctx["session_mgr"] = load_cdmcp_sessions()
+        except Exception:
+            pass
+        return True
+
+    def stage_find_tab(stage=None):
+        from tool.GOOGLE.logic.chrome.session import CDPSession
+        sm = ctx["session_mgr"]
+        tab_info = None
+        if sm:
+            tab_info = sm.require_tab(
+                label="colab", url_pattern="colab.research.google.com",
+                open_url=_get_colab_open_url(), auto_open=True, wait_sec=12.0,
+            )
+        if not tab_info:
+            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+            raw = find_colab_tab()
+            if raw:
+                tab_info = {"id": raw["id"], "url": raw.get("url", ""),
+                            "ws": raw.get("webSocketDebuggerUrl", ""),
+                            "label": "colab", "recovered": False}
+        if not tab_info or not tab_info.get("ws"):
+            if stage:
+                stage.error_brief = "No Colab tab found."
+            return False
+        ctx["cdp"] = CDPSession(tab_info["ws"], timeout=15)
+        if ctx["overlay"]:
+            ctx["overlay"].inject_badge(ctx["cdp"], text="GC [colab]", color="#e8710a")
+            ctx["overlay"].inject_focus(ctx["cdp"], color="#e8710a")
+            ctx["overlay"].inject_lock(ctx["cdp"], tool_name="GC")
+        return True
+
+    def stage_cleanup(stage=None):
+        if ctx["overlay"] and ctx["cdp"]:
+            ctx["overlay"].remove_all_overlays(ctx["cdp"])
+        if ctx["cdp"]:
+            ctx["cdp"].close()
+        return True
+
+    return ctx, stage_connect, stage_find_tab, stage_cleanup
+
+
+def _run_cell_delete(tool, args):
+    """Handle 'GOOGLE.GC cell delete --index N'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    cell_idx = getattr(args, "index", -1)
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_delete(stage=None):
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+        interact = ctx["interact"]
+
+        cell_count = cdp.evaluate(
+            "(function(){ var c = colab.global.notebook.cells;"
+            " return Array.isArray(c) ? c.length : 0; })()"
+        )
+        total = int(cell_count or 0)
+        idx = cell_idx if cell_idx >= 0 else max(total - 1, 0)
+        if total == 0 or idx >= total:
+            if stage:
+                stage.error_brief = f"Cell {idx} not found ({total} cells)."
+            return False
+
+        sel = f".cell:nth-child({idx + 1})"
+        if ov:
+            ov.inject_highlight(cdp, sel, label=f"Delete cell [{idx}]", color="#ea4335")
+            time.sleep(0.8)
+
+        cdp.evaluate(
+            f"(function(){{ var nb = colab.global.notebook; var c = nb.cells;"
+            f" if(Array.isArray(c) && c.length > {idx}) nb.removeCells([c[{idx}]]); }})()"
+        )
+        if ov:
+            ov.remove_highlight(cdp)
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(0.5)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage(
+        "connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage(
+        "find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    _del_label = f"cell [{cell_idx}]" if cell_idx >= 0 else "last cell"
+    pm.add_stage(TuringStage(
+        "delete_cell", stage_delete,
+        active_status="Deleting", active_name=f"{_del_label}...",
+        success_status="Deleted", success_name=f"{_del_label}.",
+        fail_status="Failed to delete", fail_name=f"{_del_label}.",
+    ))
+    pm.add_stage(TuringStage(
+        "cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
+def _run_cell_move(tool, args):
+    """Handle 'GOOGLE.GC cell move --index N --direction up/down'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    cell_idx = getattr(args, "index", 0)
+    direction = getattr(args, "direction", "up")
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_move(stage=None):
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        cell_count = cdp.evaluate(
+            "(function(){ var c = colab.global.notebook.cells;"
+            " return Array.isArray(c) ? c.length : 0; })()"
+        )
+        total = int(cell_count or 0)
+        if total == 0 or cell_idx >= total:
+            if stage:
+                stage.error_brief = f"Cell {cell_idx} not found ({total} cells)."
+            return False
+
+        new_idx = cell_idx - 1 if direction == "up" else cell_idx + 1
+        if new_idx < 0 or new_idx >= total:
+            if stage:
+                stage.error_brief = f"Cannot move cell {cell_idx} {direction} (bounds)."
+            return False
+
+        sel = f".cell:nth-child({cell_idx + 1})"
+        if ov:
+            arrow = "^" if direction == "up" else "v"
+            ov.inject_highlight(cdp, sel,
+                                label=f"Move [{cell_idx}] {arrow}", color="#fbbc04")
+            time.sleep(0.8)
+
+        delta = -1 if direction == "up" else 1
+        cdp.evaluate(
+            f"(function(){{ var nb = colab.global.notebook;"
+            f" var c = nb.cells;"
+            f" if(Array.isArray(c) && c.length > {cell_idx})"
+            f" nb.moveCell([c[{cell_idx}]], {delta}, 0); }})()"
+        )
+        if ov:
+            ov.remove_highlight(cdp)
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(0.5)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage(
+        "connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage(
+        "find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage(
+        "move_cell", stage_move,
+        active_status="Moving", active_name=f"cell [{cell_idx}] {direction}...",
+        success_status="Moved", success_name=f"cell [{cell_idx}] {direction}.",
+        fail_status="Failed to move", fail_name=f"cell [{cell_idx}] {direction}.",
+    ))
+    pm.add_stage(TuringStage(
+        "cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
+def _run_runtime_action(tool, args):
+    """Handle 'GOOGLE.GC runtime <action>' — run-all, interrupt, restart."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    action = getattr(args, "rt_action", None) or "run-all"
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    _action_map = {
+        "run-all": {"text": "Run all", "label": "Run all cells", "color": "#34a853"},
+        "interrupt": {"text": "Interrupt execution", "label": "Interrupt execution", "color": "#ea4335"},
+        "restart": {"text": "Restart session", "label": "Restart session", "color": "#fbbc04"},
+    }
+    info = _action_map.get(action, _action_map["run-all"])
+
+    def stage_execute(stage=None):
+        cdp = ctx["cdp"]
+        interact = ctx["interact"]
+        ov = ctx["overlay"]
+
+        if interact:
+            interact.mcp_click(
+                cdp, "#runtime-menu-button",
+                label="Runtime menu", dwell=0.5,
+                color=info["color"], tool_name="GC",
+            )
+        else:
+            cdp.evaluate(
+                "(function(){ var rm = document.getElementById('runtime-menu-button');"
+                " if(rm) rm.click(); })()"
+            )
+        time.sleep(0.8)
+
+        menu_text = info["text"]
+        click_js = (
+            f"(function(){{ var items = document.querySelectorAll('[role=menuitem]');"
+            f" for(var i=0; i<items.length; i++){{"
+            f"   if(items[i].textContent.trim().startsWith('{menu_text}'))"
+            f"     {{ items[i].click(); return 'clicked'; }}"
+            f" }} return 'not_found'; }})()"
+        )
+        result = cdp.evaluate(click_js)
+        if result != "clicked":
+            cdp.evaluate("document.body.click()")
+            if stage:
+                stage.error_brief = f"Menu item '{menu_text}' not found."
+            return False
+
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(1.5)
+
+        if action == "restart":
+            cdp.evaluate(
+                "(function(){ var ok = document.querySelector('[data-id=ok]');"
+                " if(ok) ok.click(); })()"
+            )
+            time.sleep(1)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage(
+        "connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage(
+        "find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage(
+        "execute", stage_execute,
+        active_status="Executing", active_name=f"{info['label']}...",
+        success_status="Executed", success_name=f"{info['label']}.",
+        fail_status="Failed:", fail_name=f"{info['label']}.",
+    ))
+    pm.add_stage(TuringStage(
+        "cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
+def _run_notebook_action(tool, args):
+    """Handle 'GOOGLE.GC notebook <action>' — save, clear-outputs."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    action = getattr(args, "nb_action", None) or "save"
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    _action_map = {
+        "save": {"label": "Save notebook", "color": "#1a73e8"},
+        "clear-outputs": {"label": "Clear all outputs", "color": "#e8710a",
+                          "menu": "edit-menu-button", "text": "Clear all outputs"},
+    }
+    info = _action_map.get(action, _action_map["save"])
+
+    def stage_execute(stage=None):
+        cdp = ctx["cdp"]
+        interact = ctx["interact"]
+        ov = ctx["overlay"]
+
+        if action == "save":
+            cdp.evaluate(
+                "(function(){"
+                " document.dispatchEvent(new KeyboardEvent('keydown',"
+                " {key:'s',code:'KeyS',ctrlKey:true,metaKey:true,bubbles:true}));"
+                "})()"
+            )
+        else:
+            menu_btn = info.get("menu", "edit-menu-button")
+            menu_text = info.get("text", "")
+            if interact:
+                interact.mcp_click(
+                    cdp, f"#{menu_btn}",
+                    label="Edit menu", dwell=0.5,
+                    color=info["color"], tool_name="GC",
+                )
+            else:
+                cdp.evaluate(
+                    f"(function(){{ var m = document.getElementById('{menu_btn}');"
+                    f" if(m) m.click(); }})()"
+                )
+            time.sleep(0.8)
+            cdp.evaluate(
+                f"(function(){{ var items = document.querySelectorAll('[role=menuitem]');"
+                f" for(var i=0;i<items.length;i++){{"
+                f"   if(items[i].textContent.trim().startsWith('{menu_text}'))"
+                f"     {{ items[i].click(); return; }}"
+                f" }} }})()"
+            )
+            time.sleep(0.8)
+
+        if ov:
+            ov.inject_highlight(cdp, "body", label=info["label"], color=info["color"])
+            time.sleep(0.6)
+            ov.remove_highlight(cdp)
+            ov.increment_mcp_count(cdp, 1)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage(
+        "connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage(
+        "find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage(
+        "execute", stage_execute,
+        active_status="Executing", active_name=f"{info['label']}...",
+        success_status="Completed", success_name=f"{info['label']}.",
+        fail_status="Failed:", fail_name=f"{info['label']}.",
+    ))
+    pm.add_stage(TuringStage(
+        "cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
 def main():
-    tool = ToolBase("GOOGLE.GC")
+    tool = GCTool()
 
     parser = argparse.ArgumentParser(
         description="Google Colab automation via CDP", add_help=False
@@ -673,6 +1163,12 @@ def main():
 
     # GOOGLE.GC status
     subparsers.add_parser("status", help="Check Colab tab and CDP availability")
+
+    # GOOGLE.GC state [--session SESSION_ID] [--tab TAB_LABEL]
+    state_p = subparsers.add_parser("state", help="Report MCP state of Colab notebook")
+    state_p.add_argument("--session", default="", help="Session ID to query")
+    state_p.add_argument("--tab", default="", help="Tab label to focus on")
+    state_p.add_argument("--json", action="store_true", help="Output as JSON")
 
     # GOOGLE.GC inject <code>
     inj_p = subparsers.add_parser("inject", help="Inject and execute code in Colab")
@@ -711,6 +1207,28 @@ def main():
     cell_run.add_argument("--index", type=int, default=0, help="Cell index (0-based)")
     cell_run.add_argument("--wait", type=int, default=120, help="Max wait seconds")
 
+    cell_del = cell_sub.add_parser("delete", help="Delete a cell with MCP visual effects")
+    cell_del.add_argument("--index", type=int, default=-1,
+                          help="Cell index to delete (0-based, default: last)")
+
+    cell_move = cell_sub.add_parser("move", help="Move a cell up or down")
+    cell_move.add_argument("--index", type=int, default=0, help="Cell index (0-based)")
+    cell_move.add_argument("--direction", choices=["up", "down"], required=True,
+                           help="Direction to move the cell")
+
+    # GOOGLE.GC runtime <action>
+    rt_p = subparsers.add_parser("runtime", help="Control Colab runtime via MCP")
+    rt_sub = rt_p.add_subparsers(dest="rt_action", help="Runtime action")
+    rt_run_all = rt_sub.add_parser("run-all", help="Run all cells")
+    rt_interrupt = rt_sub.add_parser("interrupt", help="Interrupt execution")
+    rt_restart = rt_sub.add_parser("restart", help="Restart runtime session")
+
+    # GOOGLE.GC notebook <action>
+    nb_p = subparsers.add_parser("notebook", help="Notebook-level operations via MCP")
+    nb_sub = nb_p.add_subparsers(dest="nb_action", help="Notebook action")
+    nb_save = nb_sub.add_parser("save", help="Save notebook")
+    nb_clear = nb_sub.add_parser("clear-outputs", help="Clear all cell outputs")
+
     # GOOGLE.GC reopen
     subparsers.add_parser("reopen", help="Reopen the configured Colab notebook tab")
 
@@ -731,7 +1249,22 @@ def main():
     from tool.GOOGLE.logic.chrome.colab import find_colab_tab, reopen_colab_tab, inject_and_execute
     from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_tabs
 
-    if args.command == "status":
+    if args.command == "state":
+        if getattr(args, "json", False):
+            import json as _json
+            state = tool.get_mcp_state(
+                session_id=getattr(args, "session", ""),
+                tab_label=getattr(args, "tab", ""),
+            )
+            print(_json.dumps(state, indent=2, ensure_ascii=False, default=str))
+        else:
+            tool.print_mcp_state(
+                session_id=getattr(args, "session", ""),
+                tab_label=getattr(args, "tab", ""),
+            )
+        return
+
+    elif args.command == "status":
         cdp_ok = is_chrome_cdp_available()
         tab = find_colab_tab() if cdp_ok else None
         if cdp_ok and tab:
@@ -765,8 +1298,18 @@ def main():
             _run_cell_edit(tool, args)
         elif action == "run":
             _run_cell_execute(tool, args)
+        elif action == "delete":
+            _run_cell_delete(tool, args)
+        elif action == "move":
+            _run_cell_move(tool, args)
         else:
             _run_cell_action(tool, args)
+
+    elif args.command == "runtime":
+        _run_runtime_action(tool, args)
+
+    elif args.command == "notebook":
+        _run_notebook_action(tool, args)
 
     elif args.command == "reopen":
         tab = reopen_colab_tab(
