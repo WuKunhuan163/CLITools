@@ -13,20 +13,24 @@ Run pre-flight checks before:
 - Operations requiring external services (Chrome CDP, API calls)
 - Operations that can't be easily undone
 
-## The Pre-flight Pattern
+## Infrastructure
+
+The core `preflight()` function and common checks are available as reusable infrastructure:
 
 ```python
-def preflight(checks):
-    """Run a list of (name, check_func) pairs. Returns (ok, failures)."""
-    failures = []
-    for name, check in checks:
-        try:
-            result = check()
-            if not result:
-                failures.append(name)
-        except Exception as e:
-            failures.append(f"{name}: {e}")
-    return len(failures) == 0, failures
+from logic.utils.preflight import preflight, check_command_exists, check_path_exists, check_port_available
+
+ok, failures = preflight([
+    ("Chrome available", lambda: check_command_exists("google-chrome")),
+    ("Output dir exists", lambda: check_path_exists("/tmp/output")),
+    ("Port 9222 free", lambda: check_port_available(9222)),
+])
+```
+
+Also importable from `logic.utils`:
+
+```python
+from logic.utils import preflight, check_command_exists, check_path_exists, check_port_available
 ```
 
 ## Standard Check Categories

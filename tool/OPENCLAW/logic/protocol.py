@@ -224,6 +224,14 @@ def build_system_prompt(project_summary: str) -> str:
         project_summary,
         "",
 
+        "## Continuous Improvement",
+        "Periodically audit skills for infrastructure conversion potential:",
+        "- If a skill describes a reusable pattern (retry, preflight, cleanup), check if logic/utils/ already has it.",
+        "- If a skill's code examples are frequently copied, extract them into a utility function.",
+        "- Run TOOL audit code periodically to check for dead code and unused imports.",
+        "- Use TOOL --search skills \"keyword\" to find relevant patterns before writing new code.",
+        "",
+
         "## Execution Rules (MANDATORY)",
         "1. FIRST: Search for relevant tools and past lessons.",
         "2. Plan before executing. Break complex tasks into steps.",

@@ -1,5 +1,5 @@
 # Backward-compatible re-exports: `from logic.utils import X` still works.
-# Submodules: cleanup, display, logging, progress, system, timezone
+# Submodules: cleanup, display, fuzzy, logging, preflight, progress, system, timezone
 
 from logic.utils.cleanup import cleanup_old_files, cleanup_project_patterns
 from logic.utils.display import (
@@ -23,3 +23,4 @@ from logic.utils.system import (
 )
 from logic.utils.timezone import get_current_timezone, resolve_timezone
 from logic.utils.fuzzy import suggest_commands, suggest_with_scores, format_suggestion
+from logic.utils.preflight import preflight, check_command_exists, check_path_exists, check_port_available

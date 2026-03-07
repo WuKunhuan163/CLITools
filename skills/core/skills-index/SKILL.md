@@ -47,16 +47,18 @@ Ensuring correctness, consistency, and coverage.
 
 ## Framework Infrastructure
 
-Internal systems powering the framework.
+Internal systems powering the framework. Items marked with `[infra]` have callable code in `logic/`.
 
-| Skill | Purpose |
-|-------|---------|
-| `localization` | Multi-language `_()` helper, translation files, audits |
-| `record-cache` | Caching patterns, `data/` directory conventions |
-| `retention-rotation` | Limit + delete-half strategy for logs, caches, and files |
-| `session-debug-log` | `tool.log()`, SessionLogger, debug file techniques |
-| `setup-tutorial-creation` | TutorialWindow multi-step GUI wizards |
-| `turing-machine-development` | TuringStage, progress pipelines, parallel workers |
+| Skill | Purpose | Infrastructure |
+|-------|---------|----------------|
+| `localization` | Multi-language `_()` helper, translation files, audits | `TOOL --lang audit` |
+| `record-cache` | Caching patterns, `data/` directory conventions | `logic/audit/utils.py` |
+| `retention-rotation` | Limit + delete-half strategy for logs, caches, and files | `logic.utils.cleanup_old_files()` |
+| `session-debug-log` | `tool.log()`, SessionLogger, debug file techniques | `logic.utils.SessionLogger` |
+| `setup-tutorial-creation` | TutorialWindow multi-step GUI wizards | `logic.gui.tkinter.TutorialWindow` |
+| `turing-machine-development` | TuringStage, progress pipelines, parallel workers | `logic.turing.*` |
+| `preflight-checks` | Validate prerequisites before risky operations | `logic.utils.preflight()` |
+| `error-recovery-patterns` | Retry, fallback, partial failure handling | `logic.utils.retry()` |
 
 ## MCP & Browser Automation
 

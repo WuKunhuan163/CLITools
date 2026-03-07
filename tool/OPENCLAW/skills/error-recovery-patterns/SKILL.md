@@ -11,21 +11,17 @@ Apply these patterns whenever executing multi-step or network-dependent operatio
 
 ## Pattern 1: Retry with Backoff
 
-For transient failures (network timeouts, rate limits, temporary unavailability):
+**Infrastructure**: Use the built-in `retry` decorator from `logic.utils.progress`:
 
 ```python
-import time
+from logic.utils import retry
 
-def retry_with_backoff(func, max_retries=3, base_delay=1.0):
-    for attempt in range(max_retries):
-        try:
-            return func()
-        except Exception as e:
-            if attempt == max_retries - 1:
-                raise
-            delay = base_delay * (2 ** attempt)
-            time.sleep(delay)
+@retry(max_attempts=3, backoff=1.0, retryable_exceptions=(ConnectionError, TimeoutError))
+def call_api():
+    return requests.get(url)
 ```
+
+The decorator also handles HTTP status code retries (500, 502, 503, 504 by default).
 
 When to use: API calls, network requests, CDP operations.
 When NOT to use: Auth failures (retrying won't help), invalid input.

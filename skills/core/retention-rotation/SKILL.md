@@ -19,7 +19,19 @@ triggers:
 
 When a collection of files or entries reaches a configured limit, **delete the oldest half** in one batch. This amortizes cleanup cost — each item is only touched twice across its lifetime (created once, deleted once), giving O(1) amortized cost per item.
 
-### Reference Implementation
+### Infrastructure
+
+**Use the built-in `cleanup_old_files` function**:
+
+```python
+from logic.utils import cleanup_old_files
+
+cleanup_old_files("/path/to/logs", pattern="*.log", limit=100)
+```
+
+This function applies the "limit + delete half" pattern automatically.
+
+### Reference Implementation (for custom cases)
 
 `logic/git/persistence.py` — `GitPersistenceManager._cleanup_old_caches`:
 
