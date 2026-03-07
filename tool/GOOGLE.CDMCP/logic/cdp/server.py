@@ -12,6 +12,7 @@ from typing import Optional, Tuple
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 _CHAT_HTML = _TOOL_DIR / "data" / "chat_app.html"
+_WELCOME_HTML = _TOOL_DIR / "data" / "welcome.html"
 
 _server_instance: Optional[http.server.HTTPServer] = None
 _server_port: Optional[int] = None
@@ -26,16 +27,20 @@ def _find_free_port() -> int:
 
 class _ChatHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path in ("/", "/index.html", "/chat"):
+        path = self.path.split("?")[0]
+        if path in ("/", "/index.html", "/chat"):
             content = _CHAT_HTML.read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
+        elif path == "/welcome":
+            content = _WELCOME_HTML.read_bytes()
         else:
             self.send_response(404)
             self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
 
     def log_message(self, format, *args):
         pass

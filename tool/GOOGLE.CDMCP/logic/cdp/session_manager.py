@@ -60,6 +60,8 @@ class CDMCPSession:
         self.lifetime_tab_url: Optional[str] = None
         self._cdp: Optional[CDPSession] = None
         self._booted = False
+        self.tab_was_recovered = False
+        self.window_id: Optional[int] = None
 
     def boot(self, url: str, new_window: bool = True) -> Dict[str, Any]:
         """Boot the session by opening a new tab as the lifetime anchor.
@@ -103,13 +105,18 @@ class CDMCPSession:
         self._connect(tab)
         self._booted = True
         self.touch()
-        _log_session("booted", self.name, f"tabId={self.lifetime_tab_id}")
+
+        # Capture the window ID for this session
+        self._capture_window_id(tab)
+        _log_session("booted", self.name,
+                     f"tabId={self.lifetime_tab_id} windowId={self.window_id}")
 
         return {
             "ok": True,
             "session_id": self.session_id,
             "name": self.name,
             "tabId": self.lifetime_tab_id,
+            "windowId": self.window_id,
             "url": url,
         }
 
@@ -146,6 +153,51 @@ class CDMCPSession:
             return tab.get("id") if tab else None
         return None
 
+    def _capture_window_id(self, tab: Dict[str, Any]):
+        """Discover and store the Chrome window ID for this session's tab."""
+        ws = tab.get("webSocketDebuggerUrl")
+        if not ws:
+            return
+        try:
+            s = CDPSession(ws, timeout=5)
+            result = s.send_and_recv("Browser.getWindowForTarget", {})
+            wid = (result or {}).get("result", {}).get("windowId")
+            if wid:
+                self.window_id = wid
+            s.close()
+        except Exception:
+            pass
+
+    def open_tab_in_session(self, url: str) -> Optional[str]:
+        """Open a new tab inside this session's window (not a new window).
+
+        Returns the CDP target ID of the new tab, or None on failure.
+        """
+        if not self.window_id:
+            return self._open_in_existing_window(url)
+
+        import urllib.request
+        try:
+            ver_url = f"http://localhost:{self.port}/json/version"
+            with urllib.request.urlopen(ver_url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            browser_ws = data.get("webSocketDebuggerUrl")
+            if not browser_ws:
+                return None
+            bs = CDPSession(browser_ws, timeout=10)
+            result = bs.send_and_recv("Target.createTarget", {
+                "url": url,
+                "newWindow": False,
+                "windowId": self.window_id,
+            })
+            bs.close()
+            if not result:
+                return None
+            inner = result.get("result", result)
+            return inner.get("targetId")
+        except Exception:
+            return self._open_in_existing_window(url)
+
     def _connect(self, tab: Dict[str, Any]) -> bool:
         """Establish a CDP WebSocket connection to the lifetime tab."""
         ws = tab.get("webSocketDebuggerUrl")
@@ -164,11 +216,15 @@ class CDMCPSession:
             return False
 
     def ensure_tab(self) -> bool:
-        """Ensure the lifetime tab is still alive; reopen if needed."""
+        """Ensure the lifetime tab is still alive; reopen if needed.
+
+        Returns True if the tab exists (either already or after reopening).
+        Sets self.tab_was_recovered to True when a reopen was needed.
+        """
+        self.tab_was_recovered = False
         if not self.lifetime_tab_url:
             return False
 
-        # Check if the tab still exists
         if self.lifetime_tab_id:
             for tab in list_tabs(self.port):
                 if tab.get("id") == self.lifetime_tab_id:
@@ -176,17 +232,28 @@ class CDMCPSession:
                         self._connect(tab)
                     return True
 
-        # Tab is gone — reopen
-        _log_session("tab_lost", self.name, "Reopening...")
-        if not open_tab(self.lifetime_tab_url, self.port):
-            return False
+        _log_session("tab_lost", self.name, "Reopening in new window...")
+        tab_id = self._open_in_new_window(self.lifetime_tab_url)
+        if not tab_id:
+            if not open_tab(self.lifetime_tab_url, self.port):
+                return False
 
         time.sleep(1.5)
-        domain = self.lifetime_tab_url.split("//")[-1].split("/")[0] if "//" in self.lifetime_tab_url else self.lifetime_tab_url
-        tab = find_tab(domain, port=self.port)
+
+        tab = None
+        if tab_id:
+            for t in list_tabs(self.port):
+                if t.get("id") == tab_id:
+                    tab = t
+                    break
+        if not tab:
+            domain = self.lifetime_tab_url.split("//")[-1].split("/")[0] if "//" in self.lifetime_tab_url else self.lifetime_tab_url
+            tab = find_tab(domain, port=self.port)
+
         if tab:
             self.lifetime_tab_id = tab.get("id")
             self._connect(tab)
+            self.tab_was_recovered = True
             _log_session("tab_reopened", self.name, f"tabId={self.lifetime_tab_id}")
             return True
         return False
@@ -226,6 +293,7 @@ class CDMCPSession:
             "booted": self._booted,
             "lifetime_tab_id": self.lifetime_tab_id,
             "lifetime_tab_url": self.lifetime_tab_url,
+            "window_id": self.window_id,
             "timeout_sec": self.timeout_sec,
             "last_activity": self.last_activity,
             "expired": self.is_expired(),

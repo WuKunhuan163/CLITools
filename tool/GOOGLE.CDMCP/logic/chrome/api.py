@@ -315,8 +315,8 @@ def cleanup_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
-def run_demo(port: int = CDP_PORT, delay: float = 1.5,
-             continuous: bool = False) -> Dict[str, Any]:
+def run_demo(port: int = CDP_PORT, delay: float = 1.2,
+             continuous: bool = True) -> Dict[str, Any]:
     demo_mod = _load_mod("cdmcp_demo", _DEMO_PATH)
     return demo_mod.run_demo(port=port, delay=delay, continuous=continuous)
 

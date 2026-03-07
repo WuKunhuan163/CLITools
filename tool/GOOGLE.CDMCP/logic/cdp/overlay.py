@@ -445,3 +445,336 @@ def activate_tab(tab_id: str, port: int = CDP_PORT) -> bool:
         return True
     except Exception:
         return False
+
+
+# ---------------------------------------------------------------------------
+# Tab pinning via extension chrome.tabs API
+# ---------------------------------------------------------------------------
+
+def _get_browser_ws(port: int = CDP_PORT) -> Optional[str]:
+    """Get the browser-level WebSocket URL."""
+    import urllib.request
+    try:
+        ver_url = f"http://localhost:{port}/json/version"
+        with urllib.request.urlopen(ver_url, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        return data.get("webSocketDebuggerUrl")
+    except Exception:
+        return None
+
+
+def _find_extension_with_tabs(port: int = CDP_PORT) -> Optional[Dict[str, str]]:
+    """Find a service worker extension target that has chrome.tabs access.
+
+    Returns dict with 'targetId' and 'url' if found, else None.
+    Caches the result for the session.
+    """
+    import websocket as _ws
+    browser_ws = _get_browser_ws(port)
+    if not browser_ws:
+        return None
+
+    ws = _ws.create_connection(browser_ws, timeout=10)
+    msg_id = [1]
+
+    def send(method, params=None, sid=None):
+        msg = {"id": msg_id[0], "method": method}
+        if params:
+            msg["params"] = params
+        if sid:
+            msg["sessionId"] = sid
+        ws.send(json.dumps(msg))
+        msg_id[0] += 1
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            resp = json.loads(ws.recv())
+            if resp.get("id") == msg_id[0] - 1:
+                return resp
+        return None
+
+    try:
+        result = send("Target.getTargets")
+        targets = result.get("result", {}).get("targetInfos", [])
+
+        for t in targets:
+            if t.get("type") != "service_worker":
+                continue
+            if not t.get("url", "").startswith("chrome-extension://"):
+                continue
+
+            tid = t["targetId"]
+            attach = send("Target.attachToTarget", {"targetId": tid, "flatten": True})
+            sid = (attach or {}).get("result", {}).get("sessionId")
+            if not sid:
+                continue
+
+            probe = send("Runtime.evaluate", {
+                "expression": "(async()=>{try{await chrome.tabs.query({});return 'ok';}catch(e){return 'no';}})()",
+                "returnByValue": True,
+                "awaitPromise": True,
+            }, sid=sid)
+            val = (probe or {}).get("result", {}).get("result", {}).get("value")
+
+            send("Target.detachFromTarget", {"sessionId": sid})
+
+            if val == "ok":
+                return {"targetId": tid, "url": t.get("url", "")}
+    except Exception:
+        pass
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+    return None
+
+
+_CACHED_EXT_TARGET: Optional[Dict[str, str]] = None
+
+
+def pin_tab(chrome_tab_id: int, pinned: bool = True, port: int = CDP_PORT) -> bool:
+    """Pin or unpin a tab using an extension's chrome.tabs API.
+
+    Args:
+        chrome_tab_id: The Chrome-internal tab ID (integer from chrome.tabs).
+        pinned: True to pin, False to unpin.
+        port: CDP debug port.
+
+    Returns True on success.
+    """
+    global _CACHED_EXT_TARGET
+    import websocket as _ws
+
+    if _CACHED_EXT_TARGET is None:
+        _CACHED_EXT_TARGET = _find_extension_with_tabs(port)
+    ext = _CACHED_EXT_TARGET
+    if not ext:
+        return False
+
+    browser_ws = _get_browser_ws(port)
+    if not browser_ws:
+        return False
+
+    ws = _ws.create_connection(browser_ws, timeout=10)
+    msg_id = [1]
+
+    def send(method, params=None, sid=None):
+        msg = {"id": msg_id[0], "method": method}
+        if params:
+            msg["params"] = params
+        if sid:
+            msg["sessionId"] = sid
+        ws.send(json.dumps(msg))
+        msg_id[0] += 1
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            resp = json.loads(ws.recv())
+            if resp.get("id") == msg_id[0] - 1:
+                return resp
+        return None
+
+    try:
+        attach = send("Target.attachToTarget", {"targetId": ext["targetId"], "flatten": True})
+        sid = (attach or {}).get("result", {}).get("sessionId")
+        if not sid:
+            _CACHED_EXT_TARGET = None
+            return False
+
+        pin_str = "true" if pinned else "false"
+        expr = (
+            f"(async()=>{{try{{const t=await chrome.tabs.update({chrome_tab_id},"
+            f"{{pinned:{pin_str}}});return JSON.stringify({{ok:true,pinned:t.pinned}});}}"
+            f"catch(e){{return JSON.stringify({{ok:false,error:e.message}});}}}})() "
+        )
+        result = send("Runtime.evaluate", {
+            "expression": expr,
+            "returnByValue": True,
+            "awaitPromise": True,
+        }, sid=sid)
+
+        send("Target.detachFromTarget", {"sessionId": sid})
+
+        val = (result or {}).get("result", {}).get("result", {}).get("value", "{}")
+        parsed = json.loads(val)
+        return parsed.get("ok", False)
+    except Exception:
+        return False
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+
+def get_chrome_tab_id(cdp_target_id: str, port: int = CDP_PORT) -> Optional[int]:
+    """Map a CDP target ID to a Chrome-internal tab ID (used by chrome.tabs API).
+
+    Returns the integer tab ID, or None if not found.
+    """
+    global _CACHED_EXT_TARGET
+    import websocket as _ws
+
+    if _CACHED_EXT_TARGET is None:
+        _CACHED_EXT_TARGET = _find_extension_with_tabs(port)
+    ext = _CACHED_EXT_TARGET
+    if not ext:
+        return None
+
+    browser_ws = _get_browser_ws(port)
+    if not browser_ws:
+        return None
+
+    ws = _ws.create_connection(browser_ws, timeout=10)
+    msg_id = [1]
+
+    def send(method, params=None, sid=None):
+        msg = {"id": msg_id[0], "method": method}
+        if params:
+            msg["params"] = params
+        if sid:
+            msg["sessionId"] = sid
+        ws.send(json.dumps(msg))
+        msg_id[0] += 1
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            resp = json.loads(ws.recv())
+            if resp.get("id") == msg_id[0] - 1:
+                return resp
+        return None
+
+    try:
+        attach = send("Target.attachToTarget", {"targetId": ext["targetId"], "flatten": True})
+        sid = (attach or {}).get("result", {}).get("sessionId")
+        if not sid:
+            return None
+
+        all_tabs = list_tabs(port=port)
+        target_tab = None
+        for tab in all_tabs:
+            if tab.get("id") == cdp_target_id:
+                target_tab = tab
+                break
+        if not target_tab:
+            return None
+
+        target_url = target_tab.get("url", "")
+        target_title = target_tab.get("title", "")
+
+        expr = (
+            "(async()=>{const tabs=await chrome.tabs.query({});"
+            "return JSON.stringify(tabs.map(t=>({id:t.id,url:(t.url||''),title:(t.title||'')})));})()"
+        )
+        result = send("Runtime.evaluate", {
+            "expression": expr,
+            "returnByValue": True,
+            "awaitPromise": True,
+        }, sid=sid)
+
+        send("Target.detachFromTarget", {"sessionId": sid})
+
+        val = (result or {}).get("result", {}).get("result", {}).get("value", "[]")
+        chrome_tabs = json.loads(val)
+
+        for ct in chrome_tabs:
+            if ct.get("url") == target_url and ct.get("title") == target_title:
+                return ct["id"]
+
+        for ct in chrome_tabs:
+            if ct.get("url") == target_url:
+                return ct["id"]
+
+        return None
+    except Exception:
+        return None
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+
+def pin_tab_by_target_id(cdp_target_id: str, pinned: bool = True,
+                          port: int = CDP_PORT) -> bool:
+    """Pin/unpin a tab by CDP target ID in a single WS session (fast path).
+
+    Combines tab ID resolution and pinning into one WebSocket connection
+    to minimize latency.
+    """
+    global _CACHED_EXT_TARGET
+    import websocket as _ws
+
+    if _CACHED_EXT_TARGET is None:
+        _CACHED_EXT_TARGET = _find_extension_with_tabs(port)
+    ext = _CACHED_EXT_TARGET
+    if not ext:
+        return False
+
+    browser_ws = _get_browser_ws(port)
+    if not browser_ws:
+        return False
+
+    target_tab = None
+    for tab in list_tabs(port=port):
+        if tab.get("id") == cdp_target_id:
+            target_tab = tab
+            break
+    if not target_tab:
+        return False
+
+    target_url = target_tab.get("url", "")
+    target_title = target_tab.get("title", "")
+    pin_str = "true" if pinned else "false"
+
+    ws = _ws.create_connection(browser_ws, timeout=10)
+    msg_id = [1]
+
+    def send(method, params=None, sid=None):
+        msg = {"id": msg_id[0], "method": method}
+        if params:
+            msg["params"] = params
+        if sid:
+            msg["sessionId"] = sid
+        ws.send(json.dumps(msg))
+        msg_id[0] += 1
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            resp = json.loads(ws.recv())
+            if resp.get("id") == msg_id[0] - 1:
+                return resp
+        return None
+
+    try:
+        attach = send("Target.attachToTarget", {"targetId": ext["targetId"], "flatten": True})
+        sid = (attach or {}).get("result", {}).get("sessionId")
+        if not sid:
+            _CACHED_EXT_TARGET = None
+            return False
+
+        # Resolve + pin in one shot
+        expr = (
+            f"(async()=>{{try{{"
+            f"const tabs=await chrome.tabs.query({{}});"
+            f"const t=tabs.find(t=>t.url==={json.dumps(target_url)});"
+            f"if(!t)return JSON.stringify({{ok:false,error:'tab not found'}});"
+            f"const u=await chrome.tabs.update(t.id,{{pinned:{pin_str}}});"
+            f"return JSON.stringify({{ok:true,pinned:u.pinned,id:u.id}});"
+            f"}}catch(e){{return JSON.stringify({{ok:false,error:e.message}});}}}})() "
+        )
+        result = send("Runtime.evaluate", {
+            "expression": expr,
+            "returnByValue": True,
+            "awaitPromise": True,
+        }, sid=sid)
+
+        send("Target.detachFromTarget", {"sessionId": sid})
+
+        val = (result or {}).get("result", {}).get("result", {}).get("value", "{}")
+        parsed = json.loads(val)
+        return parsed.get("ok", False)
+    except Exception:
+        return False
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass

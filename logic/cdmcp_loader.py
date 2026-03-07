@@ -22,6 +22,8 @@ _INTERFACE_PATH = _CDMCP_DIR / "logic" / "interface" / "main.py"
 _OVERLAY_PATH = _CDMCP_DIR / "logic" / "cdp" / "overlay.py"
 _SESSION_PATH = _CDMCP_DIR / "logic" / "cdp" / "session_manager.py"
 _SERVER_PATH = _CDMCP_DIR / "logic" / "cdp" / "server.py"
+_INTERACT_PATH = _CDMCP_DIR / "logic" / "cdp" / "interact.py"
+_DEMO_STATE_PATH = _CDMCP_DIR / "logic" / "cdp" / "demo_state.py"
 
 
 def _load(name: str, path: Path):
@@ -51,3 +53,13 @@ def load_cdmcp_sessions():
 def load_cdmcp_server():
     """Load the local HTTP server module."""
     return _load("cdmcp_server", _SERVER_PATH)
+
+
+def load_cdmcp_interact():
+    """Load the MCP interaction interfaces module."""
+    return _load("cdmcp_interact", _INTERACT_PATH)
+
+
+def load_cdmcp_demo_state():
+    """Load the demo state machine module."""
+    return _load("cdmcp_demo_state", _DEMO_STATE_PATH)

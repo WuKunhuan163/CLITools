@@ -91,10 +91,10 @@ class CDMCPTool(ToolBase):
                                help="Session timeout in seconds (default 86400)")
 
         p_demo = sub.add_parser("demo", help="Run interactive demo on Chat app")
-        p_demo.add_argument("--delay", type=float, default=1.5,
+        p_demo.add_argument("--delay", type=float, default=1.2,
                             help="Delay between steps (seconds)")
-        p_demo.add_argument("--loop", action="store_true",
-                            help="Run continuously, cycling through contacts/messages")
+        p_demo.add_argument("--single", action="store_true",
+                            help="Run single interaction only (default is continuous)")
 
         if self.handle_command_line(parser):
             return
@@ -240,7 +240,7 @@ class CDMCPTool(ToolBase):
                     print(f"  {BOLD}{RED}Not found{RESET}: session '{args.name}'")
 
         elif args.command == "demo":
-            r = api.run_demo(delay=args.delay, continuous=args.loop)
+            r = api.run_demo(delay=args.delay, continuous=not args.single)
             if r.get("ok"):
                 print(f"\n  {BOLD}{GREEN}Demo completed successfully{RESET}.")
             else:

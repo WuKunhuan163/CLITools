@@ -21,6 +21,12 @@ inject_highlight = _mod.inject_highlight
 remove_highlight = _mod.remove_highlight
 inject_all_overlays = _mod.inject_all_overlays
 remove_all_overlays = _mod.remove_all_overlays
+inject_favicon = _mod.inject_favicon
+activate_tab = _mod.activate_tab
+set_lock_passthrough = _mod.set_lock_passthrough
+pin_tab = _mod.pin_tab
+pin_tab_by_target_id = _mod.pin_tab_by_target_id
+get_chrome_tab_id = _mod.get_chrome_tab_id
 
 CDMCP_OVERLAY_ID = _mod.CDMCP_OVERLAY_ID
 CDMCP_LOCK_ID = _mod.CDMCP_LOCK_ID

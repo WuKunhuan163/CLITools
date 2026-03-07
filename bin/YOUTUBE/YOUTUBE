@@ -1,0 +1,4 @@
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+exec "$PROJECT_ROOT/tool/PYTHON/data/install/3.11.14-macos-arm64/install/bin/python3" "$PROJECT_ROOT/tool/YOUTUBE/main.py" "$@"
