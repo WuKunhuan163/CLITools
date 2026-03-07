@@ -422,6 +422,7 @@ class OpenClawCLI:
             from logic.turing.multiline_input import multiline_input
             text = multiline_input(
                 prompt=f"\n{self._IDLE} ",
+                continuation="\u2551 ",
                 placeholder=_("input_placeholder",
                               "Type here, Ctrl+D to submit."),
                 submit_color=BLUE,
@@ -467,6 +468,8 @@ class OpenClawCLI:
         """Rewrite the prompt line(s) to show ■ (red, failed)."""
         self._rewrite_submitted(text, RED)
 
+    _CONT_RUN = "\u2503"  # ┃ heavy vertical for running state
+
     def _rewrite_submitted(self, text: str, color: str):
         """Rewrite all lines of submitted text with the ■ indicator."""
         text_lines = text.split('\n')
@@ -476,7 +479,7 @@ class OpenClawCLI:
             if i == 0:
                 pfx = f"{color}{self._ACTIVE}{RESET} " if color else f"{self._ACTIVE} "
             else:
-                pfx = "  "
+                pfx = f"{color}{self._CONT_RUN}{RESET} " if color else f"{self._CONT_RUN} "
             sys.stdout.write(f"\033[K{pfx}{line}\n")
         sys.stdout.flush()
 
@@ -490,7 +493,7 @@ class OpenClawCLI:
             if i == 0:
                 sys.stdout.write(f"\033[K{color}{self._ACTIVE}{RESET} {line}\n")
             else:
-                sys.stdout.write(f"\033[K  {line}\n")
+                sys.stdout.write(f"\033[K{color}{self._CONT_RUN}{RESET} {line}\n")
         if lines_below > 0:
             sys.stdout.write(f"\033[{lines_below}B")
         sys.stdout.flush()
@@ -873,6 +876,11 @@ class OpenClawCLI:
         return truncate_to_width(
             f"    {DIM}> {text}{RESET}", _get_configured_width())
 
+    def _thought_cont(self, text: str) -> str:
+        """Format a continuation line of agent thought (dimmed, |-prefixed)."""
+        return truncate_to_width(
+            f"    {DIM}| {text}{RESET}", _get_configured_width())
+
     def _tool_call(self, text: str, log_ref: str = "") -> str:
         """Format a tool call line (bullet, with optional log reference)."""
         ref = f" {DIM}[{log_ref}]{RESET}" if log_ref else ""
@@ -1074,7 +1082,7 @@ class OpenClawCLI:
                     if lines:
                         print(self._thought(lines[0]))
                         for extra in lines[1:]:
-                            print(self._detail(f"{DIM}{extra}{RESET}"))
+                            print(self._thought_cont(extra))
                 elif seg["type"] == "experience":
                     print(self._stage(_("experience_label", "Experience: {exp}", exp=seg['content']), "done"))
                     self.session_mgr.add_message(

@@ -1,10 +1,11 @@
-"""Multi-line terminal input widget with placeholder and Ctrl+Enter submit.
+"""Multi-line terminal input widget with placeholder and Ctrl+D submit.
 
 Provides a rich input experience for CLI applications:
 - Gray placeholder text when buffer is empty
 - Enter creates a new line; Ctrl+D (or Ctrl+J) submits
 - Backspace on an empty line deletes that line
 - After submit, input text is reprinted in a highlight color
+- Continuation line prefix (e.g. "║ ") for multi-line visual connection
 - External injection support via a callable check
 - Full UTF-8 support including CJK wide characters
 
@@ -14,8 +15,9 @@ Usage:
     from logic.turing.multiline_input import multiline_input
 
     text = multiline_input(
-        prompt=">> ",
-        placeholder="Type command here, press Ctrl+D to submit.",
+        prompt="□ ",
+        continuation="║ ",
+        placeholder="Type here, Ctrl+D to submit.",
         inject_check=my_inject_fn,
     )
 
@@ -107,6 +109,7 @@ def _read_escape_seq(fd: int) -> bytes:
 
 def multiline_input(
     prompt: str = "",
+    continuation: str = "",
     placeholder: str = "Type here, Ctrl+D to submit.",
     submit_color: str = _SUBMIT_STYLE,
     inject_check: Optional[Callable[[], Optional[str]]] = None,
@@ -117,14 +120,17 @@ def multiline_input(
     Parameters
     ----------
     prompt : str
-        Prompt prefix shown on the first line (e.g., ``">> "``).
+        Prompt prefix shown on the first line (e.g., ``"□ "``).
+    continuation : str
+        Prefix for continuation lines (e.g., ``"║ "``).  If empty,
+        spaces matching the display width of *prompt* are used.
     placeholder : str
         Gray hint shown when buffer is empty. Disappears on first keystroke.
     submit_color : str
         ANSI color applied to the final text after submit.
     inject_check : callable, optional
         Called periodically; if it returns a non-None string, that string
-        is used as the input (external injection). Signature: ``() -> str|None``.
+        is used as the input (external injection).
     poll_interval : float
         Seconds between inject_check polls when no key is pending.
 
@@ -148,6 +154,8 @@ def multiline_input(
         _raw_write(leading)
 
     prompt_width = _str_width(display_prompt)
+    cont_pfx = continuation or (" " * prompt_width)
+    cont_width = _str_width(cont_pfx)
 
     lines = [""]
     cursor_line = 0
@@ -168,7 +176,7 @@ def multiline_input(
                 if injected is not None:
                     _clear_area(vis_row, vis_total)
                     text = injected.strip()
-                    _show_submitted(display_prompt, text, submit_color)
+                    _show_submitted(display_prompt, cont_pfx, text, submit_color)
                     return text
 
             ready, _, _ = _select.select([fd], [], [], poll_interval)
@@ -180,20 +188,20 @@ def multiline_input(
                 _clear_area(vis_row, vis_total)
                 return "/quit"
 
-            # Ctrl+C → quit
+            # Ctrl+C -> quit
             if ch == b'\x03':
                 _clear_area(vis_row, vis_total)
                 _raw_write("\r\n")
                 return "/quit"
 
-            # Ctrl+D or Ctrl+J → submit
+            # Ctrl+D or Ctrl+J -> submit
             if ch in (b'\x04', b'\x0a'):
                 text = "\n".join(lines)
                 _clear_area(vis_row, vis_total)
-                _show_submitted(display_prompt, text, submit_color)
+                _show_submitted(display_prompt, cont_pfx, text, submit_color)
                 return text
 
-            # Enter (CR) → new line
+            # Enter (CR) -> new line
             if ch == b'\r':
                 if showing_placeholder:
                     showing_placeholder = False
@@ -210,8 +218,8 @@ def multiline_input(
                 lines.insert(cursor_line, tail)
                 cursor_col = 0
                 vis_row, vis_total = _redraw(
-                    display_prompt, prompt_width, lines,
-                    cursor_line, cursor_col, vis_row, vis_total)
+                    display_prompt, prompt_width, cont_pfx, cont_width,
+                    lines, cursor_line, cursor_col, vis_row, vis_total)
                 continue
 
             # Backspace / Delete
@@ -239,19 +247,19 @@ def multiline_input(
                     vis_total = 1
                 else:
                     vis_row, vis_total = _redraw(
-                        display_prompt, prompt_width, lines,
-                        cursor_line, cursor_col, vis_row, vis_total)
+                        display_prompt, prompt_width, cont_pfx, cont_width,
+                        lines, cursor_line, cursor_col, vis_row, vis_total)
                 continue
 
             # Escape sequences (arrow keys, Ctrl+Enter via CSI u, etc.)
             if ch == b'\x1b':
                 seq = _read_escape_seq(fd)
 
-                # Ctrl+Enter via CSI u encoding: \x1b[13;5u
+                # Ctrl+Enter via CSI u encoding
                 if seq == b'[13;5u':
                     text = "\n".join(lines)
                     _clear_area(vis_row, vis_total)
-                    _show_submitted(display_prompt, text, submit_color)
+                    _show_submitted(display_prompt, cont_pfx, text, submit_color)
                     return text
 
                 if seq == b'[A':
@@ -259,27 +267,27 @@ def multiline_input(
                         cursor_line -= 1
                         cursor_col = min(cursor_col, len(lines[cursor_line]))
                         vis_row, vis_total = _redraw(
-                            display_prompt, prompt_width, lines,
-                            cursor_line, cursor_col, vis_row, vis_total)
+                            display_prompt, prompt_width, cont_pfx, cont_width,
+                            lines, cursor_line, cursor_col, vis_row, vis_total)
                 elif seq == b'[B':
                     if cursor_line < len(lines) - 1:
                         cursor_line += 1
                         cursor_col = min(cursor_col, len(lines[cursor_line]))
                         vis_row, vis_total = _redraw(
-                            display_prompt, prompt_width, lines,
-                            cursor_line, cursor_col, vis_row, vis_total)
+                            display_prompt, prompt_width, cont_pfx, cont_width,
+                            lines, cursor_line, cursor_col, vis_row, vis_total)
                 elif seq == b'[C':
                     if cursor_col < len(lines[cursor_line]):
                         cursor_col += 1
                         vis_row, vis_total = _redraw(
-                            display_prompt, prompt_width, lines,
-                            cursor_line, cursor_col, vis_row, vis_total)
+                            display_prompt, prompt_width, cont_pfx, cont_width,
+                            lines, cursor_line, cursor_col, vis_row, vis_total)
                 elif seq == b'[D':
                     if cursor_col > 0:
                         cursor_col -= 1
                         vis_row, vis_total = _redraw(
-                            display_prompt, prompt_width, lines,
-                            cursor_line, cursor_col, vis_row, vis_total)
+                            display_prompt, prompt_width, cont_pfx, cont_width,
+                            lines, cursor_line, cursor_col, vis_row, vis_total)
                 continue
 
             # Regular character input (including multi-byte UTF-8)
@@ -303,8 +311,8 @@ def multiline_input(
             lines[cursor_line] = line[:cursor_col] + char + line[cursor_col:]
             cursor_col += len(char)
             vis_row, vis_total = _redraw(
-                display_prompt, prompt_width, lines,
-                cursor_line, cursor_col, vis_row, vis_total)
+                display_prompt, prompt_width, cont_pfx, cont_width,
+                lines, cursor_line, cursor_col, vis_row, vis_total)
 
     except KeyboardInterrupt:
         _clear_area(vis_row, vis_total)
@@ -344,8 +352,9 @@ def _clear_area(vis_row: int, vis_total: int):
             _raw_write("\033[A")
 
 
-def _redraw(prompt: str, prompt_width: int, lines: list,
-            cursor_line: int, cursor_col: int,
+def _redraw(prompt: str, prompt_width: int,
+            cont_pfx: str, cont_width: int,
+            lines: list, cursor_line: int, cursor_col: int,
             vis_row: int, vis_total: int) -> tuple:
     """Redraw all input lines and position the cursor.
 
@@ -357,7 +366,7 @@ def _redraw(prompt: str, prompt_width: int, lines: list,
         _raw_write(f"\033[{vis_row}A")
 
     for i, line in enumerate(lines):
-        pfx = prompt if i == 0 else " " * prompt_width
+        pfx = prompt if i == 0 else cont_pfx
         _raw_write(f"\r\033[K{pfx}{line}")
         if i < total - 1:
             _raw_write("\r\n")
@@ -372,19 +381,18 @@ def _redraw(prompt: str, prompt_width: int, lines: list,
     if up > 0:
         _raw_write(f"\033[{up}A")
 
-    pfx = prompt if cursor_line == 0 else " " * prompt_width
-    col_pos = _str_width(pfx) + _str_width(lines[cursor_line][:cursor_col])
+    pfx_w = prompt_width if cursor_line == 0 else cont_width
+    col_pos = pfx_w + _str_width(lines[cursor_line][:cursor_col])
     _raw_write(f"\r\033[{col_pos}C" if col_pos > 0 else "\r")
 
     return cursor_line, total
 
 
-def _show_submitted(prompt: str, text: str, color: str):
+def _show_submitted(prompt: str, cont_pfx: str, text: str, color: str):
     """Re-render the submitted text in the highlight color."""
-    prompt_width = _str_width(prompt)
     text_lines = text.split("\n") if text else [""]
     for i, line in enumerate(text_lines):
-        pfx = prompt if i == 0 else " " * prompt_width
+        pfx = prompt if i == 0 else cont_pfx
         _raw_write(f"\r\033[K{pfx}{color}{line}{RESET}")
         if i < len(text_lines) - 1:
             _raw_write("\r\n")

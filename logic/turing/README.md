@@ -74,7 +74,8 @@ from logic.turing.multiline_input import multiline_input
 
 text = multiline_input(
     prompt="\n\u25A1 ",                    # □ idle indicator
-    placeholder="Type command here, press Ctrl+Enter to submit.",
+    continuation="\u2551 ",                # ║ continuation prefix
+    placeholder="Type command here, Ctrl+D to submit.",
     submit_color="\033[34m",               # BLUE after submit
     inject_check=my_inject_fn,             # () -> str|None for external injection
     poll_interval=0.1,
@@ -83,8 +84,19 @@ text = multiline_input(
 
 Features:
 - **Gray placeholder** shown when buffer is empty; disappears on first keystroke
-- **Enter** creates a new line; **Ctrl+Enter** submits
-- **Backspace** on an empty line removes that line; when all lines cleared, placeholder reappears
+- **Enter** creates a new line; **Ctrl+D** (or Ctrl+J, Ctrl+Enter) submits
+- **Continuation prefix**: multi-line input uses `║` (or custom prefix) for lines after the first
+- **Backspace** on an empty line removes that line (and its `║`); when all lines cleared, placeholder reappears
 - After submit, the input text is reprinted in `submit_color` (default: BLUE)
 - **External injection** via `inject_check` callable polled every `poll_interval` seconds
 - Falls back to `input()` when termios is unavailable (e.g., non-TTY environments)
+
+#### Visual indicator system
+
+| State | First line | Continuation lines |
+|-------|-----------|-------------------|
+| Input (idle) | `□ text` | `║ text` |
+| Running | `■ text` | `┃ text` |
+| Done (success) | `■ text` (green) | `┃ text` (green) |
+| Done (error) | `■ text` (red) | `┃ text` (red) |
+| Agent output | `> text` (dim) | `\| text` (dim) |
