@@ -627,8 +627,32 @@ def main():
             handler(stripped_argv[idx + 1:])
             return
 
-    print(f"Unknown command: {stripped_argv[0]}")
-    print(f"Use TOOL --help for available commands.")
+    bare_cmd = stripped_argv[0].lstrip("-")
+    dashed = f"--{bare_cmd}"
+    if dashed in _TOOL_FLAG_HANDLERS:
+        _TOOL_FLAG_HANDLERS[dashed](stripped_argv[1:])
+        return
+
+    user_cmd = stripped_argv[0]
+    from logic.utils.fuzzy import suggest_commands
+    flags = list(_TOOL_FLAG_HANDLERS.keys())
+    bare_names = [f.lstrip("-") for f in flags]
+    candidates = flags + bare_names
+    matches = suggest_commands(user_cmd, candidates, n=3, cutoff=0.5)
+    normalized = []
+    for m in matches:
+        canon = f"--{m}" if not m.startswith("-") else m
+        if canon not in normalized:
+            normalized.append(canon)
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    RESET = get_color("RESET", "\033[0m")
+    print(f"{BOLD}Unknown command:{RESET} {user_cmd}")
+    if normalized:
+        hint = ", ".join(normalized)
+        print(f"  {DIM}Did you mean: {hint}?{RESET}")
+    print(f"  {DIM}Use TOOL --help for available commands.{RESET}")
 
 if __name__ == "__main__":
     main()

@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
-from tool.EXEC.logic.sandbox import (
+from tool.EXEC.logic.sandbox import (  # noqa: F401 — re-exports for cli.py
     set_command_policy,
     list_policies,
     is_path_protected,

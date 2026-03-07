@@ -86,3 +86,18 @@ Rules:
 - Files must match `test_XX_name.py` pattern (two-digit index)
 - `test_00_help.py` is mandatory
 - See `unit-test-conventions` for full details
+
+## Agent Development Workflow
+
+When developing OPENCLAW agent features or any tool logic, periodically run:
+
+```bash
+TOOL audit code --targets tool/OPENCLAW/  # Check specific tool
+TOOL audit code                            # Check entire project
+TOOL audit code --fix                      # Auto-fix safe issues
+```
+
+Integrate these checks into your development loop:
+1. **Before committing**: `TOOL audit code` to catch regressions
+2. **After refactoring**: `TOOL audit code --fix` to clean up dead imports
+3. **When reviewing**: Check `logic/audit/code_quality.py` for programmatic access
