@@ -194,6 +194,75 @@ def mcp_scroll(session: CDPSession, direction: str = "down",
     return {"ok": True, "direction": direction, "amount": amount}
 
 
+def mcp_paste(session: CDPSession, text: str,
+              selector: str = "",
+              label: str = "",
+              color: str = "#1a73e8",
+              tool_name: str = "CDMCP",
+              require_lock: bool = True) -> Dict[str, Any]:
+    """Set clipboard content and simulate paste (Cmd+V / Ctrl+V).
+
+    This writes *text* to the clipboard via CDP, optionally focuses the
+    target element, then dispatches the paste keyboard shortcut. Useful
+    for large text that would be too slow to type character-by-character.
+
+    Args:
+        session: Active CDP session.
+        text: Text to paste.
+        selector: Optional CSS selector for the target element to focus first.
+        label: Label shown on the highlight overlay.
+        color: Highlight color.
+        tool_name: Name for lock label.
+        require_lock: Auto-lock before interaction.
+    """
+    import platform
+    ov = _overlay()
+    if require_lock:
+        _ensure_locked(session, tool_name)
+
+    if selector:
+        if not label:
+            label = f"Paste: {text[:30]}{'...' if len(text) > 30 else ''}"
+        hl = ov.inject_highlight(session, selector, label=label, color=color)
+        time.sleep(0.3)
+        session.evaluate(f"document.querySelector({json.dumps(selector)}).focus()")
+        time.sleep(0.15)
+
+    ov.set_lock_passthrough(session, True)
+
+    session.send_and_recv("Runtime.evaluate", {
+        "expression": f"navigator.clipboard.writeText({json.dumps(text)})",
+        "awaitPromise": True,
+    })
+    time.sleep(0.1)
+
+    mod_key = "Meta" if platform.system() == "Darwin" else "Control"
+    session.send_and_recv("Input.dispatchKeyEvent", {
+        "type": "keyDown", "key": mod_key, "code": f"{mod_key}Left",
+        "modifiers": 4 if mod_key == "Meta" else 2,
+    })
+    session.send_and_recv("Input.dispatchKeyEvent", {
+        "type": "keyDown", "key": "v", "code": "KeyV",
+        "text": "v",
+        "modifiers": 4 if mod_key == "Meta" else 2,
+    })
+    session.send_and_recv("Input.dispatchKeyEvent", {
+        "type": "keyUp", "key": "v", "code": "KeyV",
+        "modifiers": 4 if mod_key == "Meta" else 2,
+    })
+    session.send_and_recv("Input.dispatchKeyEvent", {
+        "type": "keyUp", "key": mod_key, "code": f"{mod_key}Left",
+    })
+
+    ov.set_lock_passthrough(session, False)
+    time.sleep(0.2)
+
+    if selector:
+        ov.remove_highlight(session)
+
+    return {"ok": True, "pasted": True, "text": text, "length": len(text)}
+
+
 def mcp_wait_and_click(session: CDPSession, selector: str,
                        label: str = "", timeout: float = 10.0,
                        dwell: float = 1.0, poll_interval: float = 0.5,
