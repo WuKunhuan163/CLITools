@@ -1,4 +1,4 @@
-from typing import List, Callable, Any, Dict, Optional, Union
+from typing import List, Callable, Any, Optional
 
 class WorkerState:
     CONTINUE = "CONTINUE"

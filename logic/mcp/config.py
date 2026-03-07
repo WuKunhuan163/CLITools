@@ -1,6 +1,5 @@
 """MCP environment detection and availability checks."""
 import os
-import json
 from pathlib import Path
 
 

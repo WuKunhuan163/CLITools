@@ -1,9 +1,8 @@
 import sys
-import os
 import platform
 import tkinter as tk
 from pathlib import Path
-from typing import Any, List, Optional, Callable, Dict, Union
+from typing import Any, List, Optional, Callable
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()

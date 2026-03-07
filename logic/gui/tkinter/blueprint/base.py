@@ -2,9 +2,7 @@ import signal
 import sys
 import json
 import time
-import threading
 import platform
-import subprocess
 import os
 import hashlib
 import queue
@@ -183,7 +181,6 @@ class BaseGUIWindow:
 
     def start_timer(self, status_label: Any):
         """Standardized countdown timer."""
-        import tkinter as tk
         if self.window_closed: return
         
         # Save default color if not already saved
@@ -240,7 +237,6 @@ class BaseGUIWindow:
 
     def _terminate_children(self):
         """Terminate all registered child subprocesses."""
-        import signal
         for proc in self._child_procs:
             try:
                 if proc.poll() is None:
@@ -358,7 +354,7 @@ class BaseGUIWindow:
         upscale: Multiplier for internal rendering resolution (clearer images). Default to 2 for 1x clearer.
         dynamic: If True, the image will resize when its parent container resizes.
         """
-        from PIL import Image, ImageTk
+        from PIL import Image
         import tkinter as tk
         
         try:
@@ -409,7 +405,7 @@ class BaseGUIWindow:
             
         parent = item["parent"]
         original_img = item["original_img"]
-        upscale = item["upscale"]
+        item["upscale"]
         
         # 1. Get actual available width in the block
         parent_w = parent.winfo_width()
@@ -461,7 +457,7 @@ class BaseGUIWindow:
             photo = ImageTk.PhotoImage(resized_img)
             label.config(image=photo)
             label.image = photo 
-        except Exception as e:
+        except Exception:
             label.config(text=f"[Image Error: {os.path.basename(item['path'])}]", fg="red")
 
     def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
@@ -514,7 +510,6 @@ class BaseGUIWindow:
         import webbrowser
         import re
         import tkinter as tk
-        import tkinter.font as tkfont
         
         base_font = get_label_style()
         text_widget = tk.Text(frame, wrap=tk.WORD, font=base_font, 

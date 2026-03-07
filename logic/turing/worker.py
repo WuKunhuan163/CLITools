@@ -1,4 +1,3 @@
-import sys
 from logic.turing.logic import WorkerState, TuringTask
 from logic.turing.display.manager import MultiLineManager
 

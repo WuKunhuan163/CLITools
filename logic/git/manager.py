@@ -1,4 +1,3 @@
-import os
 import json
 from pathlib import Path
 
@@ -23,10 +22,14 @@ class GitIgnoreManager:
             "",
             "# --- Framework Directories ---",
             "!/logic/",
+            "!/interface/",
             "!/bin/",
             "!/test/",
             "!/tool/",
             "!/report/",
+            "!/skills/",
+            "!/research/",
+            "!/runtime/",
             "",
             "# --- Transient Directories ---",
             "**/data/",

@@ -69,7 +69,7 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 | **GMAIL** | Gmail MCP: inbox reading, compose, label management, search. (In development) |
 | **GOOGLE.GS** | Google Scholar MCP: search, citations, profiles, library. (In development) |
 
-All Chrome-based tools use CDMCP session management with visual effects, auto-lock, idle timeout tracking, and max-session limits. See `SKILLS show TerminalTools-cdmcp-web-exploration` for the development methodology.
+All Chrome-based tools use CDMCP session management with visual effects, auto-lock, idle timeout tracking, and max-session limits. See `SKILLS show cdmcp-web-exploration` for the development methodology.
 
 ### Specialized Tools
 
@@ -79,39 +79,59 @@ All Chrome-based tools use CDMCP session management with visual effects, auto-lo
 | **iCloudPD** | Parallel iCloud photo/video downloader with date filtering and local library support. |
 
 ### SKILLS Tool
-Manages reusable AI agent skills for Cursor IDE:
-- `SKILLS list`: Browse available skills.
-- `SKILLS show <name>`: View a skill's content.
-- `SKILLS sync`: Link skills to `~/.cursor/skills/`.
+Manages AI agent skills, marketplace access, and evolution system:
 
-Available skills: `TerminalTools-tool-development-workflow`, `TerminalTools-turing-machine-development`, `TerminalTools-setup-tutorial-creation`, `TerminalTools-code-quality-review`, `TerminalTools-session-debug-log`, `TerminalTools-tmp-test-script`, `TerminalTools-cdmcp-web-exploration`, `TerminalTools-unit-test-conventions`. Run `SKILLS show <name>` for detailed guidance.
+**Skill Management:**
+- `SKILLS list` / `SKILLS show <name>` / `SKILLS sync` — Browse, view, and link skills.
+
+**Marketplace** (3000+ community skills from ClawHub/OpenClaw):
+- `SKILLS market browse` — Top downloaded skills.
+- `SKILLS market search <query>` — Search the marketplace.
+- `SKILLS market install <slug>` — Download to `skills/marketplace/`.
+
+**Evolution System** (self-improvement loop):
+- `SKILLS learn / lessons / analyze / suggest / apply / history` — Full introspection cycle.
+- Brain data stored in `runtime/experience/` (Git-tracked).
+
+Available skills: `tool-development-workflow`, `turing-machine-development`, `setup-tutorial-creation`, `code-quality-review`, `session-debug-log`, `tmp-test-script`, `cdmcp-web-exploration`, `mcp-development`, `unit-test-conventions`, `localization`, `record-cache`, `tool-interface`, `skills-index`, `openclaw`. Run `SKILLS show <name>` for guidance.
 
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Set display language.
 - `TOOL lang audit <LANG> [--turing]`: Audit translation coverage.
 
-### Developer Workflow
-- `TOOL dev sync`: Align all branches (dev → tool → main → test) with persistence management.
-- `TOOL dev create <NAME>`: Scaffold a new tool from template.
-- `TOOL dev audit-test <NAME> [--fix]`: Audit test naming conventions.
-- `TOOL dev audit-bin [--fix]` / `TOOL dev audit-archived`: Audit shortcuts and archived tool duplicates.
-- `TOOL audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
-- `TOOL audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
+### Semantic Search (Agent Exploration)
+- `TOOL --search tools <query>`: Find tools by natural language (e.g. "open a Chrome tab").
+- `TOOL --search interfaces <query>`: Find tool interfaces by functionality.
+- `TOOL --search skills <query> [--tool NAME]`: Find skills, optionally scoped to a tool.
+- `SKILLS search <query> [--tool NAME]`: Search skills from within the SKILLS tool.
 
-For detailed development guidance, run `SKILLS show TerminalTools-tool-development-workflow`.
+Agents explore the project using these commands. Discoveries populate the agent's
+environment (visible tools, interfaces, skills) for subsequent turns.
+
+### Developer Workflow
+- `TOOL --dev sync`: Align all branches (dev -> tool -> main -> test) with persistence management.
+- `TOOL --dev create <NAME>`: Scaffold a new tool from template.
+- `TOOL --dev audit-test <NAME> [--fix]`: Audit test naming conventions.
+- `TOOL --dev audit-bin [--fix]` / `TOOL --dev audit-archived`: Audit shortcuts and archived tool duplicates.
+- `TOOL --audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
+- `TOOL --audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
+
+For detailed development guidance, run `SKILLS show tool-development-workflow`.
 
 ---
 
 ## Symmetry and Architecture
 
 AITerminalTools follows a **Symmetrical Design Pattern**:
-- The **Root** has a `logic/` folder for shared utilities (`logic.turing`, `logic.utils`, etc.).
+- The **Root** has a `logic/` folder for shared utilities and an `interface/` facade layer that re-exports stable symbols for tool consumption.
+- **Tools** import from `interface.*` (e.g., `from interface.status import fmt_status`), never directly from `logic.*`.
 - Each **Tool** (e.g., `tool/USERINPUT/`) also has its own `logic/` folder for tool-specific **internal** implementation.
 - Each **Tool** exposes a public API via `interface/main.py` at the tool root. Cross-tool imports MUST go through the interface.
 - Shadowing is avoided via intelligent `sys.path` management in each tool's entry point, ensuring `from logic...` always finds the root logic, while tool-specific logic is accessed via absolute paths or direct file reference.
 
 ### Core Directories
-- `logic/`: Shared core logic, utilities, and global configuration.
+- `logic/`: Shared core logic, utilities, and global configuration. Internal implementation — tools should not import from `logic.*` directly.
+- `interface/`: Stable facade layer. Re-exports key symbols from `logic/` for tool consumption. Tools import from `interface.*` (e.g., `from interface.status import fmt_status`). See `interface/for_agent.md`.
 - `tool/`: The home for all active tools. Each tool has:
   - `logic/` — Internal implementation (not for cross-tool access).
   - `interface/` — Public API for cross-tool communication.
@@ -119,15 +139,21 @@ AITerminalTools follows a **Symmetrical Design Pattern**:
 - `bin/`: Executable symlinks for installed tools.
 - `resource/tool/`: Large binary assets (fonts, Python builds) — only on the `tool` branch.
 - `resource/archived/`: Archived/unmaintained tools — only on the `tool` branch. `TOOL install` falls back here.
-- `data/`: User settings, logs, and GUI instance registry.
+- `data/`: Transient runtime data (gitignored) — caches, logs, GUI state.
+- `runtime/`: Tracked runtime data (git-tracked) — institutional memory.
+  - `runtime/experience/`: Agent's cross-tool experience (lessons, suggestions, evolution history).
+- `skills/`: AI agent skill documents, organized under `core/` and `AI-IDE/`.
+- `research/`: Research notes and analysis documents.
+
+> **Note**: The `.gitignore` is auto-generated by `GitIgnoreManager` in `logic/git/manager.py`. Never edit it directly — add new directories to `GitIgnoreManager.base_patterns` instead.
 
 ### Unified Logging
-Every tool has a built-in session logger via `tool.log(message)`. Log files auto-clean when count exceeds 64. Run `SKILLS show TerminalTools-session-debug-log` for logging patterns.
+Every tool has a built-in session logger via `tool.log(message)`. Log files auto-clean when count exceeds 64. Run `SKILLS show session-debug-log` for logging patterns.
 
 ---
 
 ## Contribution
 
-Active development happens on the `dev` branch. Run `SKILLS show TerminalTools-tool-development-workflow` for the full development guide.
+Active development happens on the `dev` branch. Run `SKILLS show tool-development-workflow` for the full development guide.
 
 

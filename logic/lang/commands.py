@@ -5,7 +5,7 @@ from typing import Optional, Callable
 from logic.config import get_color
 from logic.utils import get_logic_dir, get_rate_color, format_table
 from logic.lang.utils import get_translation
-from logic.tool.audit.utils import AuditManager
+from logic.audit.utils import AuditManager
 
 def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: bool = False, translation_func: Optional[Callable] = None):
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))

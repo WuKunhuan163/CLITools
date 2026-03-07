@@ -43,10 +43,10 @@ def get_display_width(text):
 
 def print_terminal_width_separator(width=None):
     """Prints a separator line of '=' characters matching the terminal width."""
-    if width is None:
+    if width is None or not isinstance(width, int) or width <= 0:
         from logic.turing.display.manager import _get_configured_width
         width = _get_configured_width()
-    if width and width > 0:
+    if isinstance(width, int) and width > 0:
         sys.stdout.write("\r\033[K" + "=" * width + "\n")
         sys.stdout.flush()
 
@@ -129,7 +129,7 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
 
     num_cols = len(headers)
     full_display_cols = full_display_cols or []
-    is_rtl = get_rtl_mode()
+    get_rtl_mode()
     
     display_headers = headers
     display_rows = []

@@ -110,6 +110,55 @@ def open_tab(url: str, port: int = CDP_PORT) -> bool:
     return False
 
 
+def auto_acquire_tab(url: str, port: int = CDP_PORT,
+                     boot_timeout: int = 10) -> bool:
+    """Open a URL in Chrome, booting Chrome first if needed.
+
+    Parameters
+    ----------
+    url : str
+        URL to open.
+    port : int
+        CDP port.
+    boot_timeout : int
+        Seconds to wait for Chrome to become available after booting.
+
+    Returns
+    -------
+    bool
+        True if the tab was successfully opened.
+    """
+    if is_chrome_cdp_available(port):
+        return open_tab(url, port)
+
+    try:
+        from tool.GOOGLE.interface.main import boot_chrome
+        boot_chrome(cdp_port=port)
+    except Exception:
+        import subprocess
+        try:
+            subprocess.Popen([
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                f"--remote-debugging-port={port}",
+                "--remote-allow-origins=*",
+                "--no-first-run",
+                url,
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            for _ in range(boot_timeout * 2):
+                time.sleep(0.5)
+                if is_chrome_cdp_available(port):
+                    return True
+            return False
+        except Exception:
+            return False
+
+    for _ in range(boot_timeout * 2):
+        time.sleep(0.5)
+        if is_chrome_cdp_available(port):
+            return open_tab(url, port)
+    return False
+
+
 # ---------------------------------------------------------------------------
 # CDPSession
 # ---------------------------------------------------------------------------
@@ -130,16 +179,49 @@ class CDPSession:
         if params:
             msg["params"] = params
         self.ws.send(json.dumps(msg))
-        self.ws.settimeout(timeout)
+        self.ws.settimeout(min(timeout, 5))
         deadline = time.time() + timeout
-        while time.time() < deadline:
+        skipped = 0
+        while time.time() < deadline and skipped < 2000:
             try:
-                data = json.loads(self.ws.recv())
+                raw = self.ws.recv()
+                data = json.loads(raw)
                 if data.get("id") == self._msg_id:
                     return data
+                skipped += 1
             except Exception:
                 break
         return None
+
+    def send_only(self, method: str, params: dict = None):
+        """Send a CDP command without waiting for a response.
+
+        Useful for Input.dispatch* events where the response is always
+        an empty result and the websocket may be flooded with page events.
+        """
+        self._msg_id += 1
+        msg: Dict[str, Any] = {"id": self._msg_id, "method": method}
+        if params:
+            msg["params"] = params
+        self.ws.send(json.dumps(msg))
+
+    def drain(self, max_ms: int = 50, max_count: int = 500):
+        """Drain pending event messages from the websocket buffer.
+
+        Reads immediately available messages to clear event noise from the
+        browser, e.g. after rapid mouse drag operations on WebGL pages.
+        Uses a very short timeout so it only catches already-buffered data.
+        """
+        deadline = time.time() + max_ms / 1000.0
+        self.ws.settimeout(0.01)
+        drained = 0
+        while drained < max_count and time.time() < deadline:
+            try:
+                self.ws.recv()
+                drained += 1
+            except Exception:
+                break
+        self.ws.settimeout(CDP_TIMEOUT)
 
     def evaluate(self, expression: str, timeout: int = CDP_TIMEOUT) -> Any:
         """Evaluate JavaScript and return the result value."""

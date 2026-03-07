@@ -293,5 +293,6 @@
   "tool_DRAW_purpose": "在图像上绘制形状、标签和图例.",
   "label_reason": "原因",
   "label_traceback_saved_to": "回溯已保存至",
-  "msg_interruption_hint": "\n注意：如果您的命令执行被中断、终止或取消（例如 Error: Command failed to spawn: Aborted），您必须立即运行 USERINPUT 以检查用户反馈，然后再退出或继续。"
+  "msg_interruption_hint": "\n注意：如果您的命令执行被中断、终止或取消（例如 Error: Command failed to spawn: Aborted），您必须立即运行 USERINPUT 以检查用户反馈，然后再退出或继续。",
+  "select_cancelled": "已取消。"
 }

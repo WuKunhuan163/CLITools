@@ -4,6 +4,8 @@
   "BOLD": "\u001b[1m",
   "BLUE": "\u001b[1m\u001b[34m",
   "BLUE_NORMAL": "\u001b[34m",
+  "CYAN": "\u001b[36m",
+  "CYAN_BOLD": "\u001b[1m\u001b[36m",
   "YELLOW": "\u001b[1m\u001b[33m",
   "YELLOW_NORMAL": "\u001b[33m",
   "RED": "\u001b[1m\u001b[31m",

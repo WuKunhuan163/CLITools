@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Optional
+from typing import Any
 
 # Lazy import for tkinter
 tk = None

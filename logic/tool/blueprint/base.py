@@ -3,8 +3,6 @@ import sys
 import subprocess
 from pathlib import Path
 import json
-import traceback
-from datetime import datetime
 
 class ToolBase:
     """Base class for all tools to handle dependencies, common utilities, and exception logging."""
@@ -16,7 +14,7 @@ class ToolBase:
         import inspect
         caller_file = Path(inspect.stack()[1].filename).resolve()
 
-        from logic.resolve import setup_paths, find_project_root, get_tool_module_path
+        from logic.resolve import setup_paths, get_tool_module_path
         self.project_root = setup_paths(caller_file)
 
         curr = caller_file.parent
@@ -139,7 +137,7 @@ class ToolBase:
     def get_hooks_engine(self):
         """Return the HooksEngine for this tool, creating it lazily."""
         if self._hooks_engine is None:
-            from logic.tool.hooks.engine import HooksEngine
+            from logic.hooks.engine import HooksEngine
             self._hooks_engine = HooksEngine(
                 self.tool_dir, tool_name=self.tool_name,
                 project_root=self.project_root,
@@ -231,23 +229,75 @@ class ToolBase:
 
         sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
 
-        # ---- --dev / --test flag intercept (before argparse) ----
-        if "--dev" in sys.argv:
-            idx = sys.argv.index("--dev")
-            dev_args = sys.argv[idx + 1:]
-            if dev_handler:
-                dev_handler(dev_args)
-            else:
-                self._handle_default_dev(dev_args)
+        # ---- Rewrite --mcp-* to bare subcommands for argparse ----
+        sys.argv = [sys.argv[0]] + [
+            a[6:] if a.startswith("--mcp-") else a
+            for a in sys.argv[1:]
+        ]
+
+        # ---- Framework flag intercepts (--prefixed, before argparse) ----
+        def _extract_flag_args(flag):
+            """Extract arguments after a --flag from sys.argv."""
+            if flag in sys.argv:
+                idx = sys.argv.index(flag)
+                return sys.argv[idx + 1:]
+            return None
+
+        dev_args = _extract_flag_args("--dev")
+        if dev_args is not None:
+            (dev_handler or self._handle_default_dev)(dev_args)
             return True
 
-        if "--test" in sys.argv:
-            idx = sys.argv.index("--test")
-            test_args = sys.argv[idx + 1:]
-            if test_handler:
-                test_handler(test_args)
+        test_args = _extract_flag_args("--test")
+        if test_args is not None:
+            (test_handler or self._handle_default_test)(test_args)
+            return True
+
+        if _extract_flag_args("--setup") is not None:
+            self.run_setup()
+            return True
+
+        if _extract_flag_args("--rule") is not None:
+            self.print_rule()
+            return True
+
+        config_args = _extract_flag_args("--config")
+        if config_args is not None:
+            is_custom_config = False
+            if parser:
+                for action in parser._actions:
+                    if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
+                        is_custom_config = True
+                        break
+            if not is_custom_config:
+                self._handle_tool_config(config_args)
+                return True
+
+        install_args = _extract_flag_args("--install")
+        if install_args is not None:
+            if install_args:
+                self.run_subtool_install(install_args[0])
             else:
-                self._handle_default_test(test_args)
+                print(f"Usage: {self.tool_name} --install <SUBTOOL_NAME>")
+            return True
+
+        uninstall_args = _extract_flag_args("--uninstall")
+        if uninstall_args is not None:
+            if uninstall_args:
+                force_yes = "-y" in uninstall_args or "--yes" in uninstall_args
+                self.run_subtool_uninstall(uninstall_args[0], force_yes=force_yes)
+            else:
+                print(f"Usage: {self.tool_name} --uninstall <SUBTOOL_NAME> [-y]")
+            return True
+
+        skills_args = _extract_flag_args("--skills")
+        if skills_args is not None:
+            self._handle_skills_command(skills_args)
+            return True
+
+        hooks_args = _extract_flag_args("--hooks")
+        if hooks_args is not None:
+            self._handle_hooks_command(hooks_args)
             return True
 
         if len(sys.argv) > 1:
@@ -255,49 +305,12 @@ class ToolBase:
             cmd = args_to_check[0]
             if not cmd: return False
 
-            if cmd == "setup":
-                self.run_setup()
-                return True
-            elif cmd in ["-h", "--help", "help"]:
+            if cmd in ["-h", "--help", "help"]:
                 if parser:
                     parser.print_help()
                 else:
                     self.print_default_help()
                 return True
-            elif cmd == "install":
-                if len(args_to_check) > 1:
-                    subtool_name = args_to_check[1]
-                    self.run_subtool_install(subtool_name)
-                else:
-                    print(f"Usage: {self.tool_name} install <SUBTOOL_NAME>")
-                return True
-            elif cmd == "uninstall":
-                if len(args_to_check) > 1:
-                    subtool_name = args_to_check[1]
-                    force_yes = "-y" in args_to_check or "--yes" in args_to_check
-                    self.run_subtool_uninstall(subtool_name, force_yes=force_yes)
-                else:
-                    print(f"Usage: {self.tool_name} uninstall <SUBTOOL_NAME> [-y]")
-                return True
-            elif cmd == "rule":
-                self.print_rule()
-                return True
-            elif cmd == "skills":
-                self._handle_skills_command(args_to_check[1:])
-                return True
-            elif cmd == "hooks":
-                self._handle_hooks_command(args_to_check[1:])
-                return True
-            elif cmd == "config":
-                is_custom_config = False
-                if parser:
-                    for action in parser._actions:
-                        if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
-                            is_custom_config = True
-                            break
-                if not is_custom_config:
-                    self._handle_tool_config(args_to_check[1:])
-                    return True
 
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if not cmd.startswith("-") and subtool_main.exists():
@@ -352,19 +365,19 @@ class ToolBase:
         """Built-in --dev commands available for every tool."""
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
-        GREEN = get_color("GREEN", "\033[32m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("GREEN", "\033[32m")
+        get_color("BLUE", "\033[34m")
         RESET = get_color("RESET", "\033[0m")
 
         subcmd = args[0] if args else ""
 
         if subcmd == "sanity-check":
             fix = "--fix" in args
-            from logic.tool.dev.commands import dev_sanity_check
+            from logic.dev.commands import dev_sanity_check
             dev_sanity_check(self.tool_name, self.project_root, fix=fix)
         elif subcmd == "audit-test":
             fix = "--fix" in args
-            from logic.tool.dev.commands import dev_audit_test
+            from logic.dev.commands import dev_audit_test
             dev_audit_test(self.tool_name, self.project_root, fix=fix)
         elif subcmd == "info":
             print(f"\n{BOLD}{self.tool_name} Developer Info{RESET}")
@@ -400,7 +413,10 @@ class ToolBase:
         test_tool_with_args(test_args, self.project_root)
 
     def _handle_tool_config(self, args):
-        """Handle tool-specific configuration settings."""
+        """Handle tool-specific configuration settings.
+
+        Invoked via ``TOOL --config [options]`` or ``TOOL config [options]``.
+        """
         import argparse
         config_path = self.get_data_dir() / "config.json"
         config = {}
@@ -408,36 +424,51 @@ class ToolBase:
             try:
                 with open(config_path, 'r') as f: config = json.load(f)
             except Exception: pass
-        
+
+        config_parser = argparse.ArgumentParser(
+            prog=f"{self.tool_name} --config",
+            description=f"Configuration for {self.tool_name}",
+        )
+        config_parser.add_argument("--cpu-limit", type=float,
+                                   help="Set CPU load limit (e.g., 70.0)")
+        config_parser.add_argument("--cpu-timeout", type=int,
+                                   help="Set CPU wait timeout in seconds")
+        config_parser.add_argument("--show", action="store_true",
+                                   help="Show current configuration")
+
+        known_args, _ = config_parser.parse_known_args(args)
+
+        if known_args.show or (not any(v is not None for k, v in vars(known_args).items()
+                                       if k != "show")):
+            from logic.config import get_color
+            BOLD, RESET = get_color("BOLD"), get_color("RESET")
+            if config:
+                print(f"{BOLD}{self.tool_name} configuration:{RESET}")
+                for k, v in sorted(config.items()):
+                    print(f"  {k}: {v}")
+            else:
+                print(f"{BOLD}No configuration set{RESET} for {self.tool_name}.")
+            if not config or known_args.show:
+                return
+
         updated = False
-        
-        # Parse arguments for tool-specific config
-        config_parser = argparse.ArgumentParser(add_help=False)
-        config_parser.add_argument("--cpu-limit", type=float, help="Set CPU limit for this tool (e.g., 70.0)")
-        config_parser.add_argument("--cpu-timeout", type=int, help="Set CPU wait timeout for this tool (seconds)")
-        
-        # Allow unknown args to pass through, but parse known ones
-        known_args, unknown_args = config_parser.parse_known_args(args)
-        
         if known_args.cpu_limit is not None:
             config["cpu_limit"] = known_args.cpu_limit
             updated = True
         if known_args.cpu_timeout is not None:
             config["cpu_timeout"] = known_args.cpu_timeout
             updated = True
-        
+
         if updated:
             config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(config_path, 'w') as f:
                 json.dump(config, f, indent=2)
-            
+
             from logic.config import get_color
             BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
             print(f"{BOLD}{GREEN}Successfully updated{RESET} {self.tool_name} configuration:")
-            for k, v in config.items():
+            for k, v in sorted(config.items()):
                 print(f"  {k}: {v}")
-        else:
-            print(f"Usage: {self.tool_name} config [--cpu-limit <float>] [--cpu-timeout <int>]")
 
     def _get_tool_skills(self):
         """Get skills relevant to this tool from tool.json and tool-level skills/ directory."""
@@ -479,7 +510,7 @@ class ToolBase:
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("BLUE", "\033[34m")
         YELLOW = get_color("YELLOW", "\033[33m")
         RED = get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
@@ -497,30 +528,24 @@ class ToolBase:
             return
 
         if subcmd == "search" and len(args) > 1:
-            query = " ".join(args[1:]).lower()
-            library_dir = self.project_root / "tool" / "SKILLS" / "data" / "library"
-            project_skills_dir = self.project_root / "skills"
-            matches = []
-            for source in [library_dir, project_skills_dir]:
-                if not source.exists(): continue
-                for skill_dir in sorted(source.iterdir()):
-                    skill_file = skill_dir / "SKILL.md"
-                    if not skill_dir.is_dir() or not skill_file.exists(): continue
-                    content = skill_file.read_text()
-                    if query in skill_dir.name.lower() or query in content.lower():
-                        desc = ""
-                        for line in content.splitlines():
-                            if line.startswith("description:"):
-                                desc = line[len("description:"):].strip()
-                                break
-                        matches.append((skill_dir.name, desc))
-            if matches:
-                print(f"{BOLD}Found {len(matches)} skill(s) matching '{query}':{RESET}\n")
-                for name, desc in matches[:20]:
-                    print(f"  {BOLD}{name}{RESET}")
-                    if desc: print(f"    {desc}")
-                if len(matches) > 20:
-                    print(f"\n  ... and {len(matches) - 20} more.")
+            DIM = get_color("DIM", "\033[2m")
+            query = " ".join(args[1:])
+            try:
+                from logic.search.tools import search_skills
+                results = search_skills(
+                    self.project_root, query, top_k=10,
+                    tool_name=self.tool_name,
+                )
+            except ImportError:
+                results = []
+            if results:
+                print(f"{BOLD}Found {len(results)} skill(s) matching '{query}':{RESET}\n")
+                for i, r in enumerate(results, 1):
+                    meta = r.get("meta", {})
+                    score_pct = int(r["score"] * 100)
+                    tool_tag = f" (tool: {meta['tool']})" if meta.get("tool") else ""
+                    print(f"  {BOLD}{i}. {r['id']}{RESET}{tool_tag} ({score_pct}%)")
+                    print(f"     {DIM}{meta.get('path', '')}{RESET}")
             else:
                 print(f"No skills found matching '{query}'.")
             return
@@ -553,7 +578,7 @@ class ToolBase:
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("BLUE", "\033[34m")
         YELLOW = get_color("YELLOW", "\033[33m")
         RED = get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
@@ -626,6 +651,15 @@ class ToolBase:
 
         print(f"Usage: {self.tool_name} hooks [list | show <name> | enable <name> | disable <name>]")
 
+    @staticmethod
+    def _get_system_git():
+        """Resolve the real system git binary, avoiding PATH shadows."""
+        try:
+            from tool.GIT.interface.main import get_system_git
+            return get_system_git()
+        except ImportError:
+            return "/usr/bin/git"
+
     def run_system_fallback(self, capture_output=False, filtered_args=None):
         """Delegate unknown commands to the system equivalent."""
         import subprocess
@@ -633,7 +667,7 @@ class ToolBase:
         
         # Mapping for specific tools that act as wrappers
         mapping = {
-            "GIT": "/usr/bin/git",
+            "GIT": self._get_system_git(),
             "PYTHON": sys.executable 
         }
         
@@ -668,7 +702,7 @@ class ToolBase:
         """Print tool-specific rules from tool.json."""
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("BLUE", "\033[34m")
         RESET = get_color("RESET", "\033[0m")
         
         print(f"--- {BOLD}{self.tool_name}{RESET} Rule ---")
@@ -864,7 +898,7 @@ class ToolBase:
 
     def run_subtool_install(self, subtool_name):
         """Standardized sub-tool installation logic."""
-        from logic.tool.setup.engine import ToolEngine
+        from logic.setup.engine import ToolEngine
         
         # Subtools use the naming convention: PARENT.SUBTOOL
         # and are stored directly in the project root's tool/ directory.
@@ -902,7 +936,7 @@ class ToolBase:
                 print(get_translation(gui_logic_dir, "uninstall_cancelled", "Uninstall cancelled."))
                 return False
 
-        from logic.tool.setup.engine import ToolEngine
+        from logic.setup.engine import ToolEngine
         engine = ToolEngine(subtool_full_name, self.project_root)
         return engine.uninstall()
 

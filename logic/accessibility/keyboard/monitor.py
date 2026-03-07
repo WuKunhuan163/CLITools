@@ -337,7 +337,7 @@ def _run_interactive_test():
                             root.after(1500, root.destroy)
 
                     root.after(0, lambda d=desc: append_log(d))
-                except Exception as exc:
+                except Exception:
                     root.after(0, lambda: append_log(f"PRESS ERROR: {exc}"))
 
             def on_release(key):
@@ -352,7 +352,7 @@ def _run_interactive_test():
                         desc += "  [MODIFIER UP]"
 
                     root.after(0, lambda d=desc: append_log(d))
-                except Exception as exc:
+                except Exception:
                     root.after(0, lambda: append_log(f"RELEASE ERROR: {exc}"))
 
             listener = keyboard.Listener(on_press=on_press, on_release=on_release)

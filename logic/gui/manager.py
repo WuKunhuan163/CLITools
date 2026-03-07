@@ -17,7 +17,7 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
     Unified handler for remote GUI commands (stop, submit, cancel, add_time).
     """
     from logic.config import get_color
-    BOLD, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
+    BOLD, RED, _YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--id", type=str)
@@ -77,10 +77,12 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(f"{BOLD}{RED}{label}{RESET}: {msg}")
         else:
             # Simple success message for other commands
-            print(f"{BOLD}{YELLOW}Info{RESET}: Sent '{command}' to {found} {tool_name} instances.")
+            from logic.turing.status import fmt_info
+            print(fmt_info(f"Sent '{command}' to {found} {tool_name} instances.", indent=0))
     else:
         if target_pid:
-            print(f"{BOLD}{YELLOW}Warning{RESET}: PID {target_pid} not found in active {tool_name} instances.")
+            from logic.turing.status import fmt_warning
+            print(fmt_warning(f"PID {target_pid} not found in active {tool_name} instances.", indent=0))
         else:
             msg = translation_helper('no_instances_found', f'No active {tool_name} GUI instances found.')
             print(msg)
@@ -180,6 +182,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     added_time_dir = tool_instance.project_root / "data" / "run" / "added_time"
     added_time_dir.mkdir(parents=True, exist_ok=True)
     
+    # Suppress keyboard echo during the waiting loop
+    from logic.turing.terminal.keyboard import get_global_suppressor
+    suppressor = get_global_suppressor()
+    suppressor.start()
+
     is_interrupted = False
     try:
         while proc.poll() is None:
@@ -205,6 +212,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             # 3. Watchdog check
             if time.time() - start_wait > parent_timeout:
                 proc.kill()
+                suppressor.stop()
                 if manager:
                     manager.update(gui_slot_id, "", is_final=True)
                 else:
@@ -216,6 +224,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             time.sleep(5)
         
         proc.wait() # Wait for process to exit
+        suppressor.stop()
         if manager and not is_quiet:
             manager.update(gui_slot_id, "", is_final=True)
         
@@ -224,6 +233,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         stdout = "".join(stdout_content)
         stderr = "".join(stderr_content)
     except (Exception, KeyboardInterrupt) as e:
+        suppressor.stop(force=True)
         if isinstance(e, KeyboardInterrupt):
             is_interrupted = True
         
@@ -333,7 +343,6 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     from logic.config import get_color
     from logic.gui.engine import get_sandbox_type
     from logic.utils import cleanup_old_files
-    import platform
     
     BOLD, BLUE, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
@@ -366,7 +375,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     # Display Hint if provided
     if initial_content:
         hint_label = _("fallback_hint_label", "Hint")
-        WHITE = get_color("WHITE", "\033[37m")
+        get_color("WHITE", "\033[37m")
         print(f"{BOLD}{BOLD}{hint_label}{RESET}: {initial_content}")
 
     try:
@@ -394,7 +403,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     print(full_msg, flush=True)
     
     # 4. Polling loop
-    bell_path = tool_instance.project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
+    tool_instance.project_root / "logic" / "asset" / "audio" / "bell.mp3"
     
     # Try to get focus interval from config
     fi = 90
@@ -405,7 +414,11 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     if fi > 0 and fi < 90: fi = 90
     
     last_focus = time.time() # Start from now to avoid immediate bell
-    
+
+    from logic.turing.terminal.keyboard import get_global_suppressor
+    fb_suppressor = get_global_suppressor()
+    fb_suppressor.start()
+
     try:
         while time.time() < until_ts:
             now = time.time()
@@ -420,18 +433,19 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
                     with open(input_file, 'r', encoding='utf-8') as f:
                         content = f.read().strip()
                     if content: # Any non-empty content is accepted
+                        fb_suppressor.stop()
                         success_label = _("label_successfully_received", "Successfully received")
                         from_file_label = _("label_from_file", "from file")
                         print(f"{BOLD}{GREEN}{success_label}{RESET} {from_file_label}: {content}", flush=True)
                         return content
             time.sleep(1)
     except KeyboardInterrupt:
-        # User explicitly interrupted
+        fb_suppressor.stop(force=True)
         interrupted_label = _("msg_interrupted", "Interrupted")
         print(f"\r\033[K{BOLD}{RED}{interrupted_label}{RESET}")
         return "__FALLBACK_INTERRUPTED__"
         
-    # Timeout case
+    fb_suppressor.stop()
     timeout_label = _("fallback_timed_out", "Fallback timed out")
     run_again_hint = _("fallback_run_again", "Please run {tool_name} again.")
     print(f"\r\033[K{BOLD}{RED}{timeout_label}{RESET}. {run_again_hint.format(tool_name=tool_instance.tool_name)}")

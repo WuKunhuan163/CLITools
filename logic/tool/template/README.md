@@ -1,53 +1,23 @@
-# {name} Tool
+# logic/tool/template
 
-{description}
+Scaffold templates for `TOOL --dev create <NAME>`. Each `.tmpl` file is loaded by `logic.dev.commands.dev_create()` and filled with `{name}` and `{short_name}` placeholders.
 
-## Overview
+## Template Files
 
-This tool is part of the **AITerminalTools** ecosystem. It is designed to be easily managed, tested, and localized.
+| File | Generated As |
+|------|-------------|
+| `main.py.tmpl` | `tool/<NAME>/main.py` |
+| `setup.py.tmpl` | `tool/<NAME>/setup.py` |
+| `tool.json.tmpl` | `tool/<NAME>/tool.json` |
+| `test_00_help.py.tmpl` | `tool/<NAME>/test/test_00_help.py` |
+| `test_01_basic.py.tmpl` | `tool/<NAME>/test/test_01_basic.py` |
+| `interface_main.py.tmpl` | `tool/<NAME>/interface/main.py` |
+| `hook_interface.py.tmpl` | `tool/<NAME>/hooks/interface/on_demo_action.py` |
+| `hook_instance.py.tmpl` | `tool/<NAME>/hooks/instance/demo_logger.py` |
+| `for_agent.md.tmpl` | `tool/<NAME>/for_agent.md` |
+| `tool_readme.md.tmpl` | `tool/<NAME>/README.md` |
 
-## Key Features
+## Placeholders
 
-- **Standardized Setup**: Uses a `setup.py` script for automatic environment configuration and dependency management.
-- **Turing Progress Display**: Leverages the shared `logic/turing` module for rich, multi-line terminal progress updates.
-- **Localization**: All user-facing strings are stored in `logic/translation/` for easy translation.
-- **Unit Testing**: Pre-configured test suite in the `test/` directory.
-
-## Development Guidelines
-
-### 1. Localization
-Never hardcode user-facing strings. Use the `_()` helper:
-```python
-from logic.lang.utils import get_translation
-# ...
-print(_("my_key", "Default English String"))
-```
-Add your translations to `logic/translation/zh.json`, etc.
-
-### 2. Shared Utilities
-Check the root `logic/` directory before implementing common logic. It contains:
-- `logic/utils.py`: Terminal formatting, platform detection, progress wrappers.
-- `logic/git.py`: Standardized Git operations with progress display.
-- `logic/turing/`: Advanced progress state machine.
-- `logic/worker.py`: Parallel task worker system.
-
-### 3. Git Integration
-- **Git LFS**: Large assets are automatically tracked via `.gitattributes`.
-- **Auto-Push**: The ecosystem can be configured to auto-push your work periodically to prevent loss.
-
-### 4. Testing
-Run tests using the central manager:
-```bash
-TOOL test {name}
-```
-Ensure your tests do not hardcode absolute paths. Use relative paths or shared configuration helpers.
-
-## Repository Structure
-
-- `main.py`: Main entry point.
-- `setup.py`: Environment setup and dependency check.
-- `logic/`: Tool-specific logic and translations.
-- `test/`: Unit tests.
-- `tool.json`: Metadata and dependencies.
-
-
+- `{name}` — full tool name (e.g. `GOOGLE.GCS`)
+- `{short_name}` — last segment for CLI (e.g. `GCS`)

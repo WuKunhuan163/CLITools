@@ -4,7 +4,15 @@ import subprocess
 import time
 import json
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, Callable
+
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return _git_bin()
 
 from logic.config import get_color, get_setting, get_global_config
 from logic.utils import get_cpu_percent
@@ -30,14 +38,14 @@ def _resolve_tool_name(name: str, project_root: Path) -> str:
 def test_tool_with_args(args, project_root: Path, translation_func: Optional[Callable] = None):
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
     BOLD = get_color("BOLD", "\033[1m")
-    BLUE = get_color("BLUE", "\033[34m")
-    GREEN = get_color("GREEN", "\033[32m")
+    get_color("BLUE", "\033[34m")
+    get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
     # 0. Capture current branch to return later
     try:
-        start_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        start_branch = subprocess.check_output([_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
         start_branch = "dev"
 
@@ -122,7 +130,7 @@ def test_tool_with_args(args, project_root: Path, translation_func: Optional[Cal
             if args.list: runner.list_tests()
             else: runner.run_tests(args.range[0] if args.range else None, args.range[1] if args.range else None, max_concurrent, args.timeout, quiet_if_no_tests=True)
                 
-        subprocess.run(["/usr/bin/git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
+        subprocess.run([_git_bin(), "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
     finally:
         if locker_key:
             pm.restore(locker_key)
@@ -142,21 +150,20 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
     try:
         start_time = time.time()
         try:
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
+            res = subprocess.run([_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(project_root))
             current_branch = res.stdout.strip() if res.returncode == 0 else "dev"
         except:
             current_branch = "dev"
 
         def sync_action():
-            from logic.tool.dev.commands import dev_sync
+            from logic.dev.commands import dev_sync
             with open(os.devnull, 'w') as f:
-                import io
                 from contextlib import redirect_stdout, redirect_stderr
                 with redirect_stdout(f), redirect_stderr(f):
                     success = dev_sync(project_root, quiet=True, translation_func=_)
                     if success:
-                        subprocess.run(["/usr/bin/git", "checkout", "-f", "test"], cwd=str(project_root), capture_output=True)
-                        subprocess.run(["/usr/bin/git", "clean", "-fd", "--exclude=tool/", "--exclude=data/", "--exclude=bin/", "--exclude=logic/config/tool_config_manager.py"], cwd=str(project_root), capture_output=True)
+                        subprocess.run([_git_bin(), "checkout", "-f", "test"], cwd=str(project_root), capture_output=True)
+                        subprocess.run([_git_bin(), "clean", "-fd", "--exclude=tool/", "--exclude=data/", "--exclude=bin/", "--exclude=logic/config/tool_config_manager.py"], cwd=str(project_root), capture_output=True)
                     return success
 
         tm_sync = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
@@ -226,7 +233,7 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
             duration_label = _("label_duration", "Duration")
             print(f"{BOLD}{GREEN}{success_label}{RESET} ({duration_label}: {duration:.2f}s)")
             if not stay_on_test:
-                subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
+                subprocess.run([_git_bin(), "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
             return True
         else:
             error_msg = getattr(install_test_action, 'error_msg', 'Unknown error')
@@ -235,7 +242,7 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
             if len(lines) > 1:
                 for line in lines[1:]:
                     print(f"  {line}")
-            subprocess.run(["/usr/bin/git", "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
+            subprocess.run([_git_bin(), "checkout", "-f", current_branch], cwd=str(project_root), capture_output=True)
             return False
     finally:
         if locker_key:

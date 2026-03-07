@@ -1,13 +1,11 @@
 import sys
 import os
-import time
 import re
 import inspect
 from typing import List, Optional
 from pathlib import Path
 from logic.turing.logic import TuringStage
 from logic.config import get_color
-from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.turing.terminal.keyboard import get_global_suppressor
 from logic.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
@@ -37,12 +35,51 @@ class ProgressTuringMachine:
 
     def add_stage(self, stage: TuringStage):
         self.stages.append(stage)
-        
+
+    def warning(self, text: str) -> None:
+        """Emit a dimmed warning line via the display manager."""
+        from logic.turing.status import fmt_warning
+        self.manager.update(
+            f"_warn_{id(text)}",
+            fmt_warning(text, indent=0),
+            is_final=True, truncate=False)
+
+    def info(self, text: str) -> None:
+        """Emit a dimmed informational line via the display manager."""
+        from logic.turing.status import fmt_info
+        self.manager.update(
+            f"_info_{id(text)}",
+            fmt_info(text, indent=0),
+            is_final=True, truncate=False)
+
     def _log_error(self, stage: TuringStage, exception: Optional[Exception] = None):
         """Saves full error information to the session log or a standalone file."""
         from logic.turing.utils import log_turing_error
         return log_turing_error(stage, self.project_root, self.tool_name, exception,
                                 log_dir=self.log_dir, session_logger=self.session_logger)
+
+    @staticmethod
+    def _format_msg(status: str, name: str, color: str, bold_part: str = None,
+                    suffix: str = "") -> str:
+        """Build a formatted stage message.
+
+        *status* + *name* form the full text.  *bold_part* selects the
+        prefix to render in *color* (BOLD for active, GREEN/RED for done/fail).
+        The rest stays in default style.
+        """
+        RESET = get_color("RESET", "\033[0m")
+        full = f"{status} {name}".strip()
+        bp = (bold_part or "").strip()
+        if bp and full.startswith(bp):
+            rest = full[len(bp):].lstrip()
+            return f"{color}{bp}{RESET}{' ' + rest if rest else ''}{suffix}"
+        if bp and name and name.strip().startswith(bp):
+            bold_text = f"{status} {bp}".strip()
+            rest = name.strip()[len(bp):].lstrip()
+            return f"{color}{bold_text}{RESET}{' ' + rest if rest else ''}{suffix}"
+        if name:
+            return f"{color}{status}{RESET} {name}{suffix}"
+        return f"{color}{status}{RESET}{suffix}"
 
     def refresh_stage(self, stage: TuringStage):
         """Refreshes the current active stage display line."""
@@ -52,60 +89,30 @@ class ProgressTuringMachine:
         if stage.stealth:
             return
 
-        # Detect if this stage is a warning
         is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning" or 
                       stage.active_status == "Warning" or stage.fail_color == "YELLOW")
-        
         if self.no_warning and is_warning:
             return
 
-        from logic.config import get_color
-        from logic.turing.display.manager import truncate_to_width, _get_configured_width
-        
-        BLUE = get_color("BLUE", "\033[34m")
         BOLD = get_color("BOLD", "\033[1m")
-        RESET = get_color("RESET", "\033[0m")
-        
-        width = _get_configured_width()
         active_name = stage.active_name if stage.active_name is not None else stage.name
-        
-        if stage.bold_part:
-            # Check if bold_part matches the whole active phrase
-            full_active_no_format = f"{stage.active_status} {active_name}".strip()
-            bold_p = stage.bold_part.strip()
-            if full_active_no_format.startswith(bold_p):
-                bold_text = bold_p
-                rest_text = full_active_no_format[len(bold_p):].lstrip()
-                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
-            elif active_name and active_name.strip().startswith(bold_p):
-                # User wants to bold status + prefix of the name
-                bold_text = f"{stage.active_status} {bold_p}".strip()
-                rest_text = active_name.strip()[len(bold_p):].lstrip()
-                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}..."
-            else:
-                active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
-        else:
-            active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}..."
-        
-        # Use manager to refresh stage line
+        active_msg = self._format_msg(stage.active_status, active_name, BOLD,
+                                       bold_part=stage.bold_part, suffix="...")
         self.manager.update(f"stage_{stage.name}", active_msg)
 
     def run(self, ephemeral: bool = False, final_newline: bool = False, final_msg: Optional[str] = None) -> bool:
-        # Use global suppressor to avoid conflicts and potential deadlocks
         suppressor = get_global_suppressor()
         
-        BLUE = get_color("BLUE", "\033[34m")
         BOLD = get_color("BOLD", "\033[1m")
-        RED = get_color("RED", "\033[31m")
+        get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
-        GREEN = get_color("GREEN", "\033[32m")
+        get_color("GREEN", "\033[32m")
         
         with suppressor:
             try:
                 for i, stage in enumerate(self.stages):
                     if getattr(stage, "finished", False):
                         continue
-                    # Attach machine to stage so action can refresh
                     stage.machine = self
                     
                     from logic.utils import log_debug
@@ -113,31 +120,15 @@ class ProgressTuringMachine:
                     
                     is_last = (i == len(self.stages) - 1)
                     active_name = stage.active_name if stage.active_name is not None else stage.name
-                    width = _get_configured_width()
                     
-                    # Detect if this stage is a warning
                     is_warning = (stage.success_color == "YELLOW" or stage.success_status == "Warning" or 
                                   stage.active_status == "Warning" or stage.fail_color == "YELLOW")
                     
                     if not (self.no_warning and is_warning) and not stage.stealth:
                         suffix = "..." if not active_name.strip().endswith("...") else ""
-                        if stage.bold_part:
-                            full_active_no_format = f"{stage.active_status} {active_name}".strip()
-                            bold_p = stage.bold_part.strip()
-                            if full_active_no_format.startswith(bold_p):
-                                bold_text = bold_p
-                                rest_text = full_active_no_format[len(bold_p):].lstrip()
-                                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}{suffix}"
-                            elif active_name and active_name.strip().startswith(bold_p):
-                                # User wants to bold status + prefix of the name
-                                bold_text = f"{stage.active_status} {bold_p}".strip()
-                                rest_text = active_name.strip()[len(bold_p):].lstrip()
-                                active_msg = f"{BLUE}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}{suffix}"
-                            else:
-                                active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}{suffix}"
-                        else:
-                            active_msg = f"{BLUE}{stage.active_status}{RESET} {active_name}{suffix}"
-                        
+                        active_msg = self._format_msg(
+                            stage.active_status, active_name, BOLD,
+                            bold_part=stage.bold_part, suffix=suffix)
                         self.manager.update(f"stage_{stage.name}", active_msg)
                     
                     try:
@@ -164,36 +155,12 @@ class ProgressTuringMachine:
 
                             # Use success_name if provided, else use name. 
                             # If success_name is explicitly "", use empty string.
-                            if stage.success_name is not None:
-                                success_name = stage.success_name
-                            else:
-                                success_name = stage.name
-                                
+                            success_name = stage.success_name if stage.success_name is not None else stage.name
                             color_code = get_color(stage.success_color, "\033[32m")
-                            full_success_no_format = f"{stage.success_status} {success_name}".strip() if success_name else stage.success_status
+                            full_msg = self._format_msg(
+                                stage.success_status, success_name or "", color_code,
+                                bold_part=stage.bold_part)
                             
-                            if stage.bold_part:
-                                bold_p = stage.bold_part.strip()
-                                if full_success_no_format.startswith(bold_p):
-                                    bold_text = bold_p
-                                    rest_text = full_success_no_format[len(bold_p):].lstrip()
-                                    full_msg = f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
-                                elif success_name and success_name.strip().startswith(bold_p):
-                                    bold_text = f"{stage.success_status} {bold_p}".strip()
-                                    rest_text = success_name.strip()[len(bold_p):].lstrip()
-                                    full_msg = f"{color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
-                                elif success_name:
-                                    full_msg = f"{color_code}{stage.success_status}{RESET} {success_name}"
-                                else:
-                                    full_msg = f"{color_code}{stage.success_status}{RESET}"
-                            elif success_name:
-                                full_msg = f"{color_code}{stage.success_status}{RESET} {success_name}"
-                            else:
-                                # Explicitly empty success_name
-                                full_msg = f"{color_code}{stage.success_status}{RESET}"
-                            
-                            # Ensure completion period for success states
-                            # Strip ANSI escape codes for punctuation check
                             stripped_msg = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', full_msg)
                             if stripped_msg and not any(stripped_msg.rstrip().endswith(c) for c in [".", "!", ")", "]", "}", ">"]):
                                 full_msg = full_msg.rstrip() + "."
@@ -257,22 +224,10 @@ class ProgressTuringMachine:
                                 return True 
                             
                             fail_color_code = get_color(stage.fail_color, "\033[31m")
-                            full_fail_no_format = f"{stage.fail_status} {fail_name}".strip()
-                            
-                            if stage.bold_part:
-                                bold_p = stage.bold_part.strip()
-                                if full_fail_no_format.startswith(bold_p):
-                                    bold_text = bold_p
-                                    rest_text = full_fail_no_format[len(bold_p):].lstrip()
-                                    fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
-                                elif fail_name and fail_name.strip().startswith(bold_p):
-                                    bold_text = f"{stage.fail_status} {bold_p}".strip()
-                                    rest_text = fail_name.strip()[len(bold_p):].lstrip()
-                                    fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
-                                else:
-                                    fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
-                            else:
-                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
+                            DIM = get_color("DIM", "\033[2m")
+                            fail_msg_start = self._format_msg(
+                                stage.fail_status, fail_name or "", fail_color_code,
+                                bold_part=stage.bold_part)
                             
                             brief_reason = brief_reason.rstrip(".")
                             
@@ -281,12 +236,15 @@ class ProgressTuringMachine:
                                 full_msg_fail = f"{fail_msg_start}."
                             else:
                                 reason_label = get_translation(logic_dir, "label_reason", "Reason")
-                                full_msg_fail = f"{fail_msg_start} . {reason_label}: {brief_reason}."
+                                full_msg_fail = f"{fail_msg_start}."
                             
                             self.manager.update(f"stage_{stage.name}", full_msg_fail, is_final=True, truncate=False)
+                            if brief_reason and fail_name != "":
+                                reason_label = get_translation(logic_dir, "label_reason", "Reason")
+                                self.manager.update(f"reason_{stage.name}", f"  {DIM}{reason_label}: {brief_reason}.{RESET}", is_final=True, truncate=False)
                             if log_path:
                                 traceback_label = get_translation(logic_dir, "label_traceback_saved_to", "Traceback saved to")
-                                self.manager.update(f"log_{stage.name}", f"{BOLD}{traceback_label}:{RESET} {log_path}", is_final=True, truncate=False)
+                                self.manager.update(f"log_{stage.name}", f"  {DIM}{traceback_label}: {log_path}{RESET}", is_final=True, truncate=False)
                             
                             return False
                     except Exception as e:
@@ -305,33 +263,20 @@ class ProgressTuringMachine:
                         brief_reason = brief_reason.rstrip(".")
                         
                         fail_color_code = get_color(stage.fail_color, "\033[31m")
-                        full_fail_no_format = f"{stage.fail_status} {fail_name}".strip()
-                        
-                        if stage.bold_part:
-                            bold_p = stage.bold_part.strip()
-                            if full_fail_no_format.startswith(bold_p):
-                                bold_text = bold_p
-                                rest_text = full_fail_no_format[len(bold_p):].lstrip()
-                                fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
-                            elif fail_name and fail_name.strip().startswith(bold_p):
-                                bold_text = f"{stage.fail_status} {bold_p}".strip()
-                                rest_text = fail_name.strip()[len(bold_p):].lstrip()
-                                fail_msg_start = f"{fail_color_code}{bold_text}{RESET}{' ' + rest_text if rest_text else ''}"
-                            else:
-                                fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
-                        else:
-                            fail_msg_start = f"{fail_color_code}{stage.fail_status}{RESET} {fail_name}" if fail_name else f"{fail_color_code}{stage.fail_status}{RESET}"
+                        DIM = get_color("DIM", "\033[2m")
+                        fail_msg_start = self._format_msg(
+                            stage.fail_status, fail_name or "", fail_color_code,
+                            bold_part=stage.bold_part)
                         
                         logic_dir = str(find_project_root(Path(__file__)) / "logic")
-                        if fail_name == "":
-                            fail_msg = f"{fail_msg_start}."
-                        else:
-                            reason_label = get_translation(logic_dir, "label_reason", "Reason")
-                            fail_msg = f"{fail_msg_start} . {reason_label}: {brief_reason}."
+                        fail_msg = f"{fail_msg_start}."
                         self.manager.update(f"stage_{stage.name}", fail_msg, is_final=True, truncate=False)
+                        if brief_reason and fail_name != "":
+                            reason_label = get_translation(logic_dir, "label_reason", "Reason")
+                            self.manager.update(f"reason_{stage.name}", f"  {DIM}{reason_label}: {brief_reason}.{RESET}", is_final=True, truncate=False)
                         if log_path:
                             traceback_label = get_translation(logic_dir, "label_traceback_saved_to", "Traceback saved to")
-                            self.manager.update(f"log_{stage.name}", f"{BOLD}{traceback_label}:{RESET} {log_path}", is_final=True, truncate=False)
+                            self.manager.update(f"log_{stage.name}", f"  {DIM}{traceback_label}: {log_path}{RESET}", is_final=True, truncate=False)
                         
                         return False
                 

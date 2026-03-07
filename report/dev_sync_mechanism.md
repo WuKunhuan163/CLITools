@@ -48,7 +48,7 @@ The `_dev_sync` function orchestrates the synchronization through a series of `T
 
 ## `.gitignore` Configuration:
 
-The `.gitignore` file is crucial for preventing `git clean -fdx` from deleting important local development files. It is configured to explicitly ignore:
+The `.gitignore` file is **auto-generated** by `GitIgnoreManager` (`logic/git/manager.py`). Never edit it directly — modify `GitIgnoreManager.base_patterns` instead. It is crucial for preventing `git clean -fdx` from deleting important local development files. It is configured to explicitly ignore:
 -   `/data/`: Root-level data directory (e.g., global config, audit reports).
 -   `/logs/`: Root-level logs directory.
 -   `/tmp/`: Root-level temporary files.

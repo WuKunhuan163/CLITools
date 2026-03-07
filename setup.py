@@ -100,7 +100,7 @@ def install_core_tools_action(stage=None):
         
         tool_deps = registry.get("tool_dependencies", [])
         if tool_deps:
-            from logic.tool.setup.engine import ToolEngine
+            from logic.setup.engine import ToolEngine
             for tool_name in tool_deps:
                 engine = ToolEngine(tool_name, project_root)
                 if not engine.is_installed():

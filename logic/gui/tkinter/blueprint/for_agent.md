@@ -43,6 +43,17 @@ A boxy numeric code entry interface:
 - Auto-focusing next/previous boxes on input/backspace.
 - Loading state with "Verifying..." status.
 
+### 6. Two-Step Login (`two_step_login`)
+Account-first, then password if needed:
+- Handler returns `need_password` to transition.
+- Prev button to return to account step.
+- Attempt count only for password step.
+
+### 7. Tutorial (`tutorial`)
+Multi-step wizard with `TutorialStep` objects:
+- `content_func(frame, window)` builds each step.
+- `validate_func()` enables Next when True.
+
 ## How to use in your Tool
 
 ### Minimal Calling Code
