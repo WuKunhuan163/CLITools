@@ -1368,7 +1368,7 @@ class OpenClawCLI:
                         sys.stdout = tracker._wrapped
                         if self._provider and self._provider.is_available():
                             self._recolor_indicator(display_text, tracker.lines, GREEN)
-                            print(_("setup_completed", "Setup completed."))
+                            print(f"  {BOLD}{_('setup_completed', 'Setup completed.')}{RESET}")
                         else:
                             self._recolor_indicator(display_text, tracker.lines, DIM)
                     elif text == "/help":

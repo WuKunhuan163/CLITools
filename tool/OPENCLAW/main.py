@@ -92,11 +92,18 @@ def cmd_setup_llm(args):
 def _make_core(args) -> "OpenClawCore":
     """Create the shared OpenClawCore instance used by all GUI modes."""
     from tool.OPENCLAW.logic.core import OpenClawCore
+    from tool.LLM.logic.config import get_config_value
+    from tool.LLM.logic.registry import _ALIASES
     data_dir = Path(__file__).resolve().parent / "data"
     cfg = _load_config()
+    saved_backend = get_config_value("active_backend")
+    if saved_backend and saved_backend in _ALIASES:
+        saved_backend = _ALIASES[saved_backend]
+    explicit = getattr(args, "backend", None)
+    backend = explicit or saved_backend or "nvidia-glm-4-7b"
     core = OpenClawCore(
         data_dir=data_dir,
-        backend=getattr(args, "backend", "nvidia-glm-4-7b"),
+        backend=backend,
         log_limit=cfg.get("log_limit", 1024),
     )
     return core
