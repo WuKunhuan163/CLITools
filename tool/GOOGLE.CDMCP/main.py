@@ -90,6 +90,12 @@ class CDMCPTool(ToolBase):
         p_session.add_argument("--timeout", type=int, default=None,
                                help="Session timeout in seconds (default 86400)")
 
+        p_boot = sub.add_parser("boot", help="Boot a session (opens welcome page in new window)")
+        p_boot.add_argument("name", nargs="?", default="default",
+                            help="Session name to boot")
+        p_boot.add_argument("--url", default=None,
+                            help="URL to open (default: welcome page)")
+
         p_demo = sub.add_parser("demo", help="Run interactive demo on Chat app")
         p_demo.add_argument("--delay", type=float, default=1.2,
                             help="Delay between steps (seconds)")
@@ -238,6 +244,16 @@ class CDMCPTool(ToolBase):
                     print(f"  {BOLD}{GREEN}Closed{RESET} session '{args.name}'.")
                 else:
                     print(f"  {BOLD}{RED}Not found{RESET}: session '{args.name}'")
+
+        elif args.command == "boot":
+            r = api.boot_session(args.name, url=args.url)
+            if r.get("ok"):
+                print(f"  {BOLD}{GREEN}Booted{RESET} session '{args.name}'.")
+                print(f"  Window: {r.get('windowId', '?')}")
+                if r.get("url"):
+                    print(f"  URL: {r['url']}")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET} to boot: {r.get('error', '?')}")
 
         elif args.command == "demo":
             r = api.run_demo(delay=args.delay, continuous=not args.single)

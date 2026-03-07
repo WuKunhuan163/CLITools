@@ -27,6 +27,16 @@ def main():
     sub.add_parser("page", help="Show current page info")
     sub.add_parser("maps", help="List mind maps (requires auth)")
     sub.add_parser("sidebar", help="Show sidebar sections (requires auth)")
+    sub.add_parser("boot", help="Boot XMind CDMCP session in dedicated window")
+    sub.add_parser("session", help="Show session and state machine status")
+    sub.add_parser("recover", help="Manually trigger recovery")
+
+    p_create = sub.add_parser("create", help="Create a new mind map")
+    p_create.add_argument("title", nargs="?", default="New Mind Map",
+                          help="Title for the new map")
+
+    p_open = sub.add_parser("open", help="Open an existing mind map")
+    p_open.add_argument("title", help="Title of the map to open")
 
     if tool.handle_command_line(parser):
         return
@@ -36,13 +46,43 @@ def main():
     GREEN = get_color("GREEN")
     RED = get_color("RED")
     YELLOW = get_color("YELLOW")
+    BLUE = get_color("BLUE")
     RESET = get_color("RESET")
 
     from tool.XMIND.logic.chrome.api import (
         get_auth_state, get_page_info, get_maps, get_sidebar,
+        boot_session, get_session_status, create_map, open_map,
+        _recover,
     )
 
-    if args.command == "status":
+    if args.command == "boot":
+        r = boot_session()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Booted{RESET} XMind session.")
+            print(f"  State: {r.get('state', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET} to boot: {r.get('error', '?')}")
+
+    elif args.command == "session":
+        s = get_session_status()
+        print(f"  State: {BOLD}{s.get('state', '?')}{RESET}")
+        print(f"  Active: {'Yes' if s.get('session_active') else 'No'}")
+        if s.get("last_url"):
+            print(f"  URL: {s['last_url'][:60]}")
+        if s.get("last_map_title"):
+            print(f"  Map: {s['last_map_title']}")
+        if s.get("error"):
+            print(f"  Error: {RED}{s['error']}{RESET}")
+
+    elif args.command == "recover":
+        from tool.XMIND.logic.chrome.api import _recover as do_recover
+        r = do_recover()
+        if r:
+            print(f"  {BOLD}{GREEN}Recovered{RESET} XMind session.")
+        else:
+            print(f"  {BOLD}{RED}Recovery failed{RESET}.")
+
+    elif args.command == "status":
         r = get_auth_state()
         auth = r.get("authenticated", False)
         print(f"  Authenticated: {BOLD}{GREEN if auth else YELLOW}{'Yes' if auth else 'No'}{RESET}")
@@ -57,19 +97,19 @@ def main():
             print(f"  URL:     {r.get('url', '?')}")
             print(f"  Section: {r.get('section', '?')}")
         else:
-            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+            print(f"  {BOLD}{RED}Failed{RESET} to get page info: {r.get('error', '?')}")
 
     elif args.command == "maps":
         r = get_maps()
         if r.get("ok"):
             maps = r.get("maps", [])
-            print(f"  Found {r.get('count', 0)} maps")
+            print(f"  Found {r.get('count', 0)} maps.")
             for i, m in enumerate(maps):
                 print(f"  [{i+1}] {m['title']:<50} {m.get('time','')}")
             if not maps:
-                print(f"  {YELLOW}No maps visible{RESET}")
+                print(f"  {YELLOW}No maps visible.{RESET}")
         else:
-            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
 
     elif args.command == "sidebar":
         r = get_sidebar()
@@ -77,7 +117,23 @@ def main():
             for s in r.get("sections", []):
                 print(f"  {s}")
         else:
-            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "create":
+        r = create_map(args.title)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Created{RESET} mind map.")
+            print(f"  URL: {r.get('url', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "open":
+        r = open_map(args.title)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Opened{RESET} '{args.title}'.")
+            print(f"  URL: {r.get('url', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
 
     else:
         parser.print_help()

@@ -315,6 +315,49 @@ def cleanup_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+def boot_session(name: str = "default", url: str = None,
+                 port: int = CDP_PORT) -> Dict[str, Any]:
+    """Boot a named CDMCP session. Opens a welcome page in a new Chrome window.
+
+    Args:
+        name: Session name.
+        url: URL to open after the welcome page. If None, stays on welcome.
+    """
+    session_mgr = _load_mod("cdmcp_session_mgr", _SESSION_PATH)
+    overlay = _load_mod("cdmcp_overlay", _OVERLAY_PATH)
+    server_mod = _load_mod("cdmcp_server", _SERVER_PATH)
+
+    server_url, _ = server_mod.start_server()
+    welcome_url = f"{server_url}/welcome?session={name}&tool=CDMCP&letter=C&timeout=24h"
+
+    session = session_mgr.create_session(name, timeout_sec=86400, port=port)
+    boot_result = session.boot(welcome_url, new_window=True)
+
+    if not boot_result.get("ok"):
+        return boot_result
+
+    time.sleep(0.8)
+    cdp = session.get_cdp()
+    if cdp:
+        tab_id = session.lifetime_tab_id
+        if tab_id:
+            overlay.pin_tab_by_target_id(tab_id, pinned=True, port=port)
+            overlay.activate_tab(tab_id, port)
+        overlay.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
+        overlay.inject_badge(cdp, text=f"CDMCP [{name}]", color="#1a73e8")
+        overlay.inject_focus(cdp, color="#1a73e8")
+
+    if url:
+        time.sleep(1.5)
+        cdp = session.get_cdp()
+        if cdp:
+            cdp.evaluate(f"window.location.href = {json.dumps(url)}")
+            time.sleep(2)
+        session.lifetime_tab_url = url
+
+    return boot_result
+
+
 def run_demo(port: int = CDP_PORT, delay: float = 1.2,
              continuous: bool = True) -> Dict[str, Any]:
     demo_mod = _load_mod("cdmcp_demo", _DEMO_PATH)
