@@ -45,9 +45,15 @@ def _term_width() -> int:
 
 
 def _truncate(text: str, width: int) -> str:
-    """Truncate visible characters to *width*, ignoring ANSI escapes."""
+    """Truncate visible characters to *width*, ignoring ANSI escapes.
+
+    When truncation is needed, reserves 3 visible columns for ``...``
+    so the ellipsis always fits on the same line.
+    """
     visible = 0
     i = 0
+    cutoff = max(1, width - 3)
+    cut_pos = -1
     while i < len(text):
         if text[i] == "\033":
             j = i + 1
@@ -56,8 +62,12 @@ def _truncate(text: str, width: int) -> str:
             i = j + 1
             continue
         visible += 1
+        if visible == cutoff:
+            cut_pos = i + 1
         if visible > width:
-            return text[:i] + "..."
+            if cut_pos > 0:
+                return text[:cut_pos] + f"{RESET}..."
+            return text[:i] + f"{RESET}..."
         i += 1
     return text
 
@@ -86,7 +96,7 @@ def fmt_status(label: str, complement: str = "", dim: str = "",
     """
     prefix = " " * indent
     color = {"success": GREEN, "error": RED}.get(style, "")
-    parts = [f"{prefix}{color}{BOLD}{label}{RESET}"]
+    parts = [f"{RESET}{prefix}{color}{BOLD}{label}{RESET}"]
     if complement:
         parts.append(f" {complement}")
     if dim:
@@ -108,8 +118,8 @@ def fmt_detail(text: str, indent: int = 4, styled: bool = False) -> str:
     """
     prefix = " " * indent
     if styled:
-        return _truncate(f"{prefix}{text}", _term_width())
-    return _truncate(f"{prefix}{DIM}{text}{RESET}", _term_width())
+        return _truncate(f"{RESET}{prefix}{text}", _term_width())
+    return _truncate(f"{RESET}{prefix}{DIM}{text}{RESET}", _term_width())
 
 
 def fmt_stage(label: str, desc: str = "", status: str = "active",
@@ -133,9 +143,9 @@ def fmt_stage(label: str, desc: str = "", status: str = "active",
     suffix = f" {desc}" if desc else ""
     color = _STATUS_COLORS.get(status, "")
     if color:
-        raw = f"{indent}{color}{indicator}{RESET} {BOLD}{label}{RESET}{suffix}"
+        raw = f"{RESET}{indent}{color}{indicator}{RESET} {BOLD}{label}{RESET}{suffix}"
     else:
-        raw = f"{indent}{indicator} {BOLD}{label}{RESET}{suffix}"
+        raw = f"{RESET}{indent}{indicator} {BOLD}{label}{RESET}{suffix}"
     return _truncate(raw, _term_width())
 
 
@@ -149,7 +159,7 @@ def fmt_warning(text: str, indent: int = 2) -> str:
     """
     prefix = " " * indent
     return _truncate(
-        f"{prefix}{YELLOW}{DIM}Warning:{RESET} {DIM}{text}{RESET}",
+        f"{RESET}{prefix}{YELLOW}{DIM}Warning:{RESET} {DIM}{text}{RESET}",
         _term_width())
 
 
@@ -162,4 +172,4 @@ def fmt_info(text: str, indent: int = 2) -> str:
         A fully ANSI-formatted string (no trailing newline).
     """
     prefix = " " * indent
-    return _truncate(f"{prefix}{DIM}{text}{RESET}", _term_width())
+    return _truncate(f"{RESET}{prefix}{DIM}{text}{RESET}", _term_width())

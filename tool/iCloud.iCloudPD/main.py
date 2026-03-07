@@ -70,6 +70,7 @@ def main():
     parser.add_argument("--prefix", type=str, default="", help="Prefix for the photo filename (supports placeholders: <YYYY>, <MM>, <DD>, <hh>, <mm>, <ss>, <ID>, <FILENAME>)")
     parser.add_argument("--suffix", type=str, default="", help="Suffix for the photo filename (supports placeholders)")
     parser.add_argument("--grouping", type=str, default="<YYYY>-<MM>-<DD>", help="Directory grouping rule (default: <YYYY>-<MM>-<DD>)")
+    parser.add_argument("--tz", type=str, default=None, help="Timezone for filename timestamps (e.g. Asia/Shanghai). Defaults to system local timezone.")
     
     if tool.handle_command_line(parser): return
     
@@ -397,7 +398,26 @@ def main():
         print(f"{BOLD}{GREEN}Scan completed{RESET}. Metadata saved to {cache_file}")
         return
     
-    # 3. Filtering and Scheduling
+    # 3. Timezone + Filtering and Scheduling
+    from datetime import timezone as _tz
+    import zoneinfo
+    if args.tz:
+        try:
+            target_tz = zoneinfo.ZoneInfo(args.tz)
+        except Exception:
+            print(fmt_warning(f"Unknown timezone '{args.tz}', falling back to system local."))
+            target_tz = datetime.now().astimezone().tzinfo
+    else:
+        target_tz = datetime.now().astimezone().tzinfo
+
+    def _to_local(dt):
+        """Convert a datetime to the target timezone."""
+        if dt is None:
+            return None
+        if dt.tzinfo is not None:
+            return dt.astimezone(target_tz)
+        return dt.replace(tzinfo=_tz.utc).astimezone(target_tz)
+
     since_date = datetime.strptime(args.since, "%Y-%m-%d").date() if args.since else None
     before_date = datetime.strptime(args.before, "%Y-%m-%d").date() if args.before else None
     import fnmatch, re
@@ -428,7 +448,7 @@ def main():
                 for p in day_assets:
                     full_path = f"{date_str}/{p['filename']}"
                     if regex_pattern and not regex_pattern.search(full_path): continue
-                    p_datetime = datetime.fromisoformat(p["created"]) if p["created"] else None
+                    p_datetime = _to_local(datetime.fromisoformat(p["created"])) if p["created"] else None
                     p_date = p_datetime.date() if p_datetime else None
                     if since_date and (not p_date or p_date < since_date): continue
                     if before_date and (not p_date or p_date > before_date): continue
@@ -616,8 +636,9 @@ def main():
         if stage: stage.report_error(f"Failed after {max_attempts} retries", last_err)
         return False
 
+    print(fmt_info(f"Using timezone: {target_tz}"))
+
     pool = ParallelWorkerPool(max_workers=args.workers, status_label="Downloading", project_root=tool.project_root, tool_name="iCloudPD")
-    # Identify how many are already completed (local matches)
     local_done_count = 0
     for photo in to_download_objects:
         if isinstance(photo, LocalAssetStub):
@@ -628,10 +649,8 @@ def main():
     used_paths = set()
     
     for photo in to_download_objects:
-        # Resolve creation date
-        created_time = photo.created # Default to UTC from iCloud
+        created_time = photo.created
         
-        # If photo.created is None or epoch (common fallback for failed parsing), use cached date
         if not created_time or created_time.year <= 1970:
             created_time = getattr(photo, "_cached_date", None)
             
@@ -640,11 +659,11 @@ def main():
             if res:
                 _, local_dt = res
                 if local_dt and local_dt.year > 1970:
-                    created_time = local_dt # Use local time if found
+                    created_time = local_dt
         
-        # If still None, use a safe default (today)
+        created_time = _to_local(created_time)
         if not created_time:
-            created_time = datetime.now()
+            created_time = datetime.now(tz=target_tz)
         
         # Calculate target directory based on grouping rule
         dir_name = substitute_tags(args.grouping, created_time, photo.id, photo.filename)
@@ -694,7 +713,7 @@ def main():
         f_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}"
         l_s = f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
         print(fmt_status("Successfully downloaded", complement=f"{len(tasks)} photos/videos.", style="success", indent=0))
-        print(fmt_info(f"From {f_s} to {l_s}", indent=0))
+        print(fmt_info(f"From {f_s} to {l_s}", indent=2))
     elif failed_tasks:
         print(fmt_status("Failed to download", complement=f"{len(failed_tasks)} photos/videos.", style="error", indent=0))
         for ft in failed_tasks:
