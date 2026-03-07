@@ -10,6 +10,7 @@ Turing Machine progress display system: stages, workers, multi-line status, para
 - **display/manager.py** - `MultiLineManager` (singleton), `Slot`, `truncate_to_width`, `wrap_text`, `_get_configured_width`
 - **worker.py** - `TuringWorker` (executes tasks with step generators)
 - **utils.py** - `log_turing_error`
+- **status.py** - `fmt_status`, `fmt_detail`, `fmt_stage` (minimal-emphasis status message formatters)
 - **select.py** - `select_menu` (arrow-key list selector: up/down/Enter/Esc)
 - **multiline_input.py** - `multiline_input` (multi-line terminal input with placeholder, submit color, and injection)
 - **terminal/keyboard.py** - `KeyboardSuppressor`, `get_global_suppressor` (suppress echo during progress)
@@ -21,6 +22,7 @@ turing/
   logic.py
   worker.py
   utils.py
+  status.py
   select.py
   multiline_input.py
   display/
@@ -66,6 +68,30 @@ key = read_masked("Enter API key:", allow_empty=True)
 ```
 
 Terminal raw mode is saved/restored automatically with `atexit` guard.
+
+## Status Message Formatters
+
+Reusable functions that enforce the **minimal-emphasis** styling rule:
+bold/color only on the core phrase; complements and details in default or dim style.
+
+```python
+from logic.turing.status import fmt_status, fmt_detail, fmt_stage
+
+# One-line status: bold label + optional complement + optional dim detail
+print(fmt_status("Saved."))                                  #   **Saved.**
+print(fmt_status("Saved.", dim="3 policies"))                #   **Saved.** 3 policies (dim)
+print(fmt_status("Failed.", complement="Try /setup.", style="error"))  #   Failed. Try /setup.
+
+# Detail line: auto-dimmed, indented 4 spaces
+print(fmt_detail("Session be58ac60 is ready."))              #     Session be58ac60 is ready. (dim)
+print(fmt_detail(f"{YELLOW}Warning{RESET}", styled=True))    #     Warning (caller styling)
+
+# Stage indicator: > {label} {desc}   — colored by status
+print(fmt_stage("Starting session...", status="active"))     #   > **Starting session...**
+print(fmt_stage("Session started.", desc="be58ac60", status="done"))  #   >(green) **Session started.** be58ac60
+```
+
+All functions return formatted strings (no trailing newline) — the caller decides when to print.
 
 ### Multi-line input (CLI blueprint)
 

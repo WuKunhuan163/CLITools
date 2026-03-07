@@ -131,7 +131,7 @@ def select_menu(
                 clear()
                 selected = options[cursor]
                 label = selected.get("label", str(selected.get("value", "")))
-                sys.stdout.write(f"{indent}{title} {CYAN}{BOLD}{label}{RESET}\n")
+                sys.stdout.write(f"{indent}{title} {label}\n")
                 sys.stdout.flush()
                 return selected
             elif key == 'esc':
@@ -209,7 +209,7 @@ def select_horizontal(
 
         while True:
             if deadline and __import__("time").time() >= deadline:
-                sys.stdout.write(f"\r\033[K{indent}{prompt}  {CYAN}{BOLD}{options[cursor]}{RESET}\n")
+                sys.stdout.write(f"\r\033[K{indent}{prompt}  {options[cursor]}\n")
                 sys.stdout.flush()
                 return cursor
 
@@ -227,7 +227,7 @@ def select_horizontal(
                 cursor = (cursor + 1) % len(options)
             elif key == 'enter':
                 sys.stdout.write(
-                    f"\r\033[K{indent}{prompt}  {CYAN}{BOLD}{options[cursor]}{RESET}\n")
+                    f"\r\033[K{indent}{prompt}  {options[cursor]}\n")
                 sys.stdout.flush()
                 return cursor
             elif key in ('esc', 'ctrl-c'):

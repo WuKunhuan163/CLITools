@@ -25,6 +25,7 @@ except ImportError:
 from logic.config import get_color
 from logic.lang.utils import get_translation
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
+from logic.turing.status import fmt_status, fmt_detail, fmt_stage
 from tool.OPENCLAW.logic.session import SessionManager, Session, SessionLog
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent)
@@ -389,7 +390,7 @@ class OpenClawCLI:
 
                 if api_key:
                     save_map[selected["value"]](api_key)
-                    print(f"  {BOLD}{_('saved', 'Saved.')}{RESET}")
+                    print(fmt_status(_('saved', 'Saved.')))
                 elif existing:
                     print(f"  {DIM}{_('using_stored_key', 'Using stored API key.')}{RESET}")
                 else:
@@ -407,7 +408,9 @@ class OpenClawCLI:
                     self.backend = ready[0]["name"]
                     self._save_backend(self.backend)
                     self._init_provider()
-                    print(f"  {BOLD}{_('active_model_prefix', 'Active model:')}{RESET} {ready[0]['name']} {DIM}({ready[0]['model']}){RESET}")
+                    print(fmt_status(_('active_model_prefix', 'Active model:'),
+                                      complement=ready[0]['name'],
+                                      dim=f"({ready[0]['model']})"))
                     return
 
                 model_options = []
@@ -424,7 +427,8 @@ class OpenClawCLI:
                 self.backend = chosen["value"]
                 self._save_backend(self.backend)
                 self._init_provider()
-                print(f"  {BOLD}{_('switched_to_prefix', 'Switched to')}{RESET} {chosen['value']}.")
+                print(fmt_status(_('switched_to_prefix', 'Switched to'),
+                                  complement=f"{chosen['value']}."))
                 return
 
     _IDLE = "\u25A1"    # □
@@ -556,7 +560,7 @@ class OpenClawCLI:
             self._context = None
             self._iteration = 0
             self._session_line = None
-            print(f"  {BOLD}{_('cleared', 'Cleared.')}{RESET}")
+            print(fmt_status(_('cleared', 'Cleared.')))
         else:
             print(f"  {DIM}{_('cancelled', 'Cancelled.')}{RESET}")
 
@@ -565,7 +569,7 @@ class OpenClawCLI:
         if target_id:
             s = self.session_mgr.get_session(target_id)
             if not s:
-                print(f"  {BOLD}{_('session_not_found_label', 'Session not found.')}{RESET} {DIM}{target_id}{RESET}")
+                print(fmt_status(_('session_not_found_label', 'Session not found.'), dim=target_id))
                 return
             if self.session:
                 print(f"  {DIM}{_('leaving_session', 'Leaving session {sid}.', sid=self.session.id)}{RESET}")
@@ -573,7 +577,8 @@ class OpenClawCLI:
             self._context = None
             self._iteration = 0
             self._session_line = None
-            print(f"  {BOLD}{_('switched_to_session_label', 'Switched.')}{RESET} {DIM}{s.id[:8]}: {s.get_display_title()}{RESET}")
+            print(fmt_status(_('switched_to_session_label', 'Switched.'),
+                              dim=f"{s.id[:8]}: {s.get_display_title()}"))
         else:
             if self.session:
                 print(f"  {DIM}{_('leaving_session', 'Leaving session {sid}.', sid=self.session.id)}{RESET}")
@@ -582,7 +587,7 @@ class OpenClawCLI:
             self._iteration = 0
             self._session_line = None
             self.session = self.session_mgr.create_session()
-            print(f"  {BOLD}{_('new_session_label', 'New session.')}{RESET} {DIM}{self.session.id[:8]}{RESET}")
+            print(fmt_status(_('new_session_label', 'New session.'), dim=self.session.id[:8]))
 
     def _delete_current_session(self):
         """Delete current session and switch to the most recent one."""
@@ -596,7 +601,7 @@ class OpenClawCLI:
         from logic.turing.select import select_horizontal
         s = self.session_mgr.get_session(target_id)
         if not s:
-            print(f"  {BOLD}{_('session_not_found_label', 'Session not found.')}{RESET} {DIM}{target_id}{RESET}")
+            print(fmt_status(_('session_not_found_label', 'Session not found.'), dim=target_id))
             return
         msgs = len(s.messages)
         title = s.get_display_title()
@@ -617,11 +622,13 @@ class OpenClawCLI:
                 remaining = self.session_mgr.list_sessions()
                 if remaining:
                     self.session = remaining[0]
-                    print(f"  {BOLD}{_('deleted', 'Deleted.')}{RESET} {_('switched_to_session_label', 'Switched.')} {DIM}{self.session.id[:8]}{RESET}")
+                    print(fmt_status(_('deleted', 'Deleted.'),
+                                      complement=_('switched_to_session_label', 'Switched.'),
+                                      dim=self.session.id[:8]))
                 else:
-                    print(f"  {BOLD}{_('deleted', 'Deleted.')}{RESET}")
+                    print(fmt_status(_('deleted', 'Deleted.')))
             else:
-                print(f"  {BOLD}{_('deleted', 'Deleted.')}{RESET}")
+                print(fmt_status(_('deleted', 'Deleted.')))
         else:
             print(f"  {DIM}{_('cancelled', 'Cancelled.')}{RESET}")
 
@@ -634,10 +641,10 @@ class OpenClawCLI:
         sid, new_title = parts[0], parts[1]
         s = self.session_mgr.get_session(sid)
         if not s:
-            print(f"  {BOLD}{_('session_not_found_label', 'Session not found.')}{RESET} {DIM}{sid}{RESET}")
+            print(fmt_status(_('session_not_found_label', 'Session not found.'), dim=sid))
             return
         self.session_mgr.update_title(sid, new_title)
-        print(f"  {BOLD}{_('renamed_label', 'Renamed.')}{RESET} {DIM}{sid[:8]}: {new_title}{RESET}")
+        print(fmt_status(_('renamed_label', 'Renamed.'), dim=f"{sid[:8]}: {new_title}"))
 
     def _show_models(self):
         """Show all models with config status, allow switching."""
@@ -647,7 +654,8 @@ class OpenClawCLI:
         providers = list_providers()
         ready = [p for p in providers if p["available"]]
 
-        print(f"  {BOLD}{_('models_label', 'Models')}{RESET} {DIM}({len(providers)} registered, {len(ready)} configured){RESET}")
+        print(fmt_status(_('models_label', 'Models'),
+                          dim=f"({len(providers)} registered, {len(ready)} configured)"))
         for p in providers:
             name = p["name"]
             model = p.get("model", "?")
@@ -673,7 +681,7 @@ class OpenClawCLI:
             self._save_backend(self.backend)
             self._init_provider()
             self._context = None
-            print(f"  {BOLD}{_('switched_to_prefix', 'Switched to')}{RESET} {self.backend}.")
+            print(fmt_status(_('switched_to_prefix', 'Switched to'), complement=f"{self.backend}."))
 
     def _manage_sandbox(self, direct_cmd: str = "", direct_policy: str = ""):
         """Interactive sandbox policy manager.
@@ -685,18 +693,20 @@ class OpenClawCLI:
 
         if direct_cmd:
             if direct_policy not in ("allow", "deny", "remove"):
-                print(f"  {RED}{BOLD}{_('sandbox_invalid_policy_label', 'Invalid policy.')}{RESET} {_('sandbox_invalid_policy_hint', 'Use: allow, deny, remove.')}")
+                print(fmt_status(_('sandbox_invalid_policy_label', 'Invalid policy.'),
+                                  complement=_('sandbox_invalid_policy_hint', 'Use: allow, deny, remove.'),
+                                  style="error"))
                 return
             if direct_policy == "remove":
                 from tool.OPENCLAW.logic.sandbox import remove_command_policy
                 removed = remove_command_policy(direct_cmd)
                 if removed:
-                    print(f"  {BOLD}{_('sandbox_removed_label', 'Removed.')}{RESET} {DIM}{direct_cmd}{RESET}")
+                    print(fmt_status(_('sandbox_removed_label', 'Removed.'), dim=direct_cmd))
                 else:
                     print(f"  {DIM}{_('sandbox_no_policy', 'No policy set for {cmd}.', cmd=direct_cmd)}{RESET}")
             else:
                 set_command_policy(direct_cmd, direct_policy)
-                print(f"  {BOLD}{_('sandbox_set_label', 'Set.')}{RESET} {DIM}{direct_cmd} = {direct_policy}{RESET}")
+                print(fmt_status(_('sandbox_set_label', 'Set.'), dim=f"{direct_cmd} = {direct_policy}"))
             return
 
         policies = list_policies()
@@ -762,7 +772,7 @@ class OpenClawCLI:
                     if changed:
                         for cmd_name, pol in entries:
                             set_command_policy(cmd_name, pol)
-                        print(f"  {BOLD}{_('saved', 'Saved.')}{RESET} {DIM}{len(entries)} policies{RESET}")
+                        print(fmt_status(_('saved', 'Saved.'), dim=f"{len(entries)} policies"))
                     else:
                         print(f"  {DIM}{_('no_changes', 'No changes.')}{RESET}")
                     return
@@ -778,7 +788,7 @@ class OpenClawCLI:
             suppressor.stop()
 
     def _show_status(self):
-        print(f"  {BOLD}{_('status_title', 'Status')}{RESET}")
+        print(fmt_status(_('status_title', 'Status')))
         if self._provider:
             info = self._provider.get_info()
             avail = f"{GREEN}available{RESET}" if info["available"] else f"{RED}not configured{RESET}"
@@ -805,7 +815,7 @@ class OpenClawCLI:
             on_generate=lambda p: generate(output_path=p),
         )
         server.start()
-        print(f"  {BOLD}{_('saved', 'Saved.')}{RESET} {DIM}{server.url}{RESET}")
+        print(fmt_status(_('saved', 'Saved.'), dim=server.url))
         server.open_browser()
         self._dashboard_server = server
 
@@ -827,7 +837,7 @@ class OpenClawCLI:
         html_gui.server = server
         server.start()
         server.open_browser()
-        print(f"  {BOLD}GUI{RESET} {DIM}http://localhost:{server.port}/{RESET}")
+        print(fmt_status("GUI", dim=f"http://localhost:{server.port}/"))
         self._html_gui = html_gui
 
     def _show_context_usage(self):
@@ -835,7 +845,7 @@ class OpenClawCLI:
             print(f"  {DIM}{_('no_active_context', 'No active context.')}{RESET}")
             return
         msgs = self._context.get_messages_for_api()
-        print(f"  {BOLD}{_('context_title', 'Context')}{RESET}")
+        print(fmt_status(_('context_title', 'Context')))
         for m in msgs:
             role = m["role"]
             length = len(m.get("content", ""))
@@ -863,7 +873,7 @@ class OpenClawCLI:
         logs = sorted(log_dir.glob("*.log.md"), key=lambda p: p.name)
 
         if not step_arg:
-            print(f"  {BOLD}{_('log_title', 'Logs for session {sid}', sid=self.session.id[:8])}{RESET}")
+            print(fmt_status(_('log_title', 'Logs for session {sid}', sid=self.session.id[:8])))
             for lf in logs:
                 size = lf.stat().st_size
                 ts = time.strftime("%H:%M:%S", time.localtime(lf.stat().st_mtime))
@@ -937,32 +947,17 @@ class OpenClawCLI:
                desc: str = "", depth: int = 1) -> str:
         """Format a major operation line: ``> {label} {desc}``.
 
-        *label* is bold and colored by *status*; *desc* stays default.
-        For backward compatibility, pass the whole text as *label*.
+        Delegates to :func:`logic.turing.status.fmt_stage`.
         """
-        indent = "    " if depth == 2 else "  "
-        indicator = self._L2 if depth == 2 else self._L1
-        suffix = f" {desc}" if desc else ""
-        if status == "active":
-            raw = f"{indent}{indicator} {BOLD}{label}{RESET}{suffix}"
-        elif status == "done":
-            raw = f"{indent}{GREEN}{indicator}{RESET} {BOLD}{label}{RESET}{suffix}"
-        elif status == "error":
-            raw = f"{indent}{RED}{indicator}{RESET} {BOLD}{label}{RESET}{suffix}"
-        else:
-            raw = f"{indent}{indicator} {DIM}{label}{RESET}{suffix}"
-        return truncate_to_width(raw, _get_configured_width())
+        return fmt_stage(label, desc=desc, status=status, depth=depth)
 
     def _detail(self, text: str, depth: int = 1, styled: bool = False) -> str:
         """Format a detail/sub-info line, aligned under parent.
 
-        When *styled* is False (default), the text is auto-dimmed.
-        Set *styled=True* to use caller-provided ANSI formatting.
+        Delegates to :func:`logic.turing.status.fmt_detail`.
         """
-        indent = "      " if depth == 2 else self._DETAIL
-        if styled:
-            return truncate_to_width(f"{indent}{text}", _get_configured_width())
-        return truncate_to_width(f"{indent}{DIM}{text}{RESET}", _get_configured_width())
+        indent_n = 6 if depth == 2 else 4
+        return fmt_detail(text, indent=indent_n, styled=styled)
 
     def _thought(self, text: str) -> str:
         """Format an agent thought/reasoning line (dimmed, >-prefixed)."""
@@ -1368,7 +1363,7 @@ class OpenClawCLI:
                         sys.stdout = tracker._wrapped
                         if self._provider and self._provider.is_available():
                             self._recolor_indicator(display_text, tracker.lines, GREEN)
-                            print(f"  {BOLD}{_('setup_completed', 'Setup completed.')}{RESET}")
+                            print(fmt_status(_('setup_completed', 'Setup completed.')))
                         else:
                             self._recolor_indicator(display_text, tracker.lines, DIM)
                     elif text == "/help":
@@ -1474,7 +1469,8 @@ class OpenClawCLI:
                 else:
                     if not self._provider or not self._provider.is_available():
                         self._mark_failed(display_text)
-                        print(f"  {BOLD}{_('provider_not_configured_label', 'Provider not configured.')}{RESET} {_('provider_not_configured_hint', 'Run /setup to configure.')}")
+                        print(fmt_status(_('provider_not_configured_label', 'Provider not configured.'),
+                                          complement=_('provider_not_configured_hint', 'Run /setup to configure.')))
                         continue
                     self._mark_running(display_text)
                     self._write_state("running", text)
