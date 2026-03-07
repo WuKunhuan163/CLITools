@@ -164,12 +164,14 @@ import sys
 import argparse
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-root_str = str(project_root)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
+# Universal path resolver bootstrap
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.tool.base import ToolBase
 from logic.config import get_color
@@ -217,11 +219,14 @@ if __name__ == "__main__":
 import sys
 from pathlib import Path
 
-# Add project root to sys.path
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+# Universal path resolver bootstrap
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.tool.setup.engine import ToolEngine
 from logic.utils import print_success_status

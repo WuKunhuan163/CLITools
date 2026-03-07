@@ -51,17 +51,22 @@ class MCPTestCase(unittest.TestCase):
     def strip_ansi(text):
         return re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
 
-    def gcs(self, args, timeout=180, use_mcp=None):
-        """Run a GCS command. Adds --mcp flag when CDP is available.
+    def gcs(self, args, timeout=180, use_mcp=None, no_feedback=None):
+        """Run a GCS command. Adds --mcp and --no-feedback flags when CDP is available.
         
         Args:
             args: List of command arguments (after GCS)
             timeout: Subprocess timeout in seconds
             use_mcp: Override MCP usage (None = auto-detect)
+            no_feedback: Override no-feedback (None = auto when MCP)
         """
         cmd = [sys.executable, str(self.gcs_bin)] + args + ["--no-warning"]
-        if (use_mcp is True) or (use_mcp is None and self._mcp_available):
+        _use_mcp = (use_mcp is True) or (use_mcp is None and self._mcp_available)
+        if _use_mcp:
             cmd.append("--mcp")
+        _use_nf = (no_feedback is True) or (no_feedback is None and _use_mcp)
+        if _use_nf:
+            cmd.append("--no-feedback")
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
     def assertOutput(self, result, expected_text, msg=None):

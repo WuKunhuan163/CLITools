@@ -1,29 +1,18 @@
 #!/usr/bin/env python3
-
-# Fix shadowing: Remove script directory from sys.path[0] if present
-import sys
-from pathlib import Path
-script_dir = Path(__file__).resolve().parent
-if sys.path and sys.path[0] == str(script_dir):
-    del sys.path[0]
 import sys
 import argparse
 import json
 import subprocess
 from pathlib import Path
 
-# Add project root to sys.path
-def find_project_root():
-    curr = Path(__file__).resolve().parent
-    while curr != curr.parent:
-        if (curr / "bin" / "TOOL").exists():
-            return curr
-        curr = curr.parent
-    return Path(__file__).resolve().parent.parent.parent
-
-ROOT_PROJECT_ROOT = find_project_root()
-if str(ROOT_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT_PROJECT_ROOT))
+# Universal path resolver bootstrap
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+ROOT_PROJECT_ROOT = setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color

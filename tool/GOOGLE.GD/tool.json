@@ -1,0 +1,10 @@
+{
+  "name": "GOOGLE.GD",
+  "version": "1.0.0",
+  "description": "Google Drive operations via Chrome DevTools Protocol",
+  "purpose": "Provide CRUD operations for Google Drive files using CDP and gapi.client.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE"
+  ]
+}

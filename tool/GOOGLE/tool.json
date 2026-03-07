@@ -2,7 +2,7 @@
   "name": "GOOGLE",
   "version": "1.0.0",
   "description": "Google Ecosystem Proxy Tool",
-  "purpose": "Provide access to Google services like Search, Drive, and Colab (GCS).",
+  "purpose": "Provide Chrome CDP infrastructure, OAuth automation, and access to Google services. Parent tool for GOOGLE.GD (Drive), GOOGLE.GC (Colab), and GOOGLE.GCS (Colab Shell).",
   "dependencies": [
     "PYTHON",
     "USERINPUT"
@@ -11,12 +11,13 @@
     "google-api-python-client",
     "google-auth",
     "google-auth-oauthlib",
-    "google-auth-httplib2"
+    "google-auth-httplib2",
+    "websocket-client"
   ],
   "usage": [
     "GOOGLE search <query>: Search Google",
     "GOOGLE drive <cmd>: Manage Google Drive files",
     "GOOGLE trends: View trending topics",
-    "GOOGLE --install <subtool>: Install sub-tools like GOOGLE.GCS"
+    "GOOGLE --install <subtool>: Install sub-tools"
   ]
 }

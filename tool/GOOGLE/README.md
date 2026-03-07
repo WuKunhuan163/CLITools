@@ -1,25 +1,60 @@
 # GOOGLE
 
-GOOGLE tool template.
+Google Ecosystem Proxy Tool — provides Chrome CDP infrastructure, OAuth automation, and access to Google services.
 
-## Ecosystem Support
+## Architecture
 
-This tool is part of the `TOOL` ecosystem, which provides:
+GOOGLE is the **infrastructure layer** of the Google tool hierarchy:
 
-- **Standalone Runtime**: Tools can specify a dependency on the `PYTHON` tool. The manager ensures they run in a dedicated, isolated Python environment.
-- **Git LFS Support**: Managed via the root `.gitattributes`. Large files (models, binaries) are automatically tracked by Git LFS.
-- **Automatic Persistence**: The system supports automatic pushes every three commits to protect work progress. This is managed by a `post-commit` hook in the root `.git/hooks`.
-- **Shared Utilities**: Access core logic in the root `logic/` folder:
-    - `logic.turing`: For building multi-stage workers with progress display (the "Turing Machine" pattern).
-    - `logic.utils`: Shared terminal utilities, RTL support, and more.
-    - `logic.tool.base`: Base class for standardized command handling (e.g., automated `setup` command support).
-    - `logic.audit`: General-purpose audit and caching system.
-- **Localization**: Built-in support for multiple languages in `logic/translation/`. Always use the `_()` helper for user-facing strings.
-- **Unit Testing**: Standardized testing framework using `unittest`. Run tests in parallel with `TOOL test GOOGLE`.
+```
+GOOGLE              Chrome CDP session, input dispatch, OAuth, screenshots
+├── GOOGLE.GD       Google Drive CRUD (create, delete, list via gapi.client)
+├── GOOGLE.GC       Google Colab automation (cell inject, execute, tab mgmt)
+└── GOOGLE.GCS      Simulated shell on Colab (highest abstraction)
+```
 
-## Development Guidelines
+### Chrome CDP Modules (`logic/chrome/`)
 
-1. **Isolation**: Use the `PYTHON` tool dependency for a standalone runtime. Specify dependencies in `tool.json`.
-2. **Testing**: Add unit tests in `test/`. Use `TOOL test GOOGLE` to run them in parallel.
-3. **Translation**: English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**.
-4. **Cleanliness**: Keep the `main` and `test` branches clean. Perform active development on the `dev` or `tool` branch.
+| Module | Purpose |
+|--------|---------|
+| `session.py` | Core CDP session, tab management, input dispatch, screenshots |
+| `colab.py` | Colab tab discovery, cell injection and execution |
+| `drive.py` | Google Drive operations via gapi.client in Colab |
+| `oauth.py` | Google OAuth consent flow automation |
+
+### Interface (`logic/interface/main.py`)
+
+Aggregates all CDP functions for external consumption:
+
+```python
+from tool.GOOGLE.logic.interface.main import (
+    is_chrome_available, CDPSession, CDP_PORT,
+    find_colab_tab, inject_and_execute,
+    list_drive_files, create_notebook,
+    handle_oauth_if_needed, close_oauth_tabs,
+)
+```
+
+## Commands
+
+```bash
+GOOGLE search <query>      # Google Search
+GOOGLE drive list           # List Drive files
+GOOGLE trends               # View trending topics
+GOOGLE --mcp-login [email]  # MCP authentication
+```
+
+## Developer Commands
+
+```bash
+GOOGLE --dev info            # Show tool paths and dependencies
+GOOGLE --dev sanity-check    # Check tool structure
+GOOGLE --test                # Run unit tests
+GOOGLE --test --list         # List available tests
+```
+
+## Dependencies
+
+- **PYTHON**: Managed Python runtime
+- **USERINPUT**: User feedback interface
+- **websocket-client**: CDP WebSocket communication

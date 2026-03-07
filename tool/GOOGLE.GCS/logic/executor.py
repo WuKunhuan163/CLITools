@@ -210,10 +210,12 @@ def _collapse_home(text: str) -> str:
     return text
 
 
-def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False, done_marker: str = "", cdp_enabled: bool = False):
+def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False, done_marker: str = "", cdp_enabled: bool = False, no_feedback: bool = False):
     """
     Shows a GUI window with Copy Script and action buttons.
     When no_capture=True, the Feedback button is hidden (no result to download).
+    When no_feedback=True, all action buttons are hidden (unit test mode).
+    In CDP mode with no_feedback, the GUI auto-closes on success/failure.
     """
     from logic.interface.gui import ButtonBarWindow
     import sys
@@ -246,6 +248,8 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
         except Exception:
             pass
 
+    hide_action_buttons = no_feedback or no_capture
+
     if cdp_available:
         cdp_inject_timeout = 30
         buttons = [
@@ -256,7 +260,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 "close_on_click": False
             },
         ]
-        if not no_capture:
+        if not hide_action_buttons:
             buttons.append({
                 "text": btn_feedback_text,
                 "return_value": "Feedback",
@@ -274,7 +278,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 "close_on_click": False
             },
         ]
-        if not no_capture:
+        if not hide_action_buttons:
             buttons.append({
                 "text": btn_feedback_text,
                 "return_value": "Feedback",
@@ -283,13 +287,13 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 "close_on_click": True,
                 "disable_seconds": 30
             })
-        buttons.append({
-            "text": btn_finished_text,
-            "return_value": "Finished",
-            "cmd": None,
-            "close_on_click": True,
-            "disable_seconds": 30
-        })
+            buttons.append({
+                "text": btn_finished_text,
+                "return_value": "Finished",
+                "cmd": None,
+                "close_on_click": True,
+                "disable_seconds": 30
+            })
     
     # Auto-copy on startup
     copy_to_clipboard()
@@ -388,7 +392,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 return
             if fail_file.exists():
                 fail_file.unlink(missing_ok=True)
-                if no_capture:
+                if no_capture or no_feedback:
                     win.finalize("error", "CDP_FAILED")
                 else:
                     _enable_feedback_btn()
@@ -415,6 +419,8 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             t = threading.Thread(target=_cdp_auto_inject, daemon=True)
             t.start()
             win.root.after(1000, _check_cdp_done)
+        elif no_feedback:
+            win.root.after(2000, lambda: win.finalize("error", "NO_CDP"))
 
     display_command = _collapse_home(command)
     if as_python:
@@ -443,15 +449,16 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     gui_title = _("gui_title_remote_command", "GCS Remote Command")
     gui_title = f"{gui_title} [{cmd_hash}]"
 
+    gui_timeout = 120 if no_feedback else 600
     win = ButtonBarWindow(
         title=gui_title, 
-        timeout=600, 
+        timeout=gui_timeout, 
         internal_dir=str(project_root / "tool" / "GOOGLE.GCS" / "logic"), 
         buttons=buttons,
         instruction=instruction,
         window_size=f"550x{win_height}",
         on_startup=on_startup,
-        disable_auto_unlock=cdp_available
+        disable_auto_unlock=(cdp_available or no_feedback)
     )
     win.run()
     return win.result
@@ -468,6 +475,7 @@ if __name__ == "__main__":
     parser.add_argument("--project-root", required=True)
     parser.add_argument("--as-python", action="store_true")
     parser.add_argument("--no-capture", action="store_true")
+    parser.add_argument("--no-feedback", action="store_true")
     parser.add_argument("--done-marker", default="")
     parser.add_argument("--cdp-enabled", action="store_true")
     args = parser.parse_args()
@@ -481,5 +489,6 @@ if __name__ == "__main__":
         
     res = show_command_gui(proj_root, args.command, script_content,
                            as_python=args.as_python, no_capture=args.no_capture,
-                           done_marker=args.done_marker, cdp_enabled=args.cdp_enabled)
+                           done_marker=args.done_marker, cdp_enabled=args.cdp_enabled,
+                           no_feedback=args.no_feedback)
 

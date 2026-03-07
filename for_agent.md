@@ -28,14 +28,16 @@ tool/<NAME>/           # e.g., tool/iCloud/ or tool/iCloud.iCloudPD/
 
 ## 3. The Tool Blueprint (`ToolBase`)
 All tools inherit from `logic.tool.base.ToolBase`. Key features:
-- **`handle_command_line(parser)`**: Standardizes argument processing. Handles `setup`, `install`, `uninstall`, `rule`, `config`, `skills` commands automatically.
+- **`handle_command_line(parser, dev_handler, test_handler)`**: Standardizes argument processing. Handles `setup`, `install`, `uninstall`, `rule`, `config`, `skills`, `--dev`, `--test` commands automatically. Custom `dev_handler` and `test_handler` callbacks can extend the built-in developer commands.
+- **`--dev` Support**: Every tool supports `TOOL_NAME --dev <command>`. Built-in commands: `sanity-check [--fix]`, `audit-test [--fix]`, `info`. Tools can pass a custom `dev_handler` to `handle_command_line()` for tool-specific dev commands.
+- **`--test` Support**: Every tool supports `TOOL_NAME --test [options]`. Runs the tool's unit tests with `--range`, `--max`, `--timeout`, `--list` options.
 - **Help Support**: Every tool MUST support `-h` and `--help`.
 - **Python Runtime**: If `PYTHON` is a dependency, ToolBase ensures the isolated Python environment is used.
 - **System Fallback**: Unrecognized commands delegate to system equivalents (e.g., `GIT` → `/usr/bin/git`).
 - **CPU Monitoring**: Automatic CPU load check with configurable threshold and warning.
 - **Programmatic Interface**: `--tool-quiet` returns results as `TOOL_RESULT_JSON:...` for machine consumption.
 - **Unified Success**: `self.raise_success_status("action")` for green-bold **Successfully [action]** messages.
-- **Path Resolution**: Use `self.tool_dir`, `self.get_data_dir()`, `self.get_log_dir()`.
+- **Path Resolution**: Use `self.tool_dir`, `self.get_data_dir()`, `self.get_log_dir()`. See also the Universal Path Resolver below.
 
 ## 4. Branch Synchronization & Alignment
 This project uses a linear four-stage branch strategy: `dev -> tool -> main -> test`.
@@ -50,11 +52,26 @@ This project uses a linear four-stage branch strategy: `dev -> tool -> main -> t
 2. Git branches: `dev`, `tool`, `origin/tool`, `origin/dev` → `tool/<NAME>/`
 3. Fallback: `tool`/`origin/tool` → `resource/archived/<NAME>/` (copied to `tool/<NAME>/`)
 
-### Synchronization Commands
-- **`TOOL dev sync`**: The primary command to synchronize all branches. Commits on `dev`, aligns `tool` (preserving `resource/` from old tool branch via force-add), strips `tool`/`resource` for `main`, and syncs `test`.
-- **`TOOL dev align`**: An alias for `dev sync`.
-- **`TOOL dev audit-test <NAME>`**: Audits unit test naming conventions for a tool or `root`. Ensures files follow `test_XX_name.py` and that `test_00` is reserved for the help test. Use `--fix` to automatically correct violations.
-- **`TOOL dev audit-archived`**: Checks for duplicate tools between `tool/` and `resource/archived/`. No tool should exist in both locations.
+### Synchronization & Developer Commands
+Both `TOOL dev <command>` (legacy) and `TOOL --dev <command>` (preferred) syntax are supported:
+- **`TOOL --dev sync`**: The primary command to synchronize all branches.
+- **`TOOL --dev create <name>`**: Create a new tool from template.
+- **`TOOL --dev sanity-check <name> [--fix]`**: Check tool structure integrity.
+- **`TOOL --dev audit-test <name> [--fix]`**: Audit unit test naming.
+- **`TOOL --dev audit-bin [--fix]`**: Audit bin/ shortcut structure.
+- **`TOOL --dev audit-archived`**: Check for duplicate tools.
+- **`TOOL --dev enter <main|test> [-f]`**: Switch to branch.
+- **`TOOL --dev migrate-bin`**: Migrate legacy flat bin/ shortcuts.
+
+Per-tool developer commands (available for every tool via ToolBase):
+- **`TOOL_NAME --dev sanity-check [--fix]`**: Check this tool's structure.
+- **`TOOL_NAME --dev audit-test [--fix]`**: Audit this tool's test naming.
+- **`TOOL_NAME --dev info`**: Show tool paths, dependencies, and test count.
+
+Testing commands (both styles supported):
+- **`TOOL --test <name>`** or **`TOOL_NAME --test`**: Run unit tests.
+- **`TOOL_NAME --test --list`**: List available tests.
+- **`TOOL_NAME --test --range 0 5`**: Run specific test range.
 
 ## 4. Progress Display Patterns
 
@@ -90,14 +107,48 @@ As an AI agent, you MUST follow these operational rules:
 - **Avoid Background Tests**: Never execute `TOOL test PYTHON` (or other core tests) in the background. Background execution of complex test suites can cause agent calling loops and system instability. Always ask the user to run tests if needed.
 - **Branch Management**: `TOOL test` automatically records your current branch and restores it after tests finish, even if tests fail. This prevents you from accidentally remaining on the `test` branch after a failure. ALWAYS verify your current branch with `git branch` before committing, especially after running sync or test commands.
 - **Binary Files**: If you must track binary files (like in `tool/PYTHON/data/install/`), ensure they are marked as `binary` in `.gitattributes` to prevent corruption by line-ending conversion.
-- **Shadowing**: When developing tools with their own `logic/` directory, ALWAYS ensure the project root is at index 0 of `sys.path` before any imports that might find the tool's local `logic/` instead of the root `logic/`.
+- **Shadowing**: When developing tools, use the Universal Path Resolver (`from logic.resolve import setup_paths; setup_paths(__file__)`) to ensure the project root is at `sys.path[0]`. This prevents a tool's local `logic/` from shadowing the root `logic/`.
 - **TM hygiene**: Never use `print()` inside a `TuringStage` action. Use `stage.refresh()` if you need live updates, or rely on the stage success/fail messages. Inner prints break the erasable line tracking.
 - **Keyboard Cancellation**: When a user cancels an operation (Ctrl+C or USERINPUT Cancel button), the system prints a red bold "**Operation cancelled** by user." message, ensures keyboard suppression is released, and exits with code 130 (POSIX SIGINT convention). USERINPUT's Cancel button produces the same exit code 130, so the Turing Machine's `INTERRUPTED` state handles both uniformly.
 - **Reference Counting**: The `KeyboardSuppressor` uses reference counting to prevent deadlocks and ensure input echoing is restored only after all active suppressors have stopped.
 - **Exit Codes**: If your tool is a proxy or re-executes another command, always use `sys.exit(process.returncode)` to propagate the exit status.
-- **Sanity Checks**: Every tool MUST pass `bin/TOOL dev sanity-check <NAME>`. This ensures basic files like `README.md`, `setup.py`, and `test/test_00_help.py` exist.
+- **Sanity Checks**: Every tool MUST pass `TOOL --dev sanity-check <NAME>` (or `TOOL_NAME --dev sanity-check`). This ensures basic files like `README.md`, `setup.py`, and `test/test_00_help.py` exist.
 
-## 8. Key Shared Suites (`logic/` Directory)
+## 8. Universal Path Resolver Protocol
+The `logic.resolve` module provides a canonical way to find the project root and configure `sys.path` for correct cross-tool imports. This replaces the duplicated `find_project_root()` functions that previously existed in every tool.
+
+### Usage
+**In tool main.py / setup.py** (bootstrap preamble):
+```python
+import sys; from pathlib import Path
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
+```
+
+**In modules already managed by ToolBase** (sys.path is already set):
+```python
+from logic.resolve import setup_paths
+ROOT = setup_paths(__file__)
+```
+
+The resolver ensures the project root is at `sys.path[0]` and removes conflicting entries (like a tool's own directory). This prevents the `logic/tool/` package from shadowing the top-level `tool/` package.
+
+### Cross-Tool Imports
+Tools within the `tool/GOOGLE/` package can be imported directly:
+```python
+from tool.GOOGLE.logic.chrome.session import CDPSession, CDP_PORT
+from tool.GOOGLE.logic.chrome.colab import inject_and_execute
+```
+
+Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `logic/interface/main.py` for the public API, or import from the parent tool's modules.
+
+## 9. Key Shared Suites (`logic/` Directory)
+- `logic.resolve`: Universal path resolver protocol (see above).
 - `logic.config`: Centralized configuration, color management, and rule generation (`config.rule`).
 - `logic.tool`: Tool lifecycle (`base`, `setup/`), dev commands (`tool.dev`), and audit caching (`tool.audit`).
 - `logic.turing`: State machine progress display (`models/`), multi-line terminal management (`display/`), and keyboard suppression (`terminal/`).
@@ -107,6 +158,7 @@ As an AI agent, you MUST follow these operational rules:
 - `logic.lang`: Language management, translation utilities, and audit.
 - `logic.git`: Git operations, persistence manager, and branch utilities.
 - `logic.interface`: Cross-tool interface registry. Use `get_interface("TOOL_NAME")` to load any tool's interface module.
+- `logic.cdp`: Backward-compatibility shims for Chrome CDP imports (redirects to `tool.GOOGLE.logic.chrome.*`).
 
 ### Unified Logging (`tool.log()`)
 Every `ToolBase` instance provides a `log(message, extra=None, include_stack=True)` method for runtime logging. One log file per session is created in `data/log/` (e.g., `log_20260227_163000_12345.log`). The `handle_exception()` method automatically writes full tracebacks to the same session log. Log files are capped at 64 per tool, auto-cleaning oldest half when exceeded.
@@ -122,10 +174,26 @@ logger = tool.get_session_logger()
 print(f"Log at: {logger.path}")
 ```
 
-## 9. Specialized Tools
+## 10. Specialized Tools
 
 ### iCloudPD Tool
 Parallel iCloud photo/video downloader with timezone management, stall detection, auto-retry, and local library integration. Operates as a subtool under the `iCloud` ecosystem.
+
+### Google Ecosystem Tool Hierarchy
+The GOOGLE tool family follows a layered architecture:
+
+| Layer | Tool | Purpose |
+|-------|------|---------|
+| Infrastructure | **GOOGLE** | Chrome CDP session, input dispatch, OAuth automation, screenshots |
+| Data | **GOOGLE.GD** | Google Drive CRUD (create, delete, list files via gapi.client) |
+| Compute | **GOOGLE.GC** | Google Colab cell injection, execution, tab management |
+| Application | **GOOGLE.GCS** | Simulated shell on Colab (highest abstraction) |
+
+**Import hierarchy**: GCS → GC + GD → GOOGLE. All Chrome CDP logic lives in `tool/GOOGLE/logic/chrome/` with four modules:
+- `session.py`: Core CDP session, tab management, input dispatch
+- `colab.py`: Colab-specific cell injection and execution
+- `drive.py`: Drive file operations via gapi.client
+- `oauth.py`: Google OAuth consent flow automation
 
 ### GCS Tool
 Google Drive Remote Controller for Colab:
@@ -182,13 +250,13 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 **Automation**:
 - `ZAPIER`: Workflow automation across 8000+ apps.
 
-## 10. Testing Conventions
+## 11. Testing Conventions
 - **Naming**: `test_xx_name.py` (two-digit ID). Every tool must have `test_00_help.py`.
 - **Execution**: `TOOL test <NAME>` runs all tests with CPU monitoring and branch management.
 - **Per-test config**: `EXPECTED_TIMEOUT = 300` and `EXPECTED_CPU_LIMIT = 40.0` at file top.
 - **Temporary Scripts**: Use `tmp/` for one-off verification. Run `SKILLS show TerminalTools-tmp-test-script` for patterns.
 
-## 11. Status Prompt Design
+## 12. Status Prompt Design
 Run `SKILLS show TerminalTools-turing-machine-development` for comprehensive Turing Machine guidance.
 
 Key rules:
@@ -197,7 +265,7 @@ Key rules:
 - **Punctuation**: In-progress ends with `...`, completed ends with `.`.
 - **Stealth**: `TuringStage(stealth=True)` for silent operations.
 
-## 12. Skills System
+## 13. Skills System
 
 Skills are structured best-practice guides that AI agents can reference during development.
 

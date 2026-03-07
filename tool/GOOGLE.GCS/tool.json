@@ -15,7 +15,10 @@
   "dependencies": [
     "PYTHON",
     "USERINPUT",
-    "FILEDIALOG"
+    "FILEDIALOG",
+    "GOOGLE",
+    "GOOGLE.GD",
+    "GOOGLE.GC"
   ],
   "pip_dependencies": [
     "google-api-python-client",

@@ -18,7 +18,7 @@ def _t(tool, key, default, **kwargs):
         return default.format(**kwargs) if kwargs else default
 
 
-def execute(tool, remote_command, state_mgr, load_logic, as_python=False, capture=False, **kwargs):
+def execute(tool, remote_command, state_mgr, load_logic, as_python=False, capture=False, no_feedback=False, **kwargs):
     executor_mod = load_logic("executor")
     utils = load_logic("utils")
 
@@ -63,6 +63,8 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
         gui_args.extend(["--done-marker", metadata["done_marker"]])
     if cdp_enabled:
         gui_args.append("--cdp-enabled")
+    if no_feedback:
+        gui_args.append("--no-feedback")
 
     command_result = {}
 

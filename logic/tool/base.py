@@ -12,38 +12,23 @@ class ToolBase:
     def __init__(self, tool_name):
         self.tool_name = tool_name
         self.no_warning = "--no-warning" in sys.argv
-        
-        # Determine tool_dir (the actual installation directory of the tool)
+
         import inspect
-        caller_frame = inspect.stack()[1]
-        caller_file = Path(caller_frame.filename).resolve()
-        
-        # Robust detection: find the nearest directory containing tool.json 
-        # starting from the caller's directory and going upwards.
+        caller_file = Path(inspect.stack()[1].filename).resolve()
+
+        from logic.resolve import setup_paths, find_project_root, get_tool_module_path
+        self.project_root = setup_paths(caller_file)
+
         curr = caller_file.parent
-        self.tool_dir = curr # Default fallback
-        
-        # But we stop if we hit project root to avoid jumping to the wrong tool
-        # Wait, we need project root first for the limit.
-        from logic.utils import find_project_root, get_tool_module_path
-        self.project_root = find_project_root(curr)
-        
+        self.tool_dir = curr
         while curr != curr.parent and curr != self.project_root.parent:
             if (curr / "tool.json").exists():
                 self.tool_dir = curr
                 break
             curr = curr.parent
-            
-        # Keep script_dir as an alias for backward compatibility
+
         self.script_dir = self.tool_dir
-        
         self.tool_module_path = get_tool_module_path(self.tool_dir, self.project_root)
-        
-        # Ensure project root is in path for imports and it's at the FRONT
-        root_str = str(self.project_root)
-        if root_str in sys.path:
-            sys.path.remove(root_str)
-        sys.path.insert(0, root_str)
             
         self.tool_json_path = self.tool_dir / "tool.json"
         self.dependencies = []
@@ -195,20 +180,49 @@ class ToolBase:
         cmd = [str(bin_path)] + args
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
-    def handle_command_line(self, parser=None):
-        """
-        Process command line arguments. 
+    def handle_command_line(self, parser=None, dev_handler=None, test_handler=None):
+        """Process command line arguments.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser, optional
+            The tool's own argument parser.
+        dev_handler : callable(list[str]) -> None, optional
+            Custom handler for ``--dev`` sub-commands.  Receives the
+            arguments after ``--dev``.  When *None*, only the built-in
+            dev commands (sanity-check, audit-test, info) are available.
+        test_handler : callable(list[str]) -> None, optional
+            Custom handler for ``--test`` sub-commands.  Receives the
+            arguments after ``--test``.  When *None*, the default test
+            runner is used.
+
         Returns True if a command was handled and the tool should exit.
         """
         self.check_cpu_load_and_warn()
 
-        # Check for quiet flag globally
         self.is_quiet = "--tool-quiet" in sys.argv
-        
-        # Clean sys.argv for the provided parser
-        orig_argv = sys.argv[:]
+
         sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
-        
+
+        # ---- --dev / --test flag intercept (before argparse) ----
+        if "--dev" in sys.argv:
+            idx = sys.argv.index("--dev")
+            dev_args = sys.argv[idx + 1:]
+            if dev_handler:
+                dev_handler(dev_args)
+            else:
+                self._handle_default_dev(dev_args)
+            return True
+
+        if "--test" in sys.argv:
+            idx = sys.argv.index("--test")
+            test_args = sys.argv[idx + 1:]
+            if test_handler:
+                test_handler(test_args)
+            else:
+                self._handle_default_test(test_args)
+            return True
+
         if len(sys.argv) > 1:
             args_to_check = sys.argv[1:]
             cmd = args_to_check[0]
@@ -254,7 +268,7 @@ class ToolBase:
                 if not is_custom_config:
                     self._handle_tool_config(args_to_check[1:])
                     return True
-                
+
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if not cmd.startswith("-") and subtool_main.exists():
                 cmd_args = [sys.executable, str(subtool_main)] + args_to_check[1:]
@@ -289,7 +303,7 @@ class ToolBase:
                 if not is_recognized and not has_positional_nargs:
                     res = self.run_system_fallback(capture_output=self.is_quiet, filtered_args=args_to_check)
                     if res is None:
-                        return True # Already printed error
+                        return True
                     if self.is_quiet:
                         print("TOOL_RESULT_JSON:" + json.dumps({
                             "returncode": res.returncode,
@@ -299,6 +313,61 @@ class ToolBase:
                         return True
                     return True
         return False
+
+    # ------------------------------------------------------------------ #
+    #  --dev / --test default handlers                                     #
+    # ------------------------------------------------------------------ #
+
+    def _handle_default_dev(self, args):
+        """Built-in --dev commands available for every tool."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        BLUE = get_color("BLUE", "\033[34m")
+        RESET = get_color("RESET", "\033[0m")
+
+        subcmd = args[0] if args else ""
+
+        if subcmd == "sanity-check":
+            fix = "--fix" in args
+            from logic.tool.dev.commands import dev_sanity_check
+            dev_sanity_check(self.tool_name, self.project_root, fix=fix)
+        elif subcmd == "audit-test":
+            fix = "--fix" in args
+            from logic.tool.dev.commands import dev_audit_test
+            dev_audit_test(self.tool_name, self.project_root, fix=fix)
+        elif subcmd == "info":
+            print(f"\n{BOLD}{self.tool_name} Developer Info{RESET}")
+            print(f"  tool_dir:        {self.tool_dir}")
+            print(f"  project_root:    {self.project_root}")
+            print(f"  module_path:     {self.tool_module_path}")
+            print(f"  dependencies:    {', '.join(self.dependencies) or '(none)'}")
+            print(f"  data_dir:        {self.get_data_dir()}")
+            test_dir = self.tool_dir / "test"
+            tests = list(test_dir.glob("test_*.py")) if test_dir.exists() else []
+            print(f"  tests:           {len(tests)} file(s)")
+            print()
+        else:
+            print(f"Usage: {self.tool_name} --dev <command>")
+            print(f"\n{BOLD}Available commands:{RESET}")
+            print(f"  sanity-check [--fix]   Check tool structure")
+            print(f"  audit-test [--fix]     Audit unit test naming")
+            print(f"  info                   Show tool developer info")
+
+    def _handle_default_test(self, args):
+        """Built-in --test handler: run this tool's unit tests."""
+        import argparse as _ap
+        tp = _ap.ArgumentParser(add_help=False)
+        tp.add_argument("--range", nargs=2, type=int, help="Test range (start end)")
+        tp.add_argument("--max", type=int, default=3, help="Max concurrent tests")
+        tp.add_argument("--timeout", type=int, default=60, help="Timeout per test")
+        tp.add_argument("--list", action="store_true", help="List tests only")
+        tp.add_argument("--no-warning", action="store_true")
+        test_args = tp.parse_args(args)
+
+        test_args.tool_name = self.tool_name
+        from logic.test.manager import test_tool_with_args
+        test_tool_with_args(test_args, self.project_root)
 
     def _handle_tool_config(self, args):
         """Handle tool-specific configuration settings."""

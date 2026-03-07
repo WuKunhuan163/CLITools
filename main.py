@@ -233,28 +233,109 @@ def _generate_ai_rule(name, description, globs, always_apply):
     from logic.config.rule.manager import generate_ai_rule
     generate_ai_rule(name, description, globs, always_apply, ROOT_PROJECT_ROOT)
 
+def _tool_dev_handler(dev_args):
+    """Extended --dev handler for the root TOOL (adds sync, reset, create, etc.)."""
+    subcmd = dev_args[0] if dev_args else ""
+    rest = dev_args[1:] if len(dev_args) > 1 else []
+
+    if subcmd == "sync":
+        _dev_sync()
+    elif subcmd == "reset":
+        _dev_reset()
+    elif subcmd == "enter":
+        branch = rest[0] if rest else None
+        if branch not in ("main", "test"):
+            print("Usage: TOOL --dev enter <main|test> [-f]")
+            return
+        _dev_enter(branch, "-f" in rest or "--force" in rest)
+    elif subcmd == "create":
+        name = rest[0] if rest else None
+        if not name:
+            print("Usage: TOOL --dev create <tool_name>")
+            return
+        _dev_create(name)
+    elif subcmd == "sanity-check":
+        name = rest[0] if rest else None
+        if not name:
+            print("Usage: TOOL --dev sanity-check <tool_name> [--fix]")
+            return
+        _dev_sanity_check(name, "--fix" in rest)
+    elif subcmd == "audit-test":
+        name = rest[0] if rest else None
+        if not name:
+            print("Usage: TOOL --dev audit-test <tool_name> [--fix]")
+            return
+        _dev_audit_test(name, "--fix" in rest)
+    elif subcmd == "audit-bin":
+        _dev_audit_bin("--fix" in rest)
+    elif subcmd == "audit-archived":
+        _dev_audit_archived()
+    elif subcmd == "migrate-bin":
+        _dev_migrate_bin()
+    else:
+        print(f"Usage: TOOL --dev <command>")
+        print(f"\n{BOLD}Available commands:{RESET}")
+        print(f"  sync                              Sync dev -> tool -> main -> test")
+        print(f"  reset                             Reset main/test branches")
+        print(f"  enter <main|test> [-f]            Switch to branch")
+        print(f"  create <name>                     Create a new tool template")
+        print(f"  sanity-check <name> [--fix]       Check tool structure")
+        print(f"  audit-test <name> [--fix]         Audit unit test naming")
+        print(f"  audit-bin [--fix]                 Audit bin/ shortcuts")
+        print(f"  audit-archived                    Check for duplicate tools")
+        print(f"  migrate-bin                       Migrate flat bin/ shortcuts")
+
+
+def _tool_test_handler(test_args):
+    """Extended --test handler for the root TOOL."""
+    import argparse as _ap
+    tp = _ap.ArgumentParser(add_help=False)
+    tp.add_argument("tool_name", nargs="?", default="root", help="Tool name or 'root'")
+    tp.add_argument("--range", nargs=2, type=int, help="Test range (start end)")
+    tp.add_argument("--max", type=int, default=3, help="Max concurrent tests")
+    tp.add_argument("--timeout", type=int, default=60, help="Test timeout")
+    tp.add_argument("--list", action="store_true", help="List tests only")
+    tp.add_argument("--no-warning", action="store_true")
+    parsed = tp.parse_args(test_args)
+    _test_tool_with_args(parsed)
+
+
 def main():
+    # ---- --dev / --test flag intercept (before argparse) ----
+    stripped_argv = [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
+    if "--dev" in stripped_argv:
+        idx = stripped_argv.index("--dev")
+        _tool_dev_handler(stripped_argv[idx + 1:])
+        return
+    if "--test" in stripped_argv:
+        idx = stripped_argv.index("--test")
+        _tool_test_handler(stripped_argv[idx + 1:])
+        return
+
+    # ---- Backward-compatible: "TOOL dev ..." → reroute to --dev ----
+    if stripped_argv and stripped_argv[0] == "dev":
+        _tool_dev_handler(stripped_argv[1:])
+        return
+    if stripped_argv and stripped_argv[0] == "test":
+        _tool_test_handler(stripped_argv[1:])
+        return
+
     parser = argparse.ArgumentParser(description="AITerminalTools Manager")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
-    # TOOL install <name>
     install_p = subparsers.add_parser("install", help="Install a tool")
     install_p.add_argument("name", help="Name of the tool to install")
 
-    # TOOL reinstall <name>
     reinstall_p = subparsers.add_parser("reinstall", help="Reinstall a tool")
     reinstall_p.add_argument("name", help="Name of the tool to reinstall")
 
-    # TOOL uninstall <name>
     uninstall_p = subparsers.add_parser("uninstall", help="Uninstall a tool")
     uninstall_p.add_argument("name", help="Name of the tool to uninstall")
     uninstall_p.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
 
-    # TOOL list
     list_p = subparsers.add_parser("list", help="List all available tools")
     list_p.add_argument("--force", action="store_true", help="Force refresh cache")
 
-    # TOOL config
     config_p = subparsers.add_parser("config", help="Manage global configuration")
     config_sub = config_p.add_subparsers(dest="config_command")
     config_set = config_sub.add_parser("set", help="Set a configuration value")
@@ -263,40 +344,8 @@ def main():
     config_sub.add_parser("show-lang", help="Show current language")
     config_sub.add_parser("show", help="Show all tool configurations")
 
-    # TOOL status
     subparsers.add_parser("status", help="Show installed tools and their status")
 
-    # TOOL dev
-    dev_p = subparsers.add_parser("dev", help="Developer commands")
-    dev_sub = dev_p.add_subparsers(dest="dev_command")
-    dev_sub.add_parser("sync", help="Sync dev -> tool -> main -> test")
-    dev_sub.add_parser("reset", help="Reset main/test branches")
-    dev_enter_p = dev_sub.add_parser("enter", help="Enter main or test branch")
-    dev_enter_p.add_argument("branch", choices=["main", "test"], help="Branch to enter")
-    dev_enter_p.add_argument("-f", "--force", action="store_true", help="Force switch")
-    dev_create_p = dev_sub.add_parser("create", help="Create a new tool template")
-    dev_create_p.add_argument("name", help="Name of the new tool")
-    dev_sanity = dev_sub.add_parser("sanity-check", help="Check tool structure")
-    dev_sanity.add_argument("name", help="Tool name")
-    dev_sanity.add_argument("--fix", action="store_true", help="Try to fix issues")
-    dev_audit_t = dev_sub.add_parser("audit-test", help="Audit unit tests")
-    dev_audit_t.add_argument("name", help="Tool name")
-    dev_audit_t.add_argument("--fix", action="store_true", help="Fix naming")
-    dev_audit_b = dev_sub.add_parser("audit-bin", help="Audit bin directory")
-    dev_audit_b.add_argument("--fix", action="store_true", help="Fix shortcuts")
-    dev_sub.add_parser("audit-archived", help="Check for duplicate tools in tool/ and resource/archived/")
-    dev_sub.add_parser("migrate-bin", help="Migrate flat bin/ shortcuts to bin/<tool>/ structure")
-
-    # TOOL test <name>
-    test_p = subparsers.add_parser("test", help="Run unit tests")
-    test_p.add_argument("tool_name", help="Tool name or 'root'")
-    test_p.add_argument("--range", nargs=2, type=int, help="Test range (start end)")
-    test_p.add_argument("--max", type=int, default=3, help="Max concurrent tests")
-    test_p.add_argument("--timeout", type=int, default=60, help="Test timeout in seconds")
-    test_p.add_argument("--list", action="store_true", help="List tests only")
-    test_p.add_argument("--no-warning", action="store_true", help="Suppress non-critical warnings")
-
-    # TOOL lang
     lang_p = subparsers.add_parser("lang", help="Language management")
     lang_sub = lang_p.add_subparsers(dest="lang_command")
     lang_audit_p = lang_sub.add_parser("audit", help="Audit translation coverage")
@@ -305,7 +354,6 @@ def main():
     lang_audit_p.add_argument("--turing", action="store_true", help="Scan Turing states")
     lang_sub.add_parser("list", help="List supported languages")
 
-    # TOOL rule
     rule_p = subparsers.add_parser("rule", help="AI rule management")
     rule_sub = rule_p.add_subparsers(dest="rule_command")
     rule_create_p = rule_sub.add_parser("create", help="Create a Cursor rule (.mdc)")
@@ -317,7 +365,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Apply global settings
     current_lang = get_global_config("language", "en")
     set_rtl_mode(current_lang in ["ar"])
 
@@ -335,17 +382,6 @@ def main():
             print(f"Current language: {current_lang}")
         elif args.config_command == "show":
             _show_config()
-    elif args.command == "dev":
-        if args.dev_command == "sync": _dev_sync()
-        elif args.dev_command == "reset": _dev_reset()
-        elif args.dev_command == "enter": _dev_enter(args.branch, args.force)
-        elif args.dev_command == "create": _dev_create(args.name)
-        elif args.dev_command == "sanity-check": _dev_sanity_check(args.name, args.fix)
-        elif args.dev_command == "audit-test": _dev_audit_test(args.name, args.fix)
-        elif args.dev_command == "audit-bin": _dev_audit_bin(args.fix)
-        elif args.dev_command == "migrate-bin": _dev_migrate_bin()
-        elif args.dev_command == "audit-archived": _dev_audit_archived()
-    elif args.command == "test": _test_tool_with_args(args)
     elif args.command == "lang":
         if args.lang_command == "audit": _audit_lang(args.code, args.force, args.turing)
         elif args.lang_command == "list": _list_languages()

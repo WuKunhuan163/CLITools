@@ -1,40 +1,17 @@
 #!/usr/bin/env python3 -u
-
-# Fix shadowing: Remove script directory from sys.path[0] if present
-import sys
-from pathlib import Path
-script_dir = Path(__file__).resolve().parent
-if sys.path and sys.path[0] == str(script_dir):
-    del sys.path[0]
 import os
 import sys
 import argparse
 from pathlib import Path
 
-# Add project root to sys.path
-def find_root():
-    curr = Path(__file__).resolve().parent
-    while curr != curr.parent:
-        if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
-            return curr
-        curr = curr.parent
-    return None
-
-project_root = find_root()
-if project_root:
-    root_str = str(project_root)
-    if root_str in sys.path:
-        sys.path.remove(root_str)
-    sys.path.insert(0, root_str)
-    
-    # Remove script dir from path to avoid shadowing
-    script_dir = str(Path(__file__).resolve().parent)
-    if script_dir in sys.path:
-        sys.path.remove(script_dir)
-else:
-    # Fallback
-    project_root = Path(__file__).resolve().parent.parent.parent
-    sys.path.insert(0, str(project_root))
+# Universal path resolver bootstrap
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color
@@ -226,6 +203,7 @@ def main():
     as_python = "--python" in sys.argv
     as_raw = "--raw" in sys.argv
     as_no_capture = "--no-capture" in sys.argv
+    as_no_feedback = "--no-feedback" in sys.argv
     if "--python" in sys.argv:
         sys.argv.remove("--python")
     if "--bash" in sys.argv:
@@ -235,6 +213,8 @@ def main():
         sys.argv.remove("--raw")
     if "--no-capture" in sys.argv:
         sys.argv.remove("--no-capture")
+    if "--no-feedback" in sys.argv:
+        sys.argv.remove("--no-feedback")
     
     # Check for special --options first
     special_options = ["--setup-tutorial", "--remount", "--shell", "--mcp-create", "--mcp-delete", "--mcp-list", "--mcp-upload", "--mcp"]
@@ -289,17 +269,17 @@ def main():
         return
 
     if getattr(args, 'remount', False):
-        code = load_command("remount_cmd").execute(tool, args, state_mgr, load_logic)
+        code = load_command("remount_cmd").execute(tool, args, state_mgr, load_logic, no_feedback=as_no_feedback)
         if code: sys.exit(code)
         return
 
     if remote_command:
         if as_no_capture:
-            code = load_command("raw_cmd").execute(tool, remote_command, state_mgr, load_logic, no_capture=True)
+            code = load_command("raw_cmd").execute(tool, remote_command, state_mgr, load_logic, no_capture=True, no_feedback=as_no_feedback)
         elif as_raw:
-            code = load_command("raw_cmd").execute(tool, remote_command, state_mgr, load_logic)
+            code = load_command("raw_cmd").execute(tool, remote_command, state_mgr, load_logic, no_feedback=as_no_feedback)
         else:
-            code = load_command("remote").execute(tool, remote_command, state_mgr, load_logic, as_python=as_python)
+            code = load_command("remote").execute(tool, remote_command, state_mgr, load_logic, as_python=as_python, no_feedback=as_no_feedback)
         if code: sys.exit(code)
         return
 

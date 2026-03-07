@@ -8,6 +8,7 @@ Two variants:
                   long-running tasks where capturing stdout is impractical.
                   Only the Finished button is shown (no Feedback).
 """
+import os
 import sys
 import time
 import hashlib
@@ -19,7 +20,7 @@ from logic.interface.turing import ProgressTuringMachine
 from logic.interface.turing import TuringStage
 
 
-def execute(tool, remote_command, state_mgr, load_logic, no_capture=False, **kwargs):
+def execute(tool, remote_command, state_mgr, load_logic, no_capture=False, no_feedback=False, **kwargs):
     utils = load_logic("utils")
 
     sid = state_mgr.get_active_shell_id()
@@ -54,6 +55,14 @@ def execute(tool, remote_command, state_mgr, load_logic, no_capture=False, **kwa
     ]
     if no_capture:
         gui_args.append("--no-capture")
+    if no_feedback:
+        gui_args.append("--no-feedback")
+
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
+    if cdp_enabled:
+        gui_args.append("--cdp-enabled")
+    if metadata.get("done_marker"):
+        gui_args.extend(["--done-marker", f"GCS_DONE_{metadata['hash']}"])
 
     command_result = {}
     feedback_mode = [False]

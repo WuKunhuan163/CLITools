@@ -284,13 +284,13 @@ def _run_cdp_with_turing(command, as_python=False):
         return False
 
     def _stage_find_tab(stage):
-        from logic.cdp.colab import find_colab_tab, _reopen_colab_tab
+        from logic.cdp.colab import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
         tab = find_colab_tab()
         if tab:
             return True
         stage.active_name = "Reopening Colab tab..."
         stage.refresh()
-        tab = _reopen_colab_tab()
+        tab = reopen_colab_tab()
         if tab:
             return True
         stage.report_error("Colab tab not found and reopen failed.")

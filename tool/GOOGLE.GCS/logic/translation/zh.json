@@ -170,5 +170,22 @@
   "mcp_tutorial_complete": "MCP 自动化配置向导。",
 
   "remote_executing": "正在执行",
-  "remote_finished": "已完成"
+  "remote_finished": "已完成",
+
+  "remount_injecting_cell": "正在向 Colab 注入重新挂载单元",
+  "remount_handling_oauth": "处理 OAuth 授权",
+  "remount_waiting_mount": "等待挂载完成",
+  "remount_verifying_result": "验证重新挂载结果",
+  "remount_injected": "已注入",
+  "remount_cell_label": "重新挂载单元",
+  "remount_oauth_handled": "已处理",
+  "remount_oauth_label": "OAuth 授权",
+  "remount_oauth_skipped": "已跳过",
+  "remount_oauth_not_needed_label": "授权 (无需)",
+  "remount_oauth_failed": "OAuth 授权失败",
+  "remount_mount_completed": "已完成",
+  "remount_mount_label": "挂载操作",
+  "remount_verified": "已验证",
+  "remount_result_label": "重新挂载结果",
+  "turing_failed_to_verify": "验证失败"
 }
