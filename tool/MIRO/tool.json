@@ -1,9 +1,12 @@
 {
   "name": "MIRO",
   "version": "1.0.0",
-  "description": "Template tool MIRO",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Miro collaborative whiteboard via CDMCP",
+  "purpose": "Access Miro boards, sticky notes, diagrams, and collaborative features via the authenticated miro.com session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }
