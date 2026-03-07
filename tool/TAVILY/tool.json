@@ -1,0 +1,19 @@
+{
+  "name": "TAVILY",
+  "version": "1.0.0",
+  "description": "AI-optimized web search via Tavily API",
+  "purpose": "Provide real-time web search results optimized for AI agents and LLM workflows.",
+  "skills": [
+    "rest-api-design",
+    "api-security",
+    "rag-development",
+    "llm-prompt-engineering"
+  ],
+  "dependencies": [
+    "PYTHON"
+  ],
+  "pip_dependencies": [
+    "tavily-python",
+    "requests"
+  ]
+}

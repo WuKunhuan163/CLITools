@@ -1,0 +1,18 @@
+{
+  "label_started": "已启动",
+  "msg_started_background_pid": "已启动后台进程，PID：",
+  "label_log_file": "日志文件：",
+  "msg_no_background_processes": "未找到后台进程。",
+  "label_pid": "PID",
+  "label_status": "状态",
+  "label_started_at": "开始时间",
+  "label_command": "命令",
+  "msg_process_stopped": "进程 {pid} 已停止。",
+  "msg_process_killed": "进程 {pid} 已杀掉。",
+  "err_stopping_process": "停止进程 {pid} 出错：{error}",
+  "msg_waiting_for_process": "正在等待进程 {pid} 完成...",
+  "msg_process_completed": "进程 {pid} 已完成。",
+  "msg_process_not_found": "进程 {pid} 未找到或已完成。",
+  "err_waiting_for_process": "等待进程 {pid} 出错：{error}",
+  "label_cleanup_completed": "清理完成。"
+}

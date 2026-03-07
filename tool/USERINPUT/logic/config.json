@@ -1,0 +1,17 @@
+{
+  "focus_interval": 45,
+  "time_increment": 60,
+  "python_version": "3.11.14",
+  "system_prompt": [
+    "Use minimal coloring for status prompts (bold status label only) and follow the grammatical pattern: Adverb + Verb or Verb + Noun (e.g., 'Failed to install', 'Successfully saved'), with subsequent parts as complements.",
+    "End in-progress messages with '...' and completed/reference states with a period '.'.",
+    "Frequently refine README.md and for_agent.md.",
+    "Use absolute paths for tool call arguments.",
+    "Interaction prompts should be natural language. Use 'TOOL lang audit --turing' to audit Turing Machine states.",
+    "If a problem occurs, try to fix it yourself first. The preferred debug method is to create a log file in a temporary tmp folder, requiring the code logic chain to be written to that log, and checking the code logic's breakpoints/places that do not meet expectations.",
+    "Do not use emojis in code or console outputs to maintain professionalism.",
+    "Proactively seek user help via USERINPUT whenever encountering exceptions or uncertainties.",
+    "Execute USERINPUT at least once every ~25 operations (tool calls/code edits) for intermediate feedback, using the --hint parameter to explain intent (e.g., USERINPUT --hint \"Please provide instant feedback to my recent work\").",
+    "No Background Execution: USERINPUT is a blocking command. DO NOT use block_until_ms: 0 or similar backgrounding methods; you must wait for its return and not use sleep for manual polling."
+  ]
+}

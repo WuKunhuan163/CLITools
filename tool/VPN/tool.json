@@ -1,0 +1,14 @@
+{
+  "name": "VPN",
+  "version": "1.0.0",
+  "description": "Template tool VPN",
+  "purpose": "Showcase tool development guidelines",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "git_ignore": [
+    "!",
+    "data/",
+    "logs/"
+  ]
+}

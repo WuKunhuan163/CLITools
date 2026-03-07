@@ -1,0 +1,14 @@
+Stage: Installing sub-tool GCS
+Timestamp: 20260208_010901
+--------------------
+'TuringStage' object has no attribute 'update_status'
+
+Traceback:
+Traceback (most recent call last):
+  File "/Applications/AITerminalTools/logic/turing/models/progress.py", line 57, in run
+    success = stage.action(stage)
+              ^^^^^^^^^^^^^^^^^^^
+  File "/Applications/AITerminalTools/bin/GOOGLE", line 80, in install_action
+    stage.update_status(f"Fetching {subtool_name} resources...")
+    ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'TuringStage' object has no attribute 'update_status'

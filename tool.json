@@ -1,0 +1,31 @@
+{
+  "name": "TOOL",
+  "version": "1.0.0",
+  "dependencies": [
+    "psutil"
+  ],
+  "tool_dependencies": [
+    "PYTHON",
+    "GIT",
+    "SKILLS"
+  ],
+  "tools": [
+    "PYTHON",
+    "USERINPUT",
+    "BACKGROUND",
+    "FILEDIALOG",
+    "TEX",
+    "SEARCH",
+    "READ",
+    "DRAW",
+    "GIT", 
+    "FONT",
+    "FITZ",
+    "iCloud",
+    "iCloud.iCloudPD",
+    "GOOGLE",
+    "GOOGLE.GCS",
+    "SKILLS",
+    "TAVILY"
+  ]
+}
