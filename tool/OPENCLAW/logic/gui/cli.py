@@ -42,7 +42,6 @@ from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
     parse_response, parse_response_segments, TERMINATION_TOKEN,
 )
-from tool.OPENCLAW.logic.skills import build_skill_hint
 from tool.OPENCLAW.logic.guardrails import PipelineGuardrails
 
 BOLD = get_color("BOLD")
@@ -1268,11 +1267,6 @@ class OpenClawCLI:
                 f.split("\n")[0] for f in feedback_parts
                 if "[Command FAILED]" in f
             )
-            if error_context:
-                skill_hint = build_skill_hint(error_context)
-                if skill_hint:
-                    all_feedback += skill_hint
-
             all_feedback += (
                 "\n\nContinue with the task. Start with <<STEP: label >>. "
                 "End with <<OPENCLAW_STEP_COMPLETE>> or "

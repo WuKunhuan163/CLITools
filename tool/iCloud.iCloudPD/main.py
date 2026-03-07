@@ -285,7 +285,6 @@ def main():
         success_status="Successfully authenticated", success_name="iCloud", 
         fail_status="Failed to authenticate",
         bold_part="Authenticating iCloud",
-        stealth=True
     ))
     if not pm.run(): sys.exit(1)
 
@@ -390,8 +389,8 @@ def main():
     pm.run()
     
     if used_cache:
-        YELLOW_BOLD = get_color("YELLOW", "\033[33m") + BOLD
-        sys.stdout.write(f"\r\033[K{YELLOW_BOLD}Warning{RESET}: Using cached scan results. Run with {BOLD}--force-rescan{RESET} to refresh metadata (which may take some time).\n")
+        DIM = get_color("DIM", "\033[2m")
+        sys.stdout.write(f"\r\033[K  {DIM}Using cached scan results. Run with --force-rescan to refresh metadata.{RESET}\n")
         sys.stdout.flush()
 
     if args.only_scan:

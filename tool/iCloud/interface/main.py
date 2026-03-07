@@ -24,7 +24,7 @@ def get_icloud_interface():
         tool = ToolBase("iCloud")
         
         # Path to the login GUI script
-        gui_script = str(script_path.parent.parent / "gui" / "login.py")
+        gui_script = str(script_path.parent.parent / "logic" / "gui" / "login.py")
         
         os.environ["GDS_LOGIN_APPLE_ID"] = apple_id or ""
         os.environ["GDS_LOGIN_ERROR"] = error_msg or ""
