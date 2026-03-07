@@ -113,6 +113,40 @@ class MCPToolBase(ToolBase):
             except Exception:
                 pass
 
+    def handle_command_line(self, parser=None, dev_handler=None, test_handler=None):
+        """Override to intercept ``--mcp-state`` and reformat ``--help``."""
+        if "--mcp-state" in sys.argv:
+            sys.argv = [a for a in sys.argv if a != "--mcp-state"]
+            self.print_mcp_state()
+            return True
+        if parser and any(a in sys.argv for a in ["-h", "--help", "help"]):
+            self._print_mcp_help(parser)
+            return True
+        return super().handle_command_line(parser, dev_handler, test_handler)
+
+    @staticmethod
+    def _print_mcp_help(parser):
+        """Print help with --mcp- prefix for all subcommands."""
+        import re
+        help_text = parser.format_help()
+        subparsers_action = None
+        for action in parser._actions:
+            if hasattr(action, '_parser_class'):
+                subparsers_action = action
+                break
+        if subparsers_action and hasattr(subparsers_action, 'choices'):
+            cmds = list(subparsers_action.choices.keys())
+            choices_str = ",".join(cmds)
+            mcp_choices = ",".join(f"--mcp-{c}" for c in cmds)
+            help_text = help_text.replace("{" + choices_str + "}", "{" + mcp_choices + "}")
+            for cmd in cmds:
+                help_text = help_text.replace(
+                    f"\n    {cmd}" + " " * max(1, 20 - len(cmd)),
+                    f"\n    --mcp-{cmd}" + " " * max(1, 14 - len(cmd)),
+                )
+        help_text += "\n  --mcp-state           Print comprehensive MCP state and exit\n"
+        print(help_text)
+
     def handle_mcp_commands(self, args) -> bool:
         """Handle MCP-specific CLI subcommands. Returns True if handled.
 

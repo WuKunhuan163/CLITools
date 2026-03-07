@@ -1,4 +1,4 @@
-"""GMAIL Tool Interface — Gmail via Chrome CDP."""
+"""GMAIL Tool Interface — Gmail via official Gmail API (OAuth2)."""
 from tool.GMAIL.logic.chrome.api import (  # noqa: F401
     find_gmail_tab,
     get_auth_state,
@@ -7,4 +7,32 @@ from tool.GMAIL.logic.chrome.api import (  # noqa: F401
     get_labels,
     search_emails,
     send_email,
+    delete_email,
+    get_message,
+    get_message_body,
+    mark_read,
+    mark_unread,
+    star,
+    unstar,
+    list_messages,
+)
+
+from tool.GMAIL.logic.gmail_api import (  # noqa: F401
+    has_credentials,
+    has_token,
+    get_auth_url,
+    exchange_code,
+    refresh_access_token,
+    save_credentials,
+    load_credentials,
+    get_profile,
+    list_labels,
+    list_threads,
+    get_thread,
+    trash_message,
+    untrash_message,
+    mark_as_read,
+    mark_as_unread,
+    star_message,
+    unstar_message,
 )

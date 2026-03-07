@@ -20,3 +20,9 @@ KLING history # Generation history from DOM
 - Data comes from localStorage and DOM (not direct API)
 - Kling's API gateway (`api-app-global.klingai.com`) blocks cross-origin fetch
 - Navigate to Assets page before calling `history` command
+
+## ToS Compliance
+
+**Status: MEDIUM RISK** -- Kling AI ToS contains general misuse prohibitions. Current implementation uses DOM scraping (11 DOM calls). **Migration recommended** if an official API becomes available. CDMCP should only be retained for initial login.
+
+**Alternative**: Research Kling AI API availability for programmatic access.

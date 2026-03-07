@@ -61,7 +61,8 @@ def _resolve_folder_id(path_spec):
 
 def _is_cdp_available():
     try:
-        from logic.cdp.colab import is_chrome_cdp_available, find_colab_tab
+        from logic.chrome.session import is_chrome_cdp_available
+        from tool.GOOGLE.logic.chrome.colab import find_colab_tab
         if not is_chrome_cdp_available():
             return False
         tab = find_colab_tab()
@@ -72,7 +73,7 @@ def _is_cdp_available():
 
 def _get_supported_types():
     try:
-        from logic.cdp.colab import DRIVE_MIME_TYPES
+        from tool.GOOGLE.logic.chrome.drive import DRIVE_MIME_TYPES
         return {k: v.split(".")[-1] if "google-apps" in v else k
                 for k, v in DRIVE_MIME_TYPES.items()}
     except ImportError:
@@ -85,7 +86,7 @@ def run_mcp_create(file_type, folder_spec="~", filename=None, as_json=False):
     Uses CDP + gapi.client when the debug Chrome is available.
     Falls back to browser MCP workflow instructions otherwise.
     """
-    from logic.cdp.colab import DRIVE_MIME_TYPES
+    from tool.GOOGLE.logic.chrome.drive import DRIVE_MIME_TYPES
 
     if file_type not in DRIVE_MIME_TYPES:
         if as_json:
@@ -105,7 +106,7 @@ def run_mcp_create(file_type, folder_spec="~", filename=None, as_json=False):
         return 1
 
     if _is_cdp_available():
-        from logic.cdp.colab import create_drive_file
+        from tool.GOOGLE.logic.chrome.drive import create_drive_file
         name = filename or f"Untitled.{file_type}"
         result = create_drive_file(name, file_type, folder_id)
         if result.get("success"):
@@ -152,7 +153,7 @@ def run_mcp_delete(file_id, as_json=False):
         return 1
 
     if _is_cdp_available():
-        from logic.cdp.colab import delete_drive_file
+        from tool.GOOGLE.logic.chrome.drive import delete_drive_file
         ok = delete_drive_file(file_id)
         if ok:
             if as_json:
@@ -186,7 +187,7 @@ def run_mcp_list(folder_spec="~", as_json=False):
         return 1
 
     if _is_cdp_available():
-        from logic.cdp.colab import list_drive_files
+        from tool.GOOGLE.logic.chrome.drive import list_drive_files
         result = list_drive_files(folder_id)
         if result.get("success"):
             files = result.get("files", [])

@@ -43,10 +43,10 @@ def get_display_width(text):
 
 def print_terminal_width_separator(width=None):
     """Prints a separator line of '=' characters matching the terminal width."""
-    if width is None:
+    if width is None or not isinstance(width, int) or width <= 0:
         from logic.turing.display.manager import _get_configured_width
         width = _get_configured_width()
-    if width and width > 0:
+    if isinstance(width, int) and width > 0:
         sys.stdout.write("\r\033[K" + "=" * width + "\n")
         sys.stdout.flush()
 

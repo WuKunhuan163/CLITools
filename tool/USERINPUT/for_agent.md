@@ -70,4 +70,4 @@ USERINPUT --config --time-increment 60      # Set add-time increment
 
 ## MCP Development
 
-When developing MCP tools that automate web applications (CDMCP tools), refer to the `TerminalTools-cdmcp-web-exploration` skill for systematic exploration and self-testing methodology.
+When developing MCP tools that automate web applications (CDMCP tools), refer to the `cdmcp-web-exploration` skill for systematic exploration and self-testing methodology.

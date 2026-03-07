@@ -263,7 +263,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     cdp_available = False
     if cdp_enabled:
         try:
-            from logic.cdp.colab import is_chrome_cdp_available as _cdp_check
+            from logic.chrome.session import is_chrome_cdp_available as _cdp_check
             cdp_available = _cdp_check()
         except Exception:
             pass
@@ -330,8 +330,9 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     def _cdp_auto_inject():
         """Background thread: inject script into Colab via Chrome DevTools Protocol."""
         try:
-            from logic.cdp.colab import is_chrome_cdp_available, inject_and_execute, find_colab_tab
-            from logic.cdp.colab import CDPSession as _CdpSession
+            from logic.chrome.session import is_chrome_cdp_available
+            from tool.GOOGLE.logic.chrome.colab import inject_and_execute, find_colab_tab
+            from logic.chrome.session import CDPSession as _CdpSession
         except ImportError:
             return
 

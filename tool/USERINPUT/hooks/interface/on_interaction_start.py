@@ -9,7 +9,7 @@ kwargs:
     hint: str (the --hint text, or "")
     mode: str ("gui" | "fallback" | "remote")
 """
-from logic.tool.hooks.engine import HookInterface
+from logic.hooks.engine import HookInterface
 
 
 class OnInteractionStart(HookInterface):

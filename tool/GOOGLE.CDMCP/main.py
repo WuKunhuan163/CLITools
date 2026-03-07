@@ -50,10 +50,36 @@ class CDMCPTool(ToolBase):
         sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
         sub.add_parser("status", help="Check Chrome CDP availability and managed tabs")
+        sub.add_parser("state", help="Print comprehensive MCP state (sessions, tabs, window)")
         sub.add_parser("tutorial", help="Run interactive setup tutorial")
 
         p_nav = sub.add_parser("navigate", help="Open URL in a managed CDMCP tab")
         p_nav.add_argument("url", help="URL to navigate to")
+        p_nav.add_argument("--tab-id", default="", help="Navigate an existing tab (by ID) instead of creating a new one")
+
+        p_activate = sub.add_parser("activate", help="Bring a tab to the foreground by ID")
+        p_activate.add_argument("tab_id", help="Target ID of the tab to activate")
+
+        sub.add_parser("minimize", help="Minimize the session Chrome window")
+        sub.add_parser("restore", help="Restore the session Chrome window")
+        sub.add_parser("ensure-window", help="Verify session window is alive; reboot if needed")
+
+        p_screenshot = sub.add_parser("screenshot", help="Capture a screenshot of a tab")
+        p_screenshot.add_argument("--tab-id", default="", help="Tab ID (default: last session tab)")
+        p_screenshot.add_argument("--output", default="", help="Output file path (default: data/report/last_screenshot.png)")
+
+        p_fe = sub.add_parser("focus-element", help="Focus a DOM element in a tab by CSS selector")
+        p_fe.add_argument("pattern", help="URL pattern to match the tab")
+        p_fe.add_argument("selector", help="CSS selector for the element to focus")
+
+        p_scroll = sub.add_parser("scroll", help="Scroll in a tab (horizontal/vertical)")
+        p_scroll.add_argument("pattern", help="URL pattern to match the tab")
+        p_scroll.add_argument("--dx", type=int, default=0, help="Horizontal scroll pixels (positive=right)")
+        p_scroll.add_argument("--dy", type=int, default=0, help="Vertical scroll pixels (positive=down)")
+
+        p_click = sub.add_parser("click", help="Click an element in a tab (by selector or focused element)")
+        p_click.add_argument("pattern", help="URL pattern to match the tab")
+        p_click.add_argument("selector", nargs="?", default="", help="CSS selector (omit to click focused element)")
 
         p_focus = sub.add_parser("focus", help="Set focus indicator on a tab")
         p_focus.add_argument("pattern", help="URL pattern to match the tab")
@@ -137,6 +163,19 @@ class CDMCPTool(ToolBase):
         sub.add_parser("login", help="Initiate Google account login flow")
         sub.add_parser("logout", help="Initiate Google account logout flow")
 
+        p_ma = sub.add_parser("my-account", help="Google My Account operations")
+        ma_sub = p_ma.add_subparsers(dest="ma_action")
+        ma_sub.add_parser("profile", help="Show personal profile info")
+        ma_sub.add_parser("security", help="Show security overview")
+        ma_sub.add_parser("activity", help="Show recent security activity")
+        ma_sub.add_parser("apps", help="List connected third-party apps")
+        ma_sub.add_parser("devices", help="List signed-in devices")
+        ma_sub.add_parser("storage", help="Show account storage usage")
+        ma_nav = ma_sub.add_parser("navigate", help="Navigate to a sub-page")
+        ma_nav.add_argument("page", choices=["home", "personal-info", "security",
+                            "data-privacy", "people-sharing", "payments"],
+                            help="Sub-page name")
+
         if self.handle_command_line(parser):
             return
 
@@ -176,12 +215,127 @@ class CDMCPTool(ToolBase):
             print(f"  OAuth allowed: {cfg.get('allow_oauth', True)}")
             print(f"  Logging: {cfg.get('log_interactions', True)}")
 
+        elif args.command == "state":
+            sm = api._get_session_mgr()
+            sessions_info = []
+            active_name = None
+            if sm:
+                for name, sess in sm._sessions.items():
+                    info = {"name": name, "window_id": sess.window_id}
+                    if sess.lifetime_tab_id:
+                        info["lifetime_tab"] = sess.lifetime_tab_id[:12]
+                    tabs = {}
+                    for label, tinfo in (sess._tabs or {}).items():
+                        tabs[label] = tinfo.get("id", "?")[:12] if isinstance(tinfo, dict) else str(tinfo)[:12]
+                    info["tabs"] = tabs
+                    sessions_info.append(info)
+                active = sm.get_any_active_session()
+                if active:
+                    active_name = getattr(active, "_name", None) or getattr(active, "name", None)
+            print(f"\n{BOLD}CDMCP State{RESET}")
+            print(f"  Sessions: {len(sessions_info)}")
+            if active_name:
+                print(f"  Active: {BOLD}{active_name}{RESET}")
+            for s in sessions_info:
+                print(f"\n  [{BOLD}{s['name']}{RESET}]  window={s.get('window_id', '?')}")
+                if s.get("lifetime_tab"):
+                    print(f"    lifetime_tab: {s['lifetime_tab']}")
+                for label, tid in s.get("tabs", {}).items():
+                    print(f"    tab/{label}: {tid}")
+            all_tabs = api.list_tabs()
+            page_tabs = [t for t in all_tabs if t.get("type") == "page"]
+            print(f"\n  Chrome tabs (page): {len(page_tabs)}")
+            for t in page_tabs[:10]:
+                url_short = (t.get("url") or "")[:60]
+                print(f"    {t['id'][:12]}  {url_short}")
+            win = api.ensure_session_window()
+            print(f"\n  Window status: {BOLD}{GREEN if win['ok'] else RED}{win.get('action', win.get('error', '?'))}{RESET}")
+            print()
+
         elif args.command == "navigate":
-            r = api.navigate(args.url)
-            if r.get("ok"):
-                print(f"  {BOLD}{GREEN}Navigated{RESET} to {args.url} ({r.get('action', 'unknown')}).")
+            if getattr(args, "tab_id", ""):
+                r = api.navigate_tab(args.tab_id, args.url)
+                if r.get("ok"):
+                    print(f"  {BOLD}{GREEN}Navigated{RESET} tab {args.tab_id[:12]} to {args.url}.")
+                    if r.get("title"):
+                        print(f"  Title: {r['title']}")
+                else:
+                    print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
             else:
-                print(f"  {BOLD}{RED}Failed{RESET} to navigate: {r.get('error', 'unknown')}")
+                r = api.navigate(args.url)
+                if r.get("ok"):
+                    print(f"  {BOLD}{GREEN}Navigated{RESET} to {args.url} ({r.get('action', 'unknown')}).")
+                else:
+                    print(f"  {BOLD}{RED}Failed{RESET} to navigate: {r.get('error', 'unknown')}")
+
+        elif args.command == "activate":
+            r = api.activate_tab(args.tab_id)
+            if r.get("ok"):
+                print(f"  {BOLD}{GREEN}Activated{RESET} tab {args.tab_id[:12]}.")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "minimize":
+            r = api.minimize_window()
+            if r.get("ok"):
+                print(f"  {BOLD}{GREEN}Minimized{RESET} window {r.get('windowId')}.")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "restore":
+            r = api.restore_window()
+            if r.get("ok"):
+                print(f"  {BOLD}{GREEN}Restored{RESET} window {r.get('windowId')}.")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "ensure-window":
+            r = api.ensure_session_window()
+            if r.get("ok"):
+                action = r.get("action", "unknown")
+                print(f"  {BOLD}{GREEN}Window {action}{RESET}.")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "screenshot":
+            r = api.screenshot_tab(
+                tab_id=getattr(args, "tab_id", "") or None,
+                output=getattr(args, "output", ""),
+            )
+            if r.get("ok"):
+                print(f"  {BOLD}{GREEN}Saved{RESET} screenshot to {r['path']}.")
+                print(f"  Tab: {r.get('title', '?')[:50]}  Size: {r.get('size', 0)} bytes.")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "focus-element":
+            r = api.focus_element(args.pattern, args.selector)
+            if r.get("ok"):
+                tag = r.get("tag", "?")
+                text = r.get("text", "")[:40]
+                print(f"  {BOLD}{GREEN}Focused{RESET} <{tag}> at ({r.get('x',0)}, {r.get('y',0)}).")
+                if text:
+                    print(f"  Text: {text}")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "scroll":
+            r = api.scroll_tab(args.pattern, dx=args.dx, dy=args.dy)
+            if r.get("ok"):
+                print(f"  {BOLD}{GREEN}Scrolled{RESET} dx={r.get('deltaX',0)} dy={r.get('deltaY',0)}.")
+                print(f"  Position: scrollX={r.get('scrollX',0)} scrollY={r.get('scrollY',0)}.")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
+
+        elif args.command == "click":
+            r = api.click_element(args.pattern, selector=args.selector)
+            if r.get("ok"):
+                c = r.get("clicked", {})
+                print(f"  {BOLD}{GREEN}Clicked{RESET} <{c.get('tag','?')}> at ({c.get('x',0)}, {c.get('y',0)}).")
+                if c.get("text"):
+                    print(f"  Text: {c['text'][:50]}")
+            else:
+                print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
 
         elif args.command == "focus":
             r = api.focus_tab(args.pattern)
@@ -378,31 +532,173 @@ class CDMCPTool(ToolBase):
                 print(f"  Last checked: {ts}")
 
         elif args.command == "login":
-            r = api.google_auth_login()
-            status = r.get("status", "unknown")
-            if status == "already_signed_in":
+            _validate_session_tabs("pre-login")
+            auth_result = api.google_auth_status()
+            if auth_result.get("signed_in"):
                 print(f"  {BOLD}Already signed in.{RESET}")
-            elif status == "opened":
-                print(f"  {BOLD}Login tab opened.{RESET} "
-                      f"Sign in via the browser tab. It will auto-close on success.")
-            elif status == "login_in_progress":
-                print(f"  {BOLD}Login already in progress.{RESET}")
             else:
-                print(f"  {BOLD}{RED}Failed to open login tab:{RESET} "
-                      f"{r.get('error', 'unknown')}")
+                r = api.google_auth_login(start_tracker=False)
+                status = r.get("status", "unknown")
+                if status in ("opened", "login_in_progress"):
+                    tab_id = r.get("tab_id")
+                    _unlock_tab_for_user(tab_id)
+                    print(f"  {BOLD}Login tab opened (unlocked for sign-in).{RESET}")
+                    _poll_login(tab_id, timeout=300)
+                elif status == "already_signed_in":
+                    print(f"  {BOLD}Already signed in.{RESET}")
+                else:
+                    print(f"  {BOLD}{RED}Failed to open login tab:{RESET} "
+                          f"{r.get('error', 'unknown')}")
+            _validate_session_tabs("post-login")
 
         elif args.command == "logout":
+            _validate_session_tabs("pre-logout")
             r = api.google_auth_logout()
             status = r.get("status", "unknown")
             if status == "opened":
-                print(f"  {BOLD}Logout tab opened.{RESET} "
-                      f"It will auto-close after sign-out completes.")
+                tab_id = r.get("tab_id")
+                print(f"  {BOLD}Logout tab opened.{RESET} Completing sign-out...")
+                _poll_logout(tab_id, timeout=60)
             else:
                 print(f"  {BOLD}{RED}Failed to open logout tab:{RESET} "
                       f"{r.get('error', 'unknown')}")
+            _validate_session_tabs("post-logout")
+
+        # save-auth / restore-auth removed: cookie restore doesn't survive
+        # server-side session revocation after full Google logout.
+        # Interface functions (_save_auth_cookies, _restore_auth_cookies) retained
+        # for potential future re-implementation.
+
+        elif args.command == "my-account":
+            _run_my_account(api, args, BOLD, GREEN, RED, YELLOW, BLUE, RESET)
 
         else:
             parser.print_help()
+
+
+def _run_my_account(api, args, BOLD, GREEN, RED, YELLOW, BLUE, RESET):
+    """Handle --mcp-my-account sub-commands."""
+    ma_mod = _load_myaccount_mod()
+    sm = api._get_session_mgr()
+    session = sm.get_any_active_session() if sm else None
+
+    auth_check = ma_mod.check_login_required()
+    if not auth_check.get("ok"):
+        print(f"  {BOLD}{RED}Not signed in.{RESET} Run CDMCP --mcp-login first.")
+        return
+    if not session:
+        print(f"  {BOLD}{RED}No active session.{RESET} Run CDMCP --mcp-session create first.")
+        return
+
+    action = args.ma_action
+    if not action:
+        print(f"  {BOLD}Google My Account{RESET} ({auth_check.get('email', '?')})")
+        print(f"  Sub-commands: profile, security, activity, apps, devices, storage, navigate")
+        return
+
+    if action == "profile":
+        print(f"  {BOLD}Fetching profile...{RESET}")
+        r = ma_mod.get_profile(session)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Profile:{RESET}")
+            for key in ("name", "gender", "birthday", "language", "phone"):
+                if r.get(key):
+                    print(f"    {key.capitalize()}: {r[key]}")
+            if r.get("emails"):
+                print(f"    Emails: {', '.join(r['emails'])}")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    elif action == "security":
+        print(f"  {BOLD}Fetching security overview...{RESET}")
+        r = ma_mod.get_security_overview(session)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Security:{RESET}")
+            if r.get("two_factor"):
+                color = GREEN if r["two_factor"] == "on" else YELLOW
+                print(f"    2FA: {color}{r['two_factor']}{RESET}")
+            if r.get("password_last_changed"):
+                print(f"    Password changed: {r['password_last_changed']}")
+            if r.get("active_sessions"):
+                print(f"    Active sessions: {r['active_sessions']}")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    elif action == "activity":
+        print(f"  {BOLD}Fetching recent activity...{RESET}")
+        r = ma_mod.get_recent_activity(session)
+        if r.get("ok"):
+            activities = r.get("activities", [])
+            if activities:
+                print(f"  {BOLD}{GREEN}Recent activity:{RESET}")
+                for a in activities:
+                    print(f"    - {a}")
+            else:
+                print(f"  {BOLD}No recent activity found.{RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    elif action == "apps":
+        print(f"  {BOLD}Fetching connected apps...{RESET}")
+        r = ma_mod.get_connected_apps(session)
+        if r.get("ok"):
+            apps = r.get("apps", [])
+            if apps:
+                print(f"  {BOLD}{GREEN}Connected apps:{RESET}")
+                for a in apps:
+                    print(f"    - {a}")
+            else:
+                print(f"  {BOLD}No connected third-party apps.{RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    elif action == "devices":
+        print(f"  {BOLD}Fetching devices...{RESET}")
+        r = ma_mod.get_devices(session)
+        if r.get("ok"):
+            devices = r.get("devices", [])
+            if devices:
+                print(f"  {BOLD}{GREEN}Devices:{RESET}")
+                for d in devices:
+                    print(f"    - {d}")
+            else:
+                print(f"  {BOLD}No devices found.{RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    elif action == "storage":
+        print(f"  {BOLD}Fetching storage usage...{RESET}")
+        r = ma_mod.get_storage_usage(session)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Storage:{RESET}")
+            if r.get("used") and r.get("total"):
+                print(f"    Used: {r['used']} / {r['total']}")
+            else:
+                print(f"    Could not parse storage details.")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    elif action == "navigate":
+        page = args.page
+        print(f"  {BOLD}Navigating to {page}...{RESET}")
+        r = ma_mod.navigate_page(session, page)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated{RESET} to {r.get('title', page)}.")
+        else:
+            print(f"  {BOLD}{RED}Failed:{RESET} {r.get('error', '?')}")
+
+    else:
+        print(f"  {BOLD}{YELLOW}Unknown action:{RESET} {action}")
+
+
+def _load_myaccount_mod():
+    """Lazy-load the myaccount module."""
+    import importlib.util
+    path = _TOOL_DIR / "logic" / "cdp" / "google_myaccount.py"
+    spec = importlib.util.spec_from_file_location("cdmcp_myaccount", str(path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET):
@@ -668,6 +964,338 @@ def _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET):
 
     cdp.close()
     return True
+
+
+def _load_auth_mod():
+    import importlib.util
+    from pathlib import Path
+    p = Path(__file__).resolve().parent / "logic" / "cdp" / "google_auth.py"
+    spec = importlib.util.spec_from_file_location("cdmcp_google_auth", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_AUTH_COOKIE_FILE = Path(__file__).resolve().parent / "data" / "config" / "saved_auth_cookies.json"
+
+
+def _save_auth_cookies():
+    """Save all Google cookies via Network.getAllCookies."""
+    import json
+    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    tabs = list_tabs(CDP_PORT)
+    for t in tabs:
+        ws = t.get("webSocketDebuggerUrl")
+        if ws and t.get("type") == "page":
+            try:
+                cdp = CDPSession(ws, timeout=5)
+                cdp.send_and_recv("Network.enable", {})
+                resp = cdp.send_and_recv("Network.getAllCookies", {})
+                cookies = (resp or {}).get("result", {}).get("cookies", [])
+                cdp.close()
+                google_cookies = [c for c in cookies if
+                                  "google" in c.get("domain", "").lower()]
+                _AUTH_COOKIE_FILE.parent.mkdir(parents=True, exist_ok=True)
+                with open(_AUTH_COOKIE_FILE, "w") as f:
+                    json.dump(google_cookies, f, indent=2)
+                return {"ok": True, "count": len(google_cookies)}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": "No accessible tab"}
+
+
+def _restore_auth_cookies():
+    """Restore saved Google cookies via Network.setCookie."""
+    import json
+    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    if not _AUTH_COOKIE_FILE.exists():
+        return {"ok": False, "error": "No saved cookies. Run save-auth first."}
+    with open(_AUTH_COOKIE_FILE) as f:
+        cookies = json.load(f)
+    tabs = list_tabs(CDP_PORT)
+    for t in tabs:
+        ws = t.get("webSocketDebuggerUrl")
+        if ws and t.get("type") == "page":
+            try:
+                cdp = CDPSession(ws, timeout=5)
+                cdp.send_and_recv("Network.enable", {})
+                ok_count = 0
+                for c in cookies:
+                    params = {
+                        "name": c["name"], "value": c["value"],
+                        "domain": c.get("domain", ""),
+                        "path": c.get("path", "/"),
+                        "secure": c.get("secure", False),
+                        "httpOnly": c.get("httpOnly", False),
+                        "sameSite": c.get("sameSite", "Lax"),
+                    }
+                    if c.get("expires", -1) > 0:
+                        params["expires"] = c["expires"]
+                    resp = cdp.send_and_recv("Network.setCookie", params)
+                    if (resp or {}).get("result", {}).get("success"):
+                        ok_count += 1
+                auth_mod = _load_auth_mod()
+                state = auth_mod.check_auth_cookies(cdp, verify=False)
+                cdp.close()
+                return {"ok": True, "restored": ok_count,
+                        "signed_in": state.get("signed_in", False)}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": "No accessible tab"}
+
+
+def _unlock_tab_for_user(tab_id, tip_text="Please sign in to your Google account below"):
+    """Remove lock, inject tip banner, focus the tab, and alert with a bell."""
+    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    tabs = list_tabs(CDP_PORT)
+    for t in tabs:
+        if t.get("id") == tab_id:
+            ws = t.get("webSocketDebuggerUrl")
+            if ws:
+                try:
+                    overlay_path = Path(__file__).resolve().parent / "logic" / "cdp" / "overlay.py"
+                    import importlib.util
+                    spec = importlib.util.spec_from_file_location("cdmcp_ov_unlock", overlay_path)
+                    ov = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(ov)
+                    cdp = CDPSession(ws, timeout=5)
+                    ov.remove_lock(cdp)
+                    ov.inject_tip(cdp, tip_text, bg_color="#1a73e8")
+                    ov.inject_badge(cdp, text="CDMCP Auth", color="#34a853")
+                    cdp.close()
+                except Exception:
+                    pass
+            _activate_tab(tab_id, CDP_PORT)
+            _play_alert_bell()
+            break
+
+
+def _activate_tab(tab_id, port):
+    """Bring a tab to the foreground via CDP Target.activateTarget."""
+    import urllib.request
+    try:
+        url = f"http://localhost:{port}/json/activate/{tab_id}"
+        urllib.request.urlopen(url, timeout=3)
+    except Exception:
+        pass
+
+
+def _play_alert_bell():
+    """Play bell.mp3 to alert the user (non-blocking). Falls back to system sound."""
+    import subprocess, sys as _sys
+    from pathlib import Path as _Path
+    bell_mp3 = _Path(__file__).resolve().parent.parent.parent / "logic" / "asset" / "audio" / "bell.mp3"
+    if bell_mp3.exists():
+        subprocess.Popen(["afplay", str(bell_mp3)],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif _sys.platform == "darwin":
+        subprocess.Popen(["afplay", "/System/Library/Sounds/Glass.aiff"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _validate_session_tabs(context=""):
+    """TEMPORARY debug validator for session tab state consistency.
+
+    Added to diagnose session recovery issues (missing welcome/demo tabs
+    after Chrome window loss). Expected to be commented out once session
+    recovery is stable and verified.
+
+    Verifies:
+      1. Active session exists with a lifetime (welcome) tab that's alive
+      2. Demo tab is registered and alive
+
+    Prints detailed diagnostics on any violation. Returns True if valid.
+    """
+    from interface.config import get_color
+    from logic.chrome.session import list_tabs, CDP_PORT
+    BOLD, RED, YELLOW, GREEN, RESET = (
+        get_color("BOLD"), get_color("RED"), get_color("YELLOW"),
+        get_color("GREEN"), get_color("RESET"))
+
+    api = _load_api()
+    sm = api._get_session_mgr()
+    if not sm:
+        print(f"  {BOLD}{RED}[VALIDATE]{RESET} No session manager loaded.")
+        return False
+
+    session = sm.get_any_active_session()
+    if not session:
+        print(f"  {BOLD}{YELLOW}[VALIDATE]{RESET} No active session (context: {context}).")
+        return True
+
+    label = f"[VALIDATE:{context}]" if context else "[VALIDATE]"
+    all_tabs = list_tabs(CDP_PORT)
+    alive_ids = {t.get("id") for t in all_tabs if t.get("type") == "page"}
+    valid = True
+
+    lt_id = session.lifetime_tab_id
+    if not lt_id:
+        print(f"  {BOLD}{RED}{label}{RESET} Session '{session.name}' has no lifetime_tab_id.")
+        valid = False
+    elif lt_id not in alive_ids:
+        print(f"  {BOLD}{RED}{label}{RESET} Lifetime tab {lt_id[:12]} is dead.")
+        print(f"    Expected: alive tab at {(session.lifetime_tab_url or '?')[:60]}")
+        print(f"    Alive tabs: {[tid[:12] for tid in sorted(alive_ids)]}")
+        valid = False
+
+    demo_info = session._tabs.get("demo")
+    if demo_info:
+        demo_id = demo_info.get("id") if isinstance(demo_info, dict) else demo_info
+        if demo_id and demo_id not in alive_ids:
+            print(f"  {BOLD}{YELLOW}{label}{RESET} Demo tab {str(demo_id)[:12]} is dead.")
+            valid = False
+
+    if valid:
+        tabs_summary = {lbl: (info.get("id", "?")[:12] if isinstance(info, dict) else str(info)[:12])
+                        for lbl, info in session._tabs.items()}
+        print(f"  {BOLD}{GREEN}{label}{RESET} Session '{session.name}' OK. Tabs: {tabs_summary}")
+
+    return valid
+
+
+def _close_google_auth_tabs(primary_tab_id, port):
+    """Close the primary auth tab and any Google auth-flow tabs.
+
+    Closes tabs matching sign-in/sign-out/ListAccounts URLs.
+    Does NOT close general Google pages (e.g. user-opened myaccount.google.com).
+    """
+    from interface.config import get_color
+    from logic.chrome.session import list_tabs, close_tab
+    BOLD, RESET = get_color("BOLD"), get_color("RESET")
+    _AUTH_URL_PATTERNS = (
+        "accounts.google.com/signin",
+        "accounts.google.com/v3/signin",
+        "accounts.google.com/ServiceLogin",
+        "accounts.google.com/AccountChooser",
+        "accounts.google.com/signout",
+        "accounts.google.com/ListAccounts",
+        "accounts.google.com/Logout",
+        "accounts.google.com/RotateCookie",
+        "myaccount.google.com",
+    )
+    tabs = list_tabs(port)
+    closed = 0
+    for t in tabs:
+        if t.get("type") != "page":
+            continue
+        tid = t.get("id", "")
+        url = t.get("url", "")
+        should_close = (tid == primary_tab_id or
+                        any(p in url for p in _AUTH_URL_PATTERNS))
+        if should_close:
+            try:
+                close_tab(tid, port)
+                closed += 1
+            except Exception:
+                pass
+    if closed:
+        print(f"  {BOLD}Closed {closed} auth tab(s).{RESET}")
+
+
+def _poll_login(tab_id, timeout=300):
+    """Synchronous poll for login completion. Closes the tab on success."""
+    import time as _t
+    from interface.config import get_color
+    from logic.chrome.session import CDPSession, list_tabs, close_tab, CDP_PORT
+    auth_mod = _load_auth_mod()
+    BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+    completed = False
+    for i in range(int(timeout / 2)):
+        _t.sleep(2)
+        tabs = list_tabs(CDP_PORT)
+        tab_alive = any(t.get("id") == tab_id for t in tabs)
+        if not tab_alive:
+            print(f"  {BOLD}Login tab closed.{RESET}")
+            completed = True
+            break
+
+        login_tab = next((t for t in tabs if t.get("id") == tab_id), None)
+        ws = login_tab.get("webSocketDebuggerUrl") if login_tab else None
+        if not ws:
+            continue
+        try:
+            cdp = CDPSession(ws, timeout=3)
+            state = auth_mod.check_auth_cookies(cdp, verify=False)
+            if state.get("signed_in"):
+                verified = auth_mod.check_auth_cookies(cdp, verify=True)
+                cdp.close()
+                email = verified.get("email") or ""
+                name = verified.get("display_name") or ""
+                label = email or name or ""
+                if email or name:
+                    auth_mod._push_identity_to_server({
+                        "email": email or None,
+                        "display_name": name or None,
+                    })
+                if label:
+                    print(f"  {BOLD}{GREEN}Signed in{RESET} as {label}.")
+                else:
+                    print(f"  {BOLD}{GREEN}Signed in.{RESET}")
+                _t.sleep(0.5)
+                _close_google_auth_tabs(tab_id, CDP_PORT)
+                completed = True
+            else:
+                cdp.close()
+        except Exception:
+            pass
+        if completed:
+            break
+        if i % 15 == 14:
+            print(f"  Waiting for sign-in... ({(i+1)*2}s)")
+    if not completed:
+        print(f"  {BOLD}Timeout.{RESET} Login tab left open for manual sign-in.")
+
+
+def _poll_logout(tab_id, timeout=60):
+    """Synchronous poll for logout completion. Locks tab, clicks Continue, closes tab."""
+    import time as _t
+    from interface.config import get_color
+    from logic.chrome.session import CDPSession, list_tabs, close_tab, CDP_PORT
+    auth_mod = _load_auth_mod()
+    BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+    clicked = False
+    completed = False
+    for i in range(int(timeout / 1.5)):
+        _t.sleep(1.5)
+        tabs = list_tabs(CDP_PORT)
+        tab_alive = any(t.get("id") == tab_id for t in tabs)
+        if not tab_alive:
+            print(f"  {BOLD}{GREEN}Signed out.{RESET}")
+            _t.sleep(1)
+            _close_google_auth_tabs(tab_id, CDP_PORT)
+            _t.sleep(2)
+            _close_google_auth_tabs(tab_id, CDP_PORT)
+            completed = True
+            break
+        if not clicked:
+            _api = _load_api()
+            r = _api.click_element("accounts.google.com",
+                                   selector='a[href*="continue"], a[href*="ServiceLogin"]')
+            if r.get("ok"):
+                clicked = True
+            else:
+                clicked = auth_mod._try_click_signout_continue(tab_id, CDP_PORT)
+        for t in tabs:
+            ws = t.get("webSocketDebuggerUrl")
+            if ws and t.get("type") == "page":
+                try:
+                    cdp = CDPSession(ws, timeout=5)
+                    state = auth_mod.check_auth_cookies(cdp, verify=False)
+                    cdp.close()
+                    if not state.get("signed_in"):
+                        print(f"  {BOLD}{GREEN}Signed out.{RESET}")
+                        _t.sleep(1)
+                        _close_google_auth_tabs(tab_id, CDP_PORT)
+                        _t.sleep(2)
+                        _close_google_auth_tabs(tab_id, CDP_PORT)
+                        completed = True
+                        break
+                except Exception:
+                    continue
+        if completed:
+            break
+    if not completed:
+        print(f"  {BOLD}Timeout.{RESET} Logout tab left open.")
 
 
 def main():

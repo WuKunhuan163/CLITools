@@ -72,3 +72,22 @@ def load_google_auth():
         - watch_tab_close(tab_id, on_close) -> None: tab close hook
     """
     return _load_module("cdmcp_google_auth", _AUTH_PATH)
+
+
+_MYACCOUNT_PATH = _TOOL_DIR / "logic" / "cdp" / "google_myaccount.py"
+
+
+def load_google_myaccount():
+    """Load the Google My Account automation module.
+
+    Provides:
+        - check_login_required(port) -> dict: check if signed in
+        - get_profile(session, port) -> dict: name, email, phone, etc.
+        - get_security_overview(session, port) -> dict: 2FA, devices
+        - get_recent_activity(session, port) -> dict: recent logins
+        - get_connected_apps(session, port) -> dict: third-party apps
+        - get_devices(session, port) -> dict: signed-in devices
+        - get_storage_usage(session, port) -> dict: Drive/Gmail storage
+        - navigate_page(session, page, port) -> dict: navigate to sub-page
+    """
+    return _load_module("cdmcp_myaccount", _MYACCOUNT_PATH)

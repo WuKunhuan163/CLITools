@@ -15,7 +15,7 @@ Usage from another tool::
 """
 
 # ---- Chrome CDP session & input ----
-from tool.GOOGLE.logic.chrome.session import (  # noqa: F401
+from logic.chrome.session import (  # noqa: F401
     CDP_PORT,
     CDP_TIMEOUT,
     CDPSession,

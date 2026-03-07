@@ -10,7 +10,7 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.setup.engine import ToolEngine
+from logic.setup.engine import ToolEngine
 
 def setup():
     engine = ToolEngine("GOOGLE.CDMCP", _r)

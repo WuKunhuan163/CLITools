@@ -8,11 +8,19 @@ This project follows a **Symmetrical Design Pattern**. Shared core logic resides
 - **Isolation**: Use the `PYTHON` tool dependency to run your tool in a standalone runtime.
 - **Persistence**: Work is automatically committed and pushed every few commits via git hooks to protect progress.
 - **Persistence Manager**: `GitPersistenceManager` automatically saves and restores non-Git-tracked directories across branch switches during `TOOL dev sync` and `TOOL test`. Tools declare which directories to preserve via `"persistence_dirs": ["data"]` in their `tool.json`. This is critical for API keys, session cookies, and configs that live in `data/` on the dev branch.
+
+### Symmetric Root Directories
+Each tool (and the project root) shares these directory semantics:
+- **`data/`**: Transient runtime data (gitignored). Caches, logs, session artifacts.
+- **`runtime/`**: Tracked runtime data (git-tracked). Institutional memory, evolution history.
+  - `runtime/experience/` at the project root holds the agent's cross-tool experience (lessons, suggestions, evolution history).
+  - Individual tools can have their own `runtime/` for tool-specific tracked runtime data.
+- **`logic/`**: Implementation code (shared at root, tool-specific under `tool/<NAME>/logic/`).
 - **Managed Python Environment**: Use `PYTHON --enable` to create symlinks in `bin/` so that `which python` and `pip install` use the managed environment correctly.
 - **Terminal Restoration**: The `KeyboardSuppressor` uses `atexit` to ensure terminal echoing is restored even if the process exits unexpectedly or via `KeyboardInterrupt`.
 
 ## 2. Standard Tool Structure
-Every tool MUST be created using `TOOL --dev create <NAME>`. Run `SKILLS show TerminalTools-tool-development-workflow` for the full development guide.
+Every tool MUST be created using `TOOL --dev create <NAME>`. Run `SKILLS show tool-development-workflow` for the full development guide.
 
 ### Tool Directory Layout
 ```text
@@ -77,7 +85,7 @@ Testing commands (both styles supported):
 
 ## 4. Progress Display Patterns
 
-Run `SKILLS show TerminalTools-turing-machine-development` for comprehensive guidance on the Turing Machine system.
+Run `SKILLS show turing-machine-development` for comprehensive guidance on the Turing Machine system.
 
 ### Quick Reference
 - **Sequential stages**: `ProgressTuringMachine` with `TuringStage` objects.
@@ -90,7 +98,7 @@ Inherit from blueprints in `logic/gui/tkinter/blueprint/`:
 - **`timed_bottom_bar`**: Base blueprint with timeout and standard buttons.
 - **`account_login`**: Account/Password login.
 - **`two_factor_auth`**: N-digit verification.
-- **`tutorial`**: Multi-step setup wizards. Run `SKILLS show TerminalTools-setup-tutorial-creation` for details.
+- **`tutorial`**: Multi-step setup wizards. Run `SKILLS show setup-tutorial-creation` for details.
 
 Key patterns:
 - Use `logic.gui.engine.get_safe_python_for_gui()` for sandboxed environments.
@@ -319,7 +327,7 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 
 > **MCP Command Convention**: All MCP (browser automation) commands use the `--mcp-` prefix. For example: `FIGMA --mcp-boot`, `YOUTUBE --mcp-play`, `BILIBILI --mcp-search "query"`. Built-in tool commands (`--setup`, `--test`, `--dev`, `--rule`) do NOT use the `--mcp-` prefix.
 
-> **Developing a new MCP tool?** Read the `TerminalTools-cdmcp-web-exploration` skill first (`SKILLS show cdmcp-web-exploration`). It covers the full 6-phase development cycle: DOM discovery, pixel exploration, interaction testing, implementation, verification, and self-designed task validation.
+> **Developing a new MCP tool?** Read the `cdmcp-web-exploration` skill first (`SKILLS show cdmcp-web-exploration`). It covers the full 6-phase development cycle: DOM discovery, pixel exploration, interaction testing, implementation, verification, and self-designed task validation.
 
 **AI/Creative**:
 - `MIDJOURNEY`: AI image generation/transformation via Midjourney (AceDataCloud).
@@ -349,10 +357,10 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 - **Naming**: `test_xx_name.py` (two-digit ID). Every tool must have `test_00_help.py`.
 - **Execution**: `TOOL test <NAME>` runs all tests with CPU monitoring and branch management.
 - **Per-test config**: `EXPECTED_TIMEOUT = 300` and `EXPECTED_CPU_LIMIT = 40.0` at file top.
-- **Temporary Scripts**: Use `tmp/` for one-off verification. Run `SKILLS show TerminalTools-tmp-test-script` for patterns.
+- **Temporary Scripts**: Use `tmp/` for one-off verification. Run `SKILLS show tmp-test-script` for patterns.
 
 ## 12. Status Prompt Design
-Run `SKILLS show TerminalTools-turing-machine-development` for comprehensive Turing Machine guidance.
+Run `SKILLS show turing-machine-development` for comprehensive Turing Machine guidance.
 
 Key rules:
 - **Colors**: Green (success), Blue (progress), Red (error), Yellow (warning). Bold status labels only.
@@ -365,7 +373,7 @@ Key rules:
 Skills are structured best-practice guides that AI agents can reference during development.
 
 ### Skill Locations
-- **Project-level** (`skills/`): `TerminalTools-*` skills for this framework's patterns.
+- **Project-level** (`skills/core/`): Core framework skills. (`skills/AI-IDE/Cursor/`): Cursor-specific skills.
 - **Library** (`tool/SKILLS/logic/library/`): 100 general CS skills (frontend, backend, DevOps, AI/ML, security, etc.). These are NOT synced to Cursor to avoid excessive context; use `SKILLS show <name>` to read them.
 - **Tool-level** (`tool/<NAME>/skills/`): Per-tool skills for specialized patterns.
 
@@ -376,14 +384,34 @@ Skills are structured best-practice guides that AI agents can reference during d
 - `SKILLS list` — List all available skills with link status.
 - `SKILLS show <name>` — Display any skill by name.
 
+### Marketplace
+Browse, search, and install skills from external sources (ClawHub / OpenClaw ecosystem, 3000+ community skills):
+- `SKILLS market browse` — Browse top downloaded skills.
+- `SKILLS market search <query>` — Search the marketplace.
+- `SKILLS market install <slug>` — Download and install a skill to `skills/marketplace/<source>/`.
+- `SKILLS market uninstall <slug>` — Remove an installed marketplace skill.
+- `SKILLS market sources` — List registered skill sources.
+- `SKILLS market installed` — List installed marketplace skills.
+
+### Evolution System
+Agent self-improvement loop (inspired by OpenClaw). Brain data in `runtime/experience/`:
+- `SKILLS learn "<lesson>" --tool NAME --severity info|warning|critical` — Record a lesson.
+- `SKILLS lessons` — View recent lessons.
+- `SKILLS analyze` — Pattern recognition across lessons.
+- `SKILLS suggest` — Generate typed improvement suggestions.
+- `SKILLS apply <id>` — Apply a suggestion with action guide.
+- `SKILLS history` — View evolution audit trail.
+
 ### Key TerminalTools Skills
-- `TerminalTools-skills-index`: Master index of all framework skills.
-- `TerminalTools-tool-development-workflow`: Creating and deploying tools.
-- `TerminalTools-turing-machine-development`: Progress display system.
-- `TerminalTools-tool-interface`: Cross-tool `interface/` communication pattern.
-- `TerminalTools-setup-tutorial-creation`: Interactive setup wizards.
-- `TerminalTools-development-lesson-summary`: Post-development documentation and lesson capture.
-- `TerminalTools-development-report`: Writing detailed reports in `data/report/`.
+- `skills-index`: Master index of all framework skills.
+- `tool-development-workflow`: Creating and deploying tools.
+- `turing-machine-development`: Progress display system.
+- `tool-interface`: Cross-tool `interface/` communication pattern.
+- `setup-tutorial-creation`: Interactive setup wizards.
+- `openclaw`: Self-improvement loop with lesson capture and enforcement hooks.
+- `development-report`: Writing detailed reports in `data/report/`.
+- `avoid-duplicate-implementations`: Detecting and eliminating duplicate code.
+- `standard-command-development`: Interface-oriented three-layer architecture for all command types (CLI, MCP, future). Turing Machine integration and command composition patterns.
 
 ## 14. CDMCP Tool Development Best Practices
 
@@ -410,13 +438,20 @@ tab_info = session.require_tab(label, url_pattern=pattern, open_url=url,
 cdp = CDPSession(tab_info["ws"])
 ```
 
+### Unified `--mcp-state` Command
+
+All `MCPToolBase` tools support `TOOL --mcp-state` for unified state inspection. Override `_collect_mcp_state()` to add tool-specific state.
+
 ### Known Pitfalls
 - **WebSocket exclusivity**: Chrome allows ONE page-level WebSocket per target. Cache `CDPSession` per-process and `.close()` old connections before creating new ones.
 - **SPA routing**: React/Vue SPAs return 404 on direct URL navigation. Navigate to the app root first, then use programmatic clicks to reach inner pages.
 - **Session reuse**: Use `boot_tool_session()` (not manual `create_session` + `boot`). The function handles session reuse across tools sharing the same Chrome window.
+- **Tab registration**: Always use `session.require_tab()` instead of raw `Target.createTarget`. Raw creation bypasses session tracking, causing orphan tabs and state corruption.
+- **`@requires_cdp` gate**: All 15 Chrome-dependent CDMCP API functions use `@requires_cdp()` which automatically checks (1) Chrome installed, (2) CDP port reachable, (3) session window alive — with auto-recovery at each stage. Tool developers never call prerequisite checks manually. Use `@requires_cdp(check_session=False)` for functions that only need Chrome/CDP.
 - **setup.py template**: `TOOL --dev create` template may reference `project_root` (undefined). Use `_r` instead.
 - **Chrome CDP unavailable**: Add retry logic for `boot_tool_session` failures. Include an actionable hint in error messages (e.g., "run CDMCP boot first").
 - **Disabled buttons**: Check `button.disabled` via CDP before assuming a click failed. Ant Design forms disable buttons until required fields are filled.
+- **Duplicate implementations**: Before writing new code, search the codebase for existing implementations. See skill: `avoid-duplicate-implementations`.
 
 By following these architecture rules, you ensure that the project remains robust, maintainable, and "agent-friendly."
 

@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
-from tool.GOOGLE.logic.chrome.session import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT, CDP_TIMEOUT,
     is_chrome_cdp_available, open_tab, list_tabs,
 )

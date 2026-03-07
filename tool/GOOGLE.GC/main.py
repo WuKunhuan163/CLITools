@@ -97,7 +97,7 @@ class GCTool(MCPToolBase):
 
     def _collect_mcp_state(self, session=None, tab_label: str = ""):
         """Collect Google Colab notebook state via CDP."""
-        from tool.GOOGLE.logic.chrome.session import CDPSession, is_chrome_cdp_available
+        from logic.chrome.session import CDPSession, is_chrome_cdp_available
         import json as _json
 
         state = {
@@ -696,7 +696,7 @@ def _colab_connect_stages():
            "session": None}
 
     def stage_connect(stage=None):
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, list_tabs as _list_tabs
+        from logic.chrome.session import is_chrome_cdp_available, list_tabs as _list_tabs
         if not is_chrome_cdp_available():
             if stage:
                 stage.error_brief = "Chrome CDP not available."
@@ -727,7 +727,7 @@ def _colab_connect_stages():
         return True
 
     def stage_find_tab(stage=None):
-        from tool.GOOGLE.logic.chrome.session import CDPSession
+        from logic.chrome.session import CDPSession
         session = ctx["session"]
         sm = ctx["session_mgr"]
         ov = ctx["overlay"]
@@ -2141,7 +2141,7 @@ def main():
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
 
-    from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
+    from logic.chrome.session import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
     from tool.GOOGLE.logic.chrome.colab import find_colab_tab, reopen_colab_tab, inject_and_execute
     from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_tabs
 
@@ -2283,6 +2283,12 @@ def main():
                     ov = load_cdmcp_overlay()
                     if tab_info.get("ws"):
                         cdp_s = CDPSession(tab_info["ws"], timeout=15)
+                        current_url = tab_info.get("url", "")
+                        if open_url != _get_colab_open_url() and open_url not in (current_url or ""):
+                            _log(f"Navigating to: {open_url[:60]}")
+                            cdp_s.send_and_recv("Page.navigate", {"url": open_url})
+                            import time as _tnav
+                            _tnav.sleep(5)
                         trash_check = cdp_s.evaluate(
                             "(function(){ var d = document.querySelector('mwc-dialog');"
                             " if(!d) return ''; return d.textContent || ''; })()"

@@ -123,11 +123,9 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
     Stage 3: Wait for mount cell to finish executing
     Stage 4: Verify the mount result via Drive API
     """
-    from logic.cdp.colab import (
-        find_colab_tab, CDPSession, is_chrome_cdp_available,
-        _reopen_colab_tab as reopen_colab_tab, CDP_PORT,
-    )
-    from logic.cdp.oauth import handle_oauth_if_needed, close_oauth_tabs
+    from logic.chrome.session import CDPSession, is_chrome_cdp_available, CDP_PORT
+    from tool.GOOGLE.logic.chrome.colab import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
+    from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_tabs
 
     session_holder = [None]
     cell_done_early = [False]

@@ -848,7 +848,8 @@ class CDMCPSession:
 
     def require_tab(self, label: str, url_pattern: str = "",
                     open_url: str = "", auto_open: bool = True,
-                    wait_sec: float = 10.0) -> Optional[Dict[str, Any]]:
+                    wait_sec: float = 10.0,
+                    auto_lock: bool = True) -> Optional[Dict[str, Any]]:
         """Find or open a tab in this session by label/URL pattern.
 
         Lookup order:
@@ -864,11 +865,29 @@ class CDMCPSession:
             open_url:    Full URL to open when the tab is missing.
             auto_open:   Open the tab automatically when not found.
             wait_sec:    Seconds to wait for a newly opened tab to appear.
+            auto_lock:   Inject lock overlay on acquired tab (default True).
 
         Returns:
             Dict ``{id, url, ws, label, recovered}`` or None.
         """
         self.touch()
+
+        def _maybe_lock(tab_info):
+            if not auto_lock or not tab_info or not tab_info.get("ws"):
+                return tab_info
+            try:
+                overlay_path = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+                if overlay_path.exists():
+                    spec = importlib.util.spec_from_file_location(
+                        "cdmcp_overlay_lock", overlay_path)
+                    _ov = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(_ov)
+                    _cdp = CDPSession(tab_info["ws"], timeout=5)
+                    _ov.inject_lock(_cdp, tool_name="CDMCP")
+                    _cdp.close()
+            except Exception:
+                pass
+            return tab_info
 
         # 1. Previously registered and still alive
         existing = self._tabs.get(label)
@@ -880,8 +899,8 @@ class CDMCPSession:
                     existing["url"] = t.get("url", existing.get("url", ""))
                     _log_session("require_tab:found_registered", self.name,
                                  f"label={label} id={existing['id']}")
-                    return {"id": existing["id"], "url": existing["url"],
-                            "ws": ws, "label": label, "recovered": False}
+                    return _maybe_lock({"id": existing["id"], "url": existing["url"],
+                            "ws": ws, "label": label, "recovered": False})
 
         # 2. Scan tabs by URL pattern, restricted to session window
         if url_pattern:
@@ -895,8 +914,8 @@ class CDMCPSession:
                     _log_session("require_tab:found_by_url", self.name,
                                  f"label={label} id={tab_id}")
                     _save_state()
-                    return {"id": tab_id, "url": t.get("url", ""),
-                            "ws": ws, "label": label, "recovered": False}
+                    return _maybe_lock({"id": tab_id, "url": t.get("url", ""),
+                            "ws": ws, "label": label, "recovered": False})
 
         if not auto_open or not open_url:
             _log_session("require_tab:not_found", self.name,
@@ -915,8 +934,22 @@ class CDMCPSession:
                         break
             if not window_alive:
                 _log_session("require_tab:window_lost", self.name,
-                             "Triggering lightweight reboot (session tab only)...")
-                self.full_reboot(skip_demo=True)
+                             "Triggering full reboot (session + demo)...")
+                self.full_reboot(skip_demo=False)
+
+                if url_pattern:
+                    for t in list_tabs(self.port):
+                        if url_pattern.lower() in (t.get("url", "") or "").lower() and t.get("type") == "page":
+                            if not self._is_tab_in_window(t):
+                                continue
+                            tab_id = t.get("id")
+                            ws = t.get("webSocketDebuggerUrl", "")
+                            self.register_tab(label, tab_id, url=t.get("url", ""), ws=ws)
+                            _log_session("require_tab:found_after_reboot", self.name,
+                                         f"label={label} id={tab_id}")
+                            _save_state()
+                            return _maybe_lock({"id": tab_id, "url": t.get("url", ""),
+                                    "ws": ws, "label": label, "recovered": True})
 
         _log_session("require_tab:opening", self.name,
                      f"label={label} url={open_url} windowId={self.window_id}")
@@ -936,8 +969,8 @@ class CDMCPSession:
                     _log_session("require_tab:opened", self.name,
                                  f"label={label} id={t['id']}")
                     _save_state()
-                    return {"id": t["id"], "url": t.get("url", ""),
-                            "ws": ws, "label": label, "recovered": True}
+                    return _maybe_lock({"id": t["id"], "url": t.get("url", ""),
+                            "ws": ws, "label": label, "recovered": True})
 
         return None
 
@@ -1233,11 +1266,21 @@ def _ensure_demo_tab(session: "CDMCPSession", server_url: str, port: int = CDP_P
     """Check if demo tab exists in session; create it if missing."""
     demo_info = session._tabs.get("demo")
     if demo_info:
-        tab_id = demo_info.get("tab_id")
+        tab_id = demo_info.get("id")
         if tab_id:
             for t in list_tabs(port):
                 if t.get("id") == tab_id:
                     return
+
+    chat_pattern = f"/chat?session_id={session.session_id}"
+    for t in list_tabs(port):
+        if t.get("type") == "page" and chat_pattern in t.get("url", ""):
+            session.register_tab("demo", t["id"],
+                                 url=t.get("url", ""),
+                                 ws=t.get("webSocketDebuggerUrl", ""),
+                                 state="active")
+            _save_state()
+            return
     try:
         chat_url = f"{server_url}/chat?session_id={session.session_id}"
         demo_tab_id = session.open_tab_in_session(chat_url)

@@ -18,13 +18,13 @@ class TestMcpCdpAvailable(unittest.TestCase):
 
     def test_cdp_availability_check(self):
         """is_chrome_cdp_available returns bool without error."""
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
+        from logic.chrome.session import is_chrome_cdp_available
         result = is_chrome_cdp_available()
         self.assertIsInstance(result, bool)
 
     def test_list_tabs_when_available(self):
         """list_tabs returns a list when CDP is reachable."""
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, list_tabs
+        from logic.chrome.session import is_chrome_cdp_available, list_tabs
         if not is_chrome_cdp_available():
             self.skipTest("Chrome CDP not available")
         tabs = list_tabs()
@@ -33,7 +33,7 @@ class TestMcpCdpAvailable(unittest.TestCase):
 
     def test_cdp_session_evaluate(self):
         """CDPSession can evaluate simple JS when CDP is reachable."""
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, list_tabs, CDPSession
+        from logic.chrome.session import is_chrome_cdp_available, list_tabs, CDPSession
         if not is_chrome_cdp_available():
             self.skipTest("Chrome CDP not available")
         tabs = list_tabs()

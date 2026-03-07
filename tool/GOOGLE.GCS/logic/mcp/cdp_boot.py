@@ -74,7 +74,7 @@ def _get_debug_profile_dir():
 
 def _is_cdp_available(port=CDP_PORT):
     try:
-        from logic.cdp.colab import is_chrome_cdp_available
+        from logic.chrome.session import is_chrome_cdp_available
         return is_chrome_cdp_available(port)
     except Exception:
         return False
@@ -223,69 +223,10 @@ def _shutdown_chrome_debug(port=CDP_PORT):
 def _find_colab_tab(port=CDP_PORT):
     """Check if a Colab tab is already open."""
     try:
-        from logic.cdp.colab import find_colab_tab
+        from tool.GOOGLE.logic.chrome.colab import find_colab_tab
         return find_colab_tab(port)
     except Exception:
         return None
-
-
-def _get_cdmcp_session_window(port=CDP_PORT):
-    """Try to get the window ID from an active CDMCP session."""
-    try:
-        from logic.cdmcp_loader import load_cdmcp_sessions
-        sm = load_cdmcp_sessions()
-        for info in sm.list_sessions():
-            wid = info.get("window_id")
-            if wid:
-                return wid
-    except Exception:
-        pass
-    return None
-
-
-def _open_colab_tab(url=None, port=CDP_PORT):
-    """Open a Colab URL in the CDMCP session window (or any window).
-
-    If *url* is None, opens the default Colab homepage.  Any existing Colab
-    tab is reused — a new tab is only created when none is found.
-    """
-    try:
-        import urllib.request
-        from logic.cdp.colab import find_colab_tab
-
-        existing = find_colab_tab(port)
-        if existing and existing.get('url', ''):
-            return True
-
-        target_url = url or _COLAB_HOME
-
-        version_url = f"http://localhost:{port}/json/version"
-        with urllib.request.urlopen(version_url, timeout=5) as resp:
-            data = json.loads(resp.read().decode())
-        browser_ws = data.get("webSocketDebuggerUrl")
-        if not browser_ws:
-            return False
-
-        window_id = _get_cdmcp_session_window(port)
-
-        import websocket
-        ws = websocket.create_connection(browser_ws, timeout=15)
-        try:
-            params = {"url": target_url}
-            if window_id:
-                params["windowId"] = window_id
-                params["newWindow"] = False
-            ws.send(json.dumps({"id": 1, "method": "Target.createTarget", "params": params}))
-            ws.settimeout(10)
-            for _ in range(20):
-                resp = json.loads(ws.recv())
-                if resp.get("id") == 1:
-                    return bool(resp.get("result", {}).get("targetId"))
-        finally:
-            ws.close()
-    except Exception:
-        pass
-    return False
 
 
 # ---------------------------------------------------------------------------
@@ -319,23 +260,24 @@ def run_mcp_boot():
             return 1
 
     time.sleep(2)
-    _restore_cdmcp_session(close_orphans=chrome_launched)
+    session = _restore_cdmcp_session(close_orphans=chrome_launched)
 
-    existing = _find_colab_tab()
-    if existing:
-        print(f"  {BOLD}Found{RESET} existing Colab tab.")
-    else:
-        print(f"  Opening Colab...")
-        if _open_colab_tab():
-            print(f"  {BOLD}Opened{RESET} Colab tab.")
-        else:
-            print(f"  {BOLD}{YELLOW}Could not open{RESET} tab automatically. Open {_COLAB_HOME} manually.")
+    if not session:
+        print(f"  {BOLD}{RED}Failed{RESET} to obtain CDMCP session. Run CDMCP boot first.")
+        return 1
 
-    tab = _find_colab_tab()
-    if tab:
+    tab_info = session.require_tab(
+        label="colab",
+        url_pattern="colab.research.google.com",
+        open_url=_COLAB_HOME,
+    )
+    if tab_info:
+        print(f"  {BOLD}Registered{RESET} Colab tab in session (id={tab_info['id'][:12]}).")
         print(f"\n{BOLD}{GREEN}MCP Boot complete{RESET}. CDP ready for automated execution.")
     else:
-        print(f"\n{BOLD}{YELLOW}MCP Boot partial{RESET}. Colab tab not yet detected (page may still be loading).")
+        print(f"  {BOLD}{RED}Failed{RESET} to open Colab tab via session.require_tab().")
+        print(f"  Open {_COLAB_HOME} manually, then re-run this command.")
+        return 1
     return 0
 
 
@@ -358,6 +300,9 @@ def _restore_cdmcp_session(close_orphans=False):
     - boot_tool_session(): Create a fresh session if no stale tabs found
     - start_demo_on_tab(): Launch the demo subprocess
     - close_orphan_newtabs(): Clean up leftover New Tab pages (only when Chrome was just launched)
+
+    Returns the CDMCPSession object (or None on failure) so callers can
+    use session.require_tab() to register additional tabs.
     """
     try:
         sm = _load_cdmcp_session_manager()
@@ -372,23 +317,29 @@ def _restore_cdmcp_session(close_orphans=False):
             pid = sm.start_demo_on_tab(srv_port, session_id, port=CDP_PORT)
             if pid:
                 print(f"  {BOLD}Started{RESET} demo subprocess (pid {pid}).")
+            for info in sm.list_sessions():
+                if info.get("session_id") == session_id:
+                    return sm.get_session(info["name"])
+            return None
         else:
             result = sm.boot_tool_session("gc_colab", timeout_sec=86400, port=CDP_PORT)
             if result.get("ok"):
                 action = result.get("action", "unknown")
                 sid = result.get("session_id", "?")[:8]
                 print(f"  {BOLD}Booted{RESET} CDMCP session [{sid}] ({action}).")
+                session = result.get("session")
                 if close_orphans:
-                    session = result.get("session")
                     wid = getattr(session, "window_id", None) if session else None
                     closed = sm.close_orphan_newtabs(wid, port=CDP_PORT)
                     if closed:
                         print(f"  {BOLD}Closed{RESET} {closed} orphan tab(s).")
+                return session
             else:
                 err = result.get("error", "unknown")
                 print(f"  {BOLD}{YELLOW}CDMCP session boot failed{RESET}: {err}")
+                return None
     except Exception:
-        pass
+        return None
 
 
 def run_mcp_shutdown():

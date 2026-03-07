@@ -1,8 +1,8 @@
 {
   "name": "GMAIL",
-  "version": "1.0.0",
-  "description": "Gmail email client via CDMCP (Chrome DevTools MCP)",
-  "purpose": "Read inbox, search emails, send emails, and list labels via CDMCP using the authenticated Gmail session.",
+  "version": "2.0.0",
+  "description": "Gmail email client via official Gmail REST API (OAuth2)",
+  "purpose": "Read inbox, search emails, send emails, manage labels and messages via the Gmail API with OAuth2 authentication.",
   "dependencies": [
     "PYTHON",
     "GOOGLE.CDMCP"

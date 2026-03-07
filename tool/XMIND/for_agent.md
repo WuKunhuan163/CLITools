@@ -96,3 +96,9 @@ Recovery: max 3 attempts, reboots session and restores last URL.
 - `Cmd+V`: Paste
 - `/`: Toggle collapse/expand
 - Double-click: Enter edit mode on node
+
+## ToS Compliance
+
+**Status: UNCLEAR** -- XMind prohibits commercial use without written authorization. No official API is available. Current implementation is heavily DOM-based (1225 lines). Use only for personal non-commercial purposes. Consider requesting authorization from XMind or limiting tool scope.
+
+**Alternative**: No official API available. XMind files (.xmind) are ZIP archives containing JSON; local file parsing may be an alternative for read-only operations.

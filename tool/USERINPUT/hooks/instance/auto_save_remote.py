@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-from logic.tool.hooks.engine import HookInstance
+from logic.hooks.engine import HookInstance
 
 
 class AutoSaveRemote(HookInstance):

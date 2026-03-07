@@ -126,7 +126,7 @@ def play_notification_bell(project_root: Path):
     """Unified interface to play the notification bell."""
     import subprocess
     import threading
-    bell_path = project_root / "logic" / "gui" / "asset" / "audio" / "bell.mp3"
+    bell_path = project_root / "logic" / "asset" / "audio" / "bell.mp3"
     
     def run_play():
         try:

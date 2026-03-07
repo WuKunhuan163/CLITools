@@ -33,4 +33,4 @@ Security: Never store passwords. Collect them at runtime via USERINPUT.
 
 ## MCP Development
 
-When developing CDMCP tools, refer to the `TerminalTools-cdmcp-web-exploration` skill for systematic exploration methodology including screenshot-driven development for visual multimodal agents.
+When developing CDMCP tools, refer to the `cdmcp-web-exploration` skill for systematic exploration methodology including screenshot-driven development for visual multimodal agents.

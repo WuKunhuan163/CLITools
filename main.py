@@ -39,19 +39,19 @@ def _(translation_key, default, **kwargs):
 
 # --- Lifecycle Commands ---
 def install_tool(tool_name):
-    from logic.tool.lifecycle import install_tool as _install
+    from logic.lifecycle import install_tool as _install
     return _install(tool_name, ROOT_PROJECT_ROOT)
 
 def reinstall_tool(tool_name):
-    from logic.tool.lifecycle import reinstall_tool as _reinstall
+    from logic.lifecycle import reinstall_tool as _reinstall
     return _reinstall(tool_name, ROOT_PROJECT_ROOT)
 
 def uninstall_tool(tool_name, force_yes=False):
-    from logic.tool.lifecycle import uninstall_tool as _uninstall
+    from logic.lifecycle import uninstall_tool as _uninstall
     return _uninstall(tool_name, ROOT_PROJECT_ROOT, force_yes=force_yes, translation_func=_)
 
 def _list_tools(force=False):
-    from logic.tool.lifecycle import list_tools
+    from logic.lifecycle import list_tools
     list_tools(ROOT_PROJECT_ROOT, force=force, translation_func=_)
 
 # --- Config Commands ---
@@ -68,10 +68,16 @@ def update_config(key, value):
             if not trans_path.exists():
                 print(f"{BOLD}{RED}" + _("label_error", "Error") + f"{RESET}: " + _("lang_error_not_found_simple", "Language '{lang}' not found.", lang=lang))
                 return False
+    is_auto = False
+    if key == "terminal_width":
+        if isinstance(value, str) and value.lower() == "auto":
+            value = 0
+            is_auto = True
+        elif value == 0:
+            is_auto = True
     if set_global_config(key, value):
         if key == "terminal_width":
-            val = get_global_config("terminal_width")
-            _print_width_check(val, is_auto=(value in [0, "auto"]))
+            _print_width_check(value, is_auto=is_auto)
         else:
             print(_("config_updated", "Global configuration updated: {key} = {value}", key=key, value=value))
         return True
@@ -171,39 +177,39 @@ def _show_status():
 
 # --- Dev Commands ---
 def _dev_sync(quiet=False):
-    from logic.tool.dev.commands import dev_sync
+    from logic.dev.commands import dev_sync
     return dev_sync(ROOT_PROJECT_ROOT, quiet=quiet, translation_func=_)
 
 def _dev_reset():
-    from logic.tool.dev.commands import dev_reset
+    from logic.dev.commands import dev_reset
     dev_reset(ROOT_PROJECT_ROOT, SHARED_LOGIC_DIR, translation_func=_)
 
 def _dev_enter(branch, force=False):
-    from logic.tool.dev.commands import dev_enter
+    from logic.dev.commands import dev_enter
     dev_enter(branch, ROOT_PROJECT_ROOT, force=force, translation_func=_)
 
 def _dev_create(tool_name):
-    from logic.tool.dev.commands import dev_create
+    from logic.dev.commands import dev_create
     dev_create(tool_name, ROOT_PROJECT_ROOT, translation_func=_)
 
 def _dev_sanity_check(tool_name, fix=False):
-    from logic.tool.dev.commands import dev_sanity_check
+    from logic.dev.commands import dev_sanity_check
     return dev_sanity_check(tool_name, ROOT_PROJECT_ROOT, fix=fix, translation_func=_)
 
 def _dev_audit_test(tool_name, fix=False):
-    from logic.tool.dev.commands import dev_audit_test
+    from logic.dev.commands import dev_audit_test
     return dev_audit_test(tool_name, ROOT_PROJECT_ROOT, fix=fix)
 
 def _dev_audit_bin(fix=False):
-    from logic.tool.dev.commands import dev_audit_bin
+    from logic.dev.commands import dev_audit_bin
     return dev_audit_bin(ROOT_PROJECT_ROOT, fix=fix)
 
 def _dev_migrate_bin():
-    from logic.tool.dev.commands import dev_migrate_bin
+    from logic.dev.commands import dev_migrate_bin
     return dev_migrate_bin(ROOT_PROJECT_ROOT)
 
 def _dev_audit_archived():
-    from logic.tool.dev.commands import dev_audit_archived
+    from logic.dev.commands import dev_audit_archived
     return dev_audit_archived(ROOT_PROJECT_ROOT)
 
 # --- Test Commands ---
@@ -300,148 +306,222 @@ def _tool_test_handler(test_args):
     _test_tool_with_args(parsed)
 
 
-def main():
-    # ---- --dev / --test flag intercept (before argparse) ----
-    stripped_argv = [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
-    if "--dev" in stripped_argv:
-        idx = stripped_argv.index("--dev")
-        _tool_dev_handler(stripped_argv[idx + 1:])
-        return
-    if "--test" in stripped_argv:
-        idx = stripped_argv.index("--test")
-        _tool_test_handler(stripped_argv[idx + 1:])
-        return
-
-    # ---- Backward-compatible: "TOOL dev ..." → reroute to --dev ----
-    if stripped_argv and stripped_argv[0] == "dev":
-        _tool_dev_handler(stripped_argv[1:])
-        return
-    if stripped_argv and stripped_argv[0] == "test":
-        _tool_test_handler(stripped_argv[1:])
-        return
-
-    parser = argparse.ArgumentParser(description="AITerminalTools Manager")
-    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
-
-    install_p = subparsers.add_parser("install", help="Install a tool")
-    install_p.add_argument("name", help="Name of the tool to install")
-
-    reinstall_p = subparsers.add_parser("reinstall", help="Reinstall a tool")
-    reinstall_p.add_argument("name", help="Name of the tool to reinstall")
-
-    uninstall_p = subparsers.add_parser("uninstall", help="Uninstall a tool")
-    uninstall_p.add_argument("name", help="Name of the tool to uninstall")
-    uninstall_p.add_argument("-y", "--yes", action="store_true", help="Skip confirmation")
-
-    list_p = subparsers.add_parser("list", help="List all available tools")
-    list_p.add_argument("--force", action="store_true", help="Force refresh cache")
-
-    config_p = subparsers.add_parser("config", help="Manage global configuration")
-    config_sub = config_p.add_subparsers(dest="config_command")
-    config_set = config_sub.add_parser("set", help="Set a configuration value")
-    config_set.add_argument("key", help="Configuration key")
-    config_set.add_argument("value", help="Configuration value")
+def _tool_config_handler(config_args):
+    """Handle ``TOOL --config`` (global configuration management)."""
+    import argparse as _ap
+    cp = _ap.ArgumentParser(
+        prog="TOOL --config",
+        description="Manage global AITerminalTools configuration",
+    )
+    config_sub = cp.add_subparsers(dest="config_command")
+    cs = config_sub.add_parser("set", help="Set a configuration value")
+    cs.add_argument("key", help="Configuration key")
+    cs.add_argument("value", help="Configuration value")
     config_sub.add_parser("show-lang", help="Show current language")
     config_sub.add_parser("show", help="Show all tool configurations")
 
-    subparsers.add_parser("status", help="Show installed tools and their status")
-
-    lang_p = subparsers.add_parser("lang", help="Language management")
-    lang_sub = lang_p.add_subparsers(dest="lang_command")
-    lang_audit_p = lang_sub.add_parser("audit", help="Audit translation coverage")
-    lang_audit_p.add_argument("code", help="Language code")
-    lang_audit_p.add_argument("--force", action="store_true", help="Clear audit cache")
-    lang_audit_p.add_argument("--turing", action="store_true", help="Scan Turing states")
-
-    audit_p = subparsers.add_parser("audit", help="Code quality audits")
-    audit_sub = audit_p.add_subparsers(dest="audit_command")
-    audit_imports_p = audit_sub.add_parser("imports", help="Audit cross-tool import quality")
-    audit_imports_p.add_argument("--tool", help="Audit specific tool only")
-    audit_imports_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
-    audit_imports_p.add_argument("--exclude", help="Comma-separated tool names to skip")
-    audit_quality_p = audit_sub.add_parser("quality", help="Audit hooks, interfaces, and skills")
-    audit_quality_p.add_argument("--tool", help="Audit specific tool only")
-    audit_quality_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
-    audit_quality_p.add_argument("--exclude", help="Comma-separated tool names to skip")
-    audit_quality_p.add_argument("--no-skills", action="store_true", help="Skip skills audit")
-    lang_sub.add_parser("list", help="List supported languages")
-
-    rule_p = subparsers.add_parser("rule", help="AI rule management")
-    rule_sub = rule_p.add_subparsers(dest="rule_command")
-    rule_create_p = rule_sub.add_parser("create", help="Create a Cursor rule (.mdc)")
-    rule_create_p.add_argument("name", help="Rule name")
-    rule_create_p.add_argument("--description", required=True, help="Rule description")
-    rule_create_p.add_argument("--globs", help="File patterns (comma separated)")
-    rule_create_p.add_argument("--always-apply", action="store_true", help="Always apply this rule")
-    rule_sub.add_parser("inject", help="Inject TOOL rule into .cursor/rules/ (auto-apply)")
-
-    args = parser.parse_args()
+    parsed = cp.parse_args(config_args)
 
     current_lang = get_global_config("language", "en")
     set_rtl_mode(current_lang in ["ar"])
 
-    if args.command == "install": install_tool(args.name)
-    elif args.command == "reinstall": reinstall_tool(args.name)
-    elif args.command == "uninstall": uninstall_tool(args.name, args.yes)
-    elif args.command == "list": _list_tools(args.force)
-    elif args.command == "status": _show_status()
-    elif args.command == "config":
-        if args.config_command == "set":
-            val = args.value
-            if val.isdigit(): val = int(val)
-            update_config(args.key, val)
-        elif args.config_command == "show-lang":
-            print(f"Current language: {current_lang}")
-        elif args.config_command == "show":
-            _show_config()
-    elif args.command == "audit":
-        if args.audit_command == "imports":
-            from logic.lang.audit_imports import audit_all_tools, audit_tool, format_report, to_json
-            root = Path(__file__).resolve().parent
-            exclude = [x.strip() for x in (args.exclude or "").split(",") if x.strip()]
-            if args.tool:
-                tool_dir = root / "tool" / args.tool
-                if not tool_dir.exists():
-                    print(f"Tool not found: {args.tool}")
-                else:
-                    issues = audit_tool(tool_dir, root)
-                    results = {args.tool: issues} if issues else {}
-                    print(to_json(results) if args.as_json else format_report(results))
+    if parsed.config_command == "set":
+        val = parsed.value
+        if val.isdigit():
+            val = int(val)
+        update_config(parsed.key, val)
+    elif parsed.config_command == "show-lang":
+        print(f"Current language: {current_lang}")
+    elif parsed.config_command == "show":
+        _show_config()
+    else:
+        cp.print_help()
+
+
+def _tool_install_handler(install_args):
+    """Handle ``TOOL --install <name>``."""
+    if not install_args:
+        print("Usage: TOOL --install <TOOL_NAME>")
+        return
+    install_tool(install_args[0])
+
+
+def _tool_reinstall_handler(reinstall_args):
+    """Handle ``TOOL --reinstall <name>``."""
+    if not reinstall_args:
+        print("Usage: TOOL --reinstall <TOOL_NAME>")
+        return
+    reinstall_tool(reinstall_args[0])
+
+
+def _tool_uninstall_handler(uninstall_args):
+    """Handle ``TOOL --uninstall <name> [-y]``."""
+    if not uninstall_args:
+        print("Usage: TOOL --uninstall <TOOL_NAME> [-y]")
+        return
+    force_yes = "-y" in uninstall_args or "--yes" in uninstall_args
+    name = [a for a in uninstall_args if not a.startswith("-")][0]
+    uninstall_tool(name, force_yes)
+
+
+def _tool_list_handler(list_args):
+    """Handle ``TOOL --list [--force]``."""
+    force = "--force" in list_args
+    _list_tools(force)
+
+
+def _tool_audit_handler(audit_args):
+    """Handle ``TOOL --audit {imports,quality} [options]``."""
+    import argparse as _ap
+    ap = _ap.ArgumentParser(prog="TOOL --audit", description="Code quality audits")
+    audit_sub = ap.add_subparsers(dest="audit_command")
+    ip = audit_sub.add_parser("imports", help="Audit cross-tool import quality")
+    ip.add_argument("--tool", help="Audit specific tool only")
+    ip.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+    ip.add_argument("--exclude", help="Comma-separated tool names to skip")
+    qp = audit_sub.add_parser("quality", help="Audit hooks, interfaces, and skills")
+    qp.add_argument("--tool", help="Audit specific tool only")
+    qp.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+    qp.add_argument("--exclude", help="Comma-separated tool names to skip")
+    qp.add_argument("--no-skills", action="store_true", help="Skip skills audit")
+
+    parsed = ap.parse_args(audit_args)
+    root = Path(__file__).resolve().parent
+
+    if parsed.audit_command == "imports":
+        from logic.lang.audit_imports import audit_all_tools, audit_tool, format_report, to_json
+        exclude = [x.strip() for x in (parsed.exclude or "").split(",") if x.strip()]
+        if parsed.tool:
+            tool_dir = root / "tool" / parsed.tool
+            if not tool_dir.exists():
+                print(f"Tool not found: {parsed.tool}")
             else:
-                results = audit_all_tools(root, exclude=exclude or ["GOOGLE.CDMCP"])
-                print(to_json(results) if args.as_json else format_report(results))
-        elif args.audit_command == "quality":
-            from logic.tool.audit.hooks import (
-                audit_all_quality, audit_tool_quality, audit_skills,
-                format_quality_report, quality_to_json,
-            )
-            root = Path(__file__).resolve().parent
-            exclude = [x.strip() for x in (args.exclude or "").split(",") if x.strip()]
-            skills_issues = None if args.no_skills else audit_skills(root)
-            if args.tool:
-                tool_dir = root / "tool" / args.tool
-                if not tool_dir.exists():
-                    print(f"Tool not found: {args.tool}")
-                else:
-                    tool_res = audit_tool_quality(tool_dir, root)
-                    results = {args.tool: tool_res} if tool_res else {}
-                    print(quality_to_json(results, skills_issues) if args.as_json
-                          else format_quality_report(results, skills_issues))
+                issues = audit_tool(tool_dir, root)
+                results = {parsed.tool: issues} if issues else {}
+                print(to_json(results) if parsed.as_json else format_report(results))
+        else:
+            results = audit_all_tools(root, exclude=exclude or ["GOOGLE.CDMCP"])
+            print(to_json(results) if parsed.as_json else format_report(results))
+    elif parsed.audit_command == "quality":
+        from logic.audit.hooks import (
+            audit_all_quality, audit_tool_quality, audit_skills,
+            format_quality_report, quality_to_json,
+        )
+        exclude = [x.strip() for x in (parsed.exclude or "").split(",") if x.strip()]
+        skills_issues = None if parsed.no_skills else audit_skills(root)
+        if parsed.tool:
+            tool_dir = root / "tool" / parsed.tool
+            if not tool_dir.exists():
+                print(f"Tool not found: {parsed.tool}")
             else:
-                results = audit_all_quality(root, exclude=exclude)
-                print(quality_to_json(results, skills_issues) if args.as_json
+                tool_res = audit_tool_quality(tool_dir, root)
+                results = {parsed.tool: tool_res} if tool_res else {}
+                print(quality_to_json(results, skills_issues) if parsed.as_json
                       else format_quality_report(results, skills_issues))
         else:
-            audit_p.print_help()
-    elif args.command == "lang":
-        if args.lang_command == "audit": _audit_lang(args.code, args.force, args.turing)
-        elif args.lang_command == "list": _list_languages()
-    elif args.command == "rule":
-        if args.rule_command == "create": _generate_ai_rule(args.name, args.description, args.globs, args.always_apply)
-        elif args.rule_command == "inject": _inject_rule()
-        elif not args.rule_command: _show_rule()
+            results = audit_all_quality(root, exclude=exclude)
+            print(quality_to_json(results, skills_issues) if parsed.as_json
+                  else format_quality_report(results, skills_issues))
     else:
-        parser.print_help()
+        ap.print_help()
+
+
+def _tool_lang_handler(lang_args):
+    """Handle ``TOOL --lang {audit,list}``."""
+    import argparse as _ap
+    lp = _ap.ArgumentParser(prog="TOOL --lang", description="Language management")
+    lang_sub = lp.add_subparsers(dest="lang_command")
+    la = lang_sub.add_parser("audit", help="Audit translation coverage")
+    la.add_argument("code", help="Language code")
+    la.add_argument("--force", action="store_true", help="Clear audit cache")
+    la.add_argument("--turing", action="store_true", help="Scan Turing states")
+    lang_sub.add_parser("list", help="List supported languages")
+
+    parsed = lp.parse_args(lang_args)
+    if parsed.lang_command == "audit":
+        _audit_lang(parsed.code, parsed.force, parsed.turing)
+    elif parsed.lang_command == "list":
+        _list_languages()
+    else:
+        lp.print_help()
+
+
+def _tool_rule_handler(rule_args):
+    """Handle ``TOOL --rule {create,inject}``."""
+    import argparse as _ap
+    rp = _ap.ArgumentParser(prog="TOOL --rule", description="AI rule management")
+    rule_sub = rp.add_subparsers(dest="rule_command")
+    rc = rule_sub.add_parser("create", help="Create a Cursor rule (.mdc)")
+    rc.add_argument("name", help="Rule name")
+    rc.add_argument("--description", required=True, help="Rule description")
+    rc.add_argument("--globs", help="File patterns (comma separated)")
+    rc.add_argument("--always-apply", action="store_true", help="Always apply this rule")
+    rule_sub.add_parser("inject", help="Inject TOOL rule into .cursor/rules/ (auto-apply)")
+
+    parsed = rp.parse_args(rule_args)
+    if parsed.rule_command == "create":
+        _generate_ai_rule(parsed.name, parsed.description, parsed.globs, parsed.always_apply)
+    elif parsed.rule_command == "inject":
+        _inject_rule()
+    elif not parsed.rule_command:
+        _show_rule()
+    else:
+        rp.print_help()
+
+
+# Maps --flag to handler function
+_TOOL_FLAG_HANDLERS = {
+    "--dev": lambda args: _tool_dev_handler(args),
+    "--test": lambda args: _tool_test_handler(args),
+    "--config": lambda args: _tool_config_handler(args),
+    "--install": lambda args: _tool_install_handler(args),
+    "--reinstall": lambda args: _tool_reinstall_handler(args),
+    "--uninstall": lambda args: _tool_uninstall_handler(args),
+    "--list": lambda args: _tool_list_handler(args),
+    "--status": lambda args: _show_status(),
+    "--audit": lambda args: _tool_audit_handler(args),
+    "--lang": lambda args: _tool_lang_handler(args),
+    "--rule": lambda args: _tool_rule_handler(args),
+}
+
+
+def _print_tool_help():
+    """Print unified help for all TOOL commands."""
+    print(f"{BOLD}AITerminalTools Manager{RESET}")
+    print(f"\nUsage: TOOL --<command> [options]\n")
+    print(f"Commands:")
+    print(f"  --install <name>         Install a tool")
+    print(f"  --reinstall <name>       Reinstall a tool")
+    print(f"  --uninstall <name> [-y]  Uninstall a tool")
+    print(f"  --list [--force]         List all available tools")
+    print(f"  --status                 Show installed tools and their status")
+    print(f"  --config <sub>           Manage global configuration (set, show, show-lang)")
+    print(f"  --lang <sub>             Language management (audit, list)")
+    print(f"  --audit <sub>            Code quality audits (imports, quality)")
+    print(f"  --rule <sub>             AI rule management (create, inject)")
+    print(f"  --dev <sub>              Developer commands")
+    print(f"  --test <sub>             Run tests")
+    print(f"\nUse TOOL --<command> --help for details on each command.")
+
+
+def main():
+    stripped_argv = [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
+
+    current_lang = get_global_config("language", "en")
+    set_rtl_mode(current_lang in ["ar"])
+
+    if not stripped_argv or stripped_argv[0] in ["-h", "--help", "help"]:
+        _print_tool_help()
+        return
+
+    for flag, handler in _TOOL_FLAG_HANDLERS.items():
+        if flag in stripped_argv:
+            idx = stripped_argv.index(flag)
+            handler(stripped_argv[idx + 1:])
+            return
+
+    print(f"Unknown command: {stripped_argv[0]}")
+    print(f"Use TOOL --help for available commands.")
 
 if __name__ == "__main__":
     main()

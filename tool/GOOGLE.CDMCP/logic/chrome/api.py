@@ -8,6 +8,8 @@ All overlay code lives inside this tool (not in root logic/).
 import json
 import time
 import datetime
+import functools
+import inspect
 import importlib.util
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -170,6 +172,105 @@ def get_max_sessions_config() -> Dict[str, Any]:
 # Tab lifecycle
 # ---------------------------------------------------------------------------
 
+def ensure_session_window(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Verify the session window is alive; reboot if needed.
+
+    All tab-related operations should call this as a prerequisite.
+    Returns dict with 'ok', 'session', 'action' (alive/rebooted/failed).
+    """
+    sm = _get_session_mgr()
+    if not sm:
+        return {"ok": False, "error": "Session manager not available"}
+    session = sm.get_any_active_session()
+    if not session:
+        boot_r = sm.boot_tool_session("default", timeout_sec=86400, port=port)
+        if boot_r.get("ok"):
+            return {"ok": True, "session": boot_r.get("session"), "action": "booted"}
+        return {"ok": False, "error": "No session and boot failed"}
+    if session.lifetime_tab_id:
+        alive = any(
+            t.get("id") == session.lifetime_tab_id
+            for t in list_tabs(port)
+        )
+        if not alive:
+            _log("ensure_session_window", "Window lost, rebooting...")
+            rebooted = session.full_reboot()
+            if rebooted:
+                return {"ok": True, "session": session, "action": "rebooted"}
+            return {"ok": False, "error": "Window lost and reboot failed"}
+    return {"ok": True, "session": session, "action": "alive"}
+
+
+# ---------------------------------------------------------------------------
+# Unified prerequisite gate
+# ---------------------------------------------------------------------------
+
+def _check_cdp_prerequisites(port: int = CDP_PORT,
+                             check_session: bool = True) -> Dict[str, Any]:
+    """Three-stage prerequisite check for Chrome CDP operations.
+
+    1. Chrome installed — attempt ``ensure_chrome()`` if CDP unreachable.
+    2. CDP debug port responding — verify HTTP endpoint on *port*.
+    3. Session window alive — call ``ensure_session_window()``
+       (skipped when *check_session* is False).
+    """
+    if not is_chrome_cdp_available(port):
+        sm = _get_session_mgr()
+        if sm and hasattr(sm, "ensure_chrome"):
+            r = sm.ensure_chrome()
+            if not r.get("ok"):
+                return {"ok": False, "step": "chrome_installed",
+                        "error": "Chrome is not installed",
+                        "hint": "Install Google Chrome or run: CDMCP --mcp-boot"}
+            time.sleep(2)
+            if not is_chrome_cdp_available(port):
+                return {"ok": False, "step": "cdp_debug_mode",
+                        "error": f"Chrome CDP not reachable on port {port}",
+                        "hint": f"Launch Chrome with --remote-debugging-port={port}"}
+        else:
+            return {"ok": False, "step": "cdp_debug_mode",
+                    "error": "Chrome CDP not available"}
+
+    if check_session:
+        win = ensure_session_window(port)
+        if not win["ok"]:
+            return {"ok": False, "step": "session_state",
+                    "error": win.get("error", "Session check failed")}
+        return {"ok": True, "action": win.get("action", "ready")}
+
+    return {"ok": True, "action": "cdp_ready"}
+
+
+def requires_cdp(check_session: bool = True):
+    """Decorator that gates a function behind CDP prerequisites.
+
+    Usage::
+
+        @requires_cdp()                       # Chrome + CDP + session window
+        def navigate(url, port=CDP_PORT): ...
+
+        @requires_cdp(check_session=False)    # Chrome + CDP only
+        def google_auth_status(port=CDP_PORT): ...
+
+    The ``port`` argument is extracted from the wrapped function's
+    signature automatically (falls back to ``CDP_PORT``).
+    """
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            sig = inspect.signature(fn)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            port = bound.arguments.get("port", CDP_PORT)
+            check = _check_cdp_prerequisites(port, check_session=check_session)
+            if not check["ok"]:
+                return check
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+@requires_cdp()
 def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
     global _focused_tab_id
     _log("navigate", url)
@@ -220,6 +321,7 @@ def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
     return {"ok": False, "error": "Failed to open tab", "url": url}
 
 
+@requires_cdp()
 def focus_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
     global _focused_tab_id
     _log("focus_tab", url_pattern)
@@ -243,6 +345,7 @@ def focus_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+@requires_cdp()
 def lock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
     global _locked_tab_id
     _log("lock_tab", url_pattern)
@@ -264,6 +367,7 @@ def lock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+@requires_cdp()
 def unlock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
     global _locked_tab_id
     _log("unlock_tab", url_pattern)
@@ -282,6 +386,7 @@ def unlock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+@requires_cdp()
 def highlight_element(url_pattern: str, selector: str,
                       label: str = "", port: int = CDP_PORT) -> Dict[str, Any]:
     _log("highlight_element", f"{url_pattern} | {selector} | {label}")
@@ -300,6 +405,7 @@ def highlight_element(url_pattern: str, selector: str,
         session.close()
 
 
+@requires_cdp()
 def clear_highlight(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
     ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
@@ -315,6 +421,7 @@ def clear_highlight(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+@requires_cdp()
 def cleanup_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
     global _focused_tab_id, _locked_tab_id
     _log("cleanup_tab", url_pattern)
@@ -368,6 +475,7 @@ def boot_session(name: str = "default", url: str = None,
     return result
 
 
+@requires_cdp()
 def run_demo(port: int = CDP_PORT, delay: float = 1.2,
              continuous: bool = True) -> Dict[str, Any]:
     demo_mod = _load_mod("cdmcp_demo", _DEMO_PATH)
@@ -446,11 +554,15 @@ def show_config_str() -> str:
 # Google Account Auth API
 # ---------------------------------------------------------------------------
 
-def google_auth_status(port: int = CDP_PORT) -> Dict[str, Any]:
+@requires_cdp(check_session=False)
+def google_auth_status(port: int = CDP_PORT, verify: bool = False) -> Dict[str, Any]:
     """Check current Google account login state.
 
     Returns cached state from the 1-second polling monitor. If the monitor
-    isn't running yet, performs a one-shot cookie check with identity probe.
+    isn't running yet, performs a one-shot cookie check.
+
+    Set verify=True to validate cookies against Google's servers (slow, creates
+    a temporary tab). Only needed after restoring saved cookies.
     """
     auth = _get_auth()
     state = auth.get_cached_auth_state()
@@ -464,31 +576,13 @@ def google_auth_status(port: int = CDP_PORT) -> Dict[str, Any]:
         if ws and t.get("type") == "page":
             try:
                 cdp = CDPSession(ws, timeout=5)
-                cookie_result = auth.check_auth_cookies(cdp)
+                cookie_result = auth.check_auth_cookies(cdp, verify=verify)
                 result["signed_in"] = cookie_result["signed_in"]
+                result["email"] = cookie_result.get("email") or result["email"]
+                result["display_name"] = (cookie_result.get("display_name")
+                                          or result["display_name"])
                 cdp.close()
                 if result["signed_in"]:
-                    break
-            except Exception:
-                continue
-    if not result["signed_in"]:
-        return result
-
-    for t in tabs:
-        url = t.get("url") or ""
-        ws = t.get("webSocketDebuggerUrl")
-        if ws and t.get("type") == "page" and "google.com" in url:
-            try:
-                cdp = CDPSession(ws, timeout=5)
-                body = cdp.evaluate(
-                    "document.body ? document.body.innerText.substring(0, 3000) : ''"
-                ) or ""
-                import re
-                m = re.search(r'[\w.+-]+@[\w.-]+\.[a-z]{2,}', body, re.I)
-                if m:
-                    result["email"] = m.group(0)
-                cdp.close()
-                if result["email"]:
                     break
             except Exception:
                 continue
@@ -513,9 +607,11 @@ def google_auth_on_change(callback):
     auth.on_auth_change(callback)
 
 
+@requires_cdp(check_session=False)
 def google_auth_login(session_name: str = "default",
                       tip_text: str = "Please sign in to your Google account below",
-                      auto_close: bool = True) -> Dict[str, Any]:
+                      auto_close: bool = True,
+                      start_tracker: bool = True) -> Dict[str, Any]:
     """Initiate Google login flow: open login tab, show tip, auto-close on success.
 
     Returns:
@@ -527,9 +623,11 @@ def google_auth_login(session_name: str = "default",
     session = session_mgr.get_session(session_name)
     if not session:
         return {"status": "failed", "error": "No active session"}
-    return auth.initiate_login(session, tip_text=tip_text, auto_close=auto_close)
+    return auth.initiate_login(session, tip_text=tip_text, auto_close=auto_close,
+                               start_tracker=start_tracker)
 
 
+@requires_cdp(check_session=False)
 def google_auth_logout(session_name: str = "default",
                        auto_close: bool = True) -> Dict[str, Any]:
     """Initiate Google logout flow: open logout page, track, auto-close.
@@ -543,3 +641,306 @@ def google_auth_logout(session_name: str = "default",
     if not session:
         return {"status": "failed", "error": "No active session"}
     return auth.initiate_logout(session, auto_close=auto_close)
+
+
+# ── Tab Navigation by ID ────────────────────────────────────────────
+
+@requires_cdp()
+def navigate_tab(tab_id: str, url: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate an existing tab (by target ID) to a new URL."""
+    _log("navigate_tab", f"tab={tab_id[:12]} url={url}")
+    tabs = list_tabs(port)
+    target = next((t for t in tabs if t["id"] == tab_id and t.get("type") == "page"), None)
+    if not target:
+        return {"ok": False, "error": f"Tab not found: {tab_id[:12]}"}
+    ws = target.get("webSocketDebuggerUrl")
+    if not ws:
+        return {"ok": False, "error": "No WebSocket URL for tab"}
+    try:
+        cdp = CDPSession(ws, timeout=15)
+        cdp.send_and_recv("Page.navigate", {"url": url})
+        time.sleep(2)
+        title = cdp.evaluate("document.title") or ""
+        cdp.close()
+        return {"ok": True, "tabId": tab_id, "url": url, "title": title}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@requires_cdp()
+def activate_tab(tab_id: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Bring a tab to the foreground (activate it in Chrome)."""
+    _log("activate_tab", tab_id[:12])
+    import urllib.request
+    try:
+        ver_url = f"http://localhost:{port}/json/version"
+        with urllib.request.urlopen(ver_url, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        browser_ws = data.get("webSocketDebuggerUrl")
+        if not browser_ws:
+            return {"ok": False, "error": "No browser WS"}
+        cdp = CDPSession(browser_ws, timeout=10)
+        result = cdp.send_and_recv("Target.activateTarget", {"targetId": tab_id})
+        cdp.close()
+        if result and "error" not in result:
+            return {"ok": True, "tabId": tab_id}
+        return {"ok": False, "error": str(result.get("error", "unknown"))}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ── Window Management ───────────────────────────────────────────────
+
+@requires_cdp()
+def minimize_window(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Minimize the current session's Chrome window."""
+    _log("minimize_window", "")
+    sm = _get_session_mgr()
+    session = sm.get_any_active_session() if sm else None
+    if not session or not session.window_id:
+        return {"ok": False, "error": "No active session with window"}
+    return _set_window_state(session.window_id, "minimized", port)
+
+
+@requires_cdp()
+def restore_window(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Restore (un-minimize) the current session's Chrome window."""
+    _log("restore_window", "")
+    sm = _get_session_mgr()
+    session = sm.get_any_active_session() if sm else None
+    if not session or not session.window_id:
+        return {"ok": False, "error": "No active session with window"}
+    return _set_window_state(session.window_id, "normal", port)
+
+
+def _set_window_state(window_id: int, state: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    import urllib.request
+    try:
+        ver_url = f"http://localhost:{port}/json/version"
+        with urllib.request.urlopen(ver_url, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        browser_ws = data.get("webSocketDebuggerUrl")
+        if not browser_ws:
+            return {"ok": False, "error": "No browser WS"}
+        cdp = CDPSession(browser_ws, timeout=10)
+        cdp.send_and_recv("Browser.setWindowBounds", {
+            "windowId": window_id,
+            "bounds": {"windowState": state}
+        })
+        cdp.close()
+        return {"ok": True, "windowId": window_id, "state": state}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ── Screenshot ──────────────────────────────────────────────────────
+
+def _resolve_tab(tab_id: Optional[str], port: int) -> Optional[Dict]:
+    """Find a tab by explicit ID (full or prefix) or fall back to the last session tab."""
+    tabs = list_tabs(port)
+    page_tabs = [t for t in tabs if t.get("type") == "page"]
+    if not page_tabs:
+        return None
+    if tab_id:
+        exact = next((t for t in page_tabs if t["id"] == tab_id), None)
+        if exact:
+            return exact
+        prefix_matches = [t for t in page_tabs if t["id"].startswith(tab_id)]
+        return prefix_matches[0] if len(prefix_matches) == 1 else None
+    sm = _get_session_mgr()
+    session = sm.get_any_active_session() if sm else None
+    if session and hasattr(session, "_tabs") and session._tabs:
+        last_label = list(session._tabs.keys())[-1]
+        last_info = session._tabs[last_label]
+        last_id = last_info.get("id") if isinstance(last_info, dict) else None
+        if last_id:
+            match = next((t for t in page_tabs if t["id"] == last_id), None)
+            if match:
+                return match
+    return page_tabs[-1]
+
+
+@requires_cdp()
+def screenshot_tab(tab_id: Optional[str] = None, output: str = "",
+                   port: int = CDP_PORT) -> Dict[str, Any]:
+    """Capture a screenshot of a tab. Default: last tab in current session."""
+    _log("screenshot_tab", f"tab={tab_id or 'default'} output={output or 'auto'}")
+    tab = _resolve_tab(tab_id, port)
+    if not tab:
+        return {"ok": False, "error": "No matching tab found"}
+    ws = tab.get("webSocketDebuggerUrl")
+    if not ws:
+        return {"ok": False, "error": "No WebSocket URL for tab"}
+    try:
+        cdp = CDPSession(ws, timeout=15)
+        _hide_overlays_js = """(function(){
+            var ids = ['__cdmcp_lock_overlay__','__cdmcp_agent_badge__',
+                       '__cdmcp_focus_border__','__cdmcp_element_highlight__',
+                       '__cdmcp_tip_banner__','__cdmcp_lock_overlay___dot'];
+            var hidden = [];
+            ids.forEach(function(id){
+                var el = document.getElementById(id);
+                if(el && el.style.display !== 'none'){
+                    hidden.push({id: id, prev: el.style.display});
+                    el.style.display = 'none';
+                }
+            });
+            window.__cdmcp_hidden_overlays__ = hidden;
+            return hidden.length;
+        })()"""
+        _restore_overlays_js = """(function(){
+            var hidden = window.__cdmcp_hidden_overlays__ || [];
+            hidden.forEach(function(h){
+                var el = document.getElementById(h.id);
+                if(el) el.style.display = h.prev || '';
+            });
+            window.__cdmcp_hidden_overlays__ = null;
+            return hidden.length;
+        })()"""
+        cdp.evaluate(_hide_overlays_js)
+        img = capture_screenshot(cdp)
+        cdp.evaluate(_restore_overlays_js)
+        cdp.close()
+        if not img:
+            return {"ok": False, "error": "Screenshot returned empty"}
+        if not output:
+            _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+            output = str(_REPORT_DIR / "last_screenshot.png")
+        from pathlib import Path as _P
+        _P(output).parent.mkdir(parents=True, exist_ok=True)
+        with open(output, "wb") as f:
+            f.write(img)
+        return {"ok": True, "path": output, "tabId": tab["id"],
+                "size": len(img), "title": tab.get("title", "")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ── Element Focus ───────────────────────────────────────────────────
+
+@requires_cdp()
+def focus_element(url_pattern: str, selector: str,
+                  port: int = CDP_PORT) -> Dict[str, Any]:
+    """Focus a specific DOM element in a tab (sets document.activeElement)."""
+    _log("focus_element", f"{url_pattern} | {selector}")
+    tab = find_tab(url_pattern, port=port)
+    if not tab:
+        return {"ok": False, "error": f"Tab not found: {url_pattern}"}
+    ws = tab.get("webSocketDebuggerUrl")
+    if not ws:
+        return {"ok": False, "error": "No WebSocket URL for tab"}
+    try:
+        cdp = CDPSession(ws, timeout=15)
+        js = f'''(function(){{
+            var el = document.querySelector({json.dumps(selector)});
+            if (!el) return JSON.stringify({{"ok": false, "error": "Element not found"}});
+            el.focus();
+            el.scrollIntoView({{block: "center", behavior: "smooth"}});
+            var r = el.getBoundingClientRect();
+            return JSON.stringify({{
+                "ok": true,
+                "tag": el.tagName, "id": el.id || "",
+                "text": (el.textContent || "").trim().substring(0, 80),
+                "x": Math.round(r.x), "y": Math.round(r.y),
+                "w": Math.round(r.width), "h": Math.round(r.height)
+            }});
+        }})()'''
+        raw = cdp.evaluate(js)
+        cdp.close()
+        result = json.loads(raw) if raw else {"ok": False, "error": "Empty response"}
+        if result.get("ok"):
+            result["tabId"] = tab["id"]
+            result["selector"] = selector
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ── Scroll ──────────────────────────────────────────────────────────
+
+@requires_cdp()
+def scroll_tab(url_pattern: str, dx: int = 0, dy: int = 0,
+               port: int = CDP_PORT) -> Dict[str, Any]:
+    """Scroll within a tab. dx=horizontal pixels, dy=vertical pixels."""
+    _log("scroll_tab", f"{url_pattern} dx={dx} dy={dy}")
+    tab = find_tab(url_pattern, port=port)
+    if not tab:
+        return {"ok": False, "error": f"Tab not found: {url_pattern}"}
+    ws = tab.get("webSocketDebuggerUrl")
+    if not ws:
+        return {"ok": False, "error": "No WebSocket URL for tab"}
+    try:
+        cdp = CDPSession(ws, timeout=15)
+        vp_raw = cdp.evaluate(
+            "JSON.stringify({w: window.innerWidth, h: window.innerHeight})")
+        vp = json.loads(vp_raw) if vp_raw else {"w": 800, "h": 600}
+        cx, cy = vp["w"] // 2, vp["h"] // 2
+        cdp.send_and_recv("Input.dispatchMouseEvent", {
+            "type": "mouseWheel", "x": cx, "y": cy,
+            "deltaX": dx, "deltaY": dy,
+        }, timeout=5)
+        time.sleep(0.3)
+        pos_raw = cdp.evaluate(
+            "JSON.stringify({x: window.scrollX, y: window.scrollY})")
+        pos = json.loads(pos_raw) if pos_raw else {}
+        cdp.close()
+        return {"ok": True, "tabId": tab["id"],
+                "scrollX": pos.get("x", 0), "scrollY": pos.get("y", 0),
+                "deltaX": dx, "deltaY": dy}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ── Click Element ───────────────────────────────────────────────────
+
+@requires_cdp()
+def click_element(url_pattern: str, selector: str = "",
+                  port: int = CDP_PORT) -> Dict[str, Any]:
+    """Click an element. If selector is empty, clicks the currently focused element."""
+    _log("click_element", f"{url_pattern} | {selector or '<focused>'}")
+    tab = find_tab(url_pattern, port=port)
+    if not tab:
+        return {"ok": False, "error": f"Tab not found: {url_pattern}"}
+    ws = tab.get("webSocketDebuggerUrl")
+    if not ws:
+        return {"ok": False, "error": "No WebSocket URL for tab"}
+    try:
+        cdp = CDPSession(ws, timeout=15)
+        if selector:
+            js = f'''(function(){{
+                var el = document.querySelector({json.dumps(selector)});
+                if (!el) return JSON.stringify({{"ok": false, "error": "Element not found"}});
+                el.scrollIntoView({{block: "center"}});
+                var r = el.getBoundingClientRect();
+                return JSON.stringify({{
+                    "ok": true, "x": r.x + r.width/2, "y": r.y + r.height/2,
+                    "tag": el.tagName, "text": (el.textContent||"").trim().substring(0, 60)
+                }});
+            }})()'''
+        else:
+            js = '''(function(){
+                var el = document.activeElement;
+                if (!el || el === document.body)
+                    return JSON.stringify({"ok": false, "error": "No focused element"});
+                el.scrollIntoView({block: "center"});
+                var r = el.getBoundingClientRect();
+                return JSON.stringify({
+                    "ok": true, "x": r.x + r.width/2, "y": r.y + r.height/2,
+                    "tag": el.tagName, "text": (el.textContent||"").trim().substring(0, 60)
+                });
+            })()'''
+        raw = cdp.evaluate(js)
+        info = json.loads(raw) if raw else {"ok": False, "error": "Empty response"}
+        if not info.get("ok"):
+            cdp.close()
+            return info
+        x, y = info["x"], info["y"]
+        real_click(cdp, x, y)
+        time.sleep(0.3)
+        cdp.close()
+        return {"ok": True, "tabId": tab["id"],
+                "clicked": {"x": round(x), "y": round(y),
+                             "tag": info.get("tag", "?"),
+                             "text": info.get("text", "")}}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}

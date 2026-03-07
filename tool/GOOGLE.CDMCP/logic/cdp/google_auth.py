@@ -64,10 +64,16 @@ _on_auth_change_callbacks: List[Callable] = []
 # Cookie-based auth check (fast, local, no rate limits)
 # ---------------------------------------------------------------------------
 
-def check_auth_cookies(cdp: CDPSession) -> Dict[str, Any]:
-    """Check Google auth state via cookies. No network requests.
+def check_auth_cookies(cdp: CDPSession, verify: bool = False) -> Dict[str, Any]:
+    """Check Google auth state via cookies, optionally with server-side validation.
 
-    Requires calling Network.enable first (done automatically).
+    When verify=False (default), only checks cookie presence (fast, no network).
+    Sufficient for real-time login/logout detection where Google sets/removes
+    cookies during the actual auth flow.
+
+    When verify=True, performs a server-side check using a temporary tab to the
+    ListAccounts endpoint. Only needed after restoring saved cookies to detect
+    server-revoked tokens. Expensive: creates and destroys a background tab.
     """
     result = {"signed_in": False, "email": None, "display_name": None,
               "cookies_present": []}
@@ -84,10 +90,127 @@ def check_auth_cookies(cdp: CDPSession) -> Dict[str, Any]:
             if c.get("name") in _AUTH_COOKIES:
                 found.add(c["name"])
         result["cookies_present"] = sorted(found)
-        result["signed_in"] = len(found) >= 3
+        cookies_present = len(found) >= 3
+
+        if not cookies_present:
+            return result
+
+        if not verify:
+            result["signed_in"] = True
+            return result
+
+        server_result = _verify_auth_server_side(cdp, port=CDP_PORT)
+        result["signed_in"] = server_result.get("valid", False)
+        result["email"] = server_result.get("email")
+        result["display_name"] = server_result.get("display_name")
     except Exception:
         pass
     return result
+
+
+def _verify_auth_server_side(cdp: CDPSession,
+                             port: int = CDP_PORT) -> Dict[str, Any]:
+    """Validate auth cookies via fetch POST to ListAccounts from an existing tab.
+
+    Reuses the provided CDP session (which must be on a Google-origin page)
+    to avoid creating visible temp tabs. Falls back to a temp tab only if
+    the provided session is not on a Google origin.
+    """
+    import urllib.request
+    result: Dict[str, Any] = {"valid": False, "email": None, "display_name": None}
+
+    fetch_js = """(async function() {
+        try {
+            const resp = await fetch(
+                'https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser',
+                {method:'POST', credentials:'include',
+                 headers:{'Content-Type':'application/x-www-form-urlencoded'}}
+            );
+            return await resp.text();
+        } catch(e) { return 'FETCH_ERROR:' + e.message; }
+    })()"""
+
+    def _try_fetch(session):
+        body_resp = session.send_and_recv("Runtime.evaluate", {
+            "expression": fetch_js,
+            "awaitPromise": True,
+            "returnByValue": True,
+        })
+        return (body_resp or {}).get("result", {}).get("result", {}).get("value", "")
+
+    body = ""
+    try:
+        body = _try_fetch(cdp)
+    except Exception:
+        pass
+
+    if body.startswith("FETCH_ERROR:") or not body:
+        temp_tab_id = None
+        try:
+            url = f"http://localhost:{port}/json/new?about:blank"
+            req = urllib.request.Request(url, method="PUT")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                tab_data = json.loads(resp.read().decode())
+            temp_tab_id = tab_data.get("id")
+            temp_ws = tab_data.get("webSocketDebuggerUrl")
+            if temp_tab_id and temp_ws:
+                temp_cdp = CDPSession(temp_ws, timeout=10)
+                temp_cdp.send_and_recv("Page.enable", {})
+                temp_cdp.send_and_recv("Page.navigate", {
+                    "url": "https://accounts.google.com/ServiceLogin",
+                })
+                time.sleep(3)
+                body = _try_fetch(temp_cdp)
+                temp_cdp.close()
+        except Exception:
+            pass
+        finally:
+            if temp_tab_id:
+                for _ in range(3):
+                    try:
+                        close_tab(temp_tab_id, port)
+                        break
+                    except Exception:
+                        time.sleep(0.3)
+
+    if body and not body.startswith("FETCH_ERROR:"):
+        _parse_list_accounts(body, result)
+    return result
+
+
+def _parse_list_accounts(text: str, result: Dict[str, Any]) -> None:
+    """Parse ListAccounts response body for signed-in accounts.
+
+    Response format: ["gaia.l.a.r",[["gaia.l.a",isSignedIn,name,email,...], ...]]
+    May contain hex escapes (\\x5b -> [) in some contexts.
+    """
+    import re
+    decoded = re.sub(
+        r'\\x([0-9a-fA-F]{2})',
+        lambda m: chr(int(m.group(1), 16)),
+        text
+    )
+    try:
+        parsed = json.loads(decoded)
+    except json.JSONDecodeError:
+        idx = decoded.find("[")
+        if idx >= 0:
+            try:
+                parsed = json.loads(decoded[idx:])
+            except json.JSONDecodeError:
+                return
+        else:
+            return
+    if not isinstance(parsed, list) or len(parsed) < 2:
+        return
+    accounts = parsed[1] if isinstance(parsed[1], list) else []
+    for a in accounts:
+        if isinstance(a, list) and len(a) > 3 and a[0] == "gaia.l.a":
+            if a[1] == 1:
+                result["valid"] = True
+                result["email"] = a[3] if len(a) > 3 else None
+                result["display_name"] = a[2] if len(a) > 2 else None
+                break
 
 
 def check_auth_full(port: int = CDP_PORT) -> Dict[str, Any]:
@@ -311,7 +434,7 @@ def _monitor_loop(get_session_fn: Callable, interval: float):
                 if ws and t.get("type") == "page":
                     try:
                         cdp = CDPSession(ws, timeout=3)
-                        cookie_state = check_auth_cookies(cdp)
+                        cookie_state = check_auth_cookies(cdp, verify=False)
 
                         if cookie_state["signed_in"] and "google.com" in (t.get("url") or ""):
                             info = cdp.evaluate('''
@@ -399,7 +522,13 @@ def _probe_identity(session) -> Dict[str, Any]:
     result = {"email": None, "display_name": None}
     probe_url = "https://myaccount.google.com/"
     _log_auth("probe_start", f"session={session.name} window={session.window_id}")
-    tab_id = session.open_tab_in_session(probe_url)
+    tab_info = session.require_tab(
+        label="google_probe",
+        url_pattern="myaccount.google.com",
+        open_url=probe_url,
+        auto_lock=True,
+    )
+    tab_id = tab_info["id"] if tab_info else None
     _log_auth("probe_tab", f"tab_id={tab_id}")
     if not tab_id:
         return result
@@ -473,8 +602,13 @@ def _handle_account_action(session, action: str, welcome_cdp: CDPSession):
 def initiate_login(session, welcome_cdp: Optional[CDPSession] = None,
                    tip_text: str = "Please sign in to your Google account below",
                    poll_interval: float = 1.5,
-                   auto_close: bool = True) -> Dict[str, Any]:
+                   auto_close: bool = True,
+                   start_tracker: bool = True) -> Dict[str, Any]:
     """Open a login tab, show tip overlay, track auth, auto-close on success.
+
+    Before opening a new tab, scans all Chrome tabs for an existing Google
+    sign-in page (which may have been auto-spawned by the browser). If found,
+    adopts it instead of creating a duplicate.
 
     Args:
         session: The active CDMCPSession.
@@ -482,6 +616,8 @@ def initiate_login(session, welcome_cdp: Optional[CDPSession] = None,
         tip_text: Text shown in the top-center tip banner on the login tab.
         poll_interval: How often to check auth cookies during login.
         auto_close: Whether to auto-close the login tab on successful auth.
+        start_tracker: Start background tracker thread. Set False when the
+                       caller handles polling (e.g., CLI _poll_login).
 
     Returns:
         Dict with 'tab_id' and 'status' ('opened', 'already_signed_in').
@@ -501,19 +637,47 @@ def initiate_login(session, welcome_cdp: Optional[CDPSession] = None,
             return {"status": "login_in_progress", "tab_id": _LOGIN_TAB_ID}
         _LOGIN_TAB_ID = None
 
-    tab_id = session.open_tab_in_session(signin_url)
-    if not tab_id:
-        return {"status": "failed", "tab_id": None, "error": "Could not open login tab"}
+    _SIGNIN_PATTERNS = (
+        "accounts.google.com/signin",
+        "accounts.google.com/v3/signin",
+        "accounts.google.com/ServiceLogin",
+        "accounts.google.com/AccountChooser",
+    )
+    all_tabs = list_tabs(session.port)
+    auto_spawned = None
+    for t in all_tabs:
+        url = (t.get("url") or "").lower()
+        if t.get("type") == "page" and any(p.lower() in url for p in _SIGNIN_PATTERNS):
+            auto_spawned = t
+            break
+
+    if auto_spawned:
+        tab_id = auto_spawned["id"]
+        ws = auto_spawned.get("webSocketDebuggerUrl", "")
+        session.register_tab("google_login", tab_id,
+                             url=auto_spawned.get("url", ""), ws=ws)
+        _log_auth("login_adopted_existing", f"tab_id={tab_id} url={auto_spawned.get('url','')}")
+    else:
+        tab_info = session.require_tab(
+            label="google_login",
+            url_pattern="accounts.google.com",
+            open_url=signin_url,
+            auto_lock=True,
+        )
+        if not tab_info:
+            return {"status": "failed", "tab_id": None, "error": "Could not open login tab"}
+        tab_id = tab_info["id"]
 
     _LOGIN_TAB_ID = tab_id
     _log_auth("login_initiated", f"tab_id={tab_id}")
 
-    t = threading.Thread(
-        target=_login_tracker_loop,
-        args=(session, tab_id, welcome_cdp, tip_text, poll_interval, auto_close),
-        daemon=True, name="cdmcp-login-tracker",
-    )
-    t.start()
+    if start_tracker:
+        t = threading.Thread(
+            target=_login_tracker_loop,
+            args=(session, tab_id, welcome_cdp, tip_text, poll_interval, auto_close),
+            daemon=True, name="cdmcp-login-tracker",
+        )
+        t.start()
 
     return {"status": "opened", "tab_id": tab_id}
 
@@ -611,9 +775,15 @@ def initiate_logout(session, welcome_cdp: Optional[CDPSession] = None,
         Dict with 'tab_id' and 'status'.
     """
     signout_url = "https://accounts.google.com/Logout"
-    tab_id = session.open_tab_in_session(signout_url)
-    if not tab_id:
+    tab_info = session.require_tab(
+        label="google_logout",
+        url_pattern="accounts.google.com/Logout",
+        open_url=signout_url,
+        auto_lock=True,
+    )
+    if not tab_info:
         return {"status": "failed", "tab_id": None}
+    tab_id = tab_info["id"]
 
     _log_auth("logout_initiated", f"tab_id={tab_id}")
 
@@ -632,6 +802,7 @@ def _logout_tracker_loop(session, tab_id: str,
                          auto_close: bool):
     """Track logout tab: detect sign-out completion and auto-close."""
     _log_auth("logout_tracker_start", f"tab_id={tab_id}")
+    _clicked_continue = False
 
     try:
         for _ in range(60):
@@ -641,6 +812,9 @@ def _logout_tracker_loop(session, tab_id: str,
             if not tab_alive:
                 _log_auth("logout_tab_closed", "User closed logout tab")
                 break
+
+            if not _clicked_continue:
+                _clicked_continue = _try_click_signout_continue(tab_id, session.port)
 
             for t in tabs:
                 ws = t.get("webSocketDebuggerUrl")
@@ -668,6 +842,52 @@ def _logout_tracker_loop(session, tab_id: str,
     finally:
         _force_auth_recheck(session, welcome_cdp)
         _log_auth("logout_tracker_stopped", f"tab_id={tab_id}")
+
+
+def _try_click_signout_continue(tab_id: str, port: int) -> bool:
+    """Click the 'Continue' button on the Google signout landing page."""
+    tabs = list_tabs(port)
+    tab = next((t for t in tabs if t.get("id") == tab_id), None)
+    if not tab:
+        return False
+    url = tab.get("url", "")
+    if "accounts.google.com/signout" not in url and "accounts.google.com/Logout" not in url:
+        return False
+    ws = tab.get("webSocketDebuggerUrl")
+    if not ws:
+        return False
+    try:
+        cdp = CDPSession(ws, timeout=5)
+        clicked = cdp.evaluate("""
+            (function(){
+                var btns = document.querySelectorAll(
+                    'a, button, input[type="submit"], [role="button"]');
+                for (var i = 0; i < btns.length; i++) {
+                    var txt = (btns[i].textContent || btns[i].value || '').trim().toLowerCase();
+                    if (txt === 'continue' || txt === 'sign out' || txt === 'sign out of all accounts') {
+                        btns[i].click();
+                        return 'clicked:' + txt;
+                    }
+                }
+                var links = document.querySelectorAll('a[href]');
+                for (var j = 0; j < links.length; j++) {
+                    var href = links[j].href || '';
+                    if (href.indexOf('continue') !== -1 || href.indexOf('ServiceLogin') !== -1) {
+                        links[j].click();
+                        return 'clicked_link:' + href.substring(0, 60);
+                    }
+                }
+                return 'no_button_found';
+            })()
+        """)
+        cdp.close()
+        if clicked and clicked.startswith("clicked"):
+            _log_auth("signout_continue_clicked", clicked)
+            return True
+        return False
+    except Exception as e:
+        _log_auth("signout_continue_error", str(e))
+        return False
 
 
 def _force_auth_recheck(session, welcome_cdp: CDPSession):

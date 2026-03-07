@@ -21,3 +21,7 @@ SENTRY issues <org>         # List issues
 - Requires Chrome CDP on port 9222
 - Sentry has same-origin REST API (`/api/0/`) that works with session cookies
 - Supports Google and GitHub sign-in
+
+## ToS Compliance
+
+**Status: COMPLIANT** -- This tool uses Sentry's official Web API v0 via in-page `fetch()` from the authenticated session (`_sentry_api()` helper). CDMCP is only used for session management. All data operations go through Sentry's documented REST API endpoints.

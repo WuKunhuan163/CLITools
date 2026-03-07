@@ -69,7 +69,7 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 | **GMAIL** | Gmail MCP: inbox reading, compose, label management, search. (In development) |
 | **GOOGLE.GS** | Google Scholar MCP: search, citations, profiles, library. (In development) |
 
-All Chrome-based tools use CDMCP session management with visual effects, auto-lock, idle timeout tracking, and max-session limits. See `SKILLS show TerminalTools-cdmcp-web-exploration` for the development methodology.
+All Chrome-based tools use CDMCP session management with visual effects, auto-lock, idle timeout tracking, and max-session limits. See `SKILLS show cdmcp-web-exploration` for the development methodology.
 
 ### Specialized Tools
 
@@ -79,12 +79,21 @@ All Chrome-based tools use CDMCP session management with visual effects, auto-lo
 | **iCloudPD** | Parallel iCloud photo/video downloader with date filtering and local library support. |
 
 ### SKILLS Tool
-Manages reusable AI agent skills stored in `skills/` (symlinked to `~/.cursor/skills/`):
-- `SKILLS list`: Browse available skills.
-- `SKILLS show <name>`: View a skill's content.
-- `SKILLS sync`: Link skills to `~/.cursor/skills/`.
+Manages AI agent skills, marketplace access, and evolution system:
 
-Available skills: `tool-development-workflow`, `turing-machine-development`, `setup-tutorial-creation`, `code-quality-review`, `session-debug-log`, `tmp-test-script`, `cdmcp-web-exploration`, `mcp-development`, `unit-test-conventions`, `localization`, `record-cache`, `tool-interface`, `skills-index`. Run `SKILLS show <name>` for detailed guidance.
+**Skill Management:**
+- `SKILLS list` / `SKILLS show <name>` / `SKILLS sync` — Browse, view, and link skills.
+
+**Marketplace** (3000+ community skills from ClawHub/OpenClaw):
+- `SKILLS market browse` — Top downloaded skills.
+- `SKILLS market search <query>` — Search the marketplace.
+- `SKILLS market install <slug>` — Download to `skills/marketplace/`.
+
+**Evolution System** (self-improvement loop):
+- `SKILLS learn / lessons / analyze / suggest / apply / history` — Full introspection cycle.
+- Brain data stored in `runtime/experience/` (Git-tracked).
+
+Available skills: `tool-development-workflow`, `turing-machine-development`, `setup-tutorial-creation`, `code-quality-review`, `session-debug-log`, `tmp-test-script`, `cdmcp-web-exploration`, `mcp-development`, `unit-test-conventions`, `localization`, `record-cache`, `tool-interface`, `skills-index`, `openclaw`. Run `SKILLS show <name>` for guidance.
 
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Set display language.
@@ -98,7 +107,7 @@ Available skills: `tool-development-workflow`, `turing-machine-development`, `se
 - `TOOL audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
 - `TOOL audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
 
-For detailed development guidance, run `SKILLS show TerminalTools-tool-development-workflow`.
+For detailed development guidance, run `SKILLS show tool-development-workflow`.
 
 ---
 
@@ -119,15 +128,19 @@ AITerminalTools follows a **Symmetrical Design Pattern**:
 - `bin/`: Executable symlinks for installed tools.
 - `resource/tool/`: Large binary assets (fonts, Python builds) — only on the `tool` branch.
 - `resource/archived/`: Archived/unmaintained tools — only on the `tool` branch. `TOOL install` falls back here.
-- `data/`: User settings, logs, and GUI instance registry.
+- `data/`: Transient runtime data (gitignored) — caches, logs, GUI state.
+- `runtime/`: Tracked runtime data (git-tracked) — institutional memory.
+  - `runtime/experience/`: Agent's cross-tool experience (lessons, suggestions, evolution history).
+- `skills/`: AI agent skill documents, organized under `core/` and `AI-IDE/`.
+- `research/`: Research notes and analysis documents.
 
 ### Unified Logging
-Every tool has a built-in session logger via `tool.log(message)`. Log files auto-clean when count exceeds 64. Run `SKILLS show TerminalTools-session-debug-log` for logging patterns.
+Every tool has a built-in session logger via `tool.log(message)`. Log files auto-clean when count exceeds 64. Run `SKILLS show session-debug-log` for logging patterns.
 
 ---
 
 ## Contribution
 
-Active development happens on the `dev` branch. Run `SKILLS show TerminalTools-tool-development-workflow` for the full development guide.
+Active development happens on the `dev` branch. Run `SKILLS show tool-development-workflow` for the full development guide.
 
 

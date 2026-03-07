@@ -4,7 +4,7 @@ Logs each demo countdown tick to the session log.
 
 Event: on_demo_action
 """
-from logic.tool.hooks.engine import HookInstance
+from logic.hooks.engine import HookInstance
 
 
 class DemoLogger(HookInstance):

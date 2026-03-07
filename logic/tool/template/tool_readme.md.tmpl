@@ -1,0 +1,62 @@
+# {name}
+
+{name} tool template.
+
+## Quick Start
+
+```bash
+{short_name} --demo         # Run demo
+{short_name} --setup        # Install dependencies
+{short_name} --help         # Show help
+```
+
+## MCP Commands
+
+If this tool implements CDMCP browser automation, all MCP commands use the `--mcp-` prefix:
+
+```bash
+{short_name} --mcp-boot          # Boot session
+{short_name} --mcp-status        # Check status
+{short_name} --mcp-<command>     # Any MCP operation
+```
+
+## Built-in Commands
+
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |
+
+## Hooks
+
+Event-driven callback system.
+
+```bash
+{short_name} hooks list                  # List events and instances
+{short_name} hooks enable demo_logger    # Enable the demo logger hook
+{short_name} hooks disable demo_logger   # Disable it
+```
+
+### Hook Events
+
+| Event | Description |
+|-------|-------------|
+| `on_tool_start` | Fired when the tool begins execution (base) |
+| `on_tool_exit` | Fired when the tool finishes execution (base) |
+| `on_demo_action` | Fired during --demo countdown |
+
+## Interface
+
+```python
+from interface import get_interface
+iface = get_interface("{name}")
+info = iface.get_info()  # {{"name": "{name}", "version": "1.0.0"}}
+```
+
+## Testing
+
+```bash
+TOOL --test {name}
+```

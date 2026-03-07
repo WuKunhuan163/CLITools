@@ -88,8 +88,8 @@ def build_step(frame, win):
     frame.after(100, _process_callbacks)
 
     def _get_cache_dir():
-        project_root = getattr(win, "project_root", None)
-        cache_dir = project_root / "data" / "tutorial" / "cache"
+        tool_dir = Path(__file__).resolve().parent.parent.parent.parent
+        cache_dir = tool_dir / "data" / "tutorial" / "cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
         return cache_dir
 

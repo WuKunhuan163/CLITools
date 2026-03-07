@@ -1,9 +1,13 @@
 {
   "name": "YUQUE",
   "version": "1.0.0",
-  "description": "Template tool YUQUE",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Yuque knowledge base via CDMCP (Chrome DevTools MCP)",
+  "purpose": "Access Yuque (语雀) knowledge base and documentation platform via CDMCP using the yuque.com session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

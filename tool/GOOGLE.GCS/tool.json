@@ -4,9 +4,9 @@
   "description": "Google Drive Remote Controller (GCS)",
   "purpose": "Provide access to Google Drive files via API and GUI.",
   "skills": [
-    "TerminalTools-turing-machine-development",
-    "TerminalTools-tool-interface",
-    "TerminalTools-session-debug-log",
+    "turing-machine-development",
+    "tool-interface",
+    "session-debug-log",
     "gcs-raw-debug",
     "python-best-practices",
     "cli-development",

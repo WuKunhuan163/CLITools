@@ -182,19 +182,63 @@ connection status, and Google Account card. Served via the persistent HTTP serve
 All MCP commands use the `--mcp-` prefix.
 
 ```bash
+# Session & Status
 GOOGLE.CDMCP --mcp-status                                    # Chrome CDP + sessions + config
+GOOGLE.CDMCP --mcp-state                                     # Comprehensive MCP state
 GOOGLE.CDMCP --mcp-boot my_session                           # Boot session with welcome + demo
-GOOGLE.CDMCP --mcp-navigate https://example.com              # Open tab with overlays
-GOOGLE.CDMCP --mcp-focus example.com                         # Focus on tab
+GOOGLE.CDMCP --mcp-session list                              # List all sessions
+
+# Tab Operations (all auto-verify session window via @requires_cdp)
+GOOGLE.CDMCP --mcp-navigate https://example.com              # Open URL in new tab
+GOOGLE.CDMCP --mcp-navigate URL --tab-id TAB_ID              # Navigate existing tab to URL
+GOOGLE.CDMCP --mcp-activate TAB_ID                           # Switch focus to a tab
+GOOGLE.CDMCP --mcp-focus example.com                         # Focus on tab by URL pattern
 GOOGLE.CDMCP --mcp-lock example.com                          # Lock tab
 GOOGLE.CDMCP --mcp-unlock example.com                        # Unlock tab
 GOOGLE.CDMCP --mcp-highlight example.com "input[name=q]" --label "Search"
 GOOGLE.CDMCP --mcp-cleanup example.com                       # Remove all overlays
+
+# Element Interaction
+GOOGLE.CDMCP --mcp-focus-element example.com "h1"            # Focus a DOM element
+GOOGLE.CDMCP --mcp-click example.com "a.link"                # Click element by selector
+GOOGLE.CDMCP --mcp-click example.com                         # Click currently focused element
+GOOGLE.CDMCP --mcp-scroll example.com --dy 300               # Scroll down 300px
+GOOGLE.CDMCP --mcp-scroll example.com --dx 100 --dy -200     # Scroll right 100, up 200
+GOOGLE.CDMCP --mcp-screenshot                                # Screenshot last session tab
+GOOGLE.CDMCP --mcp-screenshot --tab-id ID --output /tmp/s.png
+
+# Google Auth
+GOOGLE.CDMCP --mcp-auth                                      # Check login state
+GOOGLE.CDMCP --mcp-login                                     # Login (waits for sign-in, auto-closes tab)
+GOOGLE.CDMCP --mcp-logout                                    # Logout (clicks Continue, auto-closes tab)
+GOOGLE.CDMCP --mcp-save-auth                                 # Save current auth cookies for later
+GOOGLE.CDMCP --mcp-restore-auth                              # Restore saved cookies (auto-login)
+
+# Window Management
+GOOGLE.CDMCP --mcp-minimize                                  # Minimize session Chrome window
+GOOGLE.CDMCP --mcp-restore                                   # Restore session Chrome window
+GOOGLE.CDMCP --mcp-ensure-window                             # Verify window alive; reboot if needed
+
+# Configuration
 GOOGLE.CDMCP --mcp-config                                    # Show config
 GOOGLE.CDMCP --mcp-config --set allow_oauth_windows true     # Set config value
 GOOGLE.CDMCP --mcp-session-limit --max 3 --policy fail       # Set max concurrent sessions
 GOOGLE.CDMCP --mcp-tutorial                                  # Interactive setup guide
 ```
+
+### `@requires_cdp` Prerequisite Gate
+
+All Chrome-dependent API functions are decorated with `@requires_cdp()`, which
+runs a 3-stage prerequisite check before execution:
+
+1. **Chrome installed** — auto-relaunches via `ensure_chrome()` if closed
+2. **CDP debug port** — verifies HTTP endpoint on port 9222 is responding
+3. **Session window alive** — reboots session if the Chrome window was closed
+
+Functions that only need Chrome/CDP but not a session (e.g., auth status) use
+`@requires_cdp(check_session=False)` to skip stage 3.
+
+If any stage fails, the function returns `{"ok": False, "step": "...", "error": "..."}` without executing. Tool developers never need to call prerequisite checks manually.
 
 ### Page Scanning
 ```bash

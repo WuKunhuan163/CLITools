@@ -332,6 +332,13 @@ class UserInputWindow(BaseGUIWindow):
 
         is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
         if event.char == "@" or event.keysym == "at" or is_shift_2:
+            try:
+                cursor = self.text_widget.index(tk.INSERT)
+                prev_char = self.text_widget.get(f"{cursor}-1c", cursor)
+                if prev_char and prev_char.strip():
+                    return
+            except Exception:
+                pass
             self._last_trigger_time = now
             self.root.after(10, self.run_file_dialog_trigger)
 
@@ -957,6 +964,8 @@ def main():
     parser.add_argument('--hint', type=str)
     parser.add_argument('--queue', action='store_true', help="Queue mode: add to queue or manage queue")
     parser.add_argument('--enquiry', action='store_true', help="Bypass queue, request real-time user feedback")
+    parser.add_argument('--enquiry-mode', type=str, nargs='?', const='status', metavar='on|off',
+                        help="Toggle persistent enquiry mode (on/off/status)")
     parser.add_argument('--system-prompt', action='store_true', dest='system_prompt_mode',
                         help="System prompt management mode")
     parser.add_argument('--config', action='store_true', dest='config_mode',
@@ -1000,6 +1009,29 @@ def main():
     if getattr(args, 'config_mode', False):
         return _handle_config(tool, args, unknown)
 
+    # ── Enquiry mode toggle (--enquiry-mode on/off/status) ─
+    if args.enquiry_mode is not None:
+        from interface.config import get_color as _gc
+        _B, _G, _R = _gc("BOLD"), _gc("GREEN"), _gc("RESET")
+        config = get_config()
+        if args.enquiry_mode == 'on':
+            config["enquiry_mode"] = True
+            with open(TOOL_INTERNAL / "config.json", 'w') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            print(f"{_B}{_G}Enabled{_R} persistent enquiry mode. All USERINPUT calls will bypass the queue.")
+            return 0
+        elif args.enquiry_mode == 'off':
+            config["enquiry_mode"] = False
+            with open(TOOL_INTERNAL / "config.json", 'w') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            print(f"{_B}{_G}Disabled{_R} persistent enquiry mode. USERINPUT will check the queue first.")
+            return 0
+        else:
+            is_on = config.get("enquiry_mode", False)
+            status = f"{_G}on{_R}" if is_on else "off"
+            print(f"{_B}Enquiry mode{_R}: {status}")
+            return 0
+
     # --list / --gui / --move-* / --add / --delete without context are invalid
     mgmt_flags = args.list or args.gui or args.add or args.delete is not None
     mgmt_flags = mgmt_flags or any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
@@ -1010,8 +1042,9 @@ def main():
     from interface.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
-    # ── Queue claiming (unless --enquiry bypasses it) ─────
-    if not args.enquiry:
+    # ── Queue claiming (unless --enquiry or persistent enquiry_mode bypasses it) ─
+    is_enquiry = args.enquiry or get_config().get("enquiry_mode", False)
+    if not is_enquiry:
         _qmod = _load_queue_module()
         queued = _qmod.claim()
         if queued:

@@ -187,7 +187,7 @@ def build_execute_workflow(command, as_python=False, marker=None):
 
 def _is_cdp_available():
     try:
-        from logic.cdp.colab import is_chrome_cdp_available
+        from logic.chrome.session import is_chrome_cdp_available
         return is_chrome_cdp_available()
     except Exception:
         return False
@@ -203,7 +203,7 @@ def _run_cdp_execute(command, as_python=False):
     else:
         cell_code = f"!{command} && echo {marker} || echo {marker}"
 
-    from logic.cdp.colab import inject_and_execute
+    from tool.GOOGLE.logic.chrome.colab import inject_and_execute
     result = inject_and_execute(
         code=cell_code, port=9222, timeout=120,
         done_marker=marker
@@ -295,7 +295,8 @@ def _run_cdp_with_turing(command, as_python=False):
         return False
 
     def _stage_find_tab(stage):
-        from logic.cdp.colab import find_colab_tab, CDPSession, _reopen_colab_tab as reopen_colab_tab
+        from logic.chrome.session import CDPSession
+        from tool.GOOGLE.logic.chrome.colab import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
         tab = find_colab_tab()
         if not tab:
             stage.active_name = "Reopening Colab tab..."
@@ -358,10 +359,10 @@ def _run_cdp_with_turing(command, as_python=False):
 
         code, output = _run_cdp_execute(command, as_python)
 
-        from logic.cdp.colab import find_colab_tab as _find_tab
+        from tool.GOOGLE.logic.chrome.colab import find_colab_tab as _find_tab
         _tab = _find_tab()
         if _tab and _tab.get("webSocketDebuggerUrl"):
-            from logic.cdp.colab import CDPSession as _CdpCls
+            from logic.chrome.session import CDPSession as _CdpCls
             _cdp_session_holder[0] = _CdpCls(_tab["webSocketDebuggerUrl"], timeout=10)
             if overlay:
                 try:

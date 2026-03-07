@@ -7,7 +7,7 @@ service account or OAuth token.
 import json
 from typing import Dict, Any, Optional
 
-from tool.GOOGLE.logic.chrome.session import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
 )

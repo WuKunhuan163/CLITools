@@ -181,6 +181,8 @@ _LOCK_JS_TEMPLATE = r"""
         'user-select: none',
         'cursor: pointer',
         'letter-spacing: 0.3px',
+        'text-align: center',
+        'max-width: 90vw',
     ].join('; ');
     label.textContent = "Locked by Terminal Tool '" + toolName + "' — Double-click to unlock";
 
@@ -292,6 +294,26 @@ _LOCK_JS_TEMPLATE = r"""
     shade.appendChild(cursorBadge);
     document.documentElement.appendChild(shade);
     window.__cdmcp_locked__ = true;
+
+    if (window.__cdmcp_doc_flash_listener__) {
+        document.removeEventListener('mousedown', window.__cdmcp_doc_flash_listener__, true);
+    }
+    window.__cdmcp_doc_flash_listener__ = function(e) {
+        if (!window.__cdmcp_locked__) return;
+        var s = document.getElementById('__LOCK_ID__');
+        if (!s) return;
+        var pe = getComputedStyle(s).pointerEvents;
+        if (pe === 'none') {
+            s.style.background = 'rgba(0, 0, 0, ' + flashOpacity + ')';
+            setTimeout(function() {
+                if (s && s.parentNode) {
+                    s.style.background = 'rgba(0, 0, 0, ' + baseOpacity + ')';
+                }
+            }, 300);
+        }
+    };
+    document.addEventListener('mousedown', window.__cdmcp_doc_flash_listener__, true);
+
     return 'lock_injected';
 })()
 """.replace("__LOCK_ID__", CDMCP_LOCK_ID)

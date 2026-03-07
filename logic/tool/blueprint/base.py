@@ -139,7 +139,7 @@ class ToolBase:
     def get_hooks_engine(self):
         """Return the HooksEngine for this tool, creating it lazily."""
         if self._hooks_engine is None:
-            from logic.tool.hooks.engine import HooksEngine
+            from logic.hooks.engine import HooksEngine
             self._hooks_engine = HooksEngine(
                 self.tool_dir, tool_name=self.tool_name,
                 project_root=self.project_root,
@@ -237,31 +237,69 @@ class ToolBase:
             for a in sys.argv[1:]
         ]
 
-        # ---- Flag intercepts (before argparse) ----
-        if "--dev" in sys.argv:
-            idx = sys.argv.index("--dev")
-            dev_args = sys.argv[idx + 1:]
-            if dev_handler:
-                dev_handler(dev_args)
-            else:
-                self._handle_default_dev(dev_args)
+        # ---- Framework flag intercepts (--prefixed, before argparse) ----
+        def _extract_flag_args(flag):
+            """Extract arguments after a --flag from sys.argv."""
+            if flag in sys.argv:
+                idx = sys.argv.index(flag)
+                return sys.argv[idx + 1:]
+            return None
+
+        dev_args = _extract_flag_args("--dev")
+        if dev_args is not None:
+            (dev_handler or self._handle_default_dev)(dev_args)
             return True
 
-        if "--test" in sys.argv:
-            idx = sys.argv.index("--test")
-            test_args = sys.argv[idx + 1:]
-            if test_handler:
-                test_handler(test_args)
-            else:
-                self._handle_default_test(test_args)
+        test_args = _extract_flag_args("--test")
+        if test_args is not None:
+            (test_handler or self._handle_default_test)(test_args)
             return True
 
-        if "--setup" in sys.argv or (len(sys.argv) > 1 and sys.argv[1] == "setup"):
+        if _extract_flag_args("--setup") is not None:
             self.run_setup()
             return True
 
-        if "--rule" in sys.argv or (len(sys.argv) > 1 and sys.argv[1] == "rule"):
+        if _extract_flag_args("--rule") is not None:
             self.print_rule()
+            return True
+
+        config_args = _extract_flag_args("--config")
+        if config_args is not None:
+            is_custom_config = False
+            if parser:
+                for action in parser._actions:
+                    if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
+                        is_custom_config = True
+                        break
+            if not is_custom_config:
+                self._handle_tool_config(config_args)
+                return True
+
+        install_args = _extract_flag_args("--install")
+        if install_args is not None:
+            if install_args:
+                self.run_subtool_install(install_args[0])
+            else:
+                print(f"Usage: {self.tool_name} --install <SUBTOOL_NAME>")
+            return True
+
+        uninstall_args = _extract_flag_args("--uninstall")
+        if uninstall_args is not None:
+            if uninstall_args:
+                force_yes = "-y" in uninstall_args or "--yes" in uninstall_args
+                self.run_subtool_uninstall(uninstall_args[0], force_yes=force_yes)
+            else:
+                print(f"Usage: {self.tool_name} --uninstall <SUBTOOL_NAME> [-y]")
+            return True
+
+        skills_args = _extract_flag_args("--skills")
+        if skills_args is not None:
+            self._handle_skills_command(skills_args)
+            return True
+
+        hooks_args = _extract_flag_args("--hooks")
+        if hooks_args is not None:
+            self._handle_hooks_command(hooks_args)
             return True
 
         if len(sys.argv) > 1:
@@ -275,37 +313,6 @@ class ToolBase:
                 else:
                     self.print_default_help()
                 return True
-            elif cmd == "install":
-                if len(args_to_check) > 1:
-                    subtool_name = args_to_check[1]
-                    self.run_subtool_install(subtool_name)
-                else:
-                    print(f"Usage: {self.tool_name} install <SUBTOOL_NAME>")
-                return True
-            elif cmd == "uninstall":
-                if len(args_to_check) > 1:
-                    subtool_name = args_to_check[1]
-                    force_yes = "-y" in args_to_check or "--yes" in args_to_check
-                    self.run_subtool_uninstall(subtool_name, force_yes=force_yes)
-                else:
-                    print(f"Usage: {self.tool_name} uninstall <SUBTOOL_NAME> [-y]")
-                return True
-            elif cmd == "skills":
-                self._handle_skills_command(args_to_check[1:])
-                return True
-            elif cmd == "hooks":
-                self._handle_hooks_command(args_to_check[1:])
-                return True
-            elif cmd == "config":
-                is_custom_config = False
-                if parser:
-                    for action in parser._actions:
-                        if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
-                            is_custom_config = True
-                            break
-                if not is_custom_config:
-                    self._handle_tool_config(args_to_check[1:])
-                    return True
 
             subtool_main = self.tool_dir / "tool" / cmd / "main.py"
             if not cmd.startswith("-") and subtool_main.exists():
@@ -368,11 +375,11 @@ class ToolBase:
 
         if subcmd == "sanity-check":
             fix = "--fix" in args
-            from logic.tool.dev.commands import dev_sanity_check
+            from logic.dev.commands import dev_sanity_check
             dev_sanity_check(self.tool_name, self.project_root, fix=fix)
         elif subcmd == "audit-test":
             fix = "--fix" in args
-            from logic.tool.dev.commands import dev_audit_test
+            from logic.dev.commands import dev_audit_test
             dev_audit_test(self.tool_name, self.project_root, fix=fix)
         elif subcmd == "info":
             print(f"\n{BOLD}{self.tool_name} Developer Info{RESET}")
@@ -408,7 +415,10 @@ class ToolBase:
         test_tool_with_args(test_args, self.project_root)
 
     def _handle_tool_config(self, args):
-        """Handle tool-specific configuration settings."""
+        """Handle tool-specific configuration settings.
+
+        Invoked via ``TOOL --config [options]`` or ``TOOL config [options]``.
+        """
         import argparse
         config_path = self.get_data_dir() / "config.json"
         config = {}
@@ -416,36 +426,51 @@ class ToolBase:
             try:
                 with open(config_path, 'r') as f: config = json.load(f)
             except Exception: pass
-        
+
+        config_parser = argparse.ArgumentParser(
+            prog=f"{self.tool_name} --config",
+            description=f"Configuration for {self.tool_name}",
+        )
+        config_parser.add_argument("--cpu-limit", type=float,
+                                   help="Set CPU load limit (e.g., 70.0)")
+        config_parser.add_argument("--cpu-timeout", type=int,
+                                   help="Set CPU wait timeout in seconds")
+        config_parser.add_argument("--show", action="store_true",
+                                   help="Show current configuration")
+
+        known_args, _ = config_parser.parse_known_args(args)
+
+        if known_args.show or (not any(v is not None for k, v in vars(known_args).items()
+                                       if k != "show")):
+            from logic.config import get_color
+            BOLD, RESET = get_color("BOLD"), get_color("RESET")
+            if config:
+                print(f"{BOLD}{self.tool_name} configuration:{RESET}")
+                for k, v in sorted(config.items()):
+                    print(f"  {k}: {v}")
+            else:
+                print(f"{BOLD}No configuration set{RESET} for {self.tool_name}.")
+            if not config or known_args.show:
+                return
+
         updated = False
-        
-        # Parse arguments for tool-specific config
-        config_parser = argparse.ArgumentParser(add_help=False)
-        config_parser.add_argument("--cpu-limit", type=float, help="Set CPU limit for this tool (e.g., 70.0)")
-        config_parser.add_argument("--cpu-timeout", type=int, help="Set CPU wait timeout for this tool (seconds)")
-        
-        # Allow unknown args to pass through, but parse known ones
-        known_args, unknown_args = config_parser.parse_known_args(args)
-        
         if known_args.cpu_limit is not None:
             config["cpu_limit"] = known_args.cpu_limit
             updated = True
         if known_args.cpu_timeout is not None:
             config["cpu_timeout"] = known_args.cpu_timeout
             updated = True
-        
+
         if updated:
             config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(config_path, 'w') as f:
                 json.dump(config, f, indent=2)
-            
+
             from logic.config import get_color
             BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
             print(f"{BOLD}{GREEN}Successfully updated{RESET} {self.tool_name} configuration:")
-            for k, v in config.items():
+            for k, v in sorted(config.items()):
                 print(f"  {k}: {v}")
-        else:
-            print(f"Usage: {self.tool_name} config [--cpu-limit <float>] [--cpu-timeout <int>]")
 
     def _get_tool_skills(self):
         """Get skills relevant to this tool from tool.json and tool-level skills/ directory."""
@@ -872,7 +897,7 @@ class ToolBase:
 
     def run_subtool_install(self, subtool_name):
         """Standardized sub-tool installation logic."""
-        from logic.tool.setup.engine import ToolEngine
+        from logic.setup.engine import ToolEngine
         
         # Subtools use the naming convention: PARENT.SUBTOOL
         # and are stored directly in the project root's tool/ directory.
@@ -910,7 +935,7 @@ class ToolBase:
                 print(get_translation(gui_logic_dir, "uninstall_cancelled", "Uninstall cancelled."))
                 return False
 
-        from logic.tool.setup.engine import ToolEngine
+        from logic.setup.engine import ToolEngine
         engine = ToolEngine(subtool_full_name, self.project_root)
         return engine.uninstall()
 

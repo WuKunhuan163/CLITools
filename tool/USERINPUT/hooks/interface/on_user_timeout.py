@@ -7,7 +7,7 @@ kwargs:
     timeout_sec: int
     partial_text: str (any partial text the user had typed)
 """
-from logic.tool.hooks.engine import HookInterface
+from logic.hooks.engine import HookInterface
 
 
 class OnUserTimeout(HookInterface):

@@ -1572,6 +1572,7 @@ def open_quick_actions(query: str = "", port: int = CDP_PORT) -> Dict[str, Any]:
         })
         time.sleep(0.8)
         if query:
+            from logic.chrome.session import insert_text
             for ch in query:
                 insert_text(cdp, ch)
                 time.sleep(0.03)

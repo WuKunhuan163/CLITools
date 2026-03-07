@@ -19,3 +19,9 @@ WPS docs      # Recent documents (requires auth)
 - Requires Chrome CDP on port 9222
 - Searches for tabs matching `kdocs`, `wps.cn`, or `wps.com`
 - WPS login supports WeChat, QQ, and email/password
+
+## ToS Compliance
+
+**Status: MEDIUM RISK** -- WPS ToS prohibits unauthorized automated access. Current implementation uses DOM scraping (10 DOM calls). **Migration recommended**: KDocs Developer Platform API should be used instead (100 calls/day test, 200/day production). CDMCP should only be retained for initial login.
+
+**Alternative**: WPS WebOffice Open Platform + KDocs Developer API with registered application.

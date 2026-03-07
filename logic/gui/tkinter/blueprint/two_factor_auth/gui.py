@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 from typing import Any, List, Optional, Callable, Dict
-from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
+from logic.gui.tkinter.blueprint.base import BaseGUIWindow, setup_common_bottom_bar
 from logic.gui.tkinter.style import get_label_style, get_gui_colors
 
 class TwoFactorAuthWindow(BaseGUIWindow):

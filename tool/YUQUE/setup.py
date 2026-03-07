@@ -11,12 +11,12 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.setup.engine import ToolEngine
+from logic.setup.engine import ToolEngine
 from logic.utils import print_success_status
 
 def setup():
     tool_name = "YUQUE"
-    engine = ToolEngine(tool_name, project_root)
+    engine = ToolEngine(tool_name, _r)
     
     # 1. Standard installation (dependencies + shortcut)
     return engine.install()

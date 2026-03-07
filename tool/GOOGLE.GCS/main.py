@@ -121,7 +121,7 @@ def main():
             # Without CDP: print workflow instructions for agent
             _cdp_ok = False
             try:
-                from logic.cdp.colab import is_chrome_cdp_available
+                from logic.chrome.session import is_chrome_cdp_available
                 _cdp_ok = is_chrome_cdp_available()
             except Exception:
                 pass

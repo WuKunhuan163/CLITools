@@ -34,6 +34,9 @@ def main():
     p_send = sub.add_parser("send", help="Send a message to a phone number")
     p_send.add_argument("phone", help="Phone number (e.g. +85290549853)")
     p_send.add_argument("message", help="Message text to send")
+    p_contact = sub.add_parser("send-to", help="Send a message to a contact by name")
+    p_contact.add_argument("name", help="Contact display name")
+    p_contact.add_argument("message", help="Message text to send")
 
     if tool.handle_command_line(parser):
         return
@@ -47,7 +50,7 @@ def main():
 
     from tool.WHATSAPP.logic.chrome.api import (
         get_auth_state, get_page_info, get_chats, get_profile,
-        search_contact, send_message,
+        search_contact, send_message, send_to_contact,
     )
 
     if args.command == "status":
@@ -113,6 +116,14 @@ def main():
             print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
             if r.get("page"):
                 print(f"  Page: {r['page'][:100]}")
+
+    elif args.command == "send-to":
+        r = send_to_contact(args.name, args.message)
+        if r.get("ok") and r.get("sent"):
+            matched = r.get("matched", "")
+            print(f"  {BOLD}{GREEN}Sent{RESET} to {args.name} (matched: {matched})")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
     else:
         parser.print_help()

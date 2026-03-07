@@ -2,13 +2,31 @@
 
 ## Quick Start
 ```
-CDMCP status                                    # Check availability + sessions
-CDMCP demo                                      # Continuous interaction demo (default)
-CDMCP demo --single                             # Single-run demo
-CDMCP boot my_session                           # Boot session (new window + welcome + demo)
-CDMCP auth                                      # Google login status
-CDMCP login                                     # Initiate Google login flow
-CDMCP logout                                    # Initiate Google logout flow
+CDMCP --mcp-status                              # Check availability + sessions
+CDMCP --mcp-demo                                # Continuous interaction demo (default)
+CDMCP --mcp-demo --single                       # Single-run demo
+CDMCP --mcp-boot my_session                     # Boot session (new window + welcome + demo)
+CDMCP --mcp-auth                                # Google login status
+CDMCP --mcp-login                               # Initiate Google login flow
+CDMCP --mcp-logout                              # Initiate Google logout flow
+CDMCP --mcp-navigate URL                        # Open URL in new tab
+CDMCP --mcp-navigate URL --tab-id ID            # Navigate existing tab to URL
+CDMCP --mcp-activate TAB_ID                     # Switch focus to a tab
+CDMCP --mcp-minimize                            # Minimize session window
+CDMCP --mcp-restore                             # Restore session window
+CDMCP --mcp-ensure-window                       # Verify window alive; reboot if needed
+CDMCP --mcp-screenshot                          # Screenshot last session tab
+CDMCP --mcp-screenshot --tab-id ID --output P   # Screenshot specific tab to path
+CDMCP --mcp-focus-element PATTERN SELECTOR      # Focus a DOM element in a tab
+CDMCP --mcp-click PATTERN [SELECTOR]            # Click element (or focused element)
+CDMCP --mcp-scroll PATTERN --dx N --dy N        # Scroll in a tab
+CDMCP --mcp-auth                                # Check Google login state
+CDMCP --mcp-login                               # Login (sync, waits + auto-closes tab)
+CDMCP --mcp-logout                              # Logout (clicks Continue, auto-closes)
+CDMCP --mcp-save-auth                           # Save auth cookies for auto-login
+CDMCP --mcp-restore-auth                        # Restore saved cookies (no user interaction)
+CDMCP --mcp-session list                        # List all sessions
+CDMCP --mcp-state                               # Print comprehensive MCP state
 ```
 
 ## Session API
@@ -97,7 +115,36 @@ auth.initiate_logout(session)                   # Open logout tab + track
 6. `interact.mcp_type(cdp, selector, text)` -- Typing with effect
 7. `close_session(name)` -- Cleanup
 
+## `@requires_cdp` — Unified Prerequisite Gate
+
+Every Chrome-dependent API function is decorated with `@requires_cdp()`, which runs a 3-stage check **before** the function body executes:
+
+| Stage | Check | Recovery |
+|-------|-------|----------|
+| 1. Chrome installed | `is_chrome_cdp_available()` | Calls `ensure_chrome()` to auto-relaunch |
+| 2. CDP debug mode | HTTP probe on port 9222 | Waits 2s after relaunch, retries |
+| 3. Session window | `ensure_session_window()` | Full session reboot if window lost |
+
+```python
+@requires_cdp()                       # Full 3-stage (Chrome + CDP + session)
+def navigate(url, port=CDP_PORT): ...
+
+@requires_cdp(check_session=False)    # Stages 1+2 only (Chrome + CDP)
+def google_auth_status(port=CDP_PORT): ...
+```
+
+**Tool developers never need to call `ensure_session_window()` or `is_chrome_cdp_available()` manually.** The decorator extracts the `port` parameter from the wrapped function's signature automatically.
+
+If any stage fails, the function returns early with `{"ok": False, "step": "...", "error": "..."}` without executing the body.
+
+**Decorated functions (15 total):**
+- Full check (`@requires_cdp()`): `navigate`, `focus_tab`, `lock_tab`, `unlock_tab`, `highlight_element`, `clear_highlight`, `cleanup_tab`, `navigate_tab`, `activate_tab`, `minimize_window`, `restore_window`, `run_demo`
+- CDP only (`@requires_cdp(check_session=False)`): `google_auth_status`, `google_auth_login`, `google_auth_logout`
+
+**Not decorated** (local state only): `status`, `list_sessions`, `create_session`, `close_session`, `get_config`, `set_config_value`, `boot_session` (has own lifecycle).
+
 ## Lessons Learned
+- **All Chrome operations inherit prerequisites via `@requires_cdp`.** No manual prerequisite calls needed.
 - **Never navigate the session tab** to the app URL. Always use `require_tab` for separate app tabs.
 - **Demo tab must auto-start** on every boot/reboot. The unified `boot_tool_session` handles this.
 - **Window closure triggers full_reboot**: `require_tab` detects window loss and calls `full_reboot()`.

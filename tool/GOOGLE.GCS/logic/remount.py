@@ -200,6 +200,17 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict, mcp_mode=F
 
     def on_feedback_click(btn):
         btn.config(text=btn_sending_text, state="disabled")
+        try:
+            import subprocess, shutil
+            userinput_bin = shutil.which("USERINPUT")
+            if userinput_bin:
+                subprocess.Popen(
+                    [userinput_bin, "--enquiry",
+                     "--hint", "GCS remount feedback: please describe the issue or provide instructions."],
+                    start_new_session=True,
+                )
+        except Exception:
+            pass
 
     buttons = [
         {
@@ -222,7 +233,7 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict, mcp_mode=F
         "return_value": "Feedback",
         "cmd": None,
         "on_click": on_feedback_click,
-        "close_on_click": True,
+        "close_on_click": not mcp_mode,
         "disable_seconds": 0 if mcp_mode else 15
     })
     

@@ -15,7 +15,7 @@ setup_paths(__file__)
 
 
 def _cdp_enabled():
-    from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
+    from logic.chrome.session import is_chrome_cdp_available
     return is_chrome_cdp_available()
 
 

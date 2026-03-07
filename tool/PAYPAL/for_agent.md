@@ -19,3 +19,9 @@ PAYPAL activity  # Recent transactions (requires auth)
 - Requires Chrome CDP on port 9222
 - PayPal login uses email/password (no Google sign-in)
 - Account and activity commands require authenticated dashboard session
+
+## ToS Compliance
+
+**Status: HIGH RISK** -- PayPal explicitly prohibits "robots, spiders, scraping or other technology to access PayPal." Current implementation uses DOM scraping (9 DOM calls). **Migration needed**: PayPal REST API should be used instead. CDMCP should only be retained for initial login.
+
+**Alternative**: PayPal REST API - account info, transactions, balance with OAuth credentials.

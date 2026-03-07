@@ -250,6 +250,134 @@ def search_contact(query: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+def send_to_contact(name: str, message: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Send a message by contact name — searches for the contact, opens the
+    chat, types the message, and clicks Send.
+
+    Unlike send_message (which requires a phone number), this accepts
+    a display name and uses the search UI to navigate to the chat.
+    """
+    session = _get_session(port)
+    if not session:
+        return {"ok": False, "error": "WhatsApp tab not found"}
+    try:
+        # Focus and click the search box
+        session.evaluate("""
+            (function() {
+                var search = document.querySelector(
+                    "[data-testid='chat-list-search'], " +
+                    "div[contenteditable='true'][data-tab='3'], " +
+                    "div[title='Search input textbox']"
+                );
+                if (search) { search.focus(); search.click(); }
+            })()
+        """)
+        _time.sleep(0.5)
+
+        safe_name = name.replace("\\", "\\\\").replace("'", "\\'")
+        session.send_and_recv("Input.insertText", {"text": safe_name})
+        _time.sleep(3)
+
+        # Click the first matching result
+        clicked = session.evaluate("""
+            (function() {
+                var cells = document.querySelectorAll(
+                    "[data-testid='cell-frame-container']"
+                );
+                if (!cells.length) {
+                    var pane = document.querySelector("#pane-side");
+                    if (pane) cells = pane.querySelectorAll("[role='listitem'], [role='row']");
+                }
+                for (var i = 0; i < cells.length; i++) {
+                    var nameEl = cells[i].querySelector(
+                        "[data-testid='cell-frame-title'] span, span[dir='auto']"
+                    );
+                    if (nameEl) {
+                        var t = nameEl.textContent.trim().toLowerCase();
+                        var q = '%s'.toLowerCase();
+                        if (t.includes(q) || q.includes(t)) {
+                            cells[i].click();
+                            return 'clicked:' + nameEl.textContent.trim();
+                        }
+                    }
+                }
+                if (cells.length > 0) {
+                    cells[0].click();
+                    return 'clicked_first';
+                }
+                return 'none';
+            })()
+        """ % safe_name)
+        _time.sleep(2)
+
+        if clicked == "none":
+            session.send_and_recv("Input.dispatchKeyEvent", {
+                "type": "keyDown", "key": "Escape", "code": "Escape",
+                "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
+            })
+            return {"ok": False, "error": f"Contact '{name}' not found"}
+
+        # Wait for compose box
+        for _ in range(8):
+            has_input = session.evaluate("""
+                (function() {
+                    var inp = document.querySelector(
+                        "[data-testid='conversation-compose-box-input'], " +
+                        "div[contenteditable='true'][data-tab='10'], " +
+                        "div[contenteditable='true'][role='textbox']"
+                    );
+                    return inp ? 'yes' : 'no';
+                })()
+            """)
+            if has_input == "yes":
+                break
+            _time.sleep(1)
+
+        if has_input != "yes":
+            return {"ok": False, "error": "Compose box not found after selecting contact"}
+
+        session.evaluate("""
+            (function() {
+                var inp = document.querySelector(
+                    "[data-testid='conversation-compose-box-input'], " +
+                    "div[contenteditable='true'][data-tab='10'], " +
+                    "div[contenteditable='true'][role='textbox']"
+                );
+                if (inp) { inp.focus(); inp.click(); }
+            })()
+        """)
+        _time.sleep(0.3)
+
+        safe_msg = message.replace("\\", "\\\\").replace("'", "\\'")
+        session.send_and_recv("Input.insertText", {"text": safe_msg})
+        _time.sleep(0.5)
+
+        session.evaluate("""
+            (function() {
+                var btn = document.querySelector(
+                    "[data-testid='send'], [data-icon='send'], [data-icon*='send']"
+                );
+                if (!btn) {
+                    var all = document.querySelectorAll("button, [role='button']");
+                    for (var i = 0; i < all.length; i++) {
+                        var icon = all[i].querySelector("[data-icon]");
+                        if (icon && icon.getAttribute("data-icon").toLowerCase().includes("send")) {
+                            btn = all[i]; break;
+                        }
+                    }
+                }
+                if (btn) btn.click();
+            })()
+        """)
+        _time.sleep(2)
+
+        return {"ok": True, "sent": True, "contact": name, "matched": clicked}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        session.close()
+
+
 def send_message(phone: str, message: str, port: int = CDP_PORT) -> Dict[str, Any]:
     """Send a message to a phone number via WhatsApp Web.
 

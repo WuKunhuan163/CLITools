@@ -32,31 +32,61 @@ def truncate_to_width(text, max_width):
     return truncate_to_display_width(text, safe_width - 2) + f"{RESET}…"
 
 def _get_configured_width():
-    """Get the configured terminal width or the actual terminal size."""
+    """Get the configured terminal width or the actual terminal size.
+
+    The ``terminal_width`` config value is treated as follows:
+      - Positive int  -> fixed override (user-pinned width)
+      - 0, None, ...  -> auto-detect from the real terminal
+
+    Auto-detection order:
+      1. ``os.get_terminal_size`` on each of stderr/stdout/stdin
+      2. ``shutil.get_terminal_size`` (its own FD probing)
+      3. ``stty size`` subprocess
+      4. ``terminal_width_fallback`` config (default 60)
+    """
     config_width = get_global_config("terminal_width")
     if config_width and isinstance(config_width, int) and config_width > 0:
         return config_width
-    
-    # Dynamic detection
-    try:
-        # 1. Try standard shutil
-        columns = shutil.get_terminal_size(fallback=(0, 0)).columns
-        
-        # 2. Try stty size (more reliable in some pseudo-terminals)
-        if columns <= 0:
-            import subprocess
-            try:
-                res = subprocess.run(["stty", "size"], capture_output=True, text=True, timeout=0.1)
-                if res.returncode == 0: columns = int(res.stdout.split()[1])
-            except: pass
-            
-        # 3. Final fallback - use the configured fallback or default to 60
-        if columns <= 0:
-            columns = get_global_config("terminal_width_fallback") or 60
-            
+
+    columns = _detect_terminal_columns()
+    if columns > 0:
         return columns
-    except:
-        return get_global_config("terminal_width_fallback") or 60
+
+    return get_global_config("terminal_width_fallback") or 60
+
+
+def _detect_terminal_columns() -> int:
+    """Probe the real terminal width through multiple methods."""
+    # 1. Try os.get_terminal_size on each standard FD (stderr first —
+    #    it's least likely to be redirected)
+    for fd in (2, 1, 0):
+        try:
+            return os.get_terminal_size(fd).columns
+        except (OSError, ValueError):
+            continue
+
+    # 2. shutil fallback (may check COLUMNS env var)
+    try:
+        cols = shutil.get_terminal_size(fallback=(0, 0)).columns
+        if cols > 0:
+            return cols
+    except Exception:
+        pass
+
+    # 3. stty size (works in some pseudo-terminals where Python FDs fail)
+    try:
+        import subprocess
+        res = subprocess.run(
+            ["stty", "size"], capture_output=True, text=True, timeout=0.2
+        )
+        if res.returncode == 0:
+            parts = res.stdout.split()
+            if len(parts) >= 2:
+                return int(parts[1])
+    except Exception:
+        pass
+
+    return 0
 
 def wrap_text(text, width):
     """

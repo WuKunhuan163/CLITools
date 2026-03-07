@@ -18,3 +18,7 @@ LINEAR page    # Current page state
 - Data comes from localStorage (not direct API)
 - Linear's GraphQL API at `client-api.linear.app` requires token auth
 - User may be authenticated but have no organizations yet
+
+## ToS Compliance
+
+**Status: COMPLIANT** -- This tool only reads from `localStorage` (ApplicationStore) and `document.cookie` for auth state and user info. No DOM manipulation, UI clicking, or form filling is performed. This is equivalent to reading session tokens from the browser context, which is acceptable for the auth/bootstrap flow. For future data operations (issues, projects), the Linear GraphQL API at `api.linear.app/graphql` should be used.

@@ -510,6 +510,9 @@ def wait_for_gdrive_file(project_root: Path, filename: str, timeout: int = 60, s
     env_parent_id = config.get("env_folder_id")
     root_parent_id = config.get("root_folder_id")
     
+    env_tmp_id = None
+    root_tmp_id = None
+
     while time.time() - start_time < timeout:
         token = get_gdrive_access_token(creds)
         if not token:
@@ -519,68 +522,83 @@ def wait_for_gdrive_file(project_root: Path, filename: str, timeout: int = 60, s
             
         headers = {"Authorization": f"Bearer {token}"}
         
-        if not tmp_folder_id:
+        if not env_tmp_id:
             if env_parent_id:
-                tmp_folder_id = get_folder_id(headers, "tmp", parent_id=env_parent_id)
-                if tmp_folder_id:
-                    _write_debug_log(project_root, f"RESOLVED: tmp under REMOTE_ENV, id={tmp_folder_id}")
-            if not tmp_folder_id and root_parent_id:
-                tmp_folder_id = get_folder_id(headers, "tmp", parent_id=root_parent_id)
-                if tmp_folder_id:
-                    _write_debug_log(project_root, f"RESOLVED: tmp under REMOTE_ROOT (fallback), id={tmp_folder_id}")
-            if not tmp_folder_id:
+                env_tmp_id = get_folder_id(headers, "tmp", parent_id=env_parent_id)
+                if env_tmp_id:
+                    _write_debug_log(project_root, f"RESOLVED: tmp under REMOTE_ENV, id={env_tmp_id}")
+            if not env_tmp_id:
                 if not env_parent_id:
                     env_parent_id = get_folder_id(headers, "REMOTE_ENV")
                 if env_parent_id:
-                    tmp_folder_id = get_folder_id(headers, "tmp", parent_id=env_parent_id)
-                if not tmp_folder_id and not root_parent_id:
+                    env_tmp_id = get_folder_id(headers, "tmp", parent_id=env_parent_id)
+            if root_parent_id and not root_tmp_id:
+                root_tmp_id = get_folder_id(headers, "tmp", parent_id=root_parent_id)
+                if root_tmp_id:
+                    _write_debug_log(project_root, f"RESOLVED: tmp under REMOTE_ROOT, id={root_tmp_id}")
+            if not env_tmp_id and not root_tmp_id:
+                if not root_parent_id:
                     root_parent_id = get_folder_id(headers, "REMOTE_ROOT")
-                if not tmp_folder_id and root_parent_id:
-                    tmp_folder_id = get_folder_id(headers, "tmp", parent_id=root_parent_id)
+                if root_parent_id:
+                    root_tmp_id = get_folder_id(headers, "tmp", parent_id=root_parent_id)
+            tmp_folder_id = env_tmp_id or root_tmp_id
             if not tmp_folder_id:
-                _write_debug_log(project_root, "WARN: 'tmp' folder not found under REMOTE_ENV or REMOTE_ROOT, using name-based search")
-                
+                _write_debug_log(project_root, "WARN: 'tmp' folder not found, using name-based search")
+
+        elapsed = time.time() - start_time
+        use_name_search = (not tmp_folder_id) or (elapsed > timeout * 0.5)
+
         import uuid
+        queries = []
         if tmp_folder_id:
-            q = f"'{tmp_folder_id}' in parents and trashed = false"
-        else:
-            q = f"name = '{filename}' and trashed = false"
-            
-        params = {
-            "q": q,
-            "fields": "files(id, name, createdTime, size)",
-            "pageSize": 200,
-            "supportsAllDrives": "true",
-            "includeItemsFromAllDrives": "true",
-            "quotaUser": f"refresh_{uuid.uuid4().hex[:8]}"
-        }
-        
+            queries.append(f"'{tmp_folder_id}' in parents and trashed = false")
+        if env_tmp_id and env_tmp_id != tmp_folder_id:
+            queries.append(f"'{env_tmp_id}' in parents and trashed = false")
+        if use_name_search:
+            queries.append(f"name = '{filename}' and trashed = false")
+        if not queries:
+            queries.append(f"name = '{filename}' and trashed = false")
+
+        found = False
+        total_files_seen = 0
         try:
-            res = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params, timeout=20)
-            if res.status_code == 200:
-                all_files = res.json().get("files", [])
-                target_files = [f for f in all_files if f.get("name") == filename]
-                
-                if target_files:
-                    file_id = target_files[0]['id']
-                    _write_debug_log(project_root, f"FOUND: {filename} (id={file_id}), downloading...")
-                    content_res = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers, timeout=20)
-                    if content_res.status_code == 200:
-                        try:
-                            _write_debug_log(project_root, "SUCCESS: file retrieved as JSON")
-                            return True, "File retrieved", content_res.json()
-                        except:
-                            _write_debug_log(project_root, "SUCCESS: file retrieved as raw text")
-                            return True, "File retrieved (raw)", {"raw": content_res.text}
-                    else:
-                        last_error = f"File found but download failed ({content_res.status_code})"
-                        _write_debug_log(project_root, f"WARN: {last_error}")
+            for qi, q in enumerate(queries):
+                params = {
+                    "q": q,
+                    "fields": "files(id, name, createdTime, size)",
+                    "pageSize": 200,
+                    "supportsAllDrives": "true",
+                    "includeItemsFromAllDrives": "true",
+                    "quotaUser": f"refresh_{uuid.uuid4().hex[:8]}"
+                }
+                res = requests.get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params, timeout=20)
+                if res.status_code == 200:
+                    all_files = res.json().get("files", [])
+                    total_files_seen += len(all_files)
+                    target_files = [f for f in all_files if f.get("name") == filename]
+                    if target_files:
+                        file_id = target_files[0]['id']
+                        _write_debug_log(project_root, f"FOUND: {filename} (id={file_id}, query #{qi+1}), downloading...")
+                        content_res = requests.get(f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media", headers=headers, timeout=20)
+                        if content_res.status_code == 200:
+                            try:
+                                _write_debug_log(project_root, "SUCCESS: file retrieved as JSON")
+                                return True, "File retrieved", content_res.json()
+                            except:
+                                _write_debug_log(project_root, "SUCCESS: file retrieved as raw text")
+                                return True, "File retrieved (raw)", {"raw": content_res.text}
+                        else:
+                            last_error = f"File found but download failed ({content_res.status_code})"
+                            _write_debug_log(project_root, f"WARN: {last_error}")
+                        found = True
+                        break
                 else:
-                    elapsed = int(time.time() - start_time)
-                    _write_debug_log(project_root, f"POLL ({elapsed}s): {len(all_files)} files seen, '{filename}' not found yet")
-            else:
-                last_error = f"API error ({res.status_code})"
-                _write_debug_log(project_root, f"ERROR: {last_error}: {res.text[:200]}")
+                    last_error = f"API error ({res.status_code})"
+                    _write_debug_log(project_root, f"ERROR: {last_error}: {res.text[:200]}")
+
+            if not found:
+                elapsed_s = int(time.time() - start_time)
+                _write_debug_log(project_root, f"POLL ({elapsed_s}s): {total_files_seen} files across {len(queries)} queries, '{filename}' not found yet")
             
             now = time.time()
             if now - last_tm_update > 5:

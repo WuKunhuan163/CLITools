@@ -8,7 +8,7 @@ kwargs:
     timeout: int (seconds)
     title: str
 """
-from logic.tool.hooks.engine import HookInterface
+from logic.hooks.engine import HookInterface
 
 
 class OnGuiPreShow(HookInterface):
