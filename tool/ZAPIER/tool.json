@@ -1,9 +1,0 @@
-{
-  "name": "ZAPIER",
-  "version": "1.0.0",
-  "description": "Workflow automation via Zapier MCP",
-  "purpose": "Access 8000+ apps and 40000+ actions through Zapier's automation platform.",
-  "dependencies": [
-    "PYTHON"
-  ]
-}

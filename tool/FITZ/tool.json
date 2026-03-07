@@ -1,9 +1,0 @@
-{
-  "name": "FITZ",
-  "version": "1.0.0",
-  "description": "Template tool FITZ",
-  "purpose": "Showcase tool development guidelines",
-  "dependencies": [
-    "PYTHON"
-  ]
-}

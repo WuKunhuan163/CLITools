@@ -1,6 +1,0 @@
-{
-  "release": "20260211",
-  "asset": "cpython-3.10.19%2B20260211-aarch64-apple-darwin-pgo%2Blto-full.tar.zst",
-  "version": "3.10.19",
-  "platform": "macos-arm64"
-}

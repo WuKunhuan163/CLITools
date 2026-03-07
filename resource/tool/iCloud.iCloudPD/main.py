@@ -37,7 +37,7 @@ else:
     project_root = curr.parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.tool.blueprint.base import ToolBase
+from logic.tool.base import ToolBase
 from logic.config import get_color
 from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
@@ -66,7 +66,7 @@ def main():
     BOLD, GREEN, BLUE, RESET, YELLOW, RED = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW"), get_color("RED")
     
     # 1. Login and Authentication Flow
-    from tool.iCloud.interface.main import get_icloud_interface
+    from tool.iCloud.logic.interface.main import get_icloud_interface
     from pyicloud import PyiCloudService
     
     icloud = get_icloud_interface()

@@ -15,7 +15,7 @@ project_root = find_project_root()
 if project_root:
     sys.path.insert(0, str(project_root))
 
-from logic.setup.engine import ToolEngine
+from logic.tool.setup.engine import ToolEngine
 
 def setup():
     tool_name = "iCloudPD"

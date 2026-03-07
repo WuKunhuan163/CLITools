@@ -1,9 +1,0 @@
-{
-  "name": "KIMI",
-  "version": "1.0.0",
-  "description": "Kimi AI assistant API integration",
-  "purpose": "Access Kimi AI capabilities for long-context understanding and generation.",
-  "dependencies": [
-    "PYTHON"
-  ]
-}

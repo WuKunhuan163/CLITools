@@ -1,7 +1,0 @@
-{
-  "name": "TODO",
-  "version": "1.0.0",
-  "description": "Agent task management tool",
-  "purpose": "Provide a persistent, JSON-backed todo list for agents to track tasks, mark progress, and manage work items.",
-  "dependencies": ["PYTHON"]
-}

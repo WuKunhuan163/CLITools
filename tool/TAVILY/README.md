@@ -1,3 +1,0 @@
-# TAVILY
-
-TAVILY tool template.

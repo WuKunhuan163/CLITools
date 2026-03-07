@@ -1,7 +1,0 @@
-{
-  "name": "CURL",
-  "version": "1.0.0",
-  "description": "HTTP request tool",
-  "purpose": "Make HTTP requests with structured output and error handling.",
-  "dependencies": []
-}

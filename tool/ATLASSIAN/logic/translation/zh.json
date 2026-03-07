@@ -1,6 +1,0 @@
-{
-  "tool_description": "通过 Chrome DevTools Protocol 管理 Atlassian",
-  "cmd_me": "显示用户信息",
-  "cmd_notifications": "显示通知",
-  "no_tab": "未找到 Atlassian 标签页"
-}

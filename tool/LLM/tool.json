@@ -1,7 +1,0 @@
-{
-  "name": "LLM",
-  "version": "2.0.0",
-  "description": "Unified LLM provider management with rate limiting and session context",
-  "purpose": "Manage LLM API keys, provider selection, rate limiting, and multi-turn sessions. Provides a cross-tool interface for calling LLMs from any tool.",
-  "dependencies": ["PYTHON"]
-}
