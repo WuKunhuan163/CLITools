@@ -2032,7 +2032,15 @@ def main():
     nb_clear = nb_sub.add_parser("clear-outputs", help="Clear all cell outputs")
 
     # GOOGLE.GC reopen
-    subparsers.add_parser("reopen", help="Reopen the configured Colab notebook tab")
+    reopen_p = subparsers.add_parser("reopen", help="Open a Colab notebook in the CDMCP session")
+    reopen_p.add_argument("--id", dest="notebook_id", default=None,
+                          help="Google Drive notebook ID to open")
+    reopen_p.add_argument("--url", dest="notebook_url", default=None,
+                          help="Full Colab notebook URL to open")
+
+    # GOOGLE.GC login
+    login_p = subparsers.add_parser("login", help="Sign in to Google for Colab access")
+    login_p.add_argument("--email", default=None, help="Google account email address")
 
     # GOOGLE.GC oauth
     subparsers.add_parser("oauth", help="Handle OAuth dialog if present")
@@ -2047,7 +2055,7 @@ def main():
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
 
-    from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, CDPSession, CDP_PORT
+    from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
     from tool.GOOGLE.logic.chrome.colab import find_colab_tab, reopen_colab_tab, inject_and_execute
     from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_tabs
 
@@ -2132,26 +2140,35 @@ def main():
 
     elif args.command == "reopen":
         _log = lambda m: print(f"  {BOLD}{BLUE}[GC]{RESET} {m}")
+        # Determine URL: CLI args > config > default
+        if getattr(args, "notebook_url", None):
+            open_url = args.notebook_url
+        elif getattr(args, "notebook_id", None):
+            open_url = f"https://colab.research.google.com/drive/{args.notebook_id}"
+        else:
+            open_url = _get_colab_open_url() or "https://colab.research.google.com/"
         try:
             from logic.cdmcp_loader import (
                 load_cdmcp_overlay, load_cdmcp_sessions,
             )
             sm = load_cdmcp_sessions()
             session = sm.get_any_active_session()
+            if session:
+                alive = any(
+                    t.get("id") == session.lifetime_tab_id
+                    for t in list_tabs(CDP_PORT)
+                )
+                if not alive:
+                    session = None
             if not session:
                 _log("No active session. Booting gc_colab...")
                 boot_r = sm.boot_tool_session("gc_colab")
                 session = boot_r.get("session") if boot_r.get("ok") else None
             if not session:
-                _log("Session boot failed, falling back to legacy reopen.")
-                tab = reopen_colab_tab(log_fn=_log)
-                if tab:
-                    print(f"{BOLD}{GREEN}Reopened{RESET}: {tab.get('title', tab.get('url', '?'))}")
-                else:
-                    print(f"{BOLD}{RED}Failed{RESET} to reopen Colab tab")
+                print(f"{BOLD}{RED}Failed{RESET} to boot CDMCP session")
             else:
-                open_url = _get_colab_open_url() or "https://colab.research.google.com/"
                 _log(f"Using session '{session.name}' (window={session.window_id})")
+                _log(f"Opening: {open_url[:70]}")
                 tab_info = session.require_tab(
                     label="colab",
                     url_pattern="colab.research.google.com",
@@ -2162,7 +2179,7 @@ def main():
                 if tab_info:
                     _log(f"Colab tab ready: {tab_info.get('url', '?')[:60]}")
                     ov = load_cdmcp_overlay()
-                    if ov:
+                    if ov and tab_info.get("ws"):
                         cdp_s = CDPSession(tab_info["ws"], timeout=15)
                         ov.inject_badge(cdp_s, text="GC [colab]", color="#e8710a")
                         ov.inject_focus(cdp_s, color="#e8710a")
@@ -2171,12 +2188,123 @@ def main():
                 else:
                     print(f"{BOLD}{RED}Failed{RESET} to open Colab tab in session")
         except Exception as e:
-            _log(f"Session approach failed ({e}), falling back to legacy.")
-            tab = reopen_colab_tab(log_fn=_log)
-            if tab:
-                print(f"{BOLD}{GREEN}Reopened{RESET}: {tab.get('title', tab.get('url', '?'))}")
+            _log(f"Session error: {e}")
+            print(f"{BOLD}{RED}Failed{RESET} to reopen Colab tab")
+
+    elif args.command == "login":
+        _login_log = lambda m: print(f"  {BOLD}{BLUE}[GC login]{RESET} {m}")
+        email = getattr(args, "email", None)
+        try:
+            from logic.cdmcp_loader import load_cdmcp_overlay, load_cdmcp_sessions, load_cdmcp_interact
+            sm = load_cdmcp_sessions()
+            session = sm.get_any_active_session()
+            if session:
+                alive = any(
+                    t.get("id") == session.lifetime_tab_id
+                    for t in list_tabs(CDP_PORT)
+                )
+                if not alive:
+                    session = None
+            if not session:
+                _login_log("Booting session...")
+                boot_r = sm.boot_tool_session("gc_colab")
+                session = boot_r.get("session") if boot_r.get("ok") else None
+            if not session:
+                print(f"{BOLD}{RED}Failed{RESET}: Could not boot CDMCP session")
+                return
+
+            colab_url = "https://colab.research.google.com/"
+            tab_info = session.require_tab(
+                label="colab", url_pattern="colab.research.google.com",
+                open_url=colab_url, auto_open=True, wait_sec=15.0,
+            )
+            if not tab_info or not tab_info.get("ws"):
+                print(f"{BOLD}{RED}Failed{RESET}: Could not open Colab tab")
+                return
+
+            ov = load_cdmcp_overlay()
+            interact = load_cdmcp_interact()
+            cdp = CDPSession(tab_info["ws"], timeout=15)
+
+            import time as _time
+
+            _login_log("Checking sign-in state...")
+            _time.sleep(2)
+            cdp.send_and_recv('Input.dispatchKeyEvent', {
+                'type': 'keyDown', 'key': 'Escape', 'code': 'Escape',
+                'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27,
+            })
+            cdp.send_and_recv('Input.dispatchKeyEvent', {
+                'type': 'keyUp', 'key': 'Escape', 'code': 'Escape',
+                'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27,
+            })
+            _time.sleep(1)
+
+            has_signout = cdp.evaluate(
+                "!!document.querySelector('a[href*=\"SignOutOptions\"]')"
+            )
+            if has_signout:
+                _login_log("Already signed in!")
+                if ov:
+                    ov.inject_badge(cdp, text="GC [signed in]", color="#34a853")
+                print(f"{BOLD}{GREEN}Already signed in{RESET}")
+                cdp.close()
+                return
+
+            sign_in_info = cdp.evaluate('''
+                (function() {
+                    var btn = document.querySelector('a[href*="ServiceLogin"], [aria-label*="Sign in"], a.sign-in');
+                    if (btn) {
+                        var r = btn.getBoundingClientRect();
+                        return {found: true, x: r.x + r.width/2, y: r.y + r.height/2, text: btn.textContent.trim()};
+                    }
+                    return {found: false};
+                })()
+            ''')
+            if not sign_in_info or not sign_in_info.get("found"):
+                _login_log("No Sign-in button found. User may already be signed in or page needs refresh.")
+                print(f"{BOLD}{RED}No Sign-in button found{RESET}")
+                cdp.close()
+                return
+
+            _login_log(f"Found Sign-in button: \"{sign_in_info.get('text', '')}\"")
+            if interact:
+                interact.mcp_click(cdp,
+                    'a[href*="ServiceLogin"], [aria-label*="Sign in"]',
+                    label="Sign in", dwell=1.0)
+            _time.sleep(3)
+
+            current_url = cdp.evaluate("window.location.href")
+            _login_log(f"Navigated to: {str(current_url)[:60]}")
+
+            if "accounts.google.com" in str(current_url):
+                if email:
+                    _login_log(f"Entering email: {email}")
+                    if interact:
+                        interact.mcp_type(cdp, 'input[type="email"]', email,
+                                          label="Email", char_delay=0.03)
+                    _time.sleep(0.5)
+                    if interact:
+                        interact.mcp_click(cdp, '#identifierNext', label="Next", dwell=0.5)
+                    _time.sleep(3)
+
+                    _login_log("Waiting for password page...")
+                    _login_log("Please enter your password in the browser, then press Enter here.")
+                    print(f"\n  {BOLD}ACTION REQUIRED{RESET}: Enter your password in the Chrome browser window.")
+                    print(f"  {BOLD}Then run{RESET}: USERINPUT to confirm.\n")
+                else:
+                    _login_log("No email provided. Please sign in manually in the browser.")
+                    print(f"\n  {BOLD}ACTION REQUIRED{RESET}: Sign in manually in the Chrome browser.")
+                    print(f"  {BOLD}Tip{RESET}: Use --email to auto-fill the email address.")
+                    print(f"  {BOLD}Then run{RESET}: USERINPUT to confirm.\n")
             else:
-                print(f"{BOLD}{RED}Failed{RESET} to reopen Colab tab")
+                _login_log("Unexpected redirect. Please complete sign-in manually.")
+
+            cdp.close()
+
+        except Exception as e:
+            _login_log(f"Error: {e}")
+            print(f"{BOLD}{RED}Login failed{RESET}: {e}")
 
     elif args.command == "oauth":
         tab = find_colab_tab()

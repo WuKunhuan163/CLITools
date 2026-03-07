@@ -26,8 +26,30 @@ from logic.chrome.session import (
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 _SESSION_DIR = _TOOL_DIR / "data" / "sessions"
 _REPORT_DIR = _TOOL_DIR / "data" / "report"
+_PROJECT_ROOT = _TOOL_DIR.parent.parent
 
 DEFAULT_TIMEOUT_SEC = 86400  # 24 hours
+
+
+def _find_project_python() -> str:
+    """Find the project's default Python with dependencies installed."""
+    import sys as _sys
+    tool_json = _PROJECT_ROOT / "tool" / "PYTHON" / "tool.json"
+    if tool_json.exists():
+        try:
+            with open(tool_json) as f:
+                cfg = json.load(f)
+            default_ver = cfg.get("default_version", "")
+            if default_ver:
+                candidate = _PROJECT_ROOT / "tool" / "PYTHON" / "data" / "install" / default_ver / "install" / "bin" / "python3"
+                if candidate.exists():
+                    return str(candidate)
+        except Exception:
+            pass
+    install_dir = _PROJECT_ROOT / "tool" / "PYTHON" / "data" / "install"
+    for py in sorted(install_dir.glob("*/install/bin/python3")):
+        return str(py)
+    return _sys.executable
 
 
 def _now_ts() -> str:
@@ -335,6 +357,18 @@ class CDMCPSession:
 
         _log_session("full_reboot", self.name, "Starting full reboot...")
 
+        # 0. Kill old demo subprocess if any
+        old_pid = getattr(self, "_demo_pid", None)
+        if old_pid:
+            try:
+                import signal, os
+                os.kill(old_pid, signal.SIGTERM)
+                _log_session("full_reboot:demo_killed", self.name, f"pid={old_pid}")
+            except (ProcessLookupError, OSError):
+                pass
+            self._demo_pid = None
+        self._tabs.clear()
+
         # 1. Build a file:// welcome URL
         welcome_html = _TOOL_DIR / "data" / "welcome.html"
         created_ts = int(self.created_at)
@@ -435,10 +469,14 @@ class CDMCPSession:
                     "spec.loader.exec_module(mod); "
                     f"mod.run_demo_on_tab({demo_ws!r}, port={self.port})"
                 )
+                py_path = _find_project_python()
+                demo_log = _REPORT_DIR / "demo_subprocess.log"
+                _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+                log_f = open(demo_log, "a")
                 proc = subprocess.Popen(
-                    [sys.executable, "-c", inline_code],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    [py_path, "-c", inline_code],
+                    stdout=log_f,
+                    stderr=log_f,
                     start_new_session=True,
                 )
                 self._demo_pid = proc.pid
@@ -464,32 +502,10 @@ class CDMCPSession:
         return (time.time() - self.last_activity) > self.timeout_sec
 
     def close(self):
-        """Close the session, all registered tabs, and kill demo process."""
+        """Close the session: kill demo, close all tabs, reset state."""
         _log_session("close", self.name)
-        if self._cdp:
-            try:
-                self._cdp.close()
-            except Exception:
-                pass
-            self._cdp = None
 
-        # Close all registered tabs (demo, tool-specific, etc.)
-        for label, info in list(self._tabs.items()):
-            tab_id = info.get("id")
-            if tab_id and tab_id != self.lifetime_tab_id:
-                try:
-                    close_tab(tab_id, self.port)
-                    _log_session("close:tab", self.name, f"label={label} id={tab_id}")
-                except Exception:
-                    pass
-        self._tabs.clear()
-
-        # Close lifetime tab last
-        if self.lifetime_tab_id:
-            close_tab(self.lifetime_tab_id, self.port)
-            self.lifetime_tab_id = None
-
-        # Kill demo subprocess if tracked
+        # Kill demo subprocess first to prevent reconnection
         demo_pid = getattr(self, "_demo_pid", None)
         if demo_pid:
             try:
@@ -500,6 +516,31 @@ class CDMCPSession:
                 pass
             self._demo_pid = None
 
+        if self._cdp:
+            try:
+                self._cdp.close()
+            except Exception:
+                pass
+            self._cdp = None
+
+        # Close all tabs in this session's window at once
+        all_tab_ids = set()
+        for label, info in self._tabs.items():
+            tid = info.get("id")
+            if tid:
+                all_tab_ids.add(tid)
+        if self.lifetime_tab_id:
+            all_tab_ids.add(self.lifetime_tab_id)
+
+        for tab_id in all_tab_ids:
+            try:
+                close_tab(tab_id, self.port)
+            except Exception:
+                pass
+        _log_session("close:tabs", self.name, f"closed {len(all_tab_ids)} tabs")
+
+        self._tabs.clear()
+        self.lifetime_tab_id = None
         self._booted = False
 
     # --- Multi-tab tracking ---
@@ -696,6 +737,7 @@ def _save_state():
             "tabs": {label: {"id": info["id"], "url": info.get("url", ""),
                               "state": info.get("state", "unknown")}
                      for label, info in s._tabs.items()},
+            "demo_pid": getattr(s, "_demo_pid", None),
         }
     try:
         with open(_STATE_FILE, "w") as f:
@@ -731,6 +773,7 @@ def _load_state():
                 "url": tab_info.get("url", ""),
                 "state": tab_info.get("state", "unknown"),
             }
+        s._demo_pid = info.get("demo_pid")
         if not s.is_expired():
             _sessions[name] = s
 
@@ -933,13 +976,14 @@ def boot_tool_session(
                             "spec.loader.exec_module(mod); "
                             f"mod.run_demo_on_tab({ws!r}, port={port})"
                         )
-                        python_bin = _TOOL_DIR.parent.parent / "tool" / "PYTHON" / "data" / "install"
-                        py_candidates = list(python_bin.glob("*/install/bin/python3"))
-                        py_path = str(py_candidates[0]) if py_candidates else "python3"
+                        py_path = _find_project_python()
+                        demo_log = _REPORT_DIR / "demo_subprocess.log"
+                        _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+                        log_f = open(demo_log, "a")
                         proc = subprocess.Popen(
                             [py_path, "-c", inline_code],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
+                            stdout=log_f,
+                            stderr=log_f,
                             start_new_session=True,
                         )
                         session._demo_pid = proc.pid

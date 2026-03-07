@@ -172,6 +172,7 @@ def _is_unlocked(overlay, cdp):
 def _check_and_relock(overlay, cdp, session, machine, ds, port):
     """Check if user unlocked, wait 10s with countdown, then re-lock.
 
+    If the user clicks the "Start Demo" button, re-lock immediately.
     Returns the (possibly refreshed) cdp session, or None if unrecoverable.
     """
     cdp = session.get_cdp()
@@ -193,6 +194,13 @@ def _check_and_relock(overlay, cdp, session, machine, ds, port):
         cdp = session.get_cdp()
         if not cdp:
             return None
+        try:
+            takeover = cdp.evaluate("window._isDemoTakeoverRequested ? window._isDemoTakeoverRequested() : false")
+            if takeover:
+                _log("Manual takeover requested. Re-locking immediately.")
+                break
+        except Exception:
+            pass
 
     overlay.inject_lock(cdp, base_opacity=0.08, flash_opacity=0.25)
     overlay.inject_badge(cdp, text="CDMCP Demo", color="#1a73e8")
@@ -316,12 +324,19 @@ def run_demo_on_tab(cdp_ws_url: str, port=CDP_PORT, delay=1.2):
             self.lifetime_tab_id = None
         def get_cdp(self):
             if self._cdp:
-                return self._cdp
+                try:
+                    self._cdp.send_and_recv("Runtime.evaluate",
+                                            {"expression": "1"}, timeout=3)
+                    return self._cdp
+                except Exception:
+                    self._cdp = None
             try:
                 self._cdp = CDPSession(self._ws, timeout=10)
                 return self._cdp
             except Exception:
                 return None
+        def ensure_tab(self):
+            return self.get_cdp() is not None
 
     session = _FakeSession(cdp, cdp_ws_url)
     results = {"steps": [], "ok": True}
@@ -335,8 +350,11 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
     contact_idx = 0
     _log("Starting continuous demo...")
 
+    consecutive_errors = 0
+    MAX_CONSECUTIVE_ERRORS = 20
     try:
         while True:
+          try:
             contact = CONTACTS[contact_idx % len(CONTACTS)]
             pool = CONTACT_MSGS.get(contact, ALICE_MSGS)
             message = pool[msg_idx % len(pool)]
@@ -347,7 +365,11 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
                 machine.transition(ds.DemoState.RECOVERING)
                 cdp = _recover_cdp(session, overlay, port)
                 if not cdp:
-                    _log("Recovery failed. Retrying in 5s...")
+                    consecutive_errors += 1
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                        _log(f"Too many errors ({consecutive_errors}). Exiting.")
+                        break
+                    _log(f"Recovery failed ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}). Retrying in 5s...")
                     machine.transition(ds.DemoState.ERROR, {"error": "CDP lost"})
                     time.sleep(5)
                     continue
@@ -419,6 +441,7 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
 
             msg_idx += 1
             contact_idx += 1
+            consecutive_errors = 0
 
             machine.transition(ds.DemoState.COUNTDOWN)
             wait = random.randint(COUNTDOWN_MIN, COUNTDOWN_MAX)
@@ -435,6 +458,16 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
             if cdp:
                 overlay.inject_badge(cdp, text="CDMCP Demo", color="#1a73e8")
             machine.set_countdown(0)
+
+          except KeyboardInterrupt:
+            raise
+          except Exception as _e:
+            consecutive_errors += 1
+            _log(f"Demo loop error ({consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}): {_e}")
+            if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+                _log("Too many consecutive errors. Exiting demo loop.")
+                break
+            time.sleep(3)
 
     except KeyboardInterrupt:
         _log("Stopped by user.")
