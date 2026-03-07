@@ -79,7 +79,7 @@ class OpenClawCore:
     def __init__(
         self,
         data_dir: Path,
-        backend: str = "nvidia_glm47",
+        backend: str = "nvidia-glm-4-7b",
         log_limit: int = 1024,
         compression_trigger: float = 0.5,
         compression_target: float = 0.1,

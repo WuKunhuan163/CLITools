@@ -33,7 +33,7 @@ def save_api_key(key: str):
 class ZhipuGLM4Provider(LLMProvider):
     """GLM-4-Flash via Zhipu AI free API."""
 
-    name = "zhipu_glm4"
+    name = "zhipu-glm-4-flash"
     cost_model = CostModel(free_tier=True)
 
     def __init__(self, api_key: Optional[str] = None,

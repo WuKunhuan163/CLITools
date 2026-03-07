@@ -30,7 +30,7 @@ setup_paths(__file__)
 from logic.tool.blueprint.base import ToolBase
 from logic.config import get_color
 
-VALID_BACKENDS = ("nvidia_glm47", "zhipu_glm4")
+VALID_BACKENDS = ("nvidia-glm-4-7b", "zhipu-glm-4-flash")
 
 _CONFIG_FILE = Path(__file__).resolve().parent / "data" / "config.json"
 
@@ -96,7 +96,7 @@ def _make_core(args) -> "OpenClawCore":
     cfg = _load_config()
     core = OpenClawCore(
         data_dir=data_dir,
-        backend=getattr(args, "backend", "nvidia_glm47"),
+        backend=getattr(args, "backend", "nvidia-glm-4-7b"),
         log_limit=cfg.get("log_limit", 1024),
     )
     return core
@@ -122,7 +122,7 @@ def cmd_chat(args):
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
 
-    backend = getattr(args, "backend", "nvidia_glm47")
+    backend = getattr(args, "backend", "nvidia-glm-4-7b")
     gui_mode = getattr(args, "gui", "html")
 
     if gui_mode == "tkinter":
@@ -190,7 +190,7 @@ def cmd_status(args):
     from tool.LLM.logic.config import get_config_value
 
     providers = list_providers()
-    active = get_config_value("active_backend", "nvidia_glm47")
+    active = get_config_value("active_backend", "nvidia-glm-4-7b")
 
     print(f"  {BOLD}LLM Providers{RESET}:")
     for p in providers:
@@ -414,8 +414,8 @@ def main():
     )
     parser.add_argument("--port", type=int, default=9222, help="Chrome CDP port")
     parser.add_argument("--backend", choices=VALID_BACKENDS,
-                        default="nvidia_glm47",
-                        help="LLM backend (default: nvidia_glm47)")
+                        default="nvidia-glm-4-7b",
+                        help="LLM backend (default: nvidia-glm-4-7b)")
 
     subparsers = parser.add_subparsers(dest="command")
     p_chat = subparsers.add_parser("chat", help="Launch the chatbot GUI")

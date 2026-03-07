@@ -7,7 +7,7 @@ Re-exports from `tool/LLM/`. All modules in this directory delegate to the canon
 ```python
 from logic.llm import get_provider, SessionContext, RateLimiter, CostModel
 
-provider = get_provider("nvidia_glm47")
+provider = get_provider("nvidia-glm-4-7b")
 result = provider.send([
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Hello!"},

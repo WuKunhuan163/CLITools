@@ -18,8 +18,8 @@ LLM usage --period today # Today's usage only
 
 | Provider | Model | Endpoint | Free Tier |
 |----------|-------|----------|-----------|
-| `nvidia_glm47` | z-ai/glm4.7 (358B) | integrate.api.nvidia.com | 40 RPM, 131K ctx |
-| `zhipu_glm4` | glm-4-flash | open.bigmodel.cn | Rate limited, 128K ctx |
+| `nvidia-glm-4-7b` | z-ai/glm4.7 (358B) | integrate.api.nvidia.com | 40 RPM, 131K ctx |
+| `zhipu-glm-4-flash` | glm-4-flash | open.bigmodel.cn | Rate limited, 128K ctx |
 
 ## Cross-Tool Interface
 
@@ -28,11 +28,11 @@ Other tools access LLM capabilities via the interface:
 ```python
 from tool.LLM.interface.main import send, get_provider, SessionContext
 
-result = send("What is 2+2?", provider_name="zhipu_glm4")
+result = send("What is 2+2?", provider_name="zhipu-glm-4-flash")
 print(result["text"])
 print(result["estimated_cost_usd"])  # Cost estimation per call
 
-provider = get_provider("nvidia_glm47")
+provider = get_provider("nvidia-glm-4-7b")
 ctx = SessionContext(system_prompt="You are helpful.")
 ctx.add_user("Hello")
 result = provider.send(ctx.get_messages_for_api())
@@ -51,7 +51,7 @@ For transient errors (429, 5xx, network), use `retry_on_transient`:
 ```python
 from tool.LLM.interface.main import retry_on_transient, get_provider
 
-provider = get_provider("zhipu_glm4")
+provider = get_provider("zhipu-glm-4-flash")
 messages = [{"role": "user", "content": "Hello"}]
 
 result = retry_on_transient(
@@ -91,8 +91,8 @@ tool/LLM/
     usage.py                     Usage monitoring (data/usage.jsonl)
     registry.py                  Provider discovery and instantiation
     providers/
-      nvidia_glm47.py            NVIDIA Build GLM-4.7
-      zhipu_glm4.py              Zhipu AI GLM-4-Flash
+      nvidia_glm47.py            NVIDIA Build GLM-4.7 (ID: nvidia-glm-4-7b)
+      zhipu_glm4.py              Zhipu AI GLM-4-Flash (ID: zhipu-glm-4-flash)
 ```
 
 ## Configuration

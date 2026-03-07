@@ -12,7 +12,7 @@ get a provider, then call `send()` with an OpenAI-format messages array.
 from logic.llm.registry import get_provider, list_providers, get_default_provider
 
 providers = list_providers()
-provider = get_provider("nvidia_glm47")
+provider = get_provider("nvidia-glm-4-7b")
 provider = get_default_provider()
 ```
 

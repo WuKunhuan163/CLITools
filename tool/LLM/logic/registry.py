@@ -28,23 +28,30 @@ def list_providers() -> List[Dict[str, Any]]:
     return results
 
 
-def get_provider(name: str = "nvidia_glm47", **kwargs) -> LLMProvider:
+_ALIASES = {
+    "nvidia_glm47": "nvidia-glm-4-7b",
+    "zhipu_glm4": "zhipu-glm-4-flash",
+}
+
+
+def get_provider(name: str = "nvidia-glm-4-7b", **kwargs) -> LLMProvider:
     """Get a provider instance by name.
 
     Raises:
         ValueError: If the provider name is not registered.
     """
     _ensure_builtins()
-    if name not in _REGISTRY:
+    resolved = _ALIASES.get(name, name)
+    if resolved not in _REGISTRY:
         available = ", ".join(_REGISTRY.keys())
         raise ValueError(
             f"Unknown LLM provider '{name}'. Available: {available}")
-    return _REGISTRY[name](**kwargs)
+    return _REGISTRY[resolved](**kwargs)
 
 
 def get_default_provider(**kwargs) -> LLMProvider:
-    """Get the default provider (nvidia_glm47)."""
-    return get_provider("nvidia_glm47", **kwargs)
+    """Get the default provider."""
+    return get_provider("nvidia-glm-4-7b", **kwargs)
 
 
 _builtins_loaded = False
@@ -58,7 +65,7 @@ def _ensure_builtins():
     _builtins_loaded = True
 
     from tool.LLM.logic.providers.nvidia_glm47 import NvidiaGLM47Provider
-    register("nvidia_glm47", NvidiaGLM47Provider)
+    register("nvidia-glm-4-7b", NvidiaGLM47Provider)
 
     from tool.LLM.logic.providers.zhipu_glm4 import ZhipuGLM4Provider
-    register("zhipu_glm4", ZhipuGLM4Provider)
+    register("zhipu-glm-4-flash", ZhipuGLM4Provider)

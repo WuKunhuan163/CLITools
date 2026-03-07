@@ -262,11 +262,11 @@ def read_masked(
     """
     if not sys.stdin.isatty():
         try:
-            return input(f"{indent}{BOLD}{prompt}{RESET} ").strip()
+            return input(f"{indent}{prompt} ").strip()
         except (EOFError, KeyboardInterrupt):
             return None
 
-    sys.stdout.write(f"{indent}{BOLD}{prompt}{RESET} ")
+    sys.stdout.write(f"{indent}{prompt} ")
     sys.stdout.flush()
 
     buf = []

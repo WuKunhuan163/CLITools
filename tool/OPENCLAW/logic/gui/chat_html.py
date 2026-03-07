@@ -3,7 +3,7 @@
 Wires the HTML chatbot server to OPENCLAW's pipeline and session manager.
 Supports two backends:
   - ``yuanbao_web``: Tencent Yuanbao via CDMCP (original)
-  - ``nvidia_glm47``: GLM-4.7 via NVIDIA Build API (compliant)
+  - ``nvidia-glm-4-7b``: GLM-4.7 via NVIDIA Build API (compliant)
 """
 from typing import Optional
 
@@ -15,7 +15,7 @@ class OpenClawChatHTML:
     """OPENCLAW-specific wrapper around the HTML ChatbotServer."""
 
     def __init__(self, session_mgr: SessionManager, cdp_port: int = 9222,
-                 backend: str = "nvidia_glm47"):
+                 backend: str = "nvidia-glm-4-7b"):
         self.session_mgr = session_mgr
         self.cdp_port = cdp_port
         self.backend = backend
@@ -24,7 +24,7 @@ class OpenClawChatHTML:
 
     def _create_pipeline(self, session, on_message, on_status, on_title):
         """Create the appropriate pipeline based on backend selection."""
-        if self.backend == "nvidia_glm47":
+        if self.backend in ("nvidia-glm-4-7b", "nvidia_glm47"):
             from tool.OPENCLAW.logic.pipeline_api import APIPipeline
             from tool.LLM.logic.providers.nvidia_glm47 import NvidiaGLM47Provider
             provider = NvidiaGLM47Provider()

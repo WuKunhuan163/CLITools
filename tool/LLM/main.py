@@ -35,9 +35,9 @@ def cmd_setup(args):
     GREEN = get_color("GREEN")
     RESET = get_color("RESET")
 
-    provider_name = getattr(args, "provider", "nvidia_glm47")
+    provider_name = getattr(args, "provider", "nvidia-glm-4-7b")
 
-    if provider_name == "nvidia_glm47":
+    if provider_name in ("nvidia-glm-4-7b", "nvidia_glm47"):
         print(f"  {BOLD}LLM Setup{RESET} -- NVIDIA GLM-4.7")
         print()
         print(f"  Get your free API key from: https://build.nvidia.com/z-ai/glm4_7")
@@ -128,7 +128,7 @@ def cmd_test(args):
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
 
-    provider_name = getattr(args, "provider", "nvidia_glm47")
+    provider_name = getattr(args, "provider", "nvidia-glm-4-7b")
     print(f"  {BOLD}{BLUE}Testing{RESET} provider '{provider_name}'...")
 
     from tool.LLM.logic.registry import get_provider
@@ -169,7 +169,7 @@ def cmd_send(args):
     RESET = get_color("RESET")
 
     message = args.message
-    provider_name = getattr(args, "provider", "nvidia_glm47")
+    provider_name = getattr(args, "provider", "nvidia-glm-4-7b")
 
     from tool.LLM.logic.registry import get_provider
 
@@ -340,8 +340,8 @@ def main():
         description="LLM -- Unified LLM provider management",
         add_help=False
     )
-    parser.add_argument("--provider", default="nvidia_glm47",
-                        help="Provider name (default: nvidia_glm47)")
+    parser.add_argument("--provider", default="nvidia-glm-4-7b",
+                        help="Provider name (default: nvidia-glm-4-7b)")
 
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("setup", help="Configure API key for a provider")
@@ -407,7 +407,7 @@ def main():
         print(f"    dashboard   Open HTML usage dashboard (--serve for persistent server)")
         print()
         print(f"  Options:")
-        print(f"    --provider P   Provider name (default: nvidia_glm47)")
+        print(f"    --provider P   Provider name (default: nvidia-glm-4-7b)")
         print()
         print(f"  First-time setup:")
         print(f"    1. LLM setup   (enter NVIDIA API key)")

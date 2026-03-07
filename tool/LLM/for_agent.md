@@ -23,12 +23,12 @@ from tool.LLM.interface.main import (
 )
 
 # Simple one-shot
-result = send("Hello", provider_name="zhipu_glm4")
+result = send("Hello", provider_name="zhipu-glm-4-flash")
 # result = {"ok": True, "text": "...", "usage": {...},
 #           "latency_s": 1.2, "estimated_cost_usd": 0.0}
 
 # With retry on transient errors
-provider = get_provider("nvidia_glm47")
+provider = get_provider("nvidia-glm-4-7b")
 msgs = [{"role": "user", "content": "Hello"}]
 result = retry_on_transient(
     lambda: provider.send(msgs),
@@ -41,8 +41,8 @@ result = retry_on_transient(
 
 | Name | Model | API URL | Key Config | RPM | Context |
 |------|-------|---------|------------|-----|---------|
-| `nvidia_glm47` | z-ai/glm4.7 | integrate.api.nvidia.com/v1/chat/completions | `nvidia_api_key` / `NVIDIA_API_KEY` | 30 | 131K |
-| `zhipu_glm4` | glm-4-flash | open.bigmodel.cn/api/paas/v4/chat/completions | `zhipu_api_key` / `ZHIPU_API_KEY` | 30 | 128K |
+| `nvidia-glm-4-7b` | z-ai/glm4.7 | integrate.api.nvidia.com/v1/chat/completions | `nvidia_api_key` / `NVIDIA_API_KEY` | 30 | 131K |
+| `zhipu-glm-4-flash` | glm-4-flash | open.bigmodel.cn/api/paas/v4/chat/completions | `zhipu_api_key` / `ZHIPU_API_KEY` | 30 | 128K |
 
 ## Key Modules
 

@@ -36,7 +36,7 @@ def get_info():
     return {"name": "LLM", "version": "2.0.0"}
 
 
-def send(message: str, system: str = "", provider_name: str = "nvidia_glm47",
+def send(message: str, system: str = "", provider_name: str = "nvidia-glm-4-7b",
          temperature: float = 0.7, max_tokens: int = 4096) -> dict:
     """Convenience: send a single message and return the result.
 

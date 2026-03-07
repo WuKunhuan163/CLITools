@@ -6,7 +6,7 @@ feedback in a single terminal session.
 
 Usage:
     from tool.OPENCLAW.logic.gui.cli import OpenClawCLI
-    cli = OpenClawCLI(session_mgr, backend="nvidia_glm47")
+    cli = OpenClawCLI(session_mgr, backend="nvidia-glm-4-7b")
     cli.run()
 """
 import sys
@@ -196,7 +196,7 @@ class OpenClawCLI:
     """
 
     def __init__(self, session_mgr: SessionManager,
-                 backend: str = "nvidia_glm47",
+                 backend: str = "nvidia-glm-4-7b",
                  cdp_port: int = 9222,
                  temperature: float = 0.7,
                  max_tokens: int = 16384,
@@ -238,7 +238,14 @@ class OpenClawCLI:
     @staticmethod
     def _load_saved_backend() -> Optional[str]:
         from tool.LLM.logic.config import get_config_value
-        return get_config_value("active_backend")
+        from tool.LLM.logic.registry import _ALIASES
+        name = get_config_value("active_backend")
+        if name and name in _ALIASES:
+            resolved = _ALIASES[name]
+            from tool.LLM.logic.config import set_config_value
+            set_config_value("active_backend", resolved)
+            return resolved
+        return name
 
     @staticmethod
     def _save_backend(name: str):
@@ -358,13 +365,16 @@ class OpenClawCLI:
                 print(f"    {DIM}{_('get_key_at', 'Get a key at: {url}', url=url_map[selected['value']])}{RESET}")
                 if existing:
                     masked = existing[:8] + "..." + existing[-4:] if len(existing) > 12 else existing
+                    label = _("enter_api_key_label", "Enter API key")
+                    hint = _("keep_current_key_hint",
+                             "(enter to use current key {current_key})",
+                             current_key=masked)
                     api_key = read_masked(
-                        _("enter_api_key_keep",
-                          "Enter API key (enter to use current key {current_key}):",
-                          current_key=masked),
+                        f"{BOLD}{label}{RESET} {DIM}{hint}{RESET}:",
                         allow_empty=True)
                 else:
-                    api_key = read_masked(_("enter_api_key", "Enter API key:"))
+                    api_key = read_masked(
+                        f"{BOLD}{_('enter_api_key_label', 'Enter API key')}{RESET}:")
 
                 if api_key is None:
                     from logic.turing.select import erase_lines
@@ -392,7 +402,7 @@ class OpenClawCLI:
                     self.backend = ready[0]["name"]
                     self._save_backend(self.backend)
                     self._init_provider()
-                    print(f"  {BOLD}{_('active_model', 'Active model: {name} ({model}).', name=ready[0]['name'], model=ready[0]['model'])}{RESET}")
+                    print(f"  {_('active_model_prefix', 'Active model:')} {BOLD}{ready[0]['name']}{RESET} {DIM}({ready[0]['model']}){RESET}")
                     return
 
                 model_options = []
@@ -409,7 +419,7 @@ class OpenClawCLI:
                 self.backend = chosen["value"]
                 self._save_backend(self.backend)
                 self._init_provider()
-                print(f"  {BOLD}{_('switched_model', 'Switched to {name}.', name=chosen['value'])}{RESET}")
+                print(f"  {_('switched_to_prefix', 'Switched to')} {BOLD}{chosen['value']}{RESET}.")
                 return
 
     _IDLE = "\u25A1"    # □
@@ -658,7 +668,7 @@ class OpenClawCLI:
             self._save_backend(self.backend)
             self._init_provider()
             self._context = None
-            print(f"  {BOLD}{_('switched_model', 'Switched to {name}.', name=self.backend)}{RESET}")
+            print(f"  {_('switched_to_prefix', 'Switched to')} {BOLD}{self.backend}{RESET}.")
 
     def _manage_sandbox(self, direct_cmd: str = "", direct_policy: str = ""):
         """Interactive sandbox policy manager.

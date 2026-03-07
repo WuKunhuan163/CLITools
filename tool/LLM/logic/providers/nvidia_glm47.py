@@ -35,7 +35,7 @@ def save_api_key(key: str):
 class NvidiaGLM47Provider(LLMProvider):
     """GLM-4.7 via NVIDIA Build free API."""
 
-    name = "nvidia_glm47"
+    name = "nvidia-glm-4-7b"
     cost_model = CostModel(free_tier=True)
 
     def __init__(self, api_key: Optional[str] = None,
