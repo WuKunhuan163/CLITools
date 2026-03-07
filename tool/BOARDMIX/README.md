@@ -1,62 +1,30 @@
 # BOARDMIX
 
-BOARDMIX tool template.
+Boardmix collaborative whiteboard automation via CDMCP (Chrome DevTools MCP).
 
-## Quick Start
+## Purpose
 
-```bash
-BOARDMIX --demo         # Run demo
-BOARDMIX --setup        # Install dependencies
-BOARDMIX --help         # Show help
-```
+Access Boardmix boards, mind maps, flowcharts, and collaborative features via the authenticated boardmix.com session using Chrome DevTools Protocol.
 
 ## MCP Commands
 
-If this tool implements CDMCP browser automation, all MCP commands use the `--mcp-` prefix:
-
 ```bash
-BOARDMIX --mcp-boot          # Boot session
-BOARDMIX --mcp-status        # Check status
-BOARDMIX --mcp-<command>     # Any MCP operation
+BOARDMIX --mcp-boot          # Boot CDMCP session with Boardmix tab
+BOARDMIX --mcp-status        # Check auth state and page info
+BOARDMIX --mcp-state         # Get full MCP state as JSON
+BOARDMIX --mcp-session       # Show session details
+BOARDMIX --mcp-boards        # List boards on current page
+BOARDMIX --mcp-explore       # Run DOM exploration (Phase 1)
 ```
 
-## Built-in Commands
+## Setup
 
-| Command | Description |
-|---------|-------------|
-| `--setup` | Run tool setup |
-| `--test` | Run unit tests |
-| `--dev <cmd>` | Developer commands |
-| `--rule` | Show AI rules |
+1. Ensure Chrome is running with remote debugging on port 9222.
+2. Log into boardmix.com in Chrome.
+3. Run `BOARDMIX --mcp-boot` to create a CDMCP session.
 
-## Hooks
+## Dependencies
 
-Event-driven callback system.
-
-```bash
-BOARDMIX hooks list                  # List events and instances
-BOARDMIX hooks enable demo_logger    # Enable the demo logger hook
-BOARDMIX hooks disable demo_logger   # Disable it
-```
-
-### Hook Events
-
-| Event | Description |
-|-------|-------------|
-| `on_tool_start` | Fired when the tool begins execution (base) |
-| `on_tool_exit` | Fired when the tool finishes execution (base) |
-| `on_demo_action` | Fired during --demo countdown |
-
-## Interface
-
-```python
-from interface import get_interface
-iface = get_interface("BOARDMIX")
-info = iface.get_info()  # {"name": "BOARDMIX", "version": "1.0.0"}
-```
-
-## Testing
-
-```bash
-TOOL --test BOARDMIX
-```
+- PYTHON (runtime)
+- websocket-client (CDP communication)
+- GOOGLE.CDMCP (session management, overlays, interactions)

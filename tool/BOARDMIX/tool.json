@@ -1,9 +1,12 @@
 {
   "name": "BOARDMIX",
   "version": "1.0.0",
-  "description": "Template tool BOARDMIX",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Boardmix collaborative whiteboard via CDMCP",
+  "purpose": "Access Boardmix boards, mind maps, flowcharts, and collaborative features via the authenticated boardmix.com session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }
