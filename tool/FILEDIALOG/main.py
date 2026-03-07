@@ -604,8 +604,17 @@ if __name__ == "__main__":
 
 def main():
     tool = FileDialogTool()
+
+    # Early intercept remote GUI control commands (--gui-submit, --gui-cancel, --gui-stop, --gui-add-time)
+    _gui_cmd_map = {"--gui-submit": "submit", "--gui-cancel": "cancel", "--gui-stop": "stop", "--gui-add-time": "add_time"}
+    _gui_match = next((f for f in _gui_cmd_map if f in sys.argv), None)
+    if _gui_match:
+        from logic.interface.gui import handle_gui_remote_command
+        remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
+        return handle_gui_remote_command("FILEDIALOG", tool.project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation)
+
     parser = argparse.ArgumentParser(description="FILEDIALOG Tool")
-    parser.add_argument('command', nargs='?', help="Command to run (stop, submit, cancel)")
+    parser.add_argument('command', nargs='?', help="Command to run")
     parser.add_argument('--types', type=str, default="all")
     parser.add_argument('--title', type=str, default="Select File")
     parser.add_argument('--dir', type=str)
@@ -615,11 +624,6 @@ def main():
     
     if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
-    
-    if args.command in ["stop", "submit", "cancel", "add_time"]:
-        from logic.interface.gui import handle_gui_remote_command
-        remote_args = sys.argv[2:]
-        return handle_gui_remote_command("FILEDIALOG", tool.project_root, args.command, remote_args, tool.get_translation)
 
     initial_dir = args.dir or os.getcwd()
     file_types = parse_file_types(args.types)

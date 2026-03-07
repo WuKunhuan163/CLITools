@@ -91,10 +91,106 @@ def main():
     parser.add_argument("--python", action="store_true", help="Force Python script generation")
     parser.add_argument("--raw", action="store_true", help="Raw command mode: run directly in Colab terminal with result capture")
     parser.add_argument("--no-capture", action="store_true", dest="no_capture", help="No-capture mode: run directly without capturing output (for pip install, long tasks)")
+    parser.add_argument("--mcp-create-notebook", action="store_true", dest="mcp_create_notebook", help="Check/create .root.ipynb via browser MCP workflow")
+    parser.add_argument("--mcp-save-notebook", dest="mcp_save_notebook", metavar="FILE_ID", help="Save notebook file ID after browser-based creation")
+    # --mcp subcommands (boot, shutdown, status, setup-tutorial) are early-intercepted before argparse
+    # --mcp-create and --mcp-upload are early-intercepted before argparse
     
     # Decide whether to use tool.handle_command_line based on command recognition
     use_system_fallback = False
     
+    # Early intercept remote GUI control commands (--gui-submit, --gui-cancel, --gui-stop, --gui-add-time)
+    _gui_cmd_map = {"--gui-submit": "submit", "--gui-cancel": "cancel", "--gui-stop": "stop", "--gui-add-time": "add_time"}
+    _gui_match = next((f for f in _gui_cmd_map if f in sys.argv), None)
+    if _gui_match:
+        from logic.interface.gui import handle_gui_remote_command
+        remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
+        sys.exit(handle_gui_remote_command("GOOGLE.GCS", project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation))
+
+    # Early intercept --mcp: management subcommands or decorator
+    # Management: GCS --mcp boot | shutdown | status | setup-tutorial
+    # Decorator:  GCS <command> --mcp [--json]
+    _MCP_MANAGEMENT_CMDS = {"boot", "shutdown", "status", "setup-tutorial"}
+    if "--mcp" in sys.argv:
+        import importlib.util
+        def _load_mcp_module(name):
+            p = Path(__file__).resolve().parent / "logic" / f"{name}.py"
+            spec = importlib.util.spec_from_file_location(f"gcs_{name}", str(p))
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            return m
+
+        idx = sys.argv.index("--mcp")
+        next_arg = sys.argv[idx + 1] if idx + 1 < len(sys.argv) else ""
+        next_arg_clean = next_arg.lstrip("-")
+
+        if next_arg_clean in _MCP_MANAGEMENT_CMDS:
+            cdp_mod = _load_mcp_module("mcp/cdp_boot")
+            if next_arg_clean == "boot":
+                sys.exit(cdp_mod.run_mcp_boot())
+            elif next_arg_clean == "shutdown":
+                sys.exit(cdp_mod.run_mcp_shutdown())
+            elif next_arg_clean == "setup-tutorial":
+                sys.exit(cdp_mod.run_mcp_setup_tutorial())
+            else:
+                sys.exit(cdp_mod.run_mcp_status())
+        else:
+            clean = [a for a in sys.argv[1:] if a not in ("--mcp", "--json", "--no-warning", "--python")]
+            as_json_flag = "--json" in sys.argv
+            as_python_flag = "--python" in sys.argv
+            command = " ".join(clean)
+            if not command:
+                print(f"{get_color('BOLD')}{get_color('RED')}Missing command{get_color('RESET')}. Usage: GCS --mcp <boot|shutdown|status|setup-tutorial> or GCS <command> --mcp")
+                sys.exit(1)
+            mcp_exec = _load_mcp_module("mcp/execute")
+            sys.exit(mcp_exec.run_mcp_execute(command, as_python=as_python_flag, as_json=as_json_flag))
+
+    # Early intercept MCP commands that have complex args
+    if "--mcp-create" in sys.argv:
+        import importlib.util
+        def _load(name):
+            p = Path(__file__).resolve().parent / "logic" / f"{name}.py"
+            spec = importlib.util.spec_from_file_location(f"gcs_{name}", str(p))
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            return m
+        idx = sys.argv.index("--mcp-create")
+        mcp_args = sys.argv[idx + 1:]
+        as_json_flag = "--json" in mcp_args
+        mcp_args = [a for a in mcp_args if a not in ("--json", "--no-warning")]
+        file_type = mcp_args[0] if mcp_args else None
+        folder_spec = "~"
+        filename = None
+        rest = mcp_args[1:]
+        if "--name" in rest:
+            ni = rest.index("--name")
+            if ni + 1 < len(rest):
+                filename = rest[ni + 1]
+            rest = rest[:ni] + rest[ni + 2:]
+        if rest:
+            folder_spec = rest[0]
+        if not file_type:
+            print(f"{get_color('BOLD')}{get_color('RED')}Missing type{get_color('RESET')}. Usage: GCS --mcp-create TYPE [FOLDER] [--name NAME]")
+            sys.exit(1)
+        mcp_cr = _load("mcp/create")
+        sys.exit(mcp_cr.run_mcp_create(file_type, folder_spec, filename, as_json=as_json_flag))
+
+    if "--mcp-upload" in sys.argv:
+        import importlib.util
+        def _load_u(name):
+            p = Path(__file__).resolve().parent / "logic" / f"{name}.py"
+            spec = importlib.util.spec_from_file_location(f"gcs_{name}", str(p))
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            return m
+        idx = sys.argv.index("--mcp-upload")
+        mcp_args = sys.argv[idx + 1:]
+        as_json_flag = "--json" in mcp_args
+        mcp_args = [a for a in mcp_args if a not in ("--json", "--no-warning")]
+        folder_spec = mcp_args[0] if mcp_args else "~"
+        mcp_cr = _load_u("mcp/create")
+        sys.exit(mcp_cr.run_mcp_upload(folder_spec, as_json=as_json_flag))
+
     # Handle --options that should be intercepted before argparse
     as_python = "--python" in sys.argv
     as_raw = "--raw" in sys.argv
@@ -110,7 +206,7 @@ def main():
         sys.argv.remove("--no-capture")
     
     # Check for special --options first
-    special_options = ["--setup-tutorial", "--remount", "--shell"]
+    special_options = ["--setup-tutorial", "--remount", "--shell", "--mcp-create-notebook", "--mcp-save-notebook", "--mcp-create", "--mcp-upload", "--mcp"]
     has_special = any(opt in sys.argv for opt in special_options)
 
     if len(sys.argv) > 1 and sys.argv[1] not in recognized and not sys.argv[1].startswith("-") and not has_special:
@@ -134,6 +230,18 @@ def main():
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod
+
+    # MCP commands: dispatch early, before state initialization
+    if getattr(args, 'mcp_create_notebook', False):
+        mcp_nb = load_logic("mcp/notebook")
+        as_json_flag = "--json" in sys.argv
+        code = mcp_nb.run_mcp_create_notebook(as_json=as_json_flag)
+        sys.exit(code)
+
+    if getattr(args, 'mcp_save_notebook', None):
+        mcp_nb = load_logic("mcp/notebook")
+        code = mcp_nb.save_notebook_id(args.mcp_save_notebook)
+        sys.exit(code)
 
     state_mod = load_logic("state")
     state_mgr = state_mod.GCSStateManager(tool.project_root)

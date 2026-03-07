@@ -22,7 +22,7 @@ class TestFileDialogRemoteCancel(unittest.TestCase):
             # Wait for GUI to register
             time.sleep(2)
             
-            cancel_cmd = ["python3", str(main_py), "cancel", "--id", test_id]
+            cancel_cmd = ["python3", str(main_py), "--gui-cancel", "--id", test_id]
             subprocess.run(cancel_cmd, env=env, capture_output=True)
             
             stdout, stderr = proc.communicate(timeout=10)

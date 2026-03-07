@@ -49,6 +49,8 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
     ]
     if as_python:
         gui_args.append("--as-python")
+    if metadata.get("done_marker"):
+        gui_args.extend(["--done-marker", metadata["done_marker"]])
 
     command_result = {}
 
@@ -110,36 +112,37 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
             command_result.update(data)
             return True
         if stage:
-            stage.fail_status = "Failed to execute"
-            stage.fail_name = "command"
+            stage.fail_status = _t(tool, "turing_failed_to_execute", "Failed to execute")
+            stage.fail_name = _t(tool, "turing_command", "command")
             stage.error_brief = msg
         return False
 
     def on_failure():
-        from logic.interface.config import get_color
-        BOLD = get_color("BOLD", "\033[1m")
-        YELLOW = get_color("YELLOW", "\033[33m")
-        RESET = get_color("RESET", "\033[0m")
-        hint = _t(tool, "hint_drive_not_mounted",
-                  "If Google Drive is not mounted, run '{bold}GCS --remount{reset}' first.",
-                  bold=BOLD, reset=RESET)
-        print(f"\n{BOLD}{YELLOW}Hint{RESET}: {hint}")
+        pass
 
     waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action")
     verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file")
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    fail_complete_label = _t(tool, "turing_failed_to_complete", "Failed to complete")
+    completed_label = _t(tool, "turing_completed_user_action", "Completed")
+    user_action_label = _t(tool, "turing_user_action", "user action")
+    fail_execute_label = _t(tool, "turing_failed_to_execute", "Failed to execute")
+    retrieved_label = _t(tool, "turing_retrieved_result", "Retrieved")
+    exec_result_label = _t(tool, "turing_execution_result", "execution result")
+    command_label = _t(tool, "turing_command", "command")
+
     pm.add_stage(TuringStage(
         "user action", gui_action,
         active_status="", active_name=waiting_label,
-        fail_status="Failed to complete", success_status="Completed",
-        success_name="user action", bold_part=waiting_label
+        fail_status=fail_complete_label, success_status=completed_label,
+        success_name=user_action_label, bold_part=waiting_label
     ))
     pm.add_stage(TuringStage(
         "command execution", verify_action,
         active_status="", active_name=verifying_label,
-        fail_status="Failed to execute", fail_name="command",
-        success_status="Retrieved", success_name="execution result",
+        fail_status=fail_execute_label, fail_name=command_label,
+        success_status=retrieved_label, success_name=exec_result_label,
         bold_part=verifying_label
     ))
 

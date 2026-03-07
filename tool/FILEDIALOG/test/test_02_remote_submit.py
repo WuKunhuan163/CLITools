@@ -23,7 +23,7 @@ class TestFileDialogRemoteSubmit(unittest.TestCase):
             # Wait for GUI to register
             time.sleep(2)
             
-            submit_cmd = ["python3", str(main_py), "submit", "--id", test_id]
+            submit_cmd = ["python3", str(main_py), "--gui-submit", "--id", test_id]
             subprocess.run(submit_cmd, env=env, capture_output=True)
             
             stdout, stderr = proc.communicate(timeout=10)

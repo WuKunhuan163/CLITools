@@ -112,6 +112,28 @@ Manages logical shells for remote development.
 ### `GCS status`
 Shows the current active shell and its remote configuration.
 
+### MCP Browser Integration
+
+When running in an MCP-capable environment (e.g., Cursor IDE), GCS commands can be executed directly in Colab via the built-in browser.
+
+#### `GCS <command> --mcp [--json]`
+Generates an MCP workflow for browser-based execution.
+- Default output: compact cheat sheet (hash, URL, cell code, marker).
+- `--json`: Full structured workflow with step-by-step browser instructions.
+- Flow: GCS opens GUI window (copies script to clipboard) -> agent pastes in Colab cell -> executes -> sends `GCS --gui-submit` to close GUI.
+
+#### `GCS --gui-submit [--id <id>]`
+Remotely submits (clicks "Finished" on) the GCS interaction window.
+- `--gui-cancel`: Cancel the interaction.
+- `--gui-stop`: Terminate the interaction.
+- `--gui-add-time`: Add 60s to the interaction timeout.
+
+#### `GCS --mcp-create <type> [folder] [--name <name>]`
+Creates a Google Drive native file (Colab, Docs, Sheets, etc.) via browser.
+
+#### `GCS --mcp-upload <local_path> [folder]`
+Uploads a local file to Google Drive via browser.
+
 ## Data Locations
 - **Config**: `data/config.json`
 - **Keys**: `data/google_cloud_console/console_key.json`

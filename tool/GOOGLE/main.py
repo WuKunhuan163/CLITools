@@ -33,6 +33,20 @@ class GoogleTool(ToolBase):
         super().__init__("GOOGLE")
 
     def run(self):
+        # Early intercept --mcp-login before argparse
+        if "--mcp-login" in sys.argv:
+            import importlib.util
+            login_path = Path(__file__).resolve().parent / "logic" / "mcp" / "login.py"
+            spec = importlib.util.spec_from_file_location("google_mcp_login", str(login_path))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            as_json_flag = "--json" in sys.argv
+            email = None
+            rest = [a for a in sys.argv[1:] if a not in ("--mcp-login", "--json", "--no-warning")]
+            if rest:
+                email = rest[0]
+            sys.exit(mod.run_mcp_login(email=email, as_json=as_json_flag))
+
         parser = argparse.ArgumentParser(description="GOOGLE Tool: Ecosystem Proxy", add_help=False)
         parser.add_argument("command", nargs="?", help="Subcommand to run")
         parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments for the subcommand")

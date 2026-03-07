@@ -61,8 +61,8 @@ class TestUserInputRemoteSubmit(unittest.TestCase):
             if not instance_found:
                 self.fail(f"GUI instance with ID {test_id} not found in registry")
 
-            # Send remote submit using ID
-            submit_cmd = [python_exec, str(main_py), "submit", "--id", test_id]
+            # Send remote submit using --gui-submit flag
+            submit_cmd = [python_exec, str(main_py), "--gui-submit", "--id", test_id]
             sub_res = subprocess.run(submit_cmd, env=env, capture_output=True, text=True)
             if sub_res.returncode != 0:
                 self.fail(f"submit command failed: {sub_res.stderr}")

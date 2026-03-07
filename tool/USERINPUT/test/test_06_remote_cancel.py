@@ -41,7 +41,7 @@ class TestUserInputRemoteCancel(unittest.TestCase):
             if not registered:
                 time.sleep(5) # Final buffer
             
-            cancel_cmd = ["python3", str(main_py), "cancel", "--id", test_id]
+            cancel_cmd = ["python3", str(main_py), "--gui-cancel", "--id", test_id]
             subprocess.run(cancel_cmd, env=env, capture_output=True)
             
             # Wait for exit with a generous timeout

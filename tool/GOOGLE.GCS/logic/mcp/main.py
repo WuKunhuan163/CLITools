@@ -8,7 +8,15 @@ GCS uses the cursor-ide-browser MCP for:
 import sys
 from pathlib import Path
 
-_project_root = Path(__file__).resolve().parent.parent.parent.parent
+def _find_root():
+    curr = Path(__file__).resolve().parent
+    while curr != curr.parent:
+        if (curr / "tool.json").exists() and (curr / "bin" / "TOOL").exists():
+            return curr
+        curr = curr.parent
+    return Path(__file__).resolve().parent.parent.parent.parent.parent
+
+_project_root = _find_root()
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 

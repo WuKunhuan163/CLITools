@@ -87,13 +87,14 @@ result_data = {
 with open(result_file, 'w') as f:
     json.dump(result_data, f, indent=2)
 
-print("\033[1mFinished\033[0m: %(finished_msg)s")
+print("\033[1mFinished\033[0m [GCS_DONE_%(cmd_hash)s]: %(finished_msg)s")
 ''' % {
             'command_repr': repr(command),
             'cwd_repr': repr(remote_cwd),
             'result_filename_repr': repr(result_filename),
             'ts_repr': repr(ts),
             'mount_hash_repr': repr(mount_hash),
+            'cmd_hash': cmd_hash,
             'finished_msg': finished_msg or "Execution completed and result saved. You may now press the Finished button."
         }
     else:
@@ -174,7 +175,7 @@ with open(os.environ["GCS_RESULT_FILE"], "w") as f: json.dump(r, f, indent=2, en
 
 rm -f "$OUTPUT_FILE" "$ERROR_FILE"
 clear
-echo -e "\\033[1mFinished\\033[0m: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
+echo -e "\\033[1mFinished\\033[0m [GCS_DONE_{cmd_hash}]: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
 '''
 
         # Wrap in a cat-heredoc-then-execute pattern for safe terminal pasting
@@ -185,7 +186,8 @@ bash /tmp/gcs_run_{script_id}.sh ; rm -f /tmp/gcs_run_{script_id}.sh'''
     return script_template, {
         "ts": ts,
         "hash": cmd_hash,
-        "result_filename": result_filename
+        "result_filename": result_filename,
+        "done_marker": f"GCS_DONE_{cmd_hash}"
     }
 
 def _get_gcs_translation(project_root, key, default, **kwargs):
@@ -198,7 +200,7 @@ def _get_gcs_translation(project_root, key, default, **kwargs):
         return default.format(**kwargs) if kwargs else default
 
 
-def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False):
+def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False, done_marker: str = ""):
     """
     Shows a GUI window with Copy Script and action buttons.
     When no_capture=True, the Feedback button is hidden (no result to download).
@@ -226,34 +228,140 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     def on_feedback_click(btn):
         btn.config(text=btn_sending_text, state="disabled")
 
-    buttons = [
-        {
-            "text": btn_copy_text,
-            "cmd": copy_to_clipboard, 
-            "on_click": on_copy_click,
-            "close_on_click": False
-        },
-    ]
-    if not no_capture:
+    cdp_available = False
+    try:
+        from logic.cdp.colab import is_chrome_cdp_available as _cdp_check
+        cdp_available = _cdp_check()
+    except Exception:
+        pass
+
+    if cdp_available:
+        cdp_timeout_seconds = 30
+        buttons = [
+            {
+                "text": btn_copy_text,
+                "cmd": copy_to_clipboard,
+                "on_click": on_copy_click,
+                "close_on_click": False
+            },
+        ]
+        if not no_capture:
+            buttons.append({
+                "text": btn_feedback_text,
+                "return_value": "Feedback",
+                "cmd": None,
+                "on_click": on_feedback_click,
+                "close_on_click": True,
+                "disable_seconds": cdp_timeout_seconds
+            })
+    else:
+        buttons = [
+            {
+                "text": btn_copy_text,
+                "cmd": copy_to_clipboard,
+                "on_click": on_copy_click,
+                "close_on_click": False
+            },
+        ]
+        if not no_capture:
+            buttons.append({
+                "text": btn_feedback_text,
+                "return_value": "Feedback",
+                "cmd": None,
+                "on_click": on_feedback_click,
+                "close_on_click": True,
+                "disable_seconds": 15
+            })
         buttons.append({
-            "text": btn_feedback_text,
-            "return_value": "Feedback",
-            "cmd": None, 
-            "on_click": on_feedback_click,
+            "text": btn_finished_text,
+            "return_value": "Finished",
+            "cmd": None,
             "close_on_click": True,
             "disable_seconds": 15
         })
-    buttons.append({
-        "text": btn_finished_text,
-        "return_value": "Finished",
-        "cmd": None, 
-        "close_on_click": True,
-        "disable_seconds": 15
-    })
     
     # Auto-copy on startup
     copy_to_clipboard()
-    
+
+    cdp_thread_result = {"success": False, "attempted": False}
+
+    def _cdp_auto_inject():
+        """Background thread: inject script into Colab via Chrome DevTools Protocol."""
+        try:
+            from logic.cdp.colab import is_chrome_cdp_available, inject_and_execute
+        except ImportError:
+            return
+
+        if not is_chrome_cdp_available():
+            return
+
+        cdp_thread_result["attempted"] = True
+        try:
+            result = inject_and_execute(script, timeout=300, done_marker=done_marker)
+            cdp_thread_result.update(result)
+
+            if result.get("success"):
+                stop_file = project_root / "tmp" / f".gcs_cdp_done_{id(win)}"
+                with open(stop_file, "w") as sf:
+                    sf.write("Finished")
+            else:
+                _enable_feedback_btn_via_signal()
+        except Exception as e:
+            cdp_thread_result["error"] = str(e)
+            _enable_feedback_btn_via_signal()
+
+    def _enable_feedback_btn_via_signal():
+        """Write a signal file to tell the GUI to enable the feedback button."""
+        try:
+            signal_file = project_root / "tmp" / f".gcs_cdp_fail_{id(win)}"
+            with open(signal_file, "w") as sf:
+                sf.write("failed")
+        except Exception:
+            pass
+
+    def _enable_feedback_btn():
+        """Enable the Feedback button (when CDP fails, user needs manual fallback)."""
+        import tkinter as tk
+        try:
+            main_frame = win.root.winfo_children()[0]
+            for w in main_frame.winfo_children():
+                if isinstance(w, tk.Frame):
+                    for btn in w.winfo_children():
+                        if isinstance(btn, tk.Button):
+                            text = btn.cget('text')
+                            if btn_feedback_text in text or 'Feedback' in text:
+                                btn.config(state="normal", text=btn_feedback_text)
+                                return
+        except Exception:
+            pass
+
+    def _auto_close_gui():
+        """Auto-close GUI when CDP execution succeeds (fallback, prefer signal file)."""
+        try:
+            win.finalize("success", "Finished")
+        except Exception:
+            pass
+
+    def _check_cdp_done():
+        """Periodically check if CDP thread wrote a done/fail signal file."""
+        done_file = project_root / "tmp" / f".gcs_cdp_done_{id(win)}"
+        fail_file = project_root / "tmp" / f".gcs_cdp_fail_{id(win)}"
+        try:
+            if done_file.exists():
+                done_file.unlink(missing_ok=True)
+                win.finalize("success", "Finished")
+                return
+            if fail_file.exists():
+                fail_file.unlink(missing_ok=True)
+                _enable_feedback_btn()
+                return
+        except Exception:
+            pass
+        try:
+            win.root.after(500, _check_cdp_done)
+        except Exception:
+            pass
+
     def on_startup():
         try:
             import tkinter as tk
@@ -264,21 +372,34 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
         except Exception:
             pass
 
+        if cdp_available:
+            import threading
+            t = threading.Thread(target=_cdp_auto_inject, daemon=True)
+            t.start()
+            win.root.after(1000, _check_cdp_done)
+
     if as_python:
-        instruction = _("gui_instruction_copy_python",
+        base_instruction = _("gui_instruction_copy_python",
             "Copy the script and run it in a **Python code cell** on Colab.\n\nExecuting:\n**{command}**",
             command=command)
     else:
-        instruction = _("gui_instruction_copy_terminal",
+        base_instruction = _("gui_instruction_copy_terminal",
             "Copy the script and run it in the **Terminal** on Colab.\n\nExecuting:\n**{command}**",
             command=command)
+
+    if cdp_available:
+        instruction = base_instruction + "\n\n[CDP] Connecting to Chrome..."
+    else:
+        instruction = base_instruction
 
     cmd_lines = command.count('\n') + 1
     base_height = 120
     extra_height = min(cmd_lines, 8) * 18
     win_height = base_height + extra_height
 
+    cmd_hash = hashlib.md5(command.encode()).hexdigest()[:8].upper()
     gui_title = _("gui_title_remote_command", "GCS Remote Command")
+    gui_title = f"{gui_title} [{cmd_hash}]"
 
     win = ButtonBarWindow(
         title=gui_title, 
@@ -304,6 +425,7 @@ if __name__ == "__main__":
     parser.add_argument("--project-root", required=True)
     parser.add_argument("--as-python", action="store_true")
     parser.add_argument("--no-capture", action="store_true")
+    parser.add_argument("--done-marker", default="")
     args = parser.parse_args()
     
     proj_root = Path(args.project_root)
@@ -313,5 +435,5 @@ if __name__ == "__main__":
     with open(args.script_path, 'r') as f:
         script_content = f.read()
         
-    res = show_command_gui(proj_root, args.command, script_content, as_python=args.as_python, no_capture=args.no_capture)
+    res = show_command_gui(proj_root, args.command, script_content, as_python=args.as_python, no_capture=args.no_capture, done_marker=args.done_marker)
 

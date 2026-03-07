@@ -37,7 +37,32 @@ Logical shells are identified by a `{timestamp}_{6-digit-hash}` ID.
 - Use cases: `pip install`, `apt-get`, `git clone`, or any long-running task with heavy output.
 - Implementation: `_generate_no_capture_script` in `raw_cmd.py` produces a minimal script that validates mount, changes directory, runs the command, and shows a "Finished" message.
 
-### 5. Implementation Details
+### 5. MCP Browser Mode
+`GCS <command> --mcp` enables browser-based execution in the Cursor IDE built-in browser.
+
+**Workflow:**
+1. Run `GCS <command>` (opens GUI window, auto-copies script to clipboard).
+2. Navigate built-in browser to Colab notebook.
+3. Create a new cell (Escape -> Ctrl+M -> B), enter edit mode (Enter).
+4. Use `browser_type` with `slowly: true` to type the cell code.
+5. Press Escape (dismiss autocomplete), then Meta+Enter to execute.
+6. Wait for completion marker, then `GCS --gui-submit` to close the GUI.
+7. Normal result download resumes.
+
+**Key rules:**
+- NEVER use `browser_fill` on Colab cells (breaks CodeMirror).
+- NEVER use Meta+V paste (MCP browser has isolated clipboard, doesn't share with system).
+- Always create fresh cells rather than editing existing ones.
+- Use `browser_type` with `slowly: true` to input code into cells.
+- The GUI window stays open as a safety net; fallback to USERINPUT if MCP fails.
+- Command hash (8-char uppercase) appears in the window title: `GCS Remote Command [XXXXXXXX]`.
+- If "Could not load JavaScript files" error appears, use Runtime -> "Restart session and run all".
+
+**Remote GUI control:**
+- `GCS --gui-submit [--id <id>]`: Click "Finished" button externally.
+- `GCS --gui-cancel`, `--gui-stop`, `--gui-add-time`: Cancel, stop, or extend timeout.
+
+### 6. Implementation Details
 - **IPv4 Enforcement**: The tool forces IPv4 for Google API calls to avoid 60-second timeouts caused by macOS IPv6 fallback issues.
 - **GUI Blueprints**: Uses `ButtonBarWindow` for simple multi-option interactions.
 - **Remote CWD**: The generated scripts automatically `mkdir -p` the remote working directory and `tmp` folder.

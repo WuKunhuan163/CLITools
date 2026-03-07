@@ -45,8 +45,8 @@ class TestUserInputRemoteStop(unittest.TestCase):
             if not gui_pid:
                 self.fail("Could not find USERINPUT instance file with correct ID.")
 
-            # Send remote stop using ID
-            stop_cmd = [python_exec, str(main_py), "stop", "--id", test_id]
+            # Send remote stop using --gui-stop flag
+            stop_cmd = [python_exec, str(main_py), "--gui-stop", "--id", test_id]
             subprocess.run(stop_cmd, env=env, capture_output=True)
             
             # Wait for exit with generous timeout

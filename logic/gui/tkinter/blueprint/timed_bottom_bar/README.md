@@ -6,7 +6,7 @@ This blueprint provides a standardized Tkinter window template designed for time
 - **Countdown Timer**: Automatically manages a remaining time display and triggers a timeout state when it reaches zero.
 - **Unified Bottom Bar**: Includes a status label, "Add Time" button (programmable increment), and "Cancel"/"Submit" buttons.
 - **Signal Handling**: Gracefully handles `SIGINT` and `SIGTERM`, capturing the current state before exit.
-- **Remote Control**: Supports remote signals (stop, submit, cancel, add_time) via file-based flags in `data/run/stops/`.
+- **Remote Control**: Supports remote signals via file-based flags in `data/run/stops/`. CLI flags: `--gui-submit`, `--gui-cancel`, `--gui-stop`, `--gui-add-time` (with optional `--id <id>`).
 - **Periodic Focus**: Can be configured to periodically steal focus and play a notification bell to ensure user awareness.
 
 ## Architecture

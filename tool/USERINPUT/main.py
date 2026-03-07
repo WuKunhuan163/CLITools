@@ -411,18 +411,22 @@ if __name__ == "__main__":
 def main():
     tool = UserInputTool()
 
+    # Early intercept remote GUI control commands (--gui-submit, --gui-cancel, --gui-stop, --gui-add-time)
+    _gui_cmd_map = {"--gui-submit": "submit", "--gui-cancel": "cancel", "--gui-stop": "stop", "--gui-add-time": "add_time"}
+    _gui_match = next((f for f in _gui_cmd_map if f in sys.argv), None)
+    if _gui_match:
+        from logic.interface.gui import handle_gui_remote_command
+        remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
+        return handle_gui_remote_command("USERINPUT", tool.project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation)
+
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
-    parser.add_argument('command', nargs='?', choices=['setup', 'stop', 'submit', 'cancel', 'add_time', 'config', 'rule'], help="Command to run")
+    parser.add_argument('command', nargs='?', choices=['setup', 'config', 'rule'], help="Command to run")
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
     
     if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
-    
-    if args.command in ["stop", "submit", "cancel", "add_time"]:
-        from logic.interface.gui import handle_gui_remote_command
-        return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, sys.argv[2:], tool.get_translation)
 
     if args.command == "config":
         # Handle config command
