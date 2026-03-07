@@ -693,6 +693,9 @@ def _save_state():
             "last_activity": s.last_activity,
             "timeout_sec": s.timeout_sec,
             "port": s.port,
+            "tabs": {label: {"id": info["id"], "url": info.get("url", ""),
+                              "state": info.get("state", "unknown")}
+                     for label, info in s._tabs.items()},
         }
     try:
         with open(_STATE_FILE, "w") as f:
@@ -722,6 +725,12 @@ def _load_state():
         s.created_at = info.get("created_at", s.created_at)
         s.last_activity = info.get("last_activity", s.last_activity)
         s._booted = bool(s.lifetime_tab_id)
+        for label, tab_info in info.get("tabs", {}).items():
+            s._tabs[label] = {
+                "id": tab_info["id"],
+                "url": tab_info.get("url", ""),
+                "state": tab_info.get("state", "unknown"),
+            }
         if not s.is_expired():
             _sessions[name] = s
 

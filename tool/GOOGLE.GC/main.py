@@ -621,7 +621,7 @@ def _colab_connect_stages():
            "session": None}
 
     def stage_connect(stage=None):
-        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available
+        from tool.GOOGLE.logic.chrome.session import is_chrome_cdp_available, list_tabs as _list_tabs
         if not is_chrome_cdp_available():
             if stage:
                 stage.error_brief = "Chrome CDP not available."
@@ -636,6 +636,13 @@ def _colab_connect_stages():
             ctx["session_mgr"] = sm
 
             session = sm.get_any_active_session()
+            if session:
+                alive = any(
+                    t.get("id") == session.lifetime_tab_id
+                    for t in _list_tabs(9222)
+                )
+                if not alive:
+                    session = None
             if not session:
                 boot_result = sm.boot_tool_session("gc_colab")
                 session = boot_result.get("session") if boot_result.get("ok") else None
@@ -673,9 +680,6 @@ def _colab_connect_stages():
             if stage:
                 stage.error_brief = "No Colab tab found."
             return False
-
-        if ov and tab_info.get("id"):
-            ov.activate_tab(tab_info["id"], 9222)
 
         ctx["cdp"] = CDPSession(tab_info["ws"], timeout=15)
         if ov:
@@ -2127,13 +2131,52 @@ def main():
         _run_notebook_action(tool, args)
 
     elif args.command == "reopen":
-        tab = reopen_colab_tab(
-            log_fn=lambda m: print(f"  {BOLD}{BLUE}[GC]{RESET} {m}")
-        )
-        if tab:
-            print(f"{BOLD}{GREEN}Reopened{RESET}: {tab.get('title', tab.get('url', '?'))}")
-        else:
-            print(f"{BOLD}{RED}Failed{RESET} to reopen Colab tab")
+        _log = lambda m: print(f"  {BOLD}{BLUE}[GC]{RESET} {m}")
+        try:
+            from logic.cdmcp_loader import (
+                load_cdmcp_overlay, load_cdmcp_sessions,
+            )
+            sm = load_cdmcp_sessions()
+            session = sm.get_any_active_session()
+            if not session:
+                _log("No active session. Booting gc_colab...")
+                boot_r = sm.boot_tool_session("gc_colab")
+                session = boot_r.get("session") if boot_r.get("ok") else None
+            if not session:
+                _log("Session boot failed, falling back to legacy reopen.")
+                tab = reopen_colab_tab(log_fn=_log)
+                if tab:
+                    print(f"{BOLD}{GREEN}Reopened{RESET}: {tab.get('title', tab.get('url', '?'))}")
+                else:
+                    print(f"{BOLD}{RED}Failed{RESET} to reopen Colab tab")
+            else:
+                open_url = _get_colab_open_url() or "https://colab.research.google.com/"
+                _log(f"Using session '{session.name}' (window={session.window_id})")
+                tab_info = session.require_tab(
+                    label="colab",
+                    url_pattern="colab.research.google.com",
+                    open_url=open_url,
+                    auto_open=True,
+                    wait_sec=15.0,
+                )
+                if tab_info:
+                    _log(f"Colab tab ready: {tab_info.get('url', '?')[:60]}")
+                    ov = load_cdmcp_overlay()
+                    if ov:
+                        cdp_s = CDPSession(tab_info["ws"], timeout=15)
+                        ov.inject_badge(cdp_s, text="GC [colab]", color="#e8710a")
+                        ov.inject_focus(cdp_s, color="#e8710a")
+                        cdp_s.close()
+                    print(f"{BOLD}{GREEN}Reopened{RESET}: Google Colab (session: {session.name})")
+                else:
+                    print(f"{BOLD}{RED}Failed{RESET} to open Colab tab in session")
+        except Exception as e:
+            _log(f"Session approach failed ({e}), falling back to legacy.")
+            tab = reopen_colab_tab(log_fn=_log)
+            if tab:
+                print(f"{BOLD}{GREEN}Reopened{RESET}: {tab.get('title', tab.get('url', '?'))}")
+            else:
+                print(f"{BOLD}{RED}Failed{RESET} to reopen Colab tab")
 
     elif args.command == "oauth":
         tab = find_colab_tab()
