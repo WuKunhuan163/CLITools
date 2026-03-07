@@ -59,6 +59,11 @@
   "context_title": "上下文",
   "starting_session": "启动会话...",
   "started_session": "已启动会话 {sid}。",
+  "session_started_label": "启动会话",
+  "session_started_detail": "会话 {sid} 已就绪。",
+  "session_id_full": "ID: {sid}",
+  "preparing_request_label": "准备请求",
+  "preparing_request_desc": "发送给 {backend} (步骤 {step})... [{ref}]",
   "preparing_request": "准备请求 (步骤 {step})",
   "breakpoint_msg": "[BREAKPOINT] 已打包状态写入日志。",
   "thinking": "思考中 (步骤 {step})",
@@ -80,5 +85,8 @@
   "failed": "失败。",
   "input_placeholder": "输入指令, 按 Ctrl+D 提交。",
   "dashboard_started": "仪表盘已启动: {url}",
-  "dashboard_already_running": "仪表盘已在运行: {url}"
+  "dashboard_already_running": "仪表盘已在运行: {url}",
+  "log_title": "会话 {sid} 的日志",
+  "log_no_logs": "暂无日志。",
+  "log_not_found": "日志未找到: {name}"
 }

@@ -180,6 +180,7 @@ _CMD_REGISTRY = [
     ("/sandbox",    "[<cmd> <policy>]",  "Manage sandbox command policies."),
     ("/status",     "",                  "Show provider and session status."),
     ("/context",    "",                  "Show current context token usage."),
+    ("/log",        "[<step>]",          "View session logs (list or open step)."),
     ("/gui",        "",                  "Open HTML GUI (web interface)."),
     ("/quit",       "",                  "Exit the CLI."),
 ]
@@ -838,18 +839,67 @@ class OpenClawCLI:
             role_color = GREEN if role == "assistant" else CYAN if role == "user" else DIM
             print(f"    {role_color}{role:>10}{RESET}  {length:>6} chars  {DIM}{preview}...{RESET}")
 
+    def _show_log(self, step_arg: str = ""):
+        """List or display session operation logs.
+
+        No arg → list all logs for the current session.
+        Integer arg → display the contents of that step's log.
+        """
+        if not self.session:
+            print(f"  {DIM}{_('no_active_session', 'No active session.')}{RESET}")
+            return
+
+        log_dir = self.session_mgr.data_dir / self.session.id / "logs"
+        if not log_dir.exists():
+            print(f"  {DIM}{_('log_no_logs', 'No logs yet.')}{RESET}")
+            return
+
+        logs = sorted(log_dir.glob("*.log.md"), key=lambda p: p.name)
+
+        if not step_arg:
+            print(f"  {BOLD}{_('log_title', 'Logs for session {sid}', sid=self.session.id[:8])}{RESET}")
+            for lf in logs:
+                size = lf.stat().st_size
+                ts = time.strftime("%H:%M:%S", time.localtime(lf.stat().st_mtime))
+                print(f"    {CYAN}{lf.stem}{RESET}  {DIM}{size} bytes  {ts}{RESET}")
+            if not logs:
+                print(f"    {DIM}{_('log_no_logs', 'No logs yet.')}{RESET}")
+            return
+
+        target_name = f"s{step_arg}.log.md"
+        target = log_dir / target_name
+        if not target.exists():
+            print(f"  {RED}{_('log_not_found', 'Log not found: {name}', name=target_name)}{RESET}")
+            return
+
+        content = target.read_text(encoding="utf-8", errors="replace")
+        print(f"  {BOLD}{CYAN}{target.stem}{RESET} {DIM}({target.stat().st_size} bytes){RESET}")
+        print()
+        for line in content.split("\n"):
+            print(f"  {line}")
+
     def _ensure_session(self):
         if not self.session:
-            sys.stdout.write(self._stage(_("starting_session", "Starting session..."), "active") + "\n")
+            label = _("starting_session", "Starting session...")
+            sys.stdout.write(self._stage(label, "active") + "\n")
             sys.stdout.flush()
             self.session = self.session_mgr.create_session()
-            self._session_line = _("started_session", "Started session {sid}.", sid=self.session.id)
-            sys.stdout.write(f"\033[A\033[K{self._stage(self._session_line, 'done')}\n")
+            sid_short = self.session.id[:8]
+            done_label = _("session_started_label", "Session started")
+            done_detail = _("session_started_detail",
+                            "Session {sid} is ready.", sid=sid_short)
+            self._session_line_label = done_label
+            self._session_line_desc = done_detail
+            sys.stdout.write(
+                f"\033[A\033[K{self._stage(done_label, 'done', desc=done_detail)}\n")
             sys.stdout.flush()
+            print(self._detail(
+                _("session_id_full", "ID: {sid}", sid=self.session.id)))
 
     def _recolor_session_line(self):
         """Recolor the 'Started session' line to green after pipeline success."""
-        if not hasattr(self, '_session_line') or not self._session_line:
+        label = getattr(self, '_session_line_label', None)
+        if not label:
             return
         tracker = sys.stdout
         if isinstance(tracker, _OutputTracker):
@@ -858,7 +908,8 @@ class OpenClawCLI:
             return
         if n < 1:
             return
-        colored = self._stage(self._session_line, "done")
+        desc = getattr(self, '_session_line_desc', '')
+        colored = self._stage(label, "done", desc=desc)
         raw = tracker._wrapped
         raw.write(f"\033[{n}A\033[K{colored}\n")
         if n > 1:
@@ -872,24 +923,36 @@ class OpenClawCLI:
     _L2_PFX = "    \u2981 "  # 6 chars: subagent prefix
     _DETAIL = "    "   # 4 chars: detail indent (same width as L1)
 
-    def _stage(self, text: str, status: str = "active", depth: int = 1) -> str:
-        """Format a major operation line with the hierarchical indicator."""
+    def _stage(self, label: str, status: str = "active",
+               desc: str = "", depth: int = 1) -> str:
+        """Format a major operation line: ``> {label} {desc}``.
+
+        *label* is bold and colored by *status*; *desc* stays default.
+        For backward compatibility, pass the whole text as *label*.
+        """
         indent = "    " if depth == 2 else "  "
         indicator = self._L2 if depth == 2 else self._L1
+        suffix = f" {desc}" if desc else ""
         if status == "active":
-            raw = f"{indent}{indicator} {BOLD}{BLUE}{text}{RESET}"
+            raw = f"{indent}{indicator} {BOLD}{label}{RESET}{suffix}"
         elif status == "done":
-            raw = f"{indent}{BOLD}{GREEN}{indicator}{RESET} {BOLD}{GREEN}{text}{RESET}"
+            raw = f"{indent}{GREEN}{indicator}{RESET} {BOLD}{label}{RESET}{suffix}"
         elif status == "error":
-            raw = f"{indent}{BOLD}{RED}{indicator}{RESET} {BOLD}{RED}{text}{RESET}"
+            raw = f"{indent}{RED}{indicator}{RESET} {BOLD}{label}{RESET}{suffix}"
         else:
-            raw = f"{indent}{indicator} {DIM}{text}{RESET}"
+            raw = f"{indent}{indicator} {DIM}{label}{RESET}{suffix}"
         return truncate_to_width(raw, _get_configured_width())
 
-    def _detail(self, text: str, depth: int = 1) -> str:
-        """Format a detail line (no indicator, aligned under parent)."""
+    def _detail(self, text: str, depth: int = 1, styled: bool = False) -> str:
+        """Format a detail/sub-info line, aligned under parent.
+
+        When *styled* is False (default), the text is auto-dimmed.
+        Set *styled=True* to use caller-provided ANSI formatting.
+        """
         indent = "      " if depth == 2 else self._DETAIL
-        return truncate_to_width(f"{indent}{text}", _get_configured_width())
+        if styled:
+            return truncate_to_width(f"{indent}{text}", _get_configured_width())
+        return truncate_to_width(f"{indent}{DIM}{text}{RESET}", _get_configured_width())
 
     def _thought(self, text: str) -> str:
         """Format an agent thought/reasoning line (dimmed, >-prefixed)."""
@@ -952,9 +1015,12 @@ class OpenClawCLI:
                 "log_file": op_log.filename,
             })
 
-            print(self._stage(
-                _("preparing_request", "Preparing request (step {step})", step=self._iteration)
-                + f" {DIM}[{op_log.ref}]{RESET}", "active"))
+            req_label = _("preparing_request_label", "Preparing request")
+            req_desc = _("preparing_request_desc",
+                         "Sending to {backend} (step {step})... [{ref}]",
+                         backend=self.backend, step=self._iteration,
+                         ref=op_log.ref)
+            print(self._stage(req_label, "active", desc=req_desc))
 
             # DEV BREAKPOINT: log bootstrap before first send
             import json as _bp_json
@@ -975,18 +1041,18 @@ class OpenClawCLI:
                     "max_tokens": self.max_tokens,
                 }, _bp_f, ensure_ascii=False, indent=2)
             print(self._detail(
-                f"{DIM}{_('breakpoint_msg', '[BREAKPOINT] Bootstrap state written to log.')}"
-                f" {bp_path}{RESET}"))
+                _('breakpoint_msg', '[BREAKPOINT] Bootstrap state written to log.')
+                + f" {bp_path}"))
             return True
 
             # Guardrail: step + duration limits
             step_err = guardrails.check_step_limit()
             if step_err:
-                print(self._detail(f"{YELLOW}{step_err}{RESET}"))
+                print(self._detail(f"{YELLOW}{step_err}{RESET}", styled=True))
                 return False
             dur_err = guardrails.check_duration()
             if dur_err:
-                print(self._detail(f"{YELLOW}{dur_err}{RESET}"))
+                print(self._detail(f"{YELLOW}{dur_err}{RESET}", styled=True))
                 return False
 
             spinner = _Spinner(
@@ -1032,13 +1098,13 @@ class OpenClawCLI:
             # Guardrail: token budget
             token_err = guardrails.check_token_budget(tokens_used)
             if token_err:
-                print(self._detail(f"{YELLOW}{token_err}{RESET}"))
+                print(self._detail(f"{YELLOW}{token_err}{RESET}", styled=True))
                 return False
 
             # Guardrail: response validation
             validate_err = guardrails.validate_response(response_text)
             if validate_err:
-                print(self._detail(f"{YELLOW}{validate_err}{RESET}"))
+                print(self._detail(f"{YELLOW}{validate_err}{RESET}", styled=True))
                 return False
 
             self._context.add_assistant(response_text)
@@ -1046,7 +1112,7 @@ class OpenClawCLI:
             # Guardrail: loop detection
             loop_correction = guardrails.check_loop(response_text)
             if loop_correction:
-                print(self._detail(f"{YELLOW}{_('agent_loop', 'Agent stuck in loop. Injecting correction...')}{RESET}"))
+                print(self._detail(f"{YELLOW}{_('agent_loop', 'Agent stuck in loop. Injecting correction...')}{RESET}", styled=True))
                 self._context.add_user(loop_correction)
                 continue
 
@@ -1083,7 +1149,7 @@ class OpenClawCLI:
             if all_commands:
                 cmd_err = guardrails.check_command_limit(len(all_commands))
                 if cmd_err:
-                    print(self._detail(f"{YELLOW}{cmd_err}{RESET}"))
+                    print(self._detail(f"{YELLOW}{cmd_err}{RESET}", styled=True))
                     return False
 
             # Update "Thinking..." to step summary if agent provided one
@@ -1110,10 +1176,11 @@ class OpenClawCLI:
                 elif seg["type"] == "command":
                     cmd_idx += 1
                     cmd = seg["content"]
-                    cmd_label = f"Exec {cmd_idx}/{len(all_commands)}: {cmd}"
+                    cmd_label = f"Exec {cmd_idx}/{len(all_commands)}"
+                    cmd_desc = cmd
                     log_ref = op_log.ref if hasattr(op_log, 'ref') else ""
                     print(self._tool_call(cmd, log_ref=log_ref))
-                    print(self._stage(cmd_label, "active"))
+                    print(self._stage(cmd_label, "active", desc=cmd_desc))
                     exec_tracker = _OutputTracker(sys.stdout)
                     sys.stdout = exec_tracker
 
@@ -1145,7 +1212,7 @@ class OpenClawCLI:
                         if output:
                             truncated = _truncate(output, 15)
                             for line in truncated.split("\n"):
-                                print(self._detail(f"{DIM}{line}{RESET}"))
+                                print(self._detail(line))
                         if "--openclaw-write-file" in cmd:
                             guardrails.record_write(cmd)
                     else:
@@ -1159,7 +1226,7 @@ class OpenClawCLI:
                     recolor_status = "done" if cmd_ok else "error"
                     n = exec_tracker.lines
                     if n > 0:
-                        recolored = self._stage(cmd_label, recolor_status)
+                        recolored = self._stage(cmd_label, recolor_status, desc=cmd_desc)
                         sys.stdout.write(
                             f"\033[{n + 1}A\033[K{recolored}\n"
                             f"\033[{n}B")
@@ -1231,13 +1298,13 @@ class OpenClawCLI:
                     })
                 else:
                     print(self._detail(
-                        f"{YELLOW}{_('compression_failed', 'Compression failed, continuing with full context.')}{RESET}"))
+                        f"{YELLOW}{_('compression_failed', 'Compression failed, continuing with full context.')}{RESET}", styled=True))
 
             time.sleep(0.3)
 
         if self._iteration >= MAX_ITERATIONS:
             print(self._detail(
-                f"{YELLOW}{_('max_iterations', 'Reached maximum iterations ({n}).', n=MAX_ITERATIONS)}{RESET}"))
+                f"{YELLOW}{_('max_iterations', 'Reached maximum iterations ({n}).', n=MAX_ITERATIONS)}{RESET}", styled=True))
             return False
         return True
 
@@ -1381,6 +1448,10 @@ class OpenClawCLI:
                     elif text == "/context":
                         self._mark_done(display_text)
                         self._show_context_usage()
+                    elif text == "/log" or text.startswith("/log "):
+                        self._mark_done(display_text)
+                        parts = text.split(None, 1)
+                        self._show_log(parts[1].strip() if len(parts) > 1 else "")
                     else:
                         self._mark_failed(display_text)
                         from logic.utils.fuzzy import format_suggestion
