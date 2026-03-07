@@ -1,9 +1,10 @@
 {
   "name": "FIGMA",
   "version": "1.0.0",
-  "description": "Template tool FIGMA",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Figma design tool automation via CDMCP",
+  "purpose": "Navigate Figma projects, inspect designs, take screenshots, and manage files through Chrome CDP.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ]
 }

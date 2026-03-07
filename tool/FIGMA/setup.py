@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 
-# Universal path resolver bootstrap
 _r = Path(__file__).resolve().parent
 while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
@@ -12,13 +11,10 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.setup.engine import ToolEngine
-from logic.utils import print_success_status
 
 def setup():
     tool_name = "FIGMA"
-    engine = ToolEngine(tool_name, project_root)
-    
-    # 1. Standard installation (dependencies + shortcut)
+    engine = ToolEngine(tool_name, _r)
     return engine.install()
 
 if __name__ == "__main__":
