@@ -1,62 +1,48 @@
 # TODO
 
-TODO tool template.
+Agent task management tool. Provides a persistent, JSON-backed todo list that agents and tools can use to track work items.
 
-## Quick Start
-
-```bash
-TODO --demo         # Run demo
-TODO --setup        # Install dependencies
-TODO --help         # Show help
-```
-
-## MCP Commands
-
-If this tool implements CDMCP browser automation, all MCP commands use the `--mcp-` prefix:
+## CLI Usage
 
 ```bash
-TODO --mcp-boot          # Boot session
-TODO --mcp-status        # Check status
-TODO --mcp-<command>     # Any MCP operation
+TODO add "Implement feature X"
+TODO list
+TODO list --status pending
+TODO start <id>
+TODO done <id>
+TODO abandon <id>
+TODO remove <id>
+TODO clear
+TODO clear --done
 ```
 
-## Built-in Commands
+All commands accept `--context <name>` to isolate lists (e.g. per session).
 
-| Command | Description |
-|---------|-------------|
-| `--setup` | Run tool setup |
-| `--test` | Run unit tests |
-| `--dev <cmd>` | Developer commands |
-| `--rule` | Show AI rules |
-
-## Hooks
-
-Event-driven callback system.
-
-```bash
-TODO hooks list                  # List events and instances
-TODO hooks enable demo_logger    # Enable the demo logger hook
-TODO hooks disable demo_logger   # Disable it
-```
-
-### Hook Events
-
-| Event | Description |
-|-------|-------------|
-| `on_tool_start` | Fired when the tool begins execution (base) |
-| `on_tool_exit` | Fired when the tool finishes execution (base) |
-| `on_demo_action` | Fired during --demo countdown |
-
-## Interface
+## Programmatic Interface
 
 ```python
-from interface import get_interface
-iface = get_interface("TODO")
-info = iface.get_info()  # {"name": "TODO", "version": "1.0.0"}
+from tool.TODO.interface.main import todo_add, todo_list, todo_done
+
+item = todo_add("Implement feature X", context="session-abc")
+items = todo_list(context="session-abc", status_filter="pending")
+todo_done(item["id"], context="session-abc")
 ```
 
-## Testing
+## Design
 
-```bash
-TOOL --test TODO
+- **Storage**: JSON files in `data/<context>.json`, one per context
+- **Capacity**: Max 50 items per list. When exceeded, oldest completed/abandoned items are evicted first.
+- **Statuses**: `pending`, `in_progress`, `completed`, `abandoned`
+- **IDs**: 8-character hex strings (UUID-based)
+
+## Item Schema
+
+```json
+{
+  "id": "a1b2c3d4",
+  "content": "Task description",
+  "status": "pending",
+  "created_at": 1709827200.0,
+  "updated_at": 1709827200.0
+}
 ```

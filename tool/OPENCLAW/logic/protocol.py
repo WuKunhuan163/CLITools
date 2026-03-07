@@ -207,6 +207,16 @@ def build_system_prompt(project_summary: str) -> str:
         "IMPORTANT: CLI subcommands use HYPHENS (e.g. open-tab), NEVER underscores.",
         "",
 
+        "## Task Management",
+        "Use the TODO tool to track your work items:",
+        "<<EXEC: TODO add \"description\" --context session-ID >>",
+        "<<EXEC: TODO list --context session-ID >>",
+        "<<EXEC: TODO done ITEM_ID --context session-ID >>",
+        "<<EXEC: TODO start ITEM_ID --context session-ID >>",
+        "<<EXEC: TODO abandon ITEM_ID --context session-ID >>",
+        "Programmatic: from tool.TODO.interface.main import todo_add, todo_list, todo_done",
+        "",
+
         learnings if learnings else "",
         "",
 

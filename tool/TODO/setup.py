@@ -12,7 +12,6 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.setup.engine import ToolEngine
-from logic.utils import print_success_status
 
 def setup():
     tool_name = "TODO"
