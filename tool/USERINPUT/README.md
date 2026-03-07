@@ -27,8 +27,14 @@ The queue mechanism mimics Cursor's queued prompts, allowing users to prepare ta
 # Add a prompt to the queue (opens GUI, saves input to queue)
 USERINPUT --queue
 
+# Add a prompt to the queue directly (no GUI)
+USERINPUT --queue --add "Build the login page"
+
 # List all queued prompts
 USERINPUT --queue --list
+
+# Delete a queued prompt by index
+USERINPUT --queue --delete 2
 
 # Manage queue via GUI
 USERINPUT --queue --gui
@@ -57,8 +63,8 @@ USERINPUT --enquiry --hint "Should I proceed with approach A or B?"
 USERINPUT config --list
 
 # Add / remove prompts
-USERINPUT config --add-prompt "New instruction"
-USERINPUT config --remove-prompt 3
+USERINPUT config --add "New instruction"
+USERINPUT config --delete 3
 
 # Reorder prompts
 USERINPUT config --move-up 2

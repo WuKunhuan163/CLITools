@@ -417,13 +417,17 @@ def _handle_queue(tool, args, unknown):
 
     has_reorder = any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
 
+    queue_label = get_msg("label_queue", "Queue")
+
     # --queue --list
     if args.list:
         prompts = _qmod.list_all()
         if not prompts:
-            print(f"{BOLD}Queue{RESET}: empty.")
+            print(f"{BOLD}{queue_label}{RESET}: {get_msg('label_queue_empty', 'empty.')}")
             return 0
-        print(f"{BOLD}Queue{RESET} ({len(prompts)} item{'s' if len(prompts) != 1 else ''}):")
+        n = len(prompts)
+        unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
+        print(f"{BOLD}{queue_label}{RESET} ({n} {unit}):")
         for i, p in enumerate(prompts):
             display = p if len(p) <= 80 else p[:77] + "..."
             print(f"  {i}: {display}")
@@ -436,32 +440,32 @@ def _handle_queue(tool, args, unknown):
     # --queue --add "text"
     if args.add:
         _qmod.add(args.add)
-        print(f"{BOLD}{GREEN}Successfully added{RESET} to queue.")
+        print(f"{BOLD}{GREEN}{get_msg('label_successfully_added', 'Successfully added')}{RESET} {get_msg('label_to_queue', 'to queue')}.")
         return 0
 
     # --queue --delete <id>
     if args.delete is not None:
         if _qmod.remove(args.delete):
-            print(f"{BOLD}{GREEN}Successfully deleted{RESET} queue item {args.delete}.")
+            print(f"{BOLD}{GREEN}{get_msg('label_successfully_deleted', 'Successfully deleted')}{RESET} {get_msg('label_queue_item', 'queue item')} {args.delete}.")
         else:
-            print(f"{BOLD}{RED}Failed to delete{RESET} queue item {args.delete}.", file=sys.stderr)
+            print(f"{BOLD}{RED}{get_msg('label_failed_to_delete', 'Failed to delete')}{RESET} {get_msg('label_queue_item', 'queue item')} {args.delete}.", file=sys.stderr)
             return 1
         return 0
 
     # --queue --move-*
     if has_reorder:
         ops = [
-            (args.move_up, _qmod.move_up, "Moved up"),
-            (args.move_down, _qmod.move_down, "Moved down"),
-            (args.move_to_top, _qmod.move_to_top, "Moved to top"),
-            (args.move_to_bottom, _qmod.move_to_bottom, "Moved to bottom"),
+            (args.move_up, _qmod.move_up, get_msg("label_moved_up", "Moved up")),
+            (args.move_down, _qmod.move_down, get_msg("label_moved_down", "Moved down")),
+            (args.move_to_top, _qmod.move_to_top, get_msg("label_moved_to_top", "Moved to top")),
+            (args.move_to_bottom, _qmod.move_to_bottom, get_msg("label_moved_to_bottom", "Moved to bottom")),
         ]
         for val, func, label in ops:
             if val is not None:
                 if func(val):
-                    print(f"{BOLD}{GREEN}{label}{RESET} item {val}.")
+                    print(f"{BOLD}{GREEN}{label}{RESET} {get_msg('label_queue_item', 'item')} {val}.")
                 else:
-                    print(f"{BOLD}{RED}Failed to move{RESET} item {val}.", file=sys.stderr)
+                    print(f"{BOLD}{RED}{get_msg('label_failed_to_move', 'Failed to move')}{RESET} {get_msg('label_queue_item', 'item')} {val}.", file=sys.stderr)
                     return 1
         return 0
 
@@ -502,11 +506,11 @@ def _queue_add_interactive(tool, args):
             _qmod = _load_queue_module()
             _qmod.add(text)
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
-            print(f"{BOLD}{GREEN}Successfully saved{RESET} to queue.")
+            print(f"{BOLD}{GREEN}{get_msg('label_successfully_saved', 'Successfully saved')}{RESET} {get_msg('label_to_queue', 'to queue')}.")
             return 0
 
     sys.stdout.write("\r\033[K"); sys.stdout.flush()
-    print(f"{BOLD}Queue{RESET}: nothing to save (empty input).")
+    print(f"{BOLD}{get_msg('label_queue', 'Queue')}{RESET}: {get_msg('label_queue_nothing_to_save', 'nothing to save (empty input).')}")
     return 1
 
 
@@ -574,13 +578,15 @@ win.run()
             new_items = res.get("data", [])
             if isinstance(new_items, list):
                 replace_all(new_items)
-                print(f"{BOLD}{GREEN}Successfully saved{RESET} queue ({len(new_items)} item{'s' if len(new_items) != 1 else ''}).")
+                n = len(new_items)
+                unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
+                print(f"{BOLD}{GREEN}{get_msg('label_successfully_saved', 'Successfully saved')}{RESET} {get_msg('label_queue', 'queue')} ({n} {unit}).")
             return 0
         elif res.get("status") == "cancelled":
-            print(f"{BOLD}Cancelled{RESET} queue editor.")
+            print(f"{BOLD}{get_msg('label_cancelled_queue_editor', 'Cancelled queue editor.')}{RESET}")
             return 0
         else:
-            print(f"{BOLD}{RED}Failed to save{RESET} queue.", file=sys.stderr)
+            print(f"{BOLD}{RED}{get_msg('label_failed_to_save', 'Failed to save')}{RESET} {get_msg('label_queue', 'queue')}.", file=sys.stderr)
             return 1
     finally:
         if os.path.exists(tmp_path):
@@ -625,12 +631,16 @@ def _handle_config(tool, args, unknown):
     if isinstance(prompts, str):
         prompts = [prompts]
 
+    sp_label = get_msg("label_system_prompts", "System prompts")
+
     # --list: show system prompts
     if c_args.list:
         if not prompts:
-            print(f"{BOLD}System prompts{RESET}: empty.")
+            print(f"{BOLD}{sp_label}{RESET}: {get_msg('label_system_prompts_empty', 'empty.')}")
         else:
-            print(f"{BOLD}System prompts{RESET} ({len(prompts)} item{'s' if len(prompts) != 1 else ''}):")
+            n = len(prompts)
+            unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
+            print(f"{BOLD}{sp_label}{RESET} ({n} {unit}):")
             for i, p in enumerate(prompts):
                 display = p if len(p) <= 80 else p[:77] + "..."
                 print(f"  {i}: {display}")
@@ -643,12 +653,19 @@ def _handle_config(tool, args, unknown):
     # --move-* for system prompts
     has_reorder = any(v is not None for v in [c_args.move_up, c_args.move_down, c_args.move_to_top, c_args.move_to_bottom])
     if has_reorder:
+        label_map = {
+            "up": get_msg("label_moved_up", "Moved up"),
+            "down": get_msg("label_moved_down", "Moved down"),
+            "top": get_msg("label_moved_to_top", "Moved to top"),
+            "bottom": get_msg("label_moved_to_bottom", "Moved to bottom"),
+        }
         ops = [
             (c_args.move_up, "up"),
             (c_args.move_down, "down"),
             (c_args.move_to_top, "top"),
             (c_args.move_to_bottom, "bottom"),
         ]
+        sp_item = get_msg("label_system_prompt_item", "system prompt")
         for val, direction in ops:
             if val is not None:
                 ok = _reorder_prompt(prompts, val, direction)
@@ -656,10 +673,9 @@ def _handle_config(tool, args, unknown):
                     config["system_prompt"] = prompts
                     with open(TOOL_INTERNAL / "config.json", 'w') as f:
                         json.dump(config, f, indent=2, ensure_ascii=False)
-                    label_map = {"up": "Moved up", "down": "Moved down", "top": "Moved to top", "bottom": "Moved to bottom"}
-                    print(f"{BOLD}{GREEN}{label_map[direction]}{RESET} system prompt {val}.")
+                    print(f"{BOLD}{GREEN}{label_map[direction]}{RESET} {sp_item} {val}.")
                 else:
-                    print(f"{BOLD}{RED}Failed to move{RESET} system prompt {val}.", file=sys.stderr)
+                    print(f"{BOLD}{RED}{get_msg('label_failed_to_move', 'Failed to move')}{RESET} {sp_item} {val}.", file=sys.stderr)
                     return 1
         return 0
 
@@ -692,7 +708,7 @@ def _handle_config(tool, args, unknown):
         with open(TOOL_INTERNAL / "config.json", 'w') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
-        print(f"{BOLD}{GREEN}Successfully updated{RESET} USERINPUT configuration:")
+        print(f"{BOLD}{GREEN}{get_msg('label_successfully_updated', 'Successfully updated')}{RESET} USERINPUT configuration:")
         for k, v in config.items():
             if k == "system_prompt" and isinstance(v, list):
                 print(f"  {k}:")
@@ -790,13 +806,15 @@ win.run()
                 config["system_prompt"] = new_prompts
                 with open(TOOL_INTERNAL / "config.json", 'w') as f:
                     json.dump(config, f, indent=2, ensure_ascii=False)
-                print(f"{BOLD}{GREEN}Successfully saved{RESET} system prompts ({len(new_prompts)} item{'s' if len(new_prompts) != 1 else ''}).")
+                n = len(new_prompts)
+                unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
+                print(f"{BOLD}{GREEN}{get_msg('label_successfully_saved', 'Successfully saved')}{RESET} {get_msg('label_system_prompts', 'system prompts')} ({n} {unit}).")
             return 0
         elif res.get("status") == "cancelled":
-            print(f"{BOLD}Cancelled{RESET} system prompt editor.")
+            print(f"{BOLD}{get_msg('label_cancelled_prompt_editor', 'Cancelled system prompt editor.')}{RESET}")
             return 0
         else:
-            print(f"{BOLD}{RED}Failed to save{RESET} system prompts.", file=sys.stderr)
+            print(f"{BOLD}{RED}{get_msg('label_failed_to_save', 'Failed to save')}{RESET} {get_msg('label_system_prompts', 'system prompts')}.", file=sys.stderr)
             return 1
     finally:
         if os.path.exists(tmp_path):
@@ -826,7 +844,7 @@ def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=Fal
         clipboard_parts.append(f"{status_label}: {content}")
     elif from_queue:
         success_label = get_msg("label_successfully_received_from_queue", "Successfully received from queue")
-        suffix = f" ({queue_remaining} remaining)" if queue_remaining > 0 else ""
+        suffix = f" ({queue_remaining} {get_msg('label_remaining', 'remaining')})" if queue_remaining > 0 else ""
         final_output_parts.append(f"{BOLD}{GREEN}{success_label}{RESET}{suffix}: {result}")
         clipboard_parts.append(f"{success_label}{suffix}: {result}")
     else:

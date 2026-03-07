@@ -9,6 +9,8 @@
 | `USERINPUT --enquiry --hint "question"` | Ask user a specific question, bypassing queue. |
 | `USERINPUT --hint "context"` | Get feedback with context hint (may claim from queue). |
 | `USERINPUT --queue` | Add a prompt to the queue via GUI. |
+| `USERINPUT --queue --add "text"` | Add a prompt to the queue directly. |
+| `USERINPUT --queue --delete <id>` | Delete a queued prompt by index. |
 | `USERINPUT --queue --list` | List all queued prompts. |
 | `USERINPUT --queue --gui` | Open queue manager GUI. |
 | `USERINPUT config --list` | List system prompts. |
@@ -38,8 +40,8 @@ Typical scenarios:
 System prompts are appended to every USERINPUT response. Manage them via CLI:
 
 ```bash
-USERINPUT config --add-prompt "New rule"
-USERINPUT config --remove-prompt 0
+USERINPUT config --add "New rule"
+USERINPUT config --delete 0
 USERINPUT config --move-up 3
 USERINPUT config --list
 USERINPUT config --gui

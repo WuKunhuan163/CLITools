@@ -1,6 +1,5 @@
 {
   "prompts": [
-    "能否把当前的interface由工具的logic目录移出来，放到工具的根目录下（包括TOOL工具）？我们以后将logic视作工具的具体内部实现，不希望除开本工具以外的工具调用某个工具的logic。",
     "USERINPUT输入@的时候，有时候是用户粘贴邮箱等操作，并不是直接从键盘里敲入@。请让USERINPUT调用中央keyboard捕获（它们的实现在logic/accessibility/keyboard/monitor.py），只在快捷键盘的情况下才出发FILEDIALOG。",
     "请localize一下新的USERINPUT的功能的图灵机状态（例如，Successfully saved to queue.还是英文，没有翻译成中文等其他语言）"
   ]
