@@ -1153,6 +1153,384 @@ def _run_notebook_action(tool, args):
     pm.run(ephemeral=True)
 
 
+_CELL_TOOLBAR_BUTTONS = {
+    "move-up": {
+        "id": "button-move-cell-up", "label": "Move cell up", "icon": "arrow_upward",
+        "api_fn": "(function(){{ var nb = colab.global.notebook; var c = nb.cells;"
+                  " if(Array.isArray(c) && c.length > {idx}) nb.moveCell([c[{idx}]], -1, 0);"
+                  " return 'ok'; }})()",
+    },
+    "move-down": {
+        "id": "button-move-cell-down", "label": "Move cell down", "icon": "arrow_downward",
+        "api_fn": "(function(){{ var nb = colab.global.notebook; var c = nb.cells;"
+                  " if(Array.isArray(c) && c.length > {idx}) nb.moveCell([c[{idx}]], 1, 0);"
+                  " return 'ok'; }})()",
+    },
+    "delete": {
+        "id": "button-delete-cell-or-selection", "label": "Delete cell", "icon": "delete",
+        "api_fn": "(function(){{ var nb = colab.global.notebook; var c = nb.cells;"
+                  " if(Array.isArray(c) && c.length > {idx}) nb.removeCells([c[{idx}]]);"
+                  " return 'ok'; }})()",
+    },
+    "edit": {"id": "button-toggle-edit-markdown", "label": "Edit cell", "icon": "edit"},
+    "more": {"id": "button-more-actions", "label": "More actions", "icon": "more_vert"},
+}
+
+_CELL_MORE_MENU_ITEMS = {
+    "select": {"text": "Select cell", "label": "Select cell"},
+    "copy-link": {"text": "Copy link to cell", "label": "Copy link to cell"},
+    "cut": {"text": "Cut cell", "label": "Cut cell"},
+    "copy": {"text": "Copy cell", "label": "Copy cell"},
+    "comment": {"text": "Add a comment", "label": "Add comment"},
+    "editor-settings": {"text": "Open editor settings", "label": "Editor settings"},
+    "mirror": {"text": "Mirror cell in tab", "label": "Mirror in tab"},
+    "scratch": {"text": "Copy to scratch cell", "label": "Copy to scratch"},
+    "form": {"text": "Add a form", "label": "Add form"},
+}
+
+_SIDEBAR_BUTTONS = {
+    "toc": {"aria": "Table of contents", "label": "Table of contents"},
+    "find": {"aria": "Find and replace", "label": "Find and replace"},
+    "snippets": {"aria": "Code snippets", "label": "Code snippets"},
+    "inspector": {"aria": "Data inspector", "label": "Data inspector"},
+    "secrets": {"aria": "Secrets", "label": "Secrets"},
+    "files": {"aria": "Files", "label": "Files"},
+    "data-explorer": {"aria": "Data explorer", "label": "Data explorer"},
+}
+
+
+def _focus_and_hover_cell(cdp, cell_idx: int):
+    """Focus a Colab cell and hover to trigger its toolbar.
+
+    Colab lazily creates the toolbar (colab-cell-toolbar inside shadow DOM)
+    only for the currently focused cell.  This function:
+      1. Defocuses all cells via API
+      2. Focuses the target cell via API + real click on the left margin
+         (left-margin click puts the cell in *command* mode, not edit mode)
+      3. Hovers to make the toolbar visible
+
+    Returns True if the toolbar appeared on the target cell.
+    """
+    import time, json as _json
+    from logic.chrome.session import real_click
+
+    cdp.evaluate(
+        f"(function(){{ var c = colab.global.notebook.cells;"
+        f" for(var i=0;i<c.length;i++) c[i].setFocused(false);"
+        f" if(c.length > {cell_idx}) c[{cell_idx}].setFocused(true); }})()"
+    )
+    time.sleep(0.3)
+
+    box_js = (
+        f"(function(){{ var el = document.querySelectorAll('.cell')[{cell_idx}];"
+        f" if(!el) return null;"
+        f" el.scrollIntoView({{block:'center'}});"
+        f" var r = el.getBoundingClientRect();"
+        f" return JSON.stringify({{x: r.x + 20, y: r.y + r.height/2}}); }})()"
+    )
+    box = cdp.evaluate(box_js)
+    if not box:
+        return False
+    coords = _json.loads(box)
+    real_click(cdp, int(coords["x"]), int(coords["y"]))
+    time.sleep(0.5)
+
+    hover_js = (
+        f"(function(){{ var el = document.querySelectorAll('.cell')[{cell_idx}];"
+        f" if(!el) return null;"
+        f" var r = el.getBoundingClientRect();"
+        f" return JSON.stringify({{x: r.x + r.width/2, y: r.y + 10}}); }})()"
+    )
+    hover_box = cdp.evaluate(hover_js)
+    if hover_box:
+        hcoords = _json.loads(hover_box)
+        cdp.send_and_recv("Input.dispatchMouseEvent", {
+            "type": "mouseMoved",
+            "x": int(hcoords["x"]),
+            "y": int(hcoords["y"]),
+        }, timeout=5)
+    time.sleep(1.0)
+
+    has_toolbar = cdp.evaluate(
+        f"(function(){{ var el = document.querySelectorAll('.cell')[{cell_idx}];"
+        f" if(!el) return false;"
+        f" var ct = el.querySelector('.cell-toolbar colab-cell-toolbar');"
+        f" return !!(ct && ct.shadowRoot); }})()"
+    )
+    return str(has_toolbar).lower() == "true"
+
+
+def _click_cell_toolbar_button(cdp, button_id: str, cell_idx: int = -1):
+    """Click a button in the focused cell's toolbar shadow DOM.
+
+    Colab only creates colab-cell-toolbar for the currently focused cell.
+    _focus_and_hover_cell() must be called first.
+
+    When cell_idx >= 0, verifies the focused cell matches before clicking.
+    Returns 'clicked', 'no_cell', 'no_toolbar', or 'no_button'.
+    """
+    idx_check = f"cells.length <= {cell_idx}" if cell_idx >= 0 else "false"
+    target = (
+        f"cells[{cell_idx}]" if cell_idx >= 0
+        else "document.querySelector('.cell.focused') || cells[0]"
+    )
+    sel = (
+        f"(function(){{ var cells = document.querySelectorAll('.cell');"
+        f" if({idx_check}) return 'no_cell';"
+        f" var cell = {target};"
+        f" var tb = cell.querySelector('.cell-toolbar colab-cell-toolbar');"
+        f" if(!tb || !tb.shadowRoot) return 'no_toolbar';"
+        f" var btn = tb.shadowRoot.querySelector('#{button_id}');"
+        f" if(!btn) return 'no_button';"
+        f" btn.click(); return 'clicked'; }})()"
+    )
+    return cdp.evaluate(sel)
+
+
+def _click_cell_more_menu_item(cdp, menu_text: str, cell_idx: int = -1):
+    """Open the 'More actions' menu on the focused cell and click a menu item by text.
+
+    Uses real_click (CDP mouse events) because Colab's Closure Library
+    menu items don't respond to element.click().
+    Returns 'clicked', 'no_toolbar', 'no_menu', or 'no_item'.
+    """
+    import time as _time, json as _json
+    from logic.chrome.session import real_click
+
+    result = _click_cell_toolbar_button(cdp, "button-more-actions", cell_idx)
+    if result != "clicked":
+        return result
+    _time.sleep(1.0)
+
+    coords_js = (
+        f"(function(){{ var items = document.querySelectorAll('[role=menuitem]');"
+        f" for(var i=0; i<items.length; i++){{"
+        f"   var r = items[i].getBoundingClientRect();"
+        f"   if(r.width > 0 && items[i].textContent.trim() === '{menu_text}')"
+        f"     return JSON.stringify({{x: r.x + r.width/2, y: r.y + r.height/2}});"
+        f" }} return ''; }})()"
+    )
+    coords_raw = cdp.evaluate(coords_js)
+    if not coords_raw:
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "Escape", "code": "Escape"
+        }, timeout=5)
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": "Escape", "code": "Escape"
+        }, timeout=5)
+        return "no_item"
+
+    coords = _json.loads(coords_raw)
+    real_click(cdp, int(coords["x"]), int(coords["y"]))
+    _time.sleep(0.5)
+    return "clicked"
+
+
+def _run_cell_focus(tool, args):
+    """Handle 'GOOGLE.GC cell focus --index N [--toolbar-click BUTTON] [--menu-click ITEM]'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    cell_idx = getattr(args, "index", 0)
+    tb_click = getattr(args, "toolbar_click", "")
+    menu_click = getattr(args, "menu_click", "")
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_focus(stage=None):
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        cell_count = cdp.evaluate(
+            "(function(){ var c = colab.global.notebook.cells;"
+            " return Array.isArray(c) ? c.length : 0; })()"
+        )
+        total = int(cell_count or 0)
+        if total == 0 or cell_idx >= total:
+            if stage:
+                stage.error_brief = f"Cell {cell_idx} not found ({total} cells)."
+            return False
+
+        sel = f".cell:nth-child({cell_idx + 1})"
+        if ov:
+            ov.inject_highlight(cdp, sel, label=f"Focus cell [{cell_idx}]", color="#1a73e8")
+            time.sleep(0.8)
+
+        ok = _focus_and_hover_cell(cdp, cell_idx)
+        if ov:
+            ov.remove_highlight(cdp)
+            ov.increment_mcp_count(cdp, 1)
+
+        if not ok:
+            if stage:
+                stage.error_brief = f"Failed to focus cell {cell_idx} (toolbar not found)."
+            return False
+        return True
+
+    def stage_toolbar_click(stage=None):
+        if not tb_click:
+            return True
+
+        import time as _time
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        btn_info = _CELL_TOOLBAR_BUTTONS.get(tb_click)
+        if not btn_info:
+            if stage:
+                avail = ", ".join(_CELL_TOOLBAR_BUTTONS.keys())
+                stage.error_brief = f"Unknown button '{tb_click}'. Available: {avail}"
+            return False
+
+        api_fn = btn_info.get("api_fn")
+        if api_fn:
+            result = cdp.evaluate(api_fn.format(idx=cell_idx))
+            if ov:
+                ov.increment_mcp_count(cdp, 1)
+            _time.sleep(0.5)
+            return True
+
+        result = _click_cell_toolbar_button(cdp, btn_info["id"], cell_idx=cell_idx)
+        if result != "clicked":
+            if stage:
+                stage.error_brief = f"Button '{tb_click}' not found ({result})."
+            return False
+
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        _time.sleep(0.5)
+        return True
+
+    def stage_menu_click(stage=None):
+        if not menu_click:
+            return True
+
+        import time as _time
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        item_info = _CELL_MORE_MENU_ITEMS.get(menu_click)
+        if not item_info:
+            if stage:
+                avail = ", ".join(_CELL_MORE_MENU_ITEMS.keys())
+                stage.error_brief = f"Unknown menu item '{menu_click}'. Available: {avail}"
+            return False
+
+        result = _click_cell_more_menu_item(cdp, item_info["text"], cell_idx=cell_idx)
+        if result != "clicked":
+            if stage:
+                stage.error_brief = f"Menu item '{menu_click}' failed ({result})."
+            return False
+
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        _time.sleep(0.5)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage(
+        "connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage(
+        "find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage(
+        "focus", stage_focus,
+        active_status="Focusing on", active_name=f"cell [{cell_idx}]...",
+        success_status="Focused on", success_name=f"cell [{cell_idx}].",
+        fail_status="Failed to focus on", fail_name=f"cell [{cell_idx}].",
+    ))
+    if tb_click:
+        btn_label = _CELL_TOOLBAR_BUTTONS.get(tb_click, {}).get("label", tb_click)
+        pm.add_stage(TuringStage(
+            "toolbar_click", stage_toolbar_click,
+            active_status="Clicking", active_name=f"{btn_label}...",
+            success_status="Clicked", success_name=f"{btn_label}.",
+            fail_status="Failed to click", fail_name=f"{btn_label}.",
+        ))
+    if menu_click:
+        menu_label = _CELL_MORE_MENU_ITEMS.get(menu_click, {}).get("label", menu_click)
+        pm.add_stage(TuringStage(
+            "menu_click", stage_menu_click,
+            active_status="Clicking menu:", active_name=f"{menu_label}...",
+            success_status="Clicked menu:", success_name=f"{menu_label}.",
+            fail_status="Failed to click menu:", fail_name=f"{menu_label}.",
+        ))
+    pm.add_stage(TuringStage(
+        "cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
+def _run_sidebar_action(tool, args):
+    """Handle 'GOOGLE.GC sidebar <panel>'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    panel = getattr(args, "panel", "toc")
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    panel_info = _SIDEBAR_BUTTONS.get(panel, {})
+    aria_label = panel_info.get("aria", panel)
+
+    def stage_click_panel(stage=None):
+        cdp = ctx["cdp"]
+        interact = ctx["interact"]
+        ov = ctx["overlay"]
+
+        sel = f'md-icon-button[aria-label="{aria_label}"]'
+        if interact:
+            interact.mcp_click(
+                cdp, sel,
+                label=panel_info.get("label", panel), dwell=1.0,
+                color="#1a73e8", tool_name="GC",
+            )
+        else:
+            cdp.evaluate(
+                f"(function(){{ var el = document.querySelector('{sel}');"
+                f" if(el) el.click(); }})()"
+            )
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(1.0)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage(
+        "connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage(
+        "find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage(
+        "click_panel", stage_click_panel,
+        active_status="Opening", active_name=f"{panel_info.get('label', panel)}...",
+        success_status="Opened", success_name=f"{panel_info.get('label', panel)}.",
+        fail_status="Failed to open", fail_name=f"{panel_info.get('label', panel)}.",
+    ))
+    pm.add_stage(TuringStage(
+        "cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
 def main():
     tool = GCTool()
 
@@ -1215,6 +1593,20 @@ def main():
     cell_move.add_argument("--index", type=int, default=0, help="Cell index (0-based)")
     cell_move.add_argument("--direction", choices=["up", "down"], required=True,
                            help="Direction to move the cell")
+
+    cell_focus = cell_sub.add_parser("focus", help="Focus a cell and optionally click toolbar button")
+    cell_focus.add_argument("--index", type=int, default=0, help="Cell index (0-based)")
+    cell_focus.add_argument("--toolbar-click", default="",
+                            choices=["", "move-up", "move-down", "delete", "edit", "more"],
+                            help="Click a cell toolbar button after focusing")
+    cell_focus.add_argument("--menu-click", default="",
+                            choices=[""] + list(_CELL_MORE_MENU_ITEMS.keys()),
+                            help="Click a 'More actions' menu item (opens ellipsis menu)")
+
+    # GOOGLE.GC sidebar <panel>
+    sb_p = subparsers.add_parser("sidebar", help="Toggle Colab sidebar panels")
+    sb_p.add_argument("panel", choices=list(_SIDEBAR_BUTTONS.keys()),
+                      help="Sidebar panel to toggle")
 
     # GOOGLE.GC runtime <action>
     rt_p = subparsers.add_parser("runtime", help="Control Colab runtime via MCP")
@@ -1302,8 +1694,13 @@ def main():
             _run_cell_delete(tool, args)
         elif action == "move":
             _run_cell_move(tool, args)
+        elif action == "focus":
+            _run_cell_focus(tool, args)
         else:
             _run_cell_action(tool, args)
+
+    elif args.command == "sidebar":
+        _run_sidebar_action(tool, args)
 
     elif args.command == "runtime":
         _run_runtime_action(tool, args)
