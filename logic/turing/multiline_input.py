@@ -47,7 +47,7 @@ BLUE = get_color("BLUE")
 RESET = get_color("RESET")
 
 _PLACEHOLDER_STYLE = DIM
-_SUBMIT_STYLE = BLUE
+_SUBMIT_STYLE = get_color("CYAN", "\033[36m")
 
 
 def _char_width(ch: str) -> int:
@@ -175,7 +175,7 @@ def multiline_input(
                 injected = inject_check()
                 if injected is not None:
                     _clear_area(vis_row, vis_total)
-                    text = injected.strip().rstrip("\n")
+                    text = injected.strip()
                     _show_submitted(display_prompt, cont_pfx, text, submit_color)
                     return text
 
@@ -196,7 +196,7 @@ def multiline_input(
 
             # Ctrl+D or Ctrl+J -> submit
             if ch in (b'\x04', b'\x0a'):
-                text = "\n".join(lines).rstrip("\n")
+                text = "\n".join(lines)
                 _clear_area(vis_row, vis_total)
                 _show_submitted(display_prompt, cont_pfx, text, submit_color)
                 return text
@@ -257,7 +257,7 @@ def multiline_input(
 
                 # Ctrl+Enter via CSI u encoding
                 if seq == b'[13;5u':
-                    text = "\n".join(lines).rstrip("\n")
+                    text = "\n".join(lines)
                     _clear_area(vis_row, vis_total)
                     _show_submitted(display_prompt, cont_pfx, text, submit_color)
                     return text

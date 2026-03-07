@@ -93,10 +93,14 @@ Features:
 
 #### Visual indicator system
 
-| State | First line | Continuation lines |
-|-------|-----------|-------------------|
-| Input (idle) | `□ text` | `║ text` |
-| Running | `■ text` | `┃ text` |
-| Done (success) | `■ text` (green) | `┃ text` (green) |
-| Done (error) | `■ text` (red) | `┃ text` (red) |
-| Agent output | `> text` (dim) | `\| text` (dim) |
+| State | Indicator | Text color |
+|-------|-----------|-----------|
+| Input (idle) | `□` / `║` (default) | default |
+| Submitted | `□` / `║` (default) | CYAN (command blue) |
+| Running | `■` / `┃` (default) | CYAN (command blue) |
+| Done (success) | `■` / `┃` (green) | CYAN (command blue) |
+| Done (error) | `■` / `┃` (red) | CYAN (command blue) |
+| Agent output | `>` / `\|` (dim) | dim |
+
+**Command blue** (`CYAN` in `logic/config/colors.json`) is the centralized color for
+user-submitted command text. Import via `get_color("CYAN", "\033[36m")`.

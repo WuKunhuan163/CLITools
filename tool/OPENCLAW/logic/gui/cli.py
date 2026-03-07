@@ -425,7 +425,7 @@ class OpenClawCLI:
                 continuation="\u2551 ",
                 placeholder=_("input_placeholder",
                               "Type here, Ctrl+D to submit."),
-                submit_color=BLUE,
+                submit_color=CYAN,
                 inject_check=self._read_ctrl,
             )
             return text
@@ -470,31 +470,37 @@ class OpenClawCLI:
 
     _CONT_RUN = "\u2503"  # ┃ heavy vertical for running state
 
-    def _rewrite_submitted(self, text: str, color: str):
-        """Rewrite all lines of submitted text with the ■ indicator."""
+    def _rewrite_submitted(self, text: str, indicator_color: str):
+        """Rewrite all lines of submitted text with ■/┃ indicators.
+
+        indicator_color controls the color of ■/┃ (empty = default).
+        Text content is always rendered in command blue (CYAN).
+        """
         sys.stdout.flush()
         text_lines = text.split('\n')
         n = len(text_lines)
         sys.stdout.write(f"\033[{n}A")
         for i, line in enumerate(text_lines):
-            if i == 0:
-                pfx = f"{color}{self._ACTIVE}{RESET} " if color else f"{self._ACTIVE} "
+            indicator = self._ACTIVE if i == 0 else self._CONT_RUN
+            if indicator_color:
+                ind = f"{indicator_color}{indicator}{RESET} "
             else:
-                pfx = f"{color}{self._CONT_RUN}{RESET} " if color else f"{self._CONT_RUN} "
-            sys.stdout.write(f"\033[K{pfx}{line}\n")
+                ind = f"{indicator} "
+            sys.stdout.write(f"\033[K{ind}{CYAN}{line}{RESET}\n")
         sys.stdout.flush()
 
     def _recolor_indicator(self, text: str, lines_below: int, color: str):
-        """Rewrite the indicator line(s) from a distance, then return cursor."""
+        """Rewrite the indicator line(s) from a distance, then return cursor.
+
+        Indicators (■/┃) get the status color; text stays in command blue.
+        """
         text_lines = text.split('\n')
         n = len(text_lines)
         up = lines_below + n
         sys.stdout.write(f"\033[{up}A")
         for i, line in enumerate(text_lines):
-            if i == 0:
-                sys.stdout.write(f"\033[K{color}{self._ACTIVE}{RESET} {line}\n")
-            else:
-                sys.stdout.write(f"\033[K{color}{self._CONT_RUN}{RESET} {line}\n")
+            indicator = self._ACTIVE if i == 0 else self._CONT_RUN
+            sys.stdout.write(f"\033[K{color}{indicator}{RESET} {CYAN}{line}{RESET}\n")
         if lines_below > 0:
             sys.stdout.write(f"\033[{lines_below}B")
         sys.stdout.flush()
@@ -1232,7 +1238,7 @@ class OpenClawCLI:
             while True:
                 if self._pending_cmds:
                     text = self._pending_cmds.pop(0)
-                    sys.stdout.write(f"\n{self._IDLE} {text}\n")
+                    sys.stdout.write(f"\n{self._IDLE} {CYAN}{text}{RESET}\n")
                     sys.stdout.flush()
                 else:
                     ctrl = self._read_ctrl()
