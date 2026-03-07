@@ -234,8 +234,16 @@ class CDMCPSession:
                         self._connect(tab)
                     return True
 
-        _log_session("tab_lost", self.name, "Reopening in new window...")
-        tab_id = self._open_in_new_window(self.lifetime_tab_url)
+        recovery_url = self.lifetime_tab_url
+        if recovery_url and "127.0.0.1" in recovery_url and "/welcome" in recovery_url:
+            welcome_html = _TOOL_DIR / "data" / "welcome.html"
+            if welcome_html.exists():
+                query = recovery_url.split("?", 1)[1] if "?" in recovery_url else ""
+                recovery_url = f"file://{welcome_html}?{query}" if query else f"file://{welcome_html}"
+                self.lifetime_tab_url = recovery_url
+
+        _log_session("tab_lost", self.name, f"Reopening in new window (url={recovery_url[:60]})")
+        tab_id = self._open_in_new_window(recovery_url)
         if not tab_id:
             if not open_tab(self.lifetime_tab_url, self.port):
                 return False
@@ -255,8 +263,11 @@ class CDMCPSession:
         if tab:
             self.lifetime_tab_id = tab.get("id")
             self._connect(tab)
+            self._capture_window_id(tab)
             self.tab_was_recovered = True
-            _log_session("tab_reopened", self.name, f"tabId={self.lifetime_tab_id}")
+            _log_session("tab_reopened", self.name,
+                         f"tabId={self.lifetime_tab_id} windowId={self.window_id}")
+            _save_state()
             return True
         return False
 
@@ -402,9 +413,14 @@ class CDMCPSession:
                          f"label={label} auto_open={auto_open}")
             return None
 
-        # 3. Open the URL in the session window
+        # 3. Ensure the session window is alive before opening a tab in it.
+        #    If the window was closed, ensure_tab will reboot the lifetime
+        #    tab in a fresh window and capture the new window_id.
+        if self.lifetime_tab_url:
+            self.ensure_tab()
+
         _log_session("require_tab:opening", self.name,
-                     f"label={label} url={open_url}")
+                     f"label={label} url={open_url} windowId={self.window_id}")
         new_tab_id = self.open_tab_in_session(open_url)
         if not new_tab_id:
             return None
