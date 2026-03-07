@@ -142,7 +142,7 @@ def _execute_remote_edit(tool, state_mgr, load_logic, utils,
             stage.error_brief = msg
         return False
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
         "user action", gui_action,
         active_status="Waiting for", active_name="user action",

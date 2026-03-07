@@ -147,7 +147,7 @@ def execute(tool, remote_command, state_mgr, load_logic, no_capture=False, no_fe
     retrieved = _t(tool, "turing_retrieved_result", "Retrieved")
     exec_result = _t(tool, "turing_execution_result", "execution result.")
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
         "user action", gui_action,
         active_status="", active_name=waiting_label,

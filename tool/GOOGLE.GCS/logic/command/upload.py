@@ -116,7 +116,7 @@ def _upload_small(tool, local_path, filename, file_size,
         return code == 0
 
     size_str = _human_size(file_size)
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage("upload", do_upload,
         active_status="Uploading", active_name=f"{filename} ({size_str})",
         fail_status="Failed to upload", fail_name=filename,
@@ -193,7 +193,7 @@ def _upload_via_drive_desktop(tool, local_path, filename, file_size,
             return False
         return True
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage("copy", copy_stage,
         active_status="Copying", active_name=f"{filename} to sync folder",
         fail_status="Failed to copy", fail_name="file",
@@ -300,7 +300,7 @@ def _upload_large(tool, local_path, filename, file_size,
             stage.error_brief = "Remote mv command failed."
         return code == 0
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage("upload", gui_stage,
         active_status="Waiting for", active_name="manual upload",
         fail_status="Failed to upload", fail_name="file",

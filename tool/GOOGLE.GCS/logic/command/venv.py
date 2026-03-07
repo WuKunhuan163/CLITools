@@ -190,7 +190,7 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
     from logic.interface.turing import ProgressTuringMachine
     from logic.interface.turing import TuringStage
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
         "user action", gui_action,
         active_status="Waiting for", active_name="user action",

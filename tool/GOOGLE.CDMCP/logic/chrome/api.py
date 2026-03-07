@@ -328,9 +328,14 @@ def boot_session(name: str = "default", url: str = None,
     server_mod = _load_mod("cdmcp_server", _SERVER_PATH)
 
     server_url, _ = server_mod.start_server()
-    welcome_url = f"{server_url}/welcome?session={name}&tool=CDMCP&letter=C&timeout=24h"
 
     session = session_mgr.create_session(name, timeout_sec=86400, port=port)
+    sid_short = session.session_id[:8]
+    created_ts = int(session.created_at) if hasattr(session, 'created_at') else int(time.time())
+    welcome_url = (
+        f"{server_url}/welcome?session_id={sid_short}"
+        f"&port={port}&timeout_sec=86400&created_at={created_ts}"
+    )
     boot_result = session.boot(welcome_url, new_window=True)
 
     if not boot_result.get("ok"):
@@ -338,7 +343,6 @@ def boot_session(name: str = "default", url: str = None,
 
     time.sleep(0.8)
     cdp = session.get_cdp()
-    sid_short = session.session_id[:8]
 
     if cdp:
         tab_id = session.lifetime_tab_id

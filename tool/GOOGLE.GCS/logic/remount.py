@@ -185,6 +185,8 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict):
     btn_copy_text = _("gui_btn_copy", "Copy Script")
     btn_copied_text = _("gui_btn_copied", "Copied!")
     btn_feedback_text = _("gui_btn_feedback", "Feedback")
+    btn_finished_text = _("gui_btn_finished", "Finished")
+    btn_sending_text = _("gui_btn_sending", "Sending...")
     
     def copy_to_clipboard():
         log_remount("Copy Script clicked")
@@ -196,6 +198,9 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict):
         btn.config(text=btn_copied_text, state="disabled")
         btn.after(1500, lambda: btn.config(text=btn_copy_text, state="normal"))
 
+    def on_feedback_click(btn):
+        btn.config(text=btn_sending_text, state="disabled")
+
     buttons = [
         {
             "text": btn_copy_text, 
@@ -204,9 +209,17 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict):
             "close_on_click": False
         },
         {
+            "text": btn_finished_text,
+            "return_value": "Finished",
+            "cmd": None,
+            "close_on_click": True,
+            "disable_seconds": 15
+        },
+        {
             "text": btn_feedback_text,
             "return_value": "Feedback",
-            "cmd": None, 
+            "cmd": None,
+            "on_click": on_feedback_click,
             "close_on_click": True,
             "disable_seconds": 15
         }

@@ -198,7 +198,7 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
     verify_label = _t(tool, "remount_verifying_result", "Verifying the remount result")
 
     pm = ProgressTuringMachine(
-        project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir()
+        project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir()
     )
     pm.add_stage(TuringStage(
         "inject cell", stage_inject,
@@ -313,7 +313,7 @@ def _execute_manual(tool, remount_mod, load_logic, script, metadata):
     verifying_label = _t(tool, "turing_verifying_result", "Verifying the remount result file")
 
     pm = ProgressTuringMachine(
-        project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir()
+        project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir()
     )
     pm.add_stage(TuringStage(
         "user action", gui_action,

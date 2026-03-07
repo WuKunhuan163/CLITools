@@ -64,7 +64,7 @@ def _ls_via_api(tool, args, state_mgr, utils):
         ls_result["items"] = items
         return True
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage("resolve path", resolve_stage,
         active_status="Resolving", active_name="remote path",
         fail_status="Failed to resolve", fail_name="path",

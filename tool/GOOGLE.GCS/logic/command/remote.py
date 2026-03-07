@@ -180,7 +180,7 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
         waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action...")
     verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file...")
 
-    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
+    pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     fail_complete_label = _t(tool, "turing_failed_to_complete", "Failed to complete")
     completed_label = _t(tool, "turing_completed_user_action", "Completed")
     user_action_label = _t(tool, "turing_user_action", "user action.")

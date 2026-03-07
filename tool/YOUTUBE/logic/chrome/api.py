@@ -118,10 +118,15 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
     server_mod_path = _CDMCP_TOOL_DIR / "logic" / "cdp" / "server.py"
     server_mod = _load_module("cdmcp_server", server_mod_path)
     server_url, _ = server_mod.start_server()
-    welcome_url = f"{server_url}/welcome?session=youtube&tool=YouTube&letter=Y&timeout=24h"
+    session = sm.create_session(_session_name, timeout_sec=86400, port=port)
+    sid_short = session.session_id[:8]
+    created_ts = int(session.created_at)
+    welcome_url = (
+        f"{server_url}/welcome?session_id={sid_short}"
+        f"&port={port}&timeout_sec=86400&created_at={created_ts}"
+    )
 
     # Boot with welcome page (opens in new window)
-    session = sm.create_session(_session_name, timeout_sec=86400, port=port)
     boot_result = session.boot(welcome_url, new_window=True)
 
     if not boot_result.get("ok"):
