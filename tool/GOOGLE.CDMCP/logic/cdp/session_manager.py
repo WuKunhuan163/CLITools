@@ -271,6 +271,133 @@ class CDMCPSession:
             return True
         return False
 
+    def full_reboot(self) -> bool:
+        """Perform a full session reboot: new window, pin, overlays, demo.
+
+        Called when recovery detects the session window is gone. Mirrors
+        the boot flow from api.boot_session() so the user gets the same
+        experience as a fresh session.
+
+        Returns True if the reboot succeeded.
+        """
+        import importlib.util
+        import subprocess
+        import sys
+
+        _log_session("full_reboot", self.name, "Starting full reboot...")
+
+        # 1. Build a file:// welcome URL
+        welcome_html = _TOOL_DIR / "data" / "welcome.html"
+        created_ts = int(self.created_at)
+        idle_sec = getattr(self, "timeout_sec", 3600)
+        last_act = int(self.last_activity)
+        welcome_url = (
+            f"file://{welcome_html}?session_id={self.session_id}"
+            f"&port={self.port}&timeout_sec={self.timeout_sec}"
+            f"&created_at={created_ts}"
+            f"&idle_timeout_sec={idle_sec}&last_activity={last_act}"
+        )
+        self.lifetime_tab_url = welcome_url
+
+        # 2. Open new window with welcome page
+        tab_id = self._open_in_new_window(welcome_url)
+        if not tab_id:
+            _log_session("full_reboot:fail", self.name, "Failed to open new window")
+            return False
+
+        time.sleep(1.5)
+
+        tab = None
+        for t in list_tabs(self.port):
+            if t.get("id") == tab_id:
+                tab = t
+                break
+        if not tab:
+            return False
+
+        self.lifetime_tab_id = tab.get("id")
+        self._connect(tab)
+        self._capture_window_id(tab)
+        self._booted = True
+        self.tab_was_recovered = True
+        self.register_tab("welcome", self.lifetime_tab_id,
+                          url=welcome_url, state="active")
+        _save_state()
+
+        # 3. Load overlay module and apply overlays + pin
+        try:
+            overlay_path = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+            spec = importlib.util.spec_from_file_location("cdmcp_ov", str(overlay_path))
+            ov = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ov)
+
+            cdp = self._cdp
+            if cdp:
+                ov.pin_tab_by_target_id(self.lifetime_tab_id, pinned=True, port=self.port)
+                ov.activate_tab(self.lifetime_tab_id, self.port)
+                ov.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
+                ov.inject_badge(cdp, text=f"CDMCP [{self.session_id}]", color="#1a73e8")
+                ov.inject_focus(cdp, color="#1a73e8")
+        except Exception:
+            pass
+
+        # 4. Open demo tab in the same window
+        try:
+            server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+            spec = importlib.util.spec_from_file_location("cdmcp_srv", str(server_path))
+            srv = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(srv)
+
+            server_url, _ = srv.start_server()
+            chat_url = f"{server_url}/chat?session_id={self.session_id}"
+            demo_tab_id = self.open_tab_in_session(chat_url)
+            demo_ws = None
+
+            if demo_tab_id:
+                time.sleep(1.5)
+                for t in list_tabs(self.port):
+                    if t.get("id") == demo_tab_id:
+                        ws = t.get("webSocketDebuggerUrl", "")
+                        if ws:
+                            demo_ws = ws
+                            self.register_tab("demo", demo_tab_id,
+                                              url=chat_url, ws=ws, state="active")
+                            try:
+                                demo_cdp = CDPSession(ws, timeout=10)
+                                ov.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
+                                ov.inject_badge(demo_cdp, text=f"Demo [{self.session_id}]",
+                                                color="#34a853")
+                                demo_cdp.close()
+                            except Exception:
+                                pass
+                        break
+
+            # 5. Start continuous demo in background
+            if demo_ws:
+                project_root = str(_TOOL_DIR.parent.parent)
+                demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
+                inline_code = (
+                    f"import sys, os; os.chdir({project_root!r}); "
+                    f"sys.path.insert(0, {project_root!r}); "
+                    "import importlib.util; "
+                    f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
+                    "mod = importlib.util.module_from_spec(spec); "
+                    "spec.loader.exec_module(mod); "
+                    f"mod.run_demo_on_tab({demo_ws!r}, port={self.port})"
+                )
+                subprocess.Popen(
+                    [sys.executable, "-c", inline_code],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+        except Exception:
+            pass
+
+        _log_session("full_reboot:done", self.name,
+                     f"windowId={self.window_id} tabId={self.lifetime_tab_id}")
+        return True
+
     def get_cdp(self) -> Optional[CDPSession]:
         """Get a live CDP session, reconnecting if necessary."""
         self.touch()
@@ -414,10 +541,19 @@ class CDMCPSession:
             return None
 
         # 3. Ensure the session window is alive before opening a tab in it.
-        #    If the window was closed, ensure_tab will reboot the lifetime
-        #    tab in a fresh window and capture the new window_id.
+        #    If the window was closed, perform a full reboot (pin, overlays,
+        #    demo) so the user gets the same experience as a fresh session.
         if self.lifetime_tab_url:
-            self.ensure_tab()
+            window_alive = False
+            if self.lifetime_tab_id:
+                for t in list_tabs(self.port):
+                    if t.get("id") == self.lifetime_tab_id:
+                        window_alive = True
+                        break
+            if not window_alive:
+                _log_session("require_tab:window_lost", self.name,
+                             "Triggering full reboot...")
+                self.full_reboot()
 
         _log_session("require_tab:opening", self.name,
                      f"label={label} url={open_url} windowId={self.window_id}")
